@@ -48,10 +48,15 @@ class Compiler:
             if arg == str:
                 yield "std::string"
 
+
+    def create_code(self, module_name, cpp_func):
+        with open(os.path.join(self.dest, module_name) + ".hpp", 'w') as fh:
+            fh.write(cpp_func)
+
     def create_module(self, module_name, cpp_func, func_name, arg_types):
         arg_types = ",".join(Compiler.guess_cpp_types(arg_types))
         with open(os.path.join(self.dest, module_name) + ".cpp", 'w') as fh:
-            fh.write(cpp_func)
+            fh.write('\n#include "{0}.hpp"\n'.format(module_name))
             fh.write("\n#include <boost/python.hpp>\n")
             fh.write("BOOST_PYTHON_MODULE(" + module_name + ") {\n")
             fh.write("using namespace boost::python;\n")
@@ -94,6 +99,7 @@ class Compiler:
         cpp_func = CppTranspiler().visit(tree)
         module_name = func_name + "_extern"
 
+        self.create_code(module_name, cpp_func)
         self.create_module(module_name, cpp_func, func_name, arg_types)
         self.create_makefile(module_name)
         with working_directory(self.dest):

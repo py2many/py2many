@@ -112,3 +112,53 @@ BOOST_PYTHON_MODULE(fib_extern) {
 ```
 
 The decorator then chooses the right C++ method to call for you.
+
+## Type mapping
+
+Type mapping only happens when Python needs to call C++ and back.
+Only four basic types are supported and everything is passed by value in
+order to stay sane.
+
+Python   | C++
+---------|-------------
+bool     | bool
+int      | int
+str      | std::string
+list     | std::vector
+tuple    | std::tuple
+
+When an argument or return value in python seems to be list
+we dig deeper to check what types are in that list.
+
+One might support simple structures like this Python class.
+
+```python
+class Person:
+    def __init__(self, prename, name):
+        self.prename = prename
+        self.name = name
+
+    def full_name(self):
+        return self.prename + " " + self.name
+
+    def give_dog(self, dog):
+        self.dog = dog
+```
+
+Knowing that we need to add dog to the struct we can only know by type
+recording.
+
+```c++
+template <typename T1, typename T2, typename T3>
+struct Person {
+    T1 prename;
+    T2 name;
+    T3 dog;
+    auto full_name() {
+        return self.prename + " " + self.name;
+    }
+    void give_dog(T3 dog) {
+        this.dog = dog;
+    }
+};
+```
