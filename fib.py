@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-from cppython import cpp
+from poorjit import cpp
 
 @cpp
 def fib(n):
