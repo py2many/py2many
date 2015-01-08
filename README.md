@@ -1,22 +1,22 @@
-# The worlds poorest JIT compiler
+# The worlds poorest JIT compiler for Python
 
-Just add the `@cpp` to your function and on the next call the following will happen:
+This is a little experiment that shows how far you can go with the C++ 14 `auto` return type and templates.  Just add the `@cpp` to your Python function and on the next call the following will happen:
 
-1. Python function is transpiled into C++ 14 template. This is possible through the `auto` return type of C++ 14 and extensive use of templates.
-2. Type of the arguments to the functions are traced
+1. Python function is transpiled into C++ 14 template.
+2. Types of the arguments the function is being called with are traced.
 3. C++ will be compiled for the traced types
 4. Python bindings are generated with the help of [boost python](http://www.boost.org/doc/libs/1_57_0/libs/python/doc/index.html)
-5. Call C++ version of function for subsequent calls
+5. On subsequent calls the C++ version of the function is called
 
 ## How it works
 
-Consider the worlds worst fibonacci implementation.
+Consider the worlds poorest fibonacci implementation.
 
 ```python
 import sys
-from cppython import Cpp
+from poorjit import cpp
 
-@Cpp
+@cpp
 def fib(n):
     if n == 1:
         return 1
@@ -31,9 +31,9 @@ if __name__ == "__main__":
 ```
 
 Generating the C++ code for a Python function does not require knowing
-the types - as long as you generate a template.
-The above `fib` function can be represented as a template.
+about types -  as long as you generate a template.
 
+The above `fib` function can be represented as the following template.
 
 ```c++
 template <typename T1>
@@ -48,11 +48,11 @@ auto fib(T1 n) {
 }
 ```
 
-When binding to the Python code we have to know the types of the parameters.
-The `@cpp` decorator therefor records the types the function is called with and
-generates and according binding.
+The only time we have to know the types is when we are compiling and binding to the Python code.
+The `@cpp` decorator therefore records the types the function is called with and
+generates the suitable bindings.
 
-```
+```c++
 BOOST_PYTHON_MODULE(fib_extern) {
     boost::python::def("fib", fib<int>);
 }
@@ -60,26 +60,31 @@ BOOST_PYTHON_MODULE(fib_extern) {
 
 ## Trying it out
 
-Because this requires [boost python](http://www.boost.org/doc/libs/1_57_0/libs/python/doc/index.html) and the newest version of clang it will be difficult to
-get this to work on your machine.  I therefore recommend using Docker.
+Requirements:
+
+- [boost python 1.55](http://www.boost.org/doc/libs/1_57_0/libs/python/doc/index.html)
+- clang 3.5
+- clang-format 3.5
+
+It will be difficult to get this to work on your machine.
+I therefore recommend using Docker.
 
 Build the provided dockerfile.
 
 ```
-sudo docker build -t cppython .
+sudo docker build -t poorjit .
 ```
 
-And then run the sample `fib.py`
+And then run the sample `fib.py`.
 
 ```
-docker run -v $(pwd):/root cppython python fib.py 42
+docker run -v $(pwd):/root poorjit python fib.py 42
 ```
-
 
 ## In the future...
 
 It should be possible to compile the C++ function for all the types
-the function is called with. Consider the follwing `add` method.
+the function is called with. Consider the following `add` method.
 
 ```python
 def add(a, b):
@@ -90,8 +95,8 @@ if __name__ == "__main__":
     print(add("Hello", "World"))
 ```
 
-On the first call to add we compile the method for integers and on the second call
-for integers and strings.
+On the first call to `add` we compile the method for `int` and on the second call
+a version for `int` and `str`.
 
 ```
 BOOST_PYTHON_MODULE(fib_extern) {
@@ -100,6 +105,4 @@ BOOST_PYTHON_MODULE(fib_extern) {
 }
 ```
 
-The decorator chooses the right C++ method to call for you.
-
-
+The decorator then chooses the right C++ method to call for you.
