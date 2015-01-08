@@ -1,6 +1,12 @@
 import ast
 
 
+def transpile(source):
+    tree = ast.parse(source)
+    cpp = CppTranspiler().visit(tree)
+    return cpp
+
+
 class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 

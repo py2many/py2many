@@ -16,6 +16,9 @@ class Recorder:
         call = tuple([type(arg) for arg in args])
         self.calls[call] += 1
 
+    def __repr__(self):
+        return self.calls.__repr__()
+
 
 def cpp(py_func):
     """
