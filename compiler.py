@@ -80,6 +80,12 @@ class Compiler:
             fh.write("clean:\n"
                      "\trm -f *.o *.so")
 
+    def try_clang_format(self, filename):
+            try:
+                check_call(["clang-format-3.5", "-i", "-style=LLVM", filename])
+            except OSError:
+                pass
+
     def compile(self, py_func, args):
         func_name = py_func.__name__
         arg_types = [type(arg) for arg in args]
@@ -91,6 +97,5 @@ class Compiler:
         self.create_module(module_name, cpp_func, func_name, arg_types)
         self.create_makefile(module_name)
         with working_directory(self.dest):
-            check_call(["clang-format", "-i", "-style=LLVM",
-                        module_name + ".cpp"])
+            self.try_clang_format(module_name + ".cpp")
             check_call(["make"])
