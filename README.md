@@ -69,7 +69,13 @@ Requirements:
 It will be difficult to get this to work on your machine.
 I therefore recommend using Docker.
 
-Build the provided dockerfile.
+Pull the docker image.
+
+```
+docker pull lukasmartinelli/poorjit
+```
+
+Or build the provided `Dockerfile`.
 
 ```
 sudo docker build -t poorjit .
