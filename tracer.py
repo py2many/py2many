@@ -6,10 +6,8 @@ from context import add_variable_context
 
 
 
-def determine_value(node, position=None):
-    if not position:
-        position = node
-
+def determine_value(node, position):
+#    import pytest; pytest.set_trace()
     if isinstance(node, ast.Num):
         return str(node.n)
     elif isinstance(node, ast.Str):
@@ -20,13 +18,14 @@ def determine_value(node, position=None):
             return node.id
         else:
             return determine_value(var.assigned_from.value, position)
+    elif isinstance(node, ast.Call):
+        params = ",".join([determine_value(arg, position) for arg in node.args])
+        # if possible params should now be values not declvals
+        return "{0}({1})".format(node.func.id, params)
 
 
-def determine_type(node, position=None):
+def determine_type(node, position):
     """Find out type of a given node from the standpoint from position"""
-    if not position:
-        position = node
-
     if isinstance(node, ast.Num):
         return "decltype({0})".format(node.n)
     elif isinstance(node, ast.Str):
@@ -38,7 +37,7 @@ def determine_type(node, position=None):
         else:
             return determine_type(var.assigned_from.value, position)
     elif isinstance(node, ast.Call):
-        params = ",".join([determine_value(arg) for arg in node.args])
+        params = ",".join([determine_value(arg, position) for arg in node.args])
         # if possible params should now be values not declvals
         return "decltype({0}({1}))".format(node.func.id, params)
     else:
