@@ -87,6 +87,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             return super(VariableTransformer, self).visit(node)
 
     def visit_Assign(self, node):
-        new_vars = [t for t in node.targets if isinstance(t.ctx, ast.Store)]
-        self.scope.vars += new_vars
+        for target in node.targets:
+            target.assigned_from = node
+            self.scope.vars.append(target)
         return node
