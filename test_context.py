@@ -1,5 +1,38 @@
 import ast
-from context import add_variable_context
+from context import add_variable_context, add_scopes
+
+
+def test_vars_of_if():
+    source = ast.parse("""
+x = 5
+if True:
+    y = 10
+    x *= y""")
+    add_variable_context(source)
+    assert len(source.vars) == 1
+    assert len(source.body[1].vars) == 1
+
+
+def test_vars_of_else():
+    source = ast.parse("""
+x = 5
+if True:
+    y = 10
+    x *= y
+else:
+    z = 3
+    x *= z""")
+    add_variable_context(source)
+    assert len(source.vars) == 1
+    assert len(source.body[1].vars) == 2  # This is a bug...
+
+
+def test_scope_added():
+    source = ast.parse("""
+def foo():
+    return 10""")
+    add_scopes(source)
+    assert isinstance(source.body[0].body[0].scope, ast.FunctionDef)
 
 
 def test_local_vars_of_function():
@@ -11,8 +44,8 @@ def foo():
     results.append(x)
     return results""")
     add_variable_context(source)
-    assert len(source.context) == 0
-    assert len(source.body[0].context) == 3
+    assert len(source.vars) == 0
+    assert len(source.body[0].vars) == 3
 
 
 def test_local_vars_of_function_with_args():
@@ -20,8 +53,17 @@ def test_local_vars_of_function_with_args():
 def foo(x, y):
     return x + y""")
     add_variable_context(source)
-    assert len(source.context) == 0
-    assert len(source.body[0].context) == 2
+    assert len(source.vars) == 0
+    assert len(source.body[0].vars) == 2
+
+
+def test_vars_from_loop():
+    source = ast.parse("""
+newlist = []
+for x in list:
+    newlist.append(x)""")
+    add_variable_context(source)
+    assert len(source.vars) == 1
 
 
 def test_global_vars_of_module():
@@ -32,5 +74,17 @@ def foo():
     results.append(x)
     return results""")
     add_variable_context(source)
-    assert len(source.context) == 1
-    assert len(source.body[1].context) == 1
+    assert len(source.vars) == 1
+    assert len(source.body[1].vars) == 1
+
+
+def test_vars_inside_loop():
+    source = ast.parse("""
+def foo():
+    results = []
+    for x in range(0, 10):
+        results.append(x)
+    return results""")
+    add_variable_context(source)
+    assert len(source.vars) == 0
+    assert len(source.body[0].body[1].vars) == 1

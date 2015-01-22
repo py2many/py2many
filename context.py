@@ -1,37 +1,81 @@
 import ast
+from contextlib import contextmanager
 
 
 def add_variable_context(node):
     """Provide context to Module and Function Def"""
-    return ModuleContextTransformer().visit(node)
+    return VariableTransformer().visit(node)
 
 
-class ModuleContextTransformer(ast.NodeTransformer):
-    def __init__(self):
-        super(ModuleContextTransformer, self).__init__()
-        self._global_vars = []
-        self._local_vars = []
-        self._function_stack = []
+def add_scopes(node):
+    """Provide to scope context to all nodes"""
+    return ScopeTransformer().visit(node)
 
+
+class ScopeMixin:
+    scopes = []
+
+    @contextmanager
+    def enter_scope(self, node):
+        """Add latest scope to stack and pop it later"""
+        if self._is_scopable_node(node):
+            self.scopes.append(node)
+            yield
+            self.scopes.pop()
+        else:
+            yield
+
+    @property
+    def scope(self):
+        try:
+            return self.scopes[-1]
+        except IndexError:
+            return None
+
+    def _is_scopable_node(self, node):
+        scopes = [ast.Module, ast.FunctionDef, ast.For, ast.If]
+        return len([s for s in scopes if isinstance(node, s)]) > 0
+
+
+class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
+    """Adds parent block to each node as scope"""
+    def _is_scopable_node(self, node):
+        scopes = [ast.Module, ast.FunctionDef, ast.For]
+        return len([s for s in scopes if isinstance(node, s)]) > 0
+
+    def visit(self, node):
+        with self.enter_scope(node):
+            node.scope = self.scope
+            return super(ScopeTransformer, self).visit(node)
+
+
+class VariableTransformer(ast.NodeTransformer, ScopeMixin):
+    """Adds assignment information to For, FunctionDef and Module nodes"""
     def visit_FunctionDef(self, node):
-        self._function_stack.append(node)
+        node.vars = [a for a in node.args.args]
         self.generic_visit(node)
-        self._local_vars.extend(node.args.args)
+        return node
 
-        node.context = self._local_vars
-        self._local_vars = []
+    def visit_If(self, node):
+        node.vars = []
+        self.generic_visit(node)
+        return node
 
+    def visit_For(self, node):
+        node.vars = [node.target]
+        self.generic_visit(node)
         return node
 
     def visit_Module(self, node):
-        node.context = self._global_vars
+        node.vars = []
         self.generic_visit(node)
         return node
 
+    def visit(self, node):
+        with self.enter_scope(node):
+            return super(VariableTransformer, self).visit(node)
+
     def visit_Assign(self, node):
         new_vars = [t for t in node.targets if isinstance(t.ctx, ast.Store)]
-        if(len(self._function_stack) > 0):
-            self._local_vars.extend(new_vars)
-        else:
-            self._global_vars.extend(new_vars)
+        self.scope.vars += new_vars
         return node
