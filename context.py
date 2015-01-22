@@ -7,17 +7,20 @@ def add_variable_context(node):
     return VariableTransformer().visit(node)
 
 
-def add_scopes(node):
+def add_scope_context(node):
     """Provide to scope context to all nodes"""
     return ScopeTransformer().visit(node)
 
 
 class ScopeMixin:
+    """
+    Adds a scope property with the current scope (function, module, for loop)
+    a node is part of.
+    """
     scopes = []
 
     @contextmanager
     def enter_scope(self, node):
-        """Add latest scope to stack and pop it later"""
         if self._is_scopable_node(node):
             self.scopes.append(node)
             yield
@@ -33,15 +36,16 @@ class ScopeMixin:
             return None
 
     def _is_scopable_node(self, node):
-        scopes = [ast.Module, ast.FunctionDef, ast.For, ast.If]
+        scopes = [ast.Module, ast.FunctionDef, ast.For, ast.If, ast.With]
         return len([s for s in scopes if isinstance(node, s)]) > 0
 
 
 class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
-    """Adds parent block to each node as scope"""
-    def _is_scopable_node(self, node):
-        scopes = [ast.Module, ast.FunctionDef, ast.For]
-        return len([s for s in scopes if isinstance(node, s)]) > 0
+    """
+    Adds a scope attribute to each node.
+    The scope contains the current scope (function, module, for loop)
+    a node is part of.
+    """
 
     def visit(self, node):
         with self.enter_scope(node):
@@ -50,7 +54,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
 
 
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
-    """Adds assignment information to For, FunctionDef and Module nodes"""
+    """Adds all defined variables to scope block"""
     def visit_FunctionDef(self, node):
         node.vars = [a for a in node.args.args]
         self.generic_visit(node)
@@ -58,7 +62,14 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_If(self, node):
         node.vars = []
-        self.generic_visit(node)
+        map(self.visit, node.body)
+        node.body_vars = node.vars
+
+        node.vars = []
+        map(self.visit, node.orelse)
+        node.orelse_vars = node.vars
+
+        node.vars = []
         return node
 
     def visit_For(self, node):
