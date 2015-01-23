@@ -51,7 +51,7 @@ def value_expr(node):
     var = node.scopes.find(node.id)
     if isinstance(var.assigned_from, ast.For):
         iter = var.assigned_from.iter
-        return "declval<decltype({0})::value_type>()".format(value_expr(iter))
+        return "std::declval<typename decltype({0})::value_type>()".format(value_expr(iter))
     elif isinstance(var.assigned_from, ast.FunctionDef):
         return var.id
     else:

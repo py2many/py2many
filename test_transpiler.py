@@ -60,7 +60,7 @@ def test_map_function():
     cpp = transpile(source)
     assert cpp == ("template <typename T1, typename T2>\n"
                    "auto map(T1 values, T2 fun) {\n"
-                   "std::vector<decltype(fun(declval"
+                   "std::vector<decltype(fun(std::declval"
                    "<decltype(values)::value_type>()))> results {};\n"
                    "for(auto v : values) {\n"
                    "results.push_back(fun(v));\n"
