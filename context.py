@@ -2,6 +2,11 @@ import ast
 from contextlib import contextmanager
 
 
+def add_list_calls(node):
+    """Provide context to Module and Function Def"""
+    return ListCallTransformer().visit(node)
+
+
 def add_variable_context(node):
     """Provide context to Module and Function Def"""
     return VariableTransformer().visit(node)
@@ -51,6 +56,34 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
         with self.enter_scope(node):
             node.scope = self.scope
             return super(ScopeTransformer, self).visit(node)
+
+
+class ListCallTransformer(ast.NodeTransformer):
+    """
+    Adds all calls to list to scope block.
+    You need to apply VariableTransformer before you use it.
+    """
+    def visit_Call(self, node):
+#        import pytest; pytest.set_trace()
+        if self.is_list_addition(node):
+            var = [d for d in node.scope.vars if d.id == node.func.value.id][0]
+            if self.is_list_assignment(var.assigned_from):
+                if not hasattr(var, "calls"):
+                    var.calls = []
+                var.calls.append(node)
+        return node
+
+    def is_list_assignment(self, node):
+        return (isinstance(node.value, ast.List) and
+                isinstance(node.targets[0].ctx, ast.Store))
+
+    def is_list_addition(self, node):
+        """Check if operation is adding something to a list"""
+        list_operations = ["append", "extend", "insert"]
+        return (isinstance(node.func.ctx, ast.Load) and
+                hasattr(node.func, "value") and
+                isinstance(node.func.value, ast.Name) and
+                node.func.attr in list_operations)
 
 
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):

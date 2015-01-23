@@ -1,70 +1,89 @@
 import ast
-from tracer import determine_type
-from context import add_scope_context, add_variable_context
+from tracer import determine_type, catch_value_expression
+from context import add_scope_context, add_variable_context, add_list_calls
 
 
-def test_standpoint():
-    source = ast.parse("\n".join([
+def parse(lines):
+    source = ast.parse("\n".join(lines))
+    source = add_variable_context(source)
+    source = add_scope_context(source)
+    return source
+
+
+def test_direct_assignment():
+    source = parse(["x = 3"])
+    x = source.body[0]
+    t = determine_type(x)
+    assert t == "decltype(3)"
+
+
+def test_assign_name():
+    source = parse([
         "x = 3",
         "y = x",
-        "z = foo(y)",
-    ]))
-    source = add_variable_context(source)
-    source = add_scope_context(source)
-    call = source.body[2].value
-    arg = call.args[0]
-
-    t = determine_type(arg, position=source.body[0])
-    assert t == "decltype(3)"
+    ])
+    y = source.body[1]
+    t = determine_type(y)
+    assert t == "decltype(x)"
 
 
-def test_simple_fun():
-    source = ast.parse("\n".join([
+def test_assign_function():
+    source = parse([
         "x = 3",
         "y = foo(x)",
-    ]))
-    source = add_variable_context(source)
-    source = add_scope_context(source)
-    call = source.body[1].value
-    arg = call.args[0]
-
-    t = determine_type(arg, source.body[0])
-    assert t == "decltype(3)"
+    ])
+    y = source.body[1]
+    t = determine_type(y)
+    assert t == "decltype(foo(x))"
 
 
-def test_type_number():
-    source = ast.parse("3")
-    number = source.body[0].value
-    t = determine_type(number, source.body[0])
-    assert t == "decltype(3)"
+def test_list_assignment_with_default_values():
+    source = parse([
+        "x = 3",
+        "results = [x]",
+    ])
+    results = source.body[1]
+    t = determine_type(results)
+    assert t == "std::vector<decltype(x)>"
 
+def test_list_assignment_with_function_call_as_value():
+    source = parse([
+        "x = 3",
+        "results = [foo(x)]",
+    ])
+    results = source.body[1]
+    t = determine_type(results)
+    assert t == "std::vector<decltype(foo(x))>"
 
-def test_fun():
-    source = ast.parse("\n".join([
-        "x = w",
+def test_list_assignment_based_on_later_append():
+    source = parse([
+        "x = 3",
+        "results = []",
+        "results.append(x)",
+    ])
+    add_list_calls(source)
+    results = source.body[1]
+    t = determine_type(results)
+    assert t == "std::vector<decltype(x)>" # bug..
+
+def test_catch_long_expression_chain():
+    source = parse([
+        "x = 3 * 1",
+        "y = x - 5",
+        "z = y + 2",
+    ])
+    z = source.body[2]
+    import pytest; pytest.set_trace()
+    t = catch_value_expression(z)
+    assert t == "3 * 1 - 5 + 2"
+
+def test_catch_expression_chain_with_functions():
+    source = parse([
+        "x = 3 * 1",
         "y = foo(x)",
-        "z = bar(y)",
-    ]))
-    source = add_variable_context(source)
-    source = add_scope_context(source)
-    call = source.body[2].value
-    arg = call.args[0]
-
-    t = determine_type(arg, source.body[1])
-    assert t == "decltype(foo(x))" # buggy though..
-
-
-def test_fun2():
-    source = ast.parse("\n".join([
-        "w = 10",
-        "x = foo(w)",
-        "y = bar(x)",
-        "z = y",
-    ]))
-    source = add_variable_context(source)
-    source = add_scope_context(source)
-    name = source.body[2].value
-
-    t = determine_type(name, source.body[0])
-    assert t == "decltype(bar(foo(10)))" # buggy though..
-
+        "z = y + 2",
+    ])
+    z = source.body[2]
+    import pytest; pytest.set_trace()
+    t = catch_value_expression(z)
+    assert t == "foo(3 * 1) + 2"

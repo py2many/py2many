@@ -1,5 +1,22 @@
 import ast
-from context import add_variable_context, add_scope_context
+from context import add_variable_context, add_scope_context, add_list_calls
+
+
+def parse(lines):
+    source = ast.parse("\n".join(lines))
+    return source
+
+
+class TestListCallTransformer:
+    def test_call_added(self):
+        source = parse([
+            "results = []",
+            "results.append(x)",
+        ])
+        add_scope_context(source)
+        add_variable_context(source)
+        add_list_calls(source)
+        assert len(source.scope.vars[0].calls) == 1
 
 
 class TestScopeTransformer:
