@@ -98,6 +98,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             buffer.append('} else {')
             buffer.extend(orelse)
             buffer.append("}")
+        else:
+            buffer.append('}')
 
         return '\n'.join(buffer)
 

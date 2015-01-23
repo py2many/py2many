@@ -60,14 +60,21 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
-        if fname == "int":
-            # return "static_cast<int>({0})".format(self.visit(node.args[0]))
-            return "std::stoi({0})".format(self.visit(node.args[0]))
         if node.args:
             args = [self.visit(a) for a in node.args]
             args = ", ".join(args)
         else:
             args = ''
+
+        if fname == "int":
+            # return "static_cast<int>({0})".format(self.visit(node.args[0]))
+            return "std::stoi({0})".format(args)
+        elif fname == "range" or fname == "xrange":
+            return "py14::range({0})".format(args)
+        elif fname == "len":
+            return "py14::len({0})".format(args)
+
+
         return '{0}({1})'.format(fname, args)
 
     def visit_For(self, node):
@@ -150,8 +157,7 @@ class CppTranspiler(CLikeTranspiler):
         if not isinstance(node.slice, ast.Index):
             raise ValueError("Slice not supported")
 
-        if isinstance(node.ctx, ast.Load):
-            return "{0}[{1}]".format(value, self.visit(node.slice.value))
+        return "{0}[{1}]".format(value, self.visit(node.slice.value))
 
     def visit_Assign(self, node):
         target = node.targets[0]
@@ -165,6 +171,10 @@ class CppTranspiler(CLikeTranspiler):
             return "{0} {1} {{{2}}};".format(decltype(node),
                                             self.visit(target),
                                             ", ".join(elements))
+        elif isinstance(target, ast.Subscript):
+            target = self.visit(target)
+            value = self.visit(node.value)
+            return "{0} = {1};".format(target, value)
         else:
             target = self.visit(target)
             value = self.visit(node.value)
