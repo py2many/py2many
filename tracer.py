@@ -4,127 +4,108 @@ Trace object types that are inserted into Python list.
 import ast
 from context import add_variable_context
 from transpiler import CLikeTranspiler
+from generic.multidispatch import multifunction
 
 
-def catch_value_expression(node):
+def decltype(node):
+    """Create C++ decltype statement"""
+    if is_list(node):
+        return "std::vector<decltype({0})>".format(value_type(node))
+    else:
+        return "decltype({0})".format(value_type(node))
+
+
+def is_list(node):
+    """Check if a node was assigned as a list"""
+    if isinstance(node, ast.List):
+        return True
+    elif isinstance(node, ast.Assign):
+        return is_list(node.value)
+    elif isinstance(node, ast.Name):
+        var = [d for d in node.scope.vars if d.id == node.id][0]
+        return is_list(var.assigned_from.value)
+    else:
+        return False
+
+
+@multifunction(ast.Num)
+def value_expr(node):
     """
     Follow all assignments down the rabbit hole in order to find
     the value expression of a name.
     The boundary is set to the current scope.
     """
-    if isinstance(node, ast.BinOp):
-        return "{0} {1} {2}".format(catch_value_expression(node.left),
-                                    CLikeTranspiler().visit(node.op),
-                                    catch_value_expression(node.right))
-    if isinstance(node, ast.Num):
-        return str(node.n)
-    elif isinstance(node, ast.Str):
-        return node.s
-    elif isinstance(node, ast.Name):
-        var = [d for d in node.scope.vars if d.id == node.id][0]
-        return catch_value_expression(var.assigned_from.value)
-    elif isinstance(node, ast.Call):
-        params = ",".join([catch_value_expression(arg) for arg in node.args])
-        return "{0}({1})".format(node.func.id, params)
-    elif isinstance(node, ast.Assign):
-         return catch_value_expression(node.value)
+    return str(node.n)
+
+@value_expr.when(ast.Str)
+def value_expr(node):
+    return node.s
+
+@value_expr.when(ast.Name)
+def value_expr(node):
+    var = [d for d in node.scope.vars if d.id == node.id][0]
+    return value_expr(var.assigned_from.value)
+
+@value_expr.when(ast.Call)
+def value_expr(node):
+    params = ",".join([value_expr(arg) for arg in node.args])
+    return "{0}({1})".format(node.func.id, params)
+
+@value_expr.when(ast.Assign)
+def value_expr(node):
+        return value_expr(node.value)
+
+@value_expr.when(ast.BinOp)
+def value_expr(node):
+    return "{0} {1} {2}".format(value_expr(node.left),
+                                CLikeTranspiler().visit(node.op),
+                                value_expr(node.right))
 
 
-def determine_value(node):
-    if isinstance(node, ast.Num):
-        return str(node.n)
-    elif isinstance(node, ast.Str):
-        return node.s
-    elif isinstance(node, ast.Name):
-        var = [d for d in node.scope.vars if d.id == node.id][0]
-        if defined_before(var, node):
-            return node.id
-        else:
-            return determine_value(var.assigned_from.value, position)
-    elif isinstance(node, ast.Call):
-        params = ",".join([determine_value(arg) for arg in node.args])
-        # if possible params should now be values not declvals
-        return "{0}({1})".format(node.func.id, params)
-
-
-def determine_type(node):
+@multifunction(ast.Num)
+def value_type(node):
     """
-    Guess the type of a node based on the manipulations or assignments
-    in the current scope
+    Guess the value type of a node based on the manipulations or assignments
+    in the current scope.
+    Special case: If node is a container like a list the value type inside the
+    list is returned not the list type itself.
     """
-    if isinstance(node, ast.Assign):
-        if isinstance(node.value, ast.List):
-            if len(node.value.elts) > 0:
-                val = node.value.elts[0]
-                return "std::vector<decltype({0})>".format(determine_value(val))
-            else:
-                target = node.targets[0]
-                var = [d for d in node.scope.vars if d.id == target.id][0]
-                first_added_value = var.calls[0].args[0]
-                value_type = determine_type(first_added_value)
+    return value_expr(node)
 
-                return "std::vector<{0}>".format(value_type);
+
+@value_type.when(ast.Str)
+def value_type(node):
+    return value_expr(node)
+
+
+@value_type.when(ast.Assign)
+def value_type(node):
+    if isinstance(node.value, ast.List):
+        if len(node.value.elts) > 0:
+            val = node.value.elts[0]
+            return value_type(val)
         else:
-            return "decltype({0})".format(determine_value(node.value))
-    elif isinstance(node, ast.Num):
-        return "decltype({0})".format(node.n)
-    elif isinstance(node, ast.Str):
-        return "std::string"
-    elif isinstance(node, ast.Name):
-        var = [d for d in node.scope.vars if d.id == node.id][0]
-        if defined_before(var, node):
-            return "decltype({0})".format(node.id)
-        else:
-            return determine_type(var.assigned_from.value)
+            target = node.targets[0]
+            var = [d for d in node.scope.vars if d.id == target.id][0]
+            first_added_value = var.calls[0].args[0]
+            return value_expr(first_added_value)
     else:
-        raise ValueError("No list type known for" + str(node))
-    pass
+        return value_type(node.value)
 
 
-class ListTracer(ast.NodeTransformer):
-    """Adds information about which types are added to a list"""
+@value_type.when(ast.Name)
+def value_type(node):
+    var = [d for d in node.scope.vars if d.id == node.id][0]
+    if defined_before(var, node):
+        return node.id
+    else:
+        return value_type(var.assigned_from.value)
 
-    def __init__(self, list_name):
-        super(ListTracer, self).__init__()
-        self.list_name = list_name
-        self.function_calls = []
-        self.list_calls = []
-        self.local_vars = []
 
-    def visit_Call(self, node):
-        if is_list_addition(node) and node.func.value.id == self.list_name:
-            arg = node.args[0]
-            if isinstance(arg, ast.Num):
-                print("decltype({0})".format(arg.n))
-            else:
-                definition = self.find_definition(arg)
-                if defined_before(definition, arg):
-                    pass
-                else:
-                    pass
-            self.list_calls.append(node)
-        return node
-
-    def visit_Assign(self, node):
-        if is_list_assignment(node):
-            self.list_vars.append(node)
-        else:
-            self.local_vars.append(node)
-        return node
-
-    def visit_FunctionDef(self, node):
-        for arg in node.args.args:
-            self.local_vars.append(arg)
-        self.generic_visit(node)
-        node.function_calls = self.function_calls
-        node.local_vars = self.local_vars
-        node.list_vars = self.list_vars
-        return node
-
-    def find_definition(self, node):
-        for var in self.local_vars:
-            if var.id == node.id:
-                return var
+@value_type.when(ast.Call)
+def value_type(node):
+    params = ",".join([value_type(arg) for arg in node.args])
+    return "{0}({1})".format(node.func.id, params)
 
 
 def defined_before(node1, node2):
