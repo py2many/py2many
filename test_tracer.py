@@ -74,7 +74,19 @@ class TestValueType:
         add_list_calls(source)
         results = source.body[0]
         t = value_type(results)
-        assert t == "3" # bug..
+        assert t == "3"
+
+
+    def test_global_list_assignment_with_later_append(self):
+        source = parse([
+            "results = []",
+            "def add_x():",
+            "   results.append(2)",
+        ])
+        add_list_calls(source)
+        results = source.body[0]
+        t = value_type(results)
+        assert t == "2"
 
 
 class TestValueExpr:

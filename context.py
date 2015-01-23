@@ -45,6 +45,14 @@ class ScopeMixin:
         return len([s for s in scopes if isinstance(node, s)]) > 0
 
 
+class ScopeList(list):
+    def find(self, lookup):
+        for scope in self:
+            for var in scope.vars:
+                if var.id == lookup:
+                    return var
+
+
 class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
     """
     Adds a scope attribute to each node.
@@ -54,7 +62,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit(self, node):
         with self.enter_scope(node):
-            node.scope = self.scope
+            node.scopes = ScopeList(self.scopes)
             return super(ScopeTransformer, self).visit(node)
 
 
@@ -66,7 +74,7 @@ class ListCallTransformer(ast.NodeTransformer):
     def visit_Call(self, node):
 #        import pytest; pytest.set_trace()
         if self.is_list_addition(node):
-            var = [d for d in node.scope.vars if d.id == node.func.value.id][0]
+            var = node.scopes.find(node.func.value.id)
             if self.is_list_assignment(var.assigned_from):
                 if not hasattr(var, "calls"):
                     var.calls = []

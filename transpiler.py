@@ -44,7 +44,6 @@ class CppTranspiler(CLikeTranspiler):
         return node.value.id + "." + attr
 
     def visit_Call(self, node):
-        import pytest; pytest.set_trace()
         fname = self.visit(node.func)
         if node.args:
             args = [self.visit(a) for a in node.args]

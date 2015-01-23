@@ -22,7 +22,7 @@ def is_list(node):
     elif isinstance(node, ast.Assign):
         return is_list(node.value)
     elif isinstance(node, ast.Name):
-        var = [d for d in node.scope.vars if d.id == node.id][0]
+        var = node.scopes.find(node.id)
         return is_list(var.assigned_from.value)
     else:
         return False
@@ -43,7 +43,7 @@ def value_expr(node):
 
 @value_expr.when(ast.Name)
 def value_expr(node):
-    var = [d for d in node.scope.vars if d.id == node.id][0]
+    var = node.scopes.find(node.id)
     return value_expr(var.assigned_from.value)
 
 @value_expr.when(ast.Call)
@@ -86,7 +86,7 @@ def value_type(node):
             return value_type(val)
         else:
             target = node.targets[0]
-            var = [d for d in node.scope.vars if d.id == target.id][0]
+            var = node.scopes.find(target.id)
             first_added_value = var.calls[0].args[0]
             return value_expr(first_added_value)
     else:
@@ -95,7 +95,7 @@ def value_type(node):
 
 @value_type.when(ast.Name)
 def value_type(node):
-    var = [d for d in node.scope.vars if d.id == node.id][0]
+    var = node.scopes.find(node.id)
     if defined_before(var, node):
         return node.id
     else:

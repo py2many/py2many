@@ -16,7 +16,7 @@ class TestListCallTransformer:
         add_scope_context(source)
         add_variable_context(source)
         add_list_calls(source)
-        assert len(source.scope.vars[0].calls) == 1
+        assert len(source.scopes[-1].vars[0].calls) == 1
 
 
 class TestScopeTransformer:
@@ -26,9 +26,9 @@ class TestScopeTransformer:
             "   return 10",
         ]))
         add_scope_context(source)
-        assert isinstance(source.scope, ast.Module)
-        assert isinstance(source.body[0].scope, ast.FunctionDef)
-        assert isinstance(source.body[0].body[0].scope, ast.FunctionDef)
+        assert isinstance(source.scopes[-1], ast.Module)
+        assert isinstance(source.body[0].scopes[-1], ast.FunctionDef)
+        assert isinstance(source.body[0].body[0].scopes[-1], ast.FunctionDef)
 
 
 class TestVariableTranformer:
