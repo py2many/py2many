@@ -2,6 +2,11 @@ import ast
 from contextlib import contextmanager
 
 
+def add_imports(node):
+    """Provide context of imports Module"""
+    return ImportTransformer().visit(node)
+
+
 def add_list_calls(node):
     """Provide context to Module and Function Def"""
     return ListCallTransformer().visit(node)
@@ -49,8 +54,16 @@ class ScopeList(list):
     def find(self, lookup):
         for scope in reversed(self):
             for var in scope.vars:
-                if var.id == lookup:
+                if (isinstance(var, ast.alias) and var.name == lookup) or \
+                   (var.id == lookup):
                     return var
+
+    def find_import(self, lookup):
+        for scope in reversed(self):
+            if hasattr(scope, "imports"):
+                for imp in scope.imports:
+                    if imp.name == lookup:
+                        return imp
 
 
 class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
@@ -94,6 +107,19 @@ class ListCallTransformer(ast.NodeTransformer):
                 node.func.attr in list_operations)
 
 
+class ImportTransformer(ast.NodeTransformer):
+    """Adds imports to scope block"""
+    def visit_Import(self, node):
+        for name in node.names:
+            name.imported_from = node
+            name.scopes[-1].imports.append(name)
+
+    def visit_Module(self, node):
+        node.imports = []
+        self.generic_visit(node)
+        return node
+
+
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     """Adds all defined variables to scope block"""
     def visit_FunctionDef(self, node):
@@ -103,6 +129,10 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             node.vars.append(arg)
         self.generic_visit(node)
         return node
+
+    def visit_Import(self, node):
+        for name in node.names:
+            name.imported_from = node
 
     def visit_If(self, node):
         node.vars = []

@@ -15,6 +15,10 @@ def decltype(node):
         return "decltype({0})".format(value_type(node))
 
 
+def is_builtin_import(name):
+    return name == "sys"
+
+
 def is_list(node):
     """Check if a node was assigned as a list"""
     if isinstance(node, ast.List):
@@ -23,7 +27,8 @@ def is_list(node):
         return is_list(node.value)
     elif isinstance(node, ast.Name):
         var = node.scopes.find(node.id)
-        return is_list(var.assigned_from.value)
+        return hasattr(var, "assigned_from") and \
+               is_list(var.assigned_from.value)
     else:
         return False
 

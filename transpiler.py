@@ -1,7 +1,8 @@
 import ast
-from context import add_scope_context, add_variable_context, add_list_calls
-from tracer import decltype, is_list
+from tracer import decltype, is_list, is_builtin_import
 from clike import CLikeTranspiler
+from context import (add_scope_context, add_variable_context,
+                     add_list_calls, add_imports)
 
 
 def transpile(source):
@@ -9,6 +10,7 @@ def transpile(source):
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
+    add_imports(tree)
     cpp = CppTranspiler().visit(tree)
     return cpp
 
@@ -38,6 +40,9 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
+        if is_builtin_import(node.value.id):
+            return "py14::" + node.value.id + "::" + attr
+
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
@@ -45,6 +50,9 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
+        if fname == "int":
+            # return "static_cast<int>({0})".format(self.visit(node.args[0]))
+            return "std::stoi({0})".format(self.visit(node.args[0]))
         if node.args:
             args = [self.visit(a) for a in node.args]
             args = ", ".join(args)
@@ -82,8 +90,9 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_If(self, node):
         if self.visit(node.test) == '__name__ == "__main__"s':
-            buffer = ["int main(int argc, char * argv[]) {",
-                      "python::init(argc, argv);"]
+            buffer = ["int main(int argc, char ** argv) {",
+                      "py14::sys::argv = " \
+                      "std::vector<std::string>(argv, argv + argc);"]
             buffer.extend([self.visit(child) for child in node.body])
             buffer.append("}")
             return "\n".join(buffer)
@@ -109,18 +118,15 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(filter(None, lines))
 
     def visit_alias(self, node):
-        if node.name == "sys":
-            return '#include "sys.h"'
+        return '#include "{0}.h"'.format(node.name)
 
     def visit_Import(self, node):
-        print(node)
         imports = [self.visit(n) for n in node.names]
         return "\n".join(filter(None, imports))
 
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            print(elements)
             value_type = decltype(node.elts[0])
             return "std::vector<{0}>{{{1}}}".format(value_type,
                                                     ", ".join(elements))
@@ -132,10 +138,10 @@ class CppTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
 
         if not isinstance(node.slice, ast.Index):
-            print("Not supported")
+            raise ValueError("Slice not supported")
 
         if isinstance(node.ctx, ast.Load):
-            return "{0}[{1}]".format(value, node.slice.value)
+            return "{0}[{1}]".format(value, self.visit(node.slice.value))
 
     def visit_Assign(self, node):
         target = node.targets[0]
