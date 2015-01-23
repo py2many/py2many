@@ -27,10 +27,9 @@ def test_function_with_return():
     )
     cpp = transpile(source)
     print(cpp)
-    assert cpp == ("template <typename T1>\n"
-                   "auto fun(T1 x) {\n"
+    assert cpp == ("auto fun = [&](auto x) {\n"
                    "return x;\n"
-                   "}")
+                   "};")
 
 
 def test_list_as_vector():
@@ -58,12 +57,11 @@ def test_map_function():
         "   return results",
     )
     cpp = transpile(source)
-    assert cpp == ("template <typename T1, typename T2>\n"
-                   "auto map(T1 values, T2 fun) {\n"
+    assert cpp == ("auto map = [&](auto values, auto fun) {\n"
                    "std::vector<decltype(fun(std::declval"
-                   "<decltype(values)::value_type>()))> results {};\n"
+                   "<typename decltype(values)::value_type>()))> results {};\n"
                    "for(auto v : values) {\n"
                    "results.push_back(fun(v));\n"
                    "}\n"
                    "return results;\n"
-                   "}")
+                   "};")
