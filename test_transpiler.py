@@ -27,7 +27,7 @@ def test_function_with_return():
     )
     cpp = transpile(source)
     print(cpp)
-    assert cpp == ("auto fun = [&](auto x) {\n"
+    assert cpp == ("auto fun = [](auto x) {\n"
                    "return x;\n"
                    "};")
 
@@ -57,7 +57,7 @@ def test_map_function():
         "   return results",
     )
     cpp = transpile(source)
-    assert cpp == ("auto map = [&](auto values, auto fun) {\n"
+    assert cpp == ("auto map = [](auto values, auto fun) {\n"
                    "std::vector<decltype(fun(std::declval"
                    "<typename decltype(values)::value_type>()))> results {};\n"
                    "for(auto v : values) {\n"

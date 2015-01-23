@@ -1,5 +1,5 @@
 import ast
-from tracer import decltype, is_list, is_builtin_import
+from tracer import decltype, is_list, is_builtin_import, is_recursive
 from clike import CLikeTranspiler
 from context import (add_scope_context, add_variable_context,
                      add_list_calls, add_imports)
@@ -22,12 +22,31 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node):
         self._function_stack.append(node)
-        params = ["auto {0}".format(param.id) for param in node.args.args]
-        funcdef = "auto {0} = [&]({1})".format(node.name, ", ".join(params))
+
+        def template_fun():
+            args = []
+            for idx, arg in enumerate(node.args.args):
+                args.append(("T" + str(idx + 1), arg.id))
+            typenames = ["typename " + arg[0] for arg in args]
+            template = "template <{0}>".format(", ".join(typenames))
+            params = ["{0} {1}".format(arg[0], arg[1]) for arg in args]
+            funcdef = "{0}\nauto {1}({2})".format(template, node.name, ", ".join(params))
+            return funcdef
+
+        def lambda_fun():
+            params = ["auto {0}".format(param.id) for param in node.args.args]
+            funcdef = "auto {0} = []({1})".format(node.name, ", ".join(params))
+            return funcdef
 
         body = [self.visit(child) for child in node.body]
+        body = " {\n" + "\n".join(body) + "\n}"
+
         self._function_stack.pop()
-        return funcdef + " {\n" + "\n".join(body) + "\n};"
+
+        if is_recursive(node):
+            return template_fun() + body
+        else:
+            return lambda_fun() + body + ";"
 
     def visit_Attribute(self, node):
         attr = node.attr

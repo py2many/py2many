@@ -136,3 +136,23 @@ def is_list_addition(node):
             hasattr(node.func, "value") and
             isinstance(node.func.value, ast.Name) and
             node.func.attr in list_operations)
+
+
+def is_recursive(fun):
+    finder = RecursionFinder()
+    finder.visit(fun)
+    return finder.recursive
+
+
+class RecursionFinder(ast.NodeVisitor):
+    function_name = None
+    recursive = False
+
+    def visit_FunctionDef(self, node):
+        self.function_name = node.name
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        self.recursive = (isinstance(node.func, ast.Name) and
+                          node.func.id == self.function_name)
+        self.generic_visit(node)

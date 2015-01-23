@@ -1,4 +1,4 @@
-from tracer import value_type,value_expr, decltype, is_list
+from tracer import value_type,value_expr, decltype, is_list, is_recursive
 from context import add_scope_context, add_variable_context, add_list_calls
 import pytest
 import ast
@@ -141,3 +141,12 @@ def test_is_list():
     add_list_calls(source)
     list2 = source.body[1]
     assert is_list(list2)
+
+
+def test_is_recursive():
+    source = parse([
+        "def rec(n):",
+        "   return rec(n-1) + rec(n)",
+    ])
+    fun = source.body[0]
+    assert is_recursive(fun)
