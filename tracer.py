@@ -3,7 +3,7 @@ Trace object types that are inserted into Python list.
 """
 import ast
 from context import add_variable_context
-from transpiler import CLikeTranspiler
+from clike import CLikeTranspiler
 from generic.multidispatch import multifunction
 
 
