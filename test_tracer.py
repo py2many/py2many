@@ -73,7 +73,6 @@ def test_catch_long_expression_chain():
         "z = y + 2",
     ])
     z = source.body[2]
-    import pytest; pytest.set_trace()
     t = catch_value_expression(z)
     assert t == "3 * 1 - 5 + 2"
 
@@ -84,6 +83,5 @@ def test_catch_expression_chain_with_functions():
         "z = y + 2",
     ])
     z = source.body[2]
-    import pytest; pytest.set_trace()
     t = catch_value_expression(z)
     assert t == "foo(3 * 1) + 2"

@@ -24,7 +24,7 @@ def catch_value_expression(node):
         var = [d for d in node.scope.vars if d.id == node.id][0]
         return catch_value_expression(var.assigned_from.value)
     elif isinstance(node, ast.Call):
-        params = ",".join([determine_value(arg) for arg in node.args])
+        params = ",".join([catch_value_expression(arg) for arg in node.args])
         return "{0}({1})".format(node.func.id, params)
     elif isinstance(node, ast.Assign):
          return catch_value_expression(node.value)
