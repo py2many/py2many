@@ -44,7 +44,13 @@ def value_expr(node):
 @value_expr.when(ast.Name)
 def value_expr(node):
     var = node.scopes.find(node.id)
-    return value_expr(var.assigned_from.value)
+    if isinstance(var.assigned_from, ast.For):
+        iter = var.assigned_from.iter
+        return "declval<decltype({0})::value_type>()".format(value_expr(iter))
+    elif isinstance(var.assigned_from, ast.FunctionDef):
+        return var.id
+    else:
+        return value_expr(var.assigned_from.value)
 
 @value_expr.when(ast.Call)
 def value_expr(node):

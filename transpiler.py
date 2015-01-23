@@ -3,6 +3,7 @@ from context import add_scope_context, add_variable_context, add_list_calls
 from tracer import decltype, is_list
 from clike import CLikeTranspiler
 
+
 def transpile(source):
     tree = ast.parse(source)
     add_variable_context(tree)
@@ -10,7 +11,6 @@ def transpile(source):
     add_list_calls(tree)
     cpp = CppTranspiler().visit(tree)
     return cpp
-
 
 
 class CppTranspiler(CLikeTranspiler):
@@ -26,11 +26,11 @@ class CppTranspiler(CLikeTranspiler):
             args.append(("T" + str(idx + 1), arg.id))
 
         typenames = ["typename " + arg[0] for arg in args]
-        template = "template <{0}>".format(",".join(typenames))
+        template = "template <{0}>".format(", ".join(typenames))
         params = ["{0} {1}".format(arg[0], arg[1]) for arg in args]
-        funcdef = "{0}\nauto {1} ({2})".format(template,
+        funcdef = "{0}\nauto {1}({2})".format(template,
                                                node.name,
-                                               ",".join(params))
+                                               ", ".join(params))
 
         body = [self.visit(child) for child in node.body]
         self._function_stack.pop()
@@ -56,7 +56,7 @@ class CppTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         iter = self.visit(node.iter)
         buffer = []
-        buffer.append('for(auto {0}:{1} {{'.format(target, iter))
+        buffer.append('for(auto {0} : {1}) {{'.format(target, iter))
         buffer.extend([self.visit(c) for c in node.body])
         buffer.append("}")
         return "\n".join(buffer)
@@ -146,7 +146,9 @@ class CppTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return decltype(node) + "{" + ", ".join(elements) + "};"
+            return "{0} {1} {{{2}}};".format(decltype(node),
+                                            self.visit(target),
+                                            ", ".join(elements))
         else:
             target = self.visit(target)
             value = self.visit(node.value)

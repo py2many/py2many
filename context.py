@@ -47,7 +47,7 @@ class ScopeMixin:
 
 class ScopeList(list):
     def find(self, lookup):
-        for scope in self:
+        for scope in reversed(self):
             for var in scope.vars:
                 if var.id == lookup:
                     return var
@@ -97,7 +97,10 @@ class ListCallTransformer(ast.NodeTransformer):
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     """Adds all defined variables to scope block"""
     def visit_FunctionDef(self, node):
-        node.vars = [a for a in node.args.args]
+        node.vars = []
+        for arg in node.args.args:
+            arg.assigned_from = node
+            node.vars.append(arg)
         self.generic_visit(node)
         return node
 
@@ -114,6 +117,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         return node
 
     def visit_For(self, node):
+        node.target.assigned_from = node
         node.vars = [node.target]
         self.generic_visit(node)
         return node
