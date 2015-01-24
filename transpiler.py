@@ -74,10 +74,11 @@ class CppTranspiler(CLikeTranspiler):
             args = ''
 
         if fname == "int":
-            # return "static_cast<int>({0})".format(self.visit(node.args[0]))
-            return "std::stoi({0})".format(args)
+            return "py14::to_int({0})".format(args)
         elif fname == "str":
             return "std::to_string({0})".format(args)
+        elif fname == "max":
+            return "std::max({0})".format(args)
         elif fname == "range" or fname == "xrange":
             return "py14::range({0})".format(args)
         elif fname == "len":

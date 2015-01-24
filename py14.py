@@ -12,6 +12,7 @@ if __name__ == "__main__":
     print('#include "builtins.h"')
     print('#include <iostream>')
     print('#include <string>')
+    print('#include <algorithm>')
     print('#include <cmath>')
     print('#include <vector>')
     print('#include <tuple>')

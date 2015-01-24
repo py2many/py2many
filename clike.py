@@ -120,17 +120,21 @@ class CLikeTranspiler(ast.NodeVisitor):
         return '\n'.join(buffer)
 
     def visit_While(self, node):
-        buffer = []
-        buffer.append("while ({0}) {{".format(self.visit(node.test)))
-        buffer.extend([self.visit(c) for c in node.body])
-        buffer.append("}")
-        return '\n'.join(buffer)
+        buf = []
+        buf.append("while ({0}) {{".format(self.visit(node.test)))
+        buf.extend([self.visit(n) for n in node.body])
+        buf.append("}")
+        return '\n'.join(buf)
 
     def visit_Compare(self, node):
         left = self.visit(node.left)
         op = self.visit(node.ops[0])
         right = self.visit(node.comparators[0])
         return "{0} {1} {2}".format(left, op, right)
+
+    def visit_BoolOp(self, node):
+        op = self.visit(node.op)
+        return op.join([self.visit(v) for v in node.values])
 
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
