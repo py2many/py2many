@@ -33,6 +33,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         return '-'
 
     def visit_Div(self, node):
+        # todod..C++ will round this down..
+        return '/'
+
+    def visit_FloorDiv(self, node):
         return '/'
 
     def visit_Mod(self, node):
@@ -125,10 +129,13 @@ class CLikeTranspiler(ast.NodeVisitor):
         return "{0} {1} {2}".format(left, op, right)
 
     def visit_BinOp(self, node):
-        left = self.visit(node.left)
-        op = self.visit(node.op)
-        right = self.visit(node.right)
-        return " ".join([left, op, right])
+        if isinstance(node.op, ast.Pow):
+            return "std::pow({0}, {1})".format(self.visit(node.left),
+                                               self.visit(node.right))
+
+        return " ".join([self.visit(node.left),
+                         self.visit(node.op),
+                         self.visit(node.right)])
 
     def visit_AugAssign(self, node):
         target = self.visit(node.target)

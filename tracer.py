@@ -16,7 +16,7 @@ def decltype(node):
 
 
 def is_builtin_import(name):
-    return name == "sys"
+    return name == "sys" or name == "math"
 
 
 def is_list(node):

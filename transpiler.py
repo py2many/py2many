@@ -52,6 +52,13 @@ class CppTranspiler(CLikeTranspiler):
         attr = node.attr
         if is_builtin_import(node.value.id):
             return "py14::" + node.value.id + "::" + attr
+        elif node.value.id == "math":
+            if node.attr == "asin":
+                return "std::asin
+            elif node.attr == "atan":
+                return "std::atan
+            elif node.attr == "acos":
+                return "std::acos
 
         if is_list(node.value):
             if node.attr == "append":
@@ -69,6 +76,8 @@ class CppTranspiler(CLikeTranspiler):
         if fname == "int":
             # return "static_cast<int>({0})".format(self.visit(node.args[0]))
             return "std::stoi({0})".format(args)
+        elif fname == "str":
+            return "std::to_string({0})".format(args)
         elif fname == "range" or fname == "xrange":
             return "py14::range({0})".format(args)
         elif fname == "len":
