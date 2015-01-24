@@ -14,6 +14,7 @@ if __name__ == "__main__":
     print('#include <string>')
     print('#include <cmath>')
     print('#include <vector>')
+    print('#include <tuple>')
     print('#include <utility>')
     print("using namespace std::literals::string_literals;")
     print(cpp)

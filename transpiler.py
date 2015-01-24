@@ -54,11 +54,11 @@ class CppTranspiler(CLikeTranspiler):
             return "py14::" + node.value.id + "::" + attr
         elif node.value.id == "math":
             if node.attr == "asin":
-                return "std::asin
+                return "std::asin"
             elif node.attr == "atan":
-                return "std::atan
+                return "std::atan"
             elif node.attr == "acos":
-                return "std::acos
+                return "std::acos"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -161,17 +161,50 @@ class CppTranspiler(CLikeTranspiler):
             raise ValueError("Cannot create vector without elements")
 
     def visit_Subscript(self, node):
-        value = self.visit(node.value)
+        if isinstance(node.slice, ast.Ellipsis):
+            raise NotImplementedError('Ellipsis not supported')
 
         if not isinstance(node.slice, ast.Index):
-            raise ValueError("Slice not supported")
+            raise NotImplementedError("Advanced Slicing not supported")
 
+        value = self.visit(node.value)
         return "{0}[{1}]".format(value, self.visit(node.slice.value))
+
+    def visit_Tuple(self, node):
+            elts = [self.visit(e) for e in node.elts]
+            return "std::make_tuple({0})".format(", ".join(elts))
+
+    def visit_TryExcept(self, node, finallybody=None):
+        buf = ['try {']
+        buf += [self.visit(n) for n in node.body]
+        buf.append('} catch (const std::exception& e) {')
+
+        buf += [self.visit(h) for h in node.handlers]
+
+        if finallybody:
+            buf.append('try { // finally')
+            buf += [self.visit(b) for b in finallybody]
+            buf.append('} throw e;')
+
+        buf.append( '}' )
+
+        buf.append('catch (const std::overflow_error& e) '
+                   '{ std::cout << "OVERFLOW ERROR" << std::endl; }')
+        buf.append('catch (const std::runtime_error& e) '
+                   '{ std::cout << "RUNTIME ERROR" << std::endl; }')
+        buf.append('catch (...) '
+                  '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
+
+        return '\n'.join(buf)
 
     def visit_Assign(self, node):
         target = node.targets[0]
 
-        if isinstance(target, ast.Name) and target.id in self._vars:
+        if isinstance(target, ast.Tuple):
+            elts = [self.visit(e) for e in target.elts]
+            value = self.visit(node.value)
+            return "std::tie({0}) = {1};".format(", ".join(elts), value)
+        elif isinstance(target, ast.Name) and target.id in self._vars:
             target = self.visit(target)
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)

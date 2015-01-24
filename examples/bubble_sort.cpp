@@ -2,16 +2,18 @@
 #include "builtins.h"
 #include <iostream>
 #include <string>
+#include <cmath>
 #include <vector>
+#include <tuple>
 #include <utility>
+using namespace std::literals::string_literals;
 auto sort = [](auto seq) {
     auto L = py14::len(seq);
     for (auto _ : py14::range(L)) {
         for (auto n : py14::range(1, L)) {
             if (seq[n] < seq[n - 1]) {
-                auto temp = seq[n - 1];
-                seq[n - 1] = seq[n];
-                seq[n] = temp;
+                std::tie(seq[n - 1], seq[n]) =
+                    std::make_tuple(seq[n], seq[n - 1]);
             }
         }
     }

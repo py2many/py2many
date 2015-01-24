@@ -73,16 +73,16 @@ class CLikeTranspiler(ast.NodeVisitor):
         return '!'
 
     def visit_IsNot(self, node):
-        return '!=='
+        return '!='
 
     def visit_USub(self, node):
         return '-'
 
     def visit_And(self, node):
-        return ' && '
+        return '&&'
 
     def visit_Or(self, node):
-        return ' || '
+        return '||'
 
     def visit_Str(self, node):
         return '"{0}"'.format(node.s)
@@ -108,12 +108,16 @@ class CLikeTranspiler(ast.NodeVisitor):
         return '\n'.join(buffer)
 
     def visit_Print(self, node):
-        buffer = ["std::cout"]
+        buffer = []
         for n in node.values:
             value = self.visit(n)
-            buffer.append("<<")
-            buffer.append(value)
-        return " ".join(buffer) + "<< std::endl;"
+            if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
+                for el in n.elts:
+                    buffer.append('std::cout << {0};'.format(self.visit(el)))
+                buffer[-1] += 'std::cout << std::endl;'
+            else:
+                buffer.append('std::cout << {0} << std::endl;'.format(value))
+        return '\n'.join(buffer)
 
     def visit_While(self, node):
         buffer = []

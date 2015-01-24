@@ -11,6 +11,18 @@ def test_declare():
     assert cpp == "auto x = 3;"
 
 
+def test_tuple_swap():
+    source = parse(
+        "x = 3",
+        "y = 1",
+        "x, y = y, x",
+    )
+    cpp = transpile(source)
+    assert cpp == ("auto x = 3;\n"
+                   "auto y = 1;\n"
+                   "std::tie(x, y) = std::make_tuple(y, x);")
+
+
 def test_assign():
     source = parse(
         "x = 3",
