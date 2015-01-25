@@ -1,5 +1,8 @@
 # Python to C++ 14 transpiler
-[![Build Status](https://travis-ci.org/lukasmartinelli/py14.svg)](https://travis-ci.org/lukasmartinelli/py14) [![Coverage Status](https://coveralls.io/repos/lukasmartinelli/py14/badge.svg)](https://coveralls.io/r/lukasmartinelli/py14) [![Code Health](https://landscape.io/github/lukasmartinelli/py14/master/landscape.svg)](https://landscape.io/github/lukasmartinelli/py14/master)
+[![Build Status](https://travis-ci.org/lukasmartinelli/py14.svg)](https://travis-ci.org/lukasmartinelli/py14)
+[![Coverage Status](https://coveralls.io/repos/lukasmartinelli/py14/badge.svg?branch=master)](https://coveralls.io/r/lukasmartinelli/py14?branch=master)
+[![Scrutinizer Code Quality](https://img.shields.io/scrutinizer/g/lukasmartinelli/py14.svg?style=flat)](https://scrutinizer-ci.com/g/lukasmartinelli/py14/?branch=master)
+[![Code Health](https://landscape.io/github/lukasmartinelli/py14/master/landscape.svg)](https://landscape.io/github/lukasmartinelli/py14/master)
 
 This is a little experiment that shows how far you can go with the
 C++ 14 `auto` return type and templates.
