@@ -94,7 +94,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_If(self, node):
         buffer = []
-        buffer.append('if ({0}) {{'.format(self.visit(node.test)))
+        buffer.append('if({0}) {{'.format(self.visit(node.test)))
         buffer.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]

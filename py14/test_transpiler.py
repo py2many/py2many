@@ -77,3 +77,27 @@ def test_map_function():
                    "}\n"
                    "return results;\n"
                    "};")
+
+
+def test_bubble_sort():
+    source = parse(
+        "def sort(seq):",
+        "    L = len(seq)",
+        "    for _ in range(L):",
+        "        for n in range(1, L):",
+        "            if seq[n] < seq[n - 1]:",
+        "                seq[n - 1], seq[n] = seq[n], seq[n - 1]",
+        "    return seq",
+    )
+    cpp = transpile(source)
+    assert cpp == ("auto sort = [](auto seq) {\n"
+                   "auto L = py14::len(seq);\n"
+                   "for(auto _ : py14::range(L)) {\n"
+                   "for(auto n : py14::range(1, L)) {\n"
+                   "if(seq[n] < seq[n - 1]) {\n"
+                   "std::tie(seq[n - 1], seq[n]) = "
+                   "std::make_tuple(seq[n], seq[n - 1]);\n"
+                   "}\n"
+                   "}\n" "}\n"
+                   "return seq;\n"
+                   "};")
