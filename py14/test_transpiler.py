@@ -1,4 +1,5 @@
 from transpiler import transpile
+import pytest
 
 
 def parse(*args):
@@ -9,6 +10,77 @@ def test_declare():
     source = parse("x = 3")
     cpp = transpile(source)
     assert cpp == "auto x = 3;"
+
+
+def test_empty_return():
+    source = parse(
+        "def foo():",
+        "   return",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "auto foo = []() {\n"
+        "return;\n"
+        "};"
+    )
+
+
+def test_print_multiple_vars():
+    source = parse('print("hi", "there" )')
+    cpp = transpile(source)
+    assert cpp == ('std::cout << "hi"s << "there"s << std::endl;')
+
+
+def test_augmented_assigns_with_counter():
+    source = parse(
+        "counter = 0",
+        "counter += 5",
+        "counter -= 2",
+        "counter *= 2",
+        "counter /= 3",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "auto counter = 0;\n"
+        "counter += 5;\n"
+        "counter -= 2;\n"
+        "counter *= 2;\n"
+        "counter /= 3;"
+    )
+
+
+@pytest.mark.xfail
+def test_try_except():
+    source = parse(
+        "try:",
+        "   conn = open_connection()",
+        "except ConnectionError:",
+        '   print("Could not connect")',
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "try {\n"
+        "auto conn = open_connection();"
+        "}\n"
+        "catch(;\n"
+    )
+
+
+def test_print_program_args():
+    source = parse(
+        'if __name__ == "__main__":',
+        "    for arg in sys.argv:",
+        "       print(arg)",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "int main(int argc, char ** argv) {\n"
+        "py14::sys::argv = std::vector<std::string>(argv, argv + argc);\n"
+        "for(auto arg : py14::sys::argv) {\n"
+        "std::cout << arg << std::endl;\n"
+        "}\n"
+        "}"
+    )
 
 
 def test_tuple_swap():

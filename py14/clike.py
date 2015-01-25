@@ -107,18 +107,6 @@ class CLikeTranspiler(ast.NodeVisitor):
 
         return '\n'.join(buffer)
 
-    def visit_Print(self, node):
-        buffer = []
-        for n in node.values:
-            value = self.visit(n)
-            if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                for el in n.elts:
-                    buffer.append('std::cout << {0};'.format(self.visit(el)))
-                buffer[-1] += 'std::cout << std::endl;'
-            else:
-                buffer.append('std::cout << {0} << std::endl;'.format(value))
-        return '\n'.join(buffer)
-
     def visit_While(self, node):
         buf = []
         buf.append("while ({0}) {{".format(self.visit(node.test)))

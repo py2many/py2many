@@ -6,18 +6,28 @@ from analysis import add_imports
 from context import add_variable_context, add_list_calls
 
 
-def transpile(source):
+def transpile(source, headers=False):
     tree = ast.parse(source)
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
     add_imports(tree)
-    cpp = CppTranspiler().visit(tree)
+
+    transpiler = CppTranspiler()
+    cpp = transpiler.visit(tree)
+
+    if headers:
+        return "\n".join(transpiler.headers) + "\n" + cpp
     return cpp
 
 
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
+        self.headers = set(['#include "sys.h"', '#include "builtins.h"',
+                            '#include <iostream>', '#include <string>',
+                            '#include <algorithm>', '#include <cmath>',
+                            '#include <vector>', '#include <tuple>',
+                            '#include <utility>'])
         self._function_stack = []
         self._vars = set()
 
@@ -138,12 +148,8 @@ class CppTranspiler(CLikeTranspiler):
             return super(CppTranspiler, self).visit_BinOp(node)
 
     def visit_Module(self, node):
-        lines = []
-        for b in node.body:
-            line = self.visit(b)
-            lines.append(line)
-
-        return "\n".join(filter(None, lines))
+        buf = [self.visit(b) for b in node.body]
+        return "\n".join(buf)
 
     def visit_alias(self, node):
         return '#include "{0}.h"'.format(node.name)
@@ -223,3 +229,14 @@ class CppTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             self._vars.add(target)
             return "auto {0} = {1};".format(target, value)
+
+    def visit_Print(self, node):
+        buf = []
+        for n in node.values:
+            value = self.visit(n)
+            if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
+                buf.append("std::cout << {0} << std::endl;".format(
+                           " << ".join([self.visit(el) for el in n.elts])))
+            else:
+                buf.append('std::cout << {0} << std::endl;'.format(value))
+        return '\n'.join(buf)
