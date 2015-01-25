@@ -2,8 +2,8 @@ import ast
 from tracer import decltype, is_list, is_builtin_import, is_recursive
 from clike import CLikeTranspiler
 from scope import add_scope_context
-from context import (add_variable_context,
-                     add_list_calls, add_imports)
+from analysis import add_imports
+from context import add_variable_context, add_list_calls
 
 
 def transpile(source):

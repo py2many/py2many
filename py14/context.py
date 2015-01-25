@@ -2,11 +2,6 @@ import ast
 from scope import ScopeMixin
 
 
-def add_imports(node):
-    """Provide context of imports Module"""
-    return ImportTransformer().visit(node)
-
-
 def add_list_calls(node):
     """Provide context to Module and Function Def"""
     return ListCallTransformer().visit(node)
@@ -42,19 +37,6 @@ class ListCallTransformer(ast.NodeTransformer):
                 hasattr(node.func, "value") and
                 isinstance(node.func.value, ast.Name) and
                 node.func.attr in list_operations)
-
-
-class ImportTransformer(ast.NodeTransformer):
-    """Adds imports to scope block"""
-    def visit_Import(self, node):
-        for name in node.names:
-            name.imported_from = node
-            name.scopes[-1].imports.append(name)
-
-    def visit_Module(self, node):
-        node.imports = []
-        self.generic_visit(node)
-        return node
 
 
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
