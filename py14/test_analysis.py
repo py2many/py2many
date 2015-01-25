@@ -1,7 +1,8 @@
 import ast
-from analysis import FunctionTransformer, CalledWithTransformer
 from scope import add_scope_context
 from context import add_variable_context
+from analysis import (FunctionTransformer, CalledWithTransformer,
+                      ImportTransformer, AttributeCallTransformer)
 
 
 def parse(*args):
@@ -33,7 +34,13 @@ class TestFunctionTransformer:
         assert len(gib.defined_functions) == 0
         assert len(mir.defined_functions) == 0
 
-    # def test_nested_functions(self):
+    def test_functions_from_modules(self):
+        source = parse("from foo import bar, baz")
+        FunctionTransformer().visit(source)
+
+        module = source
+
+        assert len(module.defined_functions) == 2
 
 
 class TestCalledWithTransformer:
@@ -48,3 +55,31 @@ class TestCalledWithTransformer:
         x = source.body[0].targets[0]
 
         assert len(x.called_with) == 2
+
+
+class TestAttributeCallTransformer:
+    def test_call_to_attribute_registered(self):
+        source = parse(
+            "x = foo()",
+            "x.bar()",
+        )
+        AttributeCallTransformer().visit(source)
+
+        x = source.body[0].targets[0]
+
+        assert len(x.calls) == 1
+
+
+class TestImportTransformer:
+    def test_function_knows_from_where_it_is_imported(self):
+        source = parse(
+            "from foo import bar",
+            "bar(x)",
+        )
+        ImportTransformer().visit(source)
+
+        module = source
+        bar_import = source.body[0].names[0]
+
+        assert len(module.imports) == 1
+        assert isinstance(bar_import.imported_from, ast.ImportFrom)

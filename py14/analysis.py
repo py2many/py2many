@@ -19,9 +19,10 @@ class FunctionTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def visit_Import(self, node):
+    def visit_ImportFrom(self, node):
         for name in node.names:
             node.scopes[-1].defined_functions.append(node)
+        return node
 
 
 class CalledWithTransformer(ast.NodeTransformer):
@@ -51,7 +52,8 @@ class CalledWithTransformer(ast.NodeTransformer):
 class AttributeCallTransformer(ast.NodeTransformer):
     """Tracks attribute function calls on variables"""
     def visit_Assign(self, node):
-        node.calls = []
+        for target in node.targets:
+            target.calls = []
         return node
 
     def visit_Call(self, node):
@@ -63,10 +65,11 @@ class AttributeCallTransformer(ast.NodeTransformer):
 
 class ImportTransformer(ast.NodeTransformer):
     """Adds imports to scope block"""
-    def visit_Import(self, node):
+    def visit_ImportFrom(self, node):
         for name in node.names:
             name.imported_from = node
             name.scopes[-1].imports.append(name)
+        return node
 
     def visit_Module(self, node):
         node.imports = []
