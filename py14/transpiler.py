@@ -1,7 +1,8 @@
 import ast
 from tracer import decltype, is_list, is_builtin_import, is_recursive
 from clike import CLikeTranspiler
-from context import (add_scope_context, add_variable_context,
+from scope import add_scope_context
+from context import (add_variable_context,
                      add_list_calls, add_imports)
 
 
@@ -30,7 +31,8 @@ class CppTranspiler(CLikeTranspiler):
             typenames = ["typename " + arg[0] for arg in args]
             template = "template <{0}>".format(", ".join(typenames))
             params = ["{0} {1}".format(arg[0], arg[1]) for arg in args]
-            funcdef = "{0}\nauto {1}({2})".format(template, node.name, ", ".join(params))
+            funcdef = "{0}\nauto {1}({2})".format(template, node.name,
+                                                  ", ".join(params))
             return funcdef
 
         def lambda_fun():
@@ -84,7 +86,6 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "len":
             return "py14::len({0})".format(args)
 
-
         return '{0}({1})'.format(fname, args)
 
     def visit_For(self, node):
@@ -118,7 +119,7 @@ class CppTranspiler(CLikeTranspiler):
     def visit_If(self, node):
         if self.visit(node.test) == '__name__ == "__main__"s':
             buffer = ["int main(int argc, char ** argv) {",
-                      "py14::sys::argv = " \
+                      "py14::sys::argv = "
                       "std::vector<std::string>(argv, argv + argc);"]
             buffer.extend([self.visit(child) for child in node.body])
             buffer.append("}")
@@ -187,14 +188,13 @@ class CppTranspiler(CLikeTranspiler):
             buf += [self.visit(b) for b in finallybody]
             buf.append('} throw e;')
 
-        buf.append( '}' )
-
+        buf.append('}')
         buf.append('catch (const std::overflow_error& e) '
                    '{ std::cout << "OVERFLOW ERROR" << std::endl; }')
         buf.append('catch (const std::runtime_error& e) '
                    '{ std::cout << "RUNTIME ERROR" << std::endl; }')
         buf.append('catch (...) '
-                  '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
+                   '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
 
         return '\n'.join(buf)
 
@@ -212,8 +212,8 @@ class CppTranspiler(CLikeTranspiler):
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
             return "{0} {1} {{{2}}};".format(decltype(node),
-                                            self.visit(target),
-                                            ", ".join(elements))
+                                             self.visit(target),
+                                             ", ".join(elements))
         elif isinstance(target, ast.Subscript):
             target = self.visit(target)
             value = self.visit(node.value)
