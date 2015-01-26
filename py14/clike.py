@@ -1,9 +1,79 @@
 import ast
 
 
-class CLikeTranspiler(ast.NodeVisitor):
-    """Provides a base for C-like programming languages"""
+class OperatorSymbols(ast.NodeVisitor):
+    def visit_Eq(self, _):
+        return '=='
 
+    def visit_NotEq(self, _):
+        return '!='
+
+    def visit_Pass(self, _):
+        return '/*pass*/'
+
+    def visit_Mult(self, _):
+        return '*'
+
+    def visit_Add(self, _):
+        return '+'
+
+    def visit_Sub(self, _):
+        return '-'
+
+    def visit_Div(self, _):
+        return '/'
+
+    def visit_FloorDiv(self, _):
+        return '/'
+
+    def visit_Mod(self, _):
+        return '%'
+
+    def visit_Lt(self, _):
+        return '<'
+
+    def visit_Gt(self, _):
+        return '>'
+
+    def visit_GtE(self, _):
+        return '>='
+
+    def visit_LtE(self, _):
+        return '<='
+
+    def visit_LShift(self, _):
+        return '<<'
+
+    def visit_RShift(self, _):
+        return '>>'
+
+    def visit_BitXor(self, _):
+        return '^'
+
+    def visit_BitOr(self, _):
+        return '|'
+
+    def visit_BitAnd(self, _):
+        return '&'
+
+    def visit_Not(self, _):
+        return '!'
+
+    def visit_IsNot(self, _):
+        return '!='
+
+    def visit_USub(self, _):
+        return '-'
+
+    def visit_And(self, _):
+        return '&&'
+
+    def visit_Or(self, _):
+        return '||'
+
+
+class CLikeTranspiler(OperatorSymbols):
+    """Provides a base for C-like programming languages"""
     def visit_Name(self, node):
         if node.id == 'True':
             return 'true'
@@ -11,78 +81,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return 'false'
         return node.id
 
-    def visit_Eq(self, node):
-        return '=='
-
-    def visit_NotEq(self, node):
-        return '!='
-
     def visit_Num(self, node):
         return str(node.n)
-
-    def visit_Pass(self, node):
-        return '/*pass*/'
-
-    def visit_Mult(self, node):
-        return '*'
-
-    def visit_Add(self, node):
-        return '+'
-
-    def visit_Sub(self, node):
-        return '-'
-
-    def visit_Div(self, node):
-        # todod..C++ will round this down..
-        return '/'
-
-    def visit_FloorDiv(self, node):
-        return '/'
-
-    def visit_Mod(self, node):
-        return '%'
-
-    def visit_Lt(self, node):
-        return '<'
-
-    def visit_Gt(self, node):
-        return '>'
-
-    def visit_GtE(self, node):
-        return '>='
-
-    def visit_LtE(self, node):
-        return '<='
-
-    def visit_LShift(self, node):
-        return '<<'
-
-    def visit_RShift(self, node):
-        return '>>'
-
-    def visit_BitXor(self, node):
-        return '^'
-
-    def visit_BitOr(self, node):
-        return '|'
-
-    def visit_BitAnd(self, node):
-        return '&'
-
-    def visit_Not(self, node):
-        return '!'
-
-    def visit_IsNot(self, node):
-        return '!='
-
-    def visit_USub(self, node):
-        return '-'
-
-    def visit_And(self, node):
-        return '&&'
-
-    def visit_Or(self, node):
-        return '||'
 
     def visit_Str(self, node):
         return '"{0}"'.format(node.s)
@@ -93,19 +93,19 @@ class CLikeTranspiler(ast.NodeVisitor):
         return 'return;'
 
     def visit_If(self, node):
-        buffer = []
-        buffer.append('if({0}) {{'.format(self.visit(node.test)))
-        buffer.extend([self.visit(child) for child in node.body])
+        buf = []
+        buf.append('if({0}) {{'.format(self.visit(node.test)))
+        buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
         if orelse:
-            buffer.append('} else {')
-            buffer.extend(orelse)
-            buffer.append("}")
+            buf.append('} else {')
+            buf.extend(orelse)
+            buf.append("}")
         else:
-            buffer.append('}')
+            buf.append('}')
 
-        return '\n'.join(buffer)
+        return '\n'.join(buf)
 
     def visit_While(self, node):
         buf = []

@@ -100,12 +100,12 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_For(self, node):
         target = self.visit(node.target)
-        iter = self.visit(node.iter)
-        buffer = []
-        buffer.append('for(auto {0} : {1}) {{'.format(target, iter))
-        buffer.extend([self.visit(c) for c in node.body])
-        buffer.append("}")
-        return "\n".join(buffer)
+        it = self.visit(node.iter)
+        buf = []
+        buf.append('for(auto {0} : {1}) {{'.format(target, it))
+        buf.extend([self.visit(c) for c in node.body])
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_Expr(self, node):
         s = self.visit(node.value)
@@ -128,12 +128,12 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_If(self, node):
         if self.visit(node.test) == '__name__ == "__main__"s':
-            buffer = ["int main(int argc, char ** argv) {",
+            buf = ["int main(int argc, char ** argv) {",
                       "py14::sys::argv = "
                       "std::vector<std::string>(argv, argv + argc);"]
-            buffer.extend([self.visit(child) for child in node.body])
-            buffer.append("}")
-            return "\n".join(buffer)
+            buf.extend([self.visit(child) for child in node.body])
+            buf.append("}")
+            return "\n".join(buf)
 
         else:
             return super(CppTranspiler, self).visit_If(node)

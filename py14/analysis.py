@@ -21,7 +21,7 @@ class FunctionTransformer(ast.NodeTransformer):
 
     def visit_ImportFrom(self, node):
         for name in node.names:
-            node.scopes[-1].defined_functions.append(node)
+            node.scopes[-1].defined_functions.append(name)
         return node
 
 
