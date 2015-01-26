@@ -21,6 +21,24 @@ def transpile(source, headers=False):
     return cpp
 
 
+def generate_template_fun(node, body):
+    params = []
+    for idx, arg in enumerate(node.args.args):
+        params.append(("T" + str(idx + 1), arg.id))
+    typenames = ["typename " + arg[0] for arg in params]
+    template = "template <{0}>".format(", ".join(typenames))
+    params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]
+    funcdef = "{0}\nauto {1}({2})".format(template, node.name,
+                                            ", ".join(params))
+    return funcdef + " {\n" + body + "\n}"
+
+
+def generate_lambda_fun(node, body):
+    params = ["auto {0}".format(param.id) for param in node.args.args]
+    funcdef = "auto {0} = []({1})".format(node.name, ", ".join(params))
+    return funcdef + " {\n" + body + "\n};"
+
+
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
         self.headers = set(['#include "sys.h"', '#include "builtins.h"',
@@ -33,32 +51,13 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node):
         self._function_stack.append(node)
-
-        def template_fun():
-            args = []
-            for idx, arg in enumerate(node.args.args):
-                args.append(("T" + str(idx + 1), arg.id))
-            typenames = ["typename " + arg[0] for arg in args]
-            template = "template <{0}>".format(", ".join(typenames))
-            params = ["{0} {1}".format(arg[0], arg[1]) for arg in args]
-            funcdef = "{0}\nauto {1}({2})".format(template, node.name,
-                                                  ", ".join(params))
-            return funcdef
-
-        def lambda_fun():
-            params = ["auto {0}".format(param.id) for param in node.args.args]
-            funcdef = "auto {0} = []({1})".format(node.name, ", ".join(params))
-            return funcdef
-
-        body = [self.visit(child) for child in node.body]
-        body = " {\n" + "\n".join(body) + "\n}"
-
+        body = "\n".join([self.visit(n) for n in node.body])
         self._function_stack.pop()
 
         if is_recursive(node):
-            return template_fun() + body
+            return generate_template_fun(node, body)
         else:
-            return lambda_fun() + body + ";"
+            return generate_lambda_fun(node, body)
 
     def visit_Attribute(self, node):
         attr = node.attr
