@@ -25,7 +25,8 @@ def is_list(node):
         return is_list(node.value)
     elif isinstance(node, ast.Name):
         var = node.scopes.find(node.id)
-        return (hasattr(var, "assigned_from") and
+        return (hasattr(var, "assigned_from") and not
+                isinstance(var.assigned_from, ast.FunctionDef) and
                 is_list(var.assigned_from.value))
     else:
         return False

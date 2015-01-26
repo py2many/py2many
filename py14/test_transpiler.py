@@ -239,3 +239,22 @@ def test_comb_sort():
         "}\n"
         "};"
     )
+
+
+def test_normal_pdf():
+    source = parse(
+        "def pdf(x, mean, std_dev):",
+        "    term1 = 1.0 / ((2 * math.pi) ** 0.5)",
+        "    term2 = (math.e ** (-1.0 * (x-mean) ** 2.0 / 2.0",
+        "             * (std_dev ** 2.0)))",
+        "    return term1 * term2",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "auto pdf = [](auto x, auto mean, auto std_dev) {\n"
+        "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);\n"
+        "auto term2 = std::pow(py14::math::e, -1.0 * "
+        "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));\n"
+        "return term1 * term2;\n"
+        "};"
+    )

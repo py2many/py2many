@@ -179,8 +179,8 @@ class CppTranspiler(CLikeTranspiler):
         return "{0}[{1}]".format(value, self.visit(node.slice.value))
 
     def visit_Tuple(self, node):
-            elts = [self.visit(e) for e in node.elts]
-            return "std::make_tuple({0})".format(", ".join(elts))
+        elts = [self.visit(e) for e in node.elts]
+        return "std::make_tuple({0})".format(", ".join(elts))
 
     def visit_TryExcept(self, node, finallybody=None):
         buf = ['try {']
