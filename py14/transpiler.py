@@ -17,7 +17,7 @@ def transpile(source, headers=False):
     cpp = transpiler.visit(tree)
 
     if headers:
-        return "\n".join(transpiler.headers) + "\n" + cpp
+        return "\n".join(transpiler.headers + transpiler.usings) + "\n" + cpp
     return cpp
 
 
@@ -28,8 +28,9 @@ def generate_template_fun(node, body):
     typenames = ["typename " + arg[0] for arg in params]
     template = "template <{0}>".format(", ".join(typenames))
     params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]
+
     funcdef = "{0}\nauto {1}({2})".format(template, node.name,
-                                            ", ".join(params))
+                                          ", ".join(params))
     return funcdef + " {\n" + body + "\n}"
 
 
@@ -46,6 +47,7 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <algorithm>', '#include <cmath>',
                             '#include <vector>', '#include <tuple>',
                             '#include <utility>'])
+        self.usings = set(["using namespace std::literals::string_literals;"])
         self._function_stack = []
         self._vars = set()
 
@@ -128,8 +130,8 @@ class CppTranspiler(CLikeTranspiler):
     def visit_If(self, node):
         if self.visit(node.test) == '__name__ == "__main__"s':
             buf = ["int main(int argc, char ** argv) {",
-                      "py14::sys::argv = "
-                      "std::vector<std::string>(argv, argv + argc);"]
+                   "py14::sys::argv = "
+                   "std::vector<std::string>(argv, argv + argc);"]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
             return "\n".join(buf)

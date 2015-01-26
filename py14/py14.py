@@ -7,5 +7,4 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     source = open(filename).read()
     cpp = transpile(source, headers=True)
-    print("using namespace std::literals::string_literals;")
     print(cpp)
