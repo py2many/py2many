@@ -1,9 +1,11 @@
 box: bendiken/cxx14@0.0.8
 build:
   steps:
+    - install-packages:
+        packages: python-pip python-dev build-essential
+    - pip-install
     - script:
         name: Transpile and Run regtests
         code: |
           cd regtests
           CXX=clang++-3.5 make
-    - pip-install
