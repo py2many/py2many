@@ -21,7 +21,7 @@ def transpile(source, headers=False, testing=False):
 
     buf = []
     if testing:
-        buf += ["#define CATCH_CONFIG_MAIN", '#include "catch.hpp"']
+        buf += ['#include "catch.hpp"']
         transpiler.use_catch_test_cases = True
 
     if headers:
@@ -46,7 +46,7 @@ def generate_template_fun(node, body):
         params.append(("T" + str(idx + 1), arg.id))
     typenames = ["typename " + arg[0] for arg in params]
 
-    template = ""
+    template = "inline "
     if len(typenames) > 0:
         template = "template <{0}>\n".format(", ".join(typenames))
     params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]

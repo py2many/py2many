@@ -129,7 +129,7 @@ def test_void_function():
     cpp = transpile(source)
     print(cpp)
     assert cpp == (
-        "void test_fun() {\n"
+        "inline void test_fun() {\n"
         "REQUIRE(true);\n"
         "}"
     )
@@ -140,9 +140,7 @@ def test_create_catch_test_case():
         "   assert True",
     )
     cpp = transpile(source, testing=True)
-    #print(cpp)
     assert cpp == (
-        "#define CATCH_CONFIG_MAIN\n"
         '#include "catch.hpp"\n'
         'TEST_CASE("test_fun") {\n'
         "REQUIRE(true);\n"
