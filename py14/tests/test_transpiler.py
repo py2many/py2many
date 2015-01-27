@@ -28,7 +28,8 @@ def test_empty_return():
 def test_print_multiple_vars():
     source = parse('print("hi", "there" )')
     cpp = transpile(source)
-    assert cpp == ('std::cout << "hi"s << "there"s << std::endl;')
+    assert cpp == ('std::cout << std::string {"hi"} '
+                   '<< std::string {"there"} << std::endl;')
 
 
 def test_assert():

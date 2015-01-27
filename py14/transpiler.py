@@ -158,7 +158,7 @@ class CppTranspiler(CLikeTranspiler):
             return super(CppTranspiler, self).visit_Name(node)
 
     def visit_If(self, node):
-        if self.visit(node.test) == '__name__ == "__main__"s':
+        if self.visit(node.test) == '__name__ == std::string {"__main__"}':
             buf = ["int main(int argc, char ** argv) {",
                    "py14::sys::argv = "
                    "std::vector<std::string>(argv, argv + argc);"]
