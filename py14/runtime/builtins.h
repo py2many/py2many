@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <boost/range/irange.hpp>
+#include <numeric>
 
 namespace py14 {
 
@@ -20,9 +20,12 @@ auto len(T container) {
     return container.size();
 }
 
-auto range(int stop) { return boost::irange(1, stop); }
-
 auto range(int start, int stop, int step = 1) {
-    return boost::irange(start, stop, step);
+    //Completly wrong!! Just a temp hack
+    std::vector<int> nums(stop - start);
+    std::iota(nums.begin(), nums.end(), start);
+    return nums;
 }
+
+auto range(int stop) { return range(1, stop); }
 }

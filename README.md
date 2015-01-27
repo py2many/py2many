@@ -15,19 +15,30 @@ Python into C++ without worrying about the missing type annotations in python.
 Requirements:
 
 - clang 3.5
-- clang-format 3.5
-- boos
 
 Transpiling:
 
 ```
-python py14 examples/fib.py > fib.cpp
+./py14.py fib.py > fib.cpp
 ```
 
 Compiling:
 
 ```
-clang++ -Wall -Wextra -std=c++14 -I../runtime fib.cpp
+clang++ -Wall -Wextra -std=c++14 -Ipy14/runtime fib.cpp
+```
+Run regression tests:
+
+```
+cd regtests
+make
+```
+
+Run tests
+
+```
+pip install -r requirements.txt
+py.test --cov=py14
 ```
 
 ## How it works
