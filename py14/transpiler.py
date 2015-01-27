@@ -73,7 +73,7 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <algorithm>', '#include <cmath>',
                             '#include <vector>', '#include <tuple>',
                             '#include <utility>'])
-        self.usings = set(["using namespace std::literals::string_literals;"])
+        self.usings = set(["using namespace std::string_literals;"])
         self.use_catch_test_cases = False
         self._function_stack = []
         self._vars = set()
