@@ -1,5 +1,6 @@
 # Python to C++ 14 transpiler
-[![Build Status](https://travis-ci.org/lukasmartinelli/py14.svg)](https://travis-ci.org/lukasmartinelli/py14)
+[![Build Status Wercker](https://img.shields.io/wercker/ci/faee5da9a0f6981723b39973d3137158.svg)](https://app.wercker.com/project/bykey/faee5da9a0f6981723b39973d3137158)
+[![Build Status Travis](https://travis-ci.org/lukasmartinelli/py14.svg)](https://travis-ci.org/lukasmartinelli/py14)
 [![Coverage Status](https://coveralls.io/repos/lukasmartinelli/py14/badge.svg?branch=master)](https://coveralls.io/r/lukasmartinelli/py14?branch=master)
 [![Scrutinizer Code Quality](https://img.shields.io/scrutinizer/g/lukasmartinelli/py14.svg?style=flat)](https://scrutinizer-ci.com/g/lukasmartinelli/py14/?branch=master)
 [![Code Health](https://landscape.io/github/lukasmartinelli/py14/master/landscape.svg?style=flat)](https://landscape.io/github/lukasmartinelli/py14/master)

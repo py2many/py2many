@@ -5,6 +5,9 @@ build:
         packages: python-pip python-dev build-essential
     - pip-install
     - script:
+        name: Run unit tests
+        code: py.test --cov=py14
+    - script:
         name: Transpile and Run regtests
         code: |
           cd regtests
