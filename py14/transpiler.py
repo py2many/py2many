@@ -7,6 +7,10 @@ from context import add_variable_context, add_list_calls
 
 
 def transpile(source, headers=False):
+    """
+    Transpile a single python translation unit (a python script) into
+    C++ 14 code.
+    """
     tree = ast.parse(source)
     add_variable_context(tree)
     add_scope_context(tree)
