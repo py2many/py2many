@@ -1,5 +1,5 @@
 import ast
-from scope import add_scope_context
+from py14.scope import add_scope_context
 
 
 class TestScopeTransformer:

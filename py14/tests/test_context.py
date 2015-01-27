@@ -1,6 +1,6 @@
 import ast
-from context import add_variable_context, add_list_calls
-from scope import add_scope_context
+from py14.context import add_variable_context, add_list_calls
+from py14.scope import add_scope_context
 
 
 def parse(lines):

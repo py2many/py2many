@@ -1,8 +1,8 @@
 import ast
-from scope import add_scope_context
-from context import add_variable_context
-from analysis import (FunctionTransformer, CalledWithTransformer,
-                      ImportTransformer, AttributeCallTransformer)
+from py14.scope import add_scope_context
+from py14.context import add_variable_context
+from py14.analysis import (FunctionTransformer, CalledWithTransformer,
+                           ImportTransformer, AttributeCallTransformer)
 
 
 def parse(*args):
