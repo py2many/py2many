@@ -1,10 +1,6 @@
 box: bendiken/cxx14@0.0.8
 build:
   steps:
-    - virtualenv:
-        name: setup virtual environment
-        install_wheel: false
-    - pip-install
     - script:
         name: Transpile and Run regtests
         code: |
