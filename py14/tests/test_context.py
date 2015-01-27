@@ -69,6 +69,11 @@ class TestVariableTranformer:
         assert len(source.vars) == 0
         assert len(source.body[0].vars) == 2
 
+    def test_subscripts_are_ignored(self):
+        source = ast.parse("x[0] = 3")
+        add_variable_context(source)
+        assert len(source.vars) == 0
+
     def test_vars_from_loop(self):
         source = ast.parse("\n".join([
             "newlist = []",

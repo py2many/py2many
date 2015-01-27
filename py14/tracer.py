@@ -90,6 +90,9 @@ class ValueTypeVisitor(ast.NodeVisitor):
         return value_expr(node)
 
     def visit_Name(self, node):
+        if node.id == 'True' or node.id == 'False':
+            return CLikeTranspiler().visit(node)
+
         var = node.scopes.find(node.id)
         if defined_before(var, node):
             return node.id

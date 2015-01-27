@@ -82,6 +82,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Assign(self, node):
         for target in node.targets:
-            target.assigned_from = node
-            self.scope.vars.append(target)
+            if isinstance(target, ast.Name):
+                target.assigned_from = node
+                self.scope.vars.append(target)
         return node

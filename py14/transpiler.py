@@ -1,9 +1,10 @@
 import ast
-from tracer import decltype, is_list, is_builtin_import, is_recursive
 from clike import CLikeTranspiler
 from scope import add_scope_context
 from analysis import add_imports, is_void_function
 from context import add_variable_context, add_list_calls
+from tracer import (decltype, is_list, is_builtin_import, is_recursive,
+                    defined_before)
 
 
 def transpile(source, headers=False, testing=False):
@@ -76,7 +77,6 @@ class CppTranspiler(CLikeTranspiler):
         self.usings = set([])
         self.use_catch_test_cases = False
         self._function_stack = []
-        self._vars = set()
 
     def visit_FunctionDef(self, node):
         self._function_stack.append(node)
@@ -160,6 +160,16 @@ class CppTranspiler(CLikeTranspiler):
             return super(CppTranspiler, self).visit_Name(node)
 
     def visit_If(self, node):
+        body_vars = set([v.id for v in node.scopes[-1].body_vars])
+        orelse_vars = set([v.id for v in node.scopes[-1].orelse_vars])
+        node.common_vars = body_vars.intersection(orelse_vars)
+
+        var_definitions = []
+        for cv in node.common_vars:
+            definition = node.scopes.find(cv)
+            var_type = decltype(definition)
+            var_definitions.append("{0} {1};\n".format(var_type, cv))
+
         if self.visit(node.test) == '__name__ == std::string {"__main__"}':
             buf = ["int main(int argc, char ** argv) {",
                    "py14::sys::argv = "
@@ -167,9 +177,9 @@ class CppTranspiler(CLikeTranspiler):
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
             return "\n".join(buf)
-
         else:
-            return super(CppTranspiler, self).visit_If(node)
+            return ("".join(var_definitions) +
+                    super(CppTranspiler, self).visit_If(node))
 
     def visit_BinOp(self, node):
         if (isinstance(node.left, ast.List)
@@ -247,7 +257,17 @@ class CppTranspiler(CLikeTranspiler):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
             return "std::tie({0}) = {1};".format(", ".join(elts), value)
-        elif isinstance(target, ast.Name) and target.id in self._vars:
+
+        definition = node.scopes.find(target.id)
+
+        if isinstance(node.scopes[-1], ast.If):
+            outer_if = node.scopes[-1]
+            if target.id in outer_if.common_vars:
+                value = self.visit(node.value)
+                return "{0} = {1};".format(target.id, value)
+
+        if (isinstance(target, ast.Name) and
+              defined_before(definition, node)):
             target = self.visit(target)
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
@@ -263,7 +283,6 @@ class CppTranspiler(CLikeTranspiler):
         else:
             target = self.visit(target)
             value = self.visit(node.value)
-            self._vars.add(target)
             return "auto {0} = {1};".format(target, value)
 
     def visit_Print(self, node):

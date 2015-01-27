@@ -6,6 +6,6 @@ main: main.cpp
 main.cpp:
 	./../transpile_regtests.py
 clean:
-	rm main
 	rm *.cpp
 	rm *.hpp
+	rm main

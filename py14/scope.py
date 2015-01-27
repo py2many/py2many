@@ -9,7 +9,7 @@ def add_scope_context(node):
 
 class ScopeMixin(object):
     """
-    Adds a scope property with the current scope (function, module, for loop)
+    Adds a scope property with the current scope (function, module)
     a node is part of.
     """
     scopes = []
@@ -37,11 +37,23 @@ class ScopeMixin(object):
 
 class ScopeList(list):
     def find(self, lookup):
-        for scope in reversed(self):
+
+        def is_match(var):
+            return ((isinstance(var, ast.alias) and var.name == lookup) or
+                    (isinstance(var, ast.Name) and var.id == lookup))
+
+        for scope in self:
             for var in scope.vars:
-                if (isinstance(var, ast.alias) and var.name == lookup) or \
-                   (var.id == lookup):
+                if is_match(var):
                     return var
+            if hasattr(scope, "body_vars"):
+                for var in scope.body_vars:
+                    if is_match(var):
+                        return var
+            if hasattr(scope, "orelse_vars"):
+                for var in scope.body_vars:
+                    if is_match(var):
+                        return var
 
     def find_import(self, lookup):
         for scope in reversed(self):

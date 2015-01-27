@@ -73,6 +73,43 @@ def test_try_except():
     )
 
 
+def test_declare_var_before_if_else_statements():
+    source = parse(
+        "if True:",
+        "   x = True",
+        "else:",
+        "   x = False",
+        "y = x",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "decltype(true) x;\n"
+        "if(true) {\n"
+        "x = true;\n"
+        "} else {\n"
+        "x = false;\n"
+        "}\n"
+        "auto y = x;"
+    )
+
+
+def test_declare_vars_inside_if_as_long_as_possible():
+    source = parse(
+        "x = 5",
+        "if True:",
+        "   y = 10",
+        "   x *= y",
+    )
+    cpp = transpile(source)
+    assert cpp == (
+        "auto x = 5;\n"
+        "if(true) {\n"
+        "auto y = 10;\n"
+        "x *= y;\n"
+        "}"
+    )
+
+
 def test_print_program_args():
     source = parse(
         'if __name__ == "__main__":',
