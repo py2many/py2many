@@ -31,6 +31,12 @@ def test_print_multiple_vars():
     assert cpp == ('std::cout << "hi"s << "there"s << std::endl;')
 
 
+def test_assert():
+    source = parse('assert 1 == foo(3)')
+    cpp = transpile(source)
+    assert cpp == ('REQUIRE(1 == foo(3));')
+
+
 def test_augmented_assigns_with_counter():
     source = parse(
         "counter = 0",
@@ -110,10 +116,39 @@ def test_function_with_return():
         "   return x",
     )
     cpp = transpile(source)
-    print(cpp)
     assert cpp == ("auto fun = [](auto x) {\n"
                    "return x;\n"
                    "};")
+
+
+def test_void_function():
+    source = parse(
+        "def test_fun():",
+        "   assert True",
+    )
+    cpp = transpile(source)
+    print(cpp)
+    assert cpp == (
+        "void test_fun() {\n"
+        "REQUIRE(true);\n"
+        "}"
+    )
+
+def test_create_catch_test_case():
+    source = parse(
+        "def test_fun():",
+        "   assert True",
+    )
+    cpp = transpile(source, testing=True)
+    #print(cpp)
+    assert cpp == (
+        "#define CATCH_CONFIG_MAIN\n"
+        '#include "catch.hpp"\n'
+        'TEST_CASE("test_fun") {\n'
+        "REQUIRE(true);\n"
+        "}"
+    )
+
 
 
 def test_list_as_vector():

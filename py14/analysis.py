@@ -6,6 +6,19 @@ def add_imports(node):
     return ImportTransformer().visit(node)
 
 
+def is_void_function(fun):
+    finder = ReturnFinder()
+    finder.visit(fun)
+    return not finder.returns
+
+
+class ReturnFinder(ast.NodeVisitor):
+    returns = False
+
+    def visit_Return(self, node):
+        self.returns = True
+
+
 class FunctionTransformer(ast.NodeTransformer):
     """Tracks defined functions in scope"""
     def visit_Module(self, node):

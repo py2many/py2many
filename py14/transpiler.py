@@ -2,11 +2,11 @@ import ast
 from tracer import decltype, is_list, is_builtin_import, is_recursive
 from clike import CLikeTranspiler
 from scope import add_scope_context
-from analysis import add_imports
+from analysis import add_imports, is_void_function
 from context import add_variable_context, add_list_calls
 
 
-def transpile(source, headers=False):
+def transpile(source, headers=False, testing=False):
     """
     Transpile a single python translation unit (a python script) into
     C++ 14 code.
@@ -18,11 +18,26 @@ def transpile(source, headers=False):
     add_imports(tree)
 
     transpiler = CppTranspiler()
-    cpp = transpiler.visit(tree)
+
+    buf = []
+    if testing:
+        buf += ["#define CATCH_CONFIG_MAIN", '#include "catch.hpp"']
+        transpiler.use_catch_test_cases = True
 
     if headers:
-        return "\n".join(transpiler.headers + transpiler.usings) + "\n" + cpp
-    return cpp
+        buf += transpiler.headers
+        buf += transpiler.usings
+
+    if testing or headers:
+        buf.append('') #Force empty line
+
+    cpp = transpiler.visit(tree)
+    return "\n".join(buf) + cpp
+
+
+def generate_catch_test_case(node, body):
+    funcdef = 'TEST_CASE("{0}")'.format(node.name)
+    return funcdef + " {\n" + body + "\n}"
 
 
 def generate_template_fun(node, body):
@@ -30,10 +45,17 @@ def generate_template_fun(node, body):
     for idx, arg in enumerate(node.args.args):
         params.append(("T" + str(idx + 1), arg.id))
     typenames = ["typename " + arg[0] for arg in params]
-    template = "template <{0}>".format(", ".join(typenames))
+
+    template = ""
+    if len(typenames) > 0:
+        template = "template <{0}>\n".format(", ".join(typenames))
     params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]
 
-    funcdef = "{0}\nauto {1}({2})".format(template, node.name,
+    return_type = "auto"
+    if is_void_function(node):
+        return_type = "void"
+
+    funcdef = "{0}{1} {2}({3})".format(template, return_type, node.name,
                                           ", ".join(params))
     return funcdef + " {\n" + body + "\n}"
 
@@ -52,6 +74,7 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <vector>', '#include <tuple>',
                             '#include <utility>'])
         self.usings = set(["using namespace std::literals::string_literals;"])
+        self.use_catch_test_cases = False
         self._function_stack = []
         self._vars = set()
 
@@ -60,7 +83,9 @@ class CppTranspiler(CLikeTranspiler):
         body = "\n".join([self.visit(n) for n in node.body])
         self._function_stack.pop()
 
-        if is_recursive(node):
+        if self.use_catch_test_cases and is_void_function(node):
+            return generate_catch_test_case(node, body)
+        elif is_void_function(node) or is_recursive(node):
             return generate_template_fun(node, body)
         else:
             return generate_lambda_fun(node, body)
@@ -208,6 +233,9 @@ class CppTranspiler(CLikeTranspiler):
                    '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
 
         return '\n'.join(buf)
+
+    def visit_Assert(self, node):
+        return "REQUIRE({0});".format(self.visit(node.test))
 
     def visit_Assign(self, node):
         target = node.targets[0]

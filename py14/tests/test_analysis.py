@@ -2,7 +2,8 @@ import ast
 from py14.scope import add_scope_context
 from py14.context import add_variable_context
 from py14.analysis import (FunctionTransformer, CalledWithTransformer,
-                           ImportTransformer, AttributeCallTransformer)
+                           ImportTransformer, AttributeCallTransformer,
+                           is_void_function)
 
 
 def parse(*args):
@@ -10,6 +11,24 @@ def parse(*args):
     add_scope_context(source)
     add_variable_context(source)
     return source
+
+
+def test_is_void_for_fun_with_no_return():
+    source = parse(
+        "def foo(x):",
+        "   bar(x)",
+    )
+    foo = source.body[0]
+    assert is_void_function(foo)
+
+
+def test_is_not_void_for_fun_with_return_value():
+    source = parse(
+        "def foo(x):",
+        "   return x",
+    )
+    foo = source.body[0]
+    assert not is_void_function(foo)
 
 
 class TestFunctionTransformer:
