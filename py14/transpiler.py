@@ -29,7 +29,7 @@ def transpile(source, headers=False, testing=False):
         buf += transpiler.usings
 
     if testing or headers:
-        buf.append('') #Force empty line
+        buf.append('')  # Force empty line
 
     cpp = transpiler.visit(tree)
     return "\n".join(buf) + cpp
@@ -83,7 +83,9 @@ class CppTranspiler(CLikeTranspiler):
         body = "\n".join([self.visit(n) for n in node.body])
         self._function_stack.pop()
 
-        if self.use_catch_test_cases and is_void_function(node):
+        if (self.use_catch_test_cases and
+            is_void_function(node) and
+            node.name.startswith("test")):
             return generate_catch_test_case(node, body)
         elif is_void_function(node) or is_recursive(node):
             return generate_template_fun(node, body)

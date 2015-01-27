@@ -32,7 +32,7 @@ def transpile_tests(tests_dir):
         main.write("#define CATCH_CONFIG_MAIN\n")
         main.write('#include "catch.hpp"\n')
         for hpp_file in hpp_files:
-            main.write('#include "{0}"'.format(hpp_file))
+            main.write('#include "{0}"\n'.format(hpp_file))
 
 
 if __name__ == "__main__":
