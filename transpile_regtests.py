@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import contextlib
 from os.path import join, dirname, realpath, splitext
 
 from py14.transpiler import transpile
@@ -19,14 +18,15 @@ def transpile_tests(tests_dir):
     py_files = [p for p in os.listdir(tests_dir) if is_test(p)]
 
     for py_file in py_files:
-        hpp_path = join(tests_dir, splitext(py_file)[0] + ".hpp")
+        hpp_file = splitext(py_file)[0] + ".hpp"
+        hpp_path = join(tests_dir, hpp_file)
 
         with open(hpp_path, "w") as cpp_file:
             source = open(join(tests_dir, py_file)).read()
             cpp = transpile(source, headers=True, testing=True)
             cpp_file.write(cpp)
 
-        hpp_files.append(hpp_path)
+        hpp_files.append(hpp_file)
 
     with open(join(tests_dir, "main.cpp"), "w") as main:
         main.write("#define CATCH_CONFIG_MAIN\n")

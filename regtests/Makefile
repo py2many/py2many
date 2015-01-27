@@ -1,8 +1,8 @@
-SHELL := /bin/bash
+CPPFLAGS = -Wall -std=c++14 -I../py14/runtime 
 test: main
 	./main
 main: main.cpp
-	clang++ -Wall -Wextra -std=c++14 -I../py14/runtime -o main main.cpp
+	$(CXX) $(CPPFLAGS) -o main main.cpp
 main.cpp:
 	./../transpile_regtests.py
 clean:

@@ -73,7 +73,7 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <algorithm>', '#include <cmath>',
                             '#include <vector>', '#include <tuple>',
                             '#include <utility>'])
-        self.usings = set(["using namespace std::string_literals;"])
+        self.usings = set([])
         self.use_catch_test_cases = False
         self._function_stack = []
         self._vars = set()
@@ -148,7 +148,8 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
-        return super(CppTranspiler, self).visit_Str(node) + "s"
+        return ("std::string {" +
+                super(CppTranspiler, self).visit_Str(node) + "}")
 
     def visit_Name(self, node):
         if node.id == 'None':
