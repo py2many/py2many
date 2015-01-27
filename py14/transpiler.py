@@ -126,7 +126,7 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "range" or fname == "xrange":
             return "py14::range({0})".format(args)
         elif fname == "len":
-            return "py14::len({0})".format(args)
+            return "{0}.size()".format(self.visit(node.args[0]))
 
         return '{0}({1})'.format(fname, args)
 

@@ -15,11 +15,6 @@ auto to_int(std::string val) {
     return std::stoi(val);
 }
 
-template <typename T>
-auto len(T container) {
-    return container.size();
-}
-
 auto range(int start, int stop, int step = 1) {
     //Completly wrong!! Just a temp hack
     std::vector<int> nums(stop - start);

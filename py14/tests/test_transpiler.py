@@ -135,6 +135,7 @@ def test_void_function():
         "}"
     )
 
+
 def test_create_catch_test_case():
     source = parse(
         "def test_fun():",
@@ -147,7 +148,6 @@ def test_create_catch_test_case():
         "REQUIRE(true);\n"
         "}"
     )
-
 
 
 def test_list_as_vector():
@@ -200,7 +200,7 @@ def test_bubble_sort():
     cpp = transpile(source)
     assert cpp == (
         "auto sort = [](auto seq) {\n"
-        "auto L = py14::len(seq);\n"
+        "auto L = seq.size();\n"
         "for(auto _ : py14::range(L)) {\n"
         "for(auto n : py14::range(1, L)) {\n"
         "if(seq[n] < seq[n - 1]) {\n"
@@ -257,12 +257,12 @@ def test_comb_sort():
     cpp = transpile(source)
     assert cpp == (
         "auto sort = [](auto seq) {\n"
-        "auto gap = py14::len(seq);\n"
+        "auto gap = seq.size();\n"
         "auto swap = true;\n"
         "while (gap > 1||swap) {\n"
         "gap = std::max(1, py14::to_int(gap / 1.25));\n"
         "swap = false;\n"
-        "for(auto i : py14::range(py14::len(seq) - gap)) {\n"
+        "for(auto i : py14::range(seq.size() - gap)) {\n"
         "if(seq[i] > seq[i + gap]) {\n"
         "std::tie(seq[i], seq[i + gap]) = "
         "std::make_tuple(seq[i + gap], seq[i]);\n"
