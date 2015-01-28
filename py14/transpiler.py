@@ -260,14 +260,18 @@ class CppTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "std::tie({0}) = {1};".format(", ".join(elts), value)
 
-        definition = node.scopes.find(target.id)
-
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             if target.id in outer_if.common_vars:
                 value = self.visit(node.value)
                 return "{0} = {1};".format(target.id, value)
 
+        if isinstance(target, ast.Subscript):
+            target = self.visit(target)
+            value = self.visit(node.value)
+            return "{0} = {1};".format(target, value)
+
+        definition = node.scopes.find(target.id)
         if (isinstance(target, ast.Name) and
               defined_before(definition, node)):
             target = self.visit(target)
@@ -278,10 +282,6 @@ class CppTranspiler(CLikeTranspiler):
             return "{0} {1} {{{2}}};".format(decltype(node),
                                              self.visit(target),
                                              ", ".join(elements))
-        elif isinstance(target, ast.Subscript):
-            target = self.visit(target)
-            value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
         else:
             target = self.visit(target)
             value = self.visit(node.value)

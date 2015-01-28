@@ -122,3 +122,66 @@ int main() {
     std::cout << person.full_name() << std::endl;
 }
 ```
+
+## Working Features
+
+Language Overview
+
+- [ ] classes
+- [x] functions
+- [x] lambdas
+- [ ] multiple inheritance
+- [ ] operator overloading
+- [ ] function and class decorators
+- [ ] getter/setter function decorators
+- [ ] list comprehensions
+- [ ] yield (generator functions)
+- [ ] function calls with `*args` and `**kwargs`
+
+Language Keywords
+
+- [ ] global, nonlocal
+- [x] while, for, continue, break
+- [x] if, elif, else
+- [ ] try, except, raise
+- [x] def, lambda
+- [ ] new, class
+- [x] from, import, as
+- [ ] pass, assert
+- [x] and, or, is, in, not
+- [x] return
+- [ ] yield
+
+Builtins
+- [ ] dir
+- [ ] type
+- [ ] hasattr
+- [ ] getattr
+- [ ] setattr
+- [ ] issubclass
+- [ ] isinstance
+- [ ] dict
+- [ ] list
+- [ ] tuple
+- [x] int
+- [ ] float
+- [x] str
+- [ ] round
+- [x] range
+- [ ] sum
+- [x] len
+- [ ] map
+- [ ] filter
+- [ ] min
+- [ ] max
+- [ ] abs
+- [ ] ord
+- [ ] chr
+- [ ] open
+
+Data Structures
+
+- [x] list
+- [ ] Set
+- [x] String
+- [ ] Dict

@@ -19,9 +19,9 @@ def test_empty_return():
     )
     cpp = transpile(source)
     assert cpp == (
-        "auto foo = []() {\n"
+        "inline auto foo() {\n"
         "return;\n"
-        "};"
+        "}"
     )
 
 
@@ -154,9 +154,12 @@ def test_function_with_return():
         "   return x",
     )
     cpp = transpile(source)
-    assert cpp == ("auto fun = [](auto x) {\n"
-                   "return x;\n"
-                   "};")
+    assert cpp == (
+        "template <typename T1>\n"
+        "auto fun(T1 x) {\n"
+        "return x;\n"
+        "}"
+    )
 
 
 def test_void_function():
@@ -213,14 +216,15 @@ def test_map_function():
     )
     cpp = transpile(source)
     assert cpp == (
-        "auto map = [](auto values, auto fun) {\n"
+        "template <typename T1, typename T2>\n"
+        "auto map(T1 values, T2 fun) {\n"
         "std::vector<decltype(fun(std::declval"
         "<typename decltype(values)::value_type>()))> results {};\n"
         "for(auto v : values) {\n"
         "results.push_back(fun(v));\n"
         "}\n"
         "return results;\n"
-        "};"
+        "}"
     )
 
 
@@ -236,7 +240,8 @@ def test_bubble_sort():
     )
     cpp = transpile(source)
     assert cpp == (
-        "auto sort = [](auto seq) {\n"
+        "template <typename T1>\n"
+        "auto sort(T1 seq) {\n"
         "auto L = seq.size();\n"
         "for(auto _ : rangepp::range(L)) {\n"
         "for(auto n : rangepp::range(1, L)) {\n"
@@ -246,7 +251,7 @@ def test_bubble_sort():
         "}\n"
         "}\n" "}\n"
         "return seq;\n"
-        "};"
+        "}"
     )
 
 
@@ -293,7 +298,8 @@ def test_comb_sort():
     )
     cpp = transpile(source)
     assert cpp == (
-        "auto sort = [](auto seq) {\n"
+        "template <typename T1>\n"
+        "auto sort(T1 seq) {\n"
         "auto gap = seq.size();\n"
         "auto swap = true;\n"
         "while (gap > 1||swap) {\n"
@@ -308,7 +314,7 @@ def test_comb_sort():
         "}\n"
         "}\n"
         "}\n"
-        "};"
+        "}"
     )
 
 
@@ -322,10 +328,11 @@ def test_normal_pdf():
     )
     cpp = transpile(source)
     assert cpp == (
-        "auto pdf = [](auto x, auto mean, auto std_dev) {\n"
+        "template <typename T1, typename T2, typename T3>\n"
+        "auto pdf(T1 x, T2 mean, T3 std_dev) {\n"
         "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);\n"
         "auto term2 = std::pow(py14::math::e, -1.0 * "
         "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));\n"
         "return term1 * term2;\n"
-        "};"
+        "}"
     )
