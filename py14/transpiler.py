@@ -73,7 +73,7 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <iostream>', '#include <string>',
                             '#include <algorithm>', '#include <cmath>',
                             '#include <vector>', '#include <tuple>',
-                            '#include <utility>'])
+                            '#include <utility>', '#include "range.hpp"'])
         self.usings = set([])
         self.use_catch_test_cases = False
         self._function_stack = []
@@ -87,10 +87,10 @@ class CppTranspiler(CLikeTranspiler):
             is_void_function(node) and
             node.name.startswith("test")):
             return generate_catch_test_case(node, body)
-        elif is_void_function(node) or is_recursive(node):
-            return generate_template_fun(node, body)
-        else:
-            return generate_lambda_fun(node, body)
+        # is_void_function(node) or is_recursive(node):
+        return generate_template_fun(node, body)
+        # else:
+        #    return generate_lambda_fun(node, body)
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -123,8 +123,10 @@ class CppTranspiler(CLikeTranspiler):
             return "std::to_string({0})".format(args)
         elif fname == "max":
             return "std::max({0})".format(args)
-        elif fname == "range" or fname == "xrange":
-            return "py14::range({0})".format(args)
+        elif fname == "range":
+            return "rangepp::range({0})".format(args)
+        elif fname == "xrange":
+            return "rangepp::xrange({0})".format(args)
         elif fname == "len":
             return "{0}.size()".format(self.visit(node.args[0]))
 

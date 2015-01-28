@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <numeric>
+#include <cstdlib>
+#include <iterator>
 
 namespace py14 {
 
@@ -14,13 +16,4 @@ template <>
 auto to_int(std::string val) {
     return std::stoi(val);
 }
-
-auto range(int start, int stop, int step = 1) {
-    //Completly wrong!! Just a temp hack
-    std::vector<int> nums(stop - start);
-    std::iota(nums.begin(), nums.end(), start);
-    return nums;
-}
-
-auto range(int stop) { return range(1, stop); }
 }
