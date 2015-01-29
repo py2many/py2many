@@ -18,10 +18,10 @@ def test_empty_return():
         "   return",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "inline auto foo() {\n"
-        "return;\n"
-        "}"
+    assert cpp == parse(
+        "inline auto foo() {",
+        "return;",
+        "}",
     )
 
 
@@ -47,29 +47,12 @@ def test_augmented_assigns_with_counter():
         "counter /= 3",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "auto counter = 0;\n"
-        "counter += 5;\n"
-        "counter -= 2;\n"
-        "counter *= 2;\n"
+    assert cpp == parse(
+        "auto counter = 0;",
+        "counter += 5;",
+        "counter -= 2;",
+        "counter *= 2;",
         "counter /= 3;"
-    )
-
-
-@pytest.mark.xfail
-def test_try_except():
-    source = parse(
-        "try:",
-        "   conn = open_connection()",
-        "except ConnectionError:",
-        '   print("Could not connect")',
-    )
-    cpp = transpile(source)
-    assert cpp == (
-        "try {\n"
-        "auto conn = open_connection();"
-        "}\n"
-        "catch(;\n"
     )
 
 
@@ -82,13 +65,13 @@ def test_declare_var_before_if_else_statements():
         "y = x",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "decltype(true) x;\n"
-        "if(true) {\n"
-        "x = true;\n"
-        "} else {\n"
-        "x = false;\n"
-        "}\n"
+    assert cpp == parse(
+        "decltype(true) x;",
+        "if(true) {",
+        "x = true;",
+        "} else {",
+        "x = false;",
+        "}",
         "auto y = x;"
     )
 
@@ -101,11 +84,11 @@ def test_declare_vars_inside_if_as_long_as_possible():
         "   x *= y",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "auto x = 5;\n"
-        "if(true) {\n"
-        "auto y = 10;\n"
-        "x *= y;\n"
+    assert cpp == parse(
+        "auto x = 5;",
+        "if(true) {",
+        "auto y = 10;",
+        "x *= y;",
         "}"
     )
 
@@ -117,12 +100,12 @@ def test_print_program_args():
         "       print(arg)",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "int main(int argc, char ** argv) {\n"
-        "py14::sys::argv = std::vector<std::string>(argv, argv + argc);\n"
-        "for(auto arg : py14::sys::argv) {\n"
-        "std::cout << arg << std::endl;\n"
-        "}\n"
+    assert cpp == parse(
+        "int main(int argc, char ** argv) {",
+        "py14::sys::argv = std::vector<std::string>(argv, argv + argc);",
+        "for(auto arg : py14::sys::argv) {",
+        "std::cout << arg << std::endl;",
+        "}",
         "}"
     )
 
@@ -134,9 +117,11 @@ def test_tuple_swap():
         "x, y = y, x",
     )
     cpp = transpile(source)
-    assert cpp == ("auto x = 3;\n"
-                   "auto y = 1;\n"
-                   "std::tie(x, y) = std::make_tuple(y, x);")
+    assert cpp == parse(
+        "auto x = 3;",
+        "auto y = 1;",
+        "std::tie(x, y) = std::make_tuple(y, x);"
+    )
 
 
 def test_assign():
@@ -145,7 +130,10 @@ def test_assign():
         "x = 1",
     )
     cpp = transpile(source)
-    assert cpp == "auto x = 3;\nx = 1;"
+    assert cpp == parse(
+        "auto x = 3;",
+        "x = 1;"
+    )
 
 
 def test_function_with_return():
@@ -154,10 +142,10 @@ def test_function_with_return():
         "   return x",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1>\n"
-        "auto fun(T1 x) {\n"
-        "return x;\n"
+    assert cpp == parse(
+        "template <typename T1>",
+        "auto fun(T1 x) {",
+        "return x;",
         "}"
     )
 
@@ -168,10 +156,9 @@ def test_void_function():
         "   assert True",
     )
     cpp = transpile(source)
-    print(cpp)
-    assert cpp == (
-        "inline void test_fun() {\n"
-        "REQUIRE(true);\n"
+    assert cpp == parse(
+        "inline void test_fun() {",
+        "REQUIRE(true);",
         "}"
     )
 
@@ -182,10 +169,10 @@ def test_create_catch_test_case():
         "   assert True",
     )
     cpp = transpile(source, testing=True)
-    assert cpp == (
-        '#include "catch.hpp"\n'
-        'TEST_CASE("test_fun") {\n'
-        "REQUIRE(true);\n"
+    assert cpp == parse(
+        '#include "catch.hpp"',
+        'TEST_CASE("test_fun") {',
+        "REQUIRE(true);",
         "}"
     )
 
@@ -202,8 +189,10 @@ def test_vector_find_out_type():
         "values.append(1)",
     )
     cpp = transpile(source)
-    assert cpp == ("std::vector<decltype(1)> values {};\n"
-                   "values.push_back(1);")
+    assert cpp == parse(
+        "std::vector<decltype(1)> values {};",
+        "values.push_back(1);"
+    )
 
 
 def test_map_function():
@@ -215,15 +204,15 @@ def test_map_function():
         "   return results",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1, typename T2>\n"
-        "auto map(T1 values, T2 fun) {\n"
+    assert cpp == parse(
+        "template <typename T1, typename T2>",
+        "auto map(T1 values, T2 fun) {",
         "std::vector<decltype(fun(std::declval"
-        "<typename decltype(values)::value_type>()))> results {};\n"
-        "for(auto v : values) {\n"
-        "results.push_back(fun(v));\n"
-        "}\n"
-        "return results;\n"
+        "<typename decltype(values)::value_type>()))> results {};",
+        "for(auto v : values) {",
+        "results.push_back(fun(v));",
+        "}",
+        "return results;",
         "}"
     )
 
@@ -239,18 +228,19 @@ def test_bubble_sort():
         "    return seq",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1>\n"
-        "auto sort(T1 seq) {\n"
-        "auto L = seq.size();\n"
-        "for(auto _ : rangepp::range(L)) {\n"
-        "for(auto n : rangepp::range(1, L)) {\n"
-        "if(seq[n] < seq[n - 1]) {\n"
+    assert cpp == parse(
+        "template <typename T1>",
+        "auto sort(T1 seq) {",
+        "auto L = seq.size();",
+        "for(auto _ : rangepp::range(L)) {",
+        "for(auto n : rangepp::range(1, L)) {",
+        "if(seq[n] < seq[n - 1]) {",
         "std::tie(seq[n - 1], seq[n]) = "
-        "std::make_tuple(seq[n], seq[n - 1]);\n"
-        "}\n"
-        "}\n" "}\n"
-        "return seq;\n"
+        "std::make_tuple(seq[n], seq[n - 1]);",
+        "}",
+        "}",
+        "}",
+        "return seq;",
         "}"
     )
 
@@ -266,18 +256,18 @@ def test_fib():
         "        return fib(n-1) + fib(n-2)",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1>\n"
-        "auto fib(T1 n) {\n"
-        "if(n == 1) {\n"
-        "return 1;\n"
-        "} else {\n"
-        "if(n == 0) {\n"
-        "return 0;\n"
-        "} else {\n"
-        "return fib(n - 1) + fib(n - 2);\n"
-        "}\n"
-        "}\n"
+    assert cpp == parse(
+        "template <typename T1>",
+        "auto fib(T1 n) {",
+        "if(n == 1) {",
+        "return 1;",
+        "} else {",
+        "if(n == 0) {",
+        "return 0;",
+        "} else {",
+        "return fib(n - 1) + fib(n - 2);",
+        "}",
+        "}",
         "}"
     )
 
@@ -297,23 +287,23 @@ def test_comb_sort():
         "                return seq",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1>\n"
-        "auto sort(T1 seq) {\n"
-        "auto gap = seq.size();\n"
-        "auto swap = true;\n"
-        "while (gap > 1||swap) {\n"
-        "gap = std::max(1, py14::to_int(gap / 1.25));\n"
-        "swap = false;\n"
-        "for(auto i : rangepp::range(seq.size() - gap)) {\n"
-        "if(seq[i] > seq[i + gap]) {\n"
+    assert cpp == parse(
+        "template <typename T1>",
+        "auto sort(T1 seq) {",
+        "auto gap = seq.size();",
+        "auto swap = true;",
+        "while (gap > 1||swap) {",
+        "gap = std::max(1, py14::to_int(gap / 1.25));",
+        "swap = false;",
+        "for(auto i : rangepp::range(seq.size() - gap)) {",
+        "if(seq[i] > seq[i + gap]) {",
         "std::tie(seq[i], seq[i + gap]) = "
-        "std::make_tuple(seq[i + gap], seq[i]);\n"
-        "swap = true;\n"
-        "return seq;\n"
-        "}\n"
-        "}\n"
-        "}\n"
+        "std::make_tuple(seq[i + gap], seq[i]);",
+        "swap = true;",
+        "return seq;",
+        "}",
+        "}",
+        "}",
         "}"
     )
 
@@ -327,12 +317,12 @@ def test_normal_pdf():
         "    return term1 * term2",
     )
     cpp = transpile(source)
-    assert cpp == (
-        "template <typename T1, typename T2, typename T3>\n"
-        "auto pdf(T1 x, T2 mean, T3 std_dev) {\n"
-        "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);\n"
+    assert cpp == parse(
+        "template <typename T1, typename T2, typename T3>",
+        "auto pdf(T1 x, T2 mean, T3 std_dev) {",
+        "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);",
         "auto term2 = std::pow(py14::math::e, -1.0 * "
-        "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));\n"
-        "return term1 * term2;\n"
+        "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));",
+        "return term1 * term2;",
         "}"
     )
