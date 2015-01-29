@@ -28,25 +28,24 @@ symbols = {
 }
 
 
-def cpp_symbol(node):
-    """Find the equivalent C++ symbol for a python ast symbol node"""
+def c_symbol(node):
+    """Find the equivalent C symbol for a Python ast symbol node"""
     symbol_type = type(node)
     return symbols[symbol_type]
 
 
 class CLikeTranspiler(ast.NodeVisitor):
+    builtin_constants = frozenset(['True', 'False', 'None'])
     """Provides a base for C-like programming languages"""
     def visit(self, node):
         if type(node) in symbols:
-            return cpp_symbol(node)
+            return c_symbol(node)
         else:
             return super(CLikeTranspiler, self).visit(node)
 
     def visit_Name(self, node):
-        if node.id == 'True':
-            return 'true'
-        elif node.id == 'False':
-            return 'false'
+        if node.id in self.builtin_constants:
+            return node.id.lower()
         return node.id
 
     def visit_Num(self, node):

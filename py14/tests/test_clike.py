@@ -1,8 +1,8 @@
 import ast
-from py14.clike import cpp_symbol
+from py14.clike import c_symbol
 
 
-def test_cpp_symbol():
+def test_c_symbol():
     source = ast.parse("x == y")
     equals_symbol = source.body[0].value.ops[0]
-    assert cpp_symbol(equals_symbol) == "=="
+    assert c_symbol(equals_symbol) == "=="
