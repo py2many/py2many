@@ -3,8 +3,7 @@ from clike import CLikeTranspiler
 from scope import add_scope_context
 from analysis import add_imports, is_void_function
 from context import add_variable_context, add_list_calls
-from tracer import (decltype, is_list, is_builtin_import, is_recursive,
-                    defined_before)
+from tracer import decltype, is_list, is_builtin_import, defined_before
 
 
 def transpile(source, headers=False, testing=False):
@@ -76,12 +75,9 @@ class CppTranspiler(CLikeTranspiler):
                             '#include <utility>', '#include "range.hpp"'])
         self.usings = set([])
         self.use_catch_test_cases = False
-        self._function_stack = []
 
     def visit_FunctionDef(self, node):
-        self._function_stack.append(node)
         body = "\n".join([self.visit(n) for n in node.body])
-        self._function_stack.pop()
 
         if (self.use_catch_test_cases and
             is_void_function(node) and

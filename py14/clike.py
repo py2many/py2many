@@ -1,79 +1,47 @@
 import ast
 
 
-class OperatorSymbols(ast.NodeVisitor):
-    def visit_Eq(self, _):
-        return '=='
-
-    def visit_NotEq(self, _):
-        return '!='
-
-    def visit_Pass(self, _):
-        return '/*pass*/'
-
-    def visit_Mult(self, _):
-        return '*'
-
-    def visit_Add(self, _):
-        return '+'
-
-    def visit_Sub(self, _):
-        return '-'
-
-    def visit_Div(self, _):
-        return '/'
-
-    def visit_FloorDiv(self, _):
-        return '/'
-
-    def visit_Mod(self, _):
-        return '%'
-
-    def visit_Lt(self, _):
-        return '<'
-
-    def visit_Gt(self, _):
-        return '>'
-
-    def visit_GtE(self, _):
-        return '>='
-
-    def visit_LtE(self, _):
-        return '<='
-
-    def visit_LShift(self, _):
-        return '<<'
-
-    def visit_RShift(self, _):
-        return '>>'
-
-    def visit_BitXor(self, _):
-        return '^'
-
-    def visit_BitOr(self, _):
-        return '|'
-
-    def visit_BitAnd(self, _):
-        return '&'
-
-    def visit_Not(self, _):
-        return '!'
-
-    def visit_IsNot(self, _):
-        return '!='
-
-    def visit_USub(self, _):
-        return '-'
-
-    def visit_And(self, _):
-        return '&&'
-
-    def visit_Or(self, _):
-        return '||'
+symbols = {
+    ast.Eq: "==",
+    ast.NotEq: '!=',
+    ast.Pass: '/*pass*/',
+    ast.Mult: '*',
+    ast.Add: '+',
+    ast.Sub: '-',
+    ast.Div: '/',
+    ast.FloorDiv: '/',
+    ast.Mod: '%',
+    ast.Lt: '<',
+    ast.Gt: '>',
+    ast.GtE: '>=',
+    ast.LtE: '<=',
+    ast.LShift: '<<',
+    ast.RShift: '>>',
+    ast.BitXor: '^',
+    ast.BitOr: '|',
+    ast.BitAnd: '&',
+    ast.Not: '!',
+    ast.IsNot: '!=',
+    ast.USub: '-',
+    ast.And: '&&',
+    ast.Or: '||'
+}
 
 
-class CLikeTranspiler(OperatorSymbols):
+def cpp_symbol(node):
+    """Find the equivalent C++ symbol for a python ast symbol node"""
+    symbol_type = type(node)
+    return symbols[symbol_type]
+
+
+class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
+    def visit(self, node):
+        if type(node) in symbols:
+            return cpp_symbol(node)
+        else:
+            return super(CLikeTranspiler, self).visit(node)
+
     def visit_Name(self, node):
         if node.id == 'True':
             return 'true'
