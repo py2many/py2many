@@ -36,24 +36,29 @@ class ScopeMixin(object):
 
 
 class ScopeList(list):
+    """
+    Wraps around list of scopes and provides find method for finding
+    the definition of a variable
+    """
     def find(self, lookup):
-
+        """Find definition of variable lookup."""
         def is_match(var):
             return ((isinstance(var, ast.alias) and var.name == lookup) or
                     (isinstance(var, ast.Name) and var.id == lookup))
 
-        for scope in self:
-            for var in scope.vars:
+        def find_definition(scope, var_attr="vars"):
+            for var in getattr(scope, var_attr):
                 if is_match(var):
                     return var
-            if hasattr(scope, "body_vars"):
-                for var in scope.body_vars:
-                    if is_match(var):
-                        return var
-            if hasattr(scope, "orelse_vars"):
-                for var in scope.body_vars:
-                    if is_match(var):
-                        return var
+
+        for scope in self:
+            defn = find_definition(scope)
+            if not defn and hasattr(scope, "body_vars"):
+                defn = find_definition(scope, "body_vars")
+            if not defn and hasattr(scope, "orelse_vars"):
+                defn = find_definition(scope, "orelse_vars")
+            if defn:
+                return defn
 
     def find_import(self, lookup):
         for scope in reversed(self):
