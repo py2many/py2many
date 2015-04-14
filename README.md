@@ -3,6 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/lukasmartinelli/py14/badge.svg?branch=master)](https://coveralls.io/r/lukasmartinelli/py14?branch=master)
 [![Scrutinizer Code Quality](https://img.shields.io/scrutinizer/g/lukasmartinelli/py14.svg?style=flat)](https://scrutinizer-ci.com/g/lukasmartinelli/py14/?branch=master)
 [![Code Health](https://landscape.io/github/lukasmartinelli/py14/master/landscape.svg?style=flat)](https://landscape.io/github/lukasmartinelli/py14/master)
+[![Dependency Status](https://gemnasium.com/lukasmartinelli/py14.svg)](https://gemnasium.com/lukasmartinelli/py14)
 
 This is a little experiment that shows how far you can go with the
 C++ 14 `auto` return type and templates.
