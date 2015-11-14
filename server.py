@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import logging
 import sys
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE
 
 from py14.transpiler import transpile
-from flask import Flask, request, redirect, url_for, send_from_directory
+from flask import Flask, request
 
 
 app = Flask(__name__)
@@ -25,8 +25,9 @@ def static_proxy(path):
 @app.route('/transpile', methods=['POST'])
 def transpilation():
     source = request.data
-    cpp = transpile(source, headers=True, testing=False)
-    return format_cpp(cpp)
+    print(request.data)
+    cpp = transpile(source, headers=False, testing=False)
+    return format_cpp(cpp), 200, {'Content-Type': 'text/plain'}
 
 
 def format_cpp(cpp):
