@@ -14,12 +14,17 @@ Python into C++ without worrying about the missing type annotations in python.
 
 ## Example
 
+Original Python version.
+
 ```python
 def factorial(num):
     if num <= 1:
         return num
     return factorial(num-1) * num
 ```
+
+Transpiled C++ template.
+
 
 ```c++
 template <typename T1> auto factorial(T1 num) {
