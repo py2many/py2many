@@ -12,6 +12,24 @@ C++ 14 `auto` return type and templates.
 C++14 has such powerful type deduction that it is possible to transpile
 Python into C++ without worrying about the missing type annotations in python.
 
+## Example
+
+```python
+def factorial(num):
+    if num <= 1:
+        return num
+    return factorial(num-1) * num
+```
+
+```c++
+template <typename T1> auto factorial(T1 num) {
+  if (num <= 1) {
+    return num;
+  }
+  return factorial(num - 1) * num;
+}
+```
+
 ## How it works
 
 Consider a `map` implementation.
@@ -83,24 +101,6 @@ py.test --cov=py14
 
 ## More Examples
 
-**Factorial**
-
-```python
-def factorial(num):
-    if num <= 1:
-        return num
-    return factorial(num-1) * num
-```
-
-```c++
-template <typename T1> auto factorial(T1 num) {
-  if (num <= 1) {
-    return num;
-  }
-  return factorial(num - 1) * num;
-}
-```
-
 **Probability Density Function (PDF)**
 
 ```python
@@ -117,6 +117,58 @@ auto pdf(T1 x, T2 mean, T3 std_dev) {
   auto term2 = std::pow(py14::math::e, -1.0 * std::pow(x - mean, 2.0) / 2.0 *
                                            std::pow(std_dev, 2.0));
   return term1 * term2;
+}
+```
+
+**Fibonacci**
+
+```python
+def fib(n):
+    if n == 1:
+        return 1
+    elif n == 0:
+        return 0
+    else:
+        return fib(n-1) + fib(n-2)
+```
+
+```c++
+template <typename T1> auto fib(T1 n) {
+  if (n == 1) {
+    return 1;
+  } else {
+    if (n == 0) {
+      return 0;
+    } else {
+      return fib(n - 1) + fib(n - 2);
+    }
+  }
+}
+```
+
+**Bubble Sort**
+
+```python
+def sort(seq):
+    L = len(seq)
+    for _ in range(L):
+        for n in range(1, L):
+            if seq[n] < seq[n - 1]:
+                seq[n - 1], seq[n] = seq[n], seq[n - 1]
+    return seq
+```
+
+```c++
+template <typename T1> auto sort(T1 seq) {
+  auto L = seq.size();
+  for (auto _ : rangepp::range(L)) {
+    for (auto n : rangepp::range(1, L)) {
+      if (seq[n] < seq[n - 1]) {
+        std::tie(seq[n - 1], seq[n]) = std::make_tuple(seq[n], seq[n - 1]);
+      }
+    }
+  }
+  return seq;
 }
 ```
 
