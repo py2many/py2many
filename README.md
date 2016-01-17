@@ -5,42 +5,12 @@
 [![Code Health](https://landscape.io/github/lukasmartinelli/py14/master/landscape.svg?style=flat)](https://landscape.io/github/lukasmartinelli/py14/master)
 [![Dependency Status](https://gemnasium.com/lukasmartinelli/py14.svg)](https://gemnasium.com/lukasmartinelli/py14)
 
+Try it out online: http://py14.lukasmartinelli.ch/
+
 This is a little experiment that shows how far you can go with the
 C++ 14 `auto` return type and templates.
-
 C++14 has such powerful type deduction that it is possible to transpile
 Python into C++ without worrying about the missing type annotations in python.
-
-## Trying it out
-
-Requirements:
-
-- clang 3.5
-
-Transpiling:
-
-```
-./py14.py fib.py > fib.cpp
-```
-
-Compiling:
-
-```
-clang++ -Wall -Wextra -std=c++14 -Ipy14/runtime fib.cpp
-```
-Run regression tests:
-
-```
-cd regtests
-make
-```
-
-Run tests
-
-```
-pip install -r requirements.txt
-py.test --cov=py14
-```
 
 ## How it works
 
@@ -80,53 +50,79 @@ In order to define the results vector we need to:
 4. This results in the fully specified value type of the results vector
    `decltype(fun(std::declval<typename decltype(values)::value_type>()))`
 
+## Trying it out
 
-One might support simple structures like this Python class.
+Requirements:
 
-```python
-class Person:
-    def __init__(self, prename, name):
-        self.prename = prename
-        self.name = name
+- clang 3.5
 
-    def full_name(self):
-        return self.prename + " " + self.name
+Transpiling:
 
-    def give_dog(self, dog):
-        self.dog = dog
-
-if __name__ == "__main__":
-    person = Person("Lukas", "Martinelli", "Bello")
-    person.give_dog("Hasso")
-    print(person.full_name())
+```
+./py14.py fib.py > fib.cpp
 ```
 
-We need to create a wrapper `makePerson` to parametrize the Person class.
+Compiling:
+
+```
+clang++ -Wall -Wextra -std=c++14 -Ipy14/runtime fib.cpp
+```
+Run regression tests:
+
+```
+cd regtests
+make
+```
+
+Run tests
+
+```
+pip install -r requirements.txt
+py.test --cov=py14
+```
+
+## More Examples
+
+**Factorial**
+
+```python
+def factorial(num):
+    if num <= 1:
+        return num
+    return factorial(num-1) * num
+```
+
+```c++
+template <typename T1> auto factorial(T1 num) {
+  if (num <= 1) {
+    return num;
+  }
+  return factorial(num - 1) * num;
+}
+```
+
+**Probability Density Function (PDF)**
+
+```python
+def pdf(x, mean, std_dev):
+    term1 = 1.0 / ((2 * math.pi) ** 0.5)
+    term2 = (math.e ** (-1.0 * (x-mean) ** 2.0 / 2.0 * (std_dev ** 2.0)))
+    return term1 * term2
+```
 
 ```c++
 template <typename T1, typename T2, typename T3>
-struct Person {
-    T1 prename;
-    T2 name;
-    T3 dog;
-    auto full_name() { return this->prename + " "s + this->name; }
-    void give_dog(T3 dog) { this->dog = dog; }
-};
-template <typename T1, typename T2, typename T3>
-auto makePerson(T1 prename, T2 name, T3 dog) {
-    return Person<T1, T2, T3>{prename, name, dog};
-}
-
-int main() {
-    auto person = makePerson("Lukas"s, "Martinelli"s, "Bello"s);
-    person.give_dog("Hasso");
-    std::cout << person.full_name() << std::endl;
+auto pdf(T1 x, T2 mean, T3 std_dev) {
+  auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);
+  auto term2 = std::pow(py14::math::e, -1.0 * std::pow(x - mean, 2.0) / 2.0 *
+                                           std::pow(std_dev, 2.0));
+  return term1 * term2;
 }
 ```
 
 ## Working Features
 
-Language Overview
+Only bare functions using the basic language features are supported.
 
 - [ ] classes
 - [x] functions
