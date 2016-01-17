@@ -31,7 +31,7 @@ def transpilation():
 
 
 def format_cpp(cpp):
-    proc = Popen(['clang-format'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+    proc = Popen(['clang-format-3.5'], stdout=PIPE, stdin=PIPE, stderr=PIPE)
     formatted_cpp = proc.communicate(input=cpp)[0]
     proc.wait()
     return formatted_cpp
