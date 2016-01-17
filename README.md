@@ -10,7 +10,7 @@ Try it out online: http://py14.lukasmartinelli.ch/
 This is a little experiment that shows how far you can go with the
 C++ 14 `auto` return type and templates.
 C++14 has such powerful type deduction that it is possible to transpile
-Python into C++ without worrying about the missing type annotations in python.
+Python into C++ without worrying about the missing type annotations in python. Only a small subset of Python is working.
 
 ## Example
 
