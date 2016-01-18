@@ -1,9 +1,10 @@
+import sys
 import ast
-from clike import CLikeTranspiler
-from scope import add_scope_context
-from analysis import add_imports, is_void_function
-from context import add_variable_context, add_list_calls
-from tracer import decltype, is_list, is_builtin_import, defined_before
+from .clike import CLikeTranspiler
+from .scope import add_scope_context
+from .context import add_variable_context, add_list_calls
+from .analysis import add_imports, is_void_function, get_id
+from .tracer import decltype, is_list, is_builtin_import, defined_before
 
 
 def transpile(source, headers=False, testing=False):
@@ -43,7 +44,7 @@ def generate_catch_test_case(node, body):
 def generate_template_fun(node, body):
     params = []
     for idx, arg in enumerate(node.args.args):
-        params.append(("T" + str(idx + 1), arg.id))
+        params.append(("T" + str(idx + 1), get_id(arg)))
     typenames = ["typename " + arg[0] for arg in params]
 
     template = "inline "
@@ -90,9 +91,10 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
-        if is_builtin_import(node.value.id):
-            return "py14::" + node.value.id + "::" + attr
-        elif node.value.id == "math":
+        value_id = get_id(node.value)
+        if is_builtin_import(value_id):
+            return "py14::" + value_id + "::" + attr
+        elif value_id == "math":
             if node.attr == "asin":
                 return "std::asin"
             elif node.attr == "atan":
@@ -103,7 +105,7 @@ class CppTranspiler(CLikeTranspiler):
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
-        return node.value.id + "." + attr
+        return value_id + "." + attr
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
@@ -120,11 +122,24 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "max":
             return "std::max({0})".format(args)
         elif fname == "range":
-            return "rangepp::range({0})".format(args)
+            if sys.version_info[0] >= 3:
+                return "rangepp::xrange({0})".format(args)
+            else:
+                return "rangepp::range({0})".format(args)
         elif fname == "xrange":
             return "rangepp::xrange({0})".format(args)
         elif fname == "len":
             return "{0}.size()".format(self.visit(node.args[0]))
+        elif fname == "print":
+            buf = []
+            for n in node.args:
+                value = self.visit(n)
+                if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
+                    buf.append("std::cout << {0} << std::endl;".format(
+                               " << ".join([self.visit(el) for el in n.elts])))
+                else:
+                    buf.append('std::cout << {0} << std::endl;'.format(value))
+            return '\n'.join(buf)
 
         return '{0}({1})'.format(fname, args)
 
@@ -157,9 +172,17 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super(CppTranspiler, self).visit_Name(node)
 
+    def visit_NameConstant(self, node):
+        if node.value is True:
+            return "true"
+        elif node.value is False:
+            return "false"
+        else:
+            return super(CppTranspiler, self).visit_NameConstant(node)
+
     def visit_If(self, node):
-        body_vars = set([v.id for v in node.scopes[-1].body_vars])
-        orelse_vars = set([v.id for v in node.scopes[-1].orelse_vars])
+        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
+        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
         var_definitions = []
@@ -179,6 +202,16 @@ class CppTranspiler(CLikeTranspiler):
             return ("".join(var_definitions) +
                     super(CppTranspiler, self).visit_If(node))
 
+    def visit_UnaryOp(self, node):
+        if isinstance(node.op, ast.USub):
+            if isinstance(node.operand, (ast.Call, ast.Num)):
+                # Shortcut if parenthesis are not needed
+                return "-{0}".format(self.visit(node.operand))
+            else:
+                return "-({0})".format(self.visit(node.operand))
+        else:
+            return super(CppTranspiler, self).visit_UnaryOp(node)
+
     def visit_BinOp(self, node):
         if (isinstance(node.left, ast.List)
                 and isinstance(node.op, ast.Mult)
@@ -197,7 +230,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Import(self, node):
         imports = [self.visit(n) for n in node.names]
-        return "\n".join(filter(None, imports))
+        return "\n".join(i for i in imports if i)
 
     def visit_List(self, node):
         if len(node.elts) > 0:

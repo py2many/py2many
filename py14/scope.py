@@ -1,6 +1,7 @@
 import ast
 from contextlib import contextmanager
 
+from .analysis import get_id
 
 def add_scope_context(node):
     """Provide to scope context to all nodes"""
@@ -42,13 +43,9 @@ class ScopeList(list):
     """
     def find(self, lookup):
         """Find definition of variable lookup."""
-        def is_match(var):
-            return ((isinstance(var, ast.alias) and var.name == lookup) or
-                    (isinstance(var, ast.Name) and var.id == lookup))
-
         def find_definition(scope, var_attr="vars"):
             for var in getattr(scope, var_attr):
-                if is_match(var):
+                if get_id(var) == lookup:
                     return var
 
         for scope in self:

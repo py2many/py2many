@@ -2,7 +2,8 @@
 Trace object types that are inserted into Python list.
 """
 import ast
-from clike import CLikeTranspiler
+from .analysis import get_id
+from .clike import CLikeTranspiler
 
 
 def decltype(node):
@@ -24,7 +25,7 @@ def is_list(node):
     elif isinstance(node, ast.Assign):
         return is_list(node.value)
     elif isinstance(node, ast.Name):
-        var = node.scopes.find(node.id)
+        var = node.scopes.find(get_id(node))
         return (hasattr(var, "assigned_from") and not
                 isinstance(var.assigned_from, ast.FunctionDef) and
                 is_list(var.assigned_from.value))
@@ -59,13 +60,13 @@ class ValueExpressionVisitor(ast.NodeVisitor):
         return node.s
 
     def visit_Name(self, node):
-        var = node.scopes.find(node.id)
+        var = node.scopes.find(get_id(node))
         if isinstance(var.assigned_from, ast.For):
             it = var.assigned_from.iter
             return "std::declval<typename decltype({0})::value_type>()".format(
                    self.visit(it))
         elif isinstance(var.assigned_from, ast.FunctionDef):
-            return var.id
+            return get_id(var)
         else:
             return self.visit(var.assigned_from.value)
 
@@ -98,6 +99,9 @@ class ValueTypeVisitor(ast.NodeVisitor):
             return node.id
         else:
             return self.visit(var.assigned_from.value)
+
+    def visit_NameConstant(self, node):
+        return CLikeTranspiler().visit(node)
 
     def visit_Call(self, node):
         params = ",".join([self.visit(arg) for arg in node.args])

@@ -47,6 +47,14 @@ class CLikeTranspiler(ast.NodeVisitor):
         if node.id in self.builtin_constants:
             return node.id.lower()
         return node.id
+    
+    def visit_NameConstant(self, node):
+        if node.value is True:
+            return "true"
+        elif node.value is False:
+            return "false"
+        else:
+            return node.value
 
     def visit_Num(self, node):
         return str(node.n)

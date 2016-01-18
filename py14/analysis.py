@@ -1,3 +1,4 @@
+import sys
 import ast
 
 
@@ -10,6 +11,21 @@ def is_void_function(fun):
     finder = ReturnFinder()
     finder.visit(fun)
     return not finder.returns
+
+if sys.version_info[0] >= 3:
+    def get_id(var):
+        if isinstance(var, ast.alias):
+            return var.name
+        elif isinstance(var, ast.Name):
+            return var.id
+        elif isinstance(var, ast.arg):
+            return var.arg
+else:
+    def get_id(var):
+        if isinstance(var, ast.alias):
+            return var.name
+        elif isinstance(var, ast.Name):
+            return var.id
 
 
 class ReturnFinder(ast.NodeVisitor):

@@ -1,5 +1,6 @@
-from py14.transpiler import transpile
+import sys
 import pytest
+from py14.transpiler import transpile
 
 
 def parse(*args):
@@ -26,7 +27,10 @@ def test_empty_return():
 
 
 def test_print_multiple_vars():
-    source = parse('print("hi", "there" )')
+    if sys.version_info[0] >= 3:
+        source = parse('print(("hi", "there" ))')
+    else:
+        source = parse('print("hi", "there" )')
     cpp = transpile(source)
     assert cpp == ('std::cout << std::string {"hi"} '
                    '<< std::string {"there"} << std::endl;')
@@ -228,12 +232,13 @@ def test_bubble_sort():
         "    return seq",
     )
     cpp = transpile(source)
+    range_f = "range" if sys.version_info[0] < 3 else "xrange"
     assert cpp == parse(
         "template <typename T1>",
         "auto sort(T1 seq) {",
         "auto L = seq.size();",
-        "for(auto _ : rangepp::range(L)) {",
-        "for(auto n : rangepp::range(1, L)) {",
+        "for(auto _ : rangepp::{0}(L)) {{".format(range_f),
+        "for(auto n : rangepp::{0}(1, L)) {{".format(range_f),
         "if(seq[n] < seq[n - 1]) {",
         "std::tie(seq[n - 1], seq[n]) = "
         "std::make_tuple(seq[n], seq[n - 1]);",
@@ -287,6 +292,7 @@ def test_comb_sort():
         "                return seq",
     )
     cpp = transpile(source)
+    range_f = "range" if sys.version_info[0] < 3 else "xrange"
     assert cpp == parse(
         "template <typename T1>",
         "auto sort(T1 seq) {",
@@ -295,7 +301,7 @@ def test_comb_sort():
         "while (gap > 1||swap) {",
         "gap = std::max(1, py14::to_int(gap / 1.25));",
         "swap = false;",
-        "for(auto i : rangepp::range(seq.size() - gap)) {",
+        "for(auto i : rangepp::{0}(seq.size() - gap)) {{".format(range_f),
         "if(seq[i] > seq[i + gap]) {",
         "std::tie(seq[i], seq[i + gap]) = "
         "std::make_tuple(seq[i + gap], seq[i]);",

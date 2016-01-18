@@ -1,5 +1,5 @@
 import ast
-from scope import ScopeMixin
+from .scope import ScopeMixin
 
 
 def add_list_calls(node):
@@ -55,11 +55,11 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_If(self, node):
         node.vars = []
-        map(self.visit, node.body)
+        list(map(self.visit, node.body))
         node.body_vars = node.vars
 
         node.vars = []
-        map(self.visit, node.orelse)
+        list(map(self.visit, node.orelse))
         node.orelse_vars = node.vars
 
         node.vars = []
