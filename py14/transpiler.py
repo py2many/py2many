@@ -134,8 +134,14 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
+
+        args = None
         if node.args:
             args = [self.visit(a) for a in node.args]
+        if node.keywords:
+            args += [self.visit(kw.value) for kw in node.keywords]
+        
+        if args:
             args = ", ".join(args)
         else:
             args = ''
