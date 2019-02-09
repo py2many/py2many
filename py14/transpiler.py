@@ -18,7 +18,7 @@ def transpile(source, headers=False, testing=False):
     add_list_calls(tree)
     add_imports(tree)
 
-    transpiler = CppTranspiler()
+    transpiler = RustTranspiler()
 
     buf = []
     if testing:
@@ -77,7 +77,7 @@ def generate_lambda_fun(node, body):
     return funcdef + " {\n" + body + "\n};"
 
 
-class CppTranspiler(CLikeTranspiler):
+class RustTranspiler(CLikeTranspiler):
     def __init__(self):
         self.headers = set(['use std::*;'])
         self.usings = set([])
@@ -165,13 +165,13 @@ class CppTranspiler(CLikeTranspiler):
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
         return ("String {" +
-                super(CppTranspiler, self).visit_Str(node) + "}")
+                super(RustTranspiler, self).visit_Str(node) + "}")
 
     def visit_Name(self, node):
         if node.id == 'None':
             return 'None'
         else:
-            return super(CppTranspiler, self).visit_Name(node)
+            return super(RustTranspiler, self).visit_Name(node)
 
     def visit_NameConstant(self, node):
         if node.value is True:
@@ -179,7 +179,7 @@ class CppTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         else:
-            return super(CppTranspiler, self).visit_NameConstant(node)
+            return super(RustTranspiler, self).visit_NameConstant(node)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -200,7 +200,7 @@ class CppTranspiler(CLikeTranspiler):
             return "\n".join(buf)
         else:
             return ("".join(var_definitions) +
-                    super(CppTranspiler, self).visit_If(node))
+                    super(RustTranspiler, self).visit_If(node))
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -210,7 +210,7 @@ class CppTranspiler(CLikeTranspiler):
             else:
                 return "-({0})".format(self.visit(node.operand))
         else:
-            return super(CppTranspiler, self).visit_UnaryOp(node)
+            return super(RustTranspiler, self).visit_UnaryOp(node)
 
     def visit_BinOp(self, node):
         if (isinstance(node.left, ast.List)
@@ -219,7 +219,7 @@ class CppTranspiler(CLikeTranspiler):
             return "std::vector ({0},{1})".format(self.visit(node.right),
                                                   self.visit(node.left.elts[0]))
         else:
-            return super(CppTranspiler, self).visit_BinOp(node)
+            return super(RustTranspiler, self).visit_BinOp(node)
 
     def visit_Module(self, node):
         # if isinstance(node, ast.ClassDef):
