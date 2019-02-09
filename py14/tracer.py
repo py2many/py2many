@@ -17,6 +17,19 @@ def decltype(node):
 def is_builtin_import(name):
     return name == "sys" or name == "math"
 
+# is it slow? is it correct?
+def is_class_or_module(name, scopes):
+    for scope in scopes:
+        for entry in scope.body:
+            if isinstance(entry, ast.ClassDef):
+                if entry.name == name:
+                    return True
+        if hasattr(scope, "imports"):
+            for entry in scope.imports:
+                if entry.name == name:
+                    return True
+    return False
+
 
 def is_list(node):
     """Check if a node was assigned as a list"""

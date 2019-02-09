@@ -4,7 +4,7 @@ from .clike import CLikeTranspiler
 from .scope import add_scope_context
 from .context import add_variable_context, add_list_calls
 from .analysis import add_imports, is_void_function, get_id
-from .tracer import decltype, is_list, is_builtin_import, defined_before
+from .tracer import decltype, is_list, is_builtin_import, defined_before, is_class_or_module
 
 
 def transpile(source, headers=False, testing=False):
@@ -97,6 +97,9 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
+        if node.lineno == 53:
+            dnjfd = 4
+
         value_id = self.visit(node.value)
         if is_builtin_import(value_id):
             return "py14::" + value_id + "::" + attr
@@ -113,6 +116,10 @@ class RustTranspiler(CLikeTranspiler):
                 attr = "push"
         if not value_id:
             value_id = ""
+
+        if is_class_or_module(value_id, node.scopes):
+            return "{0}::{1}".format(value_id, attr);
+
         return value_id + "." + attr
 
     def visit_Call(self, node):

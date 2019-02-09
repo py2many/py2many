@@ -36,7 +36,7 @@ def c_symbol(node):
 
 
 class CLikeTranspiler(ast.NodeVisitor):
-    builtin_constants = frozenset(['True', 'False', 'None'])
+    builtin_constants = frozenset(['True', 'False'])
     """Provides a base for C-like programming languages"""
     def visit(self, node):
         if type(node) in symbols:
