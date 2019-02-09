@@ -24,7 +24,8 @@ symbols = {
     ast.IsNot: '!=',
     ast.USub: '-',
     ast.And: '&&',
-    ast.Or: '||'
+    ast.Or: '||',
+    ast.In: 'in',
 }
 
 
@@ -99,6 +100,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         left = self.visit(node.left)
         op = self.visit(node.ops[0])
         right = self.visit(node.comparators[0])
+        if isinstance(node.ops[0], ast.In):
+            return "{0}.any({1})".format(right, left)
+            
         return "{0} {1} {2}".format(left, op, right)
 
     def visit_BoolOp(self, node):

@@ -166,6 +166,14 @@ class RustTranspiler(CLikeTranspiler):
         return ("" +
                 super(RustTranspiler, self).visit_Str(node) + "")
 
+    def visit_Compare(self, node):
+        if isinstance(node.ops[0], ast.In):
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            return "{0}.iter().any(|&x| x == {1})".format(right, left) #is it too much?
+            
+        return super(RustTranspiler, self).visit_Compare(node)
+
     def visit_Name(self, node):
         if node.id == 'None':
             return 'None'
