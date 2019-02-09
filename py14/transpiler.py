@@ -313,27 +313,28 @@ class RustTranspiler(CLikeTranspiler):
         elts = [self.visit(e) for e in node.elts]
         return "({0})".format(", ".join(elts))
 
-    def visit_TryExcept(self, node, finallybody=None):
-        buf = ['try {']
-        buf += [self.visit(n) for n in node.body]
-        buf.append('} catch (const std::exception& e) {')
+    def visit_unsupported_body(self, name, body):
+        buf = ['let {0} = {{ //unsupported'.format(name)]
+        buf += [self.visit(n) for n in body]
+        buf.append('};')
+        return buf;
 
-        buf += [self.visit(h) for h in node.handlers]
+    def visit_Try(self, node, finallybody=None):
+        buf = self.visit_unsupported_body("try_dummy", node.body)
+
+        for handler in node.handlers:
+            buf += self.visit(handler)
+        # buf.append("\n".join(excepts));
 
         if finallybody:
-            buf.append('try { // finally')
-            buf += [self.visit(b) for b in finallybody]
-            buf.append('} throw e;')
-
-        buf.append('}')
-        buf.append('catch (const std::overflow_error& e) '
-                   '{ std::cout << "OVERFLOW ERROR" << std::endl; }')
-        buf.append('catch (const std::runtime_error& e) '
-                   '{ std::cout << "RUNTIME ERROR" << std::endl; }')
-        buf.append('catch (...) '
-                   '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
+            buf += self.visit_unsupported_body("finally_dummy", finallybody)
 
         return '\n'.join(buf)
+
+    def visit_ExceptHandler(self, node):
+        name = "except!({0})".format(self.visit(node.type))
+        body = self.visit_unsupported_body(name, node.body)
+        return body
 
     def visit_Assert(self, node):
         return "assert!({0});".format(self.visit(node.test))
@@ -383,11 +384,10 @@ class RustTranspiler(CLikeTranspiler):
         return "{0}.drop();".format(self.visit(target))
 
     def visit_Raise(self, node):
-        target = node.exc
-        return "{0}? //raise".format(self.visit(target))
+        return "raise!({0}); //unsupported".format(self.visit(node.exc))
 
     def visit_With(self, node):
-        return "//with {0}".format(self.visit(node.body))
+        return "with!({0}); //unsupported".format(self.visit(node.body))
 
     def visit_Await(self, node):
         return "await!({0})".format(self.visit(node.value))
