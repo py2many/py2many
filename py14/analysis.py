@@ -97,7 +97,9 @@ class ImportTransformer(ast.NodeTransformer):
     def visit_ImportFrom(self, node):
         for name in node.names:
             name.imported_from = node
-            name.scopes[-1].imports.append(name)
+            scope = name.scopes[-1]
+            if hasattr(scope, "imports"):
+                scope.imports.append(name)
         return node
 
     def visit_Module(self, node):
