@@ -43,7 +43,12 @@ def generate_catch_test_case(node, body):
 
 def generate_template_fun(node, body):
     params = []
-    for idx, arg in enumerate(node.args.args):
+    arg_list = node.args.args
+    has_self = arg_list[0].arg == "self"
+    if has_self:
+        arg_list = arg_list[1:]
+
+    for idx, arg in enumerate(arg_list):
         params.append(("T" + str(idx + 1), get_id(arg)))
     typenames = [arg[0] for arg in params]
 
@@ -57,6 +62,9 @@ def generate_template_fun(node, body):
     if len(typenames) > 0:
         template = "<{0}>".format(", ".join(typenames))
     params = ["{0}: {1}".format(arg[1], arg[0]) for arg in params]
+
+    if has_self:
+        params.insert(0, "&self")
 
     funcdef = "fn {0}{1}({2}) {3}".format(node.name, template,
                                           ", ".join(params), return_type)
@@ -102,7 +110,7 @@ class CppTranspiler(CLikeTranspiler):
 
         if is_list(node.value):
             if node.attr == "append":
-                attr = "push_back"
+                attr = "push"
         if not value_id:
             value_id = ""
         return value_id + "." + attr
@@ -192,9 +200,7 @@ class CppTranspiler(CLikeTranspiler):
             var_definitions.append("{0} {1};\n".format(var_type, cv))
 
         if self.visit(node.test) == '__name__ == std::string {"__main__"}':
-            buf = ["int main(int argc, char ** argv) {",
-                   "py14::sys::argv = "
-                   "std::vector<std::string>(argv, argv + argc);"]
+            buf = ["fn main() {",]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
             return "\n".join(buf)
