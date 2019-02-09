@@ -57,8 +57,8 @@ def generate_template_fun(node, body):
     else:
         return_type = "-> RT"
         typenames.append("RT")
-
-    template = "inline "
+    
+    template = ""
     if len(typenames) > 0:
         template = "<{0}>".format(", ".join(typenames))
     params = ["{0}: {1}".format(arg[1], arg[0]) for arg in params]
@@ -97,7 +97,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
-        value_id = get_id(node.value)
+        value_id = self.visit(node.value)
         if is_builtin_import(value_id):
             return "py14::" + value_id + "::" + attr
         elif value_id == "math":
@@ -302,7 +302,7 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "std::tie({0}) = {1};".format(", ".join(elts), value)
+            return "let ({0}) = {1};".format(", ".join(elts), value)
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
@@ -341,9 +341,5 @@ class CppTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                buf.append("std::cout << {0} << std::endl;".format(
-                           " << ".join([self.visit(el) for el in n.elts])))
-            else:
-                buf.append('std::cout << {0} << std::endl;'.format(value))
+            buf.append("println!('{{:!}}',{0});".format(value))
         return '\n'.join(buf)
