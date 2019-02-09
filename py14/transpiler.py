@@ -176,7 +176,7 @@ class RustTranspiler(CLikeTranspiler):
         if isinstance(node.ops[0], ast.In):
             return "{0}.iter().any(|&x| x == {1})".format(right, left) #is it too much?
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.iter().any(|&x| x != {1})".format(right, left) #is it even more?
+            return "{0}.iter().all(|&x| x != {1})".format(right, left) #is it even more?
             
         return super(RustTranspiler, self).visit_Compare(node)
 
@@ -365,10 +365,19 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node):
         target = node.exc
-        return "{0}?".format(self.visit(target))
+        return "{0}? //raise".format(self.visit(target))
 
     def visit_With(self, node):
-        return "with {0}".format(self.visit(node.body))
+        return "//with {0}".format(self.visit(node.body))
+
+    def visit_Await(self, node):
+        return "await!({0})".format(self.visit(node.value))
+
+    def visit_AsyncFunctionDef(self, node):
+        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+
+    def visit_Yield(self, node):
+        return "//yield is unimplemented"
 
     def visit_Print(self, node):
         buf = []
