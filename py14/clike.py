@@ -69,7 +69,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_If(self, node):
         buf = []
-        buf.append('if({0}) {{'.format(self.visit(node.test)))
+        buf.append('if {0} {{'.format(self.visit(node.test)))
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
@@ -101,7 +101,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
-            return "std::pow({0}, {1})".format(self.visit(node.left),
+            return "{0}.pow({1})".format(self.visit(node.left),
                                                self.visit(node.right))
 
         return " ".join([self.visit(node.left),

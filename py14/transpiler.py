@@ -10,7 +10,7 @@ from .tracer import decltype, is_list, is_builtin_import, defined_before
 def transpile(source, headers=False, testing=False):
     """
     Transpile a single python translation unit (a python script) into
-    C++ 14 code.
+    Rust code.
     """
     tree = ast.parse(source)
     add_variable_context(tree)
@@ -45,19 +45,21 @@ def generate_template_fun(node, body):
     params = []
     for idx, arg in enumerate(node.args.args):
         params.append(("T" + str(idx + 1), get_id(arg)))
-    typenames = ["typename " + arg[0] for arg in params]
+    typenames = [arg[0] for arg in params]
+
+    if is_void_function(node):
+        return_type = ""
+    else:
+        return_type = "-> RT"
+        typenames.append("RT")
 
     template = "inline "
     if len(typenames) > 0:
-        template = "template <{0}>\n".format(", ".join(typenames))
-    params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]
+        template = "<{0}>".format(", ".join(typenames))
+    params = ["{0}: {1}".format(arg[1], arg[0]) for arg in params]
 
-    return_type = "auto"
-    if is_void_function(node):
-        return_type = "void"
-
-    funcdef = "{0}{1} {2}({3})".format(template, return_type, node.name,
-                                          ", ".join(params))
+    funcdef = "fn {0}{1}({2}) {3}".format(node.name, template,
+                                          ", ".join(params), return_type)
     return funcdef + " {\n" + body + "\n}"
 
 
@@ -69,11 +71,7 @@ def generate_lambda_fun(node, body):
 
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
-        self.headers = set(['#include "sys.h"', '#include "builtins.h"',
-                            '#include <iostream>', '#include <string>',
-                            '#include <algorithm>', '#include <cmath>',
-                            '#include <vector>', '#include <tuple>',
-                            '#include <utility>', '#include "range.hpp"'])
+        self.headers = set(['use std::*;'])
         self.usings = set([])
         self.use_catch_test_cases = False
 
@@ -147,7 +145,7 @@ class CppTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append('for(auto {0} : {1}) {{'.format(target, it))
+        buf.append('for {0} in {1} {{'.format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -163,12 +161,12 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
-        return ("std::string {" +
+        return ("String {" +
                 super(CppTranspiler, self).visit_Str(node) + "}")
 
     def visit_Name(self, node):
         if node.id == 'None':
-            return 'nullptr'
+            return 'None'
         else:
             return super(CppTranspiler, self).visit_Name(node)
 
@@ -226,7 +224,7 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_alias(self, node):
-        return '#include "{0}.h"'.format(node.name)
+        return 'use {0};'.format(node.name)
 
     def visit_Import(self, node):
         imports = [self.visit(n) for n in node.names]
@@ -299,7 +297,7 @@ class CppTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
-
+        print("targed id", target.id)
         definition = node.scopes.find(target.id)
         if (isinstance(target, ast.Name) and
               defined_before(definition, node)):
@@ -314,7 +312,7 @@ class CppTranspiler(CLikeTranspiler):
         else:
             target = self.visit(target)
             value = self.visit(node.value)
-            return "auto {0} = {1};".format(target, value)
+            return "let {0} = {1};".format(target, value)
 
     def visit_Print(self, node):
         buf = []
