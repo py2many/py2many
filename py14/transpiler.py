@@ -49,7 +49,7 @@ def generate_template_fun(node, body):
         arg_list = arg_list[1:]
 
     for idx, arg in enumerate(arg_list):
-        params.append(("T" + str(idx + 1), get_id(arg)))
+        params.append(("T" + str(idx + 1), get_id(arg))) #TODO this get_id should be replaced by visit
     typenames = [arg[0] for arg in params]
 
     if is_void_function(node):
@@ -95,6 +95,16 @@ class RustTranspiler(CLikeTranspiler):
         # else:
         #    return generate_lambda_fun(node, body)
 
+    def visit_arg(self, node):
+        return get_id(node)
+
+    def visit_Lambda(self, node):
+        args = [self.visit(n) for n in node.args.args]
+        args_string = ", ".join(args)
+        body = self.visit(node.body)
+        return "|{0}| {{\n{1}}}".format(args_string, body)
+
+
     def visit_Attribute(self, node):
         attr = node.attr
         if node.lineno == 53:
@@ -139,6 +149,8 @@ class RustTranspiler(CLikeTranspiler):
         elif fname == "min":
             return "cmp::min({0})".format(args)
         elif fname == "range" or fname == "xrange":
+            if "," not in args: #one value range means 0..n
+                return "0.." + args
             return args.replace(",","..")
         elif fname == "len":
             return "{0}.len()".format(self.visit(node.args[0]))
@@ -287,10 +299,10 @@ class RustTranspiler(CLikeTranspiler):
         else:
             lower = ""
             if node.slice.lower:
-                lower = node.slice.lower.n
+                lower = self.visit(node.slice.lower)
             upper = ""
             if node.slice.upper:
-                upper = node.slice.upper.n
+                upper = self.visit(node.slice.upper)
                 
             index = "{0}..{1}".format(lower, upper)
 
