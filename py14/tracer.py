@@ -8,10 +8,10 @@ from .clike import CLikeTranspiler
 
 def decltype(node):
     """Create C++ decltype statement"""
-    if is_list(node):
-        return "std::vector<decltype({0})>".format(value_type(node))
-    else:
-        return "decltype({0})".format(value_type(node))
+    # if is_list(node):
+    #     return "std::vector<decltype({0})>".format(value_type(node))
+    # else:
+    #     return "decltype({0})".format(value_type(node))
 
 
 def is_builtin_import(name):
@@ -27,7 +27,8 @@ def is_list(node):
     elif isinstance(node, ast.Name):
         var = node.scopes.find(get_id(node))
         return (hasattr(var, "assigned_from") and not
-                isinstance(var.assigned_from, ast.FunctionDef) and
+                isinstance(var.assigned_from, ast.FunctionDef) and not
+                isinstance(var.assigned_from, ast.For) and
                 is_list(var.assigned_from.value))
     else:
         return False
@@ -61,6 +62,13 @@ class ValueExpressionVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node):
         var = node.scopes.find(get_id(node))
+        
+        if not var: #TODO why no scopes found for node id?
+            return get_id(node)
+
+        # if isinstance(var, object): 
+        #     return "o_b_j_e_c_t"
+
         if isinstance(var.assigned_from, ast.For):
             it = var.assigned_from.iter
             return "std::declval<typename decltype({0})::value_type>()".format(
@@ -71,8 +79,9 @@ class ValueExpressionVisitor(ast.NodeVisitor):
             return self.visit(var.assigned_from.value)
 
     def visit_Call(self, node):
-        params = ",".join([self.visit(arg) for arg in node.args])
-        return "{0}({1})".format(node.func.id, params)
+        arg_strings = [self.visit(arg) for arg in node.args]
+        params = ",".join(arg_strings)
+        return "{0}({1})".format(self.visit(node.func), params)
 
     def visit_Assign(self, node):
         return self.visit(node.value)

@@ -90,7 +90,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_While(self, node):
         buf = []
-        buf.append("while ({0}) {{".format(self.visit(node.test)))
+        buf.append("while {0} {{".format(self.visit(node.test)))
         buf.extend([self.visit(n) for n in node.body])
         buf.append("}")
         return '\n'.join(buf)
@@ -113,6 +113,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         return " ".join([self.visit(node.left),
                          self.visit(node.op),
                          self.visit(node.right)])
+
+    def visit_UnaryOp(self, node):
+        return "{0}{1}".format(self.visit(node.op), self.visit(node.operand))
 
     def visit_AugAssign(self, node):
         target = self.visit(node.target)

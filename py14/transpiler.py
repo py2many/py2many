@@ -44,7 +44,7 @@ def generate_catch_test_case(node, body):
 def generate_template_fun(node, body):
     params = []
     arg_list = node.args.args
-    has_self = arg_list[0].arg == "self"
+    has_self = arg_list and arg_list[0].arg == "self"
     if has_self:
         arg_list = arg_list[1:]
 
@@ -79,7 +79,7 @@ def generate_lambda_fun(node, body):
 
 class RustTranspiler(CLikeTranspiler):
     def __init__(self):
-        self.headers = set(['use std::*;'])
+        self.headers = set(['use std::*;\n'])
         self.usings = set([])
         self.use_catch_test_cases = False
 
@@ -163,9 +163,8 @@ class RustTranspiler(CLikeTranspiler):
             return s
 
     def visit_Str(self, node):
-        """Use a C++ 14 string literal instead of raw string"""
-        return ("String {" +
-                super(RustTranspiler, self).visit_Str(node) + "}")
+        return ("" +
+                super(RustTranspiler, self).visit_Str(node) + "")
 
     def visit_Name(self, node):
         if node.id == 'None':
@@ -178,6 +177,8 @@ class RustTranspiler(CLikeTranspiler):
             return "true"
         elif node.value is False:
             return "false"
+        elif node.value is None:
+            return "None"
         else:
             return super(RustTranspiler, self).visit_NameConstant(node)
 
@@ -193,7 +194,8 @@ class RustTranspiler(CLikeTranspiler):
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
 
-        if self.visit(node.test) == '__name__ == std::string {"__main__"}':
+        #HACK to determine if main function name is visited
+        if self.visit(node.test) == '__name__ == "__main__"':
             buf = ["fn main() {",]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
@@ -244,9 +246,7 @@ class RustTranspiler(CLikeTranspiler):
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            value_type = decltype(node.elts[0])
-            return "vec!{{{1}}}".format(value_type,
-                                                    ", ".join(elements))
+            return "vec![{0}]".format(", ".join(elements))
 
         else:
             return "vec![]"
@@ -311,9 +311,10 @@ class RustTranspiler(CLikeTranspiler):
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
-            if target.id in outer_if.common_vars:
+            target_id = self.visit(target)
+            if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1};".format(target.id, value)
+                return "{0} = {1};".format(target_id, value)
 
         if isinstance(target, ast.Subscript) or\
             isinstance(target, ast.Attribute):
@@ -334,13 +335,19 @@ class RustTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return "{0} {1} {{{2}}};".format(decltype(node),
-                                             self.visit(target),
-                                             ", ".join(elements))
+            return "let mut {0} = vec![{1}];".format(self.visit(target), ", ".join(elements))
         else:
             target = self.visit(target)
             value = self.visit(node.value)
             return "let {0} = {1};".format(target, value)
+
+    def visit_Delete(self, node):
+        target = node.targets[0]
+        return "{0}.drop();".format(self.visit(target))
+
+    def visit_Raise(self, node):
+        target = node.exc
+        return "{0}?".format(self.visit(target))
 
     def visit_Print(self, node):
         buf = []
