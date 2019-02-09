@@ -166,6 +166,9 @@ class RustTranspiler(CLikeTranspiler):
         return ("" +
                 super(RustTranspiler, self).visit_Str(node) + "")
 
+    def visit_Bytes(self, node):
+        return ('b"{0}"'.format(node.s))
+
     def visit_Compare(self, node):
         if isinstance(node.ops[0], ast.In):
             left = self.visit(node.left)
@@ -232,8 +235,6 @@ class RustTranspiler(CLikeTranspiler):
             return super(RustTranspiler, self).visit_BinOp(node)
 
     def visit_Module(self, node):
-        # if isinstance(node, ast.ClassDef):
-        #     self.visit_Module(node.body[0])
         buf = [self.visit(b) for b in node.body]
         buf = [line for line in buf if line is not None]
         return "\n".join(buf)
@@ -250,6 +251,12 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Import(self, node):
         imports = [self.visit(n) for n in node.names]
         return "\n".join(i for i in imports if i)
+
+    def visit_ImportFrom(self, node):
+        names = [n.name for n in node.names]
+        names = ", ".join(names)
+        module_path = node.module.replace(".", "::")
+        return "use {0}::{{{1}}};".format(module_path, names)
 
     def visit_List(self, node):
         if len(node.elts) > 0:
@@ -356,6 +363,9 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Raise(self, node):
         target = node.exc
         return "{0}?".format(self.visit(target))
+
+    def visit_With(self, node):
+        return "with {0}".format(self.visit(node.body))
 
     def visit_Print(self, node):
         buf = []
