@@ -167,13 +167,16 @@ class RustTranspiler(CLikeTranspiler):
                 super(RustTranspiler, self).visit_Str(node) + "")
 
     def visit_Bytes(self, node):
-        return ('b"{0}"'.format(node.s))
+        bytes_str = "{0}".format(node.s)
+        return bytes_str.replace("'", '"') #replace single quote with double quote
 
     def visit_Compare(self, node):
+        left = self.visit(node.left)
+        right = self.visit(node.comparators[0])
         if isinstance(node.ops[0], ast.In):
-            left = self.visit(node.left)
-            right = self.visit(node.comparators[0])
             return "{0}.iter().any(|&x| x == {1})".format(right, left) #is it too much?
+        elif isinstance(node.ops[0], ast.NotIn):
+            return "{0}.iter().any(|&x| x != {1})".format(right, left) #is it even more?
             
         return super(RustTranspiler, self).visit_Compare(node)
 
