@@ -128,7 +128,9 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "str":
             return "std::to_string({0})".format(args)
         elif fname == "max":
-            return "std::cmp::max({0})".format(args)
+            return "cmp::max({0})".format(args)
+        elif fname == "min":
+            return "cmp::min({0})".format(args)
         elif fname == "range" or fname == "xrange":
             return args.replace(",","..")
         elif fname == "len":
@@ -184,11 +186,12 @@ class CppTranspiler(CLikeTranspiler):
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
+        # TODO find out if this can be useful
         var_definitions = []
-        for cv in node.common_vars:
-            definition = node.scopes.find(cv)
-            var_type = decltype(definition)
-            var_definitions.append("{0} {1};\n".format(var_type, cv))
+        # for cv in node.common_vars:
+        #     definition = node.scopes.find(cv)
+        #     var_type = decltype(definition)
+        #     var_definitions.append("{0} {1};\n".format(var_type, cv))
 
         if self.visit(node.test) == '__name__ == std::string {"__main__"}':
             buf = ["fn main() {",]
@@ -271,7 +274,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
-        return "std::make_tuple({0})".format(", ".join(elts))
+        return "({0})".format(", ".join(elts))
 
     def visit_TryExcept(self, node, finallybody=None):
         buf = ['try {']
