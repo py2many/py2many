@@ -103,6 +103,8 @@ class CppTranspiler(CLikeTranspiler):
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
+        if not value_id:
+            value_id = ""
         return value_id + "." + attr
 
     def visit_Call(self, node):
@@ -121,11 +123,11 @@ class CppTranspiler(CLikeTranspiler):
             return "std::max({0})".format(args)
         elif fname == "range":
             if sys.version_info[0] >= 3:
-                return "rangepp::xrange({0})".format(args)
+                return "xrange({0})".format(args)
             else:
-                return "rangepp::range({0})".format(args)
+                return "range({0})".format(args)
         elif fname == "xrange":
-            return "rangepp::xrange({0})".format(args)
+            return "xrange({0})".format(args)
         elif fname == "len":
             return "{0}.size()".format(self.visit(node.args[0]))
         elif fname == "print":
@@ -220,8 +222,17 @@ class CppTranspiler(CLikeTranspiler):
             return super(CppTranspiler, self).visit_BinOp(node)
 
     def visit_Module(self, node):
+        # if isinstance(node, ast.ClassDef):
+        #     self.visit_Module(node.body[0])
         buf = [self.visit(b) for b in node.body]
+        buf = [line for line in buf if line is not None]
         return "\n".join(buf)
+
+    def visit_ClassDef(self, node):
+        struct_def = "struct {0} {{\n}}\n".format(node.name);
+        impl_def = "impl {0} {{\n".format(node.name);
+        buf = [self.visit(b) for b in node.body]
+        return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
 
     def visit_alias(self, node):
         return 'use {0};'.format(node.name)
@@ -234,11 +245,11 @@ class CppTranspiler(CLikeTranspiler):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
             value_type = decltype(node.elts[0])
-            return "std::vector<{0}>{{{1}}}".format(value_type,
+            return "vec!{{{1}}}".format(value_type,
                                                     ", ".join(elements))
 
         else:
-            raise ValueError("Cannot create vector without elements")
+            return "vec![]"
 
     def visit_Subscript(self, node):
         if isinstance(node.slice, ast.Ellipsis):
@@ -293,11 +304,17 @@ class CppTranspiler(CLikeTranspiler):
                 value = self.visit(node.value)
                 return "{0} = {1};".format(target.id, value)
 
-        if isinstance(target, ast.Subscript):
+        if isinstance(target, ast.Subscript) or\
+            isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
+            if value == None:
+                value = 'None'
             return "{0} = {1};".format(target, value)
-        print("targed id", target.id)
+
+        # if isinstance(target, ast.Attribute):
+        #     return "{0}.{1} = ;".format(target.value.id, target.attr)
+
         definition = node.scopes.find(target.id)
         if (isinstance(target, ast.Name) and
               defined_before(definition, node)):
