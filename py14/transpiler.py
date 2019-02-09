@@ -128,7 +128,7 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "str":
             return "std::to_string({0})".format(args)
         elif fname == "max":
-            return "std::max({0})".format(args)
+            return "std::cmp::max({0})".format(args)
         elif fname == "range" or fname == "xrange":
             return args.replace(",","..")
         elif fname == "len":
@@ -137,7 +137,7 @@ class CppTranspiler(CLikeTranspiler):
             buf = []
             for n in node.args:
                 value = self.visit(n)
-                buf.append("println!('{{:!}}',{0});".format(value))
+                buf.append('println!("{{:?}}",{0});'.format(value))
             return '\n'.join(buf)
 
         return '{0}({1})'.format(fname, args)
@@ -252,11 +252,22 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(node.slice, ast.Ellipsis):
             raise NotImplementedError('Ellipsis not supported')
 
-        if not isinstance(node.slice, ast.Index):
-            raise NotImplementedError("Advanced Slicing not supported")
+        index = ""
+
+        if isinstance(node.slice, ast.Index):
+            index = self.visit(node.slice.value)
+        else:
+            lower = ""
+            if node.slice.lower:
+                lower = node.slice.lower.n
+            upper = ""
+            if node.slice.upper:
+                upper = node.slice.upper.n
+                
+            index = "{0}..{1}".format(lower, upper)
 
         value = self.visit(node.value)
-        return "{0}[{1}]".format(value, self.visit(node.slice.value))
+        return "{0}[{1}]".format(value, index)
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -285,7 +296,7 @@ class CppTranspiler(CLikeTranspiler):
         return '\n'.join(buf)
 
     def visit_Assert(self, node):
-        return "REQUIRE({0});".format(self.visit(node.test))
+        return "assert!({0});".format(self.visit(node.test))
 
     def visit_Assign(self, node):
         target = node.targets[0]
@@ -332,5 +343,5 @@ class CppTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append("println!('{{:!}}',{0});".format(value))
+            buf.append('println!("{{:?}}",{0});'.format(value))
         return '\n'.join(buf)

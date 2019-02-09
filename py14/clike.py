@@ -82,6 +82,12 @@ class CLikeTranspiler(ast.NodeVisitor):
 
         return '\n'.join(buf)
 
+    def visit_Continue(self, node):
+        return "continue;"
+
+    def visit_Break(self, node):
+        return "break;"
+
     def visit_While(self, node):
         buf = []
         buf.append("while ({0}) {{".format(self.visit(node.test)))
