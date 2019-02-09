@@ -129,24 +129,15 @@ class CppTranspiler(CLikeTranspiler):
             return "std::to_string({0})".format(args)
         elif fname == "max":
             return "std::max({0})".format(args)
-        elif fname == "range":
-            if sys.version_info[0] >= 3:
-                return "xrange({0})".format(args)
-            else:
-                return "range({0})".format(args)
-        elif fname == "xrange":
-            return "xrange({0})".format(args)
+        elif fname == "range" or fname == "xrange":
+            return args.replace(",","..")
         elif fname == "len":
-            return "{0}.size()".format(self.visit(node.args[0]))
+            return "{0}.len()".format(self.visit(node.args[0]))
         elif fname == "print":
             buf = []
             for n in node.args:
                 value = self.visit(n)
-                if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                    buf.append("std::cout << {0} << std::endl;".format(
-                               " << ".join([self.visit(el) for el in n.elts])))
-                else:
-                    buf.append('std::cout << {0} << std::endl;'.format(value))
+                buf.append("println!('{{:!}}',{0});".format(value))
             return '\n'.join(buf)
 
         return '{0}({1})'.format(fname, args)
@@ -235,7 +226,7 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
-        struct_def = "struct {0} {{\n}}\n".format(node.name);
+        struct_def = "struct {0} {{\n}}\n\n".format(node.name);
         impl_def = "impl {0} {{\n".format(node.name);
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
