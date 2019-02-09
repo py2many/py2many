@@ -404,3 +404,10 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(n)
             buf.append('println!("{{:?}}",{0});'.format(value))
         return '\n'.join(buf)
+
+    def visit_ListComp(self, node):
+        elt = self.visit(node.elt)
+        generator = node.generators[0]
+        target = self.visit(generator.target)
+        iter = self.visit(generator.iter)        
+        return "{0}.iter().map(|{1}| {2}).collect()".format(iter, target, elt)
