@@ -12,7 +12,7 @@ def rust_format(file_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Transpile Python to Rust")
-    parser.add_argument("file", metavar='<python file>')
+    parser.add_argument("file", metavar='<python file or directory>')
     args = parser.parse_args()
 
     if os.path.isfile(args.file):
