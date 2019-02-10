@@ -20,25 +20,7 @@ def transpile(source, headers=False, testing=False):
 
     transpiler = RustTranspiler()
 
-    buf = []
-    if testing:
-        buf += ['#include "catch.hpp"']
-        transpiler.use_catch_test_cases = True
-
-    if headers:
-        buf += transpiler.headers
-        buf += transpiler.usings
-
-    if testing or headers:
-        buf.append('')  # Force empty line
-
-    cpp = transpiler.visit(tree)
-    return "\n".join(buf) + cpp
-
-
-def generate_catch_test_case(node, body):
-    funcdef = 'TEST_CASE("{0}")'.format(node.name)
-    return funcdef + " {\n" + body + "\n}"
+    return transpiler.visit(tree)
 
 
 class RustTranspiler(CLikeTranspiler):
@@ -74,7 +56,7 @@ class RustTranspiler(CLikeTranspiler):
                 return_type = "-> {0}".format(self.visit(node.returns))
             else:
                 return_type = "-> RT"
-                typenames.append("RT")
+                typedecls.append("RT")
         
         template = ""
         if len(typedecls) > 0:
@@ -140,9 +122,9 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Call(self, node):
         fname = self.visit(node.func)
 
-        args = None
+        args = []
         if node.args:
-            args = [self.visit(a) for a in node.args]
+            args += [self.visit(a) for a in node.args]
         if node.keywords:
             args += [self.visit(kw.value) for kw in node.keywords]
         
@@ -165,6 +147,8 @@ class RustTranspiler(CLikeTranspiler):
             return args.replace(",","..")
         elif fname == "len":
             return "{0}.len()".format(self.visit(node.args[0]))
+        elif fname == "enumerate":
+            return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
         elif fname == "print":
             buf = []
             for n in node.args:
@@ -269,11 +253,29 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node):
         buf = [self.visit(b) for b in node.body]
-        buf = [line for line in buf if line is not None]
         return "\n".join(buf)
 
+    def visit_init_function(self, node):
+        members = []
+        for child in node.body:
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    if hasattr(target, "value"):
+                        if self.visit(target.value) == "self":
+                            members.append(target.attr)
+        fields = []
+        for idx, name in enumerate(members):
+            fields.append("{0}: ST{1},".format(name, idx))
+        return "\n".join(fields)
+
     def visit_ClassDef(self, node):
-        struct_def = "struct {0} {{\n}}\n\n".format(node.name);
+        class_members = ""
+        for func in node.body:
+            if isinstance(func, ast.FunctionDef):
+                if func.name == "__init__":
+                    class_members = self.visit_init_function(func)
+
+        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, class_members);
         impl_def = "impl {0} {{\n".format(node.name);
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
@@ -313,7 +315,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Subscript(self, node):
         if isinstance(node.slice, ast.Ellipsis):
-            raise NotImplementedError('Ellipsis not supported')
+            return "compile_error!('Elipsis is not supported');"
 
         index = ""
 
