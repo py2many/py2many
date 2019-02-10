@@ -76,6 +76,11 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         self.generic_visit(node)
         return node
 
+    def visit_With(self, node):
+        node.vars = []
+        self.generic_visit(node)
+        return node
+
     def visit(self, node):
         with self.enter_scope(node):
             return super(VariableTransformer, self).visit(node)
