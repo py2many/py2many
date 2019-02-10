@@ -4,8 +4,6 @@ This project is not aimed at producing ready-to-compile code, but can be used as
 
 It generates unidiomatic non-optimized code with lots of unnecessary allocations, but can reduce amount of typing needed.
 
-On the other hand, some Python features like tuples and slices lay out nicely when transpiling.
-
 Only small subset of Python is supported right now and the end goal is to support common cases at least as a placeholders.
 
 Based on Lukas Martinelli [Py14](https://github.com/lukasmartinelli/py14) and [Py14/python-3](https://github.com/ProgVal/py14/tree/python-3) branch by Valentin Lorentz.
@@ -92,7 +90,8 @@ Language Keywords
 - [ ] try, except, raise
 - [x] def, lambda
 - [ ] new, class
-- [x] from, import, as
+- [x] from, import
+- [ ] as
 - [x] pass, assert
 - [x] and, or, is, in, not
 - [x] return
@@ -100,12 +99,6 @@ Language Keywords
 
 Builtins
 - [ ] dir
-- [ ] type
-- [ ] hasattr
-- [ ] getattr
-- [ ] setattr
-- [ ] issubclass
-- [ ] isinstance
 - [ ] dict
 - [ ] list
 - [ ] tuple
@@ -114,6 +107,7 @@ Builtins
 - [x] str
 - [ ] round
 - [x] range
+- [ ] range_step
 - [ ] sum
 - [x] len
 - [ ] map
