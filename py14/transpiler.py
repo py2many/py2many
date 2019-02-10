@@ -70,8 +70,11 @@ class RustTranspiler(CLikeTranspiler):
 
         return_type = ""
         if not is_void_function(node):
-            return_type = "-> RT"
-            typenames.append("RT")
+            if node.returns:
+                return_type = "-> {0}".format(self.visit(node.returns))
+            else:
+                return_type = "-> RT"
+                typenames.append("RT")
         
         template = ""
         if len(typedecls) > 0:
