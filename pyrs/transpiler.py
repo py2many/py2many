@@ -147,7 +147,7 @@ class RustTranspiler(CLikeTranspiler):
         elif fname == "map":
             return "{0}.iter().map({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
         elif fname == "filter":
-            return "{0}.iter().filter({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
+            return "{0}.into_iter().filter({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
         elif fname == "list":
             return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
         elif fname == "print":
@@ -448,7 +448,7 @@ class RustTranspiler(CLikeTranspiler):
         map_str = ".map(|{0}| {1})".format(target, elt)
         filter_str = ""
         if generator.ifs:
-            filter_str = ".filter(|{0}| {1})".format(target, self.visit(generator.ifs[0]))
+            filter_str = ".cloned().filter(|&{0}| {1})".format(target, self.visit(generator.ifs[0]))
 
         return "{0}.iter(){1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
 
