@@ -134,29 +134,32 @@ class RustTranspiler(CLikeTranspiler):
             args = ''
 
         if fname == "int":
-            return "pyrs::to_int({0})".format(args)
+            return "i32::from({0})".format(args)
         elif fname == "str":
-            return "std::to_string({0})".format(args)
-        elif fname == "max":
-            return "cmp::max({0})".format(args)
-        elif fname == "min":
-            return "cmp::min({0})".format(args)
+            return "String::from({0})".format(args)
+
         elif fname == "range" or fname == "xrange":
-            if "," not in args: #one value range means 0..n
+            if "," not in args: #one value range translates to 0..n
                 return "0.." + args
             return args.replace(",","..")
+
         elif fname == "len":
             return "{0}.len()".format(self.visit(node.args[0]))
         elif fname == "enumerate":
             return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
         elif fname == "sum":
             return "{0}.iter().sum()".format(self.visit(node.args[0]))
+        elif fname == "max":
+            return "{0}.iter().max()".format(self.visit(node.args[0]))
+        elif fname == "min":
+            return "{0}.iter().min()".format(self.visit(node.args[0]))
         elif fname == "print":
-            buf = []
+            values = []
+            placeholders = []
             for n in node.args:
-                value = self.visit(n)
-                buf.append('println!("{{:?}}",{0});'.format(value))
-            return '\n'.join(buf)
+                values.append(self.visit(n))
+                placeholders.append("{:?}");
+            return 'println!("{0}",{1});'.format("".join(placeholders), ", ".join(values));
 
         return '{0}({1})'.format(fname, args)
 
@@ -444,8 +447,13 @@ class RustTranspiler(CLikeTranspiler):
         elt = self.visit(node.elt)
         generator = node.generators[0]
         target = self.visit(generator.target)
-        iter = self.visit(generator.iter)        
-        return "{0}.iter().map(|{1}| {2}).collect::<Vec<_>>()".format(iter, target, elt)
+        iter = self.visit(generator.iter)
+        map_str = ".map(|{0}| {1})".format(target, elt)
+        filter_str = ""
+        if generator.ifs:
+            filter_str = ".filter(|{0}| {1})".format(target, self.visit(generator.ifs[0]))
+
+        return "{0}.iter(){1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node) #right now they are the same
