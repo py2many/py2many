@@ -146,7 +146,7 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}.iter().min()".format(self.visit(node.args[0]))
         elif fname == "map":
             return "{0}.iter().map({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
-         elif fname == "filter":
+        elif fname == "filter":
             return "{0}.iter().filter({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
         elif fname == "list":
             return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
@@ -155,7 +155,7 @@ class RustTranspiler(CLikeTranspiler):
             placeholders = []
             for n in node.args:
                 values.append(self.visit(n))
-                placeholders.append("{:?}");
+                placeholders.append("{:?} ");
             return 'println!("{0}",{1});'.format("".join(placeholders), ", ".join(values));
 
         return '{0}({1})'.format(fname, args)
