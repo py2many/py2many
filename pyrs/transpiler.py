@@ -91,22 +91,13 @@ class RustTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "|{0}| {{\n{1}}}".format(args_string, body)
+        return "|{0}| {1}".format(args_string, body)
 
 
     def visit_Attribute(self, node):
         attr = node.attr
 
         value_id = self.visit(node.value)
-        if is_builtin_import(value_id):
-            return "pyrs::" + value_id + "::" + attr
-        elif value_id == "math":
-            if node.attr == "asin":
-                return "std::asin"
-            elif node.attr == "atan":
-                return "std::atan"
-            elif node.attr == "acos":
-                return "std::acos"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -153,6 +144,12 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}.iter().max()".format(self.visit(node.args[0]))
         elif fname == "min":
             return "{0}.iter().min()".format(self.visit(node.args[0]))
+        elif fname == "map":
+            return "{0}.iter().map({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
+         elif fname == "filter":
+            return "{0}.iter().filter({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
+        elif fname == "list":
+            return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
         elif fname == "print":
             values = []
             placeholders = []
