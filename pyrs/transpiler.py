@@ -134,7 +134,7 @@ class RustTranspiler(CLikeTranspiler):
             args = ''
 
         if fname == "int":
-            return "py14::to_int({0})".format(args)
+            return "pyrs::to_int({0})".format(args)
         elif fname == "str":
             return "std::to_string({0})".format(args)
         elif fname == "max":
@@ -429,6 +429,9 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(n)
             buf.append('println!("{{:?}}",{0});'.format(value))
         return '\n'.join(buf)
+
+    def visit_DictComp(self, node):
+        return "DictComp"
 
     def visit_ListComp(self, node):
         elt = self.visit(node.elt)

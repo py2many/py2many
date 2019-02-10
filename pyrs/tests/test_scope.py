@@ -1,6 +1,6 @@
 import ast
-from py14.scope import add_scope_context
-from py14.context import add_variable_context
+from pyrs.scope import add_scope_context
+from pyrs.context import add_variable_context
 
 
 def parse(*args):

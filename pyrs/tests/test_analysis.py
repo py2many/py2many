@@ -1,7 +1,7 @@
 import ast
-from py14.scope import add_scope_context
-from py14.context import add_variable_context
-from py14.analysis import (FunctionTransformer, CalledWithTransformer,
+from pyrs.scope import add_scope_context
+from pyrs.context import add_variable_context
+from pyrs.analysis import (FunctionTransformer, CalledWithTransformer,
                            ImportTransformer, AttributeCallTransformer,
                            is_void_function)
 

@@ -1,6 +1,6 @@
 import sys
 import pytest
-from py14.transpiler import transpile
+from pyrs.transpiler import transpile
 
 
 def parse(*args):
@@ -106,8 +106,8 @@ def test_print_program_args():
     cpp = transpile(source)
     assert cpp == parse(
         "int main(int argc, char ** argv) {",
-        "py14::sys::argv = std::vector<std::string>(argv, argv + argc);",
-        "for(auto arg : py14::sys::argv) {",
+        "pyrs::sys::argv = std::vector<std::string>(argv, argv + argc);",
+        "for(auto arg : pyrs::sys::argv) {",
         "std::cout << arg << std::endl;",
         "}",
         "}"
@@ -299,7 +299,7 @@ def test_comb_sort():
         "auto gap = seq.size();",
         "auto swap = true;",
         "while (gap > 1||swap) {",
-        "gap = std::max(1, py14::to_int(gap / 1.25));",
+        "gap = std::max(1, pyrs::to_int(gap / 1.25));",
         "swap = false;",
         "for(auto i : rangepp::{0}(seq.size() - gap)) {{".format(range_f),
         "if(seq[i] > seq[i + gap]) {",
@@ -326,8 +326,8 @@ def test_normal_pdf():
     assert cpp == parse(
         "template <typename T1, typename T2, typename T3>",
         "auto pdf(T1 x, T2 mean, T3 std_dev) {",
-        "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);",
-        "auto term2 = std::pow(py14::math::e, -1.0 * "
+        "auto term1 = 1.0 / std::pow(2 * pyrs::math::pi, 0.5);",
+        "auto term2 = std::pow(pyrs::math::e, -1.0 * "
         "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));",
         "return term1 * term2;",
         "}"

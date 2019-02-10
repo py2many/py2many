@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import argparse
-from py14.transpiler import transpile
+from pyrs.transpiler import transpile
 
 
 if __name__ == "__main__":

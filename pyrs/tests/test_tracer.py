@@ -1,6 +1,6 @@
-from py14.tracer import value_type, value_expr, decltype, is_list, is_recursive
-from py14.context import add_variable_context, add_list_calls
-from py14.scope import add_scope_context
+from pyrs.tracer import value_type, value_expr, decltype, is_list, is_recursive
+from pyrs.context import add_variable_context, add_list_calls
+from pyrs.scope import add_scope_context
 import ast
 
 
