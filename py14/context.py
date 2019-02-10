@@ -4,7 +4,7 @@ from .scope import ScopeMixin
 
 def add_list_calls(node):
     """Provide context to Module and Function Def"""
-    return ListCallTransformer().visit(node)
+    # return ListCallTransformer().visit(node)
 
 
 def add_variable_context(node):
