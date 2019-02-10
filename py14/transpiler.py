@@ -41,42 +41,6 @@ def generate_catch_test_case(node, body):
     return funcdef + " {\n" + body + "\n}"
 
 
-def generate_template_fun(node, body):
-    params = []
-    arg_list = node.args.args
-    has_self = arg_list and arg_list[0].arg == "self"
-    if has_self:
-        arg_list = arg_list[1:]
-
-    for idx, arg in enumerate(arg_list):
-        params.append(("T" + str(idx + 1), get_id(arg))) #TODO this get_id should be replaced by visit
-    typenames = [arg[0] for arg in params]
-
-    if is_void_function(node):
-        return_type = ""
-    else:
-        return_type = "-> RT"
-        typenames.append("RT")
-    
-    template = ""
-    if len(typenames) > 0:
-        template = "<{0}>".format(", ".join(typenames))
-    params = ["{0}: {1}".format(arg[1], arg[0]) for arg in params]
-
-    if has_self:
-        params.insert(0, "&self")
-
-    funcdef = "fn {0}{1}({2}) {3}".format(node.name, template,
-                                          ", ".join(params), return_type)
-    return funcdef + " {\n" + body + "\n}"
-
-
-def generate_lambda_fun(node, body):
-    params = ["auto {0}".format(param.id) for param in node.args.args]
-    funcdef = "auto {0} = []({1})".format(node.name, ", ".join(params))
-    return funcdef + " {\n" + body + "\n};"
-
-
 class RustTranspiler(CLikeTranspiler):
     def __init__(self):
         self.headers = set(['use std::*;\n'])
@@ -85,21 +49,61 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
+        typenames, args = self.visit(node.args)
+        
+        args_list = []
+        if args and args[0] == "self":
+            del typenames[0]
+            del args[0]
+            args_list.append("&self")
 
-        if (self.use_catch_test_cases and
-            is_void_function(node) and
-            node.name.startswith("test")):
-            return generate_catch_test_case(node, body)
-        # is_void_function(node) or is_recursive(node):
-        return generate_template_fun(node, body)
-        # else:
-        #    return generate_lambda_fun(node, body)
+        typedecls = []
+        index = 0
+        for i in range(len(args)):
+            typename = typenames[i]
+            arg = args[i]
+            if typename == "T":
+                typename = "T{0}".format(index)
+                typedecls.append(typename)
+                index += 1  
+            args_list.append("{0}: {1}".format(arg, typename))
+
+        return_type = ""
+        if not is_void_function(node):
+            return_type = "-> RT"
+            typenames.append("RT")
+        
+        template = ""
+        if len(typedecls) > 0:
+            template = "<{0}>".format(", ".join(typedecls))
+
+        funcdef = "fn {0}{1}({2}) {3}".format(node.name, template,
+                                          ", ".join(args_list), return_type)
+        return funcdef + " {\n" + body + "\n}"
+
+    def visit_arguments(self, node):
+        args = [self.visit(arg) for arg in node.args]
+
+        #switch to zip
+        types = []
+        names = []
+        for arg in args:
+            types.append(arg[0])
+            names.append(arg[1])
+
+        return types,names
 
     def visit_arg(self, node):
-        return get_id(node)
+        id = get_id(node)
+        if id == "self":
+            return (None, "self")
+        typename = "T"
+        if node.annotation:
+            typename = self.visit(node.annotation)
+        return (typename, id)
 
     def visit_Lambda(self, node):
-        args = [self.visit(n) for n in node.args.args]
+        _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
         return "|{0}| {{\n{1}}}".format(args_string, body)
@@ -107,12 +111,10 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
-        if node.lineno == 53:
-            dnjfd = 4
 
         value_id = self.visit(node.value)
         if is_builtin_import(value_id):
-            return "py14::" + value_id + "::" + attr
+            return "pyrs::" + value_id + "::" + attr
         elif value_id == "math":
             if node.attr == "asin":
                 return "std::asin"
@@ -294,6 +296,18 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return "vec![]"
 
+    def visit_Dict(self, node):
+        if len(node.keys) > 0:
+            kv_string = []
+            for i in range(len(node.keys)):
+                key = self.visit(node.keys[i])
+                value = self.visit(node.values[i])
+                kv_string.append("({0}, {1})".format(key, value))
+            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
+            return initialization.format(", ".join(kv_string))
+        else:
+            return "HashMap::new()"
+
     def visit_Subscript(self, node):
         if isinstance(node.slice, ast.Ellipsis):
             raise NotImplementedError('Ellipsis not supported')
@@ -416,4 +430,4 @@ class RustTranspiler(CLikeTranspiler):
         generator = node.generators[0]
         target = self.visit(generator.target)
         iter = self.visit(generator.iter)        
-        return "{0}.iter().map(|{1}| {2}).collect()".format(iter, target, elt)
+        return "{0}.iter().map(|{1}| {2}).collect::<Vec<_>>()".format(iter, target, elt)
