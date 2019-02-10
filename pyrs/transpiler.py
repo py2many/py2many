@@ -7,7 +7,7 @@ from .analysis import add_imports, is_void_function, get_id
 from .tracer import decltype, is_list, is_builtin_import, defined_before, is_class_or_module
 
 
-def transpile(source, headers=False, testing=False):
+def transpile(source):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
@@ -149,6 +149,8 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}.len()".format(self.visit(node.args[0]))
         elif fname == "enumerate":
             return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
+        elif fname == "sum":
+            return "{0}.iter().sum()".format(self.visit(node.args[0]))
         elif fname == "print":
             buf = []
             for n in node.args:
@@ -402,6 +404,11 @@ class RustTranspiler(CLikeTranspiler):
         else:
             target = self.visit(target)
             value = self.visit(node.value)
+            
+            if len(node.scopes) == 1:
+                if isinstance(node.scopes[0], ast.Module): #if assignment is module level it must be const
+                    return "const {0}: _ = {1};".format(target, value)
+
             return "let {0} = {1};".format(target, value)
 
     def visit_Delete(self, node):
@@ -431,11 +438,14 @@ class RustTranspiler(CLikeTranspiler):
         return '\n'.join(buf)
 
     def visit_DictComp(self, node):
-        return "DictComp"
+        return "DictComp /*unimplemented()*/"
 
-    def visit_ListComp(self, node):
+    def visit_GeneratorExp(self, node):
         elt = self.visit(node.elt)
         generator = node.generators[0]
         target = self.visit(generator.target)
         iter = self.visit(generator.iter)        
         return "{0}.iter().map(|{1}| {2}).collect::<Vec<_>>()".format(iter, target, elt)
+
+    def visit_ListComp(self, node):
+        return self.visit_GeneratorExp(node) #right now they are the same
