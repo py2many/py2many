@@ -5,6 +5,7 @@ from .scope import add_scope_context
 from .context import add_variable_context, add_list_calls
 from .analysis import add_imports, is_void_function, get_id
 from .tracer import decltype, is_list, is_builtin_import, defined_before, is_class_or_module
+from .declaration_extractor import DeclarationExtractor
 
 container_types = {
     "List": "Vec",
@@ -262,27 +263,20 @@ class RustTranspiler(CLikeTranspiler):
         buf = [self.visit(b) for b in node.body]
         return "\n".join(buf)
 
-    def visit_init_function(self, node):
-        members = []
-        for child in node.body:
-            if isinstance(child, ast.Assign):
-                for target in child.targets:
-                    if hasattr(target, "value"):
-                        if self.visit(target.value) == "self":
-                            members.append(target.attr)
-        fields = []
-        for idx, name in enumerate(members):
-            fields.append("{0}: ST{1},".format(name, idx))
-        return "\n".join(fields)
-
     def visit_ClassDef(self, node):
-        class_members = ""
-        for func in node.body:
-            if isinstance(func, ast.FunctionDef):
-                if func.name == "__init__":
-                    class_members = self.visit_init_function(func)
+        extractor = DeclarationExtractor(RustTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
 
-        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, class_members);
+        fields = []
+        index = 0
+        for declaration, typename in declarations.items():
+            if typename == None:
+                typename = "ST{0}".format(index)
+                index += 1
+            fields.append("{0}: {1},".format(declaration, typename))
+
+        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, "\n".join(fields));
         impl_def = "impl {0} {{\n".format(node.name);
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
@@ -399,9 +393,6 @@ class RustTranspiler(CLikeTranspiler):
             if value == None:
                 value = 'None'
             return "{0} = {1};".format(target, value)
-
-        # if isinstance(target, ast.Attribute):
-        #     return "{0}.{1} = ;".format(target.value.id, target.attr)
 
         definition = node.scopes.find(target.id)
         if (isinstance(target, ast.Name) and
