@@ -32,7 +32,7 @@ type_map = {
     "int": "i32",
     "float": "f32",
     "bytes": "&[u8]",
-    "string": "&str",
+    "str": "&str",
 }
 
 

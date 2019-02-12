@@ -33,7 +33,6 @@ class RustTranspiler(CLikeTranspiler):
     def __init__(self):
         self.headers = set(['use std::*;\n'])
         self.usings = set([])
-        self.use_catch_test_cases = False
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -373,7 +372,10 @@ class RustTranspiler(CLikeTranspiler):
         return "assert!({0});".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node):
-        return self.visit_Assign(self, node)
+        target = self.visit(node.target)
+        type_str = self.visit_TypeAnnotation(node.annotation)
+        val = self.visit(node.value)
+        return "let {0}: {1} = {2};".format(target, type_str, val)
 
     def visit_Assign(self, node):
         target = node.targets[0]
