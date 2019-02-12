@@ -32,7 +32,8 @@ class ReturnFinder(ast.NodeVisitor):
     returns = False
 
     def visit_Return(self, node):
-        self.returns = True
+        if node.value != None:
+            self.returns = True
 
 
 class FunctionTransformer(ast.NodeTransformer):
