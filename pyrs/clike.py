@@ -28,6 +28,13 @@ symbols = {
     ast.In: 'in',
 }
 
+type_map = {
+    "int": "i32",
+    "float": "f32",
+    "bytes": "&[u8]",
+    "string": "&str",
+}
+
 
 def c_symbol(node):
     """Find the equivalent C symbol for a Python ast symbol node"""
@@ -47,6 +54,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Name(self, node):
         if node.id in self.builtin_constants:
             return node.id.lower()
+        elif node.id in type_map:
+            return type_map[node.id]
         return node.id
     
     def visit_NameConstant(self, node):

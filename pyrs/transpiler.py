@@ -6,6 +6,12 @@ from .context import add_variable_context, add_list_calls
 from .analysis import add_imports, is_void_function, get_id
 from .tracer import decltype, is_list, is_builtin_import, defined_before, is_class_or_module
 
+container_types = {
+    "List": "Vec",
+    "Dict": "HashMap",
+    "Set": "Set",
+    "Optional": "Option"
+}
 
 def transpile(source):
     """
@@ -53,7 +59,7 @@ class RustTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                return_type = "-> {0}".format(self.visit(node.returns))
+                return_type = "-> {0}".format(self.visit_TypeAnnotation(node.returns))
             else:
                 return_type = "-> RT"
                 typedecls.append("RT")
@@ -84,7 +90,7 @@ class RustTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self.visit(node.annotation)
+            typename = self.visit_TypeAnnotation(node.annotation)
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -316,25 +322,25 @@ class RustTranspiler(CLikeTranspiler):
             return "HashMap::new()"
 
     def visit_Subscript(self, node):
-        if isinstance(node.slice, ast.Ellipsis):
-            return "compile_error!('Elipsis is not supported');"
-
-        index = ""
-
-        if isinstance(node.slice, ast.Index):
-            index = self.visit(node.slice.value)
-        else:
-            lower = ""
-            if node.slice.lower:
-                lower = self.visit(node.slice.lower)
-            upper = ""
-            if node.slice.upper:
-                upper = self.visit(node.slice.upper)
-                
-            index = "{0}..{1}".format(lower, upper)
-
         value = self.visit(node.value)
+        index = self.visit(node.slice)
         return "{0}[{1}]".format(value, index)
+
+    def visit_Index(self, node):
+        return self.visit(node.value)
+
+    def visit_Slice(self, node):
+        lower = ""
+        if node.lower:
+            lower = self.visit(node.lower)
+        upper = ""
+        if node.upper:
+            upper = self.visit(node.upper)
+            
+        return "{0}..{1}".format(lower, upper)
+
+    def visit_Elipsis(self, node):
+        return "compile_error!('Elipsis is not supported');"
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -365,6 +371,9 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Assert(self, node):
         return "assert!({0});".format(self.visit(node.test))
+
+    def visit_AnnAssign(self, node):
+        return self.visit_Assign(self, node)
 
     def visit_Assign(self, node):
         target = node.targets[0]
@@ -434,7 +443,7 @@ class RustTranspiler(CLikeTranspiler):
         for n in node.body:
             buf.append(self.visit(n))
 
-        buf.append('}')
+            buf.append('}')
 
         return "\n".join(buf)
 
@@ -471,3 +480,17 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node) #right now they are the same
+
+    # isn't really a python node, but used to convert arrays-like generics to cpp-like generics
+    def visit_TypeAnnotation(self, node):
+        type_str = ""
+        if isinstance(node, ast.Subscript):
+            value = self.visit(node.value)
+            if value in container_types:
+                value = container_types[value]
+            slice_str = self.visit(node.slice)
+            type_str = "{0}<{1}>".format(value, slice_str)
+        else:
+            type_str = self.visit(node)
+        return type_str
+
