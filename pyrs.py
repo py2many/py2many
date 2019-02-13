@@ -21,6 +21,7 @@ if __name__ == "__main__":
         sys.stdout.write(rs)
     else:
         print("Transpiling whole directiory:")
+        successful = failures = format_errors = 0
         basename = os.path.basename(args.file)
         for root, subdir, filenames in os.walk(args.file):
             common_prefix = os.path.commonprefix([args.file, root])
@@ -41,7 +42,15 @@ if __name__ == "__main__":
                         
                         if rust_format(dst_file) != 0:
                             print("Transpiled but not formatted:", dst_file)
+                            format_errors += 1
+                        else:
+                            successful += 1
                         
                     except Exception as e:
+                        failures += 1
                         print("Error: Could not transpile:", src_file)
                         print("Due to:", e)
+        print("\nFinished!")
+        print("Successful: ", successful)
+        print("Transpiled, but not formatted: ", format_errors)
+        print("Failed to convert: ", failures)
