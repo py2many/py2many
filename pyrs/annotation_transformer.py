@@ -34,6 +34,12 @@ class AnnotationTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_Name(self, node):
+        if self.handling_annotation:
+            node.is_annotation = True
+        self.generic_visit(node)
+        return node
+
     def visit_Subscript(self, node):
         if self.handling_annotation:
             node.is_annotation = True
