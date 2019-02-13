@@ -38,7 +38,7 @@ class DeclarationExtractor(ast.NodeVisitor):
     def visit_AnnAssign(self, node):
         target = node.target
         if self.is_member(target):
-            type_str = self.transpiler.visit_TypeAnnotation(node.annotation)
+            type_str = self.transpiler.visit(node.annotation)
             if target.attr not in self.already_annotated:
                 self.already_annotated[target.attr] = type_str
 
