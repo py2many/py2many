@@ -323,7 +323,7 @@ class RustTranspiler(CLikeTranspiler):
             if value in container_types:
                 value = container_types[value]
             if value == "Tuple":
-                return index
+                return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
         return "{0}[{1}]".format(value, index)
 
@@ -345,7 +345,10 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
-        return "({0})".format(", ".join(elts))
+        elts = ", ".join(elts)
+        if hasattr(node, "is_annotation"):
+            return elts
+        return "({0})".format(elts)
 
     def visit_unsupported_body(self, name, body):
         buf = ['let {0} = {{ //unsupported'.format(name)]

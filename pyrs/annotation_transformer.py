@@ -7,7 +7,7 @@ def add_annotation_flags(node):
 
 class AnnotationTransformer(ast.NodeTransformer):
     """
-    Adds special flag for every type annotation, so it can be differentiated from array
+    Adds a flag for every type annotation and nested types so they can be differentiated from array
     """
     def __init__(self):
         self.handling_annotation = False
@@ -24,6 +24,13 @@ class AnnotationTransformer(ast.NodeTransformer):
             self.handling_annotation = True
             self.visit(node.returns)
             self.handling_annotation = False
+        self.generic_visit(node)
+        return node
+
+    # without this Dict[x,y] will be translated to HashMap<(x,y)>
+    def visit_Tuple(self, node):
+        if self.handling_annotation:
+            node.is_annotation = True
         self.generic_visit(node)
         return node
 
