@@ -34,8 +34,8 @@ def transpile(source):
 
 class RustTranspiler(CLikeTranspiler):
     def __init__(self):
-        self.headers = set(['use std::*;\n'])
-        self.usings = set([])
+        self.headers = ['use std::*;',
+            "use std::collections::HashMap;", ""]
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -264,7 +264,10 @@ class RustTranspiler(CLikeTranspiler):
             return super(RustTranspiler, self).visit_BinOp(node)
 
     def visit_Module(self, node):
-        buf = [self.visit(b) for b in node.body]
+        buf = []
+        for header in self.headers:
+            buf.append(header);
+        buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
@@ -436,7 +439,7 @@ class RustTranspiler(CLikeTranspiler):
     def visit_With(self, node):
         buf = []
 
-        with_statement = "with!("
+        with_statement = "//with!("
         for i in node.items:
             if i.optional_vars:
                 with_statement += "{0} as {1}, ".format(self.visit(i.context_expr),
@@ -477,12 +480,17 @@ class RustTranspiler(CLikeTranspiler):
         generator = node.generators[0]
         target = self.visit(generator.target)
         iter = self.visit(generator.iter)
+        
+        #HACK for dictionary iterators to work
+        if not iter.endswith("keys()") or iter.endswith("values()"):
+            iter += ".iter()"
+
         map_str = ".map(|{0}| {1})".format(target, elt)
         filter_str = ""
         if generator.ifs:
             filter_str = ".cloned().filter(|&{0}| {1})".format(target, self.visit(generator.ifs[0]))
 
-        return "{0}.iter(){1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node) #right now they are the same
