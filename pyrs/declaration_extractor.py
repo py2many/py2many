@@ -1,5 +1,18 @@
 import ast
 
+#TODO better type infering based on variable init
+def type_by_initialization(init_str):
+    if init_str == "vec![]":
+        return "Vec<_>"
+    elif init_str == "HashMap::new()":
+        return "HashMap<_,_>"
+    elif init_str == "None":
+        return "Option<_>"
+    elif init_str == "true" or init_str == "false":
+        return "bool"
+    else:
+        return None
+
 class DeclarationExtractor(ast.NodeVisitor):
     def __init__(self, transpiler):
         self.transpiler = transpiler
@@ -16,9 +29,9 @@ class DeclarationExtractor(ast.NodeVisitor):
             if var in self.typed_vars:
                 typed_members[member] = self.typed_vars[var]
 
-        for member, _ in self.class_assignments.items():
+        for member, value in self.class_assignments.items():
             if member not in typed_members:
-                typed_members[member] = None
+                typed_members[member] = type_by_initialization(value)
 
         return typed_members
 
@@ -29,8 +42,10 @@ class DeclarationExtractor(ast.NodeVisitor):
         types, names = self.transpiler.visit(node.args)
         
         for i in range(len(names)):
-            if names[i] not in self.typed_vars:
-                self.typed_vars[names[i]] = types[i]
+            typename = types[i]
+            if typename and typename != "T":
+                if names[i] not in self.typed_vars:
+                    self.typed_vars[names[i]] = typename
 
         for n in node.body:
             self.visit(n)        
