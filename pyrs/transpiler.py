@@ -152,6 +152,8 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}.iter().max()".format(self.visit(node.args[0]))
         elif fname == "min":
             return "{0}.iter().min()".format(self.visit(node.args[0]))
+        elif fname == "reversed":
+            return "{0}.iter().rev()".format(self.visit(node.args[0]))
         elif fname == "map":
             return "{0}.iter().map({1})".format(self.visit(node.args[1]), self.visit(node.args[0]))
         elif fname == "filter":
