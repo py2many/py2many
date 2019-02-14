@@ -513,3 +513,6 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Global(self, node):
         return "//global {0}".format(", ".join(node.names))
+
+    def visit_Starred(self, node):
+        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
