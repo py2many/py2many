@@ -298,7 +298,8 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_ImportFrom(self, node):
-        if node.module == "typing":
+        if node.module == "typing" or\
+            node.module == "enum":
             return ""
 
         names = [n.name for n in node.names]
@@ -379,7 +380,10 @@ class RustTranspiler(CLikeTranspiler):
         return '\n'.join(buf)
 
     def visit_ExceptHandler(self, node):
-        name = "except!({0})".format(self.visit(node.type))
+        exception_type = ""
+        if node.type:
+            exception_type =  self.visit(node.type)
+        name = "except!({0})".format(exception_type)
         body = self.visit_unsupported_body(name, node.body)
         return body
 
@@ -451,14 +455,14 @@ class RustTranspiler(CLikeTranspiler):
     def visit_With(self, node):
         buf = []
 
-        with_statement = "//with!("
+        with_statement = "// with!("
         for i in node.items:
             if i.optional_vars:
                 with_statement += "{0} as {1}, ".format(self.visit(i.context_expr),
                                                         self.visit(i.optional_vars))
             else:
                 with_statement += "{0}, ".format(self.visit(i.context_expr))
-        with_statement = with_statement[:-2] + ") { //unsupported"
+        with_statement = with_statement[:-2] + ") //unsupported\n{"
         buf.append(with_statement)
 
         for n in node.body:
@@ -506,3 +510,6 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node) #right now they are the same
+
+    def visit_Global(self, node):
+        return "//global {0}".format(", ".join(node.names))
