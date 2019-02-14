@@ -296,6 +296,9 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_ImportFrom(self, node):
+        if node.module == "typing":
+            return ""
+
         names = [n.name for n in node.names]
         names = ", ".join(names)
         module_path = node.module.replace(".", "::")
