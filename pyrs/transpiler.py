@@ -3,8 +3,9 @@ import ast
 from .clike import CLikeTranspiler
 from .scope import add_scope_context
 from .annotation_transformer import add_annotation_flags
+from .mutability_transformer import detect_mutable_vars
 from .context import add_variable_context, add_list_calls
-from .analysis import add_imports, is_void_function, get_id
+from .analysis import add_imports, is_void_function, get_id, is_mutable
 from .tracer import decltype, is_list, is_builtin_import, defined_before, is_class_or_module
 from .declaration_extractor import DeclarationExtractor
 
@@ -24,6 +25,7 @@ def transpile(source):
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
+    detect_mutable_vars(tree)
     add_annotation_flags(tree)
     add_imports(tree)
 
@@ -149,9 +151,9 @@ class RustTranspiler(CLikeTranspiler):
         elif fname == "sum":
             return "{0}.iter().sum()".format(self.visit(node.args[0]))
         elif fname == "max":
-            return "{0}.iter().max()".format(self.visit(node.args[0]))
+            return "{0}.iter().max().unwrap()".format(self.visit(node.args[0]))
         elif fname == "min":
-            return "{0}.iter().min()".format(self.visit(node.args[0]))
+            return "{0}.iter().min().unwrap()".format(self.visit(node.args[0]))
         elif fname == "reversed":
             return "{0}.iter().rev()".format(self.visit(node.args[0]))
         elif fname == "map":
@@ -421,8 +423,15 @@ class RustTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return "let mut {0} = vec![{1}];".format(self.visit(target), ", ".join(elements))
+            mut = ""
+            if is_mutable(node.scopes, get_id(target)):
+                mut = "mut "
+            return "let {0}{1} = vec![{2}];".format(mut, self.visit(target), ", ".join(elements))
         else:
+            mut = ""
+            if is_mutable(node.scopes, get_id(target)):
+                mut = "mut "
+
             target = self.visit(target)
             value = self.visit(node.value)
             
@@ -430,7 +439,7 @@ class RustTranspiler(CLikeTranspiler):
                 if isinstance(node.scopes[0], ast.Module): #if assignment is module level it must be const
                     return "const {0}: _ = {1};".format(target, value)
 
-            return "let {0} = {1};".format(target, value)
+            return "let {0}{1} = {2};".format(mut, target, value)
 
     def visit_Delete(self, node):
         target = node.targets[0]

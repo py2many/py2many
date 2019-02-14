@@ -27,6 +27,13 @@ else:
         elif isinstance(var, ast.Name):
             return var.id
 
+def is_mutable(scopes, target):
+    for scope in scopes:
+        if isinstance(scope, ast.FunctionDef):
+            if target in scope.mutable_vars:
+                return True
+    return False
+
 
 class ReturnFinder(ast.NodeVisitor):
     returns = False
