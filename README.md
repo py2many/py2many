@@ -141,7 +141,9 @@ impl Genesis {
 
 This one won't compile. All unknown types are labeled. T stands for Type, RT is for Return Type and ST is for Struct Type. Ordering them this way enables you finding and replacing them in the future.
 
-Also Python 3.5 type hints inside function declaration can be transpiled:
+## Monkeytype
+
+Python 3.5+ type annotations can be transpiled:
 ```python
 def cut(apple: Fruit, knife: Tool) -> Slice:
 ```
@@ -151,11 +153,14 @@ def cut(apple: Fruit, knife: Tool) -> Slice:
 fn cut(apple: Fruit, knife: Tool) -> Slice {
 ```
 
+I would highly suggest to generate type annotations using [MonkeyType](https://github.com/Instagram/MonkeyType). This will allow to mitigate aforementioned generic types problem for classes and functions. More info on how to do that can be found in this [post](https://medium.com/@konchunas/monkeytype-type-inference-for-transpiling-python-to-rust-64fa5a9eb966).
+
 ## Todo list
 
-- [ ] Type infering for struct declaration
-- [ ] Return type infering
-- [ ] Mutability based on usage
+- [x] Basic type inference for struct declaration
+- [ ] Use constructors for guessing struct member types
+- [ ] Return type inference
+- [x] Mutability based on usage
 
 ## Working Features
 
