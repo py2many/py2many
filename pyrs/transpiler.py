@@ -516,3 +516,15 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
+
+    def visit_Set(self, node):
+        elts = []
+        for i in range(len(node.elts)):
+            elt = self.visit(node.elts[i])
+            elts.append(elt)
+        
+        if elts:
+            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
+            return initialization.format(", ".join(elts))
+        else: 
+            return "HashSet::new()"
