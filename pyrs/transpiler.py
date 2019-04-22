@@ -528,3 +528,9 @@ class RustTranspiler(CLikeTranspiler):
             return initialization.format(", ".join(elts))
         else: 
             return "HashSet::new()"
+
+    def visit_IfExp(self, node):
+        body = self.visit(node.body)
+        orelse = self.visit(node.orelse)
+        test = self.visit(node.test)
+        return "if {0} {{ {1} }} else {{ {2} }}".format(test, body, orelse)
