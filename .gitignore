@@ -6,3 +6,4 @@
 .coverage
 .ropeproject
 *.egg-info
+build
