@@ -5,3 +5,5 @@
 *.pyc
 .coverage
 .ropeproject
+*.egg-info
+build
