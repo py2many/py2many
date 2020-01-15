@@ -450,7 +450,11 @@ class RustTranspiler(CLikeTranspiler):
         return "{0}.drop();".format(self.visit(target))
 
     def visit_Raise(self, node):
-        return "raise!({0}); //unsupported".format(self.visit(node.exc))
+        if node.exc is not None:
+            return "raise!({0}); //unsupported".format(self.visit(node.exc))
+        # This handles the case where `raise` is used without
+        # specifying the exception.
+        return "raise!(); //unsupported"
 
     def visit_With(self, node):
         buf = []
