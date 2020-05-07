@@ -35,6 +35,27 @@ type_map = {
     "str": "&str",
 }
 
+# allowed as names in Python but treated as keywords in Rust
+rust_keywords = frozenset([
+    "struct",
+    "type",
+    "match",
+    "impl",
+    "const",
+    "enum",
+    "extern",
+    "fn",
+    "loop",
+    "move",
+    "mut",
+    "pub",
+    "ref",
+    "trait",
+    "where",
+    "use",
+    "unsafe"
+])
+
 
 def c_symbol(node):
     """Find the equivalent C symbol for a Python ast symbol node"""
@@ -54,6 +75,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Name(self, node):
         if node.id in self.builtin_constants:
             return node.id.lower()
+        elif node.id in rust_keywords:
+            return node.id + "_"
         elif hasattr(node, "is_annotation"):
             if node.id in type_map:
                 return type_map[node.id]
