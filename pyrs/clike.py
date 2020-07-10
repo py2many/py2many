@@ -3,6 +3,7 @@ import ast
 
 symbols = {
     ast.Eq: "==",
+    ast.Is: '==',
     ast.NotEq: '!=',
     ast.Pass: '/*pass*/',
     ast.Mult: '*',
