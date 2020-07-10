@@ -148,9 +148,17 @@ class CLikeTranspiler(ast.NodeVisitor):
             return "{0}.pow({1})".format(self.visit(node.left),
                                                self.visit(node.right))
 
-        return " ".join([self.visit(node.left),
-                         self.visit(node.op),
-                         self.visit(node.right)])
+        # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
+        # To visually communicate this we omit spaces when multiplying and dividing.
+        if isinstance(node.op, (ast.Mult, ast.Div)):
+            return "({0}{1}{2})".format(self.visit(node.left),
+                                          self.visit(node.op),
+                                          self.visit(node.right))
+
+        else:
+            return "({0} {1} {2})".format(self.visit(node.left),
+                                          self.visit(node.op),
+                                          self.visit(node.right))
 
     def visit_UnaryOp(self, node):
         return "{0}{1}".format(self.visit(node.op), self.visit(node.operand))
