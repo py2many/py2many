@@ -140,9 +140,17 @@ class RustTranspiler(CLikeTranspiler):
             return "String::from({0})".format(args)
 
         elif fname == "range" or fname == "xrange":
-            if "," not in args: #one value range translates to 0..n
-                return "0.." + args
-            return args.replace(",","..")
+
+            vargs = list(map(self.visit, node.args))
+
+            if len(node.args)==1:
+                return '(0..{})'.format(vargs[0])
+            elif len(node.args)==2:
+                return '({}..{})'.format(vargs[0],vargs[1])
+            elif len(node.args)==3:
+                return '({}..{}).step_by({})'.format(vargs[0], vargs[1], vargs[2])
+            else:
+                raise Exception('encountered range() call with unknown parameters: range({})'.format(args))
 
         elif fname == "len":
             return "{0}.len()".format(self.visit(node.args[0]))
