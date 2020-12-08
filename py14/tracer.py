@@ -53,7 +53,7 @@ def value_type(node):
 
 
 class ValueExpressionVisitor(ast.NodeVisitor):
-    def visit_Num(self, node):
+    def visit_Constant(self, node):
         return str(node.n)
 
     def visit_Str(self, node):
@@ -84,9 +84,6 @@ class ValueExpressionVisitor(ast.NodeVisitor):
 
 
 class ValueTypeVisitor(ast.NodeVisitor):
-    def visit_Num(self, node):
-        return value_expr(node)
-
     def visit_Str(self, node):
         return value_expr(node)
 
@@ -100,7 +97,7 @@ class ValueTypeVisitor(ast.NodeVisitor):
         else:
             return self.visit(var.assigned_from.value)
 
-    def visit_NameConstant(self, node):
+    def visit_Constant(self, node):
         return CLikeTranspiler().visit(node)
 
     def visit_Call(self, node):

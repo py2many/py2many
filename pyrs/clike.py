@@ -91,7 +91,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         else:
             return node.value
 
-    def visit_Num(self, node):
+    def visit_Constant(self, node):
         return str(node.n)
 
     def visit_Str(self, node):

@@ -67,7 +67,7 @@ def value_type(node):
 
 
 class ValueExpressionVisitor(ast.NodeVisitor):
-    def visit_Num(self, node):
+    def visit_Constant(self, node):
         return str(node.n)
 
     def visit_Str(self, node):
@@ -106,7 +106,7 @@ class ValueExpressionVisitor(ast.NodeVisitor):
 
 
 class ValueTypeVisitor(ast.NodeVisitor):
-    def visit_Num(self, node):
+    def visit_Constant(self, node):
         return value_expr(node)
 
     def visit_Str(self, node):
