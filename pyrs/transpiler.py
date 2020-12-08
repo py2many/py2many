@@ -252,7 +252,7 @@ class RustTranspiler(CLikeTranspiler):
             return "\n".join(buf)
         else:
             return ("".join(var_definitions) +
-                    super(RustTranspiler, self).visit_If(node))
+                    super(RustTranspiler, self).visit_If(node, use_parens=False))
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):

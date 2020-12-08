@@ -102,9 +102,12 @@ class CLikeTranspiler(ast.NodeVisitor):
             return 'return {0};'.format(self.visit(node.value))
         return 'return;'
 
-    def visit_If(self, node):
+    def visit_If(self, node, use_parens=True):
         buf = []
-        buf.append('if {0} {{'.format(self.visit(node.test)))
+        if use_parens:
+            buf.append('if({0}) {{'.format(self.visit(node.test)))
+        else:
+            buf.append('if {0} {{'.format(self.visit(node.test)))
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
@@ -145,8 +148,8 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
-            return "{0}.pow({1})".format(self.visit(node.left),
-                                               self.visit(node.right))
+            return "pow({0}, {1})".format(self.visit(node.left),
+                                          self.visit(node.right))
 
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
