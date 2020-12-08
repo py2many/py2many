@@ -172,13 +172,15 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super(CppTranspiler, self).visit_Name(node)
 
-    def visit_NameConstant(self, node):
+    def visit_Constant(self, node):
         if node.value is True:
             return "true"
         elif node.value is False:
             return "false"
+        elif isinstance(node.value, str):
+            return self.visit_Str(node)
         else:
-            return super(CppTranspiler, self).visit_NameConstant(node)
+            return super(CppTranspiler, self).visit_Constant(node)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
