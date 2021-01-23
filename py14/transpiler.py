@@ -7,6 +7,7 @@ from common.context import add_variable_context, add_list_calls
 from common.scope import add_scope_context
 from common.analysis import add_imports, is_void_function, get_id
 
+
 def transpile(source, headers=False, testing=False):
     """
     Transpile a single python translation unit (a python script) into
@@ -30,7 +31,7 @@ def transpile(source, headers=False, testing=False):
         buf += transpiler.usings
 
     if testing or headers:
-        buf.append('')  # Force empty line
+        buf.append("")  # Force empty line
 
     cpp = transpiler.visit(tree)
     return "\n".join(buf) + cpp
@@ -56,8 +57,9 @@ def generate_template_fun(node, body):
     if is_void_function(node):
         return_type = "void"
 
-    funcdef = "{0}{1} {2}({3})".format(template, return_type, node.name,
-                                          ", ".join(params))
+    funcdef = "{0}{1} {2}({3})".format(
+        template, return_type, node.name, ", ".join(params)
+    )
     return funcdef + " {\n" + body + "\n}"
 
 
@@ -69,20 +71,31 @@ def generate_lambda_fun(node, body):
 
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
-        self.headers = set(['#include "sys.h"', '#include "builtins.h"',
-                            '#include <iostream>', '#include <string>',
-                            '#include <algorithm>', '#include <cmath>',
-                            '#include <vector>', '#include <tuple>',
-                            '#include <utility>', '#include "range.hpp"'])
+        self.headers = set(
+            [
+                '#include "sys.h"',
+                '#include "builtins.h"',
+                "#include <iostream>",
+                "#include <string>",
+                "#include <algorithm>",
+                "#include <cmath>",
+                "#include <vector>",
+                "#include <tuple>",
+                "#include <utility>",
+                '#include "range.hpp"',
+            ]
+        )
         self.usings = set([])
         self.use_catch_test_cases = False
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
 
-        if (self.use_catch_test_cases and
-            is_void_function(node) and
-            node.name.startswith("test")):
+        if (
+            self.use_catch_test_cases
+            and is_void_function(node)
+            and node.name.startswith("test")
+        ):
             return generate_catch_test_case(node, body)
         # is_void_function(node) or is_recursive(node):
         return generate_template_fun(node, body)
@@ -113,7 +126,7 @@ class CppTranspiler(CLikeTranspiler):
             args = [self.visit(a) for a in node.args]
             args = ", ".join(args)
         else:
-            args = ''
+            args = ""
 
         if fname == "int":
             return "py14::to_int({0})".format(args)
@@ -135,40 +148,42 @@ class CppTranspiler(CLikeTranspiler):
             for n in node.args:
                 value = self.visit(n)
                 if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                    buf.append("std::cout << {0} << std::endl;".format(
-                               " << ".join([self.visit(el) for el in n.elts])))
+                    buf.append(
+                        "std::cout << {0} << std::endl;".format(
+                            " << ".join([self.visit(el) for el in n.elts])
+                        )
+                    )
                 else:
-                    buf.append('std::cout << {0} << std::endl;'.format(value))
-            return '\n'.join(buf)
+                    buf.append("std::cout << {0} << std::endl;".format(value))
+            return "\n".join(buf)
 
-        return '{0}({1})'.format(fname, args)
+        return "{0}({1})".format(fname, args)
 
     def visit_For(self, node):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append('for(auto {0} : {1}) {{'.format(target, it))
+        buf.append("for(auto {0} : {1}) {{".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
 
     def visit_Expr(self, node):
         s = self.visit(node.value)
-        if s.strip() and not s.endswith(';'):
-            s += ';'
-        if s == ';':
-            return ''
+        if s.strip() and not s.endswith(";"):
+            s += ";"
+        if s == ";":
+            return ""
         else:
             return s
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
-        return ("std::string {" +
-                super(CppTranspiler, self).visit_Str(node) + "}")
+        return "std::string {" + super(CppTranspiler, self).visit_Str(node) + "}"
 
     def visit_Name(self, node):
-        if node.id == 'None':
-            return 'nullptr'
+        if node.id == "None":
+            return "nullptr"
         else:
             return super(CppTranspiler, self).visit_Name(node)
 
@@ -194,15 +209,15 @@ class CppTranspiler(CLikeTranspiler):
             var_definitions.append("{0} {1};\n".format(var_type, cv))
 
         if self.visit(node.test) == '__name__ == std::string {"__main__"}':
-            buf = ["int main(int argc, char ** argv) {",
-                   "py14::sys::argv = "
-                   "std::vector<std::string>(argv, argv + argc);"]
+            buf = [
+                "int main(int argc, char ** argv) {",
+                "py14::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
+            ]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
             return "\n".join(buf)
         else:
-            return ("".join(var_definitions) +
-                    super(CppTranspiler, self).visit_If(node))
+            return "".join(var_definitions) + super(CppTranspiler, self).visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -215,11 +230,14 @@ class CppTranspiler(CLikeTranspiler):
             return super(CppTranspiler, self).visit_UnaryOp(node)
 
     def visit_BinOp(self, node):
-        if (isinstance(node.left, ast.List)
-                and isinstance(node.op, ast.Mult)
-                and isinstance(node.right, ast.Num)):
-            return "std::vector ({0},{1})".format(self.visit(node.right),
-                                                  self.visit(node.left.elts[0]))
+        if (
+            isinstance(node.left, ast.List)
+            and isinstance(node.op, ast.Mult)
+            and isinstance(node.right, ast.Num)
+        ):
+            return "std::vector ({0},{1})".format(
+                self.visit(node.right), self.visit(node.left.elts[0])
+            )
         else:
             return super(CppTranspiler, self).visit_BinOp(node)
 
@@ -238,15 +256,14 @@ class CppTranspiler(CLikeTranspiler):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
             value_type = decltype(node.elts[0])
-            return "std::vector<{0}>{{{1}}}".format(value_type,
-                                                    ", ".join(elements))
+            return "std::vector<{0}>{{{1}}}".format(value_type, ", ".join(elements))
 
         else:
             raise ValueError("Cannot create vector without elements")
 
     def visit_Subscript(self, node):
         if isinstance(node.slice, ast.Ellipsis):
-            raise NotImplementedError('Ellipsis not supported')
+            raise NotImplementedError("Ellipsis not supported")
 
         if not isinstance(node.slice, ast.Index):
             raise NotImplementedError("Advanced Slicing not supported")
@@ -259,26 +276,29 @@ class CppTranspiler(CLikeTranspiler):
         return "std::make_tuple({0})".format(", ".join(elts))
 
     def visit_TryExcept(self, node, finallybody=None):
-        buf = ['try {']
+        buf = ["try {"]
         buf += [self.visit(n) for n in node.body]
-        buf.append('} catch (const std::exception& e) {')
+        buf.append("} catch (const std::exception& e) {")
 
         buf += [self.visit(h) for h in node.handlers]
 
         if finallybody:
-            buf.append('try { // finally')
+            buf.append("try { // finally")
             buf += [self.visit(b) for b in finallybody]
-            buf.append('} throw e;')
+            buf.append("} throw e;")
 
-        buf.append('}')
-        buf.append('catch (const std::overflow_error& e) '
-                   '{ std::cout << "OVERFLOW ERROR" << std::endl; }')
-        buf.append('catch (const std::runtime_error& e) '
-                   '{ std::cout << "RUNTIME ERROR" << std::endl; }')
-        buf.append('catch (...) '
-                   '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
+        buf.append("}")
+        buf.append(
+            "catch (const std::overflow_error& e) "
+            '{ std::cout << "OVERFLOW ERROR" << std::endl; }'
+        )
+        buf.append(
+            "catch (const std::runtime_error& e) "
+            '{ std::cout << "RUNTIME ERROR" << std::endl; }'
+        )
+        buf.append("catch (...) " '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
 
-        return '\n'.join(buf)
+        return "\n".join(buf)
 
     def visit_Assert(self, node):
         return "REQUIRE({0});".format(self.visit(node.test))
@@ -303,16 +323,15 @@ class CppTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
 
         definition = node.scopes.find(target.id)
-        if (isinstance(target, ast.Name) and
-              defined_before(definition, node)):
+        if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return "{0} {1} {{{2}}};".format(decltype(node),
-                                             self.visit(target),
-                                             ", ".join(elements))
+            return "{0} {1} {{{2}}};".format(
+                decltype(node), self.visit(target), ", ".join(elements)
+            )
         else:
             target = self.visit(target)
             value = self.visit(node.value)
@@ -323,8 +342,11 @@ class CppTranspiler(CLikeTranspiler):
         for n in node.values:
             value = self.visit(n)
             if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                buf.append("std::cout << {0} << std::endl;".format(
-                           " << ".join([self.visit(el) for el in n.elts])))
+                buf.append(
+                    "std::cout << {0} << std::endl;".format(
+                        " << ".join([self.visit(el) for el in n.elts])
+                    )
+                )
             else:
-                buf.append('std::cout << {0} << std::endl;'.format(value))
-        return '\n'.join(buf)
+                buf.append("std::cout << {0} << std::endl;".format(value))
+        return "\n".join(buf)

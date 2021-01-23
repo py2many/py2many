@@ -1,7 +1,10 @@
-from common.declaration_extractor import DeclarationExtractor as CommonDeclarationExtractor
+from common.declaration_extractor import (
+    DeclarationExtractor as CommonDeclarationExtractor,
+)
+
 
 class DeclarationExtractor(CommonDeclarationExtractor):
-    #TODO better type infering based on variable init
+    # TODO better type infering based on variable init
     def type_by_initialization(self, init_str):
         if init_str == "vec![]":
             return "Vec<_>"
@@ -13,4 +16,3 @@ class DeclarationExtractor(CommonDeclarationExtractor):
             return "bool"
         else:
             return None
-    

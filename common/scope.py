@@ -3,6 +3,7 @@ from contextlib import contextmanager
 
 from common.analysis import get_id
 
+
 def add_scope_context(node):
     """Provide to scope context to all nodes"""
     return ScopeTransformer().visit(node)
@@ -13,6 +14,7 @@ class ScopeMixin(object):
     Adds a scope property with the current scope (function, module)
     a node is part of.
     """
+
     scopes = []
 
     @contextmanager
@@ -41,8 +43,10 @@ class ScopeList(list):
     Wraps around list of scopes and provides find method for finding
     the definition of a variable
     """
+
     def find(self, lookup):
         """Find definition of variable lookup."""
+
         def find_definition(scope, var_attr="vars"):
             for var in getattr(scope, var_attr):
                 if get_id(var) == lookup:

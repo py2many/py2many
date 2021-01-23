@@ -2,16 +2,16 @@ import io
 import re
 from setuptools import setup, find_packages
 
-__version__= '0.0.0'
+__version__ = "0.0.0"
 
-install_requires= []
-setup_requires= []
-tests_require = ['pytest']
+install_requires = []
+setup_requires = []
+tests_require = ["pytest"]
 
 setup(
-    name='pyrs',
+    name="pyrs",
     version=__version__,
-    description='Python to Rust transpiler.',
+    description="Python to Rust transpiler.",
     long_description="""
 Python to Rust transpiler
 
@@ -34,22 +34,22 @@ Based on Lukas Martinelli Py14
 (https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
 Lorentz.
     """,
-    author='Julian Konchunas',
-    author_email='konchunas@gmail.com',
-    python_requires='>=3.0.0',
-    url='http://github.com/konchunas/pyrs',
+    author="Julian Konchunas",
+    author_email="konchunas@gmail.com",
+    python_requires=">=3.0.0",
+    url="http://github.com/konchunas/pyrs",
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
-    packages=find_packages(exclude=['docs', 'examples', 'tests']),
-    scripts=['pyrs.py'],
-    license='MIT',
+    packages=find_packages(exclude=["docs", "examples", "tests"]),
+    scripts=["pyrs.py"],
+    license="MIT",
     classifiers=[
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3',
-        'Topic :: Software Development',
-        'Topic :: Utilities',
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Topic :: Software Development",
+        "Topic :: Utilities",
     ],
-    test_suite='tests',
+    test_suite="tests",
 )

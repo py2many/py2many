@@ -17,6 +17,7 @@ class ListCallTransformer(ast.NodeTransformer):
     Adds all calls to list to scope block.
     You need to apply VariableTransformer before you use it.
     """
+
     def visit_Call(self, node):
         if self.is_list_addition(node):
             var = node.scopes.find(node.func.value.id)
@@ -27,20 +28,24 @@ class ListCallTransformer(ast.NodeTransformer):
         return node
 
     def is_list_assignment(self, node):
-        return (isinstance(node.value, ast.List) and
-                isinstance(node.targets[0].ctx, ast.Store))
+        return isinstance(node.value, ast.List) and isinstance(
+            node.targets[0].ctx, ast.Store
+        )
 
     def is_list_addition(self, node):
         """Check if operation is adding something to a list"""
         list_operations = ["append", "extend", "insert"]
-        return (isinstance(node.func.ctx, ast.Load) and
-                hasattr(node.func, "value") and
-                isinstance(node.func.value, ast.Name) and
-                node.func.attr in list_operations)
+        return (
+            isinstance(node.func.ctx, ast.Load)
+            and hasattr(node.func, "value")
+            and isinstance(node.func.value, ast.Name)
+            and node.func.attr in list_operations
+        )
 
 
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     """Adds all defined variables to scope block"""
+
     def visit_FunctionDef(self, node):
         node.vars = []
         for arg in node.args.args:

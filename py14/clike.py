@@ -4,14 +4,14 @@ from common.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 class CLikeTranspiler(CommonCLikeTranspiler):
-
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
-            return "std::pow({0}, {1})".format(self.visit(node.left),
-                                          self.visit(node.right))
-        return " ".join([self.visit(node.left),
-                         self.visit(node.op),
-                         self.visit(node.right)])
+            return "std::pow({0}, {1})".format(
+                self.visit(node.left), self.visit(node.right)
+            )
+        return " ".join(
+            [self.visit(node.left), self.visit(node.op), self.visit(node.right)]
+        )
 
     def visit_In(self, node):
         left = self.visit(node.left)

@@ -1,9 +1,13 @@
 import ast
 from common.scope import add_scope_context
 from common.context import add_variable_context
-from common.analysis import (FunctionTransformer, CalledWithTransformer,
-                           ImportTransformer, AttributeCallTransformer,
-                           is_void_function)
+from common.analysis import (
+    FunctionTransformer,
+    CalledWithTransformer,
+    ImportTransformer,
+    AttributeCallTransformer,
+    is_void_function,
+)
 
 
 def parse(*args):
@@ -14,19 +18,13 @@ def parse(*args):
 
 
 def test_is_void_for_fun_with_no_return():
-    source = parse(
-        "def foo(x):",
-        "   bar(x)",
-    )
+    source = parse("def foo(x):", "   bar(x)")
     foo = source.body[0]
     assert is_void_function(foo)
 
 
 def test_is_not_void_for_fun_with_return_value():
-    source = parse(
-        "def foo(x):",
-        "   return x",
-    )
+    source = parse("def foo(x):", "   return x")
     foo = source.body[0]
     assert not is_void_function(foo)
 
@@ -64,11 +62,7 @@ class TestFunctionTransformer:
 
 class TestCalledWithTransformer:
     def test_var_called_with_later_function(self):
-        source = parse(
-            "x = 3",
-            "bar(x)",
-            "bar(foo(x))",
-        )
+        source = parse("x = 3", "bar(x)", "bar(foo(x))")
         CalledWithTransformer().visit(source)
 
         x = source.body[0].targets[0]
@@ -78,10 +72,7 @@ class TestCalledWithTransformer:
 
 class TestAttributeCallTransformer:
     def test_call_to_attribute_registered(self):
-        source = parse(
-            "x = foo()",
-            "x.bar()",
-        )
+        source = parse("x = foo()", "x.bar()")
         AttributeCallTransformer().visit(source)
 
         x = source.body[0].targets[0]
@@ -91,10 +82,7 @@ class TestAttributeCallTransformer:
 
 class TestImportTransformer:
     def test_function_knows_from_where_it_is_imported(self):
-        source = parse(
-            "from foo import bar",
-            "bar(x)",
-        )
+        source = parse("from foo import bar", "bar(x)")
         ImportTransformer().visit(source)
 
         module = source

@@ -12,22 +12,14 @@ def parse(*args):
 
 class TestListCallTransformer:
     def test_call_added(self):
-        source = parse(
-            "results = []",
-            "results.append(x)",
-        )
+        source = parse("results = []", "results.append(x)")
         add_list_calls(source)
         assert len(source.scopes[-1].vars[0].calls) == 1
 
 
 class TestVariableTranformer:
     def test_vars_of_if(self):
-        source = parse(
-            "x = 5",
-            "if True:",
-            "   y = 10",
-            "   x *= y",
-        )
+        source = parse("x = 5", "if True:", "   y = 10", "   x *= y")
         assert len(source.vars) == 1
         assert len(source.body[1].body_vars) == 1
 
@@ -58,10 +50,7 @@ class TestVariableTranformer:
         assert len(source.body[0].vars) == 3
 
     def test_local_vars_of_function_with_args(self):
-        source = parse(
-            "def foo(x, y):",
-            "   return x + y",
-        )
+        source = parse("def foo(x, y):", "   return x + y")
         assert len(source.vars) == 0
         assert len(source.body[0].vars) == 2
 
@@ -70,11 +59,7 @@ class TestVariableTranformer:
         assert len(source.vars) == 0
 
     def test_vars_from_loop(self):
-        source = parse(
-            "newlist = []",
-            "for x in list:",
-            "   newlist.append(x)",
-        )
+        source = parse("newlist = []", "for x in list:", "   newlist.append(x)")
         assert len(source.vars) == 1
 
     def test_global_vars_of_module(self):

@@ -1,5 +1,6 @@
 import ast
 
+
 class DeclarationExtractor(ast.NodeVisitor):
     def __init__(self, transpiler):
         self.transpiler = transpiler
@@ -9,7 +10,7 @@ class DeclarationExtractor(ast.NodeVisitor):
 
     def get_declarations(self):
         typed_members = self.already_annotated
-        for member,var in self.class_assignments.items():
+        for member, var in self.class_assignments.items():
             if member in self.already_annotated:
                 continue
 
@@ -27,7 +28,7 @@ class DeclarationExtractor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         types, names = self.transpiler.visit(node.args)
-        
+
         for i in range(len(names)):
             typename = types[i]
             if typename and typename != "T":
@@ -35,8 +36,8 @@ class DeclarationExtractor(ast.NodeVisitor):
                     self.typed_vars[names[i]] = typename
 
         for n in node.body:
-            self.visit(n)        
-        
+            self.visit(n)
+
     def visit_AnnAssign(self, node):
         target = node.target
         if self.is_member(target):

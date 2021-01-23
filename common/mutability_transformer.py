@@ -2,13 +2,16 @@ import ast
 
 from common.analysis import get_id
 
+
 def detect_mutable_vars(node):
     return MutabilityTransformer().visit(node)
+
 
 class MutabilityTransformer(ast.NodeTransformer):
     """
     Analyzes every function for mutable variables and put them into FunctionDef node
     """
+
     def __init__(self):
         self.var_usage_count = {}
 
@@ -32,7 +35,7 @@ class MutabilityTransformer(ast.NodeTransformer):
         self.increase_use_count(get_id(target))
         self.generic_visit(node)
         return node
-    
+
     def visit_AugAssign(self, node):
         target = node.target
         self.increase_use_count(get_id(target))
