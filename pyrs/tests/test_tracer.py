@@ -110,26 +110,26 @@ class TestValueExpr:
         assert t == "foo(3 * 1) + 2"
 
 
-def test_decltype_normal_var():
-    source = parse(
-        "x = 3",
-        "y = foo(x)",
-    )
-    y = source.body[1]
-    t = decltype(y)
-    assert t == "decltype(foo(x))"
-
-
-def test_decltype_list_var():
-    source = parse(
-        "results = []",
-        "x = 3",
-        "results.append(x)",
-    )
-    add_list_calls(source)
-    results = source.body[0]
-    t = decltype(results)
-    assert t == "std::vector<decltype(3)>"
+# def test_decltype_normal_var():
+#     source = parse(
+#         "x = 3",
+#         "y = foo(x)",
+#     )
+#     y = source.body[1]
+#     t = decltype(y)
+#     assert t == "decltype(foo(x))"
+# 
+# 
+# def test_decltype_list_var():
+#     source = parse(
+#         "results = []",
+#         "x = 3",
+#         "results.append(x)",
+#     )
+#     add_list_calls(source)
+#     results = source.body[0]
+#     t = decltype(results)
+#     assert t == "std::vector<decltype(3)>"
 
 
 def test_is_list():
