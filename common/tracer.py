@@ -3,15 +3,12 @@ Trace object types that are inserted into Python list.
 """
 import ast
 from common.analysis import get_id
-from .clike import CLikeTranspiler
+from common.clike import CLikeTranspiler
 
 
 def decltype(node):
     """Create C++ decltype statement"""
-    # if is_list(node):
-    #     return "std::vector<decltype({0})>".format(value_type(node))
-    # else:
-    #     return "decltype({0})".format(value_type(node))
+    pass
 
 
 def is_builtin_import(name):
@@ -82,9 +79,7 @@ class ValueExpressionVisitor(ast.NodeVisitor):
         if not var:  # TODO why no scopes found for node id?
             return get_id(node)
 
-        # if isinstance(var, object):
-        #     return "o_b_j_e_c_t"
-
+        # TODO: code looks C++ specific. Move out
         if isinstance(var.assigned_from, ast.For):
             it = var.assigned_from.iter
             return "std::declval<typename decltype({0})::value_type>()".format(

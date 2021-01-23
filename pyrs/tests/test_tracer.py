@@ -1,4 +1,4 @@
-from pyrs.tracer import value_type, value_expr, decltype, is_list, is_recursive
+from common.tracer import value_type, value_expr, decltype, is_list, is_recursive
 from common.context import add_variable_context, add_list_calls
 from common.scope import add_scope_context
 import ast

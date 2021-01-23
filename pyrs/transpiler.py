@@ -3,7 +3,7 @@ import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from .tracer import (
+from common.tracer import (
     decltype,
     is_list,
     is_builtin_import,
