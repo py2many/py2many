@@ -1,7 +1,7 @@
 import ast
 from contextlib import contextmanager
 
-from .analysis import get_id
+from common.analysis import get_id
 
 def add_scope_context(node):
     """Provide to scope context to all nodes"""

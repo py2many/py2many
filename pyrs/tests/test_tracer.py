@@ -1,6 +1,6 @@
 from pyrs.tracer import value_type, value_expr, decltype, is_list, is_recursive
-from pyrs.context import add_variable_context, add_list_calls
-from pyrs.scope import add_scope_context
+from common.context import add_variable_context, add_list_calls
+from common.scope import add_scope_context
 import ast
 
 

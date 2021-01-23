@@ -1,11 +1,11 @@
 import sys
 import ast
 from .clike import CLikeTranspiler
-from .scope import add_scope_context
-from .context import add_variable_context, add_list_calls
-from .analysis import add_imports, is_void_function, get_id
 from .tracer import decltype, is_list, is_builtin_import, defined_before
 
+from common.context import add_variable_context, add_list_calls
+from common.scope import add_scope_context
+from common.analysis import add_imports, is_void_function, get_id
 
 def transpile(source, headers=False, testing=False):
     """

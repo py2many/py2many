@@ -1,7 +1,7 @@
 import ast
-from pyrs.scope import add_scope_context
-from pyrs.context import add_variable_context
-from pyrs.analysis import (FunctionTransformer, CalledWithTransformer,
+from common.scope import add_scope_context
+from common.context import add_variable_context
+from common.analysis import (FunctionTransformer, CalledWithTransformer,
                            ImportTransformer, AttributeCallTransformer,
                            is_void_function)
 

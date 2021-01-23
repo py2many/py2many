@@ -1,5 +1,5 @@
 import ast
-from pyrs.clike import c_symbol
+from common.clike import c_symbol
 
 
 def test_c_symbol():

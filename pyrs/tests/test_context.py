@@ -1,6 +1,6 @@
 import ast
-from pyrs.context import add_variable_context, add_list_calls
-from pyrs.scope import add_scope_context
+from common.context import add_variable_context, add_list_calls
+from common.scope import add_scope_context
 
 
 def parse(*args):

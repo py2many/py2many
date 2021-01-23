@@ -1,6 +1,6 @@
 import ast
-from py14.scope import add_scope_context
-from py14.context import add_variable_context
+from common.scope import add_scope_context
+from common.context import add_variable_context
 
 
 def parse(*args):

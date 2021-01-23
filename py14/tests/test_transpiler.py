@@ -20,7 +20,7 @@ def test_empty_return():
     )
     cpp = transpile(source)
     assert cpp == parse(
-        "inline auto foo() {",
+        "inline void foo() {",
         "return;",
         "}",
     )

@@ -1,6 +1,6 @@
 import ast
 
-from .analysis import get_id
+from common.analysis import get_id
 
 def detect_mutable_vars(node):
     return MutabilityTransformer().visit(node)

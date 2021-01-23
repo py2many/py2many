@@ -2,7 +2,7 @@
 Trace object types that are inserted into Python list.
 """
 import ast
-from .analysis import get_id
+from common.analysis import get_id
 from .clike import CLikeTranspiler
 
 
