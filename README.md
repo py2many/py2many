@@ -61,6 +61,24 @@ function fib(i::Int64)::Int64
 end
 ```
 
+Transpiled Kotlin code.
+
+```kotlin
+fun fib(i : Int) : Int {
+  if (i == 0 || i == 1) {
+    return 1
+  }
+  return (fib((i - 1)) + fib((i - 2)))
+}
+```
+
+Transpiled Nim code.
+
+```nim
+
+```
+
+
 ## Trying it out
 
 Requirements:
@@ -74,6 +92,7 @@ Transpiling:
 ./py2many --cpp=1 /tmp/fib.py
 ./py2many --rust=1 /tmp/fib.py
 ./py2many --julia=1 /tmp/fib.py
+./py2many --kotlin=1 /tmp/fib.py
 ```
 
 Compiling:
