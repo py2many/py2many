@@ -40,6 +40,7 @@ def transpile(source):
 
 class RustTranspiler(CLikeTranspiler):
     def __init__(self):
+        super().__init__()
         self.headers = ["use std::*;", "use std::collections::HashMap;", ""]
 
     def visit_FunctionDef(self, node):
