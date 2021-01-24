@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from py14.transpiler import CppTranspiler
 from pyrs.transpiler import RustTranspiler
+from pyjl.transpiler import JuliaTranspiler
 
 
 def transpile(source, transpiler):
@@ -47,11 +48,14 @@ def cpp_settings():
 def rust_settings():
     return LanguageSettings(RustTranspiler(), ".rs", "rustfmt")
 
+def julia_settings():
+    return LanguageSettings(JuliaTranspiler(), ".jl", "/bin/true")
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
     parser.add_argument("--rust", type=bool, default=False, help="Generate Rust code")
+    parser.add_argument("--julia", type=bool, default=False, help="Generate Julia code")
     parser.add_argument("--outdir", default=None, help="Output directory")
     args, rest = parser.parse_known_args()
     for filename in rest:
@@ -60,6 +64,8 @@ def main():
             pass
         if args.rust:
             settings = rust_settings()
+        if args.julia:
+            settings = julia_settings()
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent

@@ -50,6 +50,17 @@ template <typename T1> auto fib(T1 i) {
 }
 ```
 
+Transpiled Julia code.
+
+```julia
+function fib(i::Int64)::Int64
+    if i == 0 || i == 1
+        return 1
+    end
+    return (fib((i - 1)) + fib((i - 2)))
+end
+```
+
 ## Trying it out
 
 Requirements:
@@ -62,6 +73,7 @@ Transpiling:
 ```
 ./py2many --cpp=1 /tmp/fib.py
 ./py2many --rust=1 /tmp/fib.py
+./py2many --julia=1 /tmp/fib.py
 ```
 
 Compiling:
