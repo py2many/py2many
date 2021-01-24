@@ -75,7 +75,10 @@ fun fib(i : Int) : Int {
 Transpiled Nim code.
 
 ```nim
-
+proc fib(i: int): int =
+    if i == 0 or i == 1:
+        return 1
+    return fib(i - 1) + fib(i - 2)
 ```
 
 
@@ -93,6 +96,7 @@ Transpiling:
 ./py2many --rust=1 /tmp/fib.py
 ./py2many --julia=1 /tmp/fib.py
 ./py2many --kotlin=1 /tmp/fib.py
+./py2many --nim=1 /tmp/fib.py
 ```
 
 Compiling:
