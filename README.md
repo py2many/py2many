@@ -7,6 +7,14 @@ The main idea is that python is popular, easy to program in, but has poor runtim
 We can fix that by transpiling a subset of the language into a more performant, statically
 typed language
 
+Based on Julian Konchunas' pyrs
+http://github.com/konchunas/pyrs
+
+Based on Lukas Martinelli Py14
+(https://github.com/lukasmartinelli/py14) and Py14/python-3
+(https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
+Lorentz.
+
 ## Example
 
 Original Python version.
