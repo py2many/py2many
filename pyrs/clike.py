@@ -36,7 +36,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_Name(self, node):
         if node.id in rust_keywords:
             return node.id + "_"
-        super().visit_Name(node)
+        return super().visit_Name(node)
 
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
