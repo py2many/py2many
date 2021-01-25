@@ -43,6 +43,16 @@ class JuliaTranspiler(CLikeTranspiler):
         super().__init__()
         self.headers = ""
 
+    def visit_Constant(self, node):
+        if node.value is True:
+            return "true"
+        elif node.value is False:
+            return "false"
+        elif node.value is None:
+            return "nothing"
+        else:
+            return super().visit_Constant(node)
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -110,7 +120,7 @@ class JuliaTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "|{0}| {1}".format(args_string, body)
+        return "{0} -> {1}".format(args_string, body)
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -152,11 +162,11 @@ class JuliaTranspiler(CLikeTranspiler):
             vargs = list(map(self.visit, node.args))
 
             if len(node.args) == 1:
-                return "(0..{})".format(vargs[0])
+                return "(0:{})".format(vargs[0])
             elif len(node.args) == 2:
-                return "({}..{})".format(vargs[0], vargs[1])
+                return "({}:{})".format(vargs[0], vargs[1])
             elif len(node.args) == 3:
-                return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+                return "({}:{}:{})".format(vargs[0], vargs[2], vargs[1])
             else:
                 raise Exception(
                     "encountered range() call with unknown parameters: range({})".format(
@@ -165,7 +175,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 )
 
         elif fname == "len":
-            return "{0}.len()".format(self.visit(node.args[0]))
+            return "length({0})".format(self.visit(node.args[0]))
         elif fname == "enumerate":
             return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
         elif fname == "sum":
@@ -187,24 +197,16 @@ class JuliaTranspiler(CLikeTranspiler):
         elif fname == "list":
             return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
         elif fname == "print":
-            values = []
-            placeholders = []
-            for n in node.args:
-                values.append(self.visit(n))
-                placeholders.append("{:?} ")
-            return 'println("{0}",{1})'.format(
-                "".join(placeholders), ", ".join(values)
-            )
-
-        return "{0}({1})".format(fname, args)
+            return f'println(join([{args}], " "))'
+        return f"{fname}({args})"
 
     def visit_For(self, node):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
+        buf.append("for {0} in {1}".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
-        buf.append("}")
+        buf.append("end")
         return "\n".join(buf)
 
     def visit_Expr(self, node):
@@ -250,10 +252,10 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_If(self, node):
         # HACK to determine if main function name is visited
         if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["Function main()"]
+            buf = ["function main()"]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("")
-            return "End\n".join(buf)
+            return "end\n".join(buf)
         buf = []
         cond = self.visit(node.test)
         buf.append(f"if {cond}")
@@ -457,20 +459,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
-
             target = self.visit(target)
             value = self.visit(node.value)
-
-            if len(node.scopes) == 1:
-                if isinstance(
-                    node.scopes[0], ast.Module
-                ):  # if assignment is module level it must be const
-                    return "const {0}: _ = {1};".format(target, value)
-
-            return "{0}{1} = {2}".format(mut, target, value)
+            return f"{target} = {value}"
 
     def visit_Delete(self, node):
         target = node.targets[0]
