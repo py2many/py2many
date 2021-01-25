@@ -17,7 +17,12 @@ from common.mutability_transformer import detect_mutable_vars
 from common.context import add_variable_context, add_list_calls
 from common.analysis import add_imports, is_void_function, get_id, is_mutable
 
-container_types = {"List": "Array", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
+container_types = {
+    "List": "openArray",
+    "Dict": "Table",
+    "Set": "set",
+    "Optional": "Option",
+}
 
 
 def transpile(source):
