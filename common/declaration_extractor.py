@@ -23,6 +23,22 @@ class DeclarationExtractor(ast.NodeVisitor):
 
         return typed_members
 
+    def visit_ClassDef(self, node: ast.ClassDef):
+        decorators = [d.id for d in node.decorator_list]
+        if len(node.decorator_list) > 0 and "dataclass" in decorators:
+            node.is_dataclass = True
+            dataclass_members = []
+            node.dataclass_fields = []
+            for child in node.body:
+                if isinstance(child, ast.AnnAssign):
+                    dataclass_field = self.visit_AnnAssign(child, dataclass=True)
+                    dataclass_members.append(child)
+                    node.dataclass_fields.append(dataclass_field)
+            for m in dataclass_members:
+                node.body.remove(m)
+        else:
+            node.is_dataclass = False
+
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)
 
@@ -38,12 +54,16 @@ class DeclarationExtractor(ast.NodeVisitor):
         for n in node.body:
             self.visit(n)
 
-    def visit_AnnAssign(self, node):
+    def visit_AnnAssign(self, node, dataclass=False):
         target = node.target
         if self.is_member(target):
             type_str = self.transpiler.visit(node.annotation)
             if target.attr not in self.already_annotated:
                 self.already_annotated[target.attr] = type_str
+        if dataclass:
+            type_str = self.transpiler.visit(node.annotation)
+            if target.id not in self.already_annotated:
+                self.already_annotated[target.id] = type_str
 
     def visit_Assign(self, node):
         target = node.targets[0]
