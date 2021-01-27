@@ -4,6 +4,7 @@ from common.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 kotlin_type_map = {
+    "bool": "Boolean",
     "int": "Int",
     "float": "Double",
     "bytes": "ByteArray",

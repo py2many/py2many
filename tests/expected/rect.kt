@@ -1,12 +1,8 @@
 
-struct Rectangle {
-height: int,
-length: int,
+data class Rectangle(val height: Int, val length: Int) {
+fun is_square(): Boolean {
+return height == length}
+
+
 }
 
-impl Rectangle {
-fun is_square(&self): bool {
-return self.height == self.length}
-
- 
-}

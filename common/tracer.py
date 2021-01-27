@@ -29,6 +29,17 @@ def is_class_or_module(name, scopes):
     return False
 
 
+def is_self_arg(name, scopes):
+    for scope in scopes:
+        for entry in scope.body:
+            if isinstance(entry, ast.FunctionDef):
+                if len(entry.args.args):
+                    first_arg = entry.args.args[0]
+                    if get_id(first_arg) == name and hasattr(entry, "self_type"):
+                        return True
+    return False
+
+
 def is_list(node):
     """Check if a node was assigned as a list"""
     if isinstance(node, ast.List):

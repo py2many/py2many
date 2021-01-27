@@ -2,13 +2,14 @@ import sys
 import ast
 
 from .clike import CLikeTranspiler
-from common.declaration_extractor import DeclarationExtractor
+from .declaration_extractor import DeclarationExtractor
 from common.tracer import (
     decltype,
     is_list,
     is_builtin_import,
     defined_before,
     is_class_or_module,
+    is_self_arg,
 )
 
 from common.scope import add_scope_context
@@ -48,10 +49,10 @@ class KotlinTranspiler(CLikeTranspiler):
         typenames, args = self.visit(node.args)
 
         args_list = []
-        if args and args[0] == "self":
+        if len(args) and hasattr(node, "self_type"):
+            # implicit this
             del typenames[0]
             del args[0]
-            args_list.append("&self")
 
         typedecls = []
         index = 0
@@ -110,7 +111,7 @@ class KotlinTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "|{0}| {1}".format(args_string, body)
+        return f"{{ {args_string} -> {body} }}"
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -124,9 +125,12 @@ class KotlinTranspiler(CLikeTranspiler):
             value_id = ""
 
         if is_class_or_module(value_id, node.scopes):
-            return "{0}::{1}".format(value_id, attr)
+            return f"{value_id}.{attr}"
 
-        return value_id + "." + attr
+        if is_self_arg(value_id, node.scopes):
+            return attr
+
+        return f"{value_id}.{attr}"
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
@@ -192,9 +196,7 @@ class KotlinTranspiler(CLikeTranspiler):
             for n in node.args:
                 values.append(self.visit(n))
                 placeholders.append("{:?} ")
-            return 'println("{0}",{1})'.format(
-                "".join(placeholders), ", ".join(values)
-            )
+            return 'println("{0}",{1})'.format("".join(placeholders), ", ".join(values))
 
         return "{0}({1})".format(fname, args)
 
@@ -296,12 +298,24 @@ class KotlinTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append("{0}: {1},".format(declaration, typename))
+            mut = is_mutable(node.scopes, get_id(declaration))
+            mut = "var" if mut else "val"
+            fields.append(f"{mut} {declaration}: {typename}")
 
-        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, "\n".join(fields))
-        impl_def = "impl {0} {{\n".format(node.name)
-        buf = [self.visit(b) for b in node.body]
-        return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+
+        if node.is_dataclass:
+            fields = ", ".join(fields)
+            body = [self.visit(b) for b in node.body]
+            body = "\n".join(body)
+            return f"data class {node.name}({fields}) {{\n{body}\n}}\n"
+        else:
+            fields = "\n".join(fields)
+            body = [self.visit(b) for b in node.body]
+            body = "\n".join(body)
+            return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
@@ -439,14 +453,14 @@ class KotlinTranspiler(CLikeTranspiler):
             elements = [self.visit(e) for e in node.value.elts]
             mut = ""
             if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
+                mut = "var "
             return "let {0}{1} = vec![{2}];".format(
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
             mut = ""
             if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
+                mut = "var "
 
             target = self.visit(target)
             value = self.visit(node.value)

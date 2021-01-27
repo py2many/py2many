@@ -34,7 +34,7 @@ class ScopeMixin(object):
             return None
 
     def _is_scopable_node(self, node):
-        scopes = [ast.Module, ast.FunctionDef, ast.For, ast.If, ast.With]
+        scopes = [ast.Module, ast.ClassDef, ast.FunctionDef, ast.For, ast.If, ast.With]
         return len([s for s in scopes if isinstance(node, s)]) > 0
 
 
@@ -53,11 +53,15 @@ class ScopeList(list):
                     return var
 
         for scope in self:
-            defn = find_definition(scope)
+            defn = None
+            if not defn and hasattr(scope, "vars"):
+                defn = find_definition(scope, "vars")
             if not defn and hasattr(scope, "body_vars"):
                 defn = find_definition(scope, "body_vars")
             if not defn and hasattr(scope, "orelse_vars"):
                 defn = find_definition(scope, "orelse_vars")
+            if not defn and hasattr(scope, "body"):
+                defn = find_definition(scope, "body")
             if defn:
                 return defn
 
