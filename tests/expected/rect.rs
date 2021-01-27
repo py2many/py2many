@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::*;
 
-use dataclasses::dataclass;
 struct Rectangle {
-    height: int,
-    length: int,
+    height: i32,
+    length: i32,
 }
 
 impl Rectangle {
     fn is_square(&self) -> bool {
-        return height == length;
+        return self.height == self.length;
     }
 }

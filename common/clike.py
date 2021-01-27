@@ -40,6 +40,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     builtin_constants = frozenset(["True", "False"])
+    IGNORED_MODULE_LIST = set(["typing", "enum", "dataclasses"])
 
     def __init__(self):
         self._type_map = {}
@@ -133,3 +134,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         op = self.visit(node.op)
         val = self.visit(node.value)
         return "{0} {1}= {2};".format(target, op, val)
+
+    def visit_AnnAssign(self, node):
+        target = self.visit(node.target)
+        type_str = self.visit(node.annotation)
+        val = self.visit(node.value) if node.value is not None else None
+        return (target, type_str, val)

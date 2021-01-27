@@ -120,6 +120,12 @@ class CppTranspiler(CLikeTranspiler):
                 attr = "push_back"
         return value_id + "." + attr
 
+    def visit_ClassDef(self, node):
+        buf = [f"class {node.name} {{" ]
+        buf += [self.visit(b) for b in node.body]
+        buf += ["}}"]
+        return "\n".join(buf)
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
         if node.args:
@@ -252,6 +258,14 @@ class CppTranspiler(CLikeTranspiler):
         imports = [self.visit(n) for n in node.names]
         return "\n".join(i for i in imports if i)
 
+    def visit_ImportFrom(self, node):
+        if node.module in self.IGNORED_MODULE_LIST:
+            return ""
+
+        # TODO: use node.module below
+        imports = [self.visit(n) for n in node.names]
+        return "\n".join(i for i in imports if i)
+
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
@@ -336,6 +350,10 @@ class CppTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             return "auto {0} = {1};".format(target, value)
+
+    def visit_AnnAssign(self, node):
+        target, type_str, val = super().visit_AnnAssign(node)
+        return f"auto {target} = {val};"
 
     def visit_Print(self, node):
         buf = []

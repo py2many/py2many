@@ -7,4 +7,4 @@ class Rectangle:
     length: int
 
     def is_square(self) -> bool:
-        return height == length
+        return self.height == self.length

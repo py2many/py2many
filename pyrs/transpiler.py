@@ -327,7 +327,7 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_ImportFrom(self, node):
-        if node.module == "typing" or node.module == "enum":
+        if node.module in self.IGNORED_MODULE_LIST:
             return ""
 
         names = [n.name for n in node.names]
@@ -419,9 +419,7 @@ class RustTranspiler(CLikeTranspiler):
         return "assert!({0});".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node):
-        target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
-        val = self.visit(node.value)
+        target, type_str, val = super().visit_AnnAssign(node)
         return "let {0}: {1} = {2};".format(target, type_str, val)
 
     def visit_Assign(self, node):

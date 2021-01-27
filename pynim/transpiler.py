@@ -330,7 +330,7 @@ class NimTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_ImportFrom(self, node):
-        if node.module == "typing" or node.module == "enum":
+        if node.module in self.IGNORED_MODULE_LIST:
             return ""
 
         names = [n.name for n in node.names]

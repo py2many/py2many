@@ -7,6 +7,7 @@ class DeclarationExtractor(ast.NodeVisitor):
         self.already_annotated = {}
         self.class_assignments = {}
         self.typed_vars = {}
+        self._type_map = {}
 
     def get_declarations(self):
         typed_members = self.already_annotated
@@ -62,6 +63,8 @@ class DeclarationExtractor(ast.NodeVisitor):
                 self.already_annotated[target.attr] = type_str
         if dataclass:
             type_str = self.transpiler.visit(node.annotation)
+            if type_str in self._type_map:
+                type_str = self._type_map[type_str]
             if target.id not in self.already_annotated:
                 self.already_annotated[target.id] = type_str
 
