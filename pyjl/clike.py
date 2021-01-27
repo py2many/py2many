@@ -4,6 +4,7 @@ from common.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 julia_type_map = {
+    "bool": "Bool",
     "int": "Int64",
     "float": "Float64",
     "bytes": "Array{UInt8}",

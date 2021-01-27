@@ -2,7 +2,7 @@ import sys
 import ast
 
 from .clike import CLikeTranspiler
-from common.declaration_extractor import DeclarationExtractor
+from .declaration_extractor import DeclarationExtractor
 from common.tracer import (
     decltype,
     is_list,
@@ -58,13 +58,12 @@ class JuliaTranspiler(CLikeTranspiler):
         typenames, args = self.visit(node.args)
 
         args_list = []
-        if args and args[0] == "self":
-            del typenames[0]
-            del args[0]
-            args_list.append("&self")
-
         typedecls = []
         index = 0
+
+        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+            typenames[0] = node.self_type
+
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
@@ -311,12 +310,15 @@ class JuliaTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append("{0}: {1},".format(declaration, typename))
+            fields.append(f"{declaration}::{typename}".format(declaration, typename))
 
-        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, "\n".join(fields))
-        impl_def = "impl {0} {{\n".format(node.name)
-        buf = [self.visit(b) for b in node.body]
-        return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
+        fields = "\n".join(fields)
+        struct_def = f"struct {node.name}\n{fields}\nend\n"
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+        body = "\n".join([self.visit(b) for b in node.body])
+        return f"{struct_def}\n{body}"
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
