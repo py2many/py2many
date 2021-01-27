@@ -41,7 +41,9 @@ def transpile(source):
 class RustTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self.headers = ["use std::*;", "use std::collections::HashMap;", ""]
+
+    def usings(self):
+        return "\n".join([f"use {mod};" for mod in self._usings])
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -296,7 +298,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node):
         buf = []
-        for header in self.headers:
+        for header in self._headers:
             buf.append(header)
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
@@ -336,6 +338,7 @@ class RustTranspiler(CLikeTranspiler):
         return "use {0}::{{{1}}};".format(module_path, names)
 
     def visit_List(self, node):
+        self._usings.add("std::collections")
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
             return "vec![{0}]".format(", ".join(elements))
@@ -360,6 +363,7 @@ class RustTranspiler(CLikeTranspiler):
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
             if value in container_types:
+                self._usings.add("std::collections")
                 value = container_types[value]
             if value == "Tuple":
                 return "({0})".format(index)

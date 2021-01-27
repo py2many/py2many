@@ -33,7 +33,16 @@ def transpile(source, transpiler):
     add_annotation_flags(tree)
     add_imports(tree)
 
-    return transpiler.visit(tree) + "\n"
+    out = []
+    code = transpiler.visit(tree) + "\n"
+    headers = transpiler.headers()
+    if headers:
+        out.append(headers)
+    usings = transpiler.usings()
+    if usings:
+        out.append(usings)
+    out.append(code)
+    return "\n".join(out)
 
 
 @dataclass

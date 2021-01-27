@@ -44,6 +44,14 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def __init__(self):
         self._type_map = {}
+        self._headers = set([])
+        self._usings = set([])
+
+    def headers(self):
+        return ""
+
+    def usings(self):
+        return ""
 
     def visit(self, node):
         if type(node) in symbols:

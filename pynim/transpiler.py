@@ -46,7 +46,7 @@ def transpile(source):
 class NimTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self.headers = ""
+        self._headers = set([])
         self._indent = "    "
 
     def indent(self, code, level=1):
@@ -299,7 +299,7 @@ class NimTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node):
         buf = []
-        for header in self.headers:
+        for header in self._headers:
             buf.append(header)
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)

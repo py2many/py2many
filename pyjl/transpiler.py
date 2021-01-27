@@ -41,7 +41,7 @@ def transpile(source):
 class JuliaTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self.headers = ""
+        self._headers = set([])
 
     def visit_Constant(self, node):
         if node.value is True:
@@ -295,7 +295,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node):
         buf = []
-        for header in self.headers:
+        for header in self._headers:
             buf.append(header)
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)

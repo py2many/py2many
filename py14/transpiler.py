@@ -27,8 +27,8 @@ def transpile(source, headers=False, testing=False):
         transpiler.use_catch_test_cases = True
 
     if headers:
-        buf += transpiler.headers
-        buf += transpiler.usings
+        buf += transpiler._headers
+        buf += transpiler._usings
 
     if testing or headers:
         buf.append("")  # Force empty line
@@ -71,7 +71,7 @@ def generate_lambda_fun(node, body):
 
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
-        self.headers = set(
+        self._headers = set(
             [
                 '#include "sys.h"',
                 '#include "builtins.h"',
@@ -85,7 +85,7 @@ class CppTranspiler(CLikeTranspiler):
                 '#include "range.hpp"',
             ]
         )
-        self.usings = set([])
+        self._usings = set([])
         self.use_catch_test_cases = False
 
     def visit_FunctionDef(self, node):

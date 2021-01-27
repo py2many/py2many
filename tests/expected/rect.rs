@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::*;
-
 struct Rectangle {
     height: i32,
     length: i32,

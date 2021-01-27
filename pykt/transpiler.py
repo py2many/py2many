@@ -41,7 +41,7 @@ def transpile(source):
 class KotlinTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self.headers = ""
+        self._headers = set([])
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -280,7 +280,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node):
         buf = []
-        for header in self.headers:
+        for header in self._headers:
             buf.append(header)
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
