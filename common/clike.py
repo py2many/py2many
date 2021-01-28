@@ -76,10 +76,12 @@ class CLikeTranspiler(ast.NodeVisitor):
             return node.value
 
     def visit_Constant(self, node):
+        if isinstance(node.value, str):
+            return self.visit_Str(node)
         return str(node.n)
 
     def visit_Str(self, node):
-        return '"{0}"'.format(node.s)
+        return f'"{node.value}"'
 
     def visit_Return(self, node):
         if node.value:

@@ -161,11 +161,11 @@ class NimTranspiler(CLikeTranspiler):
             vargs = list(map(self.visit, node.args))
 
             if len(node.args) == 1:
-                return "(0..{})".format(vargs[0])
+                return "0..{}".format(vargs[0])
             elif len(node.args) == 2:
-                return "({}..{})".format(vargs[0], vargs[1])
+                return "{}..{}".format(vargs[0], vargs[1])
             elif len(node.args) == 3:
-                return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+                return "countup({},{},{}".format(vargs[0], vargs[1], vargs[2])
             else:
                 raise Exception(
                     "encountered range() call with unknown parameters: range({})".format(
@@ -173,35 +173,8 @@ class NimTranspiler(CLikeTranspiler):
                     )
                 )
 
-        elif fname == "len":
-            return "{0}.len()".format(self.visit(node.args[0]))
-        elif fname == "enumerate":
-            return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
-        elif fname == "sum":
-            return "{0}.iter().sum()".format(self.visit(node.args[0]))
-        elif fname == "max":
-            return "{0}.iter().max().unwrap()".format(self.visit(node.args[0]))
-        elif fname == "min":
-            return "{0}.iter().min().unwrap()".format(self.visit(node.args[0]))
-        elif fname == "reversed":
-            return "{0}.iter().rev()".format(self.visit(node.args[0]))
-        elif fname == "map":
-            return "{0}.iter().map({1})".format(
-                self.visit(node.args[1]), self.visit(node.args[0])
-            )
-        elif fname == "filter":
-            return "{0}.into_iter().filter({1})".format(
-                self.visit(node.args[1]), self.visit(node.args[0])
-            )
-        elif fname == "list":
-            return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
         elif fname == "print":
-            values = []
-            placeholders = []
-            for n in node.args:
-                values.append(self.visit(n))
-                placeholders.append("{:?} ")
-            return 'println("{0}",{1})'.format("".join(placeholders), ", ".join(values))
+            return f"echo {args}"
 
         return "{0}({1})".format(fname, args)
 
@@ -209,9 +182,18 @@ class NimTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
-        buf.extend([self.visit(c) for c in node.body])
-        buf.append("}")
+        buf.append(f"for {target} in {it}:")
+        buf.extend(
+            [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
+        )
+        return "\n".join(buf)
+
+    def visit_While(self, node):
+        buf = []
+        buf.append("while {0}:".format(self.visit(node.test)))
+        buf.extend(
+            [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
+        )
         return "\n".join(buf)
 
     def visit_Expr(self, node):
