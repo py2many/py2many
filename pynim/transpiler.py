@@ -261,12 +261,17 @@ class NimTranspiler(CLikeTranspiler):
             buf.extend([self.visit(child) for child in node.body])
             buf.append("")
             return "\n".join(buf)
-        # TODO: Remove the hardcoded "2" and infer indentation from ast
         body = "\n".join(
-            [self.indent(self.visit(child), level=2) for child in node.body]
+            [
+                self.indent(self.visit(child), level=node.level + 1)
+                for child in node.body
+            ]
         )
         orelse = "\n".join(
-            [self.indent(self.visit(child), level=2) for child in node.orelse]
+            [
+                self.indent(self.visit(child), level=node.level + 1)
+                for child in node.orelse
+            ]
         )
         test = self.visit(node.test)
         if node.orelse:
