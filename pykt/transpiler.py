@@ -250,6 +250,10 @@ class KotlinTranspiler(CLikeTranspiler):
             return super(KotlinTranspiler, self).visit_NameConstant(node)
 
     def visit_If(self, node):
+        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
+        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        node.common_vars = body_vars.intersection(orelse_vars)
+
         # HACK to determine if main function name is visited
         if self.visit(node.test) == '__name__ == "__main__"':
             buf = ["fun main() {"]
