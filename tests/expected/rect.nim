@@ -1,10 +1,8 @@
 
-struct Rectangle {
-height: int,
-length: int,
-}
+type
+    Rectangle = object
+        height: int
+        length: int
+proc is_square(self: Rectangle): bool =
+    return self.height == self.length
 
-impl Rectangle {
-proc is_square(&self): bool =
-    return self.height == self.length 
-}

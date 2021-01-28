@@ -57,21 +57,13 @@ class NimTranspiler(CLikeTranspiler):
         typenames, args = self.visit(node.args)
 
         args_list = []
-        if args and args[0] == "self":
-            del typenames[0]
-            del args[0]
-            args_list.append("&self")
+        if len(args) and hasattr(node, "self_type"):
+            typenames[0] = node.self_type
 
-        typedecls = []
-        index = 0
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            if typename == "T":
-                typename = "T{0}".format(index)
-                typedecls.append(typename)
-                index += 1
-            args_list.append("{0}: {1}".format(arg, typename))
+            args_list.append(f"{arg}: {typename}".format(arg, typename))
 
         return_type = ""
         if not is_void_function(node):
@@ -79,14 +71,9 @@ class NimTranspiler(CLikeTranspiler):
                 return_type = ": {0}".format(self.visit(node.returns))
             else:
                 return_type = ": RT"
-                typedecls.append("RT")
-
-        template = ""
-        if len(typedecls) > 0:
-            template = "<{0}>".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
-        funcdef = f"proc {node.name}{template}({args}){return_type} ="
+        funcdef = f"proc {node.name}({args}){return_type} ="
         return f"{funcdef}\n{body}"
 
     def visit_Return(self, node):
@@ -306,12 +293,18 @@ class NimTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append("{0}: {1},".format(declaration, typename))
+            fields.append(f"{declaration}: {typename}")
 
-        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, "\n".join(fields))
-        impl_def = "impl {0} {{\n".format(node.name)
-        buf = [self.visit(b) for b in node.body]
-        return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+
+        object_def = "type\n"
+        object_def += self.indent(f"{node.name} = object\n", level=node.level + 1)
+        object_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
+        body = [self.visit(b) for b in node.body]
+        body = "\n".join(body)
+        return f"{object_def}\n{body}\n"
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
