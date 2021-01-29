@@ -67,7 +67,7 @@ def julia_settings():
 
 
 def kotlin_settings():
-    return LanguageSettings(KotlinTranspiler(), ".kt", "ktfmt")
+    return LanguageSettings(KotlinTranspiler(), ".kt", "ktlint -F")
 
 
 def nim_settings():
