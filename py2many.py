@@ -19,6 +19,7 @@ from pyrs.transpiler import RustTranspiler
 from pyjl.transpiler import JuliaTranspiler
 from pykt.transpiler import KotlinTranspiler
 from pynim.transpiler import NimTranspiler
+from pydart.transpiler import DartTranspiler
 
 
 def transpile(source, transpiler):
@@ -74,6 +75,10 @@ def nim_settings():
     return LanguageSettings(NimTranspiler(), ".nim", "/bin/true")
 
 
+def dart_settings():
+    return LanguageSettings(DartTranspiler(), ".dart", "dart format")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
@@ -83,6 +88,7 @@ def main():
         "--kotlin", type=bool, default=False, help="Generate Kotlin code"
     )
     parser.add_argument("--nim", type=bool, default=False, help="Generate Nim code")
+    parser.add_argument("--dart", type=bool, default=False, help="Generate Dart code")
     parser.add_argument("--outdir", default=None, help="Output directory")
     args, rest = parser.parse_known_args()
     for filename in rest:
@@ -97,6 +103,8 @@ def main():
             settings = kotlin_settings()
         elif args.nim:
             settings = nim_settings()
+        elif args.dart:
+            settings = dart_settings()
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent
@@ -104,7 +112,7 @@ def main():
             outdir = pathlib.Path(args.outdir)
         print(f"Writing to: {outdir}")
         output_path = outdir / (source.stem + settings.ext)
-        print(f"{filename}...")
+        print(f"{filename}...{output_path}")
         with open(output_path, "w") as f:
             source_data = open(source).read()
             f.write(transpile(source_data, settings.transpiler))

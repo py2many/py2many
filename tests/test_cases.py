@@ -61,6 +61,15 @@ class CodeGeneratorTests(unittest.TestCase):
             ) as actual:
                 self.assertEqual(f2.read(), actual.read())
 
+    def test_dart(self):
+        for case in self.TEST_CASES:
+            sys.argv = ["test", "--dart=1", f"cases/{case}.py"]
+            main()
+            with open(f"expected/{case}.dart") as f2, open(
+                f"cases/{case}.dart"
+            ) as actual:
+                self.assertEqual(f2.read(), actual.read())
+
 
 if __name__ == "__main__":
     unittest.main()
