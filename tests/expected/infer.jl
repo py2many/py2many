@@ -1,8 +1,8 @@
 function foo()
-a = 10
-b = a
+    a = 10
+    b = a
 end
 
-function main()end
-foo()end
-
+function main()
+    foo()
+end

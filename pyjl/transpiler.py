@@ -258,7 +258,7 @@ class JuliaTranspiler(CLikeTranspiler):
             buf = ["function main()"]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("")
-            return "end\n".join(buf)
+            return "\n".join(buf) + "end\n"
         buf = []
         cond = self.visit(node.test)
         buf.append(f"if {cond}")
