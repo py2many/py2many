@@ -198,7 +198,7 @@ class DartTranspiler(CLikeTranspiler):
                 placeholders.append("{:?} ")
             return 'println("{0}",{1})'.format("".join(placeholders), ", ".join(values))
 
-        return "{0}({1})".format(fname, args)
+        return f"{fname}({args})"
 
     def visit_For(self, node):
         target = self.visit(node.target)
@@ -210,7 +210,13 @@ class DartTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Expr(self, node):
-        return self.visit(node.value)
+        s = self.visit(node.value)
+        if s.strip() and not s.endswith(";"):
+            s += ";"
+        if s == ";":
+            return ""
+        else:
+            return s
 
     def visit_Str(self, node):
         return "" + super(DartTranspiler, self).visit_Str(node) + ""
@@ -256,10 +262,10 @@ class DartTranspiler(CLikeTranspiler):
 
         # HACK to determine if main function name is visited
         if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["fun main() {"]
+            buf = ["void main() {"]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("")
-            return "}\n".join(buf)
+            return "\n".join(buf) + "}\n"
         return super().visit_If(node)
 
     def visit_UnaryOp(self, node):
@@ -461,20 +467,14 @@ class DartTranspiler(CLikeTranspiler):
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "var "
+            typename = ""
+            if hasattr(target, "annotation"):
+                typename = target.annotation
 
             target = self.visit(target)
             value = self.visit(node.value)
 
-            if len(node.scopes) == 1:
-                if isinstance(
-                    node.scopes[0], ast.Module
-                ):  # if assignment is module level it must be const
-                    return "const {0}: _ = {1};".format(target, value)
-
-            return "{0}{1} = {2}".format(mut, target, value)
+            return f"var {typename} {target} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]

@@ -1,8 +1,8 @@
- foo() {
-a = 10
-b = a}
+foo() {
+  var a = 10;
+  var b = a;
+}
 
-
-fun main() {}
-foo()}
-
+void main() {
+  foo();
+}
