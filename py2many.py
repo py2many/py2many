@@ -12,6 +12,7 @@ from common.mutability_transformer import detect_mutable_vars
 from common.nesting_transformer import detect_nesting_levels
 from common.context import add_variable_context, add_list_calls
 from common.analysis import add_imports, is_void_function, get_id, is_mutable
+from common.inference import infer_types
 from dataclasses import dataclass
 
 from py14.transpiler import CppTranspiler
@@ -31,6 +32,7 @@ def transpile(source, transpiler):
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
+    infer_types(tree)
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
