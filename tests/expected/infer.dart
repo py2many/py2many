@@ -1,6 +1,6 @@
 foo() {
-  var a = 10;
-  var b = a;
+  int a = 10;
+  int b = a;
 }
 
 void main() {

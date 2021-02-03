@@ -65,6 +65,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         elif hasattr(node, "is_annotation"):
             if node.id in self._type_map:
                 return self._type_map[node.id]
+        elif hasattr(node, "annotation"):
+            if node.annotation.id in self._type_map:
+                node.annotation.id = self._type_map[node.annotation.id]
         return node.id
 
     def visit_NameConstant(self, node):

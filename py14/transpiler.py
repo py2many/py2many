@@ -71,6 +71,7 @@ def generate_lambda_fun(node, body):
 
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
+        super().__init__()
         self._headers = set(
             [
                 '#include "sys.h"',

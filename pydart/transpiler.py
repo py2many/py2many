@@ -243,7 +243,7 @@ class DartTranspiler(CLikeTranspiler):
         if node.id == "None":
             return "None"
         else:
-            return super(DartTranspiler, self).visit_Name(node)
+            return super().visit_Name(node)
 
     def visit_NameConstant(self, node):
         if node.value is True:
@@ -467,14 +467,14 @@ class DartTranspiler(CLikeTranspiler):
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
-            typename = ""
+            typename = "var"
             if hasattr(target, "annotation"):
-                typename = target.annotation
+                typename = get_id(target.annotation)
 
             target = self.visit(target)
             value = self.visit(node.value)
 
-            return f"var {typename} {target} = {value};"
+            return f"{typename} {target} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]

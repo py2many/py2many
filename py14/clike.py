@@ -2,8 +2,18 @@ import ast
 
 from common.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+py14_type_map = {
+    "bool": "bool",
+    "int": "int",
+    "float": "double",
+    "bytes": "byte[]",
+    "str": "string",
+}
 
 class CLikeTranspiler(CommonCLikeTranspiler):
+    def __init__(self):
+        self._type_map = py14_type_map
+
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
             return "std::pow({0}, {1})".format(
