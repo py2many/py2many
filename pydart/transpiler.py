@@ -260,13 +260,23 @@ class DartTranspiler(CLikeTranspiler):
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
+        var_definitions = []
+        for cv in node.common_vars:
+            definition = node.scopes.find(cv)
+            typename = "var"
+            if hasattr(cv, "annotation"):
+                typename = get_id(cv.annotation)
+
+            var_definitions.append((typename, cv))
+        decls = "\n".join([f"{typename} {cv};" for typename, cv in var_definitions])
+
         # HACK to determine if main function name is visited
         if self.visit(node.test) == '__name__ == "__main__"':
             buf = ["void main() {"]
             buf.extend([self.visit(child) for child in node.body])
             buf.append("")
             return "\n".join(buf) + "}\n"
-        return super().visit_If(node)
+        return decls + "\n\n" + super().visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -437,35 +447,30 @@ class DartTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "{0} = {1}".format(", ".join(elts), value)
+            return f"{elts} = {value};"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
+                return f"{target_id} = {value};"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value};"
 
         definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return f"{target} = {value};"
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "var "
-            return "let {0}{1} = vec![{2}];".format(
-                mut, self.visit(target), ", ".join(elements)
-            )
+            return "var {1} = [{2}];".format(self.visit(target), ", ".join(elements))
         else:
             typename = "var"
             if hasattr(target, "annotation"):
