@@ -54,3 +54,63 @@ class InferTypesTransformer(ast.NodeTransformer):
             target.annotation = node.value.annotation
 
         return node
+
+    def visit_UnaryOp(self, node):
+        self.generic_visit(node)
+
+        if isinstance(node.operand, ast.Name):
+            operand = node.scopes.find(get_id(node.operand))
+        else:
+            operand = node.operand
+
+        if hasattr(operand, "annotation"):
+            node.annotation = operand.annotation
+
+        return node
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+
+        if isinstance(node.left, ast.Name):
+            lvar = node.scopes.find(get_id(node.left))
+        else:
+            lvar = node.left
+
+        if isinstance(node.right, ast.Name):
+            rvar = node.scopes.find(get_id(node.right))
+        else:
+            rvar = node.right
+
+        left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
+        right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
+
+        if left is None and right is not None:
+            node.annotation = right
+            return node
+
+        if right is None and left is not None:
+            node.annotation = left
+            return node
+
+        if right is None and left is None:
+            return node
+
+        # Both operands are annotated. Now we have interesting cases
+        left_id = get_id(left)
+        right_id = get_id(right)
+        if left_id == right_id:
+            # Exceptions: division operator
+            if isinstance(node.op, ast.Div):
+                if left_id == "int":
+                    node.annotation = ast.Name(id="float")
+                    return node
+            node.annotation = copy.copy(left)
+            return node
+        else:
+            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
+                node.annotation = ast.Name(id="float")
+                return node
+
+            raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+
+        return node
