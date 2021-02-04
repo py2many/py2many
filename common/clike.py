@@ -40,14 +40,14 @@ class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     builtin_constants = frozenset(["True", "False"])
-    IGNORED_MODULE_LIST = set(["typing", "enum", "dataclasses"])
+    IGNORED_MODULE_LIST = set(["typing", "enum", "dataclasses", "ctypes"])
 
     def __init__(self):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
 
-    def headers(self):
+    def headers(self, meta=None):
         return ""
 
     def usings(self):

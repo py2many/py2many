@@ -4,6 +4,7 @@ from .clike import CLikeTranspiler
 from .tracer import decltype, is_list, is_builtin_import, defined_before
 
 from common.context import add_variable_context, add_list_calls
+from common.inference import InferMeta
 from common.scope import add_scope_context
 from common.analysis import add_imports, is_void_function, get_id
 
@@ -72,22 +73,15 @@ def generate_lambda_fun(node, body):
 class CppTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._headers = set(
-            [
-                '#include "sys.h"',
-                '#include "builtins.h"',
-                "#include <iostream>",
-                "#include <string>",
-                "#include <algorithm>",
-                "#include <cmath>",
-                "#include <vector>",
-                "#include <tuple>",
-                "#include <utility>",
-                '#include "range.hpp"',
-            ]
-        )
+        # TODO: include only when needed
+        self._headers = set([])
         self._usings = set([])
         self.use_catch_test_cases = False
+
+    def headers(self, meta: InferMeta):
+        if meta.has_fixed_width_ints:
+            self._headers.add("#include <stdint.h>")
+        return "\n".join(self._headers)
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -122,7 +116,7 @@ class CppTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_ClassDef(self, node):
-        buf = [f"class {node.name} {{" ]
+        buf = [f"class {node.name} {{"]
         buf += [self.visit(b) for b in node.body]
         buf += ["}}"]
         return "\n".join(buf)
@@ -348,13 +342,21 @@ class CppTranspiler(CLikeTranspiler):
                 decltype(node), self.visit(target), ", ".join(elements)
             )
         else:
+            typename = "auto"
+            if hasattr(target, "annotation"):
+                typename = get_id(target.annotation)
+                if typename in self._type_map:
+                    typename = self._type_map[typename]
+
             target = self.visit(target)
             value = self.visit(node.value)
-            return "auto {0} = {1};".format(target, value)
+            return f"{typename} {target} = {value};"
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        return f"auto {target} = {val};"
+        if type_str in self._type_map:
+            type_str = self._type_map[type_str]
+        return f"{type_str} {target} = {val};"
 
     def visit_Print(self, node):
         buf = []

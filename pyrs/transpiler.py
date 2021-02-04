@@ -424,7 +424,9 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        return "let {0}: {1} = {2};".format(target, type_str, val)
+        if type_str in self._type_map:
+            type_str = self._type_map[type_str]
+        return f"let {target}: {type_str} = {val};"
 
     def visit_Assign(self, node):
         target = node.targets[0]
@@ -466,6 +468,12 @@ class RustTranspiler(CLikeTranspiler):
             if is_mutable(node.scopes, get_id(target)):
                 mut = "mut "
 
+            typename = "_"
+            if hasattr(target, "annotation"):
+                typename = get_id(target.annotation)
+                if typename in self._type_map:
+                    typename = self._type_map[typename]
+
             target = self.visit(target)
             value = self.visit(node.value)
 
@@ -473,9 +481,9 @@ class RustTranspiler(CLikeTranspiler):
                 if isinstance(
                     node.scopes[0], ast.Module
                 ):  # if assignment is module level it must be const
-                    return "const {0}: _ = {1};".format(target, value)
+                    return f"const {target}: {typename} = {value};"
 
-            return "let {0}{1} = {2};".format(mut, target, value)
+            return f"let {mut}{target}: {typename} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]

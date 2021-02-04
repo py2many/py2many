@@ -4,13 +4,13 @@ foo() {
   int c1 = (a + b);
   int c2 = (a - b);
   int c3 = (a * b);
-  float c4 = (a / b);
+  double c4 = (a / b);
   int c5 = -(a);
-  float d = 2.0;
-  float e1 = (a + d);
-  float e2 = (a - d);
-  float e3 = (a * d);
-  float e4 = (a / d);
-  float f = -3.0;
+  double d = 2.0;
+  double e1 = (a + d);
+  double e2 = (a - d);
+  double e3 = (a * d);
+  double e4 = (a / d);
+  double f = -3.0;
   int g = -(a);
 }

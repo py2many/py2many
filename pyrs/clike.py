@@ -3,7 +3,20 @@ import ast
 from common.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
-rust_type_map = {"int": "i32", "float": "f32", "bytes": "&[u8]", "str": "&str"}
+rust_type_map = {
+    "int": "i32",
+    "float": "f32",
+    "bytes": "&[u8]",
+    "str": "&str",
+    "c_int8": "i8",
+    "c_int16": "i16",
+    "c_int32": "i32",
+    "c_int64": "i64",
+    "c_uint8": "u8",
+    "c_uint16": "u16",
+    "c_uint32": "u32",
+    "c_uint64": "u64",
+}
 
 # allowed as names in Python but treated as keywords in Rust
 rust_keywords = frozenset(

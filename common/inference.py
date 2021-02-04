@@ -2,11 +2,21 @@ import ast
 import copy
 import re
 
+from dataclasses import dataclass
 from common.analysis import get_id
+from ctypes import c_int, c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 
-def infer_types(node):
-    return InferTypesTransformer().visit(node)
+@dataclass
+class InferMeta:
+    has_fixed_width_ints: bool
+
+
+def infer_types(node) -> InferMeta:
+    visitor = InferTypesTransformer()
+    visitor.visit(node)
+    return InferMeta(visitor.has_fixed_width_ints)
 
 
 class InferTypesTransformer(ast.NodeTransformer):
@@ -15,15 +25,38 @@ class InferTypesTransformer(ast.NodeTransformer):
     """
 
     TYPE_DICT = {int: "int", float: "float", str: "str"}
+    FIXED_WIDTH_INTS = {
+        c_int8,
+        c_int16,
+        c_int32,
+        c_int64,
+        c_uint8,
+        c_uint16,
+        c_uint32,
+        c_uint64,
+    }
+    FIXED_WIDTH_INTS_NAME = {
+        "c_int8",
+        "c_int16",
+        "c_int32",
+        "c_int64",
+        "c_uint8",
+        "c_uint16",
+        "c_uint32",
+        "c_uint64",
+    }
 
     def __init__(self):
         self.handling_annotation = False
+        self.has_fixed_width_ints = False
 
     def visit_NameConstant(self, node):
         t = type(node.value)
         if t in self.TYPE_DICT:
             node.annotation = ast.Name(id=self.TYPE_DICT[t])
-        else:
+        elif t in self.FIXED_WIDTH_INTS:
+            node.annotation = ast.Name(id=str(t))
+        elif t != type(None):
             raise (Exception(f"{t} not found in TYPE_DICT"))
 
         self.generic_visit(node)
@@ -44,6 +77,14 @@ class InferTypesTransformer(ast.NodeTransformer):
             if var and hasattr(var, "annotation"):
                 target.annotation = copy.copy(var.annotation)
 
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
+        self.generic_visit(node)
+
+        node.target.annotation = node.annotation
+        if get_id(node.annotation) in self.FIXED_WIDTH_INTS_NAME:
+            self.has_fixed_width_ints = True
         return node
 
     def visit_AugAssign(self, node: ast.AugAssign) -> ast.AST:
@@ -67,6 +108,10 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = operand.annotation
 
         return node
+
+    def _handle_overflow(self, left_id, right_id):
+        # TODO implement logic
+        return left_id
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -98,6 +143,14 @@ class InferTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
+
+        if (
+            left_id in self.FIXED_WIDTH_INTS_NAME
+            and right_id in self.FIXED_WIDTH_INTS_NAME
+        ):
+            ret = self._handle_overflow(left_id, right_id)
+            node.annotation = ast.Name(id=ret)
+            return node
         if left_id == right_id:
             # Exceptions: division operator
             if isinstance(node.op, ast.Div):
@@ -107,6 +160,10 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = copy.copy(left)
             return node
         else:
+            if left_id in self.FIXED_WIDTH_INTS_NAME:
+                left_id = "int"
+            if right_id in self.FIXED_WIDTH_INTS_NAME:
+                right_id = "int"
             if (left_id, right_id) in {("int", "float"), ("float", "int")}:
                 node.annotation = ast.Name(id="float")
                 return node

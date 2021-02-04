@@ -32,7 +32,7 @@ def transpile(source, transpiler):
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
-    infer_types(tree)
+    infer_meta = infer_types(tree)
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
@@ -40,7 +40,7 @@ def transpile(source, transpiler):
 
     out = []
     code = transpiler.visit(tree) + "\n"
-    headers = transpiler.headers()
+    headers = transpiler.headers(infer_meta)
     if headers:
         out.append(headers)
     usings = transpiler.usings()

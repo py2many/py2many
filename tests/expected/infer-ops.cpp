@@ -1,16 +1,16 @@
 inline void foo() {
-  auto a = 10;
-  auto b = 20;
-  auto c1 = a + b;
-  auto c2 = a - b;
-  auto c3 = a * b;
-  auto c4 = a / b;
-  auto c5 = -(a);
-  auto d = 2.0;
-  auto e1 = a + d;
-  auto e2 = a - d;
-  auto e3 = a * d;
-  auto e4 = a / d;
-  auto f = -3.0;
-  auto g = -(a);
+  int a = 10;
+  int b = 20;
+  int c1 = a + b;
+  int c2 = a - b;
+  int c3 = a * b;
+  double c4 = a / b;
+  int c5 = -(a);
+  double d = 2.0;
+  double e1 = a + d;
+  double e2 = a - d;
+  double e3 = a * d;
+  double e4 = a / d;
+  double f = -3.0;
+  int g = -(a);
 }

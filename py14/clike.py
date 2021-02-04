@@ -8,7 +8,16 @@ py14_type_map = {
     "float": "double",
     "bytes": "byte[]",
     "str": "string",
+    "c_int8": "int8_t",
+    "c_int16": "int16_t",
+    "c_int32": "int32_t",
+    "c_int64": "int64_t",
+    "c_uint8": "uint8_t",
+    "c_uint16": "uint16_t",
+    "c_uint32": "uint32_t",
+    "c_uint64": "uint64_t",
 }
+
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):

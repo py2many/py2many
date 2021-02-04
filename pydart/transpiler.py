@@ -438,8 +438,10 @@ class DartTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
         type_str = self.visit(node.annotation)
+        if type_str in self._type_map:
+            type_str = self._type_map[type_str]
         val = self.visit(node.value)
-        return "{0}::{1} = {2}".format(target, type_str, val)
+        return f"{type_str} {target} = {val};"
 
     def visit_Assign(self, node):
         target = node.targets[0]
@@ -475,6 +477,8 @@ class DartTranspiler(CLikeTranspiler):
             typename = "var"
             if hasattr(target, "annotation"):
                 typename = get_id(target.annotation)
+                if typename in self._type_map:
+                    typename = self._type_map[typename]
 
             target = self.visit(target)
             value = self.visit(node.value)
