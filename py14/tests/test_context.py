@@ -21,7 +21,7 @@ class TestVariableTranformer:
     def test_vars_of_if(self):
         source = parse("x = 5", "if True:", "   y = 10", "   x *= y")
         assert len(source.vars) == 1
-        assert len(source.body[1].body_vars) == 1
+        assert len(source.body[1].body_vars) == 2
 
     def test_vars_of_else(self):
         source = parse(
@@ -34,8 +34,8 @@ class TestVariableTranformer:
             "    x *= z",
         )
         assert len(source.vars) == 1
-        assert len(source.body[1].body_vars) == 1
-        assert len(source.body[1].orelse_vars) == 1
+        assert len(source.body[1].body_vars) == 2
+        assert len(source.body[1].orelse_vars) == 2
 
     def test_local_vars_of_function(self):
         source = parse(

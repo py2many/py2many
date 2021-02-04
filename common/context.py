@@ -54,6 +54,11 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         self.generic_visit(node)
         return node
 
+    def visit_ClassDef(self, node):
+        node.vars = []
+        self.generic_visit(node)
+        return node
+
     def visit_Import(self, node):
         for name in node.names:
             name.imported_from = node
@@ -95,4 +100,18 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             if isinstance(target, ast.Name):
                 target.assigned_from = node
                 self.scope.vars.append(target)
+        return node
+
+    def visit_AnnAssign(self, node):
+        target = node.target
+        if isinstance(target, ast.Name):
+            target.assigned_from = node
+            self.scope.vars.append(target)
+        return node
+
+    def visit_AugAssign(self, node):
+        target = node.target
+        if isinstance(target, ast.Name):
+            target.assigned_from = node
+            self.scope.vars.append(target)
         return node
