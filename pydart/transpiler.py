@@ -472,7 +472,9 @@ class DartTranspiler(CLikeTranspiler):
             return f"{target} = {value};"
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return "var {1} = [{2}];".format(self.visit(target), ", ".join(elements))
+            elements = ", ".join(elements)
+            target = self.visit(target)
+            return f"var {target} = [{elements}];"
         else:
             typename = "var"
             if hasattr(target, "annotation"):

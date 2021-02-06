@@ -10,7 +10,7 @@ def add_imports(node):
 def is_void_function(fun):
     finder = ReturnFinder()
     finder.visit(fun)
-    return not finder.returns
+    return not (finder.returns or fun.returns is not None)
 
 
 if sys.version_info[0] >= 3:

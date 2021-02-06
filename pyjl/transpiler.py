@@ -83,7 +83,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         template = ""
         if len(typedecls) > 0:
-            template = "<{0}>".format(", ".join(typedecls))
+            template = "{{{0}}}".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
         funcdef = f"function {node.name}{template}({args}){return_type}"
@@ -274,6 +274,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return "\n".join(buf)
 
+    def visit_While(self, node):
+        buf = []
+        buf.append("while {0}".format(self.visit(node.test)))
+        buf.extend([self.visit(n) for n in node.body])
+        buf.append("end")
+        return "\n".join(buf)
+
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
@@ -368,7 +375,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 value = container_types[value]
             if value == "Tuple":
                 return "({0})".format(index)
-            return "{0}<{1}>".format(value, index)
+            return "{0}{{{1}}}".format(value, index)
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
@@ -385,7 +392,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "{0}..{1}".format(lower, upper)
 
     def visit_Elipsis(self, node):
-        return "compile_error!('Elipsis is not supported');"
+        return "compile_error!('Elipsis is not supported')"
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -397,7 +404,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_unsupported_body(self, name, body):
         buf = ["let {0} = {{ //unsupported".format(name)]
         buf += [self.visit(n) for n in body]
-        buf.append("};")
+        buf.append("}")
         return buf
 
     def visit_Try(self, node, finallybody=None):
@@ -429,6 +436,12 @@ class JuliaTranspiler(CLikeTranspiler):
         val = self.visit(node.value)
         return "{0}::{1} = {2}".format(target, type_str, val)
 
+    def visit_AugAssign(self, node):
+        target = self.visit(node.target)
+        op = self.visit(node.op)
+        val = self.visit(node.value)
+        return "{0} {1}= {2}".format(target, op, val)
+
     def visit_Assign(self, node):
         target = node.targets[0]
 
@@ -455,13 +468,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return "{0} = {1}".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
             mut = ""
             if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
-            return "let {0}{1} = vec![{2}];".format(
+                mut = "mutable "
+            return "{1} = [{2}]".format(
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
@@ -475,10 +488,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node):
         if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
+            return "raise!({0}) # unsupported".format(self.visit(node.exc))
         # This handles the case where `raise` is used without
         # specifying the exception.
-        return "raise!(); //unsupported"
+        return "raise!() # unsupported"
 
     def visit_With(self, node):
         buf = []

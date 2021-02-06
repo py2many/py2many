@@ -96,6 +96,11 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
+    def visit_Return(self, node):
+        self.generic_visit(node)
+        # TODO: annotate the surrounding function return type
+        return node
+
     def visit_UnaryOp(self, node):
         self.generic_visit(node)
 
