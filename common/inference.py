@@ -98,7 +98,21 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Return(self, node):
         self.generic_visit(node)
-        # TODO: annotate the surrounding function return type
+        new_type_str = (
+            get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
+        )
+        if new_type_str is None:
+            return node
+        for scope in node.scopes:
+            type_str = None
+            if isinstance(scope, ast.FunctionDef):
+                type_str = get_id(scope.returns)
+                if type_str is not None:
+                    if new_type_str != type_str:
+                        type_str = f"Union[{type_str},{new_type_str}]"
+                        scope.returns.id = type_str
+                else:
+                    scope.returns = ast.Name(id=new_type_str)
         return node
 
     def visit_UnaryOp(self, node):
