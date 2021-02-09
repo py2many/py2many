@@ -9,6 +9,7 @@ proc bisect_right(data: openArray<int>, item: int): int =
 else:
             low = middle + 1;
     return low
+
 proc bin_it(limits: openArray<int>, data: openArray<int>): openArray<int> =
     let mut bins = vec![0];
     for x in limits:
@@ -16,3 +17,4 @@ proc bin_it(limits: openArray<int>, data: openArray<int>): openArray<int> =
     for d in data:
         bins[bisect_right(limits, d)] += 1;
     return bins
+

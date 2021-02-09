@@ -6,3 +6,4 @@ type
 proc is_square(self: Rectangle): bool =
     return self.height == self.length
 
+

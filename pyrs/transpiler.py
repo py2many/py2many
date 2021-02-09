@@ -81,7 +81,7 @@ class RustTranspiler(CLikeTranspiler):
         funcdef = "fn {0}{1}({2}) {3}".format(
             node.name, template, ", ".join(args_list), return_type
         )
-        return funcdef + " {\n" + body + "\n}"
+        return funcdef + " {\n" + body + "\n}\n"
 
     def visit_arguments(self, node):
         args = [self.visit(arg) for arg in node.args]

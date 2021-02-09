@@ -35,7 +35,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         c_uint32,
         c_uint64,
     }
-    FIXED_WIDTH_INTS_NAME = {
+    FIXED_WIDTH_INTS_NAME_LIST = [
         "c_int8",
         "c_int16",
         "c_int32",
@@ -44,7 +44,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         "c_uint16",
         "c_uint32",
         "c_uint64",
-    }
+    ]
+    FIXED_WIDTH_INTS_NAME = set(FIXED_WIDTH_INTS_NAME_LIST)
 
     def __init__(self):
         self.handling_annotation = False
@@ -128,9 +129,19 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
-    def _handle_overflow(self, left_id, right_id):
-        # TODO implement logic
-        return left_id
+    def _handle_overflow(self, op, left_id, right_id):
+        widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
+        left_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index(left_id) if left_id in self.FIXED_WIDTH_INTS_NAME else -1
+        right_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index(right_id) if right_id in self.FIXED_WIDTH_INTS_NAME else -1
+        max_idx = max(left_idx, right_idx)
+        cint64_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index("c_int64")
+        if widening_op:
+            if max_idx not in {-1, cint64_idx, len(self.FIXED_WIDTH_INTS_NAME_LIST)-1}:
+                # i8 + i8 => i16 for example
+                return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx+1]
+        if left_id == "float" or right_id == "float":
+            return "float"
+        return left_id if left_idx > right_idx else right_id
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -167,7 +178,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             left_id in self.FIXED_WIDTH_INTS_NAME
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
-            ret = self._handle_overflow(left_id, right_id)
+            ret = self._handle_overflow(node.op, left_id, right_id)
             node.annotation = ast.Name(id=ret)
             return node
         if left_id == right_id:

@@ -14,3 +14,51 @@ foo() {
   double f = -3.0;
   int g = -(a);
 }
+
+int add1(int x, int y) {
+  return (x + y);
+}
+
+int add2(int x, int y) {
+  return (x + y);
+}
+
+int add3(int x, int y) {
+  return (x + y);
+}
+
+int add4(int x, int y) {
+  return (x + y);
+}
+
+int add5(int x, int y) {
+  return (x + y);
+}
+
+int add6(int x, int y) {
+  return (x + y);
+}
+
+int add7(int x, int y) {
+  return (x + y);
+}
+
+int add8(int x, int y) {
+  return (x + y);
+}
+
+int add9(int x, int y) {
+  return (x + y);
+}
+
+int sub(int x, int y) {
+  return (x - y);
+}
+
+int mul(int x, int y) {
+  return (x * y);
+}
+
+double fadd(int x, double y) {
+  return (x + y);
+}
