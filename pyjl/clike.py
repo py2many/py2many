@@ -9,6 +9,14 @@ julia_type_map = {
     "float": "Float64",
     "bytes": "Array{UInt8}",
     "str": "String",
+    "c_int8": "Int8",
+    "c_int16": "Int16",
+    "c_int32": "Int32",
+    "c_int64": "Int64",
+    "c_uint8": "UInt8",
+    "c_uint16": "UInt16",
+    "c_uint32": "UInt32",
+    "c_uint64": "UInt64",
 }
 
 # allowed as names in Python but treated as keywords in Julia

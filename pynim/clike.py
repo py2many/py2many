@@ -8,6 +8,14 @@ nim_type_map = {
     "float": "float",
     "bytes": "openArray[byte]",
     "str": "String",
+    "c_int8": "int8",
+    "c_int16": "int16",
+    "c_int32": "int32",
+    "c_int64": "int64",
+    "c_uint8": "uint8",
+    "c_uint16": "uint16",
+    "c_uint32": "uint32",
+    "c_uint64": "uint64",
 }
 
 # allowed as names in Python but treated as keywords in Nim

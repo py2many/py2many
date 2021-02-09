@@ -16,50 +16,50 @@ function foo()
     g = -(a)
 end
 
-function add1(x::c_int8, y::c_int8)::c_int16
+function add1(x::Int8, y::Int8)::Int16
     return (x + y)
 end
 
-function add2(x::c_int16, y::c_int16)::c_int32
+function add2(x::Int16, y::Int16)::Int32
     return (x + y)
 end
 
-function add3(x::c_int32, y::c_int32)::c_int64
+function add3(x::Int32, y::Int32)::Int64
     return (x + y)
 end
 
-function add4(x::c_int64, y::c_int64)::c_int64
+function add4(x::Int64, y::Int64)::Int64
     return (x + y)
 end
 
-function add5(x::c_uint8, y::c_uint8)::c_uint16
+function add5(x::UInt8, y::UInt8)::UInt16
     return (x + y)
 end
 
-function add6(x::c_uint16, y::c_uint16)::c_uint32
+function add6(x::UInt16, y::UInt16)::UInt32
     return (x + y)
 end
 
-function add7(x::c_uint32, y::c_uint32)::c_uint64
+function add7(x::UInt32, y::UInt32)::UInt64
     return (x + y)
 end
 
-function add8(x::c_uint64, y::c_uint64)::c_uint64
+function add8(x::UInt64, y::UInt64)::UInt64
     return (x + y)
 end
 
-function add9(x::c_int8, y::c_uint16)::c_uint32
+function add9(x::Int8, y::UInt16)::UInt32
     return (x + y)
 end
 
-function sub(x::c_int8, y::c_int8)::c_int8
+function sub(x::Int8, y::Int8)::Int8
     return (x - y)
 end
 
-function mul(x::c_int8, y::c_int8)::c_int16
+function mul(x::Int8, y::Int8)::Int16
     return (x * y)
 end
 
-function fadd(x::c_int8, y::Float64)::Float64
+function fadd(x::Int8, y::Float64)::Float64
     return (x + y)
 end
