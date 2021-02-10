@@ -21,6 +21,7 @@ from pyjl.transpiler import JuliaTranspiler
 from pykt.transpiler import KotlinTranspiler
 from pynim.transpiler import NimTranspiler
 from pydart.transpiler import DartTranspiler
+from pygo.transpiler import GoTranspiler
 
 
 def transpile(source, transpiler):
@@ -80,6 +81,9 @@ def nim_settings():
 def dart_settings():
     return LanguageSettings(DartTranspiler(), ".dart", "dart format")
 
+def go_settings():
+    return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -91,6 +95,7 @@ def main():
     )
     parser.add_argument("--nim", type=bool, default=False, help="Generate Nim code")
     parser.add_argument("--dart", type=bool, default=False, help="Generate Dart code")
+    parser.add_argument("--go", type=bool, default=False, help="Generate Go code")
     parser.add_argument("--outdir", default=None, help="Output directory")
     args, rest = parser.parse_known_args()
     for filename in rest:
@@ -107,6 +112,8 @@ def main():
             settings = nim_settings()
         elif args.dart:
             settings = dart_settings()
+        elif args.go:
+            settings = go_settings()
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent

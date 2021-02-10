@@ -70,6 +70,13 @@ class CodeGeneratorTests(unittest.TestCase):
             ) as actual:
                 self.assertEqual(f2.read(), actual.read())
 
+    def test_go(self):
+        for case in self.TEST_CASES:
+            sys.argv = ["test", "--go=1", f"cases/{case}.py"]
+            main()
+            with open(f"expected/{case}.go") as f2, open(f"cases/{case}.go") as actual:
+                self.assertEqual(f2.read(), actual.read())
+
 
 if __name__ == "__main__":
     unittest.main()
