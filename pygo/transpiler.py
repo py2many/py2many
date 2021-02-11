@@ -56,12 +56,10 @@ class GoTranspiler(CLikeTranspiler):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
 
-        args_list = []
-        if len(args) and hasattr(node, "self_type"):
-            # implicit this
-            del typenames[0]
-            del args[0]
+        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+            typenames[0] = node.self_type
 
+        args_list = []
         typedecls = []
         index = 0
         for i in range(len(args)):
@@ -126,24 +124,23 @@ class GoTranspiler(CLikeTranspiler):
 
         value_id = self.visit(node.value)
 
-        if is_list(node.value):
-            if node.attr == "append":
-                attr = "push"
         if not value_id:
             value_id = ""
 
         if is_class_or_module(value_id, node.scopes):
             return f"{value_id}.{attr}"
 
-        if is_self_arg(value_id, node.scopes):
-            return attr
-
         return f"{value_id}.{attr}"
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
-
         args = []
+
+        if hasattr(node.func, "value") and is_list(node.func.value):
+            list_name = get_id(node.func.value)
+            fname = f"{list_name} = append"  # TODO: Fix this hack
+            args.append(list_name)
+
         if node.args:
             args += [self.visit(a) for a in node.args]
         if node.keywords:
@@ -212,7 +209,7 @@ class GoTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {it} := range {target} {{")
+        buf.append(f"for {target} := range {it} {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -355,7 +352,7 @@ class GoTranspiler(CLikeTranspiler):
             elements = [self.visit(e) for e in node.elts]
             elements = ", ".join(elements)
             typename = "int"  # TODO: infer
-            return f"[...]{typename}{{{elements}}}"
+            return f"[]{typename}{{{elements}}}"
 
         else:
             return "{}"

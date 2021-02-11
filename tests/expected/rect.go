@@ -5,6 +5,6 @@ type Rectangle struct {
 	length int
 }
 
-func is_square() bool {
-	return height == length
+func is_square(self Rectangle) bool {
+	return self.height == self.length
 }
