@@ -49,8 +49,12 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(self._headers)
 
     def usings(self):
-        self._usings.add("package todo_naming")
-        return "\n".join(self._usings)
+        buf = "package todo_naming\n\n"
+        if self._usings:
+            buf += "import (\n"
+            buf += ",\n".join([f'"{using}"' for using in self._usings])
+            buf += ")\n"
+        return buf + "\n\n"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -198,8 +202,9 @@ class GoTranspiler(CLikeTranspiler):
             placeholders = []
             for n in node.args:
                 values.append(self.visit(n))
-                placeholders.append("{:?} ")
-            return 'fmt.Println("{0}",{1})'.format(
+                placeholders.append("%v ")
+            self._usings.add("fmt")
+            return 'fmt.Printf("{0}\n",{1})'.format(
                 "".join(placeholders), ", ".join(values)
             )
 
@@ -514,9 +519,10 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Print(self, node):
         buf = []
+        self._usings.add("fmt")
         for n in node.values:
             value = self.visit(n)
-            buf.append('fmt.Println("{{:?}}",{0})'.format(value))
+            buf.append('fmt.Printf("%v\n",{0})'.format(value))
         return "\n".join(buf)
 
     def visit_DictComp(self, node):
