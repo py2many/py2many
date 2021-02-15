@@ -118,10 +118,11 @@ class GoTranspiler(CLikeTranspiler):
         return (typename, id)
 
     def visit_Lambda(self, node):
-        _, args = self.visit(node.args)
-        args_string = ", ".join(args)
+        typenames, args = self.visit(node.args)
+        args_string = ", ".join([f"{a} {t}" for t, a in zip(typenames, args)])
+        return_type = "int"  # TODO: infer
         body = self.visit(node.body)
-        return f"{{ {args_string} -> {body} }}"
+        return f"func({args_string}) {return_type} {{ {body} }}"
 
     def visit_Attribute(self, node):
         attr = node.attr

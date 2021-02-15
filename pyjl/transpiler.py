@@ -119,7 +119,7 @@ class JuliaTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "{0} -> {1}".format(args_string, body)
+        return "({0}) -> {1}".format(args_string, body)
 
     def visit_Attribute(self, node):
         attr = node.attr

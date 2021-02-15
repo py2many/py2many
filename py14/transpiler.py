@@ -178,6 +178,33 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return s
 
+    def visit_arguments(self, node):
+        args = [self.visit(arg) for arg in node.args]
+
+        # switch to zip
+        types = []
+        names = []
+        for arg in args:
+            types.append(arg[0])
+            names.append(arg[1])
+
+        return types, names
+
+    def visit_arg(self, node):
+        id = get_id(node)
+        if id == "self":
+            return (None, "self")
+        typename = "T"
+        if node.annotation:
+            typename = self.visit(node.annotation)
+        return (typename, id)
+
+    def visit_Lambda(self, node):
+        _, args = self.visit(node.args)
+        args_string = ", ".join([f"auto {a}" for a in args])
+        body = self.visit(node.body)
+        return f"[]({args_string}) {{ {body} }}"
+
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
         return "std::string {" + super(CppTranspiler, self).visit_Str(node) + "}"
