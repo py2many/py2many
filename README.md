@@ -1,7 +1,7 @@
 # Python to many CLike language transpiler
 
 Currently supports C++ and Rust.
-Considering adding Julia, Kotlin and Nim support
+Preliminary support for Julia, Kotlin, Nim, Go and Dart.
 
 The main idea is that python is popular, easy to program in, but has poor runtime performance.
 We can fix that by transpiling a subset of the language into a more performant, statically
@@ -26,8 +26,7 @@ def fib(i: int) -> int:
     return fib(i - 1) + fib(i - 2)
 ```
 
-Transpiled Rust code.
-
+Transpiled Rust code:
 
 ```rust
 fn fib(i: i32) -> i32 {
@@ -38,48 +37,9 @@ fn fib(i: i32) -> i32 {
 }
 ```
 
-Transpiled C++ code.
+Transpiled code for other languages:
 
-
-```cpp
-template <typename T1> auto fib(T1 i) {
-  if (i == 0 || i == 1) {
-    return 1;
-  }
-  return fib(i - 1) + fib(i - 2);
-}
-```
-
-Transpiled Julia code.
-
-```julia
-function fib(i::Int64)::Int64
-    if i == 0 || i == 1
-        return 1
-    end
-    return (fib((i - 1)) + fib((i - 2)))
-end
-```
-
-Transpiled Kotlin code.
-
-```kotlin
-fun fib(i : Int) : Int {
-  if (i == 0 || i == 1) {
-    return 1
-  }
-  return (fib((i - 1)) + fib((i - 2)))
-}
-```
-
-Transpiled Nim code.
-
-```nim
-proc fib(i: int): int =
-    if i == 0 or i == 1:
-        return 1
-    return fib(i - 1) + fib(i - 2)
-```
+https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
 
 
 ## Trying it out
@@ -97,6 +57,8 @@ Transpiling:
 ./py2many --julia=1 /tmp/fib.py
 ./py2many --kotlin=1 /tmp/fib.py
 ./py2many --nim=1 /tmp/fib.py
+./py2many --dart=1 /tmp/fib.py
+./py2many --go=1 /tmp/fib.py
 ```
 
 Compiling:
@@ -104,6 +66,7 @@ Compiling:
 ```
 clang fib.cpp
 rustc fib.rs
+...
 ```
 
 ## Monkeytype
