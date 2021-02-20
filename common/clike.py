@@ -1,4 +1,5 @@
 import ast
+from common.analysis import get_id
 
 
 symbols = {
@@ -153,3 +154,20 @@ class CLikeTranspiler(ast.NodeVisitor):
         type_str = self.visit(node.annotation)
         val = self.visit(node.value) if node.value is not None else None
         return (target, type_str, val)
+
+    def visit_ClassDef(self, node):
+        bases = [get_id(base) for base in node.bases]
+        if len(bases) != 1:
+            return None
+        if not bases[0] in {"IntEnum", "IntFlag"}:
+            return None
+        if bases == ["IntEnum"]:
+            return self.visit_IntEnum(node)
+        if bases == ["IntFlags"]:
+            return self.visit_IntFlag(node)
+
+    def visit_IntEnum(self, node):
+        raise Exception("Unimplemented")
+
+    def visit_IntFlag(self, node):
+        raise Exception("Unimplemented")

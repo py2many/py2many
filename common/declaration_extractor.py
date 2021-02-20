@@ -1,4 +1,5 @@
 import ast
+from common.analysis import get_id
 
 
 class DeclarationExtractor(ast.NodeVisitor):
@@ -8,6 +9,10 @@ class DeclarationExtractor(ast.NodeVisitor):
         self.class_assignments = {}
         self.typed_vars = {}
         self._type_map = {}
+
+    # See rust for a concrete implementation
+    def type_by_initialization(self, init_str):
+        return None
 
     def get_declarations(self):
         typed_members = self.already_annotated
@@ -39,6 +44,7 @@ class DeclarationExtractor(ast.NodeVisitor):
                 node.body.remove(m)
         else:
             node.is_dataclass = False
+            self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)
@@ -71,10 +77,14 @@ class DeclarationExtractor(ast.NodeVisitor):
     def visit_Assign(self, node):
         target = node.targets[0]
         if self.is_member(target):
-            # target = self.transpiler.visit(target)
             value = self.transpiler.visit(node.value)
             if target.attr not in self.class_assignments:
                 self.class_assignments[target.attr] = value
+        else:
+            target = get_id(target)
+            value = self.transpiler.visit(node.value)
+            if target not in self.class_assignments:
+                self.class_assignments[target] = value
 
     def is_member(self, node):
         if hasattr(node, "value"):

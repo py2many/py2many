@@ -8,7 +8,7 @@ from py2many import main
 
 
 class CodeGeneratorTests(unittest.TestCase):
-    TEST_CASES = ["fib", "rect", "infer", "infer-ops", "binit", "lambda"]
+    TEST_CASES = ["fib", "rect", "infer", "infer-ops", "binit", "lambda", "int_enum"]
     TESTS_DIR = Path(__file__).parent
 
     def setUp(self):

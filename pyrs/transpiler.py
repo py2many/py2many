@@ -304,6 +304,9 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
         declarations = extractor.get_declarations()
@@ -320,6 +323,23 @@ class RustTranspiler(CLikeTranspiler):
         impl_def = "impl {0} {{\n".format(node.name)
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(RustTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member} = {var},")
+        fields = "\n".join(fields)
+        return f"enum {node.name} {{\n{fields}\n}}\n\n"
+
+    def visit_IntFlag(self, node):
+        raise Exception("Unimplemented")
 
     def visit_alias(self, node):
         return "use {0};".format(node.name)

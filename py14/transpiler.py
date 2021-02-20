@@ -118,7 +118,7 @@ class CppTranspiler(CLikeTranspiler):
     def visit_ClassDef(self, node):
         buf = [f"class {node.name} {{"]
         buf += [self.visit(b) for b in node.body]
-        buf += ["}}"]
+        buf += [f"}}"]
         return "\n".join(buf)
 
     def visit_Call(self, node):

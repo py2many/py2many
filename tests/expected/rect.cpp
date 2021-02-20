@@ -6,4 +6,3 @@ class Rectangle {
     return self.height == self.length;
   }
 }
-}
