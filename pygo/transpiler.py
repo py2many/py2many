@@ -310,6 +310,9 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
         declarations = extractor.get_declarations()
@@ -336,6 +339,38 @@ class GoTranspiler(CLikeTranspiler):
             body = [self.visit(b) for b in node.body]
             body = "\n".join(body)
             return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(GoTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        ret = f"type {node.name} int\n\n"
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            typename = f" {node.name}" if i == 0 else ""
+            if var == "auto()":
+                fields.append(f"{member}{typename} = iota")
+            else:
+                fields.append(f"{member}{typename} = {var}")
+        fields = "\n".join(fields)
+        return f"{ret} const (\n{fields}\n)\n\n"
+
+    def visit_IntFlag(self, node):
+        extractor = DeclarationExtractor(GoTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+        ret = f"type {node.name} int\n\n"
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            typename = f" {node.name}" if i == 0 else ""
+            if var == "auto()":
+                fields.append(f"{member}{typename} = 1 << iota")
+            else:
+                fields.append(f"{member}{typename} = {var}")
+        fields = "\n".join(fields)
+        return f"{ret} const (\n{fields}\n)\n\n"
+
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
@@ -472,9 +507,17 @@ class GoTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} := {1}".format(target, value)
         else:
+            typename = None
+            if hasattr(target, "annotation"):
+                typename = get_id(target.annotation)
+                if typename in self._type_map:
+                    typename = self._type_map[typename]
+
             target = self.visit(target)
             value = self.visit(node.value)
 
+            if typename is not None:
+                return f"var {target} {typename} = {value}"
             return f"{target} := {value}"
 
     def visit_Delete(self, node):

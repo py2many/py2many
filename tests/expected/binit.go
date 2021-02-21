@@ -1,7 +1,7 @@
 package todo_naming
 
 func bisect_right(data []int, item int) int {
-	low := 0
+	var low int = 0
 	high := len(data)
 	for low < high {
 		middle := int(((low + high) / 2))

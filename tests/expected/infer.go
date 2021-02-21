@@ -1,8 +1,8 @@
 package todo_naming
 
 func foo() {
-	a := 10
-	b := a
+	var a int = 10
+	var b int = a
 }
 
 func main() {

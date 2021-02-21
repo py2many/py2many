@@ -1,20 +1,20 @@
 package todo_naming
 
 func foo() {
-	a := 10
-	b := 20
-	c1 := (a + b)
-	c2 := (a - b)
-	c3 := (a * b)
-	c4 := (a / b)
-	c5 := -(a)
-	d := 2.0
-	e1 := (a + d)
-	e2 := (a - d)
-	e3 := (a * d)
-	e4 := (a / d)
-	f := -3.0
-	g := -(a)
+	var a int = 10
+	var b int = 20
+	var c1 int = (a + b)
+	var c2 int = (a - b)
+	var c3 int = (a * b)
+	var c4 float64 = (a / b)
+	var c5 int = -(a)
+	var d float64 = 2.0
+	var e1 float64 = (a + d)
+	var e2 float64 = (a - d)
+	var e3 float64 = (a * d)
+	var e4 float64 = (a / d)
+	var f float64 = -3.0
+	var g int = -(a)
 }
 
 func add1(x int8, y int8) int16 {
