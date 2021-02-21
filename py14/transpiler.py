@@ -93,7 +93,7 @@ class CppTranspiler(CLikeTranspiler):
         ):
             return generate_catch_test_case(node, body)
         # is_void_function(node) or is_recursive(node):
-        return generate_template_fun(node, body)
+        return generate_template_fun(node, body) + "\n"
         # else:
         #    return generate_lambda_fun(node, body)
 
@@ -119,7 +119,7 @@ class CppTranspiler(CLikeTranspiler):
         buf = [f"class {node.name} {{"]
         buf += [self.visit(b) for b in node.body]
         buf += [f"}}"]
-        return "\n".join(buf)
+        return "\n".join(buf) + "\n"
 
     def visit_Call(self, node):
         fname = self.visit(node.func)

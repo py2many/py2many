@@ -12,6 +12,7 @@ template <typename T1, typename T2> auto bisect_right(T1 data, T2 item) {
   }
   return low;
 }
+
 template <typename T1, typename T2> auto bin_it(T1 limits, T2 data) {
   std::vector<decltype(0)> bins{0};
   for (auto x : limits) {

@@ -15,15 +15,27 @@ inline void foo() {
   double f = -3.0;
   int g = -(a);
 }
+
 template <typename T1, typename T2> auto add1(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add2(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add3(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add4(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add5(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add6(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add7(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add8(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto add9(T1 x, T2 y) { return x + y; }
+
 template <typename T1, typename T2> auto sub(T1 x, T2 y) { return x - y; }
+
 template <typename T1, typename T2> auto mul(T1 x, T2 y) { return x * y; }
+
 template <typename T1, typename T2> auto fadd(T1 x, T2 y) { return x + y; }

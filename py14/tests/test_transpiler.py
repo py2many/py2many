@@ -16,7 +16,7 @@ def test_declare():
 def test_empty_return():
     source = parse("def foo():", "   return")
     cpp = transpile(source)
-    assert cpp == parse("inline void foo() {", "return;", "}")
+    assert cpp == parse("inline void foo() {", "return;", "}\n")
 
 
 def test_print_multiple_vars():
@@ -102,13 +102,13 @@ def test_assign():
 def test_function_with_return():
     source = parse("def fun(x):", "   return x")
     cpp = transpile(source)
-    assert cpp == parse("template <typename T1>", "auto fun(T1 x) {", "return x;", "}")
+    assert cpp == parse("template <typename T1>", "auto fun(T1 x) {", "return x;", "}\n")
 
 
 def test_void_function():
     source = parse("def test_fun():", "   assert True")
     cpp = transpile(source)
-    assert cpp == parse("inline void test_fun() {", "REQUIRE(true);", "}")
+    assert cpp == parse("inline void test_fun() {", "REQUIRE(true);", "}\n")
 
 
 def test_create_catch_test_case():
@@ -149,7 +149,7 @@ def test_map_function():
         "results.push_back(fun(v));",
         "}",
         "return results;",
-        "}",
+        "}\n",
     )
 
 
@@ -177,7 +177,7 @@ def test_bubble_sort():
         "}",
         "}",
         "return seq;",
-        "}",
+        "}\n",
     )
 
 
@@ -204,7 +204,7 @@ def test_fib():
         "return fib(n - 1) + fib(n - 2);",
         "}",
         "}",
-        "}",
+        "}\n",
     )
 
 
@@ -240,7 +240,7 @@ def test_comb_sort():
         "}",
         "}",
         "}",
-        "}",
+        "}\n",
     )
 
 
@@ -260,5 +260,5 @@ def test_normal_pdf():
         "auto term2 = std::pow(py14::math::e, -1.0 * "
         "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));",
         "return term1 * term2;",
-        "}",
+        "}\n",
     )

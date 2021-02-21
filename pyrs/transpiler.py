@@ -339,7 +339,22 @@ class RustTranspiler(CLikeTranspiler):
         return f"enum {node.name} {{\n{fields}\n}}\n\n"
 
     def visit_IntFlag(self, node):
-        raise Exception("Unimplemented")
+        self._usings.add("flagset::flags")
+        self._usings.add("flagset::FlagSet")
+        self._usings.add("std::os::raw::c_int")
+        extractor = DeclarationExtractor(RustTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member} = {var},")
+        fields = "\n".join(fields)
+        return f"flags! {{\n    enum {node.name}: c_int {{\n{fields}\n}}\n}}\n\n"
+
 
     def visit_alias(self, node):
         return "use {0};".format(node.name)

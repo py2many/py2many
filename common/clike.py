@@ -163,7 +163,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             return None
         if bases == ["IntEnum"]:
             return self.visit_IntEnum(node)
-        if bases == ["IntFlags"]:
+        if bases == ["IntFlag"]:
             return self.visit_IntFlag(node)
 
     def visit_IntEnum(self, node):
