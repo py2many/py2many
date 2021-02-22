@@ -17,6 +17,7 @@ from common.annotation_transformer import add_annotation_flags
 from common.mutability_transformer import detect_mutable_vars
 from common.context import add_variable_context, add_list_calls
 from common.analysis import add_imports, is_void_function, get_id, is_mutable
+from typing import Optional, List
 
 container_types = {"List": "", "Dict": "map", "Set": "Set", "Optional": "nil"}
 
@@ -137,79 +138,65 @@ class GoTranspiler(CLikeTranspiler):
 
         return f"{value_id}.{attr}"
 
+    def visit_range(self, node, vargs: List[str]) -> str:
+        if len(node.args) == 1:
+            return "(0..{})".format(vargs[0])
+        elif len(node.args) == 2:
+            return "({}..{})".format(vargs[0], vargs[1])
+        elif len(node.args) == 3:
+            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+
+        raise Exception(
+            "encountered range() call with unknown parameters: range({})".format(args)
+        )
+
+    def visit_print(self, node, vargs: List[str]) -> str:
+        placeholders = []
+        for n in node.args:
+            placeholders.append("%v ")
+        self._usings.add("fmt")
+        return 'fmt.Printf("{0}\n",{1})'.format(
+            "".join(placeholders), ", ".join(values)
+        )
+
+    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        dispatch_map = {
+            "range": self.visit_range,
+            "xrange": self.visit_range,
+            "print": self.visit_print,
+        }
+
+        if fname in dispatch_map:
+            return dispatch_map[fname](node, vargs)
+
+        # small one liners are inlined here as lambdas
+        small_dispatch_map = {"str": lambda: f"String({vargs[0]})"}
+        if fname in small_dispatch_map:
+            return small_dispatch_map[fname]()
+        return None
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
-        args = []
+        vargs = []
 
         if hasattr(node.func, "value") and is_list(node.func.value):
             list_name = get_id(node.func.value)
             fname = f"{list_name} = append"  # TODO: Fix this hack
-            args.append(list_name)
+            vargs.append(list_name)
 
         if node.args:
-            args += [self.visit(a) for a in node.args]
+            vargs += [self.visit(a) for a in node.args]
         if node.keywords:
-            args += [self.visit(kw.value) for kw in node.keywords]
+            vargs += [self.visit(kw.value) for kw in node.keywords]
 
-        if args:
-            args = ", ".join(args)
+        ret = self._dispatch(node, fname, vargs)
+        if ret is not None:
+            return ret
+        if vargs:
+            args = ", ".join(vargs)
         else:
             args = ""
-
-        if fname == "str":
-            return "string({0})".format(args)
-
-        elif fname == "range" or fname == "xrange":
-
-            vargs = list(map(self.visit, node.args))
-
-            if len(node.args) == 1:
-                return "(0..{})".format(vargs[0])
-            elif len(node.args) == 2:
-                return "({}..{})".format(vargs[0], vargs[1])
-            elif len(node.args) == 3:
-                return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
-            else:
-                raise Exception(
-                    "encountered range() call with unknown parameters: range({})".format(
-                        args
-                    )
-                )
-
-        elif fname == "len":
-            return "len({0})".format(self.visit(node.args[0]))
-        elif fname == "enumerate":
-            return "{0}.iter().enumerate()".format(self.visit(node.args[0]))
-        elif fname == "sum":
-            return "{0}.iter().sum()".format(self.visit(node.args[0]))
-        elif fname == "max":
-            return "{0}.iter().max().unwrap()".format(self.visit(node.args[0]))
-        elif fname == "min":
-            return "{0}.iter().min().unwrap()".format(self.visit(node.args[0]))
-        elif fname == "reversed":
-            return "{0}.iter().rev()".format(self.visit(node.args[0]))
-        elif fname == "map":
-            return "{0}.iter().map({1})".format(
-                self.visit(node.args[1]), self.visit(node.args[0])
-            )
-        elif fname == "filter":
-            return "{0}.into_iter().filter({1})".format(
-                self.visit(node.args[1]), self.visit(node.args[0])
-            )
-        elif fname == "list":
-            return "{0}.collect::<Vec<_>>()".format(self.visit(node.args[0]))
-        elif fname == "print":
-            values = []
-            placeholders = []
-            for n in node.args:
-                values.append(self.visit(n))
-                placeholders.append("%v ")
-            self._usings.add("fmt")
-            return 'fmt.Printf("{0}\n",{1})'.format(
-                "".join(placeholders), ", ".join(values)
-            )
-
-        return "{0}({1})".format(fname, args)
+        return f"{fname}({args})"
 
     def visit_For(self, node):
         target = self.visit(node.target)
@@ -370,7 +357,6 @@ class GoTranspiler(CLikeTranspiler):
                 fields.append(f"{member}{typename} = {var}")
         fields = "\n".join(fields)
         return f"{ret} const (\n{fields}\n)\n\n"
-
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
