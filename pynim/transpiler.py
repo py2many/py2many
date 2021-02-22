@@ -16,6 +16,7 @@ from common.annotation_transformer import add_annotation_flags
 from common.mutability_transformer import detect_mutable_vars
 from common.context import add_variable_context, add_list_calls
 from common.analysis import add_imports, is_void_function, get_id, is_mutable
+from typing import Optional, List
 
 container_types = {
     "List": "openArray",
@@ -124,46 +125,57 @@ class NimTranspiler(CLikeTranspiler):
 
         return value_id + "." + attr
 
+    def visit_range(self, node, vargs: List[str]) -> str:
+        if len(node.args) == 1:
+            return "0..{}".format(vargs[0])
+        elif len(node.args) == 2:
+            return "{}..{}".format(vargs[0], vargs[1])
+        elif len(node.args) == 3:
+            return "countup({},{},{}".format(vargs[0], vargs[1], vargs[2])
+        else:
+            raise Exception(
+                "encountered range() call with unknown parameters: range({})".format(
+                    args
+                )
+            )
+
+    def visit_print(self, node, vargs: List[str]) -> str:
+        args = ", ".join(vargs)
+        return f"echo {args}"
+
+    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        dispatch_map = {
+            "range": self.visit_range,
+            "xrange": self.visit_range,
+            "print": self.visit_print,
+        }
+
+        if fname in dispatch_map:
+            return dispatch_map[fname](node, vargs)
+
+        # small one liners are inlined here as lambdas
+        small_dispatch_map = {"str": lambda: f"$({vargs[0]})"}
+        if fname in small_dispatch_map:
+            return small_dispatch_map[fname]()
+        return None
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
+        vargs = []
 
-        args = []
         if node.args:
-            args += [self.visit(a) for a in node.args]
+            vargs += [self.visit(a) for a in node.args]
         if node.keywords:
-            args += [self.visit(kw.value) for kw in node.keywords]
+            vargs += [self.visit(kw.value) for kw in node.keywords]
 
-        if args:
-            args = ", ".join(args)
+        ret = self._dispatch(node, fname, vargs)
+        if ret is not None:
+            return ret
+        if vargs:
+            args = ", ".join(vargs)
         else:
             args = ""
-
-        if fname == "int":
-            return "i32::from({0})".format(args)
-        elif fname == "str":
-            return "String::from({0})".format(args)
-
-        elif fname == "range" or fname == "xrange":
-
-            vargs = list(map(self.visit, node.args))
-
-            if len(node.args) == 1:
-                return "0..{}".format(vargs[0])
-            elif len(node.args) == 2:
-                return "{}..{}".format(vargs[0], vargs[1])
-            elif len(node.args) == 3:
-                return "countup({},{},{}".format(vargs[0], vargs[1], vargs[2])
-            else:
-                raise Exception(
-                    "encountered range() call with unknown parameters: range({})".format(
-                        args
-                    )
-                )
-
-        elif fname == "print":
-            return f"echo {args}"
-
-        return "{0}({1})".format(fname, args)
+        return f"{fname}({args})"
 
     def visit_For(self, node):
         target = self.visit(node.target)
@@ -230,9 +242,10 @@ class NimTranspiler(CLikeTranspiler):
 
         # HACK to determine if main function name is visited
         if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["proc main():"]
-            buf.extend([self.visit(child) for child in node.body])
+            buf = ["proc main() ="]
+            buf.extend([self.indent(self.visit(child)) for child in node.body])
             buf.append("")
+            buf.append("main()")
             return "\n".join(buf)
         body = "\n".join(
             [
@@ -248,7 +261,7 @@ class NimTranspiler(CLikeTranspiler):
         )
         test = self.visit(node.test)
         if node.orelse:
-            orelse = f"else:\n{orelse}"
+            orelse = self.indent(f"else:\n{orelse}", level=node.level)
         else:
             orelse = ""
         return f"if {test}:\n{body}\n{orelse}"
@@ -283,6 +296,9 @@ class NimTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
         declarations = extractor.get_declarations()
@@ -305,6 +321,37 @@ class NimTranspiler(CLikeTranspiler):
         body = [self.visit(b) for b in node.body]
         body = "\n".join(body)
         return f"{object_def}\n{body}\n"
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(NimTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member} = {var},")
+        fields = "\n".join([self.indent(f) for f in fields])
+        return f"type {node.name} = enum\n{fields}\n\n"
+
+    def visit_IntFlag(self, node):
+        extractor = DeclarationExtractor(NimTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member} = {var},")
+        fields = "\n".join([self.indent(f, level=2) for f in fields])
+        flags = self.indent(f"{node.name}Flags = set[{node.name}]")
+        return "\n".join(
+            [f"type", self.indent(f"{node.name} = enum"), f"{fields}", f"{flags}", ""]
+        )
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
@@ -349,9 +396,9 @@ class NimTranspiler(CLikeTranspiler):
             if value in container_types:
                 value = container_types[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}<{1}>".format(value, index)
-        return "{0}[{1}]".format(value, index)
+                return f"({index})"
+            return f"{value}[{index}]"
+        return f"{value}[{index}]"
 
     def visit_Index(self, node):
         return self.visit(node.value)
@@ -440,16 +487,13 @@ class NimTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
-            return "let {0}{1} = vec![{2}];".format(
-                mut, self.visit(target), ", ".join(elements)
-            )
+            elements = ", ".join(elements)
+            target = self.visit(target)
+            return f"{target} = @[{elements}]"
         else:
-            mut = ""
+            mutable = False
             if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
+                mutable = True
 
             target = self.visit(target)
             value = self.visit(node.value)
@@ -458,9 +502,9 @@ class NimTranspiler(CLikeTranspiler):
                 if isinstance(
                     node.scopes[0], ast.Module
                 ):  # if assignment is module level it must be const
-                    return "const {0}: _ = {1};".format(target, value)
-
-            return "{0}{1} = {2}".format(mut, target, value)
+                    return f"const {target} = {value};"
+            kw = "var" if mutable else "let"
+            return f"{kw} {target} = {value}"
 
     def visit_Delete(self, node):
         target = node.targets[0]

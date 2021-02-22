@@ -1,7 +1,8 @@
 proc foo() =
-    a = 10
-    b = a
+    let a = 10
+    let b = a
 
-proc main():
-foo()
+proc main() =
+    foo()
 
+main()

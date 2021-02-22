@@ -1,19 +1,19 @@
 
 proc foo() =
-    a = 10
-    b = 20
-    c1 = a + b
-    c2 = a - b
-    c3 = a * b
-    c4 = a / b
-    c5 = -(a)
-    d = 2.0
-    e1 = a + d
-    e2 = a - d
-    e3 = a * d
-    e4 = a / d
-    f = -3.0
-    g = -(a)
+    let a = 10
+    let b = 20
+    let c1 = a + b
+    let c2 = a - b
+    let c3 = a * b
+    let c4 = a / b
+    let c5 = -(a)
+    let d = 2.0
+    let e1 = a + d
+    let e2 = a - d
+    let e3 = a * d
+    let e4 = a / d
+    let f = -3.0
+    let g = -(a)
 
 proc add1(x: int8, y: int8): int16 =
     return x + y
