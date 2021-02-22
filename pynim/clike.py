@@ -136,6 +136,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return super().visit(node)
 
     def visit_BinOp(self, node):
+        if isinstance(node.op, ast.Pow):
+            left = self.visit(node.left)
+            right = self.visit(node.right)
+            return f"{left}^{right}"
         return " ".join(
             [self.visit(node.left), self.visit(node.op), self.visit(node.right)]
         )

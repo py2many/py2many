@@ -71,7 +71,7 @@ class NimTranspiler(CLikeTranspiler):
             if node.returns:
                 return_type = ": {0}".format(self.visit(node.returns))
             else:
-                return_type = ": RT"
+                return_type = ""
 
         args = ", ".join(args_list)
         funcdef = f"proc {node.name}({args}){return_type} ="
@@ -372,10 +372,10 @@ class NimTranspiler(CLikeTranspiler):
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "vec![{0}]".format(", ".join(elements))
-
+            elements = ", ".join(elements)
+            return f"@[{elements}]"
         else:
-            return "vec![]"
+            return "[]"
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:
@@ -450,7 +450,7 @@ class NimTranspiler(CLikeTranspiler):
         return body
 
     def visit_Assert(self, node):
-        return "assert!({0})".format(self.visit(node.test))
+        return "assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
@@ -545,7 +545,8 @@ class NimTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node):
-        return "//yield is unimplemented"
+        value = self.visit(node.value)
+        return f"yield {value}"
 
     def visit_Print(self, node):
         buf = []
