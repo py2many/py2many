@@ -347,8 +347,8 @@ class RustTranspiler(CLikeTranspiler):
                 fields.append(f"{member},")
             else:
                 fields.append(f"{member} = {var},")
-        fields = "\n".join(fields)
-        return f"flags! {{\n    enum {node.name}: c_int {{\n{fields}\n}}\n}}\n\n"
+        fields = "\n".join(["    " * 2 + f for f in fields])
+        return f"flags! {{\n    enum {node.name}: c_int {{\n{fields}\n    }}\n}}\n\n"
 
     def visit_alias(self, node):
         return "use {0};".format(node.name)

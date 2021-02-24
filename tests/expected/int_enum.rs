@@ -10,8 +10,8 @@ enum Colors {
 
 flags! {
     enum Permissions: c_int {
-R = 1,
-W = 2,
-X = 16,
-}
+        R = 1,
+        W = 2,
+        X = 16,
+    }
 }
