@@ -14,6 +14,7 @@ from common.context import add_variable_context, add_list_calls
 from common.analysis import add_imports, is_void_function, get_id, is_mutable
 from common.inference import infer_types
 from dataclasses import dataclass
+from typing import Optional
 
 from py14.transpiler import CppTranspiler
 from pyrs.transpiler import RustTranspiler
@@ -56,32 +57,37 @@ class LanguageSettings:
     transpiler: CLikeTranspiler
     ext: str
     formatter: str
+    indent: Optional[int] = None
 
 
-def cpp_settings():
+def cpp_settings(args):
     return LanguageSettings(CppTranspiler(), ".cpp", "clang-format -i")
 
 
-def rust_settings():
+def rust_settings(args):
     return LanguageSettings(RustTranspiler(), ".rs", "rustfmt")
 
 
-def julia_settings():
+def julia_settings(args):
     return LanguageSettings(JuliaTranspiler(), ".jl", "jlfmt")
 
 
-def kotlin_settings():
+def kotlin_settings(args):
     return LanguageSettings(KotlinTranspiler(), ".kt", "ktlint -F")
 
 
-def nim_settings():
-    return LanguageSettings(NimTranspiler(), ".nim", "/bin/true")
+def nim_settings(args):
+    nim_args = {}
+    if args.indent is not None:
+        nim_args["indent"] = args.indent
+    return LanguageSettings(NimTranspiler(**nim_args), ".nim", "/bin/true")
 
 
-def dart_settings():
+def dart_settings(args):
     return LanguageSettings(DartTranspiler(), ".dart", "dart format")
 
-def go_settings():
+
+def go_settings(args):
     return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
 
 
@@ -97,23 +103,30 @@ def main():
     parser.add_argument("--dart", type=bool, default=False, help="Generate Dart code")
     parser.add_argument("--go", type=bool, default=False, help="Generate Go code")
     parser.add_argument("--outdir", default=None, help="Output directory")
+    parser.add_argument(
+        "-i",
+        "--indent",
+        type=int,
+        default=None,
+        help="Indentation to use in languages that care",
+    )
     args, rest = parser.parse_known_args()
     for filename in rest:
-        settings = cpp_settings()
+        settings = cpp_settings(args)
         if args.cpp:
             pass
         if args.rust:
-            settings = rust_settings()
+            settings = rust_settings(args)
         elif args.julia:
-            settings = julia_settings()
+            settings = julia_settings(args)
         elif args.kotlin:
-            settings = kotlin_settings()
+            settings = kotlin_settings(args)
         elif args.nim:
-            settings = nim_settings()
+            settings = nim_settings(args)
         elif args.dart:
-            settings = dart_settings()
+            settings = dart_settings(args)
         elif args.go:
-            settings = go_settings()
+            settings = go_settings(args)
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent

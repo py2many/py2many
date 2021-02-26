@@ -45,10 +45,10 @@ def transpile(source):
 
 
 class NimTranspiler(CLikeTranspiler):
-    def __init__(self):
+    def __init__(self, indent=2):
         super().__init__()
         self._headers = set([])
-        self._indent = "    "
+        self._indent = " " * indent
 
     def indent(self, code, level=1):
         return self._indent * level + code
