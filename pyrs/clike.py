@@ -1,6 +1,6 @@
 import ast
 
-from common.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 rust_type_map = {

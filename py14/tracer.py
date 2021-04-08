@@ -1,7 +1,7 @@
 # Trace object types that are inserted into Python list.
 import ast
-from common.analysis import get_id
-from common.tracer import *
+from py2many.analysis import get_id
+from py2many.tracer import *
 from py14.clike import CLikeTranspiler
 
 

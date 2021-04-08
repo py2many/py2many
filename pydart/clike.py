@@ -1,6 +1,6 @@
 import ast
 
-from common.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 dart_type_map = {

@@ -2,9 +2,9 @@ import os
 import sys
 import unittest
 
-
 from pathlib import Path
-from py2many import main
+
+from py2many.cli import main
 
 
 class CodeGeneratorTests(unittest.TestCase):

@@ -4,7 +4,7 @@ import io
 import re
 from setuptools import setup, find_packages
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 install_requires = []
 setup_requires = []
@@ -24,8 +24,7 @@ setup(
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
-    packages=find_packages(exclude=["docs", "examples", "tests"]),
-    scripts=["py2many.py"],
+    packages=find_packages(exclude=["docs", "examples", "tests", "tests*"]),
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
@@ -35,4 +34,7 @@ setup(
         "Topic :: Utilities",
     ],
     test_suite="tests",
+    entry_points={
+        "console_scripts": ["py2many=py2many.cli:main"],
+    },
 )

@@ -1,5 +1,5 @@
 import sys
-import pytest
+
 from py14.transpiler import transpile
 
 

@@ -1,6 +1,6 @@
 import ast
 
-from common.analysis import get_id
+from py2many.analysis import get_id
 
 
 def add_annotation_flags(node):

@@ -1,8 +1,8 @@
 # Trace object types that are inserted into Python list.
 
 import ast
-from common.analysis import get_id
-from common.clike import CLikeTranspiler
+from py2many.analysis import get_id
+from py2many.clike import CLikeTranspiler
 
 
 def decltype(node):
