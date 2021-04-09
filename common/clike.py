@@ -41,7 +41,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     builtin_constants = frozenset(["True", "False"])
-    IGNORED_MODULE_LIST = set(["typing", "enum", "dataclasses", "ctypes"])
+    IGNORED_MODULE_LIST = set(["typing", "enum", "dataclasses", "ctypes", "__future__"])
 
     def __init__(self):
         self._type_map = {}
