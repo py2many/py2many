@@ -8,7 +8,16 @@ from py2many.cli import main
 
 
 class CodeGeneratorTests(unittest.TestCase):
-    TEST_CASES = ["fib", "rect", "infer", "infer-ops", "binit", "lambda", "int_enum"]
+    TEST_CASES = [
+        "fib",
+        "rect",
+        "infer",
+        "infer-ops",
+        "binit",
+        "lambda",
+        "int_enum",
+        "str_enum",
+    ]
     TESTS_DIR = Path(__file__).parent
 
     def setUp(self):
@@ -54,6 +63,8 @@ class CodeGeneratorTests(unittest.TestCase):
 
     def test_nim(self):
         for case in self.TEST_CASES:
+            if case in {"str_enum"}:  # unimplemented
+                continue
             sys.argv = ["test", "--nim=1", f"cases/{case}.py"]
             main()
             with open(f"expected/{case}.nim") as f2, open(
@@ -72,6 +83,8 @@ class CodeGeneratorTests(unittest.TestCase):
 
     def test_go(self):
         for case in self.TEST_CASES:
+            if case in {"str_enum"}:  # unimplemented
+                continue
             sys.argv = ["test", "--go=1", f"cases/{case}.py"]
             main()
             with open(f"expected/{case}.go") as f2, open(f"cases/{case}.go") as actual:

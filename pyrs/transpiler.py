@@ -322,7 +322,7 @@ class RustTranspiler(CLikeTranspiler):
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
 
-    def visit_IntEnum(self, node):
+    def _visit_Enum(self, node):
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
         declarations = extractor.get_declarations()
@@ -335,6 +335,14 @@ class RustTranspiler(CLikeTranspiler):
                 fields.append(f"{member} = {var},")
         fields = "\n".join(fields)
         return f"enum {node.name} {{\n{fields}\n}}\n\n"
+
+    def visit_IntEnum(self, node):
+        return self._visit_Enum(node)
+
+    def visit_StrEnum(self, node):
+        self._usings.add("strum_macros::EnumString")
+        body = self._visit_Enum(node)
+        return f"#[derive(Debug, PartialEq, EnumString)]\n{body}"
 
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
