@@ -1,6 +1,5 @@
-"""
-Trace object types that are inserted into Python list.
-"""
+# Trace object types that are inserted into Python list.
+
 import ast
 from common.analysis import get_id
 from common.clike import CLikeTranspiler
