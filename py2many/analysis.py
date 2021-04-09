@@ -35,12 +35,32 @@ else:
             return var.id
 
 
+def is_global(target):
+    return isinstance(target.scopes[-1], ast.Module)
+
+
 def is_mutable(scopes, target):
     for scope in scopes:
         if isinstance(scope, ast.FunctionDef):
             if target in scope.mutable_vars:
                 return True
     return False
+
+
+def get_element_types(elements, scopes, type_map=None):
+    """Identifies the element types used by list of elements."""
+    types = []
+    for element in elements:
+        item_id = get_id(element)
+        definition = scopes.find(item_id)
+        if hasattr(definition, "annotation"):
+            type_name = get_id(definition.annotation)
+            if type_map and type_name in type_map:
+                type_name = type_map[type_name]
+            types.append(type_name)
+            continue
+        types.append(None)
+    return types
 
 
 class ReturnFinder(ast.NodeVisitor):

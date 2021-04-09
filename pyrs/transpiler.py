@@ -3,7 +3,14 @@ import ast
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 
-from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.analysis import (
+    add_imports,
+    get_element_types,
+    get_id,
+    is_global,
+    is_mutable,
+    is_void_function,
+)
 from py2many.annotation_transformer import add_annotation_flags
 from py2many.context import add_variable_context, add_list_calls
 from py2many.inference import get_inferred_type
@@ -486,10 +493,19 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Assign(self, node):
         target = node.targets[0]
 
+        kw = "static" if is_global(node) else "let mut"
+        # Note that static are not really supported, as modifying them requires adding
+        # "unsafe" blocks, which pyrs does not do.
+        if not is_mutable(node.scopes, get_id(target)):
+            if kw == "let mut":
+                kw = "let"
+            elif kw == "static":
+                kw = "const"
+
         if isinstance(target, ast.Tuple):
-            elts = [self.visit(e) for e in target.elts]
+            elts = ", ".join([self.visit(e) for e in target.elts])
             value = self.visit(node.value)
-            return "let ({0}) = {1};".format(", ".join(elts), value)
+            return f"{kw} ({elts}) = {value};"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
@@ -511,18 +527,22 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
-            elements = [self.visit(e) for e in node.value.elts]
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
-            return "let {0}{1} = vec![{2}];".format(
-                mut, self.visit(target), ", ".join(elements)
-            )
-        else:
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "mut "
+            count = len(node.value.elts)
+            elements = ", ".join([self.visit(e) for e in node.value.elts])
+            types = get_element_types(node.value.elts, node.scopes, self._type_map)
+            if len(set(types)) == 1 and types[0] is not None:
+                typename = types[0]
+            else:
+                typename = "_"
 
+            if kw in ["const", "static"]:
+                # Use arrays instead of Vec as globals must have fixed size
+                return (
+                    f"{kw} {self.visit(target)}: [{typename}; {count}] = [{elements}];"
+                )
+
+            return f"{kw} {self.visit(target)} = vec![{elements}];"
+        else:
             typename = "_"
             if hasattr(target, "annotation"):
                 typename = get_id(target.annotation)
@@ -532,13 +552,7 @@ class RustTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
 
-            if len(node.scopes) == 1:
-                if isinstance(
-                    node.scopes[0], ast.Module
-                ):  # if assignment is module level it must be const
-                    return f"const {target}: {typename} = {value};"
-
-            return f"let {mut}{target}: {typename} = {value};"
+            return f"{kw} {target}: {typename} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]
