@@ -1,6 +1,6 @@
 from py14.tracer import value_type, value_expr, decltype, is_list, is_recursive
-from common.context import add_variable_context, add_list_calls
-from common.scope import add_scope_context
+from py2many.context import add_variable_context, add_list_calls
+from py2many.scope import add_scope_context
 import ast
 
 

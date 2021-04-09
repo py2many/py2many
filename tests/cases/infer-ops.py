@@ -60,8 +60,10 @@ def add7(x: c_uint32, y: c_uint32):
 def add8(x: c_uint64, y: c_uint64):
     return x + y
 
+
 def add9(x: c_int8, y: c_uint16):
     return x + y
+
 
 def sub(x: c_int8, y: c_int8):
     return x - y

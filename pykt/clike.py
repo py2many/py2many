@@ -1,6 +1,6 @@
 import ast
 
-from common.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 kotlin_type_map = {

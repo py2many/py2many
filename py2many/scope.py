@@ -1,7 +1,7 @@
 import ast
 from contextlib import contextmanager
 
-from common.analysis import get_id
+from py2many.analysis import get_id
 
 
 def add_scope_context(node):

@@ -1,5 +1,5 @@
 import ast
-from common.analysis import get_id
+from py2many.analysis import get_id
 
 
 symbols = {

@@ -1,5 +1,5 @@
 import ast
-from common.clike import c_symbol
+from py2many.clike import c_symbol
 
 
 def test_c_symbol():

@@ -1,4 +1,4 @@
-from common.declaration_extractor import (
+from py2many.declaration_extractor import (
     DeclarationExtractor as CommonDeclarationExtractor,
 )
 from .clike import go_type_map

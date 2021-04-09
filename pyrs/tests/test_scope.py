@@ -1,6 +1,6 @@
 import ast
-from common.scope import add_scope_context
-from common.context import add_variable_context
+from py2many.scope import add_scope_context
+from py2many.context import add_variable_context
 
 
 def parse(*args):

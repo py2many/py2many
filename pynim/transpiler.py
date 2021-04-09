@@ -2,8 +2,8 @@ import sys
 import ast
 
 from .clike import CLikeTranspiler
-from common.declaration_extractor import DeclarationExtractor
-from common.tracer import (
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.tracer import (
     decltype,
     is_list,
     is_builtin_import,
@@ -11,11 +11,11 @@ from common.tracer import (
     is_class_or_module,
 )
 
-from common.scope import add_scope_context
-from common.annotation_transformer import add_annotation_flags
-from common.mutability_transformer import detect_mutable_vars
-from common.context import add_variable_context, add_list_calls
-from common.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.scope import add_scope_context
+from py2many.annotation_transformer import add_annotation_flags
+from py2many.mutability_transformer import detect_mutable_vars
+from py2many.context import add_variable_context, add_list_calls
+from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
 from typing import Optional, List
 
 container_types = {
