@@ -1,9 +1,9 @@
 
 type
-    Rectangle = object
-        height: int
-        length: int
+  Rectangle = object
+    height: int
+    length: int
 proc is_square(self: Rectangle): bool =
-    return self.height == self.length
+  return self.height == self.length
 
 
