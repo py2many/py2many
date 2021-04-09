@@ -333,6 +333,10 @@ class RustTranspiler(CLikeTranspiler):
         fields = "\n".join(fields)
         return f"enum {node.name} {{\n{fields}\n}}\n\n"
 
+    def visit_StrEnum(self, node):
+        self._usings.add("strum_macros::EnumString")
+        return f"#[derive(Debug, PartialEq, EnumString)]\n{self.visit_IntEnum(node)}"
+
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
         self._usings.add("flagset::FlagSet")

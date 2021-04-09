@@ -157,6 +157,8 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_ClassDef(self, node):
         bases = [get_id(base) for base in node.bases]
+        if set(bases) == {"Enum", "str"}:
+            return self.visit_StrEnum(node)
         if len(bases) != 1:
             return None
         if not bases[0] in {"IntEnum", "IntFlag"}:
@@ -165,6 +167,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self.visit_IntEnum(node)
         if bases == ["IntFlag"]:
             return self.visit_IntFlag(node)
+
+    def visit_StrEnum(self, node):
+        raise Exception("Unimplemented")
 
     def visit_IntEnum(self, node):
         raise Exception("Unimplemented")
