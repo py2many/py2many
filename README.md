@@ -49,16 +49,30 @@ Requirements:
 - clang
 - rustc
 
+Local installation:
+
+```
+./setup.py install --user  # installs to $HOME/.local
+```
+
+OR
+
+```
+sudo ./setup.py install  # installs systemwide
+```
+
+Add the py2many script to your $PATH and run:
+
 Transpiling:
 
 ```
-./py2many --cpp=1 /tmp/fib.py
-./py2many --rust=1 /tmp/fib.py
-./py2many --julia=1 /tmp/fib.py
-./py2many --kotlin=1 /tmp/fib.py
-./py2many --nim=1 /tmp/fib.py
-./py2many --dart=1 /tmp/fib.py
-./py2many --go=1 /tmp/fib.py
+py2many --cpp=1 /tmp/fib.py
+py2many --rust=1 /tmp/fib.py
+py2many --julia=1 /tmp/fib.py
+py2many --kotlin=1 /tmp/fib.py
+py2many --nim=1 /tmp/fib.py
+py2many --dart=1 /tmp/fib.py
+py2many --go=1 /tmp/fib.py
 ```
 
 Compiling:
