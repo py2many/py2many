@@ -6,7 +6,13 @@
 .coverage
 .ropeproject
 *.egg-info
+.tox
 build
+.DS_Store
+tests/cases/fib
+tests/cases/infer
+tests/cases/int_enum
+tests/cases/rect
 tests/cases/*.dart
 tests/cases/*.go
 tests/cases/*.jl
@@ -14,3 +20,9 @@ tests/cases/*.rs
 tests/cases/*.cpp
 tests/cases/*.kt
 tests/cases/*.nim
+*.json
+*.o
+*.nim.c
+.dart
+*.class
+META-INF
