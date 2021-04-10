@@ -1,1 +1,3 @@
-|x, y| (x + y);
+fn main() {
+    let myfunc: _ = |x, y| (x + y);
+}

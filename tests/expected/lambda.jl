@@ -1,1 +1,4 @@
-(x, y) -> (x + y)
+
+function main()
+    myfunc = (x, y) -> (x + y)
+end

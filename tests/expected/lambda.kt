@@ -1,1 +1,4 @@
-{ x, y -> (x + y) }
+
+fun main() {
+    myfunc = { x, y -> (x + y) } 
+}

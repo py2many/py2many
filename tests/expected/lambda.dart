@@ -1,1 +1,5 @@
-{ x, y -> (x + y) };
+
+ main() {
+var myfunc = { x, y -> (x + y) };}
+
+
