@@ -90,6 +90,18 @@ def go_settings(args):
     return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
 
 
+def _get_all_settings(args):
+    return {
+        "cpp": cpp_settings(args),
+        "rust": rust_settings(args),
+        "julia": julia_settings(args),
+        "kotlin": kotlin_settings(args),
+        "nim": nim_settings(args),
+        "dart": dart_settings(args),
+        "go": go_settings(args),
+    }
+
+
 def _process_once(settings, filename, outdir):
     output_path = outdir / (filename.stem + settings.ext)
     print(f"{filename}...{output_path}")
