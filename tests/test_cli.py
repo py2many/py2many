@@ -26,9 +26,10 @@ class CodeGeneratorTests(unittest.TestCase):
     @foreach(TEST_CASES)
     def test_cli(self, case, lang):
         settings = self.SETTINGS[lang]
-        formatter = settings.formatter.split()[0]
-        if not spawn.find_executable(formatter):
-            raise unittest.SkipTest(f"{formatter} not available")
+        if settings.formatter:
+            formatter = settings.formatter.split()[0]
+            if not spawn.find_executable(formatter):
+                raise unittest.SkipTest(f"{formatter} not available")
         ext = settings.ext
         sys.argv = ["test", f"--{lang}=1", f"cases/{case}.py"]
         try:
