@@ -269,6 +269,9 @@ class RustTranspiler(CLikeTranspiler):
                 node, use_parens=False
             )
 
+    def visit_While(self, node):
+        return super().visit_While(node, use_parens=False)
+
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):

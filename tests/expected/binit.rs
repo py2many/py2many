@@ -3,7 +3,7 @@ use std::collections;
 fn bisect_right(data: Vec<i32>, item: i32) -> i32 {
     let mut low: i32 = 0;
     let mut high: _ = data.len();
-    while (low < high) {
+    while low < high {
         let middle: _ = i32::from(((low + high) / 2));
         if item < data[middle] {
             high = middle;
