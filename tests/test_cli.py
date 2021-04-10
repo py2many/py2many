@@ -9,6 +9,8 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import main, _get_all_settings
 
+KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
+
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
@@ -25,6 +27,7 @@ class CodeGeneratorTests(unittest.TestCase):
     ]
     TESTS_DIR = Path(__file__).parent
     SETTINGS = _get_all_settings(Mock(indent=4))
+    maxDiff = None
 
     def setUp(self):
         os.chdir(self.TESTS_DIR)
@@ -47,7 +50,8 @@ class CodeGeneratorTests(unittest.TestCase):
                     self.assertEqual(f2.read(), actual.read())
         finally:
             try:
-                os.unlink(f"cases/{case}{ext}")
+                if not KEEP_GENERATED:
+                    os.unlink(f"cases/{case}{ext}")
             except FileNotFoundError:
                 pass
 

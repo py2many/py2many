@@ -9,3 +9,10 @@
 build
 .DS_Store
 .dart/
+tests/cases/*.dart
+tests/cases/*.go
+tests/cases/*.jl
+tests/cases/*.rs
+tests/cases/*.cpp
+tests/cases/*.kt
+tests/cases/*.nim
