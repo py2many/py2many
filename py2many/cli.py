@@ -145,7 +145,6 @@ def main():
             print(f"Writing to: {outdir}")
             _process_once(settings, source, outdir)
         else:
-            basename = os.path.basename(filename)
             if args.outdir is None:
                 outdir = source.parent / f"{source.name}-py2many"
 
