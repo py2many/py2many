@@ -90,6 +90,16 @@ def go_settings(args):
     return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
 
 
+def _process_once(settings, filename, outdir):
+    output_path = outdir / (filename.stem + settings.ext)
+    print(f"{filename}...{output_path}")
+    with open(filename) as f:
+        source_data = f.read()
+    with open(output_path, "w") as f:
+        f.write(transpile(source_data, settings.transpiler))
+    os.system(f"{settings.formatter} {output_path}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
@@ -131,11 +141,36 @@ def main():
             outdir = source.parent
         else:
             outdir = pathlib.Path(args.outdir)
-        print(f"Writing to: {outdir}")
-        output_path = outdir / (source.stem + settings.ext)
-        print(f"{filename}...{output_path}")
-        with open(output_path, "w") as f:
-            source_data = open(source).read()
-            f.write(transpile(source_data, settings.transpiler))
-        os.system(f"{settings.formatter} {output_path}")
-        print()
+        if source.is_file():
+            print(f"Writing to: {outdir}")
+            _process_once(settings, source, outdir)
+        else:
+            basename = os.path.basename(filename)
+            if args.outdir is None:
+                outdir = source.parent / f"{source.name}-py2many"
+
+            print(f"Transpiling whole directiory to {outdir}:")
+            successful = failures = format_errors = 0
+            for path in source.rglob("*.py"):
+                if path.suffix != ".py":
+                    continue
+                if path.parent.name == "__pycache__":
+                    continue
+
+                relative_path = path.relative_to(source)
+                target_path = outdir / relative_path
+                target_dir = target_path.parent
+                os.makedirs(target_dir, exist_ok=True)
+
+                try:
+                    _process_once(settings, path, target_dir)
+                    successful += 1
+                except Exception as e:
+                    failures += 1
+                    print(f"Error: Could not transpile: {path}")
+                    print(f"Due to: {e}")
+
+            print("\nFinished!")
+            print(f"Successful: {successful}")
+            print(f"Failed to convert: {failures}")
+            print()
