@@ -41,9 +41,6 @@ def transpile(source):
 
 
 class DartTranspiler(CLikeTranspiler):
-    def __init__(self):
-        super().__init__()
-        self._headers = set([])
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
