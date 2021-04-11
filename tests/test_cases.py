@@ -17,6 +17,7 @@ class CodeGeneratorTests(unittest.TestCase):
         "lambda",
         "int_enum",
         "str_enum",
+        "print",
     ]
     TESTS_DIR = Path(__file__).parent
 
