@@ -11,6 +11,7 @@ from unittest_expander import foreach, expand
 from py2many.cli import main, _get_all_settings
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
+UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 COMPILERS = {
     # cpp is disabled due to https://github.com/adsharma/py2many/issues/24
     # "cpp": ["clang", "-std=c++14"],
@@ -66,7 +67,7 @@ class CodeGeneratorTests(unittest.TestCase):
             main()
             with open(f"cases/{case}{ext}") as actual:
                 generated = actual.read()
-                if os.path.exists(f"expected/{case}{ext}"):
+                if os.path.exists(f"expected/{case}{ext}") and not UPDATE_EXPECTED:
                     with open(f"expected/{case}{ext}") as f2:
                         self.assertEqual(f2.read(), generated)
 
@@ -82,7 +83,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
 
-                if not os.path.exists(f"expected/{case}{ext}"):
+                if UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
                     with open(f"expected/{case}{ext}", "w") as f:
                         f.write(generated)
         finally:
