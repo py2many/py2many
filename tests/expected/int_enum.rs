@@ -1,3 +1,4 @@
+// cargo-deps: flagset
 use flagset::flags;
 use flagset::FlagSet;
 use std::os::raw::c_int;
