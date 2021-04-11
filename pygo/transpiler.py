@@ -43,8 +43,6 @@ def transpile(source):
 class GoTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._headers = set([])
-        self._usings = set([])
 
     def headers(self, meta):
         return "\n".join(self._headers)
