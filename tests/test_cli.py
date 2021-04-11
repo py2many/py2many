@@ -46,9 +46,15 @@ class CodeGeneratorTests(unittest.TestCase):
         sys.argv = ["test", f"--{lang}=1", f"cases/{case}.py"]
         try:
             main()
-            with open(f"expected/{case}{ext}") as f2:
-                with open(f"cases/{case}{ext}") as actual:
-                    self.assertEqual(f2.read(), actual.read())
+            with open(f"cases/{case}{ext}") as actual:
+                generated = actual.read()
+                if os.path.exists(f"expected/{case}{ext}"):
+                    with open(f"expected/{case}{ext}") as f2:
+                        self.assertEqual(f2.read(), generated)
+
+                if not os.path.exists(f"expected/{case}{ext}"):
+                    with open(f"expected/{case}{ext}", "w") as f:
+                        f.write(generated)
         finally:
             try:
                 if not KEEP_GENERATED:
