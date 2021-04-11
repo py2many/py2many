@@ -153,8 +153,8 @@ class GoTranspiler(CLikeTranspiler):
         for n in node.args:
             placeholders.append("%v ")
         self._usings.add("fmt")
-        return 'fmt.Printf("{0}\n",{1})'.format(
-            "".join(placeholders), ", ".join(values)
+        return r'fmt.Printf("{0}\\n",{1})'.format(
+            "".join(placeholders), ", ".join(vargs)
         )
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
