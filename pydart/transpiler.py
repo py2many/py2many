@@ -42,6 +42,11 @@ def transpile(source):
 
 class DartTranspiler(CLikeTranspiler):
 
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"import '{mod}';" for mod in usings)
+        return f"// @dart=2.9\n{uses}" if uses else ""
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -145,10 +150,10 @@ class DartTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("%v ")
-        self._usings.add("fmt")
-        return 'fmt.Printf("{0}\n",{1})'.format(
-            "".join(placeholders), ", ".join(values)
+            placeholders.append("%s ")
+        self._usings.add("package:sprintf/sprintf.dart")
+        return r'print(sprintf("{0}\n", [{1}]))'.format(
+            "".join(placeholders), ", ".join(vargs)
         )
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
