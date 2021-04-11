@@ -145,10 +145,9 @@ class KotlinTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("%v ")
-        self._usings.add("fmt")
-        return 'fmt.Printf("{0}\n",{1})'.format(
-            "".join(placeholders), ", ".join(values)
+            placeholders.append("%s ")
+        return r'println("{0}".format({1}))'.format(
+            "".join(placeholders), ", ".join(vargs)
         )
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
