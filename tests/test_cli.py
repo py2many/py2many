@@ -45,7 +45,7 @@ EXPECTED_COMPILE_FAILURES = [
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    TEST_CASES = ["fib", "rect", "infer", "infer_ops", "binit", "lambda", "int_enum"]
+    TEST_CASES = ["fib", "rect", "infer", "infer_ops", "binit", "lambda", "int_enum", "print"]
     TESTS_DIR = Path(__file__).parent
     SETTINGS = _get_all_settings(Mock(indent=4))
     maxDiff = None
