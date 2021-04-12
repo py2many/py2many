@@ -7,3 +7,5 @@
 .ropeproject
 *.egg-info
 build
+.DS_Store
+.dart/
