@@ -1,12 +1,13 @@
 import sys
 import ast
 from .clike import CLikeTranspiler
-from .tracer import decltype, is_list, is_builtin_import, defined_before
+from .tracer import decltype
 
 from py2many.context import add_variable_context, add_list_calls
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
 from py2many.analysis import add_imports, is_void_function, get_id
+from py2many.tracer import is_list, is_builtin_import, defined_before
 
 
 def transpile(source, headers=False, testing=False):
