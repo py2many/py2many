@@ -55,7 +55,7 @@ def transpile(source, transpiler):
 class LanguageSettings:
     transpiler: CLikeTranspiler
     ext: str
-    formatter: str
+    formatter: Optional[str] = None
     indent: Optional[int] = None
 
 
@@ -79,7 +79,7 @@ def nim_settings(args):
     nim_args = {}
     if args.indent is not None:
         nim_args["indent"] = args.indent
-    return LanguageSettings(NimTranspiler(**nim_args), ".nim", "/bin/true")
+    return LanguageSettings(NimTranspiler(**nim_args), ".nim", None)
 
 
 def dart_settings(args):
@@ -90,6 +90,18 @@ def go_settings(args):
     return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
 
 
+def _get_all_settings(args):
+    return {
+        "cpp": cpp_settings(args),
+        "rust": rust_settings(args),
+        "julia": julia_settings(args),
+        "kotlin": kotlin_settings(args),
+        "nim": nim_settings(args),
+        "dart": dart_settings(args),
+        "go": go_settings(args),
+    }
+
+
 def _process_once(settings, filename, outdir):
     output_path = outdir / (filename.stem + settings.ext)
     print(f"{filename}...{output_path}")
@@ -97,7 +109,8 @@ def _process_once(settings, filename, outdir):
         source_data = f.read()
     with open(output_path, "w") as f:
         f.write(transpile(source_data, settings.transpiler))
-    os.system(f"{settings.formatter} {output_path}")
+    if settings.formatter:
+        os.system(f"{settings.formatter} {output_path}")
 
 
 def main():
@@ -141,6 +154,7 @@ def main():
             outdir = source.parent
         else:
             outdir = pathlib.Path(args.outdir)
+
         if source.is_file():
             print(f"Writing to: {outdir}")
             _process_once(settings, source, outdir)
