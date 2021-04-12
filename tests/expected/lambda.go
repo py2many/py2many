@@ -1,4 +1,4 @@
-package todo_naming
+package main
 
 func main() {
 	myfunc := func(x T, y T) int { (x + y) }

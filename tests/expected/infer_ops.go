@@ -1,4 +1,4 @@
-package todo_naming
+package main
 
 func foo() {
 	var a int = 10

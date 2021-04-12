@@ -41,7 +41,7 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(self._headers)
 
     def usings(self):
-        buf = "package todo_naming\n\n"
+        buf = "package main\n\n"  # TODO naming
         if self._usings:
             buf += "import (\n"
             buf += ",\n".join([f'"{using}"' for using in self._usings])

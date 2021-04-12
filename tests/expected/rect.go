@@ -1,4 +1,4 @@
-package todo_naming
+package main
 
 type Rectangle struct {
 	height int

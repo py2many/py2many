@@ -1,4 +1,4 @@
-package todo_naming
+package main
 
 func bisect_right(data []int, item int) int {
 	var low int = 0

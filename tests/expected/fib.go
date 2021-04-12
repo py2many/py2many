@@ -1,4 +1,4 @@
-package todo_naming
+package main
 
 func fib(i int) int {
 	if i == 0 || i == 1 {
