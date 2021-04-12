@@ -298,14 +298,18 @@ class CppTranspiler(CLikeTranspiler):
             raise ValueError("Cannot create vector without elements")
 
     def visit_Subscript(self, node):
+        value = self.visit(node.value)
         if isinstance(node.slice, ast.Ellipsis):
             raise NotImplementedError("Ellipsis not supported")
 
-        if not isinstance(node.slice, ast.Index):
-            raise NotImplementedError("Advanced Slicing not supported")
+        if sys.version_info < (3, 9, 0):
+            if not isinstance(node.slice, ast.Index):
+                raise NotImplementedError("Advanced Slicing not supported")
+            slice_value = node.slice.value
+        else:
+            slice_value = node.slice
 
-        value = self.visit(node.value)
-        return "{0}[{1}]".format(value, self.visit(node.slice.value))
+        return "{0}[{1}]".format(value, self.visit(slice_value))
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
