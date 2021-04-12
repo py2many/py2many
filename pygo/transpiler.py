@@ -325,7 +325,6 @@ class GoTranspiler(CLikeTranspiler):
     def visit_IntEnum(self, node):
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         ret = f"type {node.name} int\n\n"
         fields = []
@@ -341,7 +340,6 @@ class GoTranspiler(CLikeTranspiler):
     def visit_IntFlag(self, node):
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
         ret = f"type {node.name} int\n\n"
         fields = []
         for i, (member, var) in enumerate(extractor.class_assignments.items()):
