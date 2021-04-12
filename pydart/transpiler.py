@@ -1,22 +1,20 @@
-import sys
 import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import (
-    decltype,
     is_list,
-    is_builtin_import,
     defined_before,
     is_class_or_module,
     is_self_arg,
 )
 
-from py2many.scope import add_scope_context
+from py2many.analysis import add_imports, get_id, is_void_function
 from py2many.annotation_transformer import add_annotation_flags
-from py2many.mutability_transformer import detect_mutable_vars
 from py2many.context import add_variable_context, add_list_calls
-from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.mutability_transformer import detect_mutable_vars
+from py2many.scope import add_scope_context
+
 from typing import Optional, List
 
 container_types = {"List": "Array", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}

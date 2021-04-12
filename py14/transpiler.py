@@ -1,5 +1,6 @@
-import sys
 import ast
+import sys
+
 from .clike import CLikeTranspiler
 from .tracer import decltype
 

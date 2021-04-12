@@ -1,12 +1,9 @@
-import sys
 import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import (
-    decltype,
     is_list,
-    is_builtin_import,
     defined_before,
     is_class_or_module,
     is_self_arg,

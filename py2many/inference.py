@@ -1,11 +1,11 @@
 import ast
 import copy
-import re
 
-from dataclasses import dataclass
-from py2many.analysis import get_id
-from ctypes import c_int, c_int8, c_int16, c_int32, c_int64
+from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+from dataclasses import dataclass
+
+from py2many.analysis import get_id
 
 
 @dataclass

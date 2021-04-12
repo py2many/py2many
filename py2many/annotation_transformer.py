@@ -1,7 +1,5 @@
 import ast
 
-from py2many.analysis import get_id
-
 
 def add_annotation_flags(node):
     return AnnotationTransformer().visit(node)

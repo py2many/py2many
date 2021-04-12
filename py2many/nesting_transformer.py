@@ -1,7 +1,5 @@
 import ast
 
-from py2many.analysis import get_id
-
 
 def detect_nesting_levels(node):
     return NestingTransformer().visit(node)
