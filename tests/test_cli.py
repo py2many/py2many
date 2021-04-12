@@ -13,15 +13,29 @@ from py2many.cli import main, _get_all_settings
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 COMPILERS = {
-    # cpp is disabled due to https://github.com/adsharma/py2many/issues/24
-    # "cpp": ["clang", "-std=c++14"],
-    "dart": ["dart"],
+    "cpp": ["clang", "-std=c++14"],
+    "dart": ["dart", "compile", "exe"],
     "go": ["go", "tool", "compile"],
-    "julia": ["julia"],
-    "kotlin": ["kotlinc", "-p", "library"],
+    "julia": None,
+    "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["rust-script"],
+    "rust": ["cargo", "script", "--build-only", "--debug"],
 }
+INVOKER = {
+    # "dart": ["dart"],
+    "go": ["go", "run"],
+    "julia": ["julia", "--compiled-modules=yes"],
+    "kotlin": ["kscript"],
+    "rust": ["cargo", "script"],
+}
+
+TESTS_DIR = Path(__file__).parent
+TEST_CASES = [
+    item.stem
+    for item in (TESTS_DIR / "cases").glob("*.py")
+    if not item.stem.startswith("test_")
+]
+
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
@@ -40,22 +54,25 @@ EXPECTED_COMPILE_FAILURES = [
     "lambda.nim",  # https://github.com/adsharma/py2many/issues/27
     "lambda.rs",  # https://github.com/adsharma/py2many/issues/15
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
-]
+] + [f"{case}.cpp" for case in TEST_CASES]
+# See https://github.com/adsharma/py2many/issues/24 for cpp failures
+
+
+def has_main(filename):
+    with open(filename) as f:
+        lines = f.readlines()
+    return bool(
+        [line in line for line in lines if "def main" in line or "__main__" in line]
+    )
 
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    TESTS_DIR = Path(__file__).parent
-    TEST_CASES = [
-        item.stem
-        for item in (TESTS_DIR / "cases").glob("*.py")
-        if not item.stem.startswith("test_")
-    ]
     SETTINGS = _get_all_settings(Mock(indent=4))
     maxDiff = None
 
     def setUp(self):
-        os.chdir(self.TESTS_DIR)
+        os.chdir(TESTS_DIR)
 
     @foreach(SETTINGS.keys())
     @foreach(TEST_CASES)
@@ -71,7 +88,21 @@ class CodeGeneratorTests(unittest.TestCase):
         if settings.formatter:
             if not spawn.find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
-        sys.argv = ["test", f"--{lang}=1", f"cases/{case}.py"]
+
+        if ext == ".kt":
+            class_name = str(case.title()) + "Kt"
+            exe = TESTS_DIR / (class_name + ".class")
+        if ext == ".dart":
+            exe = TESTS_DIR / "cases" / f"{case}.exe"
+        else:
+            exe = TESTS_DIR / "cases" / f"{case}"
+        exe.unlink(missing_ok=True)
+
+        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
+        is_script = has_main(case_filename)
+        sys.argv = ["test", f"--{lang}=1", str(case_filename)]
+
         try:
             main()
             with open(f"cases/{case}{ext}") as actual:
@@ -79,18 +110,19 @@ class CodeGeneratorTests(unittest.TestCase):
                 if os.path.exists(f"expected/{case}{ext}") and not UPDATE_EXPECTED:
                     with open(f"expected/{case}{ext}") as f2:
                         self.assertEqual(f2.read(), generated)
+                        print("expected = generated")
 
-            if (
-                ext == ".dart"
-                and "void main() {" not in generated
-                and "main() {" not in generated
-            ):
+            if ext == ".dart" and not is_script:
                 # See https://github.com/adsharma/py2many/issues/25
                 raise unittest.SkipTest(f"{case}{ext} doesnt have a main")
 
             expect_failure = f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
-            compiler = COMPILERS.get(lang)
-            if compiler and spawn.find_executable(compiler[0]):
+            compiler = COMPILERS[lang]
+            if ext == ".rs" and not is_script:
+                compiler = ["rust-script"]
+            if compiler:
+                if not spawn.find_executable(compiler[0]):
+                    raise unittest.SkipTest(f"{compiler[0]} not available")
                 proc = run([*compiler, f"cases/{case}{ext}"], check=not expect_failure)
 
                 assert not expect_failure or proc.returncode != 0
@@ -100,12 +132,26 @@ class CodeGeneratorTests(unittest.TestCase):
                 if UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
                     with open(f"expected/{case}{ext}", "w") as f:
                         f.write(generated)
+
+            if exe.exists() and os.access(exe, os.X_OK):
+                run([exe], check=True)
+            elif ext in [".go", ".rs", ".kt"] and not is_script:
+                raise unittest.SkipTest(f"{case}{ext} needs main() to be invoked")
+            elif INVOKER.get(lang):
+                invoker = INVOKER.get(lang)
+                if not spawn.find_executable(invoker[0]):
+                    raise unittest.SkipTest(f"{invoker[0]} not available")
+                proc = run([*invoker, case_output], check=not expect_failure)
+
+                assert not expect_failure or proc.returncode != 0
+                if proc.returncode:
+                    raise unittest.SkipTest(f"{case}{ext} doesnt compile")
+            else:
+                raise RuntimeError("Compiled output not detected")
         finally:
-            try:
-                if not KEEP_GENERATED:
-                    os.unlink(f"cases/{case}{ext}")
-            except FileNotFoundError:
-                pass
+            if not KEEP_GENERATED:
+                case_output.unlink(missing_ok=True)
+            exe.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
