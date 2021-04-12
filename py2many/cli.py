@@ -115,7 +115,7 @@ def _process_once(settings, filename, outdir):
     with open(output_path, "w") as f:
         f.write(transpile(source_data, settings.transpiler))
     if settings.formatter:
-        if subprocess.call([*settings.formatter, f"{output_path}"]):
+        if subprocess.call([*settings.formatter, output_path]):
             print(f"Error: Could not reformat: {output_path}")
             return False
     return True
