@@ -362,7 +362,6 @@ class RustTranspiler(CLikeTranspiler):
         self._usings.add("std::os::raw::c_int")
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         for member, var in extractor.class_assignments.items():

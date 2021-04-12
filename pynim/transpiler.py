@@ -322,7 +322,6 @@ class NimTranspiler(CLikeTranspiler):
     def visit_IntEnum(self, node):
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         for member, var in extractor.class_assignments.items():
@@ -336,7 +335,6 @@ class NimTranspiler(CLikeTranspiler):
     def visit_IntFlag(self, node):
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         for member, var in extractor.class_assignments.items():
