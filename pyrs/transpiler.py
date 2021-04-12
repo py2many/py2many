@@ -329,10 +329,9 @@ class RustTranspiler(CLikeTranspiler):
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
 
-    def _visit_Enum(self, node):
+    def visit_IntEnum(self, node):
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         for member, var in extractor.class_assignments.items():
@@ -343,13 +342,22 @@ class RustTranspiler(CLikeTranspiler):
         fields = "\n".join(fields)
         return f"enum {node.name} {{\n{fields}\n}}\n\n"
 
-    def visit_IntEnum(self, node):
-        return self._visit_Enum(node)
-
     def visit_StrEnum(self, node):
+        self._usings.add("strum")
         self._usings.add("strum_macros::EnumString")
-        body = self._visit_Enum(node)
-        return f"#[derive(Debug, PartialEq, EnumString)]\n{body}"
+
+        extractor = DeclarationExtractor(RustTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"#[strum(serialize = {var})]{member},")
+        fields = "\n".join(fields)
+
+        return f"#[derive(Debug, PartialEq, EnumString)]\nenum {node.name} {{\n{fields}\n}}\n\n"
 
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
