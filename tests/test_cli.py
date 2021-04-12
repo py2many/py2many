@@ -70,9 +70,8 @@ class CodeGeneratorTests(unittest.TestCase):
         ):
             raise unittest.SkipTest(f"expected/{case}{ext} not found")
         if settings.formatter:
-            formatter = settings.formatter.split()[0]
-            if not spawn.find_executable(formatter):
-                raise unittest.SkipTest(f"{formatter} not available")
+            if not spawn.find_executable(settings.formatter[0]):
+                raise unittest.SkipTest(f"{settings.formatter[0]} not available")
         sys.argv = ["test", f"--{lang}=1", f"cases/{case}.py"]
         try:
             main()
