@@ -2,9 +2,10 @@ import argparse
 import ast
 import os
 import pathlib
+import subprocess
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 from .analysis import add_imports
 from .clike import CLikeTranspiler
@@ -55,24 +56,24 @@ def transpile(source, transpiler):
 class LanguageSettings:
     transpiler: CLikeTranspiler
     ext: str
-    formatter: Optional[str] = None
+    formatter: Optional[List[str]] = None
     indent: Optional[int] = None
 
 
 def cpp_settings(args):
-    return LanguageSettings(CppTranspiler(), ".cpp", "clang-format -i")
+    return LanguageSettings(CppTranspiler(), ".cpp", ["clang-format", "-i"])
 
 
 def rust_settings(args):
-    return LanguageSettings(RustTranspiler(), ".rs", "rustfmt")
+    return LanguageSettings(RustTranspiler(), ".rs", ["rustfmt"])
 
 
 def julia_settings(args):
-    return LanguageSettings(JuliaTranspiler(), ".jl", "jlfmt")
+    return LanguageSettings(JuliaTranspiler(), ".jl", ["jlfmt"])
 
 
 def kotlin_settings(args):
-    return LanguageSettings(KotlinTranspiler(), ".kt", "ktlint -F")
+    return LanguageSettings(KotlinTranspiler(), ".kt", ["ktlint", "-F"])
 
 
 def nim_settings(args):
@@ -83,11 +84,11 @@ def nim_settings(args):
 
 
 def dart_settings(args):
-    return LanguageSettings(DartTranspiler(), ".dart", "dart format")
+    return LanguageSettings(DartTranspiler(), ".dart", ["dart", "format"])
 
 
 def go_settings(args):
-    return LanguageSettings(GoTranspiler(), ".go", "gofmt -w")
+    return LanguageSettings(GoTranspiler(), ".go", ["gofmt", "-w"])
 
 
 def _get_all_settings(args):
@@ -103,6 +104,10 @@ def _get_all_settings(args):
 
 
 def _process_once(settings, filename, outdir):
+    """Transpile and reformat.
+
+    Returns False if reformatter failed.
+    """
     output_path = outdir / (filename.stem + settings.ext)
     print(f"{filename}...{output_path}")
     with open(filename) as f:
@@ -110,7 +115,10 @@ def _process_once(settings, filename, outdir):
     with open(output_path, "w") as f:
         f.write(transpile(source_data, settings.transpiler))
     if settings.formatter:
-        os.system(f"{settings.formatter} {output_path}")
+        if subprocess.call([*settings.formatter, f"{output_path}"]):
+            print(f"Error: Could not reformat: {output_path}")
+            return False
+    return True
 
 
 def main():
@@ -176,7 +184,9 @@ def main():
                 os.makedirs(target_dir, exist_ok=True)
 
                 try:
-                    _process_once(settings, path, target_dir)
+                    if _process_once(settings, path, target_dir):
+                        print(f"Error: Could not reformat: {path}")
+                        format_errors += 1
                     successful += 1
                 except Exception as e:
                     failures += 1
@@ -185,5 +195,7 @@ def main():
 
             print("\nFinished!")
             print(f"Successful: {successful}")
+            if format_errors:
+                print(f"Failed to reformat: {format_errors}")
             print(f"Failed to convert: {failures}")
             print()
