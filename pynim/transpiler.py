@@ -350,7 +350,7 @@ class NimTranspiler(CLikeTranspiler):
         fields = "\n".join([self.indent(f, level=2) for f in fields])
         flags = self.indent(f"{node.name}Flags = set[{node.name}]")
         return "\n".join(
-            [f"type", self.indent(f"{node.name} = enum"), f"{fields}", f"{flags}", ""]
+            ["type", self.indent(f"{node.name} = enum"), f"{fields}", f"{flags}", ""]
         )
 
     def visit_alias(self, node):
