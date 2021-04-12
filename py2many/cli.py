@@ -6,13 +6,13 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional
 
+from .analysis import add_imports
 from .clike import CLikeTranspiler
 from .scope import add_scope_context
 from .annotation_transformer import add_annotation_flags
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
 from .context import add_variable_context, add_list_calls
-from .analysis import add_imports, is_void_function, get_id, is_mutable
 from .inference import infer_types
 
 from py14.transpiler import CppTranspiler
