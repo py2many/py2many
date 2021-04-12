@@ -129,12 +129,10 @@ class NimTranspiler(CLikeTranspiler):
             return "{}..{}".format(vargs[0], vargs[1])
         elif len(node.args) == 3:
             return "countup({},{},{}".format(vargs[0], vargs[1], vargs[2])
-        else:
-            raise Exception(
-                "encountered range() call with unknown parameters: range({})".format(
-                    args
-                )
-            )
+
+        raise Exception(
+            "encountered range() call with unknown parameters: range({})".format(vargs)
+        )
 
     def visit_print(self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)

@@ -142,7 +142,7 @@ class GoTranspiler(CLikeTranspiler):
             return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
 
         raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(args)
+            "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
     def visit_print(self, node, vargs: List[str]) -> str:
