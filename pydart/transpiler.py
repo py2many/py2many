@@ -255,7 +255,6 @@ class DartTranspiler(CLikeTranspiler):
 
         var_definitions = []
         for cv in node.common_vars:
-            definition = node.scopes.find(cv)
             typename = "var"
             if hasattr(cv, "annotation"):
                 typename = get_id(cv.annotation)
