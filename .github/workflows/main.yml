@@ -26,3 +26,21 @@ jobs:
 
       - name: Run tox
         run: tox
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install linters
+        run: pip install black pyflakes
+
+      - name: Remove tests/cases/*.py
+        run: rm tests/cases/*.py
+
+      - name: Run black
+        run: black */ *.py
+
+      - name: Run pyflakes
+        run: pyflakes */ *.py
