@@ -1,4 +1,4 @@
 
 fun main() {
-    myfunc = { x, y -> (x + y) } 
+    val myfunc = { x, y -> (x + y) } 
 }

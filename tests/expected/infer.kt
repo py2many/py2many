@@ -1,6 +1,6 @@
 fun foo() {
-a = 10
-b = a}
+val a = 10
+val b = a}
 
 
 fun main() {}

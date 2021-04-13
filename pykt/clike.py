@@ -95,9 +95,15 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         super().__init__()
         self._type_map = kotlin_type_map
 
+    def _check_keyword(self, name):
+        if name in kotlin_keywords:
+            return name + "_", True
+        return name, False
+
     def visit_Name(self, node):
-        if node.id in kotlin_keywords:
-            return node.id + "_"
+        node_id, changed = self._check_keyword(node.id)
+        if changed:
+            return node_id
         return super().visit_Name(node)
 
     def visit_BinOp(self, node):

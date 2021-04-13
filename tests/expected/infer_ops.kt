@@ -1,19 +1,19 @@
 
 fun foo() {
-    a = 10
-    b = 20
-    c1 = (a + b)
-    c2 = (a - b)
-    c3 = (a * b)
-    c4 = (a / b)
-    c5 = -(a)
-    d = 2.0
-    e1 = (a + d)
-    e2 = (a - d)
-    e3 = (a * d)
-    e4 = (a / d)
-    f = -3.0
-    g = -(a)
+    val a = 10
+    val b = 20
+    val c1 = (a + b)
+    val c2 = (a - b)
+    val c3 = (a * b)
+    val c4 = (a / b)
+    val c5 = -(a)
+    val d = 2.0
+    val e1 = (a + d)
+    val e2 = (a - d)
+    val e3 = (a * d)
+    val e4 = (a / d)
+    val f = -3.0
+    val g = -(a)
 }
 
 fun add1(x: c_int8, y: c_int8): c_int16 {

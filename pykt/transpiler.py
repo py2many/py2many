@@ -1,13 +1,9 @@
 import ast
+import re
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-    is_self_arg,
-)
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from py2many.scope import add_scope_context
 from py2many.annotation_transformer import add_annotation_flags
@@ -38,7 +34,6 @@ def transpile(source):
 
 
 class KotlinTranspiler(CLikeTranspiler):
-
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -97,6 +92,7 @@ class KotlinTranspiler(CLikeTranspiler):
         id = get_id(node)
         if id == "self":
             return (None, "self")
+        id, _ = self._check_keyword(id)
         typename = "T"
         if node.annotation:
             typename = self.visit(node.annotation)
@@ -113,9 +109,6 @@ class KotlinTranspiler(CLikeTranspiler):
 
         value_id = self.visit(node.value)
 
-        if is_list(node.value):
-            if node.attr == "append":
-                attr = "push"
         if not value_id:
             value_id = ""
 
@@ -140,12 +133,16 @@ class KotlinTranspiler(CLikeTranspiler):
         )
 
     def visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
-        for n in node.args:
-            placeholders.append("%s ")
-        placeholders_str = "".join(placeholders)
-        vargs_str = ", ".join(vargs)
-        return f'println("{placeholders_str}".format({vargs_str}))'
+        def _format(arg):
+            if arg.isdigit():
+                return arg
+            if re.match(r"'.*'", arg) or re.match(r'".*"', arg):
+                return arg[1:-1]
+            else:
+                return f"${arg}"
+
+        vargs_str = " ".join([f"{_format(arg)}" for arg in vargs])
+        return f'println("{vargs_str}")'
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
@@ -159,9 +156,10 @@ class KotlinTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"i32::from({vargs[0]})",
-            "str": lambda: f"String::from({vargs[0]})",
-            "len": lambda: f"{vargs[0]}.len()",
+            "int": lambda: f"{vargs[0]}.toInt()",
+            "str": lambda: f"{vargs[0]}.toString()",
+            # TODO: strings use .length
+            "len": lambda: f"{vargs[0]}.size",
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
@@ -189,7 +187,7 @@ class KotlinTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
+        buf.append("for ({0} in {1}) {{".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -263,9 +261,9 @@ class KotlinTranspiler(CLikeTranspiler):
             and isinstance(node.op, ast.Mult)
             and isinstance(node.right, ast.Num)
         ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
+            num = self.visit(node.right)
+            elt = self.visit(node.left.elts[0])
+            return f"Array({num}) {{ {elt} }}"
         else:
             return super(KotlinTranspiler, self).visit_BinOp(node)
 
@@ -323,24 +321,14 @@ class KotlinTranspiler(CLikeTranspiler):
         return "use {0}::{{{1}}}".format(module_path, names)
 
     def visit_List(self, node):
-        if len(node.elts) > 0:
-            elements = [self.visit(e) for e in node.elts]
-            return "vec![{0}]".format(", ".join(elements))
-
-        else:
-            return "vec![]"
+        elements = [self.visit(e) for e in node.elts]
+        return f"arrayOf({elements})"
 
     def visit_Dict(self, node):
-        if len(node.keys) > 0:
-            kv_string = []
-            for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
-                value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
-            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
-            return initialization.format(", ".join(kv_string))
-        else:
-            return "HashMap::new()"
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{k} to {v}" for k, v in zip(keys, values)])
+        return f"hashMapOf({kv_pairs})"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -437,28 +425,22 @@ class KotlinTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return "{0} = {1}".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            mut = ""
+            mut = "val "
             if is_mutable(node.scopes, get_id(target)):
                 mut = "var "
-            return "let {0}{1} = vec![{2}];".format(
+            return "{0}{1} = arrayOf({2})".format(
                 mut, self.visit(target), ", ".join(elements)
             )
         else:
-            mut = ""
+            mut = "val "
             if is_mutable(node.scopes, get_id(target)):
                 mut = "var "
 
             target = self.visit(target)
             value = self.visit(node.value)
-
-            if len(node.scopes) == 1:
-                if isinstance(
-                    node.scopes[0], ast.Module
-                ):  # if assignment is module level it must be const
-                    return "const {0}: _ = {1};".format(target, value)
 
             return "{0}{1} = {2}".format(mut, target, value)
 
@@ -468,10 +450,9 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node):
         if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
-        # This handles the case where `raise` is used without
-        # specifying the exception.
-        return "raise!(); //unsupported"
+            exc = self.visit(node.exc)
+            return f"throw Exception({exc})"
+        return f"throw Exception()"
 
     def visit_With(self, node):
         buf = []
@@ -495,42 +476,25 @@ class KotlinTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Await(self, node):
-        return "await!({0})".format(self.visit(node.value))
+        expr = self.visit(node.value)
+        return f"expr.await()"
 
     def visit_AsyncFunctionDef(self, node):
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+        fn = self.visit_FunctionDef(node)
+        return f"suspend {fn}"
 
     def visit_Yield(self, node):
         return "//yield is unimplemented"
 
     def visit_Print(self, node):
-        buf = []
-        for n in node.values:
-            value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
-        return "\n".join(buf)
+        vargs_str = " ".join([f"${arg}" for arg in node.values])
+        return f'println("{vargs_str}")'
 
     def visit_DictComp(self, node):
         return "DictComp /*unimplemented()*/"
 
     def visit_GeneratorExp(self, node):
-        elt = self.visit(node.elt)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
-
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        return "GeneratorExp /*unimplemented()*/"
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node)  # right now they are the same
@@ -542,19 +506,11 @@ class KotlinTranspiler(CLikeTranspiler):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_Set(self, node):
-        elts = []
-        for i in range(len(node.elts)):
-            elt = self.visit(node.elts[i])
-            elts.append(elt)
-
-        if elts:
-            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
-            return initialization.format(", ".join(elts))
-        else:
-            return "HashSet::new()"
+        elements = [self.visit(e) for e in node.elts]
+        return f"setOf({elements})"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return "if {0} {{ {1} }} else {{ {2} }}".format(test, body, orelse)
+        return f"if {test} {{ {body} }} else {{ {orelse} }}"

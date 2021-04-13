@@ -18,7 +18,7 @@ COMPILERS = {
     "dart": ["dart"],
     "go": ["go", "tool", "compile"],
     "julia": ["julia"],
-    "kotlin": ["kotlinc"],
+    "kotlin": ["kotlinc", "-p", "library"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["rust-script"],
 }

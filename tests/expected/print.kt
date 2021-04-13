@@ -1,5 +1,5 @@
 fun main() {
-    println("%s ".format(2))
-    println("%s ".format("b"))
-    println("%s %s ".format(2, "b"))
+    println("2")
+    println("b")
+    println("2 b")
 }
