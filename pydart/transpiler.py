@@ -212,7 +212,7 @@ class DartTranspiler(CLikeTranspiler):
             return s
 
     def visit_Str(self, node):
-        return "" + super(DartTranspiler, self).visit_Str(node) + ""
+        return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node):
         bytes_str = "{0}".format(node.s)
@@ -230,7 +230,7 @@ class DartTranspiler(CLikeTranspiler):
                 right, left
             )  # is it even more?
 
-        return super(DartTranspiler, self).visit_Compare(node)
+        return super().visit_Compare(node)
 
     def visit_Name(self, node):
         if node.id == "None":
@@ -246,7 +246,7 @@ class DartTranspiler(CLikeTranspiler):
         elif node.value is None:
             return "None"
         else:
-            return super(DartTranspiler, self).visit_NameConstant(node)
+            return super().visit_NameConstant(node)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -279,7 +279,7 @@ class DartTranspiler(CLikeTranspiler):
             else:
                 return "-({0})".format(self.visit(node.operand))
         else:
-            return super(DartTranspiler, self).visit_UnaryOp(node)
+            return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node):
         if (
@@ -291,7 +291,7 @@ class DartTranspiler(CLikeTranspiler):
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
         else:
-            return super(DartTranspiler, self).visit_BinOp(node)
+            return super().visit_BinOp(node)
 
     def visit_Module(self, node):
         buf = []

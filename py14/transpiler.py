@@ -209,13 +209,13 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
-        return "std::string {" + super(CppTranspiler, self).visit_Str(node) + "}"
+        return "std::string {" + super().visit_Str(node) + "}"
 
     def visit_Name(self, node):
         if node.id == "None":
             return "nullptr"
         else:
-            return super(CppTranspiler, self).visit_Name(node)
+            return super().visit_Name(node)
 
     def visit_Constant(self, node):
         if node.value is True:
@@ -225,7 +225,7 @@ class CppTranspiler(CLikeTranspiler):
         elif isinstance(node.value, str):
             return self.visit_Str(node)
         else:
-            return super(CppTranspiler, self).visit_Constant(node)
+            return super().visit_Constant(node)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -247,7 +247,7 @@ class CppTranspiler(CLikeTranspiler):
             buf.append("}")
             return "\n".join(buf)
         else:
-            return "".join(var_definitions) + super(CppTranspiler, self).visit_If(node)
+            return "".join(var_definitions) + super().visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -257,7 +257,7 @@ class CppTranspiler(CLikeTranspiler):
             else:
                 return "-({0})".format(self.visit(node.operand))
         else:
-            return super(CppTranspiler, self).visit_UnaryOp(node)
+            return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node):
         if (
@@ -269,7 +269,7 @@ class CppTranspiler(CLikeTranspiler):
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
         else:
-            return super(CppTranspiler, self).visit_BinOp(node)
+            return super().visit_BinOp(node)
 
     def visit_Module(self, node):
         buf = [self.visit(b) for b in node.body]
