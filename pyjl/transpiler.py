@@ -2,17 +2,13 @@ import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-)
+from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.scope import add_scope_context
 from py2many.annotation_transformer import add_annotation_flags
 from py2many.mutability_transformer import detect_mutable_vars
 from py2many.context import add_variable_context, add_list_calls
-from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.analysis import add_imports, is_void_function, get_id
 from typing import Optional, List
 
 container_types = {"List": "Array", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
@@ -340,10 +336,10 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "vec![{0}]".format(", ".join(elements))
+            return "[{0}]".format(", ".join(elements))
 
         else:
-            return "vec![]"
+            return "[]"
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:
@@ -461,10 +457,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0} = {1}".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            mut = ""
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "mutable "
-            return "{1} = [{2}]".format(mut, self.visit(target), ", ".join(elements))
+            return "{0} = [{1}]".format(self.visit(target), ", ".join(elements))
         else:
             target = self.visit(target)
             value = self.visit(node.value)
