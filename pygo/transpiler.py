@@ -456,7 +456,7 @@ class GoTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self.visit(node.annotation)
         val = self.visit(node.value)
-        return f"var {target} {type_str} := {2}"
+        return f"var {target} {type_str} = {val}"
 
     def visit_Assign(self, node):
         target = node.targets[0]
