@@ -93,7 +93,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit(self, node):
         with self.enter_scope(node):
-            return super(VariableTransformer, self).visit(node)
+            return super().visit(node)
 
     def visit_Assign(self, node):
         for target in node.targets:

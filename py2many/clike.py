@@ -58,7 +58,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         if type(node) in symbols:
             return c_symbol(node)
         else:
-            return super(CLikeTranspiler, self).visit(node)
+            return super().visit(node)
 
     def visit_Name(self, node):
         if node.id in self.builtin_constants:

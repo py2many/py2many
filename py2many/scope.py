@@ -83,4 +83,4 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
     def visit(self, node):
         with self.enter_scope(node):
             node.scopes = ScopeList(self.scopes)
-            return super(ScopeTransformer, self).visit(node)
+            return super().visit(node)

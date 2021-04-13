@@ -198,7 +198,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return self.visit(node.value)
 
     def visit_Str(self, node):
-        return "" + super(JuliaTranspiler, self).visit_Str(node) + ""
+        return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node):
         bytes_str = "{0}".format(node.s)
@@ -216,13 +216,13 @@ class JuliaTranspiler(CLikeTranspiler):
                 right, left
             )  # is it even more?
 
-        return super(JuliaTranspiler, self).visit_Compare(node)
+        return super().visit_Compare(node)
 
     def visit_Name(self, node):
         if node.id == "None":
             return "None"
         else:
-            return super(JuliaTranspiler, self).visit_Name(node)
+            return super().visit_Name(node)
 
     def visit_NameConstant(self, node):
         if node.value is True:
@@ -232,7 +232,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is None:
             return "None"
         else:
-            return super(JuliaTranspiler, self).visit_NameConstant(node)
+            return super().visit_NameConstant(node)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -275,7 +275,7 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 return "-({0})".format(self.visit(node.operand))
         else:
-            return super(JuliaTranspiler, self).visit_UnaryOp(node)
+            return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node):
         if (
@@ -287,7 +287,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
         else:
-            return super(JuliaTranspiler, self).visit_BinOp(node)
+            return super().visit_BinOp(node)
 
     def visit_Module(self, node):
         buf = []
