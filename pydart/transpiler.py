@@ -39,7 +39,6 @@ def transpile(source):
 
 
 class DartTranspiler(CLikeTranspiler):
-
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"import '{mod}';" for mod in usings)

@@ -131,14 +131,26 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
-        left_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index(left_id) if left_id in self.FIXED_WIDTH_INTS_NAME else -1
-        right_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index(right_id) if right_id in self.FIXED_WIDTH_INTS_NAME else -1
+        left_idx = (
+            self.FIXED_WIDTH_INTS_NAME_LIST.index(left_id)
+            if left_id in self.FIXED_WIDTH_INTS_NAME
+            else -1
+        )
+        right_idx = (
+            self.FIXED_WIDTH_INTS_NAME_LIST.index(right_id)
+            if right_id in self.FIXED_WIDTH_INTS_NAME
+            else -1
+        )
         max_idx = max(left_idx, right_idx)
         cint64_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index("c_int64")
         if widening_op:
-            if max_idx not in {-1, cint64_idx, len(self.FIXED_WIDTH_INTS_NAME_LIST)-1}:
+            if max_idx not in {
+                -1,
+                cint64_idx,
+                len(self.FIXED_WIDTH_INTS_NAME_LIST) - 1,
+            }:
                 # i8 + i8 => i16 for example
-                return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx+1]
+                return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx + 1]
         if left_id == "float" or right_id == "float":
             return "float"
         return left_id if left_idx > right_idx else right_id
