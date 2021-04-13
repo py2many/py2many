@@ -13,16 +13,47 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - macos-10.15
+          - windows-2019
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
+      - uses: dart-lang/setup-dart@v1
 
       - name: Install tox
-        run: pip install tox
+        run: pip3 install tox
 
-      - name: Install rust-script
-        run: cargo install rust-script
+      - name: Install ${{ runner.os }} dependencies.
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+              curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
+              chmod a+x ktlint
+              sudo mv ktlint /usr/local/bin/
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+              brew install kscript ktlint
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+              choco install zip curl
+          fi
+          dart pub global activate stagehand
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          sdk install kscript
+
+      - name: Install dart sprintf
+        shell: bash
+        run: |
+          (cd tests && dart pub global run stagehand:stagehand --override package-simple && dart pub add sprintf)
+
+      - name: Install rust-script and cargo-script
+        run: cargo install rust-script cargo-script
 
       - name: Run tox
         run: tox
