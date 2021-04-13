@@ -102,7 +102,9 @@ def test_assign():
 def test_function_with_return():
     source = parse("def fun(x):", "   return x")
     cpp = transpile(source)
-    assert cpp == parse("template <typename T1>", "auto fun(T1 x) {", "return x;", "}\n")
+    assert cpp == parse(
+        "template <typename T1>", "auto fun(T1 x) {", "return x;", "}\n"
+    )
 
 
 def test_void_function():

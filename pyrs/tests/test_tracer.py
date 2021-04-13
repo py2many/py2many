@@ -4,6 +4,7 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.scope import add_scope_context
 from py2many.tracer import is_list, is_recursive, value_expr, value_type
 
+
 def parse(*args):
     source = ast.parse("\n".join(args))
     add_variable_context(source)
