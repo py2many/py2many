@@ -38,7 +38,7 @@ jobs:
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install kscript ktlint
+              brew install clang-format kscript ktlint
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl
           fi
