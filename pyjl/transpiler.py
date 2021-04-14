@@ -37,6 +37,9 @@ class JuliaTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set([])
 
+    def comment(self, text):
+        return f"# {text}"
+
     def visit_Constant(self, node):
         if node.value is True:
             return "true"

@@ -6,7 +6,6 @@ symbols = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "/*pass*/",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",
@@ -54,7 +53,12 @@ class CLikeTranspiler(ast.NodeVisitor):
     def usings(self):
         return ""
 
+    def comment(self, text):
+        return f"/* {text} */"
+
     def visit(self, node):
+        if type(node) == ast.Pass:
+            return self.comment("pass")
         if type(node) in symbols:
             return c_symbol(node)
         else:
