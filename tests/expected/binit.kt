@@ -16,7 +16,7 @@ fun bisect_right(data_: Array<Int>, item: Int): Int {
 fun bin_it(limits: Array<Int>, data_: Array<Int>): Array<Int> {
     var bins = arrayOf(0)
     for (x in limits) {
-        bins.append(0)
+        bins += 0
     }
     for (d in data_) {
         bins[bisect_right(limits, d)] += 1

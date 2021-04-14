@@ -4,11 +4,7 @@ from typing import Optional, List
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-)
+from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.analysis import add_imports, get_id, is_void_function
 from py2many.annotation_transformer import add_annotation_flags
@@ -174,9 +170,14 @@ class GoTranspiler(CLikeTranspiler):
         fname = self.visit(node.func)
         vargs = []
 
-        if hasattr(node.func, "value") and is_list(node.func.value):
+        if (
+            hasattr(node.func, "value")
+            and is_list(node.func.value)
+            and fname.endswith(".append")
+        ):
             list_name = get_id(node.func.value)
-            fname = f"{list_name} = append"  # TODO: Fix this hack
+            # This is still ugly: creates an assignment for a mutating function call
+            fname = f"{list_name} = append"
             vargs.append(list_name)
 
         if node.args:

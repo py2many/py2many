@@ -24,7 +24,6 @@ COMPILERS = {
 }
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
-    "binit.kt",  # https://github.com/adsharma/py2many/issues/28
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19
     "infer.go",  # https://github.com/adsharma/py2many/issues/23
