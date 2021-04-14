@@ -92,7 +92,7 @@ class CodeGeneratorTests(unittest.TestCase):
         if ext == ".kt":
             class_name = str(case.title()) + "Kt"
             exe = TESTS_DIR / (class_name + ".class")
-        if ext == ".dart":
+        if ext == ".dart" or (ext == ".nim" and sys.platform == "win32"):
             exe = TESTS_DIR / "cases" / f"{case}.exe"
         else:
             exe = TESTS_DIR / "cases" / f"{case}"
