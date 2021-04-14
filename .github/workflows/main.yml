@@ -58,7 +58,12 @@ jobs:
         run: cargo install rust-script cargo-script
 
       - name: Run tox
-        run: tox
+        shell: bash
+        # sdkman init can be replaced with actions setup when the following is fixed
+        # https://github.com/sdkman/sdkman-action/issues/8
+        run: |
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          tox
 
   lint:
     runs-on: ubuntu-latest
