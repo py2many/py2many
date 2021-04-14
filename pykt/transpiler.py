@@ -3,7 +3,7 @@ import re
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
+from py2many.tracer import defined_before, is_class_or_module, is_self_arg
 
 from py2many.scope import add_scope_context
 from py2many.annotation_transformer import add_annotation_flags
@@ -452,7 +452,7 @@ class KotlinTranspiler(CLikeTranspiler):
         if node.exc is not None:
             exc = self.visit(node.exc)
             return f"throw Exception({exc})"
-        return f"throw Exception()"
+        return "throw Exception()"
 
     def visit_With(self, node):
         buf = []
@@ -477,7 +477,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Await(self, node):
         expr = self.visit(node.value)
-        return f"expr.await()"
+        return f"{expr}.await()"
 
     def visit_AsyncFunctionDef(self, node):
         fn = self.visit_FunctionDef(node)
