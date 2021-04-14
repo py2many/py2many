@@ -451,7 +451,8 @@ class GoTranspiler(CLikeTranspiler):
         return body
 
     def visit_Assert(self, node):
-        return "assert!({0})".format(self.visit(node.test))
+        condition = self.visit(node.test)
+        return f"if !({condition}) {{ panic(\"assert\") }}"
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)

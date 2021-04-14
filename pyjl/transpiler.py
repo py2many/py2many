@@ -414,7 +414,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return body
 
     def visit_Assert(self, node):
-        return "assert!({0})".format(self.visit(node.test))
+        return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
