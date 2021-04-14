@@ -402,7 +402,8 @@ class KotlinTranspiler(CLikeTranspiler):
         return body
 
     def visit_Assert(self, node):
-        return "assert!({0})".format(self.visit(node.test))
+        condition = self.visit(node.test)
+        return f"assert({condition})"
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
