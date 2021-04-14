@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
+      - uses: fwilhe2/setup-kotlin@main
+      - uses: jiro4989/setup-nim-action@v1
 
       - name: Install tox
         run: pip3 install tox
