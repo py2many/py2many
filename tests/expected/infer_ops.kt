@@ -16,50 +16,50 @@ fun foo() {
     val g = -(a)
 }
 
-fun add1(x: c_int8, y: c_int8): c_int16 {
+fun add1(x: Byte, y: Byte): Short {
     return (x + y)
 }
 
-fun add2(x: c_int16, y: c_int16): c_int32 {
+fun add2(x: Short, y: Short): Int {
     return (x + y)
 }
 
-fun add3(x: c_int32, y: c_int32): c_int64 {
+fun add3(x: Int, y: Int): Long {
     return (x + y)
 }
 
-fun add4(x: c_int64, y: c_int64): c_int64 {
+fun add4(x: Long, y: Long): Long {
     return (x + y)
 }
 
-fun add5(x: c_uint8, y: c_uint8): c_uint16 {
+fun add5(x: UByte, y: UByte): UShort {
     return (x + y)
 }
 
-fun add6(x: c_uint16, y: c_uint16): c_uint32 {
+fun add6(x: UShort, y: UShort): UInt {
     return (x + y)
 }
 
-fun add7(x: c_uint32, y: c_uint32): c_uint64 {
+fun add7(x: UInt, y: UInt): ULong {
     return (x + y)
 }
 
-fun add8(x: c_uint64, y: c_uint64): c_uint64 {
+fun add8(x: ULong, y: ULong): ULong {
     return (x + y)
 }
 
-fun add9(x: c_int8, y: c_uint16): c_uint32 {
+fun add9(x: Byte, y: UShort): UInt {
     return (x + y)
 }
 
-fun sub(x: c_int8, y: c_int8): c_int8 {
+fun sub(x: Byte, y: Byte): Byte {
     return (x - y)
 }
 
-fun mul(x: c_int8, y: c_int8): c_int16 {
+fun mul(x: Byte, y: Byte): Short {
     return (x * y)
 }
 
-fun fadd(x: c_int8, y: Double): Double {
+fun fadd(x: Byte, y: Double): Double {
     return (x + y)
 }

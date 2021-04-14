@@ -9,6 +9,14 @@ kotlin_type_map = {
     "float": "Double",
     "bytes": "ByteArray",
     "str": "String",
+    "c_int8": "Byte",
+    "c_int16": "Short",
+    "c_int32": "Int",
+    "c_int64": "Long",
+    "c_uint8": "UByte",
+    "c_uint16": "UShort",
+    "c_uint32": "UInt",
+    "c_uint64": "ULong",
 }
 
 # allowed as names in Python but treated as keywords in Kotlin
