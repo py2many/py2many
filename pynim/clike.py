@@ -94,7 +94,7 @@ nim_symbols = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "/*pass*/",
+    ast.Pass: "discard",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",
