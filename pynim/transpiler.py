@@ -135,7 +135,11 @@ class NimTranspiler(CLikeTranspiler):
         )
 
     def visit_print(self, node, vargs: List[str]) -> str:
-        args = ", ".join(vargs)
+        args = []
+        for n in vargs:
+            args.append(n)
+            args.append('" "')
+        args = ", ".join(args[:-1])
         return f"echo {args}"
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
