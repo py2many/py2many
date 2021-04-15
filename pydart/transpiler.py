@@ -2,12 +2,7 @@ import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-    is_self_arg,
-)
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from py2many.analysis import add_imports, get_id, is_void_function
 from py2many.annotation_transformer import add_annotation_flags
@@ -17,7 +12,7 @@ from py2many.scope import add_scope_context
 
 from typing import Optional, List
 
-container_types = {"List": "Array", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
+container_types = {"List": "List", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
 
 
 def transpile(source):
@@ -120,7 +115,7 @@ class DartTranspiler(CLikeTranspiler):
 
         if is_list(node.value):
             if node.attr == "append":
-                attr = "push"
+                attr = "add"
         if not value_id:
             value_id = ""
 
@@ -165,9 +160,9 @@ class DartTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"i32::from({vargs[0]})",
-            "str": lambda: f"String::from({vargs[0]})",
-            "len": lambda: f"{vargs[0]}.len()",
+            "int": lambda: f"{vargs[0]}.toInt()",
+            "str": lambda: f"{vargs[0]}.toString()",
+            "len": lambda: f"{vargs[0]}.length",
         }
 
         if fname in small_dispatch_map:
@@ -196,7 +191,7 @@ class DartTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
+        buf.append("for (final {0} in {1}) {{".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -346,22 +341,16 @@ class DartTranspiler(CLikeTranspiler):
     def visit_List(self, node):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "vec![{0}]".format(", ".join(elements))
+            return "[{0}]".format(", ".join(elements))
 
         else:
-            return "vec![]"
+            return "[]"
 
     def visit_Dict(self, node):
-        if len(node.keys) > 0:
-            kv_string = []
-            for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
-                value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
-            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
-            return initialization.format(", ".join(kv_string))
-        else:
-            return "HashMap::new()"
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{k} : {v}" for k, v in zip(keys, values)])
+        return f"{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -559,16 +548,9 @@ class DartTranspiler(CLikeTranspiler):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_Set(self, node):
-        elts = []
-        for i in range(len(node.elts)):
-            elt = self.visit(node.elts[i])
-            elts.append(elt)
-
-        if elts:
-            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
-            return initialization.format(", ".join(elts))
-        else:
-            return "HashSet::new()"
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"new Set.from([{elements_str}])"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

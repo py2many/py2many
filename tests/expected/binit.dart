@@ -1,28 +1,82 @@
+int bisect_right(List<int> data, int item) {
+  int low = 0;
+  var high = data.length;
+  while (low < high) {
+    var middle = ((low + high) / 2).toInt();
 
-int bisect_right(Array<int> data, int item) {
-int low = 0;
-var high = data.len();
-while (low < high) {
-var middle = i32::from(((low + high)/2));
-
-
-if(item < data[middle]) {
-high = middle;
-} else {
-low = (middle + 1);
+    if (item < data[middle]) {
+      high = middle;
+    } else {
+      low = (middle + 1);
+    }
+  }
+  return low;
 }
+
+List<int> bin_it(List<int> limits, List<int> data) {
+  var bins = [0];
+  for (final _x in limits) {
+    bins.add(0);
+  }
+  for (final d in data) {
+    bins[bisect_right(limits, d)] += 1;
+  }
+  return bins;
 }
-return low;}
 
-
-Array<int> bin_it(Array<int> limits, Array<int> data) {
-var bins = [0];
-for x in limits {
-bins.push(0);
+void main() {
+  var limits = [23, 37, 43, 53, 67, 83];
+  var data = [
+    95,
+    21,
+    94,
+    12,
+    99,
+    4,
+    70,
+    75,
+    83,
+    93,
+    52,
+    80,
+    57,
+    5,
+    53,
+    86,
+    65,
+    17,
+    92,
+    83,
+    71,
+    61,
+    54,
+    58,
+    47,
+    16,
+    8,
+    9,
+    32,
+    84,
+    7,
+    87,
+    46,
+    19,
+    30,
+    37,
+    96,
+    6,
+    98,
+    40,
+    79,
+    97,
+    45,
+    64,
+    60,
+    29,
+    49,
+    36,
+    43,
+    55
+  ];
+  assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13]);
 }
-for d in data {
-bins[bisect_right(limits, d)] += 1;
-}
-return bins;}
-
-
