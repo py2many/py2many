@@ -2,7 +2,7 @@
 import 'package:sprintf/sprintf.dart';
 
 main() {
-  print(sprintf("%s \n", [2]));
-  print(sprintf("%s \n", ["b"]));
-  print(sprintf("%s %s \n", [2, "b"]));
+  print(sprintf("%s", [2]));
+  print(sprintf("%s", ["b"]));
+  print(sprintf("%s %s", [2, "b"]));
 }

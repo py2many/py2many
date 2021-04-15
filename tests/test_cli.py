@@ -22,7 +22,6 @@ COMPILERS = {
     "rust": ["cargo", "script", "--build-only", "--debug"],
 }
 INVOKER = {
-    # "dart": ["dart"],
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
@@ -35,6 +34,7 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
+COMPARABLE = ["hello_world"]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
@@ -102,6 +102,15 @@ class CodeGeneratorTests(unittest.TestCase):
         is_script = has_main(case_filename)
         sys.argv = ["test", f"--{lang}=1", str(case_filename)]
 
+        if case in COMPARABLE:
+            expected_output = run(
+                [sys.executable, str(case_filename)], capture_output=True, check=True
+            ).stdout
+            self.assertTrue(expected_output)
+            expected_output = expected_output.splitlines()
+        else:
+            expected_output = None
+
         try:
             main()
             with open(f"cases/{case}{ext}") as actual:
@@ -132,21 +141,33 @@ class CodeGeneratorTests(unittest.TestCase):
                     with open(f"expected/{case}{ext}", "w") as f:
                         f.write(generated)
 
+            stdout = None
             if exe.exists() and os.access(exe, os.X_OK):
-                run([exe], check=True)
+                stdout = run([exe], capture_output=True, check=True).stdout
             elif ext in [".go", ".rs", ".kt"] and not is_script:
                 raise unittest.SkipTest(f"{case}{ext} needs main() to be invoked")
             elif INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
-                proc = run([*invoker, case_output], check=not expect_failure)
+                proc = run(
+                    [*invoker, case_output],
+                    capture_output=True,
+                    check=not expect_failure,
+                )
+
+                stdout = proc.stdout
 
                 assert not expect_failure or proc.returncode != 0
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
             else:
                 raise RuntimeError("Compiled output not detected")
+
+            if expected_output and stdout:
+                stdout = stdout.splitlines()
+                self.assertEqual(expected_output, stdout)
+
         finally:
             if not KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
