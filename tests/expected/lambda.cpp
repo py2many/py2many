@@ -1,4 +1,6 @@
+#include "py14/runtime/builtins.h"
+#include "py14/runtime/sys.h"
 
-inline void main() {
+int main() {
   auto myfunc = [](auto x, auto y) { x + y };
 }

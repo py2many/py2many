@@ -11,10 +11,14 @@ from unittest_expander import foreach, expand
 from py2many.cli import main, _get_all_settings
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
+
+TESTS_DIR = Path(__file__).parent
+ROOT_DIR = TESTS_DIR.parent
+
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 COMPILERS = {
-    "cpp": ["clang", "-std=c++14"],
+    "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "tool", "compile"],
     "julia": ["julia", "--compiled-modules=yes"],
@@ -29,7 +33,6 @@ INVOKER = {
     "rust": ["cargo", "script"],
 }
 
-TESTS_DIR = Path(__file__).parent
 TEST_CASES = [
     item.stem
     for item in (TESTS_DIR / "cases").glob("*.py")
@@ -48,33 +51,37 @@ COMPARABLE = [
 ]
 
 EXPECTED_COMPILE_FAILURES = [
+    "binit.cpp",
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
     "binit.jl",  # https://github.com/adsharma/py2many/issues/80
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19
     "global.go",  # https://github.com/adsharma/py2many/issues/82
+    "infer_ops.cpp",
     "infer_ops.go",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.jl",  # https://github.com/adsharma/py2many/issues/78
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.rs",  # https://github.com/adsharma/py2many/issues/16
+    "int_enum.cpp",
     "int_enum.dart",  # https://github.com/adsharma/py2many/issues/41
     "int_enum.go",  # https://github.com/adsharma/py2many/issues/75
     "int_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "int_enum.kt",  # https://github.com/adsharma/py2many/issues/28
     "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
+    "lambda.cpp",  # https://github.com/adsharma/py2many/issues/59
     "lambda.dart",  # https://github.com/adsharma/py2many/issues/34
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
     "lambda.nim",  # https://github.com/adsharma/py2many/issues/27
     "lambda.rs",  # https://github.com/adsharma/py2many/issues/15
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
+    "rect.cpp",  # https://github.com/adsharma/py2many/issues/65
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
     "rect.jl",  # https://github.com/adsharma/py2many/issues/79
     "rect.nim",  # https://github.com/adsharma/py2many/issues/65
     "rect.rs",  # https://github.com/adsharma/py2many/issues/65
-] + [f"{case}.cpp" for case in TEST_CASES]
-# See https://github.com/adsharma/py2many/issues/24 for cpp failures
+]
 
 
 def has_main(filename):
@@ -111,7 +118,9 @@ class CodeGeneratorTests(unittest.TestCase):
         if ext == ".kt":
             class_name = str(case.title()) + "Kt"
             exe = TESTS_DIR / (class_name + ".class")
-        if ext == ".dart" or (ext == ".nim" and sys.platform == "win32"):
+        elif ext == ".cpp":
+            exe = TESTS_DIR / "a.out"
+        elif ext == ".dart" or (ext == ".nim" and sys.platform == "win32"):
             exe = TESTS_DIR / "cases" / f"{case}.exe"
         else:
             exe = TESTS_DIR / "cases" / f"{case}"
@@ -140,7 +149,7 @@ class CodeGeneratorTests(unittest.TestCase):
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
 
-            if ext == ".dart" and not is_script:
+            if ext in [".cpp", ".dart"] and not is_script:
                 # See https://github.com/adsharma/py2many/issues/25
                 raise unittest.SkipTest(f"{case}{ext} doesnt have a main")
 

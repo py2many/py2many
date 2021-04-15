@@ -1,3 +1,7 @@
+#include "py14/runtime/builtins.h"
+#include "py14/runtime/sys.h"
+#include <cassert>
+#include <iostream>
 
 inline void foo() {
   int a = 10;
@@ -42,8 +46,9 @@ template <typename T1, typename T2> auto fadd(T1 x, T2 y) { return x + y; }
 
 inline void show() {
   double rv = fadd(6, 6.0);
-  REQUIRE(rv == 12);
-  std::cout << rv << std::endl;
+  assert(rv == 12);
+  std::cout << rv;
+  std::cout << std::endl;
 }
 
 int main(int argc, char **argv) {

@@ -1,3 +1,6 @@
+#include "py14/runtime/builtins.h"
+#include "py14/runtime/sys.h"
+#include <iostream>
 
 class Colors {
   auto RED = auto();
@@ -16,15 +19,19 @@ show() {
   auto color_map = None;
   auto a = Colors.GREEN;
   if (a == Colors.GREEN) {
-    std::cout << std::string{"green"} << std::endl;
+    std::cout << std::string{"green"};
+    std::cout << std::endl;
   } else {
-    std::cout << std::string{"Not green"} << std::endl;
+    std::cout << std::string{"Not green"};
+    std::cout << std::endl;
   }
   auto b = Permissions.R;
   if (b == Permissions.R) {
-    std::cout << std::string{"R"} << std::endl;
+    std::cout << std::string{"R"};
+    std::cout << std::endl;
   } else {
-    std::cout << std::string{"Not R"} << std::endl;
+    std::cout << std::string{"Not R"};
+    std::cout << std::endl;
   }
 }
 
