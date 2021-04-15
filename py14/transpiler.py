@@ -60,6 +60,10 @@ def generate_template_fun(node, body):
     if is_void_function(node):
         return_type = "void"
 
+    if node.name == "main":
+        template = ""
+        return_type = "int"
+
     funcdef = "{0}{1} {2}({3})".format(
         template, return_type, node.name, ", ".join(params)
     )
