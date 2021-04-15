@@ -144,11 +144,11 @@ class GoTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("%v ")
+            placeholders.append("%v")
         self._usings.add("fmt")
-        placeholders_str = "".join(placeholders)
+        placeholders_str = " ".join(placeholders)
         vargs_str = ", ".join(vargs)
-        return rf'fmt.Printf("{placeholders_str}\\n",{vargs_str})'
+        return f'fmt.Printf("{placeholders_str}\\n",{vargs_str})'
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
