@@ -76,13 +76,17 @@ class CppTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
         # TODO: include only when needed
-        self._headers = set([])
+        self._headers = []
         self._usings = set([])
         self.use_catch_test_cases = False
 
     def headers(self, meta: InferMeta):
+        self._headers.append('#include "py14/runtime/sys.h"')
+        self._headers.append('#include "py14/runtime/builtins.h"')
+        if self.use_catch_test_cases:
+            self._headers.append('#include "py14/runtime/catch.hpp"')
         if meta.has_fixed_width_ints:
-            self._headers.add("#include <stdint.h>")
+            self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)
 
     def visit_FunctionDef(self, node):
@@ -148,6 +152,7 @@ class CppTranspiler(CLikeTranspiler):
             return "{0}.size()".format(self.visit(node.args[0]))
         elif fname == "print":
             buf = []
+            self._headers.append("#include <iostream>")
             for n in node.args:
                 value = self.visit(n)
                 if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
@@ -312,6 +317,7 @@ class CppTranspiler(CLikeTranspiler):
         return "std::make_tuple({0})".format(", ".join(elts))
 
     def visit_TryExcept(self, node, finallybody=None):
+        self._headers.append("#include <iostream>")
         buf = ["try {"]
         buf += [self.visit(n) for n in node.body]
         buf.append("} catch (const std::exception& e) {")
