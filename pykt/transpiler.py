@@ -333,7 +333,8 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]
-        return f"arrayOf({elements})"
+        elements_str = ", ".join(elements)
+        return f"arrayOf({elements_str})"
 
     def visit_Dict(self, node):
         keys = [self.visit(k) for k in node.keys]
@@ -519,7 +520,8 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Set(self, node):
         elements = [self.visit(e) for e in node.elts]
-        return f"setOf({elements})"
+        elements_str = ", ".join(elements)
+        return f"setOf([{elements_str}])"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

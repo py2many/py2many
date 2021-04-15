@@ -198,7 +198,7 @@ class GoTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {target} := range {it} {{")
+        buf.append(f"for {target}, _ := range {it} {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -486,7 +486,7 @@ class GoTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} := {1}".format(target, value)
+            return "{0} = {1}".format(target, value)
         else:
             typename = None
             if hasattr(target, "annotation"):
