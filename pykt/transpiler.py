@@ -252,8 +252,8 @@ class KotlinTranspiler(CLikeTranspiler):
         if self.visit(node.test) == '__name__ == "__main__"':
             buf = ["fun main() {"]
             buf.extend([self.visit(child) for child in node.body])
-            buf.append("")
-            return "}\n".join(buf)
+            buf.append("}")
+            return "\n".join(buf)
         return super().visit_If(node)
 
     def visit_UnaryOp(self, node):

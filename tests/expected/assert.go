@@ -5,3 +5,7 @@ func compare_assert(a int, b int) {
 		panic("assert")
 	}
 }
+
+func main() {
+	compare_assert(1, 1)
+}

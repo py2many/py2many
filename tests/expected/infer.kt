@@ -1,8 +1,8 @@
 fun foo() {
-val a = 10
-val b = a}
+    val a = 10
+    val b = a
+}
 
-
-fun main() {}
-foo()}
-
+fun main() {
+    foo()
+}

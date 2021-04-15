@@ -41,7 +41,6 @@ EXPECTED_COMPILE_FAILURES = [
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19
     "infer.go",  # https://github.com/adsharma/py2many/issues/23
-    "infer.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.go",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
