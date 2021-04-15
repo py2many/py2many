@@ -109,7 +109,7 @@ def _process_once(settings, filename, outdir):
     Returns False if reformatter failed.
     """
     output_path = outdir / (filename.stem + settings.ext)
-    if settings.ext == ".kt":
+    if settings.ext == ".kt" and output_path.is_absolute():
         # KtLint does not support absolute path in globs
         output_path = output_path.relative_to(pathlib.Path.cwd())
     print(f"{filename}...{output_path}")
