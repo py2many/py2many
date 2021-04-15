@@ -147,11 +147,11 @@ class DartTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("%s ")
+            placeholders.append("%s")
         self._usings.add("package:sprintf/sprintf.dart")
-        placeholders_str = "".join(placeholders)
+        placeholders_str = " ".join(placeholders)
         vargs_str = ", ".join(vargs)
-        return rf'print(sprintf("{placeholders_str}\n", [{vargs_str}]))'
+        return rf'print(sprintf("{placeholders_str}", [{vargs_str}]))'
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
