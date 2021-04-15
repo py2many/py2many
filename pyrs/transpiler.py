@@ -146,8 +146,8 @@ class RustTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("{:?} ")
-        return 'println!("{0}",{1});'.format("".join(placeholders), ", ".join(vargs))
+            placeholders.append("{}")
+        return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
