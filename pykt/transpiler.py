@@ -410,7 +410,7 @@ class KotlinTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self.visit(node.annotation)
         val = self.visit(node.value)
-        return "{0}::{1} = {2}".format(target, type_str, val)
+        return "var {0}: {1} = {2}".format(target, type_str, val)
 
     def visit_Assign(self, node):
         target = node.targets[0]
