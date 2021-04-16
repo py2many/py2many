@@ -51,3 +51,13 @@ proc mul(x: int8, y: int8): int16 =
 proc fadd(x: int8, y: float): float =
   return x + y
 
+proc show() =
+  let rv = fadd(6, 6.0)
+  assert(rv == 12)
+  echo rv
+
+proc main() =
+  foo()
+  show()
+
+main()

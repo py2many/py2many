@@ -63,3 +63,14 @@ end
 function fadd(x::Int8, y::Float64)::Float64
     return (x + y)
 end
+
+function show()
+    rv = fadd(6, 6.0)
+    @assert(rv == 12)
+    println(join([rv], " "))
+end
+
+function main()
+    foo()
+    show()
+end

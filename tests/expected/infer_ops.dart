@@ -1,3 +1,6 @@
+// @dart=2.9
+import 'package:sprintf/sprintf.dart';
+
 foo() {
   int a = 10;
   int b = 20;
@@ -61,4 +64,15 @@ int mul(int x, int y) {
 
 double fadd(int x, double y) {
   return (x + y);
+}
+
+show() {
+  var rv = fadd(6, 6.0);
+  assert(rv == 12);
+  print(sprintf("%s", [rv]));
+}
+
+void main() {
+  foo();
+  show();
 }

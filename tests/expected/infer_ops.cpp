@@ -39,3 +39,15 @@ template <typename T1, typename T2> auto sub(T1 x, T2 y) { return x - y; }
 template <typename T1, typename T2> auto mul(T1 x, T2 y) { return x * y; }
 
 template <typename T1, typename T2> auto fadd(T1 x, T2 y) { return x + y; }
+
+inline void show() {
+  auto rv = fadd(6, 6.0);
+  REQUIRE(rv == 12);
+  std::cout << rv << std::endl;
+}
+
+int main(int argc, char **argv) {
+  py14::sys::argv = std::vector<std::string>(argv, argv + argc);
+  foo();
+  show();
+}

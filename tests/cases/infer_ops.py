@@ -75,3 +75,14 @@ def mul(x: c_int8, y: c_int8):
 
 def fadd(x: c_int8, y: float):
     return x + y
+
+
+def show():
+    rv = fadd(6, 6.0)
+    assert rv == 12
+    print(rv)
+
+
+if __name__ == "__main__":
+    foo()
+    show()

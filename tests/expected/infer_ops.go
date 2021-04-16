@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 func foo() {
 	var a int = 10
 	var b int = 20
@@ -63,4 +67,17 @@ func mul(x int8, y int8) int16 {
 
 func fadd(x int8, y float64) float64 {
 	return (x + y)
+}
+
+func show() {
+	rv := fadd(6, 6.0)
+	if !(rv == 12) {
+		panic("assert")
+	}
+	fmt.Printf("%v\n", rv)
+}
+
+func main() {
+	foo()
+	show()
 }
