@@ -35,7 +35,17 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
-COMPARABLE = ["fib", "global", "hello_world", "infer", "infer_ops", "print", "rect"]
+COMPARABLE = [
+    "fib",
+    "global",
+    "hello_world",
+    "infer",
+    "infer_ops",
+    "print",
+    "rect",
+    "int_enum",
+    "str_enum",
+]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
@@ -48,8 +58,11 @@ EXPECTED_COMPILE_FAILURES = [
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.rs",  # https://github.com/adsharma/py2many/issues/16
+    "int_enum.dart",  # https://github.com/adsharma/py2many/issues/41
+    "int_enum.go",  # https://github.com/adsharma/py2many/issues/75
     "int_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "int_enum.kt",  # https://github.com/adsharma/py2many/issues/28
+    "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
     "lambda.dart",  # https://github.com/adsharma/py2many/issues/34
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
@@ -131,7 +144,9 @@ class CodeGeneratorTests(unittest.TestCase):
                 # See https://github.com/adsharma/py2many/issues/25
                 raise unittest.SkipTest(f"{case}{ext} doesnt have a main")
 
-            expect_failure = not SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
+            expect_failure = (
+                not SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
+            )
             compiler = COMPILERS[lang]
             if ext == ".rs" and not is_script:
                 compiler = ["rust-script"]

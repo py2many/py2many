@@ -1,3 +1,6 @@
+// @dart=2.9
+import 'package:sprintf/sprintf.dart';
+
 class Colors {
   ST0 RED;
   ST1 GREEN;
@@ -16,4 +19,30 @@ class Permissions {
   int R = 1;
   int W = 2;
   int X = 16;
+}
+
+show() {
+  var color_map = {
+    Colors.RED: "red",
+    Colors.GREEN: "green",
+    Colors.BLUE: "blue"
+  };
+  var a = Colors.GREEN;
+
+  if (a == Colors.GREEN) {
+    print(sprintf("%s", ["green"]));
+  } else {
+    print(sprintf("%s", ["Not green"]));
+  }
+  var b = Permissions.R;
+
+  if (b == Permissions.R) {
+    print(sprintf("%s", ["R"]));
+  } else {
+    print(sprintf("%s", ["Not R"]));
+  }
+}
+
+void main() {
+  show();
 }

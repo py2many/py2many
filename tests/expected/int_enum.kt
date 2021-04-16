@@ -18,3 +18,23 @@ class Permissions {
     val W = 2
     val X = 16
 }
+
+fun show() {
+    val color_map = hashMapOf(Colors.RED to "red", Colors.GREEN to "green", Colors.BLUE to "blue")
+    val a = Colors.GREEN
+    if (a == Colors.GREEN) {
+        println("green")
+    } else {
+        println("Not green")
+    }
+    val b = Permissions.R
+    if (b == Permissions.R) {
+        println("R")
+    } else {
+        println("Not R")
+    } 
+}
+
+fun main() {
+    show()
+}
