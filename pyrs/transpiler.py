@@ -2,17 +2,15 @@ import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-)
 
-from py2many.scope import add_scope_context
-from py2many.annotation_transformer import add_annotation_flags
-from py2many.mutability_transformer import detect_mutable_vars
-from py2many.context import add_variable_context, add_list_calls
 from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.annotation_transformer import add_annotation_flags
+from py2many.context import add_variable_context, add_list_calls
+from py2many.inference import get_inferred_type
+from py2many.mutability_transformer import detect_mutable_vars
+from py2many.scope import add_scope_context
+from py2many.tracer import is_list, defined_before, is_class_or_module
+
 from typing import List, Optional
 
 container_types = {"List": "Vec", "Dict": "HashMap", "Set": "Set", "Optional": "Option"}
@@ -407,9 +405,17 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return "HashMap::new()"
 
+    def _cast(self, name: str, to) -> str:
+        return f"{name} as {to}"
+
     def visit_Subscript(self, node):
         value = self.visit(node.value)
         index = self.visit(node.slice)
+        index_typename = get_inferred_type(node.slice.value)
+        if index_typename is not None and (
+            index_typename != "u64" or index_typename != "usize"
+        ):
+            index = self._cast(index, "usize")
         if hasattr(node, "is_annotation"):
             if value in container_types:
                 self._usings.add("std::collections")

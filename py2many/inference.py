@@ -1,5 +1,4 @@
 import ast
-import copy
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
@@ -17,6 +16,24 @@ def infer_types(node) -> InferMeta:
     visitor = InferTypesTransformer()
     visitor.visit(node)
     return InferMeta(visitor.has_fixed_width_ints)
+
+
+def get_inferred_type(node):
+    if isinstance(node, ast.Name):
+        definition = node.scopes.find(get_id(node))
+        # Prevent infinite recursion
+        if definition != node:
+            return get_inferred_type(definition)
+    if hasattr(node, "annotation"):
+        return node.annotation
+    elif isinstance(node, ast.Call):
+        fname = get_id(node.func)
+        if fname is not None:
+            fn = node.scopes.find(fname)
+            return_type = fn.returns if fn and fn.returns else None
+            if return_type is not None:
+                return return_type
+    return None
 
 
 class InferTypesTransformer(ast.NodeTransformer):
@@ -70,13 +87,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         target = node.targets[0]
-        if hasattr(node.value, "annotation"):
-            target.annotation = node.value.annotation
-        else:
-            var = node.scopes.find(get_id(node.value))
-
-            if var and hasattr(var, "annotation"):
-                target.annotation = copy.copy(var.annotation)
+        annotation = get_inferred_type(node.value)
+        if annotation is not None:
+            target.annotation = annotation
 
         return node
 
@@ -199,7 +212,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if left_id == "int":
                     node.annotation = ast.Name(id="float")
                     return node
-            node.annotation = copy.copy(left)
+            node.annotation = left
             return node
         else:
             if left_id in self.FIXED_WIDTH_INTS_NAME:

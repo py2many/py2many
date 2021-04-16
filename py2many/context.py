@@ -48,6 +48,9 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_FunctionDef(self, node):
         node.vars = []
+        # So function signatures are accessible even after they're
+        # popped from the scope
+        self.scopes[-2].vars.append(node)
         for arg in node.args.args:
             arg.assigned_from = node
             node.vars.append(arg)

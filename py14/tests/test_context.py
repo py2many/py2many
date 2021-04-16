@@ -46,12 +46,12 @@ class TestVariableTranformer:
             "   results.append(x)",
             "   return results",
         )
-        assert len(source.vars) == 0
+        assert len(source.vars) == 1
         assert len(source.body[0].vars) == 3
 
     def test_local_vars_of_function_with_args(self):
         source = parse("def foo(x, y):", "   return x + y")
-        assert len(source.vars) == 0
+        assert len(source.vars) == 1
         assert len(source.body[0].vars) == 2
 
     def test_subscripts_are_ignored(self):
@@ -70,7 +70,7 @@ class TestVariableTranformer:
             "   results.append(x)",
             "   return results",
         )
-        assert len(source.vars) == 1
+        assert len(source.vars) == 2
         assert len(source.body[1].vars) == 1
 
     def test_vars_inside_loop(self):
@@ -81,5 +81,5 @@ class TestVariableTranformer:
             "       results.append(x)",
             "   return results",
         )
-        assert len(source.vars) == 0
+        assert len(source.vars) == 1
         assert len(source.body[0].body[1].vars) == 1

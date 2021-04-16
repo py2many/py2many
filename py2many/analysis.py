@@ -22,6 +22,8 @@ if sys.version_info[0] >= 3:
             return var.id
         elif isinstance(var, ast.arg):
             return var.arg
+        elif isinstance(var, ast.FunctionDef):
+            return var.name
 
 
 else:

@@ -56,6 +56,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def comment(self, text):
         return f"/* {text} */"
 
+    def _cast(self, name: str, to) -> str:
+        return f"({to}) {name}"
+
     def visit(self, node):
         if type(node) == ast.Pass:
             return self.comment("pass")
