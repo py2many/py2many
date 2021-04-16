@@ -35,7 +35,7 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
-COMPARABLE = ["hello_world"]
+COMPARABLE = ["hello_world", "print"]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
