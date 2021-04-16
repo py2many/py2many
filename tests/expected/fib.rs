@@ -6,6 +6,6 @@ fn fib(i: i32) -> i32 {
 }
 
 fn main() {
-    let rv: _ = fib(5);
+    let rv: i32 = fib(5);
     println!("{}", rv);
 }

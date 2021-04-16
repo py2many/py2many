@@ -9,6 +9,6 @@ int fib(int i) {
 }
 
 void main() {
-  var rv = fib(5);
+  int rv = fib(5);
   print(sprintf("%s", [rv]));
 }

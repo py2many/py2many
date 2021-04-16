@@ -67,7 +67,7 @@ double fadd(int x, double y) {
 }
 
 show() {
-  var rv = fadd(6, 6.0);
+  double rv = fadd(6, 6.0);
   assert(rv == 12);
   print(sprintf("%s", [rv]));
 }

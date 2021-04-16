@@ -12,6 +12,6 @@ func fib(i int) int {
 }
 
 func main() {
-	rv := fib(5)
+	var rv int = fib(5)
 	fmt.Printf("%v\n", rv)
 }

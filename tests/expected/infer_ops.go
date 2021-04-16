@@ -70,7 +70,7 @@ func fadd(x int8, y float64) float64 {
 }
 
 func show() {
-	rv := fadd(6, 6.0)
+	var rv float64 = fadd(6, 6.0)
 	if !(rv == 12) {
 		panic("assert")
 	}
