@@ -4,3 +4,8 @@ proc fib(i: int): int =
 
   return fib(i - 1) + fib(i - 2)
 
+proc main() =
+  let rv = fib(5)
+  echo rv
+
+main()

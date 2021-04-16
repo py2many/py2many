@@ -4,3 +4,8 @@ fun fib(i: Int): Int {
     }
     return (fib((i - 1)) + fib((i - 2)))
 }
+
+fun main() {
+    val rv = fib(5)
+    println("$rv")
+}
