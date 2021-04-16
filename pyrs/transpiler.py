@@ -1,4 +1,5 @@
 import ast
+import re
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
@@ -113,6 +114,16 @@ class RustTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self.visit(node.annotation)
+            m = re.match(r"(\w+)<(\w+)>", typename)
+            if m is not None:
+                container, element = m.groups()
+            else:
+                container = typename
+            # TODO: Should we make this if not primitive instead of checking
+            # for container types? That way we cover user defined structs too.
+            if container in container_types.values():
+                # Python passes by reference by default. Rust needs explicit borrowing
+                typename = f"&{typename}"
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -185,6 +196,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
+        fndef = node.scopes.find(fname)
 
         vargs = []  # visited args
         if node.args:
@@ -195,10 +207,21 @@ class RustTranspiler(CLikeTranspiler):
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
             return ret
-        if vargs:
-            args = ", ".join(vargs)
+
+        # Check if some args need to be passed by reference
+        ref_args = []
+        if fndef:
+            for varg, fnarg in zip(vargs, fndef.args.args):
+                if isinstance(fnarg.annotation, ast.Subscript):
+                    # The arg is likely a container object. So
+                    # pass by reference
+                    ref_args.append(f"&{varg}")
+                else:
+                    ref_args.append(varg)
         else:
-            args = ""
+            ref_args = vargs
+
+        args = ", ".join(ref_args)
         return f"{fname}({args})"
 
     def visit_For(self, node):
