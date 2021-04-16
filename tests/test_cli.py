@@ -17,7 +17,7 @@ COMPILERS = {
     "cpp": ["clang", "-std=c++14"],
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "tool", "compile"],
-    "julia": None,
+    "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "script", "--build-only", "--debug"],

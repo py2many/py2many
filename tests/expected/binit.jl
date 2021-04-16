@@ -16,7 +16,7 @@ end
 
 function bin_it(limits::Array{Int64}, data::Array{Int64})::Array{Int64}
     bins = [0]
-    for x in limits
+    for _x in limits
         bins.push(0)
     end
     for d in data
