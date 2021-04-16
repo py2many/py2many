@@ -304,13 +304,7 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(node.slice, ast.Ellipsis):
             raise NotImplementedError("Ellipsis not supported")
 
-        if sys.version_info < (3, 9, 0):
-            if not isinstance(node.slice, ast.Index):
-                raise NotImplementedError("Advanced Slicing not supported")
-            slice_value = node.slice.value
-        else:
-            slice_value = node.slice
-
+        slice_value = self._slice_value(node)
         return "{0}[{1}]".format(value, self.visit(slice_value))
 
     def visit_Tuple(self, node):

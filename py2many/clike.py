@@ -1,4 +1,6 @@
 import ast
+import sys
+
 from py2many.analysis import get_id
 
 
@@ -58,6 +60,16 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def _cast(self, name: str, to) -> str:
         return f"({to}) {name}"
+
+    def _slice_value(self, node: ast.AST):
+        # 3.9 compatibility shim
+        if sys.version_info < (3, 9, 0):
+            if not isinstance(node.slice, ast.Index):
+                raise NotImplementedError("Advanced Slicing not supported")
+            slice_value = node.slice.value
+        else:
+            slice_value = node.slice
+        return slice_value
 
     def visit(self, node):
         if type(node) == ast.Pass:

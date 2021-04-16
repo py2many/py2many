@@ -411,7 +411,7 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node):
         value = self.visit(node.value)
         index = self.visit(node.slice)
-        index_typename = get_inferred_type(node.slice.value)
+        index_typename = get_inferred_type(self._slice_value(node))
         if index_typename is not None and (
             index_typename != "u64" or index_typename != "usize"
         ):
