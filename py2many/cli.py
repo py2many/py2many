@@ -78,9 +78,13 @@ def kotlin_settings(args):
 
 def nim_settings(args):
     nim_args = {}
+    nimpretty_args = []
     if args.indent is not None:
         nim_args["indent"] = args.indent
-    return LanguageSettings(NimTranspiler(**nim_args), ".nim", None)
+        nimpretty_args.append(f"--indent:{args.indent}")
+    return LanguageSettings(
+        NimTranspiler(**nim_args), ".nim", ["nimpretty", *nimpretty_args]
+    )
 
 
 def dart_settings(args):
