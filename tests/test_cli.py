@@ -10,6 +10,7 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import main, _get_all_settings
 
+SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 COMPILERS = {
@@ -124,7 +125,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 # See https://github.com/adsharma/py2many/issues/25
                 raise unittest.SkipTest(f"{case}{ext} doesnt have a main")
 
-            expect_failure = f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
+            expect_failure = not SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
             compiler = COMPILERS[lang]
             if ext == ".rs" and not is_script:
                 compiler = ["rust-script"]
