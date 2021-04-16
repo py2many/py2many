@@ -35,7 +35,7 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
-COMPARABLE = ["hello_world", "print"]
+COMPARABLE = ["hello_world", "print", "rect"]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
@@ -54,6 +54,9 @@ EXPECTED_COMPILE_FAILURES = [
     "lambda.nim",  # https://github.com/adsharma/py2many/issues/27
     "lambda.rs",  # https://github.com/adsharma/py2many/issues/15
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
+    "rect.go",  # https://github.com/adsharma/py2many/issues/65
+    "rect.nim",  # https://github.com/adsharma/py2many/issues/65
+    "rect.rs",  # https://github.com/adsharma/py2many/issues/65
 ] + [f"{case}.cpp" for case in TEST_CASES]
 # See https://github.com/adsharma/py2many/issues/24 for cpp failures
 
