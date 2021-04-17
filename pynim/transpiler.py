@@ -457,6 +457,7 @@ class NimTranspiler(CLikeTranspiler):
 
     def visit_Assign(self, node):
         target = node.targets[0]
+        kw = "var" if is_mutable(node.scopes, get_id(target)) else "let"
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
@@ -486,21 +487,12 @@ class NimTranspiler(CLikeTranspiler):
             elements = [self.visit(e) for e in node.value.elts]
             elements = ", ".join(elements)
             target = self.visit(target)
-            return f"{target} = @[{elements}]"
-        else:
-            mutable = False
-            if is_mutable(node.scopes, get_id(target)):
-                mutable = True
 
+            return f"{kw} {target} = @[{elements}]"
+        else:
             target = self.visit(target)
             value = self.visit(node.value)
 
-            if len(node.scopes) == 1:
-                if isinstance(
-                    node.scopes[0], ast.Module
-                ):  # if assignment is module level it must be const
-                    return f"const {target} = {value};"
-            kw = "var" if mutable else "let"
             return f"{kw} {target} = {value}"
 
     def visit_Delete(self, node):
