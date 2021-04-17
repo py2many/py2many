@@ -1,11 +1,40 @@
-# Python to many CLike language transpiler
+# py2many: Python to many CLike languages transpiler
 
-Currently supports C++ and Rust.
-Preliminary support for Julia, Kotlin, Nim, Go and Dart.
+![Build](https://github.com/adsharma/py2many/actions/workflows/main.yml/badge.svg)
+![License](https://img.shields.io/github/license/adsharma/py2many?color=brightgreen)
 
-The main idea is that python is popular, easy to program in, but has poor runtime performance.
-We can fix that by transpiling a subset of the language into a more performant, statically
-typed language
+## Why
+
+Python is popular, easy to program in, but has poor runtime
+performance. We can fix that by transpiling a subset of the language
+into a more performant, statically typed language.
+
+A second benefit is security. Writing security sensitive
+code in a low level language like C is error prone and could
+lead to privilege escalation. Specialized languages such as
+[wuffs](https://github.com/google/wuffs) exist to address this use
+case. py2many can be a more general purpose solution to the problem
+where you can verify the source via unit tests before you transpile.
+
+A third potential use case is to accelerate python code by transpiling
+it into an [extension](https://github.com/adsharma/py2many/issues/62)
+
+Swift and Kotlin dominate the mobile app development workflow. However, there is
+no one solution that works well for lower level libraries where there is desire
+to share code between platforms. Kotlin Mobile Multiplatform (KMM) is a player
+in this place, but it hasn't really caught on. py2many provides an alternative.
+
+Lastly, it's a great educational tool to learn a new language by implementing
+a backend for your favorite language.
+
+## Status
+
+Rust is the language where the focus of development has been. C++14 is historically
+the first language to be supported.
+
+Preliminary support exists for Julia, Kotlin, Nim, Go and Dart.
+
+## History
 
 Based on Julian Konchunas' pyrs
 http://github.com/konchunas/pyrs
@@ -83,70 +112,3 @@ rustc fib.rs
 ...
 ```
 
-## Monkeytype
-
-Python 3.5+ type annotations can be transpiled:
-```python
-def cut(apple: Fruit, knife: Tool) -> Slice:
-```
-
-
-```rust
-fn cut(apple: Fruit, knife: Tool) -> Slice {
-```
-
-## Todo list
-
-- [x] Basic type inference for struct declaration
-- [ ] Use constructors for guessing struct member types
-- [ ] Return type inference
-- [x] Mutability based on usage
-
-## Working Features
-
-Only bare functions using the basic language features are supported. Some of them work partially.
-- [x] classes
-- [x] functions
-- [x] lambdas
-- [x] list comprehensions
-- [ ] inheritance
-- [ ] operator overloading
-- [ ] function and class decorators
-- [ ] getter/setter function decorators
-- [ ] yield (generator functions)
-- [ ] function calls with `*args` and `**kwargs`
-
-Language Keywords
-- [ ] global, nonlocal
-- [x] while, for, continue, break
-- [x] if, elif, else
-- [x] try, except, raise
-- [x] def, lambda
-- [ ] new, class
-- [x] from, import
-- [ ] as
-- [x] pass, assert
-- [x] and, or, is, in, not
-- [x] return
-- [ ] yield
-
-Builtins
-- [ ] dict
-- [x] list
-- [ ] tuple
-- [x] int
-- [ ] float
-- [x] str
-- [ ] round
-- [x] range
-- [ ] range_step
-- [ ] sum
-- [x] len
-- [x] map
-- [x] filter
-
-Data Structures
-- [x] list
-- [ ] Set
-- [x] String
-- [ ] Dict
