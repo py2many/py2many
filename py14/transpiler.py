@@ -161,13 +161,14 @@ class CppTranspiler(CLikeTranspiler):
                 value = self.visit(n)
                 if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
                     buf.append(
-                        "std::cout << {0} << std::endl;".format(
+                        "std::cout << {0};".format(
                             " << ".join([self.visit(el) for el in n.elts])
                         )
                     )
                 else:
-                    buf.append("std::cout << {0} << std::endl;".format(value))
-            return "\n".join(buf)
+                    buf.append("std::cout << {0};".format(value))
+                buf.append('std::cout << " ";')
+            return "\n".join(buf[:-1]) + "\nstd::cout << std::endl;"
 
         return "{0}({1})".format(fname, args)
 

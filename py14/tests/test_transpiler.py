@@ -25,8 +25,9 @@ def test_print_multiple_vars():
     else:
         source = parse('print("hi", "there" )')
     cpp = transpile(source)
-    assert cpp == (
-        'std::cout << std::string {"hi"} ' '<< std::string {"there"} << std::endl;'
+    assert cpp == parse(
+        'std::cout << std::string {"hi"} << std::string {"there"};',
+        "std::cout << std::endl;",
     )
 
 
@@ -79,7 +80,8 @@ def test_print_program_args():
         "int main(int argc, char ** argv) {",
         "py14::sys::argv = std::vector<std::string>(argv, argv + argc);",
         "for(auto arg : py14::sys::argv) {",
-        "std::cout << arg << std::endl;",
+        "std::cout << arg;",
+        "std::cout << std::endl;",
         "}",
         "}",
     )
