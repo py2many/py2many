@@ -5,3 +5,5 @@ end
 function main()
     compare_assert(1, 1)
 end
+
+main()

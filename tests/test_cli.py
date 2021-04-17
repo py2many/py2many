@@ -39,9 +39,11 @@ COMPARABLE = ["fib", "hello_world", "infer", "infer_ops", "print", "rect"]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
+    "binit.jl",  # https://github.com/adsharma/py2many/issues/80
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19
     "infer_ops.go",  # https://github.com/adsharma/py2many/issues/16
+    "infer_ops.jl",  # https://github.com/adsharma/py2many/issues/78
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.rs",  # https://github.com/adsharma/py2many/issues/16
@@ -54,6 +56,7 @@ EXPECTED_COMPILE_FAILURES = [
     "lambda.rs",  # https://github.com/adsharma/py2many/issues/15
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
+    "rect.jl",  # https://github.com/adsharma/py2many/issues/79
     "rect.nim",  # https://github.com/adsharma/py2many/issues/65
     "rect.rs",  # https://github.com/adsharma/py2many/issues/65
 ] + [f"{case}.cpp" for case in TEST_CASES]

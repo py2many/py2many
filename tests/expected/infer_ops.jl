@@ -74,3 +74,5 @@ function main()
     foo()
     show()
 end
+
+main()
