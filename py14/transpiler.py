@@ -348,6 +348,9 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Assert(self, node):
+        if not self.use_catch_test_cases:
+            self._headers.append("#include <cassert>")
+            return "assert({0});".format(self.visit(node.test))
         return "REQUIRE({0});".format(self.visit(node.test))
 
     def visit_Assign(self, node):

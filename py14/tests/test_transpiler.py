@@ -33,8 +33,8 @@ def test_print_multiple_vars():
 
 def test_assert():
     source = parse("assert 1 == foo(3)")
-    cpp = transpile(source)
-    assert cpp == ("REQUIRE(1 == foo(3));")
+    cpp = transpile(source, testing=True)
+    assert cpp == '#include "catch.hpp"\nREQUIRE(1 == foo(3));'
 
 
 def test_augmented_assigns_with_counter():
@@ -111,8 +111,8 @@ def test_function_with_return():
 
 def test_void_function():
     source = parse("def test_fun():", "   assert True")
-    cpp = transpile(source)
-    assert cpp == parse("inline void test_fun() {", "REQUIRE(true);", "}\n")
+    cpp = transpile(source, testing=False)
+    assert cpp == parse("inline void test_fun() {", "assert(true);", "}\n")
 
 
 def test_create_catch_test_case():
