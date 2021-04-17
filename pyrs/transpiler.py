@@ -204,7 +204,7 @@ class RustTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
+        buf.append("for {0} in {1}.iter() {{".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)

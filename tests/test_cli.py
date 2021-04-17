@@ -35,13 +35,14 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
-COMPARABLE = ["fib", "hello_world", "infer", "infer_ops", "print", "rect"]
+COMPARABLE = ["fib", "global", "hello_world", "infer", "infer_ops", "print", "rect"]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.go",  # https://github.com/adsharma/py2many/issues/23
     "binit.jl",  # https://github.com/adsharma/py2many/issues/80
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19
+    "global.go",  # https://github.com/adsharma/py2many/issues/82
     "infer_ops.go",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.jl",  # https://github.com/adsharma/py2many/issues/78
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
