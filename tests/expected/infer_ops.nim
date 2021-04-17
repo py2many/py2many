@@ -54,7 +54,7 @@ proc fadd(x: int8, y: float): float =
 proc show() =
   let rv = fadd(6, 6.0)
   assert(rv == 12)
-  echo rv
+  echo "OK"
 
 proc main() =
   foo()

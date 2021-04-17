@@ -66,7 +66,7 @@ fn fadd(x: i8, y: f32) -> f32 {
 fn show() {
     let rv: f32 = fadd(6, 6.0);
     assert!(rv == 12);
-    println!("{}", rv);
+    println!("{}", "OK");
 }
 
 fn main() {

@@ -67,7 +67,7 @@ fun fadd(x: Byte, y: Double): Double {
 fun show() {
     val rv = fadd(6, 6.0)
     assert(rv == 12)
-    println("$rv")
+    println("OK")
 }
 
 fun main() {

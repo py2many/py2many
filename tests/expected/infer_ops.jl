@@ -67,7 +67,7 @@ end
 function show()
     rv = fadd(6, 6.0)
     @assert(rv == 12)
-    println(join([rv], " "))
+    println(join(["OK"], " "))
 end
 
 function main()

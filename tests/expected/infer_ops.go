@@ -74,7 +74,7 @@ func show() {
 	if !(rv == 12) {
 		panic("assert")
 	}
-	fmt.Printf("%v\n", rv)
+	fmt.Printf("%v\n", "OK")
 }
 
 func main() {

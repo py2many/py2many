@@ -69,7 +69,7 @@ double fadd(int x, double y) {
 show() {
   double rv = fadd(6, 6.0);
   assert(rv == 12);
-  print(sprintf("%s", [rv]));
+  print(sprintf("%s", ["OK"]));
 }
 
 void main() {

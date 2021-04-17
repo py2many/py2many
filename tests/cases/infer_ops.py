@@ -80,7 +80,7 @@ def fadd(x: c_int8, y: float):
 def show():
     rv = fadd(6, 6.0)
     assert rv == 12
-    print(rv)
+    print("OK")
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ template <typename T1, typename T2> auto fadd(T1 x, T2 y) { return x + y; }
 inline void show() {
   double rv = fadd(6, 6.0);
   assert(rv == 12);
-  std::cout << rv;
+  std::cout << std::string{"OK"};
   std::cout << std::endl;
 }
 
