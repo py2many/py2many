@@ -25,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
+      - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
       - uses: jiro4989/setup-nim-action@v1
 
@@ -34,13 +35,16 @@ jobs:
       - name: Install ${{ runner.os }} dependencies.
         shell: bash
         run: |
+          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           if [ "$RUNNER_OS" == "Linux" ]; then
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
+              (cd /usr/local/bin && sudo ln -s $(find ~/.julia -name format.jl))
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install clang-format kscript ktlint
+              (cd /usr/local/bin && ln -s $(find ~/.julia -name format.jl))
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl
           fi
