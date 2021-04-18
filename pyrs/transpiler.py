@@ -47,13 +47,14 @@ class RustTranspiler(CLikeTranspiler):
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        deps = ",".join(
-            sorted(
-                set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
-            )
+        deps = sorted(
+            set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
         )
-        uses = "\n".join(f"use {mod};" for mod in usings)
-        return f"// cargo-deps: {deps}\n{uses}" if deps else f"{uses}"
+        externs = [f"extern crate {dep};" for dep in deps]
+        deps = ",".join(deps)
+        externs = "\n".join(externs)
+        uses = "\n".join(f"use {mod};" for mod in usings if mod != "strum")
+        return f"// cargo-deps: {deps}\n{externs}\n{uses}" if deps else f"{uses}"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
