@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 
 from dataclasses import dataclass
+from distutils import spawn
 from typing import List, Optional
 
 from .analysis import add_imports
@@ -69,7 +70,16 @@ def rust_settings(args):
 
 
 def julia_settings(args):
-    return LanguageSettings(JuliaTranspiler(), ".jl", ["jlfmt"])
+    format_jl = spawn.find_executable("format.jl")
+    if format_jl:
+        format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl]
+    else:
+        format_jl = ["format.jl"]
+    return LanguageSettings(
+        JuliaTranspiler(),
+        ".jl",
+        format_jl,
+    )
 
 
 def kotlin_settings(args):
