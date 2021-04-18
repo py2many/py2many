@@ -403,6 +403,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:
+            self._usings.add("std::collections::HashMap")
             kv_string = []
             for i in range(len(node.keys)):
                 key = self.visit(node.keys[i])
