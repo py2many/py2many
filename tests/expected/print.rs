@@ -1,4 +1,4 @@
-fn show() {
+pub fn show() {
     println!("{}", "b");
     println!("{} {}", 2, "b");
     let a: f64 = 2.1;
@@ -7,6 +7,6 @@ fn show() {
     println!("{}", b);
 }
 
-fn main() {
+pub fn main() {
     show();
 }

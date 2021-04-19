@@ -1,9 +1,9 @@
-fn compare_assert(a: i32, b: i32) {
+pub fn compare_assert(a: i32, b: i32) {
     assert!(a == b);
     assert!(!(0 == 1));
 }
 
-fn main() {
+pub fn main() {
     compare_assert(1, 1);
     println!("{}", "OK");
 }

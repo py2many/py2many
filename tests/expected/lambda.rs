@@ -1,8 +1,8 @@
-fn show() {
+pub fn show() {
     let myfunc: _ = |x, y| (x + y);
     println!("{}", myfunc(1, 2));
 }
 
-fn main() {
+pub fn main() {
     show();
 }

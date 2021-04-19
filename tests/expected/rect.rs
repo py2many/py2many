@@ -1,14 +1,14 @@
-struct Rectangle {
-    height: i32,
-    length: i32,
+pub struct Rectangle {
+    pub height: i32,
+    pub length: i32,
 }
 
 impl Rectangle {
-    fn is_square(&self) -> bool {
+    pub fn is_square(&self) -> bool {
         return self.height == self.length;
     }
 }
-fn show() {
+pub fn show() {
     let mut r: Rectangle = Rectangle {
         height: 1,
         length: 1,
@@ -23,6 +23,6 @@ fn show() {
     println!("{}", r.length);
 }
 
-fn main() {
+pub fn main() {
     show();
 }

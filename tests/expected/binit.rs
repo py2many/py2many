@@ -1,6 +1,6 @@
 use std::collections;
 
-fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
+pub fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
     let mut low: i32 = 0;
     let mut high: i32 = data.len() as i32;
     while low < high {
@@ -14,7 +14,7 @@ fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
     return low;
 }
 
-fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
+pub fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
     let mut bins: &mut Vec<i32> = &mut vec![0];
     for _x in limits {
         bins.push(0);
@@ -25,7 +25,7 @@ fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
     return bins.to_vec();
 }
 
-fn main() {
+pub fn main() {
     let limits: &Vec<i32> = &vec![23, 37, 43, 53, 67, 83];
     let data: &Vec<i32> = &vec![
         95, 21, 94, 12, 99, 4, 70, 75, 83, 93, 52, 80, 57, 5, 53, 86, 65, 17, 92, 83, 71, 61, 54,

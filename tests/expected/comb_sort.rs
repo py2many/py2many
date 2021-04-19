@@ -1,7 +1,7 @@
 use std::cmp;
 use std::collections;
 
-fn comb_sort(seq: &mut Vec<i32>) -> Vec<i32> {
+pub fn comb_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     let mut gap: _ = seq.len();
     let mut swap: bool = true;
     while gap as i32 > 1 || swap {
@@ -21,7 +21,7 @@ fn comb_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     return seq.to_vec();
 }
 
-fn main() {
+pub fn main() {
     let mut unsorted: &mut Vec<i32> = &mut vec![14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
     let expected: &Vec<i32> = &vec![5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
     assert!(comb_sort(unsorted) == *expected);

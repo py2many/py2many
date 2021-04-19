@@ -5,21 +5,21 @@ use std::collections::HashMap;
 use std::os::raw::c_int;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
-enum Colors {
+pub enum Colors {
     RED,
     GREEN,
     BLUE,
 }
 
 flags! {
-    enum Permissions: c_int {
+    pub enum Permissions: c_int {
         R = 1,
         W = 2,
         X = 16,
     }
 }
 
-fn show() {
+pub fn show() {
     let color_map: &HashMap<Colors, &str> = &[
         (Colors::RED, "red"),
         (Colors::GREEN, "green"),
@@ -43,6 +43,6 @@ fn show() {
     assert!(color_map.len() as i32 != 0);
 }
 
-fn main() {
+pub fn main() {
     show();
 }

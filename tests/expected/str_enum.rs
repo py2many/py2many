@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use strum_macros::EnumString;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, EnumString)]
-enum Colors {
+pub enum Colors {
     #[strum(serialize = "red")]
     RED,
     #[strum(serialize = "green")]
@@ -14,7 +14,7 @@ enum Colors {
     BLUE,
 }
 
-fn show() {
+pub fn show() {
     let color_map: &HashMap<Colors, &str> = &[
         (Colors::RED, "1"),
         (Colors::GREEN, "2"),
@@ -32,6 +32,6 @@ fn show() {
     println!("{}", color_map.len());
 }
 
-fn main() {
+pub fn main() {
     show();
 }

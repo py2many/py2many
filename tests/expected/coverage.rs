@@ -2,7 +2,7 @@ use std::collections;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-fn indexing() -> i32 {
+pub fn indexing() -> i32 {
     let mut sum: i32 = 0;
     let mut a: Vec<i32> = vec![];
     for i in (0..10) {
@@ -12,7 +12,7 @@ fn indexing() -> i32 {
     return sum;
 }
 
-fn show() {
+pub fn show() {
     let a1: i32 = 10;
     let a2: f64 = 2.1;
     println!("{}", a2);
@@ -56,6 +56,6 @@ fn show() {
     }
 }
 
-fn main() {
+pub fn main() {
     show();
 }

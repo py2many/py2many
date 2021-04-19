@@ -1,6 +1,6 @@
 use std::collections;
 
-fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
+pub fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     let L: _ = seq.len();
     for _ in (0..L) {
         for n in (1..L) {
@@ -16,7 +16,7 @@ fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     return seq.to_vec();
 }
 
-fn main() {
+pub fn main() {
     let mut unsorted: &mut Vec<i32> = &mut vec![14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
     let expected: &Vec<i32> = &vec![5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
     assert!(bubble_sort(unsorted) == *expected);

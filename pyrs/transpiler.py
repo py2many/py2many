@@ -98,7 +98,7 @@ class RustTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "<{0}>".format(", ".join(typedecls))
 
-        funcdef = "fn {0}{1}({2}) {3}".format(
+        funcdef = "pub fn {0}{1}({2}) {3}".format(
             node.name, template, ", ".join(args_list), return_type
         )
         return funcdef + " {\n" + body + "\n}\n"
@@ -408,9 +408,11 @@ class RustTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append("{0}: {1},".format(declaration, typename))
+            fields.append("pub {0}: {1},".format(declaration, typename))
 
-        struct_def = "struct {0} {{\n{1}\n}}\n\n".format(node.name, "\n".join(fields))
+        struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
+            node.name, "\n".join(fields)
+        )
         impl_def = "impl {0} {{\n".format(node.name)
         buf = [self.visit(b) for b in node.body]
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
@@ -424,7 +426,7 @@ class RustTranspiler(CLikeTranspiler):
             else:
                 fields.append(f"{member} = {var},")
         fields = "\n".join(fields)
-        return f"#[derive(Clone, Eq, Hash, PartialEq)]\nenum {node.name} {{\n{fields}\n}}\n\n"
+        return f"#[derive(Clone, Eq, Hash, PartialEq)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
 
     def visit_StrEnum(self, node):
         self._usings.add("strum")
@@ -439,7 +441,7 @@ class RustTranspiler(CLikeTranspiler):
                 fields.append(f"#[strum(serialize = {var})]{member},")
         fields = "\n".join(fields)
 
-        return f"#[derive(Clone, Debug, Eq, Hash, PartialEq, EnumString)]\nenum {node.name} {{\n{fields}\n}}\n\n"
+        return f"#[derive(Clone, Debug, Eq, Hash, PartialEq, EnumString)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
 
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
@@ -452,7 +454,9 @@ class RustTranspiler(CLikeTranspiler):
             else:
                 fields.append(f"{member} = {var},")
         fields = "\n".join(["    " * 2 + f for f in fields])
-        return f"flags! {{\n    enum {node.name}: c_int {{\n{fields}\n    }}\n}}\n\n"
+        return (
+            f"flags! {{\n    pub enum {node.name}: c_int {{\n{fields}\n    }}\n}}\n\n"
+        )
 
     def visit_alias(self, node):
         return "use {0};".format(node.name)
@@ -589,7 +593,7 @@ class RustTranspiler(CLikeTranspiler):
         if is_global(node):
             # Note that static are not really supported, as modifying them requires adding
             # "unsafe" blocks, which pyrs does not do.
-            kw = "static" if mut else "const"
+            kw = "pub static" if mut else "pub const"
         elif mut:
             kw = "let mut"
 
@@ -629,7 +633,7 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             typename = self._typename_from_annotation(node.value)
 
-            if kw in ["const", "static"]:
+            if kw.startswith("pub "):
                 # Use arrays instead of Vec as globals must have fixed size
                 if value.startswith("vec!"):
                     value = value.replace("vec!", "&")
@@ -649,11 +653,11 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             typename = self._typename_from_annotation(node.value)
 
-            if kw in ["const", "static"]:
+            if kw.startswith("pub "):
                 self._usings.add("lazy_static::lazy_static")
                 if "str" in typename:
                     typename = typename.replace("str", "'static str")
-                return f"lazy_static! {{ static ref {target}: {typename} = {value}; }}"
+                return f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
 
             mut = "mut " if is_mutable(node.scopes, target) else ""
             if hasattr(node.value, "container_type"):
@@ -665,7 +669,7 @@ class RustTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             typename = self._typename_from_annotation(node.value)
 
-            if kw in ["const", "static"]:
+            if kw.startswith("pub "):
                 if hasattr(node.value, "container_type"):
                     container_type, element_type = node.value.container_type
                     key_typename, value_typename = self._map_types(element_type)
@@ -674,7 +678,8 @@ class RustTranspiler(CLikeTranspiler):
                     if value_typename == "&str":
                         value_typename = "&'static str"
                     typename = f"{key_typename}, {value_typename}"
-                return f"lazy_static! {{ static ref {target}: HashMap<{typename}> = {value}; }}"
+
+                return f"lazy_static! {{ pub static ref {target}: HashMap<{typename}> = {value}; }}"
 
             mut = "mut " if is_mutable(node.scopes, target) else ""
             if hasattr(node.value, "container_type"):
