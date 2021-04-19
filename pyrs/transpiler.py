@@ -571,8 +571,13 @@ class RustTranspiler(CLikeTranspiler):
             typename = "_"
             if hasattr(target, "annotation"):
                 typename = get_id(target.annotation)
-                if typename in self._type_map:
-                    typename = self._type_map[typename]
+                # TODO: get more disciplined about how we use type_map
+                if not isinstance(typename, str):
+                    typename = self.visit(typename)
+                    typename = self._type_map.get(typename, "_")
+                else:
+                    if typename in self._type_map:
+                        typename = self._type_map[typename]
 
             target = self.visit(target)
             value = self.visit(node.value)

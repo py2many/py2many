@@ -20,6 +20,8 @@ def infer_types(node) -> InferMeta:
 
 def get_inferred_type(node):
     if isinstance(node, ast.Name):
+        if not hasattr(node, "scopes"):
+            return None
         definition = node.scopes.find(get_id(node))
         # Prevent infinite recursion
         if definition != node:
@@ -34,6 +36,19 @@ def get_inferred_type(node):
             if return_type is not None:
                 return return_type
     return None
+
+
+def is_reference(arg):
+    annotation_has_ref = hasattr(arg, "annotation") and isinstance(
+        arg.annotation, ast.Subscript
+    )
+    if annotation_has_ref:
+        return True
+    inferred = get_inferred_type(arg)
+    annotation_has_ref = hasattr(inferred, "id") and isinstance(
+        inferred.id, ast.Subscript
+    )
+    return annotation_has_ref
 
 
 class InferTypesTransformer(ast.NodeTransformer):
@@ -80,8 +95,64 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_Name(self, node):
+        annotation = get_inferred_type(node)
+        if annotation is not None:
+            node.annotation = annotation
+        return node
+
     def visit_Constant(self, node):
         return self.visit_NameConstant(node)
+
+    @staticmethod
+    def _annotate(node, typename: str):
+        # ast.parse produces a Module object that needs to be destructured
+        type_annotation = ast.parse(typename).body[0].value
+        node.annotation = ast.Name(id=type_annotation)
+
+    def visit_List(self, node):
+        self.generic_visit(node)
+        if len(node.elts) > 0:
+            elements = [self.visit(e) for e in node.elts]
+            elt_types = set([get_id(get_inferred_type(e)) for e in elements])
+            if len(elt_types) == 1:
+                elt_type = get_id(elements[0].annotation)
+                self._annotate(node, f"List[{elt_type}]")
+        else:
+            self._annotate(node, "List")
+        return node
+
+    def visit_Set(self, node):
+        self.generic_visit(node)
+        if len(node.elts) > 0:
+            elements = [self.visit(e) for e in node.elts]
+            elt_types = set([get_id(get_inferred_type(e)) for e in elements])
+            if len(elt_types) == 1:
+                elt_type = get_id(elements[0].annotation)
+                self._annotate(node, f"Set[{elt_type}]")
+        else:
+            self._annotate(node, "Set")
+        return node
+
+    def visit_Dict(self, node):
+        self.generic_visit(node)
+        if len(node.keys) > 0:
+            keys = [self.visit(e) for e in node.keys]
+            key_types = set([get_id(get_inferred_type(e)) for e in keys])
+            if len(key_types) == 1 and hasattr(keys[0], "annotation"):
+                key_type = get_id(keys[0].annotation)
+            else:
+                key_type = "Any"
+            values = [self.visit(e) for e in node.values]
+            value_types = set([get_id(get_inferred_type(e)) for e in values])
+            if len(value_types) == 1 and hasattr(values[0], "annotation"):
+                value_type = get_id(values[0].annotation)
+            else:
+                value_type = "Any"
+            self._annotate(node, f"Dict[{key_type}, {value_type}]")
+        else:
+            self._annotate(node, "Dict")
+        return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
@@ -126,7 +197,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                         type_str = f"Union[{type_str},{new_type_str}]"
                         scope.returns.id = type_str
                 else:
-                    scope.returns = ast.Name(id=new_type_str)
+                    # Do not overwrite source annotation with inferred
+                    if scope.returns is None:
+                        scope.returns = ast.Name(id=new_type_str)
         return node
 
     def visit_UnaryOp(self, node):
