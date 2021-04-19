@@ -423,6 +423,7 @@ class RustTranspiler(CLikeTranspiler):
             return "vec![]"
 
     def visit_Dict(self, node):
+        self._usings.add("std::collections::HashMap")
         if len(node.keys) > 0:
             self._usings.add("std::collections::HashMap")
             kv_string = []
@@ -650,6 +651,7 @@ class RustTranspiler(CLikeTranspiler):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_Set(self, node):
+        self._usings.add("std::collections::HashSet")
         elts = []
         for i in range(len(node.elts)):
             elt = self.visit(node.elts[i])
