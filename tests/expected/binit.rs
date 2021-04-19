@@ -16,7 +16,7 @@ fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
 
 fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
     let mut bins = vec![0];
-    for _x in limits.iter() {
+    for _x in limits {
         bins.push(0);
     }
     for d in data {

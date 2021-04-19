@@ -5,10 +5,10 @@ const code_a: &str = "a";
 const code_b: &str = "b";
 const l_b: [&str; 2] = [code_a, code_b];
 fn main() {
-    for i in l_a.iter() {
+    for i in l_a {
         println!("{}", i);
     }
-    for i in l_b.iter() {
+    for i in l_b {
         println!("{}", i);
     }
 }
