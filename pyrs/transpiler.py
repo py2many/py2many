@@ -14,7 +14,7 @@ from py2many.analysis import (
 )
 from py2many.annotation_transformer import add_annotation_flags
 from py2many.context import add_variable_context, add_list_calls
-from py2many.inference import get_inferred_type
+from py2many.inference import get_inferred_type, is_reference
 from py2many.mutability_transformer import detect_mutable_vars
 from py2many.scope import add_scope_context
 from py2many.tracer import is_list, defined_before, is_class_or_module
@@ -212,9 +212,7 @@ class RustTranspiler(CLikeTranspiler):
         ref_args = []
         if fndef:
             for varg, fnarg in zip(vargs, fndef.args.args):
-                if isinstance(fnarg.annotation, ast.Subscript):
-                    # The arg is likely a container object. So
-                    # pass by reference
+                if is_reference(fnarg):
                     ref_args.append(f"&{varg}")
                 else:
                     ref_args.append(varg)
@@ -562,9 +560,7 @@ class RustTranspiler(CLikeTranspiler):
 
             if kw in ["const", "static"]:
                 # Use arrays instead of Vec as globals must have fixed size
-                return (
-                    f"{kw} {self.visit(target)}: [{typename}; {count}] = [{elements}];"
-                )
+                return f"{kw} {self.visit(target)}: &[{typename}; {count}] = &[{elements}];"
 
             return f"{kw} {self.visit(target)} = vec![{elements}];"
         else:
