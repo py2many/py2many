@@ -457,12 +457,7 @@ class DartTranspiler(CLikeTranspiler):
             target = self.visit(target)
             return f"var {target} = [{elements}];"
         else:
-            typename = "var"
-            if hasattr(target, "annotation"):
-                typename = get_id(target.annotation)
-                if typename in self._type_map:
-                    typename = self._type_map[typename]
-
+            typename = self._typename_from_annotation(target, default_type="var")
             target = self.visit(target)
             value = self.visit(node.value)
 

@@ -71,6 +71,19 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
+    def _typename_from_annotation(self, node, default_type) -> str:
+        typename = default_type
+        if hasattr(node, "annotation"):
+            typename = get_id(node.annotation)
+            # TODO: get more disciplined about how we use type_map
+            if not isinstance(typename, str):
+                typename = self.visit(typename)
+                typename = self._type_map.get(typename, default_type)
+            else:
+                if typename in self._type_map:
+                    typename = self._type_map[typename]
+        return typename
+
     def visit(self, node):
         if type(node) == ast.Pass:
             return self.comment("pass")

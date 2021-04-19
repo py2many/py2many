@@ -383,12 +383,7 @@ class CppTranspiler(CLikeTranspiler):
                 decltype(node), self.visit(target), ", ".join(elements)
             )
         else:
-            typename = "auto"
-            if hasattr(target, "annotation"):
-                typename = get_id(target.annotation)
-                if typename in self._type_map:
-                    typename = self._type_map[typename]
-
+            typename = self._typename_from_annotation(target, default_type="auto")
             target = self.visit(target)
             value = self.visit(node.value)
             return f"{typename} {target} = {value};"

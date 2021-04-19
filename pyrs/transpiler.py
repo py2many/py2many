@@ -564,17 +564,7 @@ class RustTranspiler(CLikeTranspiler):
 
             return f"{kw} {self.visit(target)} = vec![{elements}];"
         else:
-            typename = "_"
-            if hasattr(target, "annotation"):
-                typename = get_id(target.annotation)
-                # TODO: get more disciplined about how we use type_map
-                if not isinstance(typename, str):
-                    typename = self.visit(typename)
-                    typename = self._type_map.get(typename, "_")
-                else:
-                    if typename in self._type_map:
-                        typename = self._type_map[typename]
-
+            typename = self._typename_from_annotation(target, default_type="_")
             target = self.visit(target)
             value = self.visit(node.value)
 

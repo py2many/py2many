@@ -488,12 +488,7 @@ class GoTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1}".format(target, value)
         else:
-            typename = None
-            if hasattr(target, "annotation"):
-                typename = get_id(target.annotation)
-                if typename in self._type_map:
-                    typename = self._type_map[typename]
-
+            typename = self._typename_from_annotation(target, default_type=None)
             target = self.visit(target)
             value = self.visit(node.value)
 
