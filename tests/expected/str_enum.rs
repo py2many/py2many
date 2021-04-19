@@ -15,7 +15,7 @@ enum Colors {
 }
 
 fn show() {
-    let color_map: _ = [
+    let color_map = [
         (Colors::RED, "1"),
         (Colors::GREEN, "2"),
         (Colors::BLUE, "3"),

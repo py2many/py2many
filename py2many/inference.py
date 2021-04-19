@@ -51,6 +51,18 @@ def is_reference(arg):
     return annotation_has_ref
 
 
+def get_element_types(elements):
+    """Identifies the element types used by list of elements."""
+    types = []
+    for element in elements:
+        if hasattr(element, "annotation"):
+            type_name = get_id(element.annotation)
+            types.append(type_name)
+            continue
+        types.append(None)
+    return types
+
+
 class InferTypesTransformer(ast.NodeTransformer):
     """
     Tries to infer types

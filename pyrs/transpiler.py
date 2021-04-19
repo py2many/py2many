@@ -6,7 +6,6 @@ from .declaration_extractor import DeclarationExtractor
 
 from py2many.analysis import (
     add_imports,
-    get_element_types,
     get_id,
     is_global,
     is_mutable,
@@ -14,7 +13,7 @@ from py2many.analysis import (
 )
 from py2many.annotation_transformer import add_annotation_flags
 from py2many.context import add_variable_context, add_list_calls
-from py2many.inference import get_inferred_type, is_reference
+from py2many.inference import get_element_types, get_inferred_type, is_reference
 from py2many.mutability_transformer import detect_mutable_vars
 from py2many.scope import add_scope_context
 from py2many.tracer import is_list, defined_before, is_class_or_module
@@ -54,7 +53,9 @@ class RustTranspiler(CLikeTranspiler):
         externs = [f"extern crate {dep};" for dep in deps]
         deps = ",".join(deps)
         externs = "\n".join(externs)
-        uses = "\n".join(f"use {mod};" for mod in usings if mod != "strum")
+        uses = "\n".join(
+            f"use {mod};" for mod in usings if mod not in ("strum", "lazy_static")
+        )
         return f"// cargo-deps: {deps}\n{externs}\n{uses}" if deps else f"{uses}"
 
     def visit_FunctionDef(self, node):
@@ -553,7 +554,7 @@ class RustTranspiler(CLikeTranspiler):
         elif isinstance(node.value, ast.List):
             count = len(node.value.elts)
             elements = ", ".join([self.visit(e) for e in node.value.elts])
-            types = get_element_types(node.value.elts, node.scopes, self._type_map)
+            types = get_element_types(node.value.elts)
             if len(set(types)) == 1 and types[0] is not None:
                 typename = types[0]
             else:
@@ -564,6 +565,47 @@ class RustTranspiler(CLikeTranspiler):
                 return f"{kw} {self.visit(target)}: &[{typename}; {count}] = &[{elements}];"
 
             return f"{kw} {self.visit(target)} = vec![{elements}];"
+        elif isinstance(node.value, ast.Set):
+            types = get_element_types(node.value.elts)
+            if len(set(types)) == 1 and types[0] is not None:
+                typename = types[0]
+            else:
+                typename = "_"
+
+            target = self.visit(target)
+            value = self.visit(node.value)
+
+            if kw in ["const", "static"]:
+                self._usings.add("lazy_static::lazy_static")
+                if typename == "&str":
+                    typename = "&'static str"
+                return f"lazy_static! {{ static ref {target}: HashSet<{typename}> = {value}; }}"
+
+            return f"{kw} {target} = {value};"
+        elif isinstance(node.value, ast.Dict):
+            key_types = get_element_types(node.value.keys)
+            if len(set(key_types)) == 1 and key_types[0] is not None:
+                key_typename = key_types[0]
+            else:
+                key_typename = "_"
+            value_types = get_element_types(node.value.values)
+            if len(set(value_types)) == 1 and value_types[0] is not None:
+                value_typename = value_types[0]
+            else:
+                value_typename = "_"
+
+            target = self.visit(target)
+            value = self.visit(node.value)
+
+            if kw in ["const", "static"]:
+                if key_typename == "&str":
+                    key_typename = "&'static str"
+                if value_typename == "&str":
+                    value_typename = "&'static str"
+                typename = f"{key_typename}, {value_typename}"
+                return f"lazy_static! {{ static ref {target}: HashMap<{typename}> = {value}; }}"
+
+            return f"{kw} {target} = {value};"
         else:
             typename = self._typename_from_annotation(target, default_type="_")
             target = self.visit(target)
