@@ -5,6 +5,16 @@ import (
 	iter "github.com/hgfischer/go-iter"
 )
 
+func indexing() int {
+	var sum int = 0
+	var a []int = []int{}
+	for _, i := range iter.NewIntSeq(iter.Start(0), iter.Stop(10)).All() {
+		a = append(a, i)
+		sum += a[i]
+	}
+	return sum
+}
+
 func show() {
 	var a1 int = 10
 	var a2 float64 = 2.1
@@ -18,6 +28,8 @@ func show() {
 	var a3 int = -(a1)
 	var a4 int = (a3 + a1)
 	fmt.Printf("%v\n", a4)
+	var sum1 int = indexing()
+	fmt.Printf("%v\n", sum1)
 }
 
 func main() {

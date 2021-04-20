@@ -443,11 +443,6 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node):
         value = self.visit(node.value)
         index = self.visit(node.slice)
-        index_typename = get_inferred_type(self._slice_value(node))
-        if index_typename is not None and (
-            index_typename != "u64" or index_typename != "usize"
-        ):
-            index = self._cast(index, "usize")
         if hasattr(node, "is_annotation"):
             if value in container_types:
                 self._usings.add("std::collections")
@@ -455,6 +450,9 @@ class RustTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
+        index_typename = get_inferred_type(self._slice_value(node))
+        if index_typename != "u64" or index_typename != "usize":
+            index = self._cast(index, "usize")
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
@@ -513,7 +511,8 @@ class RustTranspiler(CLikeTranspiler):
         target, type_str, val = super().visit_AnnAssign(node)
         if type_str in self._type_map:
             type_str = self._type_map[type_str]
-        return f"let {target}: {type_str} = {val};"
+        mut = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
+        return f"let {mut}{target}: {type_str} = {val};"
 
     def visit_Assign(self, node):
         target = node.targets[0]

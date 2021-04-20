@@ -1,3 +1,15 @@
+from typing import List
+
+
+def indexing():
+    sum = 0
+    a: List[int] = []
+    for i in range(10):
+        a.append(i)
+        sum += a[i]
+    return sum
+
+
 def show():
     # assign
     a1 = 10
@@ -14,6 +26,8 @@ def show():
     # binary op
     a4 = a3 + a1
     print(a4)
+    sum1 = indexing()
+    print(sum1)
     # Uncomment as we fix things
     # lists, sets and dict
     # a5 = [1, 2, 3]
