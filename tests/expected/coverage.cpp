@@ -2,6 +2,17 @@
 #include "py14/runtime/range.hpp"
 #include "py14/runtime/sys.h"
 #include <iostream>
+
+inline auto indexing() {
+  int sum = 0;
+  std::vector<int> a = {};
+  for (auto i : rangepp::xrange(10)) {
+    a.push_back(i);
+    sum += a[i];
+  }
+  return sum;
+}
+
 inline void show() {
   int a1 = 10;
   double a2 = 2.1;
@@ -18,6 +29,9 @@ inline void show() {
   int a3 = -(a1);
   int a4 = a3 + a1;
   std::cout << a4;
+  std::cout << std::endl;
+  int sum1 = indexing();
+  std::cout << sum1;
   std::cout << std::endl;
 }
 

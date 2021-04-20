@@ -123,9 +123,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
         value_id = self.visit(node.value)
 
-        if is_list(node.value):
-            if node.attr == "append":
-                attr = "push"
         if not value_id:
             value_id = ""
 
@@ -173,6 +170,14 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Call(self, node):
         fname = self.visit(node.func)
         vargs = []
+        if (
+            hasattr(node.func, "value")
+            and is_list(node.func.value)
+            and fname.endswith(".append")
+        ):
+            list_name = get_id(node.func.value)
+            fname = "push!"
+            vargs.append(list_name)
 
         if node.args:
             vargs += [self.visit(a) for a in node.args]
@@ -365,7 +370,8 @@ class JuliaTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)
-        return "{0}[{1}]".format(value, index)
+        # Julia array indices start at 1
+        return "{0}[{1} + 1]".format(value, index)
 
     def visit_Index(self, node):
         return self.visit(node.value)

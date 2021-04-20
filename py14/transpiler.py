@@ -77,6 +77,14 @@ def generate_lambda_fun(node, body):
 
 
 class CppTranspiler(CLikeTranspiler):
+
+    CONTAINER_TYPES = {
+        "List": "std::vector",
+        "Dict": "std::map",
+        "Set": "std::set",
+        "Optional": "std::optional",
+    }
+
     def __init__(self):
         super().__init__()
         # TODO: include only when needed
@@ -306,10 +314,10 @@ class CppTranspiler(CLikeTranspiler):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
             value_type = decltype(node.elts[0])
-            return "std::vector<{0}>{{{1}}}".format(value_type, ", ".join(elements))
-
+            elements_str = ", ".join(elements)
+            return f"std::vector<{value_type}>{{{elements_str}}}"
         else:
-            raise ValueError("Cannot create vector without elements")
+            return "{}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -317,7 +325,12 @@ class CppTranspiler(CLikeTranspiler):
             raise NotImplementedError("Ellipsis not supported")
 
         slice_value = self._slice_value(node)
-        return "{0}[{1}]".format(value, self.visit(slice_value))
+        index = self.visit(slice_value)
+        if hasattr(node, "is_annotation"):
+            if value in self.CONTAINER_TYPES:
+                value = self.CONTAINER_TYPES[value]
+            return "{0}<{1}>".format(value, index)
+        return f"{value}[{index}]"
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]

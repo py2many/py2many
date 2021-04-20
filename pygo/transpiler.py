@@ -379,7 +379,8 @@ class GoTranspiler(CLikeTranspiler):
             return f"[]{typename}{{{elements}}}"
 
         else:
-            return "{}"
+            typename = "int"  # TODO: infer
+            return f"[]{typename}{{}}"
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:

@@ -122,7 +122,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+            return "(0..{}-1)".format(vargs[0])
         elif len(node.args) == 2:
             return "({}..{}-1)".format(vargs[0], vargs[1])
         elif len(node.args) == 3:

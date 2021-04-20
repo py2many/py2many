@@ -2,11 +2,7 @@ import ast
 
 from .clike import CLikeTranspiler
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.tracer import (
-    is_list,
-    defined_before,
-    is_class_or_module,
-)
+from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.scope import add_scope_context
 from py2many.annotation_transformer import add_annotation_flags
@@ -15,12 +11,7 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
 from typing import Optional, List
 
-container_types = {
-    "List": "openArray",
-    "Dict": "Table",
-    "Set": "set",
-    "Optional": "Option",
-}
+container_types = {"List": "seq", "Dict": "Table", "Set": "set", "Optional": "Option"}
 
 
 def transpile(source):
@@ -97,7 +88,11 @@ class NimTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
+            # This works only for arguments, for all other cases, use container_types
+            use_open_array = isinstance(node.annotation, ast.Subscript)
             typename = self.visit(node.annotation)
+            if use_open_array:
+                typename = typename.replace("seq", "openArray")
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -113,7 +108,7 @@ class NimTranspiler(CLikeTranspiler):
 
         if is_list(node.value):
             if node.attr == "append":
-                attr = "push"
+                attr = "add"
         if not value_id:
             value_id = ""
 
@@ -372,7 +367,7 @@ class NimTranspiler(CLikeTranspiler):
             elements = ", ".join(elements)
             return f"@[{elements}]"
         else:
-            return "[]"
+            return "@[]"
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:
@@ -453,7 +448,8 @@ class NimTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self.visit(node.annotation)
         val = self.visit(node.value)
-        return "let {0}: {1} = {2}".format(target, type_str, val)
+        kw = "var" if is_mutable(node.scopes, target) else "let"
+        return f"{kw} {target}: {type_str} = {val}"
 
     def visit_Assign(self, node):
         target = node.targets[0]

@@ -10,10 +10,10 @@ proc bisect_right(data: openArray[int], item: int): int =
       low = middle + 1;
   return low
 
-proc bin_it(limits: openArray[int], data: openArray[int]): openArray[int] =
+proc bin_it(limits: openArray[int], data: openArray[int]): seq[int] =
   var bins = @[0]
   for _x in limits:
-    bins.push(0)
+    bins.add(0)
   for d in data:
     bins[bisect_right(limits, d)] += 1;
   return bins

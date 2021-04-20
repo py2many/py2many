@@ -4,7 +4,7 @@ function bisect_right(data::Array{Int64}, item::Int64)::Int64
     high = length(data)
     while low < high
         middle = i32::from(((low + high) / 2))
-        if item < data[middle]
+        if item < data[middle+1]
             high = middle
         else
 
@@ -17,10 +17,10 @@ end
 function bin_it(limits::Array{Int64}, data::Array{Int64})::Array{Int64}
     bins = [0]
     for _x in limits
-        bins.push(0)
+        push!(bins, 0)
     end
     for d in data
-        bins[bisect_right(limits, d)] += 1
+        bins[bisect_right(limits, d)+1] += 1
     end
     return bins
 end
