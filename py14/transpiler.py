@@ -146,11 +146,13 @@ class CppTranspiler(CLikeTranspiler):
         elif fname == "max":
             return "std::max({0})".format(args)
         elif fname == "range":
+            self._headers.append('#include "py14/runtime/range.hpp"')
             if sys.version_info[0] >= 3:
                 return "rangepp::xrange({0})".format(args)
             else:
                 return "rangepp::range({0})".format(args)
         elif fname == "xrange":
+            self._headers.append('#include "py14/runtime/range.hpp"')
             return "rangepp::xrange({0})".format(args)
         elif fname == "len":
             return "{0}.size()".format(self.visit(node.args[0]))
