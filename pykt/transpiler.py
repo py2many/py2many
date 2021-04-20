@@ -124,9 +124,9 @@ class KotlinTranspiler(CLikeTranspiler):
         if len(node.args) == 1:
             return "(0..{})".format(vargs[0])
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            return "({}..{}-1)".format(vargs[0], vargs[1])
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            return "({}..{}-1 step {})".format(vargs[0], vargs[1], vargs[2])
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)
