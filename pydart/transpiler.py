@@ -128,16 +128,25 @@ class DartTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+        start = 0
+        step = 1
+        if len(vargs) == 1:
+            end = vargs[0]
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            start = vargs[0]
+            end = vargs[1]
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            start = vargs[0]
+            end = vargs[1]
+            step = vargs[2]
+        else:
+            raise Exception(
+                "encountered range() call with unknown parameters: range({})".format(
+                    vargs
+                )
+            )
 
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
+        return f"([for(var i = {start}; i < {end}; i += {step}) i])"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
