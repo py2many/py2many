@@ -136,11 +136,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+            return f"(0:{vargs[0]} - 1)"
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            return f"({vargs[0]}:{vargs[1]} - 1)"
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)
