@@ -441,7 +441,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_StrEnum(self, node):
         self._usings.add("strum")
-        self._usings.add("strum_macros::EnumString")
+        self._usings.add("strum_macros::{Display, EnumString}")
 
         fields = []
         for member, var in node.class_assignments.items():
@@ -452,7 +452,7 @@ class RustTranspiler(CLikeTranspiler):
                 fields.append(f"#[strum(serialize = {var})]{member},")
         fields = "\n".join(fields)
 
-        return f"#[derive(Clone, Debug, Eq, Hash, PartialEq, EnumString)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
+        return f"#[derive(Clone, Debug, Display, EnumString, Eq, Hash, PartialEq)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
 
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
