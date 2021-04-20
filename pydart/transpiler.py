@@ -225,13 +225,13 @@ class DartTranspiler(CLikeTranspiler):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         if isinstance(node.ops[0], ast.In):
-            return "{0}.iter().any(|&x| x == {1})".format(
+            return "{0}.contains({1})".format(
                 right, left
-            )  # is it too much?
+            )
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.iter().all(|&x| x != {1})".format(
+            return "!({0}.contains({1}))".format(
                 right, left
-            )  # is it even more?
+            )
 
         return super().visit_Compare(node)
 
