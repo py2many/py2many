@@ -44,7 +44,7 @@ class GoTranspiler(CLikeTranspiler):
         buf = "package main\n\n"  # TODO naming
         if self._usings:
             buf += "import (\n"
-            buf += ",\n".join([f'"{using}"' for using in self._usings])
+            buf += "\n".join([f"{using}" for using in self._usings])
             buf += ")\n"
         return buf + "\n\n"
 
@@ -130,12 +130,15 @@ class GoTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_range(self, node, vargs: List[str]) -> str:
+        self._usings.add('iter "github.com/hgfischer/go-iter"')
         if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+            return f"iter.NewIntSeq(iter.Start(0), iter.Stop({vargs[0]})).All()"
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            return (
+                f"iter.NewIntSeq(iter.Start({vargs[0]}), iter.Stop({vargs[1]})).All()"
+            )
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            return f"iter.NewIntSeq(iter.Start({vargs[0]}), iter.Stop({vargs[1]}), iter.Step({vargs[2]})).All()"
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)
@@ -145,14 +148,14 @@ class GoTranspiler(CLikeTranspiler):
         placeholders = []
         for n in node.args:
             placeholders.append("%v")
-        self._usings.add("fmt")
+        self._usings.add('"fmt"')
         placeholders_str = " ".join(placeholders)
         vargs_str = ", ".join(vargs)
         return f'fmt.Printf("{placeholders_str}\\n",{vargs_str})'
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
-            "range": self.visit_range,
+            "range_": self.visit_range,
             "xrange": self.visit_range,
             "print": self.visit_print,
         }
@@ -198,7 +201,7 @@ class GoTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {target}, _ := range {it} {{")
+        buf.append(f"for _, {target} := range {it} {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -452,7 +455,7 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Assert(self, node):
         condition = self.visit(node.test)
-        return f"if !({condition}) {{ panic(\"assert\") }}"
+        return f'if !({condition}) {{ panic("assert") }}'
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
@@ -539,7 +542,7 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Print(self, node):
         buf = []
-        self._usings.add("fmt")
+        self._usings.add('"fmt"')
         for n in node.values:
             value = self.visit(n)
             buf.append('fmt.Printf("%v\n",{0})'.format(value))
