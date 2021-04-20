@@ -56,7 +56,7 @@ class InferTypesTransformer(ast.NodeTransformer):
     Tries to infer types
     """
 
-    TYPE_DICT = {int: "int", float: "float", str: "str"}
+    TYPE_DICT = {int: "int", float: "float", str: "str", bool: "bool"}
     FIXED_WIDTH_INTS = {
         c_int8,
         c_int16,

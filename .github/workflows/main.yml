@@ -61,6 +61,11 @@ jobs:
       - name: Install rust-script and cargo-script
         run: cargo install rust-script cargo-script
 
+      - name: Install go range package
+        shell: bash
+        run: |
+          (go get github.com/hgfischer/go-iter)
+
       - name: Run tox
         shell: bash
         # sdkman init can be replaced with actions setup when the following is fixed

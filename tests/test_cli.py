@@ -20,7 +20,7 @@ UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 COMPILERS = {
     "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
-    "go": ["go", "tool", "compile"],
+    "go": ["go", "build"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
@@ -39,6 +39,7 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 COMPARABLE = [
+    "coverage",
     "fib",
     "global",
     "hello_world",

@@ -16,10 +16,10 @@ func bisect_right(data []int, item int) int {
 
 func bin_it(limits []int, data []int) []int {
 	bins := []int{0}
-	for _x, _ := range limits {
+	for _, _x := range limits {
 		bins = append(bins, 0)
 	}
-	for d, _ := range data {
+	for _, d := range data {
 		bins[bisect_right(limits, d)] += 1
 	}
 	return bins
