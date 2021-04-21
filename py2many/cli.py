@@ -315,6 +315,48 @@ def _process_once(settings, filename, outdir, env=None):
     return True
 
 
+def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
+    print(f"Transpiling whole directory to {outdir}:")
+    successful = []
+    failures = []
+    format_errors = []
+    for path in source.rglob("*.py"):
+        if path.suffix != ".py":
+            continue
+        if path.parent.name == "__pycache__":
+            continue
+
+        relative_path = path.relative_to(source)
+        target_path = outdir / relative_path
+        target_dir = target_path.parent
+        os.makedirs(target_dir, exist_ok=True)
+
+        try:
+            if _process_once(settings, path, target_dir, env=env):
+                successful.append(path)
+            else:
+                print(f"Error: Could not reformat: {path}")
+                format_errors.append(path)
+        except Exception as e:
+            print(f"Error: Could not transpile: {path}")
+            print(f"Due to: {e}")
+            failures.append(path)
+            if _suppress_exceptions:
+                if _suppress_exceptions is not True:
+                    if not isinstance(e, _suppress_exceptions):
+                        raise
+            else:
+                raise
+
+    print("\nFinished!")
+    print(f"Successful: {len(successful)}")
+    if format_errors:
+        print(f"Failed to reformat: {len(format_errors)}")
+    print(f"Failed to convert: {len(failures)}")
+    print()
+    return (successful, format_errors, failures)
+
+
 def main(args=None, env=os.environ):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
@@ -373,35 +415,9 @@ def main(args=None, env=os.environ):
             if args.outdir is None:
                 outdir = source.parent / f"{source.name}-py2many"
 
-            print(f"Transpiling whole directory to {outdir}:")
-            successful = failures = format_errors = 0
-            for path in source.rglob("*.py"):
-                if path.suffix != ".py":
-                    continue
-                if path.parent.name == "__pycache__":
-                    continue
-
-                relative_path = path.relative_to(source)
-                target_path = outdir / relative_path
-                target_dir = target_path.parent
-                os.makedirs(target_dir, exist_ok=True)
-
-                try:
-                    if _process_once(settings, path, target_dir, env=env):
-                        print(f"Error: Could not reformat: {path}")
-                        format_errors += 1
-                    successful += 1
-                except Exception as e:
-                    failures += 1
-                    print(f"Error: Could not transpile: {path}")
-                    print(f"Due to: {e}")
-
-            print("\nFinished!")
-            print(f"Successful: {successful}")
-            if format_errors:
-                print(f"Failed to reformat: {format_errors}")
-            print(f"Failed to convert: {failures}")
-            print()
+            successful, format_errors, failures = _process_dir(
+                settings, source, outdir, env=env
+            )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1
         return rv
