@@ -181,6 +181,13 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
+    def visit_Compare(self, node):
+        self.visit(node.left)
+        self.visit(node.ops[0])
+        self.visit(node.comparators[0])
+
+        return node
+
     def visit_Return(self, node):
         self.generic_visit(node)
         new_type_str = (

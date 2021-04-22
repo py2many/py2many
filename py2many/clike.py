@@ -83,6 +83,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _map_container_type(self, typename) -> str:
         return self._container_type_map.get(typename, self._default_type)
 
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}<{index_type}>"
+
     def _visit_container_type(self, typename: Tuple) -> str:
         value_type, index_type = typename
         value_type = self._map_container_type(value_type)
@@ -98,7 +101,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
         if index_contains_default:
             return self._default_type
-        return f"{value_type}<{index_type}>"
+        return self._combine_value_index(value_type, index_type)
 
     def _typename_from_annotation(self, node) -> str:
         default_type = self._default_type

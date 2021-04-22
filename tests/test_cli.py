@@ -53,7 +53,6 @@ COMPARABLE = [
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.cpp",
-    "binit.go",  # https://github.com/adsharma/py2many/issues/23
     "binit.jl",  # https://github.com/adsharma/py2many/issues/80
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "binit.rs",  # https://github.com/adsharma/py2many/issues/19

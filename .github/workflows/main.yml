@@ -64,7 +64,7 @@ jobs:
       - name: Install go range package
         shell: bash
         run: |
-          (go get github.com/hgfischer/go-iter)
+          (go get github.com/hgfischer/go-iter && go get github.com/google/go-cmp/cmp)
 
       - name: Run tox
         shell: bash

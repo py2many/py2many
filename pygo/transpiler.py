@@ -12,8 +12,6 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.mutability_transformer import detect_mutable_vars
 from py2many.scope import add_scope_context
 
-container_types = {"List": "", "Dict": "map", "Set": "Set", "Optional": "nil"}
-
 
 def transpile(source):
     """
@@ -34,9 +32,12 @@ def transpile(source):
 
 
 class GoTranspiler(CLikeTranspiler):
+    CONTAINER_TYPE_MAP = {"List": "[]", "Dict": "map", "Set": "Set", "Optional": "nil"}
+
     def __init__(self):
         super().__init__()
         self._default_type = None
+        self._container_type_map = self.CONTAINER_TYPE_MAP
 
     def headers(self, meta):
         return "\n".join(self._headers)
@@ -48,6 +49,9 @@ class GoTranspiler(CLikeTranspiler):
             buf += "\n".join([f"{using}" for using in self._usings])
             buf += ")\n"
         return buf + "\n\n"
+
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}{index_type}"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -203,6 +207,9 @@ class GoTranspiler(CLikeTranspiler):
         it = self.visit(node.iter)
         buf = []
         buf.append(f"for _, {target} := range {it} {{")
+        # Dummy assign to silence the compiler on unused vars
+        if target.startswith("_"):
+            buf.append(f"_ = {target}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -224,7 +231,23 @@ class GoTranspiler(CLikeTranspiler):
         bytes_str = "{0}".format(node.s)
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
+    def _visit_container_compare(self, node):
+        left = self.visit(node.left)
+        op = self.visit(node.ops[0])
+        right = self.visit(node.comparators[0])
+        if op == "==":
+            return f"cmp.Equal({left}, {right})"
+        return super().visit_Compare(node)
+
     def visit_Compare(self, node):
+        left = node.left
+        right = node.comparators[0]
+        if hasattr(left, "annotation") or hasattr(right, "annotation"):
+            self._typename_from_annotation(left)
+            self._typename_from_annotation(right)
+            if hasattr(left, "container_type") or hasattr(right, "container_type"):
+                self._usings.add('"github.com/google/go-cmp/cmp"')
+                return self._visit_container_compare(node)
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         if isinstance(node.ops[0], ast.In):
@@ -399,11 +422,11 @@ class GoTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in container_types:
-                value = container_types[value]
+            if value in self.CONTAINER_TYPE_MAP:
+                value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return "({0})".format(index)
-            return "{0}[]{1}".format(value, index)
+            return "{0}{1}".format(value, index)
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
@@ -461,7 +484,7 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
+        type_str = self._typename_from_annotation(node.target)
         val = self.visit(node.value)
         return f"var {target} {type_str} = {val}"
 
