@@ -2,6 +2,7 @@ import ast
 import sys
 
 from py2many.analysis import get_id
+from typing import List, Tuple
 
 
 symbols = {
@@ -48,6 +49,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
+        self._container_type_map = {}
+        self._default_type = "auto"
 
     def headers(self, meta=None):
         return ""
@@ -71,17 +74,57 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
-    def _typename_from_annotation(self, node, default_type) -> str:
+    def _map_type(self, typename) -> str:
+        return self._type_map.get(typename, self._default_type)
+
+    def _map_types(self, typenames: List[str]) -> List[str]:
+        return [self._map_type(e) for e in typenames]
+
+    def _map_container_type(self, typename) -> str:
+        return self._container_type_map.get(typename, self._default_type)
+
+    def _visit_container_type(self, typename: Tuple) -> str:
+        value_type, index_type = typename
+        value_type = self._map_container_type(value_type)
+        if isinstance(index_type, List):
+            index_contains_default = "Any" in index_type
+            if not index_contains_default:
+                index_type = [self._map_type(e) for e in index_type]
+                index_type = ", ".join(index_type)
+        else:
+            index_contains_default = index_type == "Any"
+            if not index_contains_default:
+                index_type = self._map_type(index_type)
+        # Avoid types like HashMap<_, foo>. Prefer default_type instead
+        if index_contains_default:
+            return self._default_type
+        return f"{value_type}<{index_type}>"
+
+    def _typename_from_annotation(self, node) -> str:
+        default_type = self._default_type
         typename = default_type
         if hasattr(node, "annotation"):
-            typename = get_id(node.annotation)
+            typename = node.annotation
+            if isinstance(typename, ast.Subscript):
+                # Store a tuple like (List, int) or (Dict, (str, int)) for container types
+                # in node.container_type
+                # And return a target specific type
+                slice_value = self._slice_value(typename)
+                if isinstance(slice_value, ast.Name):
+                    slice_value = get_id(slice_value)
+                elif isinstance(slice_value, ast.Tuple):
+                    slice_value = [get_id(e) for e in slice_value.elts]
+                node.container_type = (get_id(typename.value), slice_value)
+                return self._visit_container_type(node.container_type)
             # TODO: get more disciplined about how we use type_map
-            if not isinstance(typename, str):
+            elif isinstance(typename, ast.Name):
+                return self._map_type(get_id(typename))
+            elif not isinstance(typename, str):
+                # print(f"warning: {typename}")
                 typename = self.visit(typename)
-                typename = self._type_map.get(typename, default_type)
+                return self._map_type(typename)
             else:
-                if typename in self._type_map:
-                    typename = self._type_map[typename]
+                return self._map_type(typename)
         return typename
 
     def visit(self, node):
@@ -98,9 +141,6 @@ class CLikeTranspiler(ast.NodeVisitor):
         elif hasattr(node, "is_annotation"):
             if node.id in self._type_map:
                 return self._type_map[node.id]
-        elif hasattr(node, "annotation") and hasattr(node.annotation, "id"):
-            if node.annotation.id in self._type_map:
-                node.annotation.id = self._type_map[node.annotation.id]
         return node.id
 
     def visit_NameConstant(self, node):
@@ -160,7 +200,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Compare(self, node):
         if isinstance(node.ops[0], ast.In):
-            return self.visit_Any(node)
+            return self.visit_In(node)
 
         left = self.visit(node.left)
         op = self.visit(node.ops[0])

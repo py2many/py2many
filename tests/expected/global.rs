@@ -1,3 +1,4 @@
+use std::collections;
 const code_0: i32 = 0;
 const code_1: i32 = 1;
 const l_a: &[i32; 2] = &[code_0, code_1];

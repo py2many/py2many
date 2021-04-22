@@ -21,7 +21,7 @@ flags! {
 }
 
 fn show() {
-    let color_map = [
+    let color_map: _ = [
         (Colors::RED, "red"),
         (Colors::GREEN, "green"),
         (Colors::BLUE, "blue"),

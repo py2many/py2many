@@ -36,6 +36,7 @@ def transpile(source):
 class GoTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
+        self._default_type = None
 
     def headers(self, meta):
         return "\n".join(self._headers)
@@ -492,7 +493,7 @@ class GoTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1}".format(target, value)
         else:
-            typename = self._typename_from_annotation(target, default_type=None)
+            typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
 

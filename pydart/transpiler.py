@@ -12,8 +12,6 @@ from py2many.scope import add_scope_context
 
 from typing import Optional, List
 
-container_types = {"List": "List", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
-
 
 def transpile(source):
     """
@@ -34,6 +32,18 @@ def transpile(source):
 
 
 class DartTranspiler(CLikeTranspiler):
+    CONTAINER_TYPE_MAP = {
+        "List": "List",
+        "Dict": "Map",
+        "Set": "Set",
+        "Optional": "Nothing",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._default_type = "var"
+
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"import '{mod}';" for mod in usings)
@@ -225,13 +235,9 @@ class DartTranspiler(CLikeTranspiler):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         if isinstance(node.ops[0], ast.In):
-            return "{0}.contains({1})".format(
-                right, left
-            )
+            return "{0}.contains({1})".format(right, left)
         elif isinstance(node.ops[0], ast.NotIn):
-            return "!({0}.contains({1}))".format(
-                right, left
-            )
+            return "!({0}.contains({1}))".format(right, left)
 
         return super().visit_Compare(node)
 
@@ -365,8 +371,8 @@ class DartTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in container_types:
-                value = container_types[value]
+            if value in self.CONTAINER_TYPE_MAP:
+                value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
@@ -466,7 +472,7 @@ class DartTranspiler(CLikeTranspiler):
             target = self.visit(target)
             return f"var {target} = [{elements}];"
         else:
-            typename = self._typename_from_annotation(target, default_type="var")
+            typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
 

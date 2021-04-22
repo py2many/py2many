@@ -7,7 +7,7 @@ py14_type_map = {
     "int": "int",
     "float": "double",
     "bytes": "byte[]",
-    "str": "string",
+    "str": "std::string",
     "c_int8": "int8_t",
     "c_int16": "int16_t",
     "c_int32": "int32_t",
@@ -21,6 +21,7 @@ py14_type_map = {
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
+        super().__init__()
         self._type_map = py14_type_map
 
     def visit_BinOp(self, node):

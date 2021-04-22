@@ -12,8 +12,6 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
 from typing import Optional, List
 
-container_types = {"List": "Array", "Dict": "Dict", "Set": "Set", "Optional": "Nothing"}
-
 
 def transpile(source):
     """
@@ -34,6 +32,18 @@ def transpile(source):
 
 
 class KotlinTranspiler(CLikeTranspiler):
+    CONTAINER_TYPE_MAP = {
+        "List": "Array",
+        "Dict": "Dict",
+        "Set": "Set",
+        "Optional": "Nothing",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._default_type = "var"
+        self._container_type_map = self.CONTAINER_TYPE_MAP
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -346,8 +356,8 @@ class KotlinTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in container_types:
-                value = container_types[value]
+            if value in self.CONTAINER_TYPE_MAP:
+                value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
@@ -408,7 +418,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
+        type_str = self._typename_from_annotation(node.target)
         val = self.visit(node.value)
         return "var {0}: {1} = {2}".format(target, type_str, val)
 

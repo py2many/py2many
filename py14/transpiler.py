@@ -398,7 +398,7 @@ class CppTranspiler(CLikeTranspiler):
                 decltype(node), self.visit(target), ", ".join(elements)
             )
         else:
-            typename = self._typename_from_annotation(target, default_type="auto")
+            typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
             return f"{typename} {target} = {value};"

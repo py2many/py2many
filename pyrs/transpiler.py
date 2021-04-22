@@ -13,14 +13,12 @@ from py2many.analysis import (
 )
 from py2many.annotation_transformer import add_annotation_flags
 from py2many.context import add_variable_context, add_list_calls
-from py2many.inference import get_element_types, get_inferred_type, is_reference
+from py2many.inference import get_inferred_type, is_reference
 from py2many.mutability_transformer import detect_mutable_vars
 from py2many.scope import add_scope_context
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from typing import List, Optional
-
-container_types = {"List": "Vec", "Dict": "HashMap", "Set": "Set", "Optional": "Option"}
 
 
 def transpile(source):
@@ -42,8 +40,18 @@ def transpile(source):
 
 
 class RustTranspiler(CLikeTranspiler):
+
+    CONTAINER_TYPE_MAP = {
+        "List": "Vec",
+        "Dict": "HashMap",
+        "Set": "HashSet",
+        "Optional": "Option",
+    }
+
     def __init__(self):
         super().__init__()
+        self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._default_type = "_"
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -122,7 +130,7 @@ class RustTranspiler(CLikeTranspiler):
                 container = typename
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
-            if container in container_types.values():
+            if container in self.CONTAINER_TYPE_MAP.values():
                 # Python passes by reference by default. Rust needs explicit borrowing
                 typename = f"&{typename}"
         return (typename, id)
@@ -444,9 +452,9 @@ class RustTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in container_types:
+            if value in self.CONTAINER_TYPE_MAP:
                 self._usings.add("std::collections")
-                value = container_types[value]
+                value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
@@ -552,64 +560,54 @@ class RustTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             count = len(node.value.elts)
-            elements = ", ".join([self.visit(e) for e in node.value.elts])
-            types = get_element_types(node.value.elts)
-            if len(set(types)) == 1 and types[0] is not None:
-                typename = types[0]
-            else:
-                typename = "_"
+            target = self.visit(target)
+            value = self.visit(node.value)
+            typename = self._typename_from_annotation(node.value)
 
             if kw in ["const", "static"]:
                 # Use arrays instead of Vec as globals must have fixed size
-                return f"{kw} {self.visit(target)}: &[{typename}; {count}] = &[{elements}];"
+                if value.startswith("vec!"):
+                    value = value.replace("vec!", "&")
+                element_type = self._default_type
+                if hasattr(node.value, "container_type"):
+                    container_type, element_type = node.value.container_type
+                    element_type = self._map_type(element_type)
+                return f"{kw} {target}: &[{element_type}; {count}] = {value};"
 
-            return f"{kw} {self.visit(target)} = vec![{elements}];"
+            return f"{kw} {target}: {typename} = {value};"
         elif isinstance(node.value, ast.Set):
-            types = get_element_types(node.value.elts)
-            if len(set(types)) == 1 and types[0] is not None:
-                typename = types[0]
-            else:
-                typename = "_"
-
             target = self.visit(target)
             value = self.visit(node.value)
+            typename = self._typename_from_annotation(node.value)
 
             if kw in ["const", "static"]:
                 self._usings.add("lazy_static::lazy_static")
-                if typename == "&str":
-                    typename = "&'static str"
-                return f"lazy_static! {{ static ref {target}: HashSet<{typename}> = {value}; }}"
+                if "str" in typename:
+                    typename = typename.replace("str", "'static str")
+                return f"lazy_static! {{ static ref {target}: {typename} = {value}; }}"
 
-            return f"{kw} {target} = {value};"
+            return f"{kw} {target}: {typename} = {value};"
         elif isinstance(node.value, ast.Dict):
-            key_types = get_element_types(node.value.keys)
-            if len(set(key_types)) == 1 and key_types[0] is not None:
-                key_typename = key_types[0]
-            else:
-                key_typename = "_"
-            value_types = get_element_types(node.value.values)
-            if len(set(value_types)) == 1 and value_types[0] is not None:
-                value_typename = value_types[0]
-            else:
-                value_typename = "_"
-
             target = self.visit(target)
             value = self.visit(node.value)
+            typename = self._typename_from_annotation(node.value)
 
             if kw in ["const", "static"]:
-                if key_typename == "&str":
-                    key_typename = "&'static str"
-                if value_typename == "&str":
-                    value_typename = "&'static str"
-                typename = f"{key_typename}, {value_typename}"
+                if hasattr(node.value, "container_type"):
+                    container_type, element_type = node.value.container_type
+                    key_typename, value_typename = self._map_types(element_type)
+                    if key_typename == "&str":
+                        key_typename = "&'static str"
+                    if value_typename == "&str":
+                        value_typename = "&'static str"
+                    typename = f"{key_typename}, {value_typename}"
                 return f"lazy_static! {{ static ref {target}: HashMap<{typename}> = {value}; }}"
 
-            return f"{kw} {target} = {value};"
+            return f"{kw} {target}: {typename} = {value};"
         else:
-            typename = self._typename_from_annotation(target, default_type="_")
+            typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
-
             return f"{kw} {target}: {typename} = {value};"
 
     def visit_Delete(self, node):
