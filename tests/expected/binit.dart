@@ -1,6 +1,6 @@
 int bisect_right(List<int> data, int item) {
   int low = 0;
-  var high = data.length;
+  int high = data.length.toInt();
   while (low < high) {
     var middle = ((low + high) / 2).toInt();
 

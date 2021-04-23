@@ -75,7 +75,8 @@ class GoTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                return_type = " {0}".format(self.visit(node.returns))
+                typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f" {typename}"
             else:
                 return_type = " RT"
                 typedecls.append("RT")
@@ -99,7 +100,7 @@ class GoTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self.visit(node.annotation)
+            typename = self._typename_from_annotation(node)
         return (typename, id)
 
     def visit_Lambda(self, node):

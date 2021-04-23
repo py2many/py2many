@@ -8,6 +8,7 @@ rust_type_map = {
     "float": "f32",
     "bytes": "&[u8]",
     "str": "&str",
+    "bool": "bool",
     "c_int8": "i8",
     "c_int16": "i16",
     "c_int32": "i32",

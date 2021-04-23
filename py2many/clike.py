@@ -103,11 +103,11 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._default_type
         return self._combine_value_index(value_type, index_type)
 
-    def _typename_from_annotation(self, node) -> str:
+    def _typename_from_annotation(self, node, attr="annotation") -> str:
         default_type = self._default_type
         typename = default_type
-        if hasattr(node, "annotation"):
-            typename = node.annotation
+        if hasattr(node, attr):
+            typename = getattr(node, attr)
             if isinstance(typename, ast.Subscript):
                 # Store a tuple like (List, int) or (Dict, (str, int)) for container types
                 # in node.container_type
@@ -141,9 +141,6 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Name(self, node):
         if node.id in self.builtin_constants:
             return node.id.lower()
-        elif hasattr(node, "is_annotation"):
-            if node.id in self._type_map:
-                return self._type_map[node.id]
         return node.id
 
     def visit_NameConstant(self, node):
@@ -248,7 +245,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
+        type_str = self._typename_from_annotation(node)
         val = self.visit(node.value) if node.value is not None else None
         return (target, type_str, val)
 

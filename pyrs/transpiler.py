@@ -1,5 +1,4 @@
 import ast
-import re
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
@@ -90,7 +89,8 @@ class RustTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                return_type = "-> {0}".format(self.visit(node.returns))
+                typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f"-> {typename}"
             else:
                 return_type = "-> RT"
                 typedecls.append("RT")
@@ -110,15 +110,10 @@ class RustTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self.visit(node.annotation)
-            m = re.match(r"(\w+)<(\w+)>", typename)
-            if m is not None:
-                container, element = m.groups()
-            else:
-                container = typename
+            typename = self._typename_from_annotation(node)
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
-            if container in self.CONTAINER_TYPE_MAP.values():
+            if hasattr(node, "container_type"):
                 # Python passes by reference by default. Rust needs explicit borrowing
                 typename = f"&{typename}"
         return (typename, id)
@@ -173,9 +168,15 @@ class RustTranspiler(CLikeTranspiler):
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
+        def visit_cast_int() -> str:
+            if "()" in vargs[0]:
+                return f"{vargs[0]} as i32"
+            else:
+                return f"i32::from({vargs[0]})"
+
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"i32::from({vargs[0]})",
+            "int": visit_cast_int,
             "str": lambda: f"String::from({vargs[0]})",
             "len": lambda: f"{vargs[0]}.len()",
             "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
@@ -523,8 +524,6 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        if type_str in self._type_map:
-            type_str = self._type_map[type_str]
         mut = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
         return f"let {mut}{target}: {type_str} = {val};"
 

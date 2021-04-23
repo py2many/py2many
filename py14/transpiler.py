@@ -121,6 +121,7 @@ class CppTranspiler(CLikeTranspiler):
         self._headers = []
         self._usings = set([])
         self.use_catch_test_cases = False
+        self._container_type_map = self.CONTAINER_TYPES
 
     def headers(self, meta: InferMeta):
         self._headers.append('#include "py14/runtime/sys.h"')
@@ -419,8 +420,6 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        if type_str in self._type_map:
-            type_str = self._type_map[type_str]
         return f"{type_str} {target} = {val};"
 
     def visit_Print(self, node):

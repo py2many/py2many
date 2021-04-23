@@ -11,8 +11,6 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
 from typing import Optional, List
 
-container_types = {"List": "seq", "Dict": "Table", "Set": "set", "Optional": "Option"}
-
 
 def transpile(source):
     """
@@ -33,13 +31,25 @@ def transpile(source):
 
 
 class NimTranspiler(CLikeTranspiler):
+    CONTAINER_TYPE_MAP = {
+        "List": "seq",
+        "Dict": "Table",
+        "Set": "set",
+        "Optional": "Option",
+    }
+
     def __init__(self, indent=2):
         super().__init__()
         self._headers = set([])
         self._indent = " " * indent
+        self._default_type = "var"
+        self._container_type_map = self.CONTAINER_TYPE_MAP
 
     def indent(self, code, level=1):
         return self._indent * level + code
+
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}[{index_type}]"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
@@ -57,7 +67,8 @@ class NimTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                return_type = ": {0}".format(self.visit(node.returns))
+                typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f": {typename}"
             else:
                 return_type = ""
 
@@ -78,7 +89,7 @@ class NimTranspiler(CLikeTranspiler):
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
             use_open_array = isinstance(node.annotation, ast.Subscript)
-            typename = self.visit(node.annotation)
+            typename = self._typename_from_annotation(node)
             if use_open_array:
                 typename = typename.replace("seq", "openArray")
         return (typename, id)
@@ -359,8 +370,8 @@ class NimTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in container_types:
-                value = container_types[value]
+            if value in self.CONTAINER_TYPE_MAP:
+                value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return f"({index})"
             return f"{value}[{index}]"

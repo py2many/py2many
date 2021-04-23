@@ -1,9 +1,9 @@
 
 function bisect_right(data::Array{Int64}, item::Int64)::Int64
     low = 0
-    high = length(data)
+    high::Int64 = Int64(length(data))
     while low < high
-        middle = i32::from(((low + high) / 2))
+        middle = Int64(((low + high) / 2))
         if item < data[middle+1]
             high = middle
         else

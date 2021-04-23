@@ -6,7 +6,7 @@ import (
 
 func bisect_right(data []int, item int) int {
 	var low int = 0
-	high := len(data)
+	var high int = int(len(data))
 	for low < high {
 		middle := int(((low + high) / 2))
 		if item < data[middle] {

@@ -7,7 +7,7 @@ from typing import List
 
 def bisect_right(data: List[int], item: int) -> int:
     low = 0
-    high = len(data)
+    high: int = int(len(data))
     while low < high:
         middle = int((low + high) / 2)
         if item < data[middle]:

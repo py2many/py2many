@@ -83,7 +83,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                return_type = "::{0}".format(self.visit(node.returns))
+                typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f"::{typename}"
             else:
                 return_type = "::RT"
                 typedecls.append("RT")
@@ -107,7 +108,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self.visit(node.annotation)
+            typename = self._typename_from_annotation(node)
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -157,8 +158,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"i32::from({vargs[0]})",
-            "str": lambda: f"String::from({vargs[0]})",
+            "int": lambda: f"Int64({vargs[0]})",
+            "str": lambda: f"string({vargs[0]})",
             "len": lambda: f"length({vargs[0]})",
         }
         if fname in small_dispatch_map:

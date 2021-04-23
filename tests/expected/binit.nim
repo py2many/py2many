@@ -1,7 +1,7 @@
 
 proc bisect_right(data: openArray[int], item: int): int =
   var low = 0
-  var high = len(data)
+  var high: int = int(len(data))
   while low < high:
     let middle = int(low + high / 2)
     if item < data[middle]:

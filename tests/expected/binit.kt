@@ -1,7 +1,7 @@
 
 fun bisect_right(data_: Array<Int>, item: Int): Int {
     var low = 0
-    var high = data_.size
+    var high: Int = data_.size.toInt()
     while (low < high) {
         val middle = ((low + high) / 2).toInt()
         if (item < data_[middle]) {
