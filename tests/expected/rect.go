@@ -19,7 +19,7 @@ func show() {
 		panic("assert")
 	}
 	r = Rectangle(1, 2)
-	if !(!r.is_square()) {
+	if !(!(r.is_square())) {
 		panic("assert")
 	}
 	h := r.height

@@ -11,7 +11,7 @@ proc show() =
   var r = Rectangle(1, 1)
   assert(r.is_square())
   r = Rectangle(1, 2);
-  assert(not r.is_square())
+  assert(not (r.is_square()))
   let h = r.height
   let l = r.length
   echo h

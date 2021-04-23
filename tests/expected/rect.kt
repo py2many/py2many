@@ -9,7 +9,7 @@ fun show() {
     var r = Rectangle(1, 1)
     assert(r.is_square())
     r = Rectangle(1, 2)
-    assert(!r.is_square())
+    assert(!(r.is_square()))
     val h = r.height
     val l = r.length
     println("$h")

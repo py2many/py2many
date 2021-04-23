@@ -17,7 +17,7 @@ show() {
   auto r = Rectangle();
   assert(r.is_square());
   r = Rectangle();
-  assert(!r.is_square());
+  assert(!(r.is_square()));
   auto h = r.height;
   auto l = r.length;
   std::cout << h;

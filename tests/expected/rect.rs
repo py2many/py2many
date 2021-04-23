@@ -12,7 +12,7 @@ fn show() {
     let mut r: _ = Rectangle(1, 1);
     assert!(r.is_square());
     r = Rectangle(1, 2);
-    assert!(!r.is_square());
+    assert!(!(r.is_square()));
     let h: _ = r.height;
     let l: _ = r.length;
     println!("{}", h);

@@ -3,6 +3,7 @@
 #include <cassert>
 template <typename T1, typename T2> void compare_assert(T1 a, T2 b) {
   assert(a == b);
+  assert(!(0 == 1));
 }
 
 int main(int argc, char **argv) {
