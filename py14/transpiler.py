@@ -76,6 +76,36 @@ def generate_lambda_fun(node, body):
     return funcdef + " {\n" + body + "\n};"
 
 
+class CppRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+        self._temp = 0
+
+    def _get_temp(self):
+        self._temp += 1
+        return f"__tmp{self._temp}"
+
+    def visit_Compare(self, node):
+        left = self.visit(node.left)
+        ops = [self.visit(op) for op in node.ops]
+        comparators = [self.visit(cmp) for cmp in node.comparators]
+        right = comparators[0]
+        if isinstance(right, ast.List):
+            tmp = ast.Name(id=self._get_temp(), lineno=node.lineno)
+            comparators[0] = tmp
+            return ast.If(
+                test=ast.Constant(value=True),
+                body=[
+                    ast.Assign(targets=[tmp], value=right, lineno=node.lineno),
+                    ast.Compare(left, ops, comparators, lineno=node.lineno),
+                ],
+                orelse=[],
+                lineno=node.lineno,
+            )
+
+        return node
+
+
 class CppTranspiler(CLikeTranspiler):
 
     CONTAINER_TYPES = {

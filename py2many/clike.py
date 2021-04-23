@@ -169,10 +169,22 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_If(self, node, use_parens=True):
         buf = []
-        if use_parens:
-            buf.append("if({0}) {{".format(self.visit(node.test)))
+        # if True: s1; s2  should be transpiled into ({s1; s2;})
+        # such that the value of the expression is s2
+        # This is a idiom used by rewriters to transform a single ast Node s0
+        # into multiple statements s1, s2
+        make_block = (
+            isinstance(node.test, ast.Constant)
+            and node.test.value == True
+            and node.orelse == []
+        )
+        if make_block:
+            buf.append("({")
         else:
-            buf.append("if {0} {{".format(self.visit(node.test)))
+            if use_parens:
+                buf.append("if({0}) {{".format(self.visit(node.test)))
+            else:
+                buf.append("if {0} {{".format(self.visit(node.test)))
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
@@ -181,7 +193,10 @@ class CLikeTranspiler(ast.NodeVisitor):
             buf.extend(orelse)
             buf.append("}")
         else:
-            buf.append("}")
+            if make_block:
+                buf.append(";})")
+            else:
+                buf.append("}")
 
         return "\n".join(buf)
 
