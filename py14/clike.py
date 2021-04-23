@@ -29,8 +29,14 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return "std::pow({0}, {1})".format(
                 self.visit(node.left), self.visit(node.right)
             )
+        left = self.visit(node.left)
+        if not isinstance(node.left, ast.Name) and not isinstance(node.left, ast.Constant):
+            left = f"({left})"
+        right = self.visit(node.right)
+        if not isinstance(node.right, ast.Name) and not isinstance(node.right, ast.Constant):
+            right = f"({right})"
         return " ".join(
-            [self.visit(node.left), self.visit(node.op), self.visit(node.right)]
+            [left, self.visit(node.op), right]
         )
 
     def visit_In(self, node):

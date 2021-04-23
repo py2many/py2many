@@ -6,7 +6,7 @@ template <typename T1, typename T2> auto bisect_right(T1 data, T2 item) {
   int low = 0;
   auto high = data.size();
   while (low < high) {
-    auto middle = py14::to_int(low + high / 2);
+    auto middle = py14::to_int((low + high) / 2);
     if (item < data[middle]) {
       high = middle;
     } else {
