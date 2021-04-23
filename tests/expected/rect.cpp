@@ -14,7 +14,7 @@ class Rectangle {
 
 inline void
 show() {
-  auto r = Rectangle();
+  Rectangle r = Rectangle();
   assert(r.is_square());
   r = Rectangle();
   assert(!(r.is_square()));

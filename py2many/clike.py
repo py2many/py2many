@@ -122,8 +122,10 @@ class CLikeTranspiler(ast.NodeVisitor):
             # TODO: get more disciplined about how we use type_map
             elif isinstance(typename, ast.Name):
                 return self._map_type(get_id(typename))
+            elif isinstance(typename, ast.ClassDef):
+                return get_id(typename)
             else:
-                raise Exception(typename)
+                raise Exception(typename, type(typename))
         return typename
 
     def visit(self, node):

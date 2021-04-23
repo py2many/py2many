@@ -14,7 +14,7 @@ func is_square(self Rectangle) bool {
 }
 
 func show() {
-	r := Rectangle(1, 1)
+	var r Rectangle = Rectangle(1, 1)
 	if !(r.is_square()) {
 		panic("assert")
 	}

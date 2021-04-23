@@ -9,7 +9,7 @@ impl Rectangle {
     }
 }
 fn show() {
-    let mut r: _ = Rectangle {
+    let mut r: Rectangle = Rectangle {
         height: 1,
         length: 1,
     };

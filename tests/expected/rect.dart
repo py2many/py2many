@@ -12,7 +12,7 @@ class Rectangle {
 }
 
 show() {
-  var r = Rectangle(1, 1);
+  Rectangle r = Rectangle(1, 1);
   assert(r.is_square());
   r = Rectangle(1, 2);
   assert(!(r.is_square()));
