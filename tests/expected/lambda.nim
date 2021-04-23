@@ -1,4 +1,9 @@
 
-proc main() =
-  let myfunc = |x, y| x + y
+proc show() =
+  let myfunc = proc(x: int, y: int): int = return x + y
+  echo myfunc(1, 2)
 
+proc main() =
+  show()
+
+main()

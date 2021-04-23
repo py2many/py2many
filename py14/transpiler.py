@@ -245,7 +245,7 @@ class CppTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join([f"auto {a}" for a in args])
         body = self.visit(node.body)
-        return f"[]({args_string}) {{ {body} }}"
+        return f"[]({args_string}) {{ return {body}; }}"
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""

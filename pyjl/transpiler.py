@@ -392,7 +392,9 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self._typename_from_annotation(node.target)
         val = self.visit(node.value)
-        return "{0}::{1} = {2}".format(target, type_str, val)
+        if type_str == self._default_type:
+            return f"{target} = {val}"
+        return f"{target}::{type_str} = {val}"
 
     def visit_AugAssign(self, node):
         target = self.visit(node.target)

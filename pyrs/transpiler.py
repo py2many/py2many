@@ -198,7 +198,7 @@ class RustTranspiler(CLikeTranspiler):
 
         # Check if some args need to be passed by reference
         ref_args = []
-        if fndef:
+        if fndef and hasattr(fndef, "args"):
             for varg, fnarg in zip(vargs, fndef.args.args):
                 if is_reference(fnarg):
                     ref_args.append(f"&{varg}")

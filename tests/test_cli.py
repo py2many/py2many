@@ -45,6 +45,7 @@ COMPARABLE = [
     "hello_world",
     "infer",
     "infer_ops",
+    "lambda",
     "print",
     "rect",
     "int_enum",
@@ -67,12 +68,9 @@ EXPECTED_COMPILE_FAILURES = [
     "int_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "int_enum.kt",  # https://github.com/adsharma/py2many/issues/28
     "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
-    "lambda.cpp",  # https://github.com/adsharma/py2many/issues/59
     "lambda.dart",  # https://github.com/adsharma/py2many/issues/34
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
-    "lambda.nim",  # https://github.com/adsharma/py2many/issues/27
-    "lambda.rs",  # https://github.com/adsharma/py2many/issues/15
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "rect.cpp",  # https://github.com/adsharma/py2many/issues/65
     "rect.go",  # https://github.com/adsharma/py2many/issues/65

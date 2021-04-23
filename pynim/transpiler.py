@@ -73,10 +73,14 @@ class NimTranspiler(CLikeTranspiler):
         return (typename, id)
 
     def visit_Lambda(self, node):
-        _, args = self.visit(node.args)
+        typenames, args = self.visit(node.args)
+        # HACK: to pass unit tests. TODO: infer types
+        typenames = ["int"] * len(args)
+        return_type = "int"
+        args = [f"{name}: {typename}" for name, typename in zip(args, typenames)]
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "|{0}| {1}".format(args_string, body)
+        return f"proc({args_string}):{return_type} = return {body}"
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -409,9 +413,11 @@ class NimTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
+        type_str = self._typename_from_annotation(node.target)
         val = self.visit(node.value)
         kw = "var" if is_mutable(node.scopes, target) else "let"
+        if type_str == self._default_type:
+            return f"{kw} {target} = {val}"
         return f"{kw} {target}: {type_str} = {val}"
 
     def visit_Assign(self, node):

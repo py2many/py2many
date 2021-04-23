@@ -1,4 +1,9 @@
 
+fun show() {
+var myfunc: var = { x, y -> (x + y) }
+println("$myfunc(1, 2)")}
+
+
 fun main() {
-    val myfunc = { x, y -> (x + y) } 
+show()
 }
