@@ -162,6 +162,13 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Str(self, node):
         return f'"{node.value}"'
 
+    def visit_arguments(self, node):
+        args = [self.visit(arg) for arg in node.args]
+        if args == []:
+            return [], []
+        typenames, args = map(list, zip(*args))
+        return typenames, args
+
     def visit_Return(self, node):
         if node.value:
             return "return {0};".format(self.visit(node.value))

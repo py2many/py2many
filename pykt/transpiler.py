@@ -86,18 +86,6 @@ class KotlinTranspiler(CLikeTranspiler):
             return "return {0}".format(self.visit(node.value))
         return "return"
 
-    def visit_arguments(self, node):
-        args = [self.visit(arg) for arg in node.args]
-
-        # switch to zip
-        types = []
-        names = []
-        for arg in args:
-            types.append(arg[0])
-            names.append(arg[1])
-
-        return types, names
-
     def visit_arg(self, node):
         id = get_id(node)
         if id == "self":
