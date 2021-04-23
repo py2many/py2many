@@ -11,4 +11,7 @@ fun main() {
     for (i in l_b) {
         println("$i")
     }
+    if ("a" in arrayOf("a", "b")) {
+        println("OK")
+    }
 }

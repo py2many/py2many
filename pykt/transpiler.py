@@ -223,20 +223,6 @@ class KotlinTranspiler(CLikeTranspiler):
         bytes_str = "{0}".format(node.s)
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
-    def visit_Compare(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
-        if isinstance(node.ops[0], ast.In):
-            return "{0}.iter().any(|&x| x == {1})".format(
-                right, left
-            )  # is it too much?
-        elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.iter().all(|&x| x != {1})".format(
-                right, left
-            )  # is it even more?
-
-        return super().visit_Compare(node)
-
     def visit_Name(self, node):
         if node.id == "None":
             return "None"

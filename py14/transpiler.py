@@ -311,13 +311,9 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_List(self, node):
-        if len(node.elts) > 0:
-            elements = [self.visit(e) for e in node.elts]
-            value_type = decltype(node.elts[0])
-            elements_str = ", ".join(elements)
-            return f"std::vector<{value_type}>{{{elements_str}}}"
-        else:
-            return "{}"
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"{{{elements_str}}}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)

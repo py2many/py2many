@@ -9,5 +9,8 @@ proc main() =
     echo i
   for i in l_b:
     echo i
+  if "a" in @["a", "b"]:
+    echo "OK"
+
 
 main()

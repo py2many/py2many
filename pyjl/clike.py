@@ -87,4 +87,4 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_In(self, node):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        return "{0}.any({1})".format(right, left)
+        return f"{left} in {right}"

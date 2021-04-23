@@ -14,4 +14,8 @@ void main() {
   for (final i in l_b) {
     print(sprintf("%s", [i]));
   }
+
+  if (["a", "b"].contains("a")) {
+    print(sprintf("%s", ["OK"]));
+  }
 }

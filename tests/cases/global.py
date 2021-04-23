@@ -19,3 +19,7 @@ if __name__ == "__main__":
         print(i)
     for i in l_b:
         print(i)
+    # test for container membership
+    if "a" in ["a", "b"]:
+        print("OK")
+

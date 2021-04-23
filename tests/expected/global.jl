@@ -11,6 +11,9 @@ function main()
     for i in l_b
         println(join([i], " "))
     end
+    if "a" in ["a", "b"]
+        println(join(["OK"], " "))
+    end
 end
 
 main()
