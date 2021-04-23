@@ -1,4 +1,5 @@
 import sys
+import textwrap
 
 from py14.transpiler import transpile
 
@@ -52,11 +53,11 @@ def test_augmented_assigns_with_counter():
 
 
 def test_declare_var_before_if_else_statements():
-    source = parse("if True:", "   x = True", "else:", "   x = False", "y = x")
+    source = parse("if 10:", "   x = True", "else:", "   x = False", "y = x")
     cpp = transpile(source)
     assert cpp == parse(
         "decltype(true) x;",
-        "if(true) {",
+        "if(10) {",
         "x = true;",
         "} else {",
         "x = false;",
@@ -66,9 +67,9 @@ def test_declare_var_before_if_else_statements():
 
 
 def test_declare_vars_inside_if_as_long_as_possible():
-    source = parse("x = 5", "if True:", "   y = 10", "   x *= y")
+    source = parse("x = 5", "if 10:", "   y = 10", "   x *= y")
     cpp = transpile(source)
-    assert cpp == parse("auto x = 5;", "if(true) {", "auto y = 10;", "x *= y;", "}")
+    assert cpp == parse("auto x = 5;", "if(10) {", "auto y = 10;", "x *= y;", "}")
 
 
 def test_print_program_args():
@@ -185,33 +186,6 @@ def test_bubble_sort():
     )
 
 
-def test_fib():
-    source = parse(
-        "def fib(n):",
-        "    if n == 1:",
-        "        return 1",
-        "    elif n == 0:",
-        "        return 0",
-        "    else:",
-        "        return fib(n-1) + fib(n-2)",
-    )
-    cpp = transpile(source)
-    assert cpp == parse(
-        "template <typename T1>",
-        "auto fib(T1 n) {",
-        "if(n == 1) {",
-        "return 1;",
-        "} else {",
-        "if(n == 0) {",
-        "return 0;",
-        "} else {",
-        "return fib(n - 1) + fib(n - 2);",
-        "}",
-        "}",
-        "}\n",
-    )
-
-
 def test_comb_sort():
     source = parse(
         "def sort(seq):",
@@ -236,7 +210,7 @@ def test_comb_sort():
         "while (gap > 1||swap) {",
         "gap = std::max(1, py14::to_int(gap / 1.25));",
         "swap = false;",
-        "for(auto i : rangepp::{0}(seq.size() - gap)) {{".format(range_f),
+        "for(auto i : rangepp::{0}((seq.size()) - gap)) {{".format(range_f),
         "if(seq[i] > seq[i + gap]) {",
         "std::tie(seq[i], seq[i + gap]) = " "std::make_tuple(seq[i + gap], seq[i]);",
         "swap = true;",
@@ -257,12 +231,12 @@ def test_normal_pdf():
         "    return term1 * term2",
     )
     cpp = transpile(source)
-    assert cpp == parse(
-        "template <typename T1, typename T2, typename T3>",
-        "auto pdf(T1 x, T2 mean, T3 std_dev) {",
-        "auto term1 = 1.0 / std::pow(2 * py14::math::pi, 0.5);",
-        "auto term2 = std::pow(py14::math::e, -1.0 * "
-        "std::pow(x - mean, 2.0) / 2.0 * std::pow(std_dev, 2.0));",
-        "return term1 * term2;",
-        "}\n",
-    )
+    expected = """\
+        template <typename T1, typename T2, typename T3>
+        auto pdf(T1 x, T2 mean, T3 std_dev) {
+        auto term1 = 1.0 / (std::pow(2 * (py14::math::pi), 0.5));
+        auto term2 = std::pow(py14::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
+        return term1 * term2;
+        }
+    """
+    assert cpp == parse(textwrap.dedent(expected))
