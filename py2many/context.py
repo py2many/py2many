@@ -71,11 +71,14 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_If(self, node):
         node.vars = []
-        list(map(self.visit, node.body))
+        self.visit(node.test)
+        for e in node.body:
+            self.visit(e)
         node.body_vars = node.vars
 
         node.vars = []
-        list(map(self.visit, node.orelse))
+        for e in node.orelse:
+            self.visit(e)
         node.orelse_vars = node.vars
 
         node.vars = []
