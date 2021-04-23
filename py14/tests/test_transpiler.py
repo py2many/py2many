@@ -17,7 +17,11 @@ def test_declare():
 def test_empty_return():
     source = parse("def foo():", "   return")
     cpp = transpile(source)
-    assert cpp == parse("inline void foo() {", "return;", "}\n")
+    expected = """\
+    inline void foo() {
+    return;}
+    """
+    assert cpp == textwrap.dedent(expected)
 
 
 def test_print_multiple_vars():
@@ -105,15 +109,21 @@ def test_assign():
 def test_function_with_return():
     source = parse("def fun(x):", "   return x")
     cpp = transpile(source)
-    assert cpp == parse(
-        "template <typename T1>", "auto fun(T1 x) {", "return x;", "}\n"
-    )
+    expected = """\
+        template <typename T0>auto fun(T0 x) {
+        return x;}
+    """
+    assert cpp == textwrap.dedent(expected)
 
 
 def test_void_function():
     source = parse("def test_fun():", "   assert True")
     cpp = transpile(source, testing=False)
-    assert cpp == parse("inline void test_fun() {", "assert(true);", "}\n")
+    expected = """\
+        inline void test_fun() {
+        assert(true);}
+    """
+    assert cpp == textwrap.dedent(expected)
 
 
 def test_create_catch_test_case():
@@ -145,81 +155,15 @@ def test_map_function():
         "   return results",
     )
     cpp = transpile(source)
-    assert cpp == parse(
-        "template <typename T1, typename T2>",
-        "auto map(T1 values, T2 fun) {",
-        "std::vector<decltype(fun(std::declval"
-        "<typename decltype(values)::value_type>()))> results {};",
-        "for(auto v : values) {",
-        "results.push_back(fun(v));",
-        "}",
-        "return results;",
-        "}\n",
-    )
-
-
-def test_bubble_sort():
-    source = parse(
-        "def sort(seq):",
-        "    L = len(seq)",
-        "    for _ in range(L):",
-        "        for n in range(1, L):",
-        "            if seq[n] < seq[n - 1]:",
-        "                seq[n - 1], seq[n] = seq[n], seq[n - 1]",
-        "    return seq",
-    )
-    cpp = transpile(source)
-    range_f = "range" if sys.version_info[0] < 3 else "xrange"
-    assert cpp == parse(
-        "template <typename T1>",
-        "auto sort(T1 seq) {",
-        "auto L = seq.size();",
-        "for(auto _ : rangepp::{0}(L)) {{".format(range_f),
-        "for(auto n : rangepp::{0}(1, L)) {{".format(range_f),
-        "if(seq[n] < seq[n - 1]) {",
-        "std::tie(seq[n - 1], seq[n]) = " "std::make_tuple(seq[n], seq[n - 1]);",
-        "}",
-        "}",
-        "}",
-        "return seq;",
-        "}\n",
-    )
-
-
-def test_comb_sort():
-    source = parse(
-        "def sort(seq):",
-        "    gap = len(seq)",
-        "    swap = True",
-        "    while gap > 1 or swap:",
-        "        gap = max(1, int(gap / 1.25))",
-        "        swap = False",
-        "        for i in range(len(seq) - gap):",
-        "            if seq[i] > seq[i + gap]:",
-        "                seq[i], seq[i + gap] = seq[i + gap], seq[i]",
-        "                swap = True",
-        "                return seq",
-    )
-    cpp = transpile(source)
-    range_f = "range" if sys.version_info[0] < 3 else "xrange"
-    assert cpp == parse(
-        "template <typename T1>",
-        "auto sort(T1 seq) {",
-        "auto gap = seq.size();",
-        "auto swap = true;",
-        "while (gap > 1||swap) {",
-        "gap = std::max(1, py14::to_int(gap / 1.25));",
-        "swap = false;",
-        "for(auto i : rangepp::{0}((seq.size()) - gap)) {{".format(range_f),
-        "if(seq[i] > seq[i + gap]) {",
-        "std::tie(seq[i], seq[i + gap]) = " "std::make_tuple(seq[i + gap], seq[i]);",
-        "swap = true;",
-        "return seq;",
-        "}",
-        "}",
-        "}",
-        "}\n",
-    )
+    expected = """\
+        template <typename T0, typename T1>auto map(T0 values, T1 fun) {
+        std::vector<decltype(fun(std::declval<typename decltype(values)::value_type>()))> results {};
+        for(auto v : values) {
+        results.push_back(fun(v));
+        }
+        return results;}
+    """
+    assert cpp == textwrap.dedent(expected)
 
 
 def test_normal_pdf():
@@ -232,11 +176,9 @@ def test_normal_pdf():
     )
     cpp = transpile(source)
     expected = """\
-        template <typename T1, typename T2, typename T3>
-        auto pdf(T1 x, T2 mean, T3 std_dev) {
+        template <typename T0, typename T1, typename T2>auto pdf(T0 x, T1 mean, T2 std_dev) {
         auto term1 = 1.0 / (std::pow(2 * (py14::math::pi), 0.5));
         auto term2 = std::pow(py14::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
-        return term1 * term2;
-        }
+        return term1 * term2;}
     """
     assert cpp == parse(textwrap.dedent(expected))

@@ -5,10 +5,17 @@ from .clike import CLikeTranspiler
 from .tracer import decltype
 
 from py2many.context import add_variable_context, add_list_calls
+from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
 from py2many.analysis import add_imports, is_void_function, get_id
-from py2many.tracer import is_list, is_builtin_import, defined_before
+from py2many.tracer import (
+    defined_before,
+    is_class_or_module,
+    is_builtin_import,
+    is_list,
+    is_self_arg,
+)
 
 
 # TODO: merge this into py2many.cli.transpiler and fixup the tests
@@ -43,31 +50,6 @@ def transpile(source, headers=False, testing=False):
 
 def generate_catch_test_case(node, body):
     funcdef = 'TEST_CASE("{0}")'.format(node.name)
-    return funcdef + " {\n" + body + "\n}"
-
-
-def generate_template_fun(node, body):
-    params = []
-    for idx, arg in enumerate(node.args.args):
-        params.append(("T" + str(idx + 1), get_id(arg)))
-    typenames = ["typename " + arg[0] for arg in params]
-
-    template = "inline "
-    if len(typenames) > 0:
-        template = "template <{0}>\n".format(", ".join(typenames))
-    params = ["{0} {1}".format(arg[0], arg[1]) for arg in params]
-
-    return_type = "auto"
-    if is_void_function(node):
-        return_type = "void"
-
-    if node.name == "main":
-        template = ""
-        return_type = "int"
-
-    funcdef = "{0}{1} {2}({3})".format(
-        template, return_type, node.name, ", ".join(params)
-    )
     return funcdef + " {\n" + body + "\n}"
 
 
@@ -142,10 +124,48 @@ class CppTranspiler(CLikeTranspiler):
             and node.name.startswith("test")
         ):
             return generate_catch_test_case(node, body)
-        # is_void_function(node) or is_recursive(node):
-        return generate_template_fun(node, body) + "\n"
-        # else:
-        #    return generate_lambda_fun(node, body)
+
+        typenames, args = self.visit(node.args)
+
+        args_list = []
+        if len(args) and hasattr(node, "self_type"):
+            # implicit this
+            del typenames[0]
+            del args[0]
+
+        typedecls = []
+        index = 0
+        for i in range(len(args)):
+            typename = typenames[i]
+            arg = args[i]
+            if typename == "T":
+                typename = "T{0}".format(index)
+                typedecls.append(typename)
+                index += 1
+            args_list.append(f"{typename} {arg}")
+
+        template = "inline "
+        if len(typedecls) > 0:
+            typedecls_str = ", ".join([f"typename {t}" for t in typedecls])
+            template = f"template <{typedecls_str}>"
+
+        return_type = "auto"
+        if node.name == "main":
+            template = ""
+            return_type = "int"
+
+        if not is_void_function(node):
+            if node.returns:
+                typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f"{typename}"
+            else:
+                return_type = "auto"
+        else:
+            return_type = "void"
+
+        args = ", ".join(args_list)
+        funcdef = f"{template}{return_type} {node.name}({args}) {{"
+        return funcdef + "\n" + body + "}\n"
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -163,22 +183,61 @@ class CppTranspiler(CLikeTranspiler):
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
-        return value_id + "." + attr
+
+        if is_class_or_module(value_id, node.scopes):
+            return f"{value_id}.{attr}"
+
+        if is_self_arg(value_id, node.scopes):
+            return f"this->{attr}"
+
+        return f"{value_id}.{attr}"
 
     def visit_ClassDef(self, node):
         buf = [f"class {node.name} {{"]
-        buf += [self.visit(b) for b in node.body]
-        buf += ["}"]
+        buf += ["public:"]
+
+        extractor = DeclarationExtractor(CppTranspiler())
+        extractor.visit(node)
+        declarations = extractor.get_declarations()
+
+        fields = []
+        index = 0
+        for declaration, typename in declarations.items():
+            if typename == None:
+                typename = "ST{0}".format(index)
+                index += 1
+            fields.append(f"{typename} {declaration}")
+
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+
+        buf += [";\n".join(fields + [""])]
+        body = [self.visit(b) for b in node.body]
+        if node.is_dataclass:
+            field_names = [arg for arg in declarations.keys()]
+            args = ", ".join(fields)
+            assignments = "; ".join(
+                [f"this->{field} = {field}" for field in field_names]
+            )
+            constructor = f"{node.name}({args}) {{{assignments};}}"
+            body = [constructor] + body
+        buf += body
+        buf += ["};"]
         return "\n".join(buf) + "\n"
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
-        if node.args:
-            args = [self.visit(a) for a in node.args]
-            args = ", ".join(args)
-        else:
-            args = ""
+        vargs = []
 
+        if node.args:
+            vargs += [self.visit(a) for a in node.args]
+        if node.keywords:
+            vargs += [self.visit(kw.value) for kw in node.keywords]
+
+        args = ", ".join(vargs)
+
+        # TODO: replace this with the self._dispatch() mechanism
         if fname == "int":
             return "py14::to_int({0})".format(args)
         elif fname == "str":
@@ -238,7 +297,7 @@ class CppTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self.visit(node.annotation)
+            typename = self._typename_from_annotation(node)
         return (typename, id)
 
     def visit_Lambda(self, node):

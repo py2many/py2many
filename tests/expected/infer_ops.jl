@@ -60,12 +60,12 @@ function mul(x::Int8, y::Int8)::Int16
     return (x * y)
 end
 
-function fadd(x::Int8, y::Float64)::Float64
+function fadd1(x::Int8, y::Float64)::Float64
     return (x + y)
 end
 
 function show()
-    rv = fadd(6, 6.0)
+    rv = fadd1(6, 6.0)
     @assert(rv == 12)
     println(join(["OK"], " "))
 end

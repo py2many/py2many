@@ -2,7 +2,7 @@
 #include "py14/runtime/sys.h"
 #include <cassert>
 
-template <typename T1, typename T2> auto bisect_right(T1 data, T2 item) {
+inline int bisect_right(std::vector<int> data, int item) {
   int low = 0;
   int high = py14::to_int(data.size());
   while (low < high) {
@@ -16,7 +16,7 @@ template <typename T1, typename T2> auto bisect_right(T1 data, T2 item) {
   return low;
 }
 
-template <typename T1, typename T2> auto bin_it(T1 limits, T2 data) {
+inline std::vector<int> bin_it(std::vector<int> limits, std::vector<int> data) {
   std::vector<decltype(0)> bins{0};
   for (auto _x : limits) {
     bins.push_back(0);

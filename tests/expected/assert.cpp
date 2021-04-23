@@ -1,7 +1,7 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/sys.h"
 #include <cassert>
-template <typename T1, typename T2> void compare_assert(T1 a, T2 b) {
+inline void compare_assert(int a, int b) {
   assert(a == b);
   assert(!(0 == 1));
 }

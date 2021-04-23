@@ -3,7 +3,7 @@
 #include "py14/runtime/sys.h"
 #include <iostream>
 
-inline auto indexing() {
+inline int indexing() {
   int sum = 0;
   std::vector<int> a = {};
   for (auto i : rangepp::xrange(10)) {

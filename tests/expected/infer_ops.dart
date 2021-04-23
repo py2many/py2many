@@ -62,12 +62,12 @@ int mul(int x, int y) {
   return (x * y);
 }
 
-double fadd(int x, double y) {
+double fadd1(int x, double y) {
   return (x + y);
 }
 
 show() {
-  double rv = fadd(6, 6.0);
+  double rv = fadd1(6, 6.0);
   assert(rv == 12);
   print(sprintf("%s", ["OK"]));
 }

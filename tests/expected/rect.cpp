@@ -4,19 +4,21 @@
 #include <iostream>
 
 class Rectangle {
-  int height = None;
-  int length = None;
-  template <typename T1> auto is_square(T1 self) {
-    return self.height == self.length;
+public:
+  int height;
+  int length;
+
+  Rectangle(int height, int length) {
+    this->height = height;
+    this->length = length;
   }
+  inline bool is_square() { return this->height == this->length; }
+};
 
-}
-
-inline void
-show() {
-  Rectangle r = Rectangle();
+inline void show() {
+  Rectangle r = Rectangle(1, 1);
   assert(r.is_square());
-  r = Rectangle();
+  r = Rectangle(1, 2);
   assert(!(r.is_square()));
   auto h = r.height;
   auto l = r.length;

@@ -48,11 +48,11 @@ proc sub(x: int8, y: int8): int8 =
 proc mul(x: int8, y: int8): int16 =
   return x * y
 
-proc fadd(x: int8, y: float): float =
+proc fadd1(x: int8, y: float): float =
   return x + y
 
 proc show() =
-  let rv = fadd(6, 6.0)
+  let rv = fadd1(6, 6.0)
   assert(rv == 12)
   echo "OK"
 

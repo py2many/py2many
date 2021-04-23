@@ -3,19 +3,28 @@
 #include <iostream>
 
 class Colors {
+public:
+  ST0 RED;
+  ST1 GREEN;
+  ST2 BLUE;
+
   auto RED = auto();
   auto GREEN = auto();
   auto BLUE = auto();
-}
+};
 
 class Permissions {
+public:
+  ST0 R;
+  ST1 W;
+  ST2 X;
+
   int R = 1;
   int W = 2;
   int X = 16;
-}
+};
 
-inline void
-show() {
+inline void show() {
   auto color_map = None;
   auto a = Colors.GREEN;
   if (a == Colors.GREEN) {

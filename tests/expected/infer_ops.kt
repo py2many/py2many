@@ -60,12 +60,12 @@ fun mul(x: Byte, y: Byte): Short {
     return (x * y)
 }
 
-fun fadd(x: Byte, y: Double): Double {
+fun fadd1(x: Byte, y: Double): Double {
     return (x + y)
 }
 
 fun show() {
-    val rv = fadd(6, 6.0)
+    val rv = fadd1(6, 6.0)
     assert(rv == 12)
     println("OK")
 }

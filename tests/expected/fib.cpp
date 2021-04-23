@@ -1,7 +1,7 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/sys.h"
 #include <iostream>
-template <typename T1> auto fib(T1 i) {
+inline int fib(int i) {
   if (i == 0 || i == 1) {
     return 1;
   }

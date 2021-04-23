@@ -59,12 +59,12 @@ fn mul(x: i8, y: i8) -> i16 {
     return (x * y);
 }
 
-fn fadd(x: i8, y: f32) -> f32 {
+fn fadd1(x: i8, y: f32) -> f32 {
     return (x + y);
 }
 
 fn show() {
-    let rv: f32 = fadd(6, 6.0);
+    let rv: f32 = fadd1(6, 6.0);
     assert!(rv == 12);
     println!("{}", "OK");
 }

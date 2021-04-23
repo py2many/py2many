@@ -65,12 +65,12 @@ func mul(x int8, y int8) int16 {
 	return (x * y)
 }
 
-func fadd(x int8, y float64) float64 {
+func fadd1(x int8, y float64) float64 {
 	return (x + y)
 }
 
 func show() {
-	var rv float64 = fadd(6, 6.0)
+	var rv float64 = fadd1(6, 6.0)
 	if !(rv == 12) {
 		panic("assert")
 	}
