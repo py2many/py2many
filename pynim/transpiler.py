@@ -4,30 +4,8 @@ from .clike import CLikeTranspiler
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
-from py2many.scope import add_scope_context
-from py2many.annotation_transformer import add_annotation_flags
-from py2many.mutability_transformer import detect_mutable_vars
-from py2many.context import add_variable_context, add_list_calls
-from py2many.analysis import add_imports, is_void_function, get_id, is_mutable
+from py2many.analysis import get_id, is_mutable, is_void_function
 from typing import Optional, List
-
-
-def transpile(source):
-    """
-    Transpile a single python translation unit (a python script) into
-    Nim code.
-    """
-    tree = ast.parse(source)
-    add_variable_context(tree)
-    add_scope_context(tree)
-    add_list_calls(tree)
-    detect_mutable_vars(tree)
-    add_annotation_flags(tree)
-    add_imports(tree)
-
-    transpiler = NimTranspiler()
-
-    return transpiler.visit(tree)
 
 
 class NimTranspiler(CLikeTranspiler):

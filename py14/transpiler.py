@@ -11,6 +11,7 @@ from py2many.analysis import add_imports, is_void_function, get_id
 from py2many.tracer import is_list, is_builtin_import, defined_before
 
 
+# TODO: merge this into py2many.cli.transpiler and fixup the tests
 def transpile(source, headers=False, testing=False):
     """
     Transpile a single python translation unit (a python script) into

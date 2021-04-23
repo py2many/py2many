@@ -6,29 +6,7 @@ from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
-from py2many.analysis import add_imports, get_id, is_void_function
-from py2many.annotation_transformer import add_annotation_flags
-from py2many.context import add_variable_context, add_list_calls
-from py2many.mutability_transformer import detect_mutable_vars
-from py2many.scope import add_scope_context
-
-
-def transpile(source):
-    """
-    Transpile a single python translation unit (a python script) into
-    Go code.
-    """
-    tree = ast.parse(source)
-    add_variable_context(tree)
-    add_scope_context(tree)
-    add_list_calls(tree)
-    detect_mutable_vars(tree)
-    add_annotation_flags(tree)
-    add_imports(tree)
-
-    transpiler = GoTranspiler()
-
-    return transpiler.visit(tree)
+from py2many.analysis import get_id, is_void_function
 
 
 class GoTranspiler(CLikeTranspiler):
