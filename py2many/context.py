@@ -62,6 +62,9 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_ClassDef(self, node):
         node.vars = []
+        # So classes are accessible even after they're
+        # popped from the scope
+        self.scopes[-2].vars.append(node)
         self.generic_visit(node)
         return node
 

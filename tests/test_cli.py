@@ -78,7 +78,6 @@ EXPECTED_COMPILE_FAILURES = [
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
     "rect.jl",  # https://github.com/adsharma/py2many/issues/79
     "rect.nim",  # https://github.com/adsharma/py2many/issues/65
-    "rect.rs",  # https://github.com/adsharma/py2many/issues/65
 ]
 
 

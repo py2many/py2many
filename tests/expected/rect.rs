@@ -9,9 +9,15 @@ impl Rectangle {
     }
 }
 fn show() {
-    let mut r: _ = Rectangle(1, 1);
+    let mut r: _ = Rectangle {
+        height: 1,
+        length: 1,
+    };
     assert!(r.is_square());
-    r = Rectangle(1, 2);
+    r = Rectangle {
+        height: 1,
+        length: 2,
+    };
     assert!(!(r.is_square()));
     let h: _ = r.height;
     let l: _ = r.length;

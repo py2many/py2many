@@ -32,6 +32,8 @@ def get_inferred_type(node):
         fname = get_id(node.func)
         if fname is not None:
             fn = node.scopes.find(fname)
+            if isinstance(fn, ast.ClassDef):
+                return fname
             return_type = fn.returns if fn and fn.returns else None
             if return_type is not None:
                 return return_type

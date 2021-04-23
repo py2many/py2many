@@ -24,6 +24,11 @@ if sys.version_info[0] >= 3:
             return var.arg
         elif isinstance(var, ast.FunctionDef):
             return var.name
+        elif isinstance(var, ast.ClassDef):
+            return var.name
+        else:
+            # print(f"warning: {var}"")
+            return None
 
 
 else:

@@ -203,9 +203,27 @@ class RustTranspiler(CLikeTranspiler):
             return small_dispatch_map[fname]()
         return None
 
+    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
+        vargs = []  # visited args
+        if not hasattr(fndef, "declarations"):
+            raise Exception("Missing declarations")
+        if node.args:
+            for arg, decl in zip(node.args, fndef.declaration.keys()):
+                arg = self.visit(arg)
+                vargs += [f"{decl}: {arg}"]
+        if node.keywords:
+            for kw in node.keywords:
+                value = self.visit(kw.value)
+                vargs += [f"{kw.arg}: {value}"]
+        args = ", ".join(vargs)
+        return f"{fname}{{{args}}}"
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
+
+        if isinstance(fndef, ast.ClassDef):
+            return self._visit_struct_literal(node, fname, fndef)
 
         vargs = []  # visited args
         if node.args:
@@ -345,7 +363,7 @@ class RustTranspiler(CLikeTranspiler):
             return ret
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
+        node.declarations = declarations = extractor.get_declarations()
 
         fields = []
         index = 0
