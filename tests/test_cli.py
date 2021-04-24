@@ -62,7 +62,6 @@ EXPECTED_COMPILE_FAILURES = [
     "infer_ops.jl",  # https://github.com/adsharma/py2many/issues/78
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
-    "infer_ops.rs",  # https://github.com/adsharma/py2many/issues/16
     "int_enum.cpp",
     "int_enum.dart",  # https://github.com/adsharma/py2many/issues/41
     "int_enum.go",  # https://github.com/adsharma/py2many/issues/75

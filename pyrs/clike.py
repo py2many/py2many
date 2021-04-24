@@ -1,23 +1,9 @@
 import ast
 
+from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP
+
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-
-rust_type_map = {
-    "int": "i32",
-    "float": "f32",
-    "bytes": "&[u8]",
-    "str": "&str",
-    "bool": "bool",
-    "c_int8": "i8",
-    "c_int16": "i16",
-    "c_int32": "i32",
-    "c_int64": "i64",
-    "c_uint8": "u8",
-    "c_uint16": "u16",
-    "c_uint32": "u32",
-    "c_uint64": "u64",
-}
 
 # allowed as names in Python but treated as keywords in Rust
 rust_keywords = frozenset(
@@ -46,7 +32,7 @@ rust_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = rust_type_map
+        self._type_map = RUST_TYPE_MAP
 
     def visit_Name(self, node):
         if node.id in rust_keywords:
@@ -57,17 +43,48 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
 
+        left = self.visit(node.left)
+        op = self.visit(node.op)
+        right = self.visit(node.right)
+
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node.right)
+
+        left_rank = RUST_WIDTH_RANK.get(left_type, -1)
+        right_rank = RUST_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank:
+            right = f"{right} as {left_type}"
+        elif right_rank > left_rank:
+            left = f"{left} as {right_type}"
+
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):
-            return "({0}{1}{2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
-
+            return f"({left}{op}{right})"
         else:
-            return "({0} {1} {2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
+            return f"({left} {op} {right})"
+
+    def visit_Compare(self, node):
+        if isinstance(node.ops[0], ast.In):
+            return self.visit_In(node)
+
+        left = self.visit(node.left)
+        op = self.visit(node.ops[0])
+        right = self.visit(node.comparators[0])
+
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node.comparators[0])
+
+        left_rank = RUST_WIDTH_RANK.get(left_type, -1)
+        right_rank = RUST_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank:
+            right = f"{right} as {left_type}"
+        elif right_rank > left_rank:
+            left = f"{left} as {right_type}"
+
+        return f"{left} {op} {right}"
 
     def visit_In(self, node):
         left = self.visit(node.left)

@@ -6,7 +6,7 @@ import subprocess
 
 from dataclasses import dataclass, field
 from distutils import spawn
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from .analysis import add_imports
 from .clike import CLikeTranspiler
@@ -16,6 +16,7 @@ from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
 from .context import add_variable_context, add_list_calls
 from .inference import infer_types
+from pyrs.inference import infer_rust_types
 
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.transpiler import RustTranspiler, RustLoopIndexRewriter
@@ -30,14 +31,16 @@ from pygo.transpiler import (
 )
 
 
-def transpile(source, transpiler, rewriters, post_rewriters):
+def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
     """
     tree = ast.parse(source)
+    # First run any language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
+    # Language independent transformers
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
@@ -46,7 +49,10 @@ def transpile(source, transpiler, rewriters, post_rewriters):
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
     add_imports(tree)
-    # these rewriters depend on type inference
+    # Language specific transformers
+    for tx in transformers:
+        tx(tree)
+    # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
 
@@ -69,6 +75,7 @@ class LanguageSettings:
     formatter: Optional[List[str]] = None
     indent: Optional[int] = None
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
+    transformers: List[Callable] = field(default_factory=list)
     post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
 
 
@@ -84,7 +91,13 @@ def cpp_settings(args):
 
 def rust_settings(args):
     return LanguageSettings(
-        RustTranspiler(), ".rs", ["rustfmt"], None, [], [RustLoopIndexRewriter()]
+        RustTranspiler(),
+        ".rs",
+        ["rustfmt"],
+        None,
+        [],
+        [infer_rust_types],
+        [RustLoopIndexRewriter()],
     )
 
 
@@ -95,7 +108,7 @@ def julia_settings(args):
     else:
         format_jl = ["format.jl"]
     return LanguageSettings(
-        JuliaTranspiler(), ".jl", format_jl, None, [], [JuliaMethodCallRewriter()]
+        JuliaTranspiler(), ".jl", format_jl, None, [], [], [JuliaMethodCallRewriter()]
     )
 
 
@@ -126,6 +139,7 @@ def go_settings(args):
         ".go",
         ["gofmt", "-w"],
         None,
+        [],
         [],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
     )
@@ -161,6 +175,7 @@ def _process_once(settings, filename, outdir):
                 source_data,
                 settings.transpiler,
                 settings.rewriters,
+                settings.transformers,
                 settings.post_rewriters,
             )
         )

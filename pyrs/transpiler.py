@@ -2,6 +2,7 @@ import ast
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
+from .inference import get_inferred_rust_type
 
 from py2many.analysis import get_id, is_global, is_mutable, is_void_function
 from py2many.inference import get_inferred_type, is_reference
@@ -20,6 +21,7 @@ class RustLoopIndexRewriter(ast.NodeTransformer):
             if is_reference(definition):
                 node.target.needs_dereference = True
         return node
+
 
 class RustTranspiler(CLikeTranspiler):
 
@@ -100,6 +102,22 @@ class RustTranspiler(CLikeTranspiler):
                 # Python passes by reference by default. Rust needs explicit borrowing
                 typename = f"&{typename}"
         return (typename, id)
+
+    def visit_Return(self, node):
+        if node.value:
+            ret = self.visit(node.value)
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                return_type = self._typename_from_annotation(fndef, attr="returns")
+                value_type = get_inferred_rust_type(node.value)
+                if return_type != value_type and value_type is not None:
+                    return f"return {ret} as {return_type};"
+            return f"return {ret};"
+        return "return;"
 
     def visit_Lambda(self, node):
         _, args = self.visit(node.args)
@@ -266,7 +284,11 @@ class RustTranspiler(CLikeTranspiler):
         else:
             ret = super().visit_Name(node)
             definition = node.scopes.find(node.id)
-            if definition and definition != node and getattr(definition, "needs_dereference", False):
+            if (
+                definition
+                and definition != node
+                and getattr(definition, "needs_dereference", False)
+            ):
                 return f"*{ret}"
             return ret
 
@@ -514,6 +536,19 @@ class RustTranspiler(CLikeTranspiler):
         mut = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
         return f"let {mut}{target}: {type_str} = {val};"
 
+    def _needs_cast(self, left, right) -> bool:
+        if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
+            return False
+        left_type = self._typename_from_annotation(left)
+        right_type = get_inferred_rust_type(right)
+        return left_type != right_type and left_type != self._default_type
+
+    def _assign_cast(
+        self, value_str: str, cast_to: str, python_annotation, rust_annotation
+    ) -> str:
+        # python/rust annotations provided to customize the cast if necessary
+        return f"{value_str} as {cast_to}"
+
     def visit_Assign(self, node):
         target = node.targets[0]
 
@@ -547,9 +582,15 @@ class RustTranspiler(CLikeTranspiler):
 
         definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
-            target = self.visit(target)
+            needs_cast = self._needs_cast(target, node.value)
+            target_str = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            if needs_cast:
+                target_type = self._typename_from_annotation(target)
+                value = self._assign_cast(
+                    value, target_type, target.annotation, node.value.rust_annotation
+                )
+            return f"{target_str} = {value};"
         elif isinstance(node.value, ast.List):
             count = len(node.value.elts)
             target = self.visit(target)
@@ -598,9 +639,14 @@ class RustTranspiler(CLikeTranspiler):
             return f"{kw} {target}: {typename} = {value};"
         else:
             typename = self._typename_from_annotation(target)
-            target = self.visit(target)
+            needs_cast = self._needs_cast(target, node.value)
+            target_str = self.visit(target)
             value = self.visit(node.value)
-            return f"{kw} {target}: {typename} = {value};"
+            if needs_cast:
+                value = self._assign_cast(
+                    value, typename, target.annotation, node.value.annotation
+                )
+            return f"{kw} {target_str}: {typename} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]

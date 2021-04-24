@@ -1,13 +1,13 @@
 from py2many.declaration_extractor import (
     DeclarationExtractor as CommonDeclarationExtractor,
 )
-from .clike import rust_type_map
+from .inference import RUST_TYPE_MAP
 
 
 class DeclarationExtractor(CommonDeclarationExtractor):
     def __init__(self, transpiler):
         super().__init__(transpiler)
-        self._type_map = rust_type_map
+        self._type_map = RUST_TYPE_MAP
 
     # TODO better type infering based on variable init
     def type_by_initialization(self, init_str):
