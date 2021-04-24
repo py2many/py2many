@@ -8,9 +8,32 @@ from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.analysis import get_id, is_void_function
 
+
+class GoMethodCallRewriter(ast.NodeTransformer):
+    def visit_Call(self, node):
+        needs_assign = False
+        fname = node.func
+        if isinstance(fname, ast.Attribute):
+            if is_list(node.func.value) and fname.attr == "append":
+                needs_assign = True
+            node.args = [ast.Name(id=fname.value.id, lineno=node.lineno)] + node.args
+            node.func = ast.Name(id=fname.attr, lineno=node.lineno, ctx=fname.ctx)
+        if needs_assign:
+            ret = ast.Assign(
+                targets=[ast.Name(id=fname.value.id, lineno=node.lineno)],
+                value=node,
+                lineno=node.lineno,
+                scopes=node.scopes,
+            )
+            return ret
+        return node
+
+
 class GoPropagateTypeAnnotation(ast.NodeTransformer):
     def _visit_assign(self, node, target):
-        if hasattr(node, "annotation") and isinstance(node.value, (ast.List, ast.Set, ast.Dict)):
+        if hasattr(node, "annotation") and isinstance(
+            node.value, (ast.List, ast.Set, ast.Dict)
+        ):
             node.value.annotation = node.annotation
         return node
 
@@ -21,6 +44,7 @@ class GoPropagateTypeAnnotation(ast.NodeTransformer):
     def visit_AnnAssign(self, node):
         target = node.target
         return self._visit_assign(node, target)
+
 
 class GoTranspiler(CLikeTranspiler):
     CONTAINER_TYPE_MAP = {"List": "[]", "Dict": "map", "Set": "Set", "Optional": "nil"}
@@ -154,19 +178,29 @@ class GoTranspiler(CLikeTranspiler):
             return small_dispatch_map[fname]()
         return None
 
+    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
+        vargs = []  # visited args
+        if not hasattr(fndef, "declarations"):
+            raise Exception("Missing declarations")
+        if node.args:
+            for arg, decl in zip(node.args, fndef.declaration.keys()):
+                arg = self.visit(arg)
+                vargs += [f"{decl}: {arg}"]
+        if node.keywords:
+            for kw in node.keywords:
+                value = self.visit(kw.value)
+                vargs += [f"{kw.arg}: {value}"]
+        args = ", ".join(vargs)
+        return f"{fname}{{{args}}}"
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
-        vargs = []
+        fndef = node.scopes.find(fname)
 
-        if (
-            hasattr(node.func, "value")
-            and is_list(node.func.value)
-            and fname.endswith(".append")
-        ):
-            list_name = get_id(node.func.value)
-            # This is still ugly: creates an assignment for a mutating function call
-            fname = f"{list_name} = append"
-            vargs.append(list_name)
+        if isinstance(fndef, ast.ClassDef):
+            return self._visit_struct_literal(node, fname, fndef)
+
+        vargs = []
 
         if node.args:
             vargs += [self.visit(a) for a in node.args]
@@ -305,7 +339,7 @@ class GoTranspiler(CLikeTranspiler):
             return ret
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
+        declarations = node.declarations = extractor.get_declarations()
 
         fields = []
         index = 0

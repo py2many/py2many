@@ -134,7 +134,7 @@ class NimTranspiler(CLikeTranspiler):
             return small_dispatch_map[fname]()
         return None
 
-    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
+    def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
             raise Exception("Missing declarations")
@@ -149,13 +149,12 @@ class NimTranspiler(CLikeTranspiler):
         args = ", ".join(vargs)
         return f"{fname}({args})"
 
-
     def visit_Call(self, node):
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
 
         if isinstance(fndef, ast.ClassDef):
-            return self._visit_struct_literal(node, fname, fndef)
+            return self._visit_object_literal(node, fname, fndef)
 
         vargs = []
 

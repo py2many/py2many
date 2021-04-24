@@ -14,12 +14,12 @@ func is_square(self Rectangle) bool {
 }
 
 func show() {
-	var r Rectangle = Rectangle(1, 1)
-	if !(r.is_square()) {
+	var r Rectangle = Rectangle{height: 1, length: 1}
+	if !(is_square(r)) {
 		panic("assert")
 	}
-	r = Rectangle(1, 2)
-	if !(!(r.is_square())) {
+	r = Rectangle{height: 1, length: 2}
+	if !(!(is_square(r))) {
 		panic("assert")
 	}
 	h := r.height

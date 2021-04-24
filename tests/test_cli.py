@@ -70,7 +70,6 @@ EXPECTED_COMPILE_FAILURES = [
     "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
-    "rect.go",  # https://github.com/adsharma/py2many/issues/65
 ]
 
 
