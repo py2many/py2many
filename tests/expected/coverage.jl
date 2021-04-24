@@ -24,6 +24,8 @@ function show()
     println(join([a4], " "))
     sum1 = indexing()
     println(join([sum1], " "))
+    a5 = [1, 2, 3]
+    println(join([length(a5)], " "))
 end
 
 function main()

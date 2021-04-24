@@ -30,6 +30,8 @@ func show() {
 	fmt.Printf("%v\n", a4)
 	var sum1 int = indexing()
 	fmt.Printf("%v\n", sum1)
+	var a5 []int = []int{1, 2, 3}
+	fmt.Printf("%v\n", len(a5))
 }
 
 func main() {

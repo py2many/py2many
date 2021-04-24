@@ -9,6 +9,38 @@ from py2many.analysis import get_id, is_mutable, is_void_function
 from typing import Optional, List
 
 
+class KotlinPrintRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+        self._temp = 0
+
+    def _get_temp(self):
+        self._temp += 1
+        return f"__tmp{self._temp}"
+
+    def visit_Call(self, node):
+        fname = self.visit(node.func)
+        if (
+            get_id(fname) == "print"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Call)
+        ):
+            tmp = ast.Name(id=self._get_temp(), lineno=node.lineno)
+            ret = ast.If(
+                test=ast.Constant(value=True),
+                body=[
+                    ast.Assign(targets=[tmp], value=node.args[0], lineno=node.lineno),
+                    node,
+                ],
+                orelse=[],
+                lineno=node.lineno,
+            )
+            node.args[0] = tmp
+            return ret
+
+        return node
+
+
 class KotlinTranspiler(CLikeTranspiler):
     CONTAINER_TYPE_MAP = {
         "List": "Array",
@@ -217,7 +249,7 @@ class KotlinTranspiler(CLikeTranspiler):
             buf.extend([self.visit(child) for child in node.body])
             buf.append("}")
             return "\n".join(buf)
-        return super().visit_If(node)
+        return super().visit_If(node, use_semi_colon=False)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -373,7 +405,9 @@ class KotlinTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self._typename_from_annotation(node.target)
         val = self.visit(node.value)
-        return "var {0}: {1} = {2}".format(target, type_str, val)
+        if type_str == self._default_type:
+            return f"var {target} = {val}"
+        return f"var {target}: {type_str} = {val}"
 
     def visit_Assign(self, node):
         target = node.targets[0]

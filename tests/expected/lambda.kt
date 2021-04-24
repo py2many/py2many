@@ -1,9 +1,12 @@
 
 fun show() {
-var myfunc: var = { x, y -> (x + y) }
-println("$myfunc(1, 2)")}
-
+    var myfunc = { x, y -> (x + y) }
+    if (true) {
+        val __tmp1 = myfunc(1, 2)
+        println("$__tmp1")
+    } 
+}
 
 fun main() {
-show()
+    show()
 }

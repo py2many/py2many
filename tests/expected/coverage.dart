@@ -26,6 +26,8 @@ show() {
   print(sprintf("%s", [a4]));
   int sum1 = indexing();
   print(sprintf("%s", [sum1]));
+  var a5 = [1, 2, 3];
+  print(sprintf("%s", [a5.length]));
 }
 
 void main() {

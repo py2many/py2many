@@ -152,7 +152,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Constant(self, node):
         if isinstance(node.value, str):
             return self.visit_Str(node)
-        return str(node.n)
+        return str(self.visit_NameConstant(node))
 
     def visit_Str(self, node):
         return f'"{node.value}"'
@@ -169,7 +169,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             return "return {0};".format(self.visit(node.value))
         return "return;"
 
-    def visit_If(self, node, use_parens=True):
+    def visit_If(self, node, use_parens=True, use_semi_colon=True):
         buf = []
         # if True: s1; s2  should be transpiled into ({s1; s2;})
         # such that the value of the expression is s2
@@ -179,6 +179,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             isinstance(node.test, ast.Constant)
             and node.test.value == True
             and node.orelse == []
+            # Kotlin thinks {..} is a lambda. Wants if true {...}
+            and use_semi_colon
         )
         if make_block:
             buf.append("({")
@@ -196,7 +198,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             buf.append("}")
         else:
             if make_block:
-                buf.append(";})")
+                if use_semi_colon:
+                    buf.append(";")
+                buf.append("})")
             else:
                 buf.append("}")
 

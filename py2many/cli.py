@@ -20,7 +20,7 @@ from .inference import infer_types
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.transpiler import RustTranspiler, RustLoopIndexRewriter
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
-from pykt.transpiler import KotlinTranspiler
+from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
 from pynim.transpiler import NimTranspiler
 from pydart.transpiler import DartTranspiler
 from pygo.transpiler import GoTranspiler
@@ -79,7 +79,9 @@ def cpp_settings(args):
 
 
 def rust_settings(args):
-    return LanguageSettings(RustTranspiler(), ".rs", ["rustfmt"], None, [], [RustLoopIndexRewriter()])
+    return LanguageSettings(
+        RustTranspiler(), ".rs", ["rustfmt"], None, [], [RustLoopIndexRewriter()]
+    )
 
 
 def julia_settings(args):
@@ -94,7 +96,9 @@ def julia_settings(args):
 
 
 def kotlin_settings(args):
-    return LanguageSettings(KotlinTranspiler(), ".kt", ["ktlint", "-F"])
+    return LanguageSettings(
+        KotlinTranspiler(), ".kt", ["ktlint", "-F"], None, [KotlinPrintRewriter()]
+    )
 
 
 def nim_settings(args):
@@ -141,7 +145,14 @@ def _process_once(settings, filename, outdir):
     with open(filename) as f:
         source_data = f.read()
     with open(output_path, "w") as f:
-        f.write(transpile(source_data, settings.transpiler, settings.rewriters, settings.post_rewriters))
+        f.write(
+            transpile(
+                source_data,
+                settings.transpiler,
+                settings.rewriters,
+                settings.post_rewriters,
+            )
+        )
     if settings.formatter:
         if subprocess.call([*settings.formatter, output_path]):
             print(f"Error: Could not reformat: {output_path}")

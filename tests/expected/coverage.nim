@@ -20,6 +20,8 @@ proc show() =
   echo a4
   let sum1 = indexing()
   echo sum1
+  let a5 = @[1, 2, 3]
+  echo len(a5)
 
 proc main() =
   show()

@@ -30,8 +30,8 @@ def show():
     print(sum1)
     # Uncomment as we fix things
     # lists, sets and dict
-    # a5 = [1, 2, 3]
-    # print(len(a5))
+    a5 = [1, 2, 3]
+    print(len(a5))
     # a6 = {1, 2, 3, 4}
     # print(len(a6))
     # a7 = {"a": 1, "b": 2}

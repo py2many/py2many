@@ -24,6 +24,11 @@ fun show() {
     println("$a4")
     val sum1 = indexing()
     println("$sum1")
+    val a5 = arrayOf(1, 2, 3)
+    if (true) {
+        val __tmp1 = a5.size
+        println("$__tmp1")
+    } 
 }
 
 fun main() {

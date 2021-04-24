@@ -33,6 +33,9 @@ inline void show() {
   int sum1 = indexing();
   std::cout << sum1;
   std::cout << std::endl;
+  std::vector<decltype(1)> a5{1, 2, 3};
+  std::cout << a5.size();
+  std::cout << std::endl;
 }
 
 int main(int argc, char **argv) {
