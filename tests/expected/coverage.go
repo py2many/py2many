@@ -32,6 +32,8 @@ func show() {
 	fmt.Printf("%v\n", sum1)
 	var a5 []int = []int{1, 2, 3}
 	fmt.Printf("%v\n", len(a5))
+	var a9 []string = []string{"a", "b", "c", "d"}
+	fmt.Printf("%v\n", len(a9))
 }
 
 func main() {

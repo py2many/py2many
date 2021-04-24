@@ -22,6 +22,8 @@ proc show() =
   echo sum1
   let a5 = @[1, 2, 3]
   echo len(a5)
+  let a9: seq[string] = @["a", "b", "c", "d"]
+  echo len(a9)
 
 proc main() =
   show()

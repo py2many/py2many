@@ -26,6 +26,8 @@ function show()
     println(join([sum1], " "))
     a5 = [1, 2, 3]
     println(join([length(a5)], " "))
+    a9::Array{String} = ["a", "b", "c", "d"]
+    println(join([length(a9)], " "))
 end
 
 function main()

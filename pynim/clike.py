@@ -7,7 +7,7 @@ nim_type_map = {
     "int": "int",
     "float": "float",
     "bytes": "openArray[byte]",
-    "str": "String",
+    "str": "string",
     "bool": "bool",
     "c_int8": "int8",
     "c_int16": "int16",

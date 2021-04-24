@@ -23,7 +23,7 @@ from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
 from pynim.transpiler import NimTranspiler
 from pydart.transpiler import DartTranspiler
-from pygo.transpiler import GoTranspiler
+from pygo.transpiler import GoTranspiler, GoPropagateTypeAnnotation
 
 
 def transpile(source, transpiler, rewriters, post_rewriters):
@@ -117,7 +117,7 @@ def dart_settings(args):
 
 
 def go_settings(args):
-    return LanguageSettings(GoTranspiler(), ".go", ["gofmt", "-w"])
+    return LanguageSettings(GoTranspiler(), ".go", ["gofmt", "-w"], None, [], [GoPropagateTypeAnnotation()])
 
 
 def _get_all_settings(args):

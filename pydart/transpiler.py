@@ -399,11 +399,7 @@ class DartTranspiler(CLikeTranspiler):
         return f"assert({condition});"
 
     def visit_AnnAssign(self, node):
-        target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
-        if type_str in self._type_map:
-            type_str = self._type_map[type_str]
-        val = self.visit(node.value)
+        target, type_str, val = super().visit_AnnAssign(node)
         return f"{type_str} {target} = {val};"
 
     def visit_Assign(self, node):

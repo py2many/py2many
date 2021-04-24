@@ -8,6 +8,19 @@ from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.analysis import get_id, is_void_function
 
+class GoPropagateTypeAnnotation(ast.NodeTransformer):
+    def _visit_assign(self, node, target):
+        if hasattr(node, "annotation") and isinstance(node.value, (ast.List, ast.Set, ast.Dict)):
+            node.value.annotation = node.annotation
+        return node
+
+    def visit_Assign(self, node):
+        target = node.targets[0]
+        return self._visit_assign(node, target)
+
+    def visit_AnnAssign(self, node):
+        target = node.target
+        return self._visit_assign(node, target)
 
 class GoTranspiler(CLikeTranspiler):
     CONTAINER_TYPE_MAP = {"List": "[]", "Dict": "map", "Set": "Set", "Optional": "nil"}
@@ -363,15 +376,12 @@ class GoTranspiler(CLikeTranspiler):
         return "use {0}::{{{1}}}".format(module_path, names)
 
     def visit_List(self, node):
-        if len(node.elts) > 0:
-            elements = [self.visit(e) for e in node.elts]
-            elements = ", ".join(elements)
-            typename = "int"  # TODO: infer
-            return f"[]{typename}{{{elements}}}"
-
-        else:
-            typename = "int"  # TODO: infer
-            return f"[]{typename}{{}}"
+        typename = "int[]"  # TODO: infer
+        if getattr(node, "annotation", None):
+            typename = self._typename_from_annotation(node)
+        elements = [self.visit(e) for e in node.elts]
+        elements = ", ".join(elements)
+        return f"{typename}{{{elements}}}"
 
     def visit_Dict(self, node):
         if len(node.keys) > 0:

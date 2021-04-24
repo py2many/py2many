@@ -28,6 +28,8 @@ show() {
   print(sprintf("%s", [sum1]));
   var a5 = [1, 2, 3];
   print(sprintf("%s", [a5.length]));
+  List<String> a9 = ["a", "b", "c", "d"];
+  print(sprintf("%s", [a9.length]));
 }
 
 void main() {

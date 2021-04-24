@@ -28,6 +28,11 @@ fun show() {
     if (true) {
         val __tmp1 = a5.size
         println("$__tmp1")
+    }
+    var a9: Array<String> = arrayOf("a", "b", "c", "d")
+    if (true) {
+        val __tmp2 = a9.size
+        println("$__tmp2")
     } 
 }
 
