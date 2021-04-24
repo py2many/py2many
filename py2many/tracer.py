@@ -4,6 +4,8 @@ import ast
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler
 
+from typing import Optional
+
 
 def decltype(node):
     """Create C++ decltype statement"""
@@ -15,16 +17,30 @@ def is_builtin_import(name):
 
 
 # is it slow? is it correct?
-def is_class_or_module(name, scopes):
+def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
         for entry in scope.body:
             if isinstance(entry, ast.ClassDef):
                 if entry.name == name:
-                    return True
+                    return entry
         if hasattr(scope, "imports"):
             for entry in scope.imports:
                 if entry.name == name:
-                    return True
+                    return entry
+    return None
+
+
+def is_class_or_module(name, scopes):
+    entry = _lookup_class_or_module(name, scopes)
+    return entry is not None
+
+
+def is_enum(name, scopes):
+    entry = _lookup_class_or_module(name, scopes)
+    if entry:
+        bases = set([get_id(base) for base in entry.bases])
+        enum_bases = {"Enum", "IntEnum", "IntFlag"}
+        return bases & enum_bases
     return False
 
 

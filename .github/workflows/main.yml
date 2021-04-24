@@ -36,6 +36,7 @@ jobs:
         shell: bash
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
+          julia -e 'using Pkg; Pkg.add("SuperEnum")'
           if [ "$RUNNER_OS" == "Linux" ]; then
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint

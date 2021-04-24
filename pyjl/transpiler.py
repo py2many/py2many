@@ -1,11 +1,13 @@
 import ast
+import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from py2many.analysis import get_id, is_void_function
-from typing import Optional, List
+from typing import Optional, List, Tuple
+
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def __init__(self):
@@ -36,6 +38,11 @@ class JuliaTranspiler(CLikeTranspiler):
         self._headers = set([])
         self._default_type = None
         self._container_type_map = self.CONTAINER_TYPE_MAP
+
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"using {mod}" for mod in usings)
+        return uses
 
     def comment(self, text):
         return f"# {text}"
@@ -118,10 +125,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
 
-        if is_class_or_module(value_id, node.scopes):
-            return "{0}::{1}".format(value_id, attr)
+        if is_enum(value_id, node.scopes):
+            return f"{value_id}.{attr}"
 
-        return value_id + "." + attr
+        if is_class_or_module(value_id, node.scopes):
+            return f"{value_id}::{attr}"
+
+        return f"{value_id}.{attr}"
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
@@ -275,6 +285,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         extractor = DeclarationExtractor(JuliaTranspiler())
         extractor.visit(node)
         declarations = extractor.get_declarations()
@@ -295,6 +308,58 @@ class JuliaTranspiler(CLikeTranspiler):
         body = "\n".join([self.visit(b) for b in node.body])
         return f"{struct_def}\n{body}"
 
+    def _visit_enum(self, node, typename: str, fields: List[Tuple]):
+        self._usings.add("SuperEnum")
+        fields_list = []
+
+        sep = "=>" if typename == "String" else "="
+        for field, value in fields:
+            fields_list += [
+                f"""\
+                {field} {sep} {value}
+            """
+            ]
+        fields_str = "".join(fields_list)
+        return textwrap.dedent(
+            f"""\
+            @se {node.name} begin\n{fields_str}
+            end
+            """
+        )
+
+    def visit_StrEnum(self, node):
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = f'"{member}"'
+            fields.append((member, var))
+        return self._visit_enum(node, "String", fields)
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = i
+            fields.append((member, var))
+        return self._visit_enum(node, "Int64", fields)
+
+    def visit_IntFlag(self, node):
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = i
+            fields.append((member, var))
+        return self._visit_enum(node, "Int64", fields)
+
     def visit_alias(self, node):
         return "use {0}".format(node.name)
 
@@ -312,24 +377,20 @@ class JuliaTranspiler(CLikeTranspiler):
         return "use {0}::{{{1}}}".format(module_path, names)
 
     def visit_List(self, node):
-        if len(node.elts) > 0:
-            elements = [self.visit(e) for e in node.elts]
-            return "[{0}]".format(", ".join(elements))
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"[{elements_str}]"
 
-        else:
-            return "[]"
+    def visit_Set(self, node):
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"Set([{elements_str}])"
 
     def visit_Dict(self, node):
-        if len(node.keys) > 0:
-            kv_string = []
-            for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
-                value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
-            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
-            return initialization.format(", ".join(kv_string))
-        else:
-            return "HashMap::new()"
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{k} => {v}" for k, v in zip(keys, values)])
+        return f"Dict({kv_pairs})"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -522,18 +583,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_Set(self, node):
-        elts = []
-        for i in range(len(node.elts)):
-            elt = self.visit(node.elts[i])
-            elts.append(elt)
-
-        if elts:
-            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
-            return initialization.format(", ".join(elts))
-        else:
-            return "HashSet::new()"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

@@ -66,12 +66,10 @@ EXPECTED_COMPILE_FAILURES = [
     "int_enum.cpp",
     "int_enum.dart",  # https://github.com/adsharma/py2many/issues/41
     "int_enum.go",  # https://github.com/adsharma/py2many/issues/75
-    "int_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "int_enum.kt",  # https://github.com/adsharma/py2many/issues/28
     "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
-    "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
     "rect.nim",  # https://github.com/adsharma/py2many/issues/65
 ]
