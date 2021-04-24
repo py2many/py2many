@@ -7,6 +7,21 @@ from py2many.tracer import is_list, defined_before, is_class_or_module
 from py2many.analysis import get_id, is_void_function
 from typing import Optional, List
 
+class JuliaMethodCallRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+
+    def visit_Call(self, node):
+        fname = node.func
+        if isinstance(fname, ast.Attribute):
+            if is_list(node.func.value) and fname.attr == "append":
+                new_func_name = "push!"
+            else:
+                new_func_name = fname.attr
+            node.args = [ast.Name(id=fname.value.id, lineno=node.lineno)] + node.args
+            node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+        return node
+
 
 class JuliaTranspiler(CLikeTranspiler):
     CONTAINER_TYPE_MAP = {
@@ -147,14 +162,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Call(self, node):
         fname = self.visit(node.func)
         vargs = []
-        if (
-            hasattr(node.func, "value")
-            and is_list(node.func.value)
-            and fname.endswith(".append")
-        ):
-            list_name = get_id(node.func.value)
-            fname = "push!"
-            vargs.append(list_name)
 
         if node.args:
             vargs += [self.visit(a) for a in node.args]

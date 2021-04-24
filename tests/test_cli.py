@@ -75,7 +75,6 @@ EXPECTED_COMPILE_FAILURES = [
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
     "str_enum.jl",  # https://github.com/adsharma/py2many/issues/26
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
-    "rect.jl",  # https://github.com/adsharma/py2many/issues/79
     "rect.nim",  # https://github.com/adsharma/py2many/issues/65
 ]
 

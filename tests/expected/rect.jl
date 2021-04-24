@@ -10,9 +10,9 @@ end
 
 function show()
     r = Rectangle(1, 1)
-    @assert(r.is_square())
+    @assert(is_square(r))
     r = Rectangle(1, 2)
-    @assert(!(r.is_square()))
+    @assert(!(is_square(r)))
     h = r.height
     l = r.length
     println(join([h], " "))

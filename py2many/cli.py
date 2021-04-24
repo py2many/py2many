@@ -19,14 +19,14 @@ from .inference import infer_types
 
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.transpiler import RustTranspiler
-from pyjl.transpiler import JuliaTranspiler
+from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.transpiler import KotlinTranspiler
 from pynim.transpiler import NimTranspiler
 from pydart.transpiler import DartTranspiler
 from pygo.transpiler import GoTranspiler
 
 
-def transpile(source, transpiler, rewriters):
+def transpile(source, transpiler, rewriters, post_rewriters):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
@@ -42,6 +42,9 @@ def transpile(source, transpiler, rewriters):
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
     add_imports(tree)
+    # these rewriters depend on type inference
+    for rewriter in post_rewriters:
+        tree = rewriter.visit(tree)
 
     out = []
     code = transpiler.visit(tree) + "\n"
@@ -62,6 +65,7 @@ class LanguageSettings:
     formatter: Optional[List[str]] = None
     indent: Optional[int] = None
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
+    post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
 
 
 def cpp_settings(args):
@@ -84,7 +88,9 @@ def julia_settings(args):
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl]
     else:
         format_jl = ["format.jl"]
-    return LanguageSettings(JuliaTranspiler(), ".jl", format_jl)
+    return LanguageSettings(
+        JuliaTranspiler(), ".jl", format_jl, None, [], [JuliaMethodCallRewriter()]
+    )
 
 
 def kotlin_settings(args):
@@ -135,7 +141,7 @@ def _process_once(settings, filename, outdir):
     with open(filename) as f:
         source_data = f.read()
     with open(output_path, "w") as f:
-        f.write(transpile(source_data, settings.transpiler, settings.rewriters))
+        f.write(transpile(source_data, settings.transpiler, settings.rewriters, settings.post_rewriters))
     if settings.formatter:
         if subprocess.call([*settings.formatter, output_path]):
             print(f"Error: Could not reformat: {output_path}")
