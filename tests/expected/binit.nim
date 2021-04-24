@@ -5,9 +5,9 @@ proc bisect_right(data: openArray[int], item: int): int =
   while low < high:
     let middle = int(low + high / 2)
     if item < data[middle]:
-      high = middle;
+      high = middle
     else:
-      low = middle + 1;
+      low = middle + 1
   return low
 
 proc bin_it(limits: openArray[int], data: openArray[int]): seq[int] =

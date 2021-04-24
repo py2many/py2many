@@ -134,8 +134,29 @@ class NimTranspiler(CLikeTranspiler):
             return small_dispatch_map[fname]()
         return None
 
+    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
+        vargs = []  # visited args
+        if not hasattr(fndef, "declarations"):
+            raise Exception("Missing declarations")
+        if node.args:
+            for arg, decl in zip(node.args, fndef.declaration.keys()):
+                arg = self.visit(arg)
+                vargs += [f"{decl}: {arg}"]
+        if node.keywords:
+            for kw in node.keywords:
+                value = self.visit(kw.value)
+                vargs += [f"{kw.arg}: {value}"]
+        args = ", ".join(vargs)
+        return f"{fname}({args})"
+
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
+        fndef = node.scopes.find(fname)
+
+        if isinstance(fndef, ast.ClassDef):
+            return self._visit_struct_literal(node, fname, fndef)
+
         vargs = []
 
         if node.args:
@@ -262,7 +283,7 @@ class NimTranspiler(CLikeTranspiler):
             return ret
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
+        declarations = node.declarations = extractor.get_declarations()
 
         fields = []
         index = 0
@@ -445,7 +466,7 @@ class NimTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return "{0} = {1}".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
             elements = ", ".join(elements)

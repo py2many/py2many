@@ -71,7 +71,6 @@ EXPECTED_COMPILE_FAILURES = [
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
     "rect.go",  # https://github.com/adsharma/py2many/issues/65
-    "rect.nim",  # https://github.com/adsharma/py2many/issues/65
 ]
 
 

@@ -8,9 +8,9 @@ proc is_square(self: Rectangle): bool =
 
 
 proc show() =
-  var r = Rectangle(1, 1)
+  var r = Rectangle(height: 1, length: 1)
   assert(r.is_square())
-  r = Rectangle(1, 2);
+  r = Rectangle(height: 1, length: 2)
   assert(not (r.is_square()))
   let h = r.height
   let l = r.length
