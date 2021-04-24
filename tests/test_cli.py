@@ -39,6 +39,8 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 COMPARABLE = [
+    "bubble_sort",
+    "comb_sort",
     "coverage",
     "fib",
     "global",
