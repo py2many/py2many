@@ -83,7 +83,7 @@ class DartTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return f"{{ {args_string} -> {body} }}"
+        return f"({args_string}) => {body}"
 
     def visit_Attribute(self, node):
         attr = node.attr
