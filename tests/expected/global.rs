@@ -7,10 +7,10 @@ const code_b: &str = "b";
 const l_b: &[&str; 2] = &[code_a, code_b];
 fn main() {
     for i in l_a {
-        println!("{}", i);
+        println!("{}", *i);
     }
     for i in l_b {
-        println!("{}", i);
+        println!("{}", *i);
     }
     if vec!["a", "b"].iter().any(|&x| x == "a") {
         println!("{}", "OK");

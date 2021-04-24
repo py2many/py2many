@@ -18,7 +18,7 @@ from .context import add_variable_context, add_list_calls
 from .inference import infer_types
 
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
-from pyrs.transpiler import RustTranspiler
+from pyrs.transpiler import RustTranspiler, RustLoopIndexRewriter
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.transpiler import KotlinTranspiler
 from pynim.transpiler import NimTranspiler
@@ -79,7 +79,7 @@ def cpp_settings(args):
 
 
 def rust_settings(args):
-    return LanguageSettings(RustTranspiler(), ".rs", ["rustfmt"])
+    return LanguageSettings(RustTranspiler(), ".rs", ["rustfmt"], None, [], [RustLoopIndexRewriter()])
 
 
 def julia_settings(args):

@@ -10,6 +10,17 @@ from py2many.tracer import is_list, defined_before, is_class_or_module
 from typing import List, Optional
 
 
+class RustLoopIndexRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+
+    def visit_For(self, node):
+        if hasattr(node.iter, "id"):
+            definition = node.scopes.find(node.iter.id)
+            if is_reference(definition):
+                node.target.needs_dereference = True
+        return node
+
 class RustTranspiler(CLikeTranspiler):
 
     CONTAINER_TYPE_MAP = {
@@ -253,7 +264,11 @@ class RustTranspiler(CLikeTranspiler):
         if node.id == "None":
             return "None"
         else:
-            return super().visit_Name(node)
+            ret = super().visit_Name(node)
+            definition = node.scopes.find(node.id)
+            if definition and definition != node and getattr(definition, "needs_dereference", False):
+                return f"*{ret}"
+            return ret
 
     def visit_NameConstant(self, node):
         if node.value is True:

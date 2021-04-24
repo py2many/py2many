@@ -20,7 +20,7 @@ fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
         bins.push(0);
     }
     for d in data {
-        bins[bisect_right(&limits, d) as usize] += 1;
+        bins[bisect_right(&limits, *d) as usize] += 1;
     }
     return bins;
 }
