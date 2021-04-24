@@ -4,7 +4,7 @@ import os
 import pathlib
 import subprocess
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from distutils import spawn
 from typing import List, Optional
 
@@ -17,7 +17,7 @@ from .nesting_transformer import detect_nesting_levels
 from .context import add_variable_context, add_list_calls
 from .inference import infer_types
 
-from py14.transpiler import CppTranspiler, CppRewriter
+from py14.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.transpiler import RustTranspiler
 from pyjl.transpiler import JuliaTranspiler
 from pykt.transpiler import KotlinTranspiler
@@ -26,13 +26,13 @@ from pydart.transpiler import DartTranspiler
 from pygo.transpiler import GoTranspiler
 
 
-def transpile(source, transpiler, rewriter):
+def transpile(source, transpiler, rewriters):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
     """
     tree = ast.parse(source)
-    if rewriter is not None:
+    for rewriter in rewriters:
         tree = rewriter.visit(tree)
     add_variable_context(tree)
     add_scope_context(tree)
@@ -61,12 +61,16 @@ class LanguageSettings:
     ext: str
     formatter: Optional[List[str]] = None
     indent: Optional[int] = None
-    rewriter: Optional[ast.NodeVisitor] = None
+    rewriters: List[ast.NodeVisitor] = field(default_factory=list)
 
 
 def cpp_settings(args):
     return LanguageSettings(
-        CppTranspiler(), ".cpp", ["clang-format", "-i"], None, CppRewriter()
+        CppTranspiler(),
+        ".cpp",
+        ["clang-format", "-i"],
+        None,
+        [CppListComparisonRewriter()],
     )
 
 
@@ -131,7 +135,7 @@ def _process_once(settings, filename, outdir):
     with open(filename) as f:
         source_data = f.read()
     with open(output_path, "w") as f:
-        f.write(transpile(source_data, settings.transpiler, settings.rewriter))
+        f.write(transpile(source_data, settings.transpiler, settings.rewriters))
     if settings.formatter:
         if subprocess.call([*settings.formatter, output_path]):
             print(f"Error: Could not reformat: {output_path}")

@@ -59,7 +59,7 @@ def generate_lambda_fun(node, body):
     return funcdef + " {\n" + body + "\n};"
 
 
-class CppRewriter(ast.NodeTransformer):
+class CppListComparisonRewriter(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         self._temp = 0
