@@ -59,7 +59,8 @@ jobs:
         run: |
           (cd tests && dart pub global run stagehand:stagehand --override package-simple \
            && dart pub add sprintf \
-           && dart pub add tuple)
+           && dart pub add tuple \
+           && dart pub add vnum)
 
       - name: Install rust-script and cargo-script
         run: cargo install rust-script cargo-script

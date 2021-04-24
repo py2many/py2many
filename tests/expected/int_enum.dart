@@ -1,24 +1,21 @@
 // @dart=2.9
 import 'package:sprintf/sprintf.dart';
+import 'package:vnum/vnum.dart';
 
-class Colors {
-  ST0 RED;
-  ST1 GREEN;
-  ST2 BLUE;
-
-  final RED = auto();
-  final GREEN = auto();
-  final BLUE = auto();
+enum Colors {
+  RED,
+  GREEN,
+  BLUE,
 }
 
-class Permissions {
-  ST0 R;
-  ST1 W;
-  ST2 X;
+@VnumDefinition
+class Permissions extends Vnum<int> {
+  static final R = const Permissions.define(1);
+  static final W = const Permissions.define(2);
+  static final X = const Permissions.define(16);
 
-  final int R = 1;
-  final int W = 2;
-  final int X = 16;
+  const Permissions.define(int fromValue) : super.define(fromValue);
+  factory Permissions(int value) => Vnum.fromValue(value, Permissions);
 }
 
 show() {
