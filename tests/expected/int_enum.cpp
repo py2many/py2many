@@ -1,41 +1,35 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/sys.h"
 #include <iostream>
+#include <map>
 
-class Colors {
-public:
-  ST0 RED;
-  ST1 GREEN;
-  ST2 BLUE;
-
-  auto RED = auto();
-  auto GREEN = auto();
-  auto BLUE = auto();
+enum Colors : int {
+  RED = 0,
+  GREEN = 1,
+  BLUE = 2,
 };
 
-class Permissions {
-public:
-  ST0 R;
-  ST1 W;
-  ST2 X;
-
-  int R = 1;
-  int W = 2;
-  int X = 16;
+enum Permissions : int {
+  R = 1,
+  W = 2,
+  X = 16,
 };
 
 inline void show() {
-  auto color_map = None;
-  auto a = Colors.GREEN;
-  if (a == Colors.GREEN) {
+  auto color_map =
+      std::map<int, std::string>{{Colors::RED, std::string{"red"}},
+                                 {Colors::GREEN, std::string{"green"}},
+                                 {Colors::BLUE, std::string{"blue"}}};
+  auto a = Colors::GREEN;
+  if (a == Colors::GREEN) {
     std::cout << std::string{"green"};
     std::cout << std::endl;
   } else {
     std::cout << std::string{"Not green"};
     std::cout << std::endl;
   }
-  auto b = Permissions.R;
-  if (b == Permissions.R) {
+  auto b = Permissions::R;
+  if (b == Permissions::R) {
     std::cout << std::string{"R"};
     std::cout << std::endl;
   } else {

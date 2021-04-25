@@ -11,11 +11,14 @@ from py2many.scope import add_scope_context
 from py2many.analysis import add_imports, is_void_function, get_id
 from py2many.tracer import (
     defined_before,
-    is_class_or_module,
     is_builtin_import,
+    is_class_or_module,
+    is_enum,
     is_list,
     is_self_arg,
 )
+
+from typing import List, Tuple
 
 
 # TODO: merge this into py2many.cli.transpiler and fixup the tests
@@ -184,6 +187,9 @@ class CppTranspiler(CLikeTranspiler):
             if node.attr == "append":
                 attr = "push_back"
 
+        if is_enum(value_id, node.scopes):
+            return f"{value_id}::{attr}"
+
         if is_class_or_module(value_id, node.scopes):
             return f"{value_id}.{attr}"
 
@@ -193,12 +199,15 @@ class CppTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         buf = [f"class {node.name} {{"]
         buf += ["public:"]
 
         extractor = DeclarationExtractor(CppTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
+        declarations = node.declarations = extractor.get_declarations()
 
         fields = []
         index = 0
@@ -225,6 +234,36 @@ class CppTranspiler(CLikeTranspiler):
         buf += body
         buf += ["};"]
         return "\n".join(buf) + "\n"
+
+    def _visit_enum(self, node, typename: str, fields: List[Tuple]):
+        fields_list = []
+
+        for field, value in fields:
+            fields_list += [f"{field} = {value},"]
+        fields_str = "".join(fields_list)
+        return f"enum {node.name} : {typename} {{\n{fields_str}}};\n"
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(CppTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = i
+            fields.append((member, var))
+        return self._visit_enum(node, "int", fields)
+
+    def visit_IntFlag(self, node):
+        extractor = DeclarationExtractor(CppTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = i
+            fields.append((member, var))
+        return self._visit_enum(node, "int", fields)
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
@@ -390,9 +429,32 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_List(self, node):
+        self._headers.append("#include <vector>")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         return f"{{{elements_str}}}"
+
+    def visit_Set(self, node):
+        self._headers.append("#include <set>")
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"std::set<auto>{{{elements_str}}}"
+
+    def visit_Dict(self, node):
+        self._headers.append("#include <map>")
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{{ {k}, {v} }}" for k, v in zip(keys, values)])
+        _ = self._typename_from_annotation(node)
+        if hasattr(node, "container_type"):
+            container_type, element_type = node.container_type
+            key_typename, value_typename = self._map_types(element_type)
+            # TODO: Need better type inference. We can't infer Enum types right now
+            if key_typename == self._default_type:
+                key_typename = "int"
+        else:
+            raise Exception("Could not infer types for Dict on line {node.lineno}")
+        return f"std::map<{key_typename}, {value_typename}>{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)

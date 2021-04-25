@@ -2,6 +2,7 @@
 #include "py14/runtime/range.hpp"
 #include "py14/runtime/sys.h"
 #include <iostream>
+#include <vector>
 
 inline int indexing() {
   int sum = 0;
