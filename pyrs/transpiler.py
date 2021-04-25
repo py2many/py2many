@@ -12,14 +12,24 @@ from typing import List, Optional
 
 
 class RustLoopIndexRewriter(ast.NodeTransformer):
-    def __init__(self):
-        super().__init__()
-
     def visit_For(self, node):
         if hasattr(node.iter, "id"):
             definition = node.scopes.find(node.iter.id)
             if is_reference(definition):
                 node.target.needs_dereference = True
+        return node
+
+
+class RustNoneCompareRewriter(ast.NodeTransformer):
+    def visit_Compare(self, node):
+        right = self.visit(node.comparators[0])
+        if isinstance(right, ast.Constant) and right.value is None:
+            node.left = ast.Call(
+                func=ast.Name(id="Some", ctx=ast.Load()),
+                args=[node.left],
+                lineno=node.left.lineno,
+                keywords=[],
+            )
         return node
 
 

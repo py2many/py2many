@@ -28,6 +28,9 @@ function show()
     println(join([length(a5)], " "))
     a9::Array{String} = ["a", "b", "c", "d"]
     println(join([length(a9)], " "))
+    if 1 != nothing
+        println(join(["World is sane"], " "))
+    end
 end
 
 function main()

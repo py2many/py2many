@@ -46,11 +46,3 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         return f"(std::find({right}.begin(), {right}.end(), {left}) != {right}.end())"
-
-    def visit_Constant(self, node):
-        if node.value is True:
-            return "true"
-        elif node.value is False:
-            return "false"
-        else:
-            return str(node.value)

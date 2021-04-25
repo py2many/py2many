@@ -47,6 +47,8 @@ def show():
     #     print("false")
     # else:
     #     print("true")
+    if 1 != None:
+        print("World is sane")
 
 
 if __name__ == "__main__":

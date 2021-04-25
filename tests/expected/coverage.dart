@@ -30,6 +30,10 @@ show() {
   print(sprintf("%s", [a5.length]));
   List<String> a9 = ["a", "b", "c", "d"];
   print(sprintf("%s", [a9.length]));
+
+  if (1 != null) {
+    print(sprintf("%s", ["World is sane"]));
+  }
 }
 
 void main() {

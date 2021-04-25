@@ -229,12 +229,8 @@ class KotlinTranspiler(CLikeTranspiler):
             return super().visit_Name(node)
 
     def visit_NameConstant(self, node):
-        if node.value is True:
-            return "true"
-        elif node.value is False:
-            return "false"
-        elif node.value is None:
-            return "None"
+        if node.value is None:
+            return "null"
         else:
             return super().visit_NameConstant(node)
 

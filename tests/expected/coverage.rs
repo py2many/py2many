@@ -29,6 +29,9 @@ fn show() {
     println!("{}", a5.len());
     let a9: Vec<&str> = vec!["a", "b", "c", "d"];
     println!("{}", a9.len());
+    if Some(1) != None {
+        println!("{}", "World is sane");
+    }
 }
 
 fn main() {

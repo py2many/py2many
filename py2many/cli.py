@@ -19,14 +19,19 @@ from .inference import infer_types
 from pyrs.inference import infer_rust_types
 
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
-from pyrs.transpiler import RustTranspiler, RustLoopIndexRewriter
+from pyrs.transpiler import (
+    RustTranspiler,
+    RustLoopIndexRewriter,
+    RustNoneCompareRewriter,
+)
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
-from pynim.transpiler import NimTranspiler
+from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
 from pydart.transpiler import DartTranspiler
 from pygo.transpiler import (
     GoTranspiler,
     GoMethodCallRewriter,
+    GoNoneCompareRewriter,
     GoPropagateTypeAnnotation,
 )
 
@@ -95,7 +100,7 @@ def rust_settings(args):
         ".rs",
         ["rustfmt"],
         None,
-        [],
+        [RustNoneCompareRewriter()],
         [infer_rust_types],
         [RustLoopIndexRewriter()],
     )
@@ -125,7 +130,11 @@ def nim_settings(args):
         nim_args["indent"] = args.indent
         nimpretty_args.append(f"--indent:{args.indent}")
     return LanguageSettings(
-        NimTranspiler(**nim_args), ".nim", ["nimpretty", *nimpretty_args]
+        NimTranspiler(**nim_args),
+        ".nim",
+        ["nimpretty", *nimpretty_args],
+        None,
+        [NimNoneCompareRewriter()],
     )
 
 
@@ -139,7 +148,7 @@ def go_settings(args):
         ".go",
         ["gofmt", "-w"],
         None,
-        [],
+        [GoNoneCompareRewriter()],
         [],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
     )

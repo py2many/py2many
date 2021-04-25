@@ -41,6 +41,10 @@ inline void show() {
                                  std::string{"c"}, std::string{"d"}};
   std::cout << a9.size();
   std::cout << std::endl;
+  if (1 != NULL) {
+    std::cout << std::string{"World is sane"};
+    std::cout << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {

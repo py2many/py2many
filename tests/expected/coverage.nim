@@ -24,6 +24,9 @@ proc show() =
   echo len(a5)
   let a9: seq[string] = @["a", "b", "c", "d"]
   echo len(a9)
+  if 1 != 0:
+    echo "World is sane"
+
 
 proc main() =
   show()

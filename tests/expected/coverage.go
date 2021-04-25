@@ -34,6 +34,9 @@ func show() {
 	fmt.Printf("%v\n", len(a5))
 	var a9 []string = []string{"a", "b", "c", "d"}
 	fmt.Printf("%v\n", len(a9))
+	if 1 != 0 {
+		fmt.Printf("%v\n", "World is sane")
+	}
 }
 
 func main() {

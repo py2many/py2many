@@ -146,6 +146,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return "true"
         elif node.value is False:
             return "false"
+        elif node.value is None:
+            return "NULL"
         else:
             return node.value
 

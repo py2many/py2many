@@ -29,6 +29,21 @@ class GoMethodCallRewriter(ast.NodeTransformer):
         return node
 
 
+class GoNoneCompareRewriter(ast.NodeTransformer):
+    def visit_Compare(self, node):
+        left = self.visit(node.left)
+        right = self.visit(node.comparators[0])
+        if (
+            isinstance(right, ast.Constant)
+            and right.value is None
+            and isinstance(left, ast.Constant)
+            and isinstance(left.value, int)
+        ):
+            # Convert None to 0 to compare vs int
+            right.value = 0
+        return node
+
+
 class GoPropagateTypeAnnotation(ast.NodeTransformer):
     def _visit_assign(self, node, target):
         if hasattr(node, "annotation") and isinstance(
@@ -282,11 +297,7 @@ class GoTranspiler(CLikeTranspiler):
             return super().visit_Name(node)
 
     def visit_NameConstant(self, node):
-        if node.value is True:
-            return "true"
-        elif node.value is False:
-            return "false"
-        elif node.value is None:
+        if node.value is None:
             return "nil"
         else:
             return super().visit_NameConstant(node)

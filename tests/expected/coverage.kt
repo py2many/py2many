@@ -33,6 +33,9 @@ fun show() {
     if (true) {
         val __tmp2 = a9.size
         println("$__tmp2")
+    }
+    if (1 != null) {
+        println("World is sane")
     } 
 }
 
