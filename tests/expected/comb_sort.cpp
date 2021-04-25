@@ -3,6 +3,7 @@
 #include "py14/runtime/sys.h"
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 inline std::vector<int> comb_sort(std::vector<int> seq) {
   auto gap = seq.size();
@@ -22,8 +23,8 @@ inline std::vector<int> comb_sort(std::vector<int> seq) {
 
 int main(int argc, char **argv) {
   py14::sys::argv = std::vector<std::string>(argv, argv + argc);
-  std::vector<decltype(14)> unsorted{14, 11, 19, 5, 16, 10, 19, 12, 5, 12};
-  std::vector<decltype(5)> expected{5, 5, 10, 11, 12, 12, 14, 16, 19, 19};
+  std::vector<int> unsorted = {14, 11, 19, 5, 16, 10, 19, 12, 5, 12};
+  std::vector<int> expected = {5, 5, 10, 11, 12, 12, 14, 16, 19, 19};
   assert(comb_sort(unsorted) == expected);
   std::cout << std::string{"OK"};
   std::cout << std::endl;

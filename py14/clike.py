@@ -30,19 +30,22 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                 self.visit(node.left), self.visit(node.right)
             )
         left = self.visit(node.left)
-        if not isinstance(node.left, ast.Name) and not isinstance(node.left, ast.Constant):
+        if not isinstance(node.left, ast.Name) and not isinstance(
+            node.left, ast.Constant
+        ):
             left = f"({left})"
         right = self.visit(node.right)
-        if not isinstance(node.right, ast.Name) and not isinstance(node.right, ast.Constant):
+        if not isinstance(node.right, ast.Name) and not isinstance(
+            node.right, ast.Constant
+        ):
             right = f"({right})"
-        return " ".join(
-            [left, self.visit(node.op), right]
-        )
+        return " ".join([left, self.visit(node.op), right])
 
     def visit_In(self, node):
+        self._headers.append("#include <algorithm>")
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        return "{0}.contains({1})".format(right, left)
+        return f"(std::find({right}.begin(), {right}.end(), {left}) != {right}.end())"
 
     def visit_Constant(self, node):
         if node.value is True:

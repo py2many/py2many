@@ -1,8 +1,8 @@
 import ast
 import sys
 
-from .clike import CLikeTranspiler
 from .tracer import decltype
+from .clike import CLikeTranspiler
 
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
@@ -373,7 +373,9 @@ class CppTranspiler(CLikeTranspiler):
         var_definitions = []
         for cv in node.common_vars:
             definition = node.scopes.find(cv)
-            var_type = decltype(definition)
+            var_type = self._typename_from_annotation(definition)
+            if var_type == self._default_type:
+                var_type = decltype(definition)
             var_definitions.append("{0} {1};\n".format(var_type, cv))
 
         if self.visit(node.test) == '__name__ == std::string {"__main__"}':
@@ -428,6 +430,14 @@ class CppTranspiler(CLikeTranspiler):
         imports = [self.visit(n) for n in node.names]
         return "\n".join(i for i in imports if i)
 
+    def _get_element_type(self, node):
+        _ = self._typename_from_annotation(node)
+        if hasattr(node, "container_type"):
+            _, element_type = node.container_type
+            return self._map_type(element_type)
+        else:
+            return self._default_type
+
     def visit_List(self, node):
         self._headers.append("#include <vector>")
         elements = [self.visit(e) for e in node.elts]
@@ -438,7 +448,11 @@ class CppTranspiler(CLikeTranspiler):
         self._headers.append("#include <set>")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
-        return f"std::set<auto>{{{elements_str}}}"
+        element_type = self._get_element_type(node)
+        if element_type == self._default_type:
+            typename = decltype(node)
+            return f"{typename}{{{elements_str}}}"
+        return f"std::set<{element_type}>{{{elements_str}}}"
 
     def visit_Dict(self, node):
         self._headers.append("#include <map>")
@@ -449,11 +463,11 @@ class CppTranspiler(CLikeTranspiler):
         if hasattr(node, "container_type"):
             container_type, element_type = node.container_type
             key_typename, value_typename = self._map_types(element_type)
-            # TODO: Need better type inference. We can't infer Enum types right now
             if key_typename == self._default_type:
                 key_typename = "int"
         else:
-            raise Exception("Could not infer types for Dict on line {node.lineno}")
+            typename = decltype(node)
+            return f"{typename}{{kv_pairs}}"
         return f"std::map<{key_typename}, {value_typename}>{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):
@@ -531,9 +545,14 @@ class CppTranspiler(CLikeTranspiler):
             return "{0} = {1};".format(target, value)
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            return "{0} {1} {{{2}}};".format(
-                decltype(node), self.visit(target), ", ".join(elements)
-            )
+            elements_str = ", ".join(elements)
+            target = self.visit(target)
+            element_typename = self._get_element_type(node.value)
+            self._headers.append("#include <vector>")
+            if element_typename == self._default_type:
+                typename = decltype(node)
+                return f"{typename} {target} = {{{elements_str}}};"
+            return f"std::vector<{element_typename}> {target} = {{{elements_str}}};"
         else:
             typename = self._typename_from_annotation(target)
             target = self.visit(target)

@@ -137,13 +137,13 @@ def test_create_catch_test_case():
 def test_list_as_vector():
     source = parse("values = [0, 1, 2, 3]")
     cpp = transpile(source)
-    assert cpp == "std::vector<decltype(0)> values {0, 1, 2, 3};"
+    assert cpp == "std::vector<decltype(0)> values = {0, 1, 2, 3};"
 
 
 def test_vector_find_out_type():
     source = parse("values = []", "values.append(1)")
     cpp = transpile(source)
-    assert cpp == parse("std::vector<decltype(1)> values {};", "values.push_back(1);")
+    assert cpp == parse("std::vector<decltype(1)> values = {};", "values.push_back(1);")
 
 
 def test_map_function():
@@ -157,7 +157,7 @@ def test_map_function():
     cpp = transpile(source)
     expected = """\
         template <typename T0, typename T1>auto map(T0 values, T1 fun) {
-        std::vector<decltype(fun(std::declval<typename decltype(values)::value_type>()))> results {};
+        std::vector<decltype(fun(std::declval<typename decltype(values)::value_type>()))> results = {};
         for(auto v : values) {
         results.push_back(fun(v));
         }
