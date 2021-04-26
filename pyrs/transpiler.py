@@ -418,7 +418,6 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
-        self._usings.add("flagset::FlagSet")
         self._usings.add("std::os::raw::c_int")
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)

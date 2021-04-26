@@ -1,7 +1,6 @@
 // cargo-deps: flagset
 extern crate flagset;
 use flagset::flags;
-use flagset::FlagSet;
 use std::collections::HashMap;
 use std::os::raw::c_int;
 
@@ -41,6 +40,7 @@ fn show() {
     } else {
         println!("{}", "Not R");
     }
+    assert!(color_map.len() as i32 != 0);
 }
 
 fn main() {
