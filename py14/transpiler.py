@@ -442,7 +442,14 @@ class CppTranspiler(CLikeTranspiler):
         self._headers.append("#include <vector>")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
-        return f"{{{elements_str}}}"
+        element_type = self._get_element_type(node)
+        if element_type == self._default_type:
+            typename = decltype(node)
+            # Workaround for cases where we couldn't figure out type
+            if "(None)" in typename:
+                return f"{{{elements_str}}}"
+            return f"{typename}{{{elements_str}}}"
+        return f"std::vector<{element_type}>{{{elements_str}}}"
 
     def visit_Set(self, node):
         self._headers.append("#include <set>")

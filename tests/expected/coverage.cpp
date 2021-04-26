@@ -37,8 +37,8 @@ inline void show() {
   std::vector<int> a5 = {1, 2, 3};
   std::cout << a5.size();
   std::cout << std::endl;
-  std::vector<std::string> a9 = {std::string{"a"}, std::string{"b"},
-                                 std::string{"c"}, std::string{"d"}};
+  std::vector<std::string> a9 = std::vector<std::string>{
+      std::string{"a"}, std::string{"b"}, std::string{"c"}, std::string{"d"}};
   std::cout << a9.size();
   std::cout << std::endl;
   if (1 != NULL) {
