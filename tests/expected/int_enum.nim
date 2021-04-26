@@ -24,6 +24,7 @@ proc show() =
     echo "R"
   else:
     echo "Not R"
+  assert(len(color_map) != 0)
 
 proc main() =
   show()

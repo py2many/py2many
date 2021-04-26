@@ -1,5 +1,6 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/sys.h"
+#include <cassert>
 #include <iostream>
 #include <map>
 
@@ -36,6 +37,7 @@ inline void show() {
     std::cout << std::string{"Not R"};
     std::cout << std::endl;
   }
+  assert(color_map.size() != 0);
 }
 
 int main(int argc, char **argv) {

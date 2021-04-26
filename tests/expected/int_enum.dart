@@ -41,6 +41,7 @@ show() {
   } else {
     print(sprintf("%s", ["Not R"]));
   }
+  assert(color_map.length != 0);
 }
 
 void main() {

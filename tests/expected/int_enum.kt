@@ -32,7 +32,8 @@ fun show() {
         println("R")
     } else {
         println("Not R")
-    } 
+    }
+    assert(color_map.size != 0)
 }
 
 fun main() {

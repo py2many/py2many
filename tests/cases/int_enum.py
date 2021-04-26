@@ -25,6 +25,7 @@ def show():
         print("R")
     else:
         print("Not R")
+    assert len(color_map) != 0
 
 
 if __name__ == "__main__":

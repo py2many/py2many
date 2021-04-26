@@ -30,6 +30,7 @@ function show()
 
         println(join(["Not R"], " "))
     end
+    @assert(length(color_map) != 0)
 end
 
 function main()

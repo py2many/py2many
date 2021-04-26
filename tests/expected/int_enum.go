@@ -37,7 +37,8 @@ if(b == Permissions.R) {
 fmt.Printf("%v\n","R")
 } else {
 fmt.Printf("%v\n","Not R")
-}}
+}
+if !(len(color_map) != 0) { panic("assert") }}
 
 
 func main() {
