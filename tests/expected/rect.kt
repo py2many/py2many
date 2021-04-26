@@ -10,10 +10,14 @@ fun show() {
     assert(r.is_square())
     r = Rectangle(1, 2)
     assert(!(r.is_square()))
-    val h = r.height
-    val l = r.length
-    println("$h")
-    println("$l")
+    if (true) {
+        val __tmp1 = r.height
+        println("$__tmp1")
+    }
+    if (true) {
+        val __tmp2 = r.length
+        println("$__tmp2")
+    } 
 }
 
 fun main() {

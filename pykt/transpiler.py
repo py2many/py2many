@@ -23,7 +23,10 @@ class KotlinPrintRewriter(ast.NodeTransformer):
         if (
             get_id(fname) == "print"
             and len(node.args) == 1
-            and isinstance(node.args[0], ast.Call)
+            and not (
+                isinstance(node.args[0], ast.Name)
+                or isinstance(node.args[0], ast.Constant)
+            )
         ):
             tmp = ast.Name(id=self._get_temp(), lineno=node.lineno)
             ret = ast.If(

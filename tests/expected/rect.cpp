@@ -20,11 +20,9 @@ inline void show() {
   assert(r.is_square());
   r = Rectangle(1, 2);
   assert(!(r.is_square()));
-  auto h = r.height;
-  auto l = r.length;
-  std::cout << h;
+  std::cout << r.height;
   std::cout << std::endl;
-  std::cout << l;
+  std::cout << r.length;
   std::cout << std::endl;
 }
 

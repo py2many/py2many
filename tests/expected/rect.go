@@ -22,10 +22,8 @@ func show() {
 	if !(!(is_square(r))) {
 		panic("assert")
 	}
-	h := r.height
-	l := r.length
-	fmt.Printf("%v\n", h)
-	fmt.Printf("%v\n", l)
+	fmt.Printf("%v\n", r.height)
+	fmt.Printf("%v\n", r.length)
 }
 
 func main() {

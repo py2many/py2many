@@ -19,10 +19,8 @@ fn show() {
         length: 2,
     };
     assert!(!(r.is_square()));
-    let h: _ = r.height;
-    let l: _ = r.length;
-    println!("{}", h);
-    println!("{}", l);
+    println!("{}", r.height);
+    println!("{}", r.length);
 }
 
 fn main() {

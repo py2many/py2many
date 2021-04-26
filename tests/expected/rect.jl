@@ -13,10 +13,8 @@ function show()
     @assert(is_square(r))
     r = Rectangle(1, 2)
     @assert(!(is_square(r)))
-    h = r.height
-    l = r.length
-    println(join([h], " "))
-    println(join([l], " "))
+    println(join([r.height], " "))
+    println(join([r.length], " "))
 end
 
 function main()

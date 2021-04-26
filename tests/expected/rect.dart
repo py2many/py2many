@@ -16,10 +16,8 @@ show() {
   assert(r.is_square());
   r = Rectangle(1, 2);
   assert(!(r.is_square()));
-  var h = r.height;
-  var l = r.length;
-  print(sprintf("%s", [h]));
-  print(sprintf("%s", [l]));
+  print(sprintf("%s", [r.height]));
+  print(sprintf("%s", [r.length]));
 }
 
 void main() {

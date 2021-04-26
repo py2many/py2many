@@ -12,10 +12,8 @@ proc show() =
   assert(r.is_square())
   r = Rectangle(height: 1, length: 2)
   assert(not (r.is_square()))
-  let h = r.height
-  let l = r.length
-  echo h
-  echo l
+  echo r.height
+  echo r.length
 
 proc main() =
   show()
