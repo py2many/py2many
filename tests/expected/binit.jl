@@ -3,7 +3,7 @@ function bisect_right(data::Array{Int64}, item::Int64)::Int64
     low = 0
     high::Int64 = Int64(length(data))
     while low < high
-        middle = Int64(((low + high) / 2))
+        middle = Int64(floor(((low + high) / 2)))
         if item < data[middle+1]
             high = middle
         else

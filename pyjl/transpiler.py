@@ -159,9 +159,15 @@ class JuliaTranspiler(CLikeTranspiler):
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
+        def visit_cast_int() -> str:
+            arg_type = self._typename_from_annotation(node.args[0])
+            if arg_type is not None and arg_type.startswith("Float"):
+                return f"Int64(floor({vargs[0]}))"
+            return f"Int64({vargs[0]})"
+
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"Int64({vargs[0]})",
+            "int": visit_cast_int,
             "str": lambda: f"string({vargs[0]})",
             "len": lambda: f"length({vargs[0]})",
         }
@@ -171,6 +177,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
+        fndef = node.scopes.find(fname)
         vargs = []
 
         if node.args:
@@ -181,10 +188,20 @@ class JuliaTranspiler(CLikeTranspiler):
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
             return ret
-        if vargs:
-            args = ", ".join(vargs)
+
+        if fndef and hasattr(fndef, "args"):
+            converted = []
+            for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
+                actual_type = self._typename_from_annotation(node_arg)
+                declared_type = self._typename_from_annotation(fnarg)
+                if actual_type != declared_type and actual_type != self._default_type:
+                    converted.append(f"convert({declared_type}, {varg})")
+                else:
+                    converted.append(varg)
         else:
-            args = ""
+            converted = vargs
+
+        args = ", ".join(converted)
         return f"{fname}({args})"
 
     def visit_For(self, node):
@@ -494,9 +511,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
-            target = self.visit(target)
+            target_str = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1}".format(target, value)
+            return f"{target_str} = {value};"
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
             return "{0} = [{1}]".format(self.visit(target), ", ".join(elements))
