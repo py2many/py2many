@@ -3,13 +3,15 @@
 #include "py14/runtime/sys.h"
 #include <cassert>
 #include <iostream>
+#include <math.h>
 #include <vector>
 
 inline std::vector<int> comb_sort(std::vector<int> seq) {
   auto gap = seq.size();
   bool swap = true;
   while (gap > 1 || swap) {
-    gap = std::max(1, py14::to_int(gap / 1.25));
+    gap = std::max(static_cast<size_t>(1),
+                   static_cast<size_t>(floor(gap / 1.25)));
     swap = false;
     for (auto i : rangepp::xrange((seq.size()) - gap)) {
       if (seq[i] > seq[i + gap]) {

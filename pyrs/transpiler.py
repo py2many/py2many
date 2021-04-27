@@ -1,4 +1,5 @@
 import ast
+import functools
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
@@ -132,7 +133,10 @@ class RustTranspiler(CLikeTranspiler):
                     if is_mutable(node.scopes, get_id(node.value)):
                         definition = node.scopes.find(ret)
                         self._typename_from_annotation(definition)
-                        if getattr(definition, "container_type", (None, None))[0] == 'List':
+                        if (
+                            getattr(definition, "container_type", (None, None))[0]
+                            == "List"
+                        ):
                             # TODO: Handle other container types
                             ret = f"{ret}.to_vec()"
                     else:
@@ -164,49 +168,67 @@ class RustTranspiler(CLikeTranspiler):
 
         return value_id + "." + attr
 
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
-        elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
-        elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
-        for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
-
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        def visit_range(node, vargs: List[str]) -> str:
+            if len(node.args) == 1:
+                return "(0..{})".format(vargs[0])
+            elif len(node.args) == 2:
+                return "({}..{})".format(vargs[0], vargs[1])
+            elif len(node.args) == 3:
+                return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+
+            raise Exception(
+                "encountered range() call with unknown parameters: range({})".format(
+                    vargs
+                )
+            )
+
+        def visit_print(node, vargs: List[str]) -> str:
+            placeholders = []
+            for n in node.args:
+                placeholders.append("{}")
+            return 'println!("{0}",{1});'.format(
+                " ".join(placeholders), ", ".join(vargs)
+            )
+
         dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self.visit_print,
+            "range": visit_range,
+            "xrange": visit_range,
+            "print": visit_print,
         }
 
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
-        def visit_cast_int() -> str:
-            if "()" in vargs[0]:
-                return f"{vargs[0]} as i32"
+        def visit_min_max(is_max: bool) -> str:
+            self._usings.add("std::cmp")
+            min_max = "max" if is_max else "min"
+            self._typename_from_annotation(node.args[0])
+            if hasattr(node.args[0], "container_type"):
+                return f"{vargs[0]}.iter().{min_max}().unwrap()"
             else:
-                return f"i32::from({vargs[0]})"
+                all_vargs = ", ".join(vargs)
+                return f"cmp::{min_max}({all_vargs})"
+
+        def visit_cast(cast_to: str) -> str:
+            if "()" in vargs[0]:
+                return f"{vargs[0]} as {cast_to}"
+            else:
+                return f"{cast_to}::from({vargs[0]})"
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": visit_cast_int,
             "str": lambda: f"String::from({vargs[0]})",
             "len": lambda: f"{vargs[0]}.len()",
             "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
             "sum": lambda: f"{vargs[0]}.iter().sum()",
-            "max": lambda: f"{vargs[0]}.iter().max().unwrap()",
-            "min": lambda: f"{vargs[0]}.iter().min().unwrap()",
+            "int": functools.partial(visit_cast, cast_to="i32"),
+            "float": functools.partial(visit_cast, cast_to="f32"),
+            "double": functools.partial(visit_cast, cast_to="f64"),
+            "max": functools.partial(visit_min_max, is_max=True),
+            "min": functools.partial(visit_min_max, is_min=True),
+            # as usize below is a hack to pass comb_sort.rs. Need a better solution
+            "floor": lambda: f"{vargs[0]}.floor() as usize",
             "reversed": lambda: f"{vargs[0]}.iter().rev()",
             "map": lambda: f"{vargs[1]}.iter().map({vargs[0]})",
             "filter": lambda: f"{vargs[1]}.into_iter().filter({vargs[0]})",
@@ -336,7 +358,16 @@ class RustTranspiler(CLikeTranspiler):
         #     definition = node.scopes.find(cv)
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
-        return "".join(var_definitions) + super().visit_If(node, use_parens=False)
+        ret = "".join(var_definitions) + super().visit_If(node, use_parens=False)
+        # Sometimes if True: ... gets compiled into an expression, needing a semicolon
+        make_block = (
+            isinstance(node.test, ast.Constant)
+            and node.test.value == True
+            and node.orelse == []
+        )
+        if make_block:
+            return f"{ret};"
+        return ret
 
     def visit_While(self, node):
         return super().visit_While(node, use_parens=False)
