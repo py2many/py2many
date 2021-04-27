@@ -85,6 +85,8 @@ class RustTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
+                if getattr(node.returns, "needs_reference", False):
+                    typename = f"&{typename}"
                 return_type = f"-> {typename}"
             else:
                 return_type = "-> RT"
@@ -106,11 +108,12 @@ class RustTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
+            mut = "mut " if is_mutable(node.scopes, id) else ""
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
             if hasattr(node, "container_type"):
                 # Python passes by reference by default. Rust needs explicit borrowing
-                typename = f"&{typename}"
+                typename = f"&{mut}{typename}"
         return (typename, id)
 
     def visit_Return(self, node):
@@ -124,6 +127,8 @@ class RustTranspiler(CLikeTranspiler):
             if fndef:
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_rust_type(node.value)
+                if is_reference(node.value):
+                    fndef.returns.needs_reference = True
                 if return_type != value_type and value_type is not None:
                     return f"return {ret} as {return_type};"
             return f"return {ret};"
@@ -238,8 +243,8 @@ class RustTranspiler(CLikeTranspiler):
         # Check if some args need to be passed by reference
         ref_args = []
         if fndef and hasattr(fndef, "args"):
-            for varg, fnarg in zip(vargs, fndef.args.args):
-                if is_reference(fnarg):
+            for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
+                if is_reference(fnarg) and not is_reference(node_arg):
                     ref_args.append(f"&{varg}")
                 else:
                     ref_args.append(varg)
@@ -561,14 +566,14 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Assign(self, node):
         target = node.targets[0]
 
-        kw = "static" if is_global(node) else "let mut"
-        # Note that static are not really supported, as modifying them requires adding
-        # "unsafe" blocks, which pyrs does not do.
-        if not is_mutable(node.scopes, get_id(target)):
-            if kw == "let mut":
-                kw = "let"
-            elif kw == "static":
-                kw = "const"
+        kw = "let"
+        mut = is_mutable(node.scopes, get_id(target))
+        if is_global(node):
+            # Note that static are not really supported, as modifying them requires adding
+            # "unsafe" blocks, which pyrs does not do.
+            kw = "static" if mut else "const"
+        elif mut:
+            kw = "let mut"
 
         if isinstance(target, ast.Tuple):
             elts = ", ".join([self.visit(e) for e in target.elts])
@@ -616,6 +621,10 @@ class RustTranspiler(CLikeTranspiler):
                     element_type = self._map_type(element_type)
                 return f"{kw} {target}: &[{element_type}; {count}] = {value};"
 
+            mut = "mut " if is_mutable(node.scopes, target) else ""
+            if hasattr(node.value, "container_type"):
+                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
+
             return f"{kw} {target}: {typename} = {value};"
         elif isinstance(node.value, ast.Set):
             target = self.visit(target)
@@ -627,6 +636,10 @@ class RustTranspiler(CLikeTranspiler):
                 if "str" in typename:
                     typename = typename.replace("str", "'static str")
                 return f"lazy_static! {{ static ref {target}: {typename} = {value}; }}"
+
+            mut = "mut " if is_mutable(node.scopes, target) else ""
+            if hasattr(node.value, "container_type"):
+                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
 
             return f"{kw} {target}: {typename} = {value};"
         elif isinstance(node.value, ast.Dict):
@@ -644,6 +657,10 @@ class RustTranspiler(CLikeTranspiler):
                         value_typename = "&'static str"
                     typename = f"{key_typename}, {value_typename}"
                 return f"lazy_static! {{ static ref {target}: HashMap<{typename}> = {value}; }}"
+
+            mut = "mut " if is_mutable(node.scopes, target) else ""
+            if hasattr(node.value, "container_type"):
+                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
 
             return f"{kw} {target}: {typename} = {value};"
         else:
