@@ -14,6 +14,7 @@ class MutabilityTransformer(ast.NodeTransformer):
 
     def __init__(self):
         self.var_usage_count = {}
+        self.lvalue = False
 
     def increase_use_count(self, name):
         if not name in self.var_usage_count:
@@ -31,24 +32,50 @@ class MutabilityTransformer(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node):
+        old = self.lvalue
+        self.lvalue = True
         target = node.targets[0]
-        self.increase_use_count(get_id(target))
+        if isinstance(target, ast.Tuple):
+            for e in target.elts:
+                self.visit(e)
+        self.visit(target)
+        self.lvalue = old
         self.generic_visit(node)
         return node
 
     def visit_AugAssign(self, node):
-        target = node.target
-        self.increase_use_count(get_id(target))
+        old = self.lvalue
+        self.lvalue = True
+        self.visit(node.target)
+        self.lvalue = old
         self.generic_visit(node)
         return node
 
     def visit_AnnAssign(self, node):
-        target = node.target
-        self.increase_use_count(get_id(target))
+        old = self.lvalue
+        self.lvalue = True
+        self.visit(node.target)
+        self.lvalue = old
         self.generic_visit(node)
         return node
 
+    def visit_Subscript(self, node):
+        self.visit(node.value)
+        self.visit(node.slice)
+        return node
+
+    def visit_Name(self, node):
+        if self.lvalue:
+            self.increase_use_count(get_id(node))
+        return node
+
     def visit_Call(self, node):
+        fname = get_id(node.func)
+        fndef = node.scopes.find(fname)
+        if fndef and hasattr(fndef, "args"):
+            for fnarg, node_arg in zip(fndef.args.args, node.args):
+                if hasattr(fndef, "mutable_vars") and fnarg.arg in fndef.mutable_vars:
+                    self.increase_use_count(get_id(node_arg))
         if hasattr(node.func, "attr"):
             if node.func.attr == "append":
                 self.increase_use_count(get_id(node.func.value))
