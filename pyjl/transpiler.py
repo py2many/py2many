@@ -175,6 +175,8 @@ class JuliaTranspiler(CLikeTranspiler):
             "int": visit_cast_int,
             "str": lambda: f"string({vargs[0]})",
             "len": lambda: f"length({vargs[0]})",
+            # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
+            "floor": lambda: f"Int64(floor({vargs[0]}))",
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
