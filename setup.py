@@ -16,6 +16,7 @@ setup(
     version=__version__,
     description="Python to CLike language transpiler.",
     long_description=readme + "\n\n",
+    long_description_content_type = "text/markdown",
     author="Arun Sharma",
     python_requires=">=3.8",
     url="http://github.com/adsharma/py2many",
