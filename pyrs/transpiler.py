@@ -34,6 +34,7 @@ class RustNoneCompareRewriter(ast.NodeTransformer):
 
 
 class RustTranspiler(CLikeTranspiler):
+    NAME = "rust"
 
     CONTAINER_TYPE_MAP = {
         "List": "Vec",

@@ -62,6 +62,8 @@ class GoPropagateTypeAnnotation(ast.NodeTransformer):
 
 
 class GoTranspiler(CLikeTranspiler):
+    NAME = "go"
+
     CONTAINER_TYPE_MAP = {"List": "[]", "Dict": "map", "Set": "Set", "Optional": "nil"}
 
     def __init__(self):

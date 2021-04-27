@@ -24,6 +24,8 @@ class NimNoneCompareRewriter(ast.NodeTransformer):
 
 
 class NimTranspiler(CLikeTranspiler):
+    NAME = "nim"
+
     CONTAINER_TYPE_MAP = {
         "List": "seq",
         "Dict": "Table",

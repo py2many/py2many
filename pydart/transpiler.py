@@ -10,6 +10,8 @@ from typing import Optional, List
 
 
 class DartTranspiler(CLikeTranspiler):
+    NAME = "dart"
+
     CONTAINER_TYPE_MAP = {
         "List": "List",
         "Dict": "Map",

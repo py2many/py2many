@@ -26,6 +26,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
 
 class JuliaTranspiler(CLikeTranspiler):
+    NAME = "julia"
+
     CONTAINER_TYPE_MAP = {
         "List": "Array",
         "Dict": "Dict",

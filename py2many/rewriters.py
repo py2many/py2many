@@ -2,8 +2,11 @@ import ast
 
 
 class ComplexDestructuringRewriter(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self, language):
         super().__init__()
+        self._disable = False
+        if language in {"cpp", "julia"}:
+            self._disable = True
         self._temp = 0
 
     def _get_temp(self):
@@ -11,6 +14,8 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
         return f"__tmp{self._temp}"
 
     def visit_Assign(self, node):
+        if self._disable:
+            return node
         target = node.targets[0]
         if isinstance(target, ast.Tuple) and not (isinstance(target.elts[0], ast.Name)):
             temps = []
@@ -31,6 +36,9 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
 
 
 class PythonMainRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+
     def visit_If(self, node):
         is_main = (
             isinstance(node.test, ast.Compare)
@@ -45,5 +53,7 @@ class PythonMainRewriter(ast.NodeTransformer):
             ret = ast.parse("def main(): True").body[0]
             ret.lineno = node.lineno
             ret.body = node.body
+            # So backends know to insert argc, argv etc
+            ret.python_main = True
             return ret
         return node

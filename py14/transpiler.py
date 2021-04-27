@@ -93,6 +93,7 @@ class CppListComparisonRewriter(ast.NodeTransformer):
 
 
 class CppTranspiler(CLikeTranspiler):
+    NAME = "cpp"
 
     CONTAINER_TYPES = {
         "List": "std::vector",

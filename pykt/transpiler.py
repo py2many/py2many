@@ -45,6 +45,8 @@ class KotlinPrintRewriter(ast.NodeTransformer):
 
 
 class KotlinTranspiler(CLikeTranspiler):
+    NAME = "kotlin"
+
     CONTAINER_TYPE_MAP = {
         "List": "Array",
         "Dict": "Dict",
