@@ -1,5 +1,5 @@
 import ast
-import sys
+import functools
 
 from .tracer import decltype
 from .clike import CLikeTranspiler
@@ -19,7 +19,7 @@ from py2many.tracer import (
     is_self_arg,
 )
 
-from typing import List, Tuple
+from typing import Optional, List, Tuple
 
 
 # TODO: merge this into py2many.cli.transpiler and fixup the tests
@@ -112,6 +112,11 @@ class CppTranspiler(CLikeTranspiler):
         self._usings = set([])
         self.use_catch_test_cases = False
         self._container_type_map = self.CONTAINER_TYPES
+
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"#include {mod}" for mod in usings)
+        return uses
 
     def headers(self, meta: InferMeta):
         self._headers.append('#include "py14/runtime/sys.h"')
@@ -276,38 +281,15 @@ class CppTranspiler(CLikeTranspiler):
             fields.append((member, var))
         return self._visit_enum(node, "int", fields)
 
-    def visit_Call(self, node):
-        fname = self.visit(node.func)
-        vargs = []
-
-        if node.args:
-            vargs += [self.visit(a) for a in node.args]
-        if node.keywords:
-            vargs += [self.visit(kw.value) for kw in node.keywords]
-
-        args = ", ".join(vargs)
-
-        # TODO: replace this with the self._dispatch() mechanism
-        if fname == "int":
-            return "py14::to_int({0})".format(args)
-        elif fname == "str":
-            return "std::to_string({0})".format(args)
-        elif fname == "max":
-            return "std::max({0})".format(args)
-        elif fname == "range":
+    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        def visit_range(node, vargs: List[str]) -> str:
             self._headers.append('#include "py14/runtime/range.hpp"')
-            if sys.version_info[0] >= 3:
-                return "rangepp::xrange({0})".format(args)
-            else:
-                return "rangepp::range({0})".format(args)
-        elif fname == "xrange":
-            self._headers.append('#include "py14/runtime/range.hpp"')
-            return "rangepp::xrange({0})".format(args)
-        elif fname == "len":
-            return "{0}.size()".format(self.visit(node.args[0]))
-        elif fname == "print":
-            buf = []
+            args = ", ".join(vargs)
+            return f"rangepp::xrange({args})"
+
+        def visit_print(node, vargs: List[str]) -> str:
             self._headers.append("#include <iostream>")
+            buf = []
             for n in node.args:
                 value = self.visit(n)
                 if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
@@ -321,7 +303,78 @@ class CppTranspiler(CLikeTranspiler):
                 buf.append('std::cout << " ";')
             return "\n".join(buf[:-1]) + "\nstd::cout << std::endl;"
 
-        return "{0}({1})".format(fname, args)
+        dispatch_map = {
+            "range": visit_range,
+            "xrange": visit_range,
+            "print": visit_print,
+        }
+
+        if fname in dispatch_map:
+            return dispatch_map[fname](node, vargs)
+
+        def visit_min_max(is_max: bool) -> str:
+            min_max = "max" if is_max else "min"
+            t1 = self._typename_from_annotation(node.args[0])
+            t2 = None
+            if len(node.args) > 1:
+                t2 = self._typename_from_annotation(node.args[1])
+            if hasattr(node.args[0], "container_type"):
+                self._usings.add("<algorithm>")
+                return f"*std::{min_max}_element({vargs[0]}.begin(), {vargs[0]}.end());"
+            else:
+                # C++ can't deal with max(1, size_t)
+                if t1 == "int" and t2 == self._default_type:
+                    vargs[0] = f"static_cast<size_t>({vargs[0]})"
+                all_vargs = ", ".join(vargs)
+                return f"std::{min_max}({all_vargs})"
+
+        def visit_cast(cast_to: str) -> str:
+            return f"static_cast<{cast_to}>({vargs[0]})"
+
+        def visit_floor() -> str:
+            self._headers.append("#include <math.h>")
+            return f"static_cast<size_t>(floor({vargs[0]}))"
+
+        # small one liners are inlined here as lambdas
+        small_dispatch_map = {
+            "int": lambda: f"py14::to_int({vargs[0]})",
+            # Is py14::to_int() necessary?
+            # "int": functools.partial(visit_cast, cast_to="i32"),
+            "str": lambda: f"std::to_string({vargs[0]})",
+            "len": lambda: f"{vargs[0]}.size()",
+            "float": functools.partial(visit_cast, cast_to="float"),
+            "double": functools.partial(visit_cast, cast_to="double"),
+            "max": functools.partial(visit_min_max, is_max=True),
+            "min": functools.partial(visit_min_max, is_min=True),
+            "floor": visit_floor,
+            # "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
+            # "sum": lambda: f"{vargs[0]}.iter().sum()",
+            # # as usize below is a hack to pass comb_sort.rs. Need a better solution
+            # "reversed": lambda: f"{vargs[0]}.iter().rev()",
+            # "map": lambda: f"{vargs[1]}.iter().map({vargs[0]})",
+            # "filter": lambda: f"{vargs[1]}.into_iter().filter({vargs[0]})",
+            # "list": lambda: f"{vargs[0]}.collect::<Vec<_>>()",
+        }
+
+        if fname in small_dispatch_map:
+            return small_dispatch_map[fname]()
+        return None
+
+    def visit_Call(self, node):
+        fname = self.visit(node.func)
+        vargs = []
+
+        if node.args:
+            vargs += [self.visit(a) for a in node.args]
+        if node.keywords:
+            vargs += [self.visit(kw.value) for kw in node.keywords]
+
+        ret = self._dispatch(node, fname, vargs)
+        if ret is not None:
+            return ret
+
+        args = ", ".join(vargs)
+        return f"{fname}({args})"
 
     def visit_For(self, node):
         target = self.visit(node.target)
