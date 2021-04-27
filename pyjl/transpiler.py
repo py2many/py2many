@@ -244,12 +244,6 @@ class JuliaTranspiler(CLikeTranspiler):
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
-        # HACK to determine if main function name is visited
-        if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["function main()"]
-            buf.extend([self.visit(child) for child in node.body])
-            buf.append("")
-            return "\n".join(buf) + "end\n\nmain()\n"
         buf = []
         cond = self.visit(node.test)
         buf.append(f"if {cond}")

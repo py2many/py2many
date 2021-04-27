@@ -168,6 +168,13 @@ class CppTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         funcdef = f"{template}{return_type} {node.name}({args}) {{"
+        if getattr(node, "python_main", False):
+            funcdef = "\n".join(
+                [
+                    "int main(int argc, char ** argv) {",
+                    "py14::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
+                ]
+            )
         return funcdef + "\n" + body + "}\n"
 
     def visit_Attribute(self, node):
@@ -378,16 +385,7 @@ class CppTranspiler(CLikeTranspiler):
                 var_type = decltype(definition)
             var_definitions.append("{0} {1};\n".format(var_type, cv))
 
-        if self.visit(node.test) == '__name__ == std::string {"__main__"}':
-            buf = [
-                "int main(int argc, char ** argv) {",
-                "py14::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
-            ]
-            buf.extend([self.visit(child) for child in node.body])
-            buf.append("}")
-            return "\n".join(buf)
-        else:
-            return "".join(var_definitions) + super().visit_If(node)
+        return "".join(var_definitions) + super().visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -534,7 +532,7 @@ class CppTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "std::tie({0}) = {1};".format(", ".join(elts), value)
 
-        if isinstance(node.scopes[-1], ast.If):
+        if isinstance(node.scopes[-1], ast.If) and isinstance(target, ast.Name):
             outer_if = node.scopes[-1]
             if target.id in outer_if.common_vars:
                 value = self.visit(node.value)

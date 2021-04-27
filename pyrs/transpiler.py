@@ -328,15 +328,7 @@ class RustTranspiler(CLikeTranspiler):
         #     definition = node.scopes.find(cv)
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
-
-        # HACK to determine if main function name is visited
-        if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["fn main() {"]
-            buf.extend([self.visit(child) for child in node.body])
-            buf.append("}")
-            return "\n".join(buf)
-        else:
-            return "".join(var_definitions) + super().visit_If(node, use_parens=False)
+        return "".join(var_definitions) + super().visit_If(node, use_parens=False)
 
     def visit_While(self, node):
         return super().visit_While(node, use_parens=False)

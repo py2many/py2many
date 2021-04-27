@@ -306,13 +306,6 @@ class GoTranspiler(CLikeTranspiler):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
-
-        # HACK to determine if main function name is visited
-        if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["func main() {"]
-            buf.extend([self.visit(child) for child in node.body])
-            buf.append("}")
-            return "\n".join(buf) + "\n"
         return super().visit_If(node)
 
     def visit_UnaryOp(self, node):

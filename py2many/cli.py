@@ -34,9 +34,9 @@ from pygo.transpiler import (
     GoNoneCompareRewriter,
     GoPropagateTypeAnnotation,
 )
-from py2many.rewriters import ComplexDestructuringRewriter
+from py2many.rewriters import ComplexDestructuringRewriter, PythonMainRewriter
 
-GENERIC_REWRITERS = [ComplexDestructuringRewriter()]
+GENERIC_REWRITERS = [ComplexDestructuringRewriter(), PythonMainRewriter()]
 
 
 def transpile(source, transpiler, rewriters, transformers, post_rewriters):

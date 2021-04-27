@@ -234,12 +234,6 @@ class DartTranspiler(CLikeTranspiler):
             var_definitions.append((typename, cv))
         decls = "\n".join([f"{typename} {cv};" for typename, cv in var_definitions])
 
-        # HACK to determine if main function name is visited
-        if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["void main() {"]
-            buf.extend([self.visit(child) for child in node.body])
-            buf.append("")
-            return "\n".join(buf) + "}\n"
         return decls + "\n\n" + super().visit_If(node)
 
     def visit_UnaryOp(self, node):

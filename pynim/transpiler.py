@@ -232,13 +232,6 @@ class NimTranspiler(CLikeTranspiler):
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
-        # HACK to determine if main function name is visited
-        if self.visit(node.test) == '__name__ == "__main__"':
-            buf = ["proc main() ="]
-            buf.extend([self.indent(self.visit(child)) for child in node.body])
-            buf.append("")
-            buf.append("main()")
-            return "\n".join(buf)
         body = "\n".join(
             [
                 self.indent(self.visit(child), level=node.level + 1)
