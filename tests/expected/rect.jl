@@ -20,3 +20,5 @@ end
 function main()
     show()
 end
+
+main()

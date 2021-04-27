@@ -97,7 +97,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         funcdef = f"function {node.name}{template}({args}){return_type}"
-        return funcdef + "\n" + body + "\nend\n"
+        maybe_main = ""
+        if getattr(node, "python_main", False):
+            maybe_main = "\nmain()"
+        return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
     def visit_Return(self, node):
         if node.value:

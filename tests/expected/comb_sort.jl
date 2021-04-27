@@ -22,3 +22,5 @@ function main()
     @assert(comb_sort(unsorted) == expected)
     println(join(["OK"], " "))
 end
+
+main()

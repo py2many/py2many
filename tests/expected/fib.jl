@@ -9,3 +9,5 @@ function main()
     rv = fib(5)
     println(join([rv], " "))
 end
+
+main()

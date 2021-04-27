@@ -8,4 +8,5 @@ function main()
     @assert("a" in l_b)
     println(join(["OK"], " "))
 end
+
 main()

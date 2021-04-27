@@ -8,3 +8,5 @@ end
 function main()
     foo()
 end
+
+main()
