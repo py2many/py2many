@@ -9,6 +9,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
 from py2many.analysis import add_imports, is_void_function, get_id
+from py2many.rewriters import PythonMainRewriter
 from py2many.tracer import (
     defined_before,
     is_builtin_import,
@@ -28,6 +29,8 @@ def transpile(source, headers=False, testing=False):
     C++ 14 code.
     """
     tree = ast.parse(source)
+    rewriter = PythonMainRewriter("cpp")
+    tree = rewriter.visit(tree)
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)

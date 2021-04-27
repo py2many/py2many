@@ -8,6 +8,6 @@ foo() {
   print(sprintf("%s", [b]));
 }
 
-void main() {
+main() {
   foo();
 }

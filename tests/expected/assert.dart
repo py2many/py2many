@@ -3,6 +3,6 @@ compare_assert(int a, int b) {
   assert(!(0 == 1));
 }
 
-void main() {
+main() {
   compare_assert(1, 1);
 }

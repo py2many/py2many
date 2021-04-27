@@ -44,6 +44,6 @@ show() {
   assert(color_map.length != 0);
 }
 
-void main() {
+main() {
   show();
 }

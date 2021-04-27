@@ -15,5 +15,3 @@ function main()
         println(join(["OK"], " "))
     end
 end
-
-main()

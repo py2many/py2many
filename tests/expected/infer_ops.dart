@@ -72,7 +72,7 @@ show() {
   print(sprintf("%s", ["OK"]));
 }
 
-void main() {
+main() {
   foo();
   show();
 }

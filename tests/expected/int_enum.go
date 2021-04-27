@@ -42,6 +42,6 @@ if !(len(color_map) != 0) { panic("assert") }}
 
 
 func main() {
-show()
-}
+show()}
+
 

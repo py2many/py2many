@@ -7,4 +7,3 @@ proc foo() =
 proc main() =
   foo()
 
-main()

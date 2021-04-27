@@ -24,7 +24,7 @@ List<int> bin_it(List<int> limits, List<int> data) {
   return bins;
 }
 
-void main() {
+main() {
   var limits = [23, 37, 43, 53, 67, 83];
   var data = [
     95,

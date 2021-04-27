@@ -20,6 +20,6 @@ show() {
   print(sprintf("%s", [r.length]));
 }
 
-void main() {
+main() {
   show();
 }

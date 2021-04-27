@@ -7,7 +7,7 @@ String code_a = "a";
 String code_b = "b";
 Set<String> l_b = new Set.from([code_a]);
 Map<String, int> l_c = {code_b: code_0};
-void main() {
+main() {
   assert(l_b.contains("a"));
   print(sprintf("%s", ["OK"]));
 }

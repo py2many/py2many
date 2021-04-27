@@ -8,7 +8,7 @@ int fib(int i) {
   return (fib((i - 1)) + fib((i - 2)));
 }
 
-void main() {
+main() {
   int rv = fib(5);
   print(sprintf("%s", [rv]));
 }

@@ -10,6 +10,6 @@ show() {
   print(sprintf("%s", [b]));
 }
 
-void main() {
+main() {
   show();
 }

@@ -87,8 +87,8 @@ def test_print_program_args():
         "for(auto arg : py14::sys::argv) {",
         "std::cout << arg;",
         "std::cout << std::endl;",
-        "}",
-        "}",
+        "}}",
+        "",
     )
 
 

@@ -17,5 +17,3 @@ function main()
     @assert(bubble_sort(unsorted) == expected)
     println(join(["OK"], " "))
 end
-
-main()

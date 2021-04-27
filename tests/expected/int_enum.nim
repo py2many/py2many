@@ -29,4 +29,3 @@ proc show() =
 proc main() =
   show()
 
-main()

@@ -7,7 +7,7 @@ var l_a = [code_0, code_1];
 String code_a = "a";
 String code_b = "b";
 var l_b = [code_a, code_b];
-void main() {
+main() {
   for (final i in l_a) {
     print(sprintf("%s", [i]));
   }

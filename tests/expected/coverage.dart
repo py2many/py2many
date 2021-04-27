@@ -36,6 +36,6 @@ show() {
   }
 }
 
-void main() {
+main() {
   show();
 }

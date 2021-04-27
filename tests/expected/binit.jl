@@ -81,5 +81,3 @@ function main()
     ]
     @assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13])
 end
-
-main()
