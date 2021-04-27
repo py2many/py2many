@@ -34,6 +34,9 @@ from pygo.transpiler import (
     GoNoneCompareRewriter,
     GoPropagateTypeAnnotation,
 )
+from py2many.rewriters import ComplexDestructuringRewriter
+
+GENERIC_REWRITERS = [ComplexDestructuringRewriter()]
 
 
 def transpile(source, transpiler, rewriters, transformers, post_rewriters):
@@ -42,7 +45,10 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     Rust code.
     """
     tree = ast.parse(source)
-    # First run any language specific rewriters
+    # First run Language independent rewriters
+    for rewriter in GENERIC_REWRITERS:
+        tree = rewriter.visit(tree)
+    # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
     # Language independent transformers
