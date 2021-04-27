@@ -35,6 +35,29 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
         return node
 
 
+class RenameTransformer(ast.NodeTransformer):
+    def __init__(self, old_name, new_name):
+        super().__init__()
+        self._old_name = old_name
+        self._new_name = new_name
+
+    def visit_Name(self, node):
+        if node.id == self._old_name:
+            node.id = self._new_name
+        return node
+
+    def visit_FunctionDef(self, node):
+        if node.name == self._old_name:
+            node.name = self._new_name
+        self.generic_visit(node)
+        return node
+
+
+def rename(scope, old_name, new_name):
+    tx = RenameTransformer(old_name, new_name)
+    tx.visit(scope)
+
+
 class PythonMainRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
@@ -49,6 +72,8 @@ class PythonMainRewriter(ast.NodeTransformer):
             and node.test.comparators[0].value == "__main__"
         )
         if is_main:
+            if hasattr(node, "scopes") and len(node.scopes) > 1:
+                rename(node.scopes[-2], "main", "main_func")
             # ast.parse produces a Module object that needs to be destructured
             ret = ast.parse("def main(): True").body[0]
             ret.lineno = node.lineno

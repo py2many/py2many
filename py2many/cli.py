@@ -49,6 +49,9 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
         PythonMainRewriter(language),
     ]
 
+    # This is very basic and needs to be run before and after
+    # rewrites. Revisit if running it twice becomes a perf issue
+    add_scope_context(tree)
     # First run Language independent rewriters
     for rewriter in generic_rewriters:
         tree = rewriter.visit(tree)
