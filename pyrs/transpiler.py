@@ -129,7 +129,14 @@ class RustTranspiler(CLikeTranspiler):
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_rust_type(node.value)
                 if is_reference(node.value):
-                    fndef.returns.needs_reference = True
+                    if is_mutable(node.scopes, get_id(node.value)):
+                        definition = node.scopes.find(ret)
+                        self._typename_from_annotation(definition)
+                        if getattr(definition, "container_type", (None, None))[0] == 'List':
+                            # TODO: Handle other container types
+                            ret = f"{ret}.to_vec()"
+                    else:
+                        fndef.returns.needs_reference = True
                 if return_type != value_type and value_type is not None:
                     return f"return {ret} as {return_type};"
             return f"return {ret};"

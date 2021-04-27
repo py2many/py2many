@@ -1,4 +1,5 @@
 import ast
+from py2many.inference import is_reference
 
 from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP
 
@@ -69,12 +70,19 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.ops[0], ast.In):
             return self.visit_In(node)
 
+        node_right = node.comparators[0]
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node_right)
+
         left = self.visit(node.left)
         op = self.visit(node.ops[0])
-        right = self.visit(node.comparators[0])
+        right = self.visit(node_right)
 
-        left_type = self._typename_from_annotation(node.left)
-        right_type = self._typename_from_annotation(node.comparators[0])
+        if not is_reference(node.left) and is_reference(node_right):
+            right = f"*{right}"
+
+        if is_reference(node.left) and not is_reference(node_right):
+            left = f"*{left}"
 
         left_rank = RUST_WIDTH_RANK.get(left_type, -1)
         right_rank = RUST_WIDTH_RANK.get(right_type, -1)

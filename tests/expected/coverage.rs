@@ -25,7 +25,7 @@ fn show() {
     println!("{}", a4);
     let sum1: i32 = indexing();
     println!("{}", sum1);
-    let a5: Vec<i32> = vec![1, 2, 3];
+    let a5: &Vec<i32> = &vec![1, 2, 3];
     println!("{}", a5.len());
     let a9: Vec<&str> = vec!["a", "b", "c", "d"];
     println!("{}", a9.len());
