@@ -69,7 +69,10 @@ class NimTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         funcdef = f"proc {node.name}({args}){return_type} ="
-        return f"{funcdef}\n{body}\n"
+        maybe_main = ""
+        if getattr(node, "python_main", False):
+            maybe_main = "\nmain()"
+        return f"{funcdef}\n{body}\n{maybe_main}"
 
     def visit_Return(self, node):
         if node.value:

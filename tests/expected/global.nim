@@ -13,3 +13,4 @@ proc main() =
     echo "OK"
 
 
+main()

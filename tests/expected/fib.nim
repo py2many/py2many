@@ -8,3 +8,4 @@ proc main() =
   let rv = fib(5)
   echo rv
 
+main()

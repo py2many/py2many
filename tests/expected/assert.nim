@@ -6,3 +6,4 @@ proc main() =
   compare_assert(1, 1)
   echo "OK"
 
+main()

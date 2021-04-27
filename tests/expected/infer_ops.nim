@@ -60,3 +60,4 @@ proc main() =
   foo()
   show()
 
+main()
