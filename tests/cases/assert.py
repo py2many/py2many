@@ -8,3 +8,4 @@ def compare_assert(a: int, b: int):
 
 if __name__ == "__main__":
     compare_assert(1, 1)
+    print("OK")

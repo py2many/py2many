@@ -1,6 +1,7 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/sys.h"
 #include <cassert>
+#include <iostream>
 #include <vector>
 
 inline int bisect_right(std::vector<int> data, int item) {
@@ -39,4 +40,6 @@ int main(int argc, char **argv) {
     std::vector<int> __tmp1 = {11, 4, 2, 6, 9, 5, 13};
     bin_it(limits, data) == __tmp1;
   }));
+  std::cout << std::string{"OK"};
+  std::cout << std::endl;
 }

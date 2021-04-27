@@ -5,4 +5,5 @@ fn compare_assert(a: i32, b: i32) {
 
 fn main() {
     compare_assert(1, 1);
+    println!("{}", "OK");
 }

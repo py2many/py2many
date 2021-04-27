@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 func compare_assert(a int, b int) {
 	if !(a == b) {
 		panic("assert")
@@ -11,4 +15,5 @@ func compare_assert(a int, b int) {
 
 func main() {
 	compare_assert(1, 1)
+	fmt.Printf("%v\n", "OK")
 }

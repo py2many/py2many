@@ -38,21 +38,6 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
-COMPARABLE = [
-    "bubble_sort",
-    "comb_sort",
-    "coverage",
-    "fib",
-    "global",
-    "hello_world",
-    "infer",
-    "infer_ops",
-    "lambda",
-    "print",
-    "rect",
-    "int_enum",
-    "str_enum",
-]
 
 EXPECTED_COMPILE_FAILURES = [
     "binit.nim",  # https://github.com/adsharma/py2many/issues/19
@@ -116,14 +101,11 @@ class CodeGeneratorTests(unittest.TestCase):
         is_script = has_main(case_filename)
         sys.argv = ["test", f"--{lang}=1", str(case_filename)]
 
-        if case in COMPARABLE:
-            expected_output = run(
-                [sys.executable, str(case_filename)], capture_output=True, check=True
-            ).stdout
-            self.assertTrue(expected_output)
-            expected_output = expected_output.splitlines()
-        else:
-            expected_output = None
+        expected_output = run(
+            [sys.executable, str(case_filename)], capture_output=True, check=True
+        ).stdout
+        self.assertTrue(expected_output)
+        expected_output = expected_output.splitlines()
 
         try:
             main()

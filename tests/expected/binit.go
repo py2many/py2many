@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -36,4 +37,5 @@ func main() {
 	if !(cmp.Equal(bin_it(limits, data), []int{11, 4, 2, 6, 9, 5, 13})) {
 		panic("assert")
 	}
+	fmt.Printf("%v\n", "OK")
 }

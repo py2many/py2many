@@ -33,4 +33,5 @@ fn main() {
         36, 43, 55,
     ];
     assert!(bin_it(limits, data) == *vec![11, 4, 2, 6, 9, 5, 13]);
+    println!("{}", "OK");
 }

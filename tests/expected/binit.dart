@@ -1,3 +1,6 @@
+// @dart=2.9
+import 'package:sprintf/sprintf.dart';
+
 int bisect_right(List<int> data, int item) {
   int low = 0;
   int high = data.length.toInt();
@@ -79,4 +82,5 @@ main() {
     55
   ];
   assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13]);
+  print(sprintf("%s", ["OK"]));
 }

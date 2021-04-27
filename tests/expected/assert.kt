@@ -5,4 +5,5 @@ fun compare_assert(a: Int, b: Int) {
 
 fun main() {
     compare_assert(1, 1)
+    println("OK")
 }

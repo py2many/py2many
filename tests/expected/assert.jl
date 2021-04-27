@@ -5,4 +5,5 @@ end
 
 function main()
     compare_assert(1, 1)
+    println(join(["OK"], " "))
 end
