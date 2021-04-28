@@ -7,11 +7,9 @@ List<int> bubble_sort(List<int> seq) {
   for (final _ in ([for (var i = 0; i < L; i += 1) i])) {
     for (final n in ([for (var i = 1; i < L; i += 1) i])) {
       if (seq[n] < seq[(n - 1)]) {
-        {
-          final t = Tuple2<int, int>(seq[n], seq[(n - 1)]);
-          seq[(n - 1)] = __tmp1;
-          seq[n] = __tmp2;
-        }
+        final __tmp1 = Tuple2<int, int>(seq[n], seq[(n - 1)]);
+        seq[(n - 1)] = __tmp1.item1;
+        seq[n] = __tmp1.item2;
       }
     }
   }

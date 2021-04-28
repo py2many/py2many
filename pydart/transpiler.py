@@ -1,4 +1,5 @@
 import ast
+import functools
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
@@ -23,6 +24,11 @@ class DartTranspiler(CLikeTranspiler):
         super().__init__()
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._default_type = "var"
+        self._temp = 0
+
+    def _get_temp(self):
+        self._temp += 1
+        return f"__tmp{self._temp}"
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -146,11 +152,20 @@ class DartTranspiler(CLikeTranspiler):
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
+        def visit_min_max(is_max: bool) -> str:
+            min_max = "max" if is_max else "min"
+            self._usings.add("dart:math")
+            vargs_str = ", ".join(vargs)
+            return f"{min_max}({vargs_str})"
+
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "int": lambda: f"{vargs[0]}.toInt()",
             "str": lambda: f"{vargs[0]}.toString()",
             "len": lambda: f"{vargs[0]}.length",
+            "floor": lambda: f"{vargs[0]}.floor()",
+            "max": functools.partial(visit_min_max, is_max=True),
+            "min": functools.partial(visit_min_max, is_min=True),
         }
 
         if fname in small_dispatch_map:
@@ -411,7 +426,11 @@ class DartTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             value_types = "int, int"
             count = len(elts)
-            return f"{kw} t = Tuple{count}<{value_types}>{value};"
+            tmp_var = self._get_temp()
+            buf = [f"{kw} {tmp_var} = Tuple{count}<{value_types}>{value};"]
+            for i, elt in enumerate(elts):
+                buf.extend([f"{elt} = {tmp_var}.item{i+1};"])
+            return "\n".join(buf)
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
