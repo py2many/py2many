@@ -7,10 +7,15 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
         self._disable = False
         if language in {"cpp", "julia"}:
             self._disable = True
+        self._no_underscore = False
+        if language in {"nim"}:
+            self._no_underscore = True
         self._temp = 0
 
     def _get_temp(self):
         self._temp += 1
+        if self._no_underscore:
+            return f"tmp{self._temp}"
         return f"__tmp{self._temp}"
 
     def visit_Assign(self, node):

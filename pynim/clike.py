@@ -19,6 +19,21 @@ nim_type_map = {
     "c_uint64": "uint64",
 }
 
+NIM_WIDTH_RANK = {
+    "int8": 0,
+    "unt8": 1,
+    "int16": 2,
+    "unt16": 3,
+    "int32": 4,
+    "unt32": 5,
+    "int64": 6,
+    "unt64": 7,
+    "float32": 8,
+    "float64": 9,
+    "float": 9,
+}
+
+
 # allowed as names in Python but treated as keywords in Nim
 nim_keywords = frozenset(
     [
@@ -128,6 +143,7 @@ def nim_symbol(node):
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
+        super().__init__()
         self._type_map = nim_type_map
 
     def visit(self, node):
@@ -141,13 +157,29 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             left = self.visit(node.left)
             right = self.visit(node.right)
             return f"{left}^{right}"
-        return " ".join(
-            [self.visit(node.left), self.visit(node.op), self.visit(node.right)]
-        )
+
+        left = self.visit(node.left)
+        op = self.visit(node.op)
+        right = self.visit(node.right)
+
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node.right)
+
+        left_rank = NIM_WIDTH_RANK.get(left_type, -1)
+        right_rank = NIM_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank:
+            right = f"{left_type}({right})"
+        elif right_rank > left_rank:
+            left = f"{right_type}({left})"
+
+        return f"({left} {op} {right})"
 
     def visit_Name(self, node):
         if node.id in nim_keywords:
             return node.id + "_"
+        if node.id.startswith("_"):
+            return "_"
         return super().visit_Name(node)
 
     def visit_In(self, node):

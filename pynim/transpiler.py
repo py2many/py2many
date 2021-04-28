@@ -2,7 +2,7 @@ import ast
 
 from .clike import CLikeTranspiler
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module
+from py2many.tracer import is_list, defined_before
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from typing import Optional, List
@@ -33,6 +33,8 @@ class NimTranspiler(CLikeTranspiler):
         "Optional": "Option",
     }
 
+    ALLOW_MODULE_LIST = ["math"]
+
     def __init__(self, indent=2):
         super().__init__()
         self._headers = set([])
@@ -42,6 +44,11 @@ class NimTranspiler(CLikeTranspiler):
 
     def indent(self, code, level=1):
         return self._indent * level + code
+
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"import {mod}" for mod in usings)
+        return uses
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
@@ -86,10 +93,13 @@ class NimTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
-            use_open_array = isinstance(node.annotation, ast.Subscript)
+            mutable = is_mutable(node.scopes, id)
+            use_open_array = isinstance(node.annotation, ast.Subscript) and not mutable
             typename = self._typename_from_annotation(node)
             if use_open_array:
                 typename = typename.replace("seq", "openArray")
+            if mutable:
+                typename = f"var {typename}"
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -112,9 +122,6 @@ class NimTranspiler(CLikeTranspiler):
                 attr = "add"
         if not value_id:
             value_id = ""
-
-        if is_class_or_module(value_id, node.scopes):
-            return "{0}::{1}".format(value_id, attr)
 
         return value_id + "." + attr
 
@@ -149,7 +156,10 @@ class NimTranspiler(CLikeTranspiler):
             return dispatch_map[fname](node, vargs)
 
         # small one liners are inlined here as lambdas
-        small_dispatch_map = {"str": lambda: f"$({vargs[0]})"}
+        small_dispatch_map = {
+            "str": lambda: f"$({vargs[0]})",
+            "floor": lambda: f"int(floor({vargs[0]}))",
+        }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
         return None
@@ -336,10 +346,29 @@ class NimTranspiler(CLikeTranspiler):
             else:
                 fields.append(f"{member} = {var},")
         fields = "\n".join([self.indent(f, level=2) for f in fields])
-        flags = self.indent(f"{node.name}Flags = set[{node.name}]")
+        # flags = self.indent(f"{node.name}Flags = set[{node.name}]")
         return "\n".join(
-            ["type", self.indent(f"{node.name} = enum"), f"{fields}", f"{flags}", ""]
+            [
+                "type",
+                self.indent(f"{node.name} = enum"),
+                f"{fields}",
+                # f"{flags}",
+                "",
+            ]
         )
+
+    def visit_StrEnum(self, node):
+        extractor = DeclarationExtractor(NimTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for member, var in extractor.class_assignments.items():
+            if var == "auto()":
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member} = {var},")
+        fields = "\n".join([self.indent(f) for f in fields])
+        return f"type {node.name} = enum\n{fields}\n\n"
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
@@ -349,33 +378,34 @@ class NimTranspiler(CLikeTranspiler):
         return "\n".join(i for i in imports if i)
 
     def visit_ImportFrom(self, node):
-        if node.module in self.IGNORED_MODULE_LIST:
+        if (
+            node.module not in self.ALLOW_MODULE_LIST
+            and node.module in self.IGNORED_MODULE_LIST
+        ):
             return ""
 
         names = [n.name for n in node.names]
         names = ", ".join(names)
         module_path = node.module.replace(".", "::")
-        return "use {0}::{{{1}}}".format(module_path, names)
+        return f"from {module_path} import {names}"
 
     def visit_List(self, node):
-        if len(node.elts) > 0:
-            elements = [self.visit(e) for e in node.elts]
-            elements = ", ".join(elements)
-            return f"@[{elements}]"
-        else:
-            return "@[]"
+        elements = [self.visit(e) for e in node.elts]
+        elements = ", ".join(elements)
+        return f"@[{elements}]"
+
+    def visit_Set(self, node):
+        self._usings.add("sets")
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"toHashSet([{elements_str}])"
 
     def visit_Dict(self, node):
-        if len(node.keys) > 0:
-            kv_string = []
-            for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
-                value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
-            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
-            return initialization.format(", ".join(kv_string))
-        else:
-            return "HashMap::new()"
+        self._usings.add("tables")
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
+        return f"{{{kv_pairs}}}.newTable"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -453,28 +483,29 @@ class NimTranspiler(CLikeTranspiler):
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
+            elts_str = ", ".join(elts)
             value = self.visit(node.value)
-            return "{0} = {1}".format(", ".join(elts), value)
+            return f"{kw} ({elts_str}) = {value}"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
+                return f"{kw} {target_id} = {value}"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
 
         definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
             elements = ", ".join(elements)
@@ -566,18 +597,6 @@ class NimTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_Set(self, node):
-        elts = []
-        for i in range(len(node.elts)):
-            elt = self.visit(node.elts[i])
-            elts.append(elt)
-
-        if elts:
-            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
-            return initialization.format(", ".join(elts))
-        else:
-            return "HashSet::new()"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

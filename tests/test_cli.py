@@ -40,7 +40,6 @@ TEST_CASES = [
 ]
 
 EXPECTED_COMPILE_FAILURES = [
-    "binit.nim",  # https://github.com/adsharma/py2many/issues/19
     "global.go",  # https://github.com/adsharma/py2many/issues/82
     "infer_ops.go",  # https://github.com/adsharma/py2many/issues/16
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
@@ -48,7 +47,6 @@ EXPECTED_COMPILE_FAILURES = [
     "int_enum.dart",  # https://github.com/adsharma/py2many/issues/41
     "int_enum.go",  # https://github.com/adsharma/py2many/issues/75
     "int_enum.kt",  # https://github.com/adsharma/py2many/issues/28
-    "int_enum.nim",  # https://github.com/adsharma/py2many/issues/76
     "lambda.go",  # https://github.com/adsharma/py2many/issues/15
     "lambda.kt",  # https://github.com/adsharma/py2many/issues/28
 ]
