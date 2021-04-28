@@ -475,9 +475,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node):
-        target = self.visit(node.target)
-        type_str = self._typename_from_annotation(node.target)
-        val = self.visit(node.value)
+        target, type_str, val = super().visit_AnnAssign(node)
         if type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"

@@ -62,10 +62,10 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     add_variable_context(tree)
     add_scope_context(tree)
     add_list_calls(tree)
-    infer_meta = infer_types(tree)
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
+    infer_meta = infer_types(tree)
     add_imports(tree)
     # Language specific transformers
     for tx in transformers:

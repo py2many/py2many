@@ -1,5 +1,6 @@
 import ast
 
+from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
@@ -141,3 +142,35 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         return f"{left} in {right}"
+
+    def _recursive_expand(self, slice_value):
+        if isinstance(slice_value, ast.Name):
+            slice_value = get_id(slice_value)
+        elif isinstance(slice_value, (ast.Tuple, ast.List)):
+            slice_value = [self._recursive_expand(e) for e in slice_value.elts]
+        return slice_value
+
+    def _typename_from_annotation(self, node, attr="annotation") -> str:
+        if hasattr(node, attr):
+            typename = getattr(node, attr)
+            if isinstance(typename, ast.Subscript):
+                if get_id(typename.value) == "Callable":
+                    slice_value = self._slice_value(typename)
+                    slice_value = self._recursive_expand(slice_value)
+
+                    def recursive_tuple(lst) -> tuple:
+                        return (
+                            tuple(recursive_tuple(x) for x in lst)
+                            if isinstance(lst, list)
+                            else lst
+                        )
+
+                    slice_value = recursive_tuple(slice_value)
+                    if len(slice_value) == 2:
+                        # Kotlin lambda syntax
+                        args = ", ".join(self._map_types(slice_value[0]))
+                        ret = self._map_type(slice_value[1])
+                        return f"({args}) -> {ret}"
+                    return f"{slice_value}"
+
+        return super()._typename_from_annotation(node, attr)

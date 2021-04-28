@@ -251,7 +251,13 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self._typename_from_annotation(node)
+        if (
+            isinstance(node.target.annotation, ast.Subscript)
+            and get_id(node.target.annotation.value) == "Callable"
+        ):
+            type_str = self._default_type
+        else:
+            type_str = self._typename_from_annotation(node)
         val = self.visit(node.value) if node.value is not None else None
         return (target, type_str, val)
 

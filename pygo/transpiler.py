@@ -500,9 +500,7 @@ class GoTranspiler(CLikeTranspiler):
         return f'if !({condition}) {{ panic("assert") }}'
 
     def visit_AnnAssign(self, node):
-        target = self.visit(node.target)
-        type_str = self._typename_from_annotation(node.target)
-        val = self.visit(node.value)
+        target, type_str, val = super().visit_AnnAssign(node)
         return f"var {target} {type_str} = {val}"
 
     def visit_Assign(self, node):

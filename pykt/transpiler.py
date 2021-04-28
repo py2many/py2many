@@ -376,7 +376,6 @@ class KotlinTranspiler(CLikeTranspiler):
             fields.append((member, var))
         return self._visit_enum(node, "Int", fields)
 
-
     def visit_alias(self, node):
         return "use {0}".format(node.name)
 
@@ -475,8 +474,8 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
-        type_str = self._typename_from_annotation(node.target)
-        val = self.visit(node.value)
+        type_str = self._typename_from_annotation(node)
+        val = self.visit(node.value) if node.value is not None else None
         if type_str == self._default_type:
             return f"var {target} = {val}"
         return f"var {target}: {type_str} = {val}"
