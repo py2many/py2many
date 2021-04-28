@@ -5,7 +5,7 @@ int bisect_right(List<int> data, int item) {
   int low = 0;
   int high = data.length.toInt();
   while (low < high) {
-    var middle = ((low + high) / 2).toInt();
+    final middle = ((low + high) / 2).toInt();
 
     if (item < data[middle]) {
       high = middle;
@@ -28,8 +28,8 @@ List<int> bin_it(List<int> limits, List<int> data) {
 }
 
 main() {
-  var limits = [23, 37, 43, 53, 67, 83];
-  var data = [
+  final limits = [23, 37, 43, 53, 67, 83];
+  final data = [
     95,
     21,
     94,

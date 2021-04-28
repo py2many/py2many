@@ -6,9 +6,9 @@ class Colors {
   ST1 GREEN;
   ST2 BLUE;
 
-  var RED = auto();
-  var GREEN = auto();
-  var BLUE = auto();
+  final RED = auto();
+  final GREEN = auto();
+  final BLUE = auto();
 }
 
 class Permissions {
@@ -16,25 +16,25 @@ class Permissions {
   ST1 W;
   ST2 X;
 
-  int R = 1;
-  int W = 2;
-  int X = 16;
+  final int R = 1;
+  final int W = 2;
+  final int X = 16;
 }
 
 show() {
-  var color_map = {
+  final color_map = {
     Colors.RED: "red",
     Colors.GREEN: "green",
     Colors.BLUE: "blue"
   };
-  var a = Colors.GREEN;
+  final a = Colors.GREEN;
 
   if (a == Colors.GREEN) {
     print(sprintf("%s", ["green"]));
   } else {
     print(sprintf("%s", ["Not green"]));
   }
-  var b = Permissions.R;
+  final b = Permissions.R;
 
   if (b == Permissions.R) {
     print(sprintf("%s", ["R"]));

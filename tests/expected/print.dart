@@ -6,7 +6,7 @@ show() {
   print(sprintf("%s %s", [2, "b"]));
   double a = 2.1;
   print(sprintf("%s", [a]));
-  double b = 2.1;
+  final double b = 2.1;
   print(sprintf("%s", [b]));
 }
 

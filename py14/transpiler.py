@@ -429,6 +429,14 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
+    def _make_block(self, node):
+        buf = []
+        buf.append("({")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append(";")
+        buf.append("})")
+        return "\n".join(buf)
+
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])

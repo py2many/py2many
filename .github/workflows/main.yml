@@ -57,7 +57,9 @@ jobs:
       - name: Install dart sprintf
         shell: bash
         run: |
-          (cd tests && dart pub global run stagehand:stagehand --override package-simple && dart pub add sprintf)
+          (cd tests && dart pub global run stagehand:stagehand --override package-simple \
+           && dart pub add sprintf \
+           && dart pub add tuple)
 
       - name: Install rust-script and cargo-script
         run: cargo install rust-script cargo-script

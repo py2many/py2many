@@ -2,8 +2,8 @@
 import 'package:sprintf/sprintf.dart';
 
 foo() {
-  int a = 10;
-  int b = a;
+  final int a = 10;
+  final int b = a;
   assert(b == 10);
   print(sprintf("%s", [b]));
 }

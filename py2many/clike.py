@@ -173,7 +173,14 @@ class CLikeTranspiler(ast.NodeVisitor):
             return "return {0};".format(self.visit(node.value))
         return "return;"
 
-    def visit_If(self, node, use_parens=True, use_semi_colon=True):
+    def _make_block(self, node):
+        buf = []
+        buf.append("({")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("})")
+        return "\n".join(buf)
+
+    def visit_If(self, node, use_parens=True):
         buf = []
         # if True: s1; s2  should be transpiled into ({s1; s2;})
         # such that the value of the expression is s2
@@ -183,11 +190,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             isinstance(node.test, ast.Constant)
             and node.test.value == True
             and node.orelse == []
-            # Kotlin thinks {..} is a lambda. Wants if true {...}
-            and use_semi_colon
         )
         if make_block:
-            buf.append("({")
+            return self._make_block(node)
         else:
             if use_parens:
                 buf.append("if({0}) {{".format(self.visit(node.test)))
@@ -201,13 +206,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             buf.extend(orelse)
             buf.append("}")
         else:
-            if make_block:
-                if use_semi_colon:
-                    buf.append(";")
-                buf.append("})")
-            else:
-                buf.append("}")
-
+            buf.append("}")
         return "\n".join(buf)
 
     def visit_Continue(self, node):

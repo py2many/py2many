@@ -263,11 +263,18 @@ class KotlinTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
+    def _make_block(self, node):
+        buf = []
+        buf.append("if (true) {")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("}")
+        return "\n".join(buf)
+
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
-        return super().visit_If(node, use_semi_colon=False)
+        return super().visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):

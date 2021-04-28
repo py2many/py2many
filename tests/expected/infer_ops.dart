@@ -2,20 +2,20 @@
 import 'package:sprintf/sprintf.dart';
 
 foo() {
-  int a = 10;
-  int b = 20;
-  int c1 = (a + b);
-  int c2 = (a - b);
-  int c3 = (a * b);
-  double c4 = (a / b);
-  int c5 = -(a);
-  double d = 2.0;
-  double e1 = (a + d);
-  double e2 = (a - d);
-  double e3 = (a * d);
-  double e4 = (a / d);
-  double f = -3.0;
-  int g = -(a);
+  final int a = 10;
+  final int b = 20;
+  final int c1 = (a + b);
+  final int c2 = (a - b);
+  final int c3 = (a * b);
+  final double c4 = (a / b);
+  final int c5 = -(a);
+  final double d = 2.0;
+  final double e1 = (a + d);
+  final double e2 = (a - d);
+  final double e3 = (a * d);
+  final double e4 = (a / d);
+  final double f = -3.0;
+  final int g = -(a);
 }
 
 int add1(int x, int y) {
@@ -67,7 +67,7 @@ double fadd1(int x, double y) {
 }
 
 show() {
-  double rv = fadd1(6, 6.0);
+  final double rv = fadd1(6, 6.0);
   assert(rv == 12);
   print(sprintf("%s", ["OK"]));
 }

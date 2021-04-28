@@ -4,7 +4,7 @@ from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
-from py2many.analysis import get_id, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function
 
 from typing import Optional, List
 
@@ -222,6 +222,13 @@ class DartTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
+    def _make_block(self, node):
+        buf = []
+        buf.append("{")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("}")
+        return "\n".join(buf)
+
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
@@ -396,24 +403,26 @@ class DartTranspiler(CLikeTranspiler):
 
     def visit_Assign(self, node):
         target = node.targets[0]
+        kw = "var" if is_mutable(node.scopes, get_id(target)) else "final"
 
         if isinstance(target, ast.Tuple):
+            self._usings.add("package:tuple/tuple.dart")
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return f"{elts} = {value};"
+            value_types = "int, int"
+            count = len(elts)
+            return f"{kw} t = Tuple{count}<{value_types}>{value};"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return f"{target_id} = {value};"
+                return f"{kw} {target_id} = {value};"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
-                value = "None"
             return f"{target} = {value};"
 
         definition = node.scopes.find(target.id)
@@ -425,13 +434,20 @@ class DartTranspiler(CLikeTranspiler):
             elements = [self.visit(e) for e in node.value.elts]
             elements = ", ".join(elements)
             target = self.visit(target)
-            return f"var {target} = [{elements}];"
+
+            return f"{kw} {target} = [{elements}];"
         else:
             typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
 
-            return f"{typename} {target} = {value};"
+            if typename != self._default_type:
+                if kw == self._default_type:
+                    return f"{typename} {target} = {value};"
+            else:
+                return f"{kw} {target} = {value};"
+
+            return f"{kw} {typename} {target} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]
