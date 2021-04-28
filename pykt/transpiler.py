@@ -1,4 +1,5 @@
 import ast
+import functools
 import re
 
 from .clike import CLikeTranspiler
@@ -6,7 +7,7 @@ from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from py2many.analysis import get_id, is_mutable, is_void_function
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 
 class KotlinPrintRewriter(ast.NodeTransformer):
@@ -58,6 +59,11 @@ class KotlinTranspiler(CLikeTranspiler):
         super().__init__()
         self._default_type = "var"
         self._container_type_map = self.CONTAINER_TYPE_MAP
+
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"import {mod}" for mod in usings)
+        return uses
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -168,12 +174,30 @@ class KotlinTranspiler(CLikeTranspiler):
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
+        def visit_min_max(is_max: bool) -> str:
+            min_max = "max" if is_max else "min"
+            self._usings.add(f"kotlin.math.{min_max}")
+            self._typename_from_annotation(node.args[0])
+            if hasattr(node.args[0], "container_type"):
+                return f"maxOf({vargs[0]})"
+            else:
+                all_vargs = ", ".join(vargs)
+                return f"{min_max}({all_vargs})"
+
+        def visit_floor():
+            self._usings.add("kotlin.math.floor")
+            return f"floor({vargs[0]}).toInt()"
+
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "int": lambda: f"{vargs[0]}.toInt()",
             "str": lambda: f"{vargs[0]}.toString()",
             # TODO: strings use .length
             "len": lambda: f"{vargs[0]}.size",
+            "max": functools.partial(visit_min_max, is_max=True),
+            "min": functools.partial(visit_min_max, is_min=True),
+            "floor": visit_floor,
+            "reversed": lambda: f"{vargs[0]}.reversed()",
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
@@ -275,9 +299,12 @@ class KotlinTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
         extractor = DeclarationExtractor(KotlinTranspiler())
         extractor.visit(node)
-        declarations = extractor.get_declarations()
+        declarations = node.declarations = extractor.get_declarations()
 
         fields = []
         index = 0
@@ -304,6 +331,52 @@ class KotlinTranspiler(CLikeTranspiler):
             body = "\n".join(body)
             return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
 
+    def _visit_enum(self, node, typename: str, fields: List[Tuple]):
+        fields_list = []
+
+        for field, value in fields:
+            fields_list += [
+                f"""\
+                {field}({value}),
+            """
+            ]
+        fields_str = "".join(fields_list)
+        return f"enum class {node.name}(val value: {typename}) {{\n{fields_str}\n}}"
+
+    def visit_StrEnum(self, node):
+        extractor = DeclarationExtractor(KotlinTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = f'"{member}"'
+            fields.append((member, var))
+        return self._visit_enum(node, "String", fields)
+
+    def visit_IntEnum(self, node):
+        extractor = DeclarationExtractor(KotlinTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = i
+            fields.append((member, var))
+        return self._visit_enum(node, "Int", fields)
+
+    def visit_IntFlag(self, node):
+        extractor = DeclarationExtractor(KotlinTranspiler())
+        extractor.visit(node)
+
+        fields = []
+        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+            if var == "auto()":
+                var = 1 << i
+            fields.append((member, var))
+        return self._visit_enum(node, "Int", fields)
+
+
     def visit_alias(self, node):
         return "use {0}".format(node.name)
 
@@ -324,6 +397,11 @@ class KotlinTranspiler(CLikeTranspiler):
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         return f"arrayOf({elements_str})"
+
+    def visit_Set(self, node):
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"setOf({elements_str})"
 
     def visit_Dict(self, node):
         keys = [self.visit(k) for k in node.keys]
@@ -405,48 +483,44 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Assign(self, node):
         target = node.targets[0]
+        kw = "var" if is_mutable(node.scopes, get_id(target)) else "val"
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
+            elts_str = ", ".join(elts)
             value = self.visit(node.value)
-            return "{0} = {1}".format(", ".join(elts), value)
+            if isinstance(node.value, ast.Tuple):
+                value = f"Pair{value}"
+            return f"{kw} ({elts_str}) = {value}"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
+                return f"{kw} {target_id} = {value}"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
-                value = "None"
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
 
         definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
         elif isinstance(node.value, ast.List):
             elements = [self.visit(e) for e in node.value.elts]
-            mut = "val "
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "var "
-            return "{0}{1} = arrayOf({2})".format(
-                mut, self.visit(target), ", ".join(elements)
-            )
-        else:
-            mut = "val "
-            if is_mutable(node.scopes, get_id(target)):
-                mut = "var "
+            elements = ", ".join(elements)
+            target = self.visit(target)
 
+            return f"{kw} {target} = arrayOf({elements})"
+        else:
             target = self.visit(target)
             value = self.visit(node.value)
 
-            return "{0}{1} = {2}".format(mut, target, value)
+            return f"{kw} {target} = {value}"
 
     def visit_Delete(self, node):
         target = node.targets[0]
@@ -508,11 +582,6 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_Set(self, node):
-        elements = [self.visit(e) for e in node.elts]
-        elements_str = ", ".join(elements)
-        return f"setOf([{elements_str}])"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

@@ -102,10 +102,17 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = kotlin_type_map
+        self._temp = 0
+
+    def _get_temp(self):
+        self._temp += 1
+        return f"__tmp{self._temp}"
 
     def _check_keyword(self, name):
         if name in kotlin_keywords:
             return name + "_", True
+        if name == "_":
+            return self._get_temp(), True
         return name, False
 
     def visit_Name(self, node):

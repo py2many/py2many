@@ -1,24 +1,14 @@
 
-class Colors {
-    val RED: ST0
-    val GREEN: ST1
-    val BLUE: ST2
-
-    val RED = auto()
-    val GREEN = auto()
-    val BLUE = auto()
+enum class Colors(val value: Int) {
+    RED(0),
+    GREEN(1),
+    BLUE(2),
 }
-
-class Permissions {
-    val R: ST0
-    val W: ST1
-    val X: ST2
-
-    val R = 1
-    val W = 2
-    val X = 16
+enum class Permissions(val value: Int) {
+    R(1),
+    W(2),
+    X(16),
 }
-
 fun show() {
     val color_map = hashMapOf(Colors.RED to "red", Colors.GREEN to "green", Colors.BLUE to "blue")
     val a = Colors.GREEN

@@ -374,7 +374,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(extractor.class_assignments.items()):
             if var == "auto()":
-                var = i
+                var = 1 << i
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
 

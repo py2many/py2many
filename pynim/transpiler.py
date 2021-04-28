@@ -497,8 +497,6 @@ class NimTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
-                value = "None"
             return f"{target} = {value}"
 
         definition = node.scopes.find(target.id)
