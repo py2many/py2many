@@ -1,9 +1,9 @@
 import ast
+
 from py2many.inference import is_reference
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP
-
-from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 # allowed as names in Python but treated as keywords in Rust

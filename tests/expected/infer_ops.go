@@ -10,7 +10,7 @@ func foo() {
 	var c1 int = (a + b)
 	var c2 int = (a - b)
 	var c3 int = (a * b)
-	var c4 float64 = (a / b)
+	var c4 float64 = float64((a / b))
 	var c5 int = -(a)
 	var d float64 = 2.0
 	var e1 float64 = (a + d)

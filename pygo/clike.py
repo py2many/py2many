@@ -1,5 +1,7 @@
 import ast
 
+from .inference import GO_TYPE_MAP
+
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
@@ -54,7 +56,7 @@ go_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = go_type_map
+        self._type_map = GO_TYPE_MAP
 
     def visit_Name(self, node):
         if node.id in go_keywords:
@@ -63,6 +65,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
+            self._usings.add('"math"')
             return "math.Pow({0}, {1})".format(
                 self.visit(node.left), self.visit(node.right)
             )

@@ -16,9 +16,9 @@ from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
 from .context import add_variable_context, add_list_calls
 from .inference import infer_types
-from pyrs.inference import infer_rust_types
 
 from py14.transpiler import CppTranspiler, CppListComparisonRewriter
+from pyrs.inference import infer_rust_types
 from pyrs.transpiler import (
     RustTranspiler,
     RustLoopIndexRewriter,
@@ -28,12 +28,14 @@ from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
 from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
 from pydart.transpiler import DartTranspiler
+from pygo.inference import infer_go_types
 from pygo.transpiler import (
     GoTranspiler,
     GoMethodCallRewriter,
     GoNoneCompareRewriter,
     GoPropagateTypeAnnotation,
 )
+
 from py2many.rewriters import ComplexDestructuringRewriter, PythonMainRewriter
 
 
@@ -162,7 +164,7 @@ def go_settings(args):
         ["gofmt", "-w"],
         None,
         [GoNoneCompareRewriter()],
-        [],
+        [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
     )
 

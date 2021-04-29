@@ -1,9 +1,11 @@
 import ast
+import functools
 
 from typing import Optional, List
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
+from .inference import get_inferred_go_type
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from py2many.analysis import get_id, is_void_function
@@ -189,8 +191,23 @@ class GoTranspiler(CLikeTranspiler):
         if fname in dispatch_map:
             return dispatch_map[fname](node, vargs)
 
+        def visit_min_max(is_max: bool) -> str:
+            min_max = "math.Max" if is_max else "math.Min"
+            self._usings.add('"math"')
+            vargs_str = ", ".join(vargs)
+            return f"{min_max}({vargs_str})"
+
+        def visit_floor():
+            self._usings.add('"math"')
+            return f"math.Floor({vargs[0]})"
+
         # small one liners are inlined here as lambdas
-        small_dispatch_map = {"str": lambda: f"String({vargs[0]})"}
+        small_dispatch_map = {
+            "str": lambda: f"String({vargs[0]})",
+            "max": functools.partial(visit_min_max, is_max=True),
+            "min": functools.partial(visit_min_max, is_min=True),
+            "floor": visit_floor,
+        }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
         return None
@@ -237,10 +254,13 @@ class GoTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for _, {target} := range {it} {{")
-        # Dummy assign to silence the compiler on unused vars
-        if target.startswith("_"):
-            buf.append(f"_ = {target}")
+        if target == "_":
+            buf.append(f"for range {it} {{")
+        else:
+            buf.append(f"for _, {target} := range {it} {{")
+            # Dummy assign to silence the compiler on unused vars
+            if target.startswith("_"):
+                buf.append(f"_ = {target}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -303,6 +323,13 @@ class GoTranspiler(CLikeTranspiler):
             return "nil"
         else:
             return super().visit_NameConstant(node)
+
+    def _make_block(self, node):
+        buf = []
+        buf.append("{")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -467,7 +494,7 @@ class GoTranspiler(CLikeTranspiler):
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return "{0}".format(elts)
 
     def visit_unsupported_body(self, name, body):
         buf = ["let {0} = {{ //unsupported".format(name)]
@@ -503,13 +530,28 @@ class GoTranspiler(CLikeTranspiler):
         target, type_str, val = super().visit_AnnAssign(node)
         return f"var {target} {type_str} = {val}"
 
+    def _needs_cast(self, left, right) -> bool:
+        if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
+            return False
+        left_type = self._typename_from_annotation(left)
+        right_type = get_inferred_go_type(right)
+        return left_type != right_type and (
+            left_type != self._default_type and right_type != self._default_type
+        )
+
+    def _assign_cast(
+        self, value_str: str, cast_to: str, python_annotation, rust_annotation
+    ) -> str:
+        # python/rust annotations provided to customize the cast if necessary
+        return f"{cast_to}({value_str})"
+
     def visit_Assign(self, node):
         target = node.targets[0]
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "{0} := {1}".format(", ".join(elts), value)
+            return "var {0} = {1}".format(", ".join(elts), value)
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
@@ -523,21 +565,32 @@ class GoTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} := {1}".format(target, value)
+            return "{0} = {1}".format(target, value)
 
         definition = node.scopes.find(target.id)
+        typename = self._typename_from_annotation(target)
         if isinstance(target, ast.Name) and defined_before(definition, node):
+            needs_cast = self._needs_cast(target, node.value)
             target = self.visit(target)
             value = self.visit(node.value)
+            if needs_cast:
+                value = self._assign_cast(
+                    value, typename, target.annotation, node.value.annotation
+                )
             return "{0} = {1}".format(target, value)
         else:
-            typename = self._typename_from_annotation(target)
-            target = self.visit(target)
+            needs_cast = self._needs_cast(target, node.value)
+            target_str = self.visit(target)
             value = self.visit(node.value)
 
+            if needs_cast:
+                value = self._assign_cast(
+                    value, typename, target.annotation, node.value.annotation
+                )
+
             if typename is not None:
-                return f"var {target} {typename} = {value}"
-            return f"{target} := {value}"
+                return f"var {target_str} {typename} = {value}"
+            return f"{target_str} := {value}"
 
     def visit_Delete(self, node):
         target = node.targets[0]
