@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/adsharma/py2many/pygo"
+	"github.com/adsharma/py2many/pygo/runtime"
 )
 
 var code_0 int = 0

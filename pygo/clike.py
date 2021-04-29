@@ -83,7 +83,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             )
 
     def visit_In(self, node):
-        self._usings.add('"github.com/adsharma/py2many/pygo"')
+        self._usings.add('"github.com/adsharma/py2many/pygo/runtime"')
         element = self.visit(node.left)
         container = node.comparators[0]
         self._typename_from_annotation(container)

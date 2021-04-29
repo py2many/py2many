@@ -69,7 +69,7 @@ jobs:
         run: |
           (go get github.com/hgfischer/go-iter \
            && go get github.com/google/go-cmp/cmp \
-           # && go get github.com/adsharma/py2many/pygo/runtime \
+           && go get github.com/adsharma/py2many/pygo/runtime \
           )
 
       - name: Run tox
