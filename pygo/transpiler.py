@@ -8,7 +8,7 @@ from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_go_type
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
-from py2many.analysis import get_id, is_void_function
+from py2many.analysis import get_id, is_global, is_void_function
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
@@ -66,7 +66,7 @@ class GoPropagateTypeAnnotation(ast.NodeTransformer):
 class GoTranspiler(CLikeTranspiler):
     NAME = "go"
 
-    CONTAINER_TYPE_MAP = {"List": "[]", "Dict": "map", "Set": "Set", "Optional": "nil"}
+    CONTAINER_TYPE_MAP = {"List": "[]", "Dict": None, "Set": None, "Optional": "nil"}
 
     def __init__(self):
         super().__init__()
@@ -296,20 +296,16 @@ class GoTranspiler(CLikeTranspiler):
         if hasattr(left, "annotation") or hasattr(right, "annotation"):
             self._typename_from_annotation(left)
             self._typename_from_annotation(right)
-            if hasattr(left, "container_type") or hasattr(right, "container_type"):
+            op = self.visit(node.ops[0])
+            if (
+                hasattr(left, "container_type")
+                or hasattr(right, "container_type")
+                and op != "in"
+            ):
                 self._usings.add('"github.com/google/go-cmp/cmp"')
                 return self._visit_container_compare(node)
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        if isinstance(node.ops[0], ast.In):
-            return "{0}.iter().any(|&x| x == {1})".format(
-                right, left
-            )  # is it too much?
-        elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.iter().all(|&x| x != {1})".format(
-                right, left
-            )  # is it even more?
-
         return super().visit_Compare(node)
 
     def visit_Name(self, node):
@@ -443,24 +439,37 @@ class GoTranspiler(CLikeTranspiler):
         return "use {0}::{{{1}}}".format(module_path, names)
 
     def visit_List(self, node):
-        typename = "int[]"  # TODO: infer
-        if getattr(node, "annotation", None):
-            typename = self._typename_from_annotation(node)
+        _ = self._typename_from_annotation(node)
+        element_type = self._default_type
+        if hasattr(node, "container_type"):
+            _, element_type = node.container_type
         elements = [self.visit(e) for e in node.elts]
-        elements = ", ".join(elements)
-        return f"{typename}{{{elements}}}"
+        elements_str = ", ".join(elements)
+        element_type = self._map_type(element_type)
+        return f"[]{element_type}{{{elements_str}}}"
+
+    def visit_Set(self, node):
+        _ = self._typename_from_annotation(node)
+        element_type = self._default_type
+        if hasattr(node, "container_type"):
+            _, element_type = node.container_type
+        element_type = self._map_type(element_type)
+        elements = [self.visit(e) for e in node.elts]
+        kv_pairs = ", ".join([f"{k}: true" for k in elements])
+        return f"map[{element_type}]bool{{{kv_pairs}}}"
 
     def visit_Dict(self, node):
-        if len(node.keys) > 0:
-            kv_string = []
-            for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
-                value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
-            initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
-            return initialization.format(", ".join(kv_string))
-        else:
-            return "HashMap::new()"
+        keys = [self.visit(k) for k in node.keys]
+        values = [self.visit(k) for k in node.values]
+        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
+        _ = self._typename_from_annotation(node)
+        key_typename = value_typename = self._default_type
+        if hasattr(node, "container_type"):
+            container_type, element_type = node.container_type
+            key_typename, value_typename = self._map_types(element_type)
+            if key_typename == self._default_type:
+                key_typename = "int"
+        return f"map[{key_typename}]{value_typename}{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
@@ -590,6 +599,9 @@ class GoTranspiler(CLikeTranspiler):
 
             if typename is not None:
                 return f"var {target_str} {typename} = {value}"
+
+            if is_global(node):
+                return f"var {target_str} = {value}"
             return f"{target_str} := {value}"
 
     def visit_Delete(self, node):
@@ -671,18 +683,6 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_Set(self, node):
-        elts = []
-        for i in range(len(node.elts)):
-            elt = self.visit(node.elts[i])
-            elts.append(elt)
-
-        if elts:
-            initialization = "[{0}].iter().cloned().collect::<HashSet<_>>()"
-            return initialization.format(", ".join(elts))
-        else:
-            return "HashSet::new()"
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

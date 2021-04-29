@@ -101,7 +101,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             if not index_contains_default:
                 index_type = self._map_type(index_type)
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
-        if index_contains_default:
+        if index_contains_default or value_type == self._default_type:
             return self._default_type
         return self._combine_value_index(value_type, index_type)
 
