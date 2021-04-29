@@ -83,4 +83,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             )
 
     def visit_In(self, node):
-        raise Exception("Not supported")
+        self._usings.add('"github.com/adsharma/py2many/pygo"')
+        container = self.visit(node.left)
+        element = self.visit(node.comparators[0])
+        return f"pygo.contains({container}, {element})"
