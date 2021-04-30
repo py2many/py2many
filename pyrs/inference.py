@@ -1,10 +1,10 @@
 import ast
-from py2many.inference import get_inferred_type
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
-from py2many.analysis import get_id
+from py2many.inference import get_inferred_type, is_reference
+from py2many.analysis import get_id, is_mutable
 
 RUST_TYPE_MAP = {
     "int": "i32",
@@ -48,7 +48,19 @@ def map_type(typename):
     return typename
 
 
+def is_rust_reference(node):
+    if not is_reference(node):
+        return False
+    if isinstance(node, ast.Call):
+        definition = node.scopes.find(get_id(node.func))
+        needs_reference = getattr(definition, "rust_return_needs_reference", True)
+        return needs_reference
+    return True
+
+
 def get_inferred_rust_type(node):
+    if hasattr(node, "rust_annotation"):
+        return node.rust_annotation
     if isinstance(node, ast.Name):
         if not hasattr(node, "scopes"):
             return None
@@ -56,8 +68,6 @@ def get_inferred_rust_type(node):
         # Prevent infinite recursion
         if definition != node:
             return get_inferred_rust_type(definition)
-    if hasattr(node, "rust_annotation"):
-        return node.rust_annotation
     python_type = get_inferred_type(node)
     return map_type(get_id(python_type))
 
@@ -151,3 +161,20 @@ class InferRustTypesTransformer(ast.NodeTransformer):
                 return node
 
             raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+
+    def visit_Return(self, node):
+        self.generic_visit(node)
+        if node.value:
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                if is_reference(node.value):
+                    mut = is_mutable(node.scopes, get_id(node.value))
+                    fndef.returns.rust_needs_reference = not mut
+                    fndef.rust_return_needs_reference = (
+                        fndef.returns.rust_needs_reference
+                    )
+        return node

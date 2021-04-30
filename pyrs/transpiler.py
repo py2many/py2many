@@ -6,7 +6,7 @@ from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type
 
 from py2many.analysis import get_id, is_global, is_mutable, is_void_function
-from py2many.inference import get_inferred_type, is_reference
+from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from typing import List, Optional
@@ -87,7 +87,7 @@ class RustTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
-                if getattr(node.returns, "needs_reference", False):
+                if getattr(node.returns, "rust_needs_reference", False):
                     typename = f"&{typename}"
                 return_type = f"-> {typename}"
             else:
@@ -129,18 +129,12 @@ class RustTranspiler(CLikeTranspiler):
             if fndef:
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_rust_type(node.value)
-                if is_reference(node.value):
-                    if is_mutable(node.scopes, get_id(node.value)):
-                        definition = node.scopes.find(ret)
-                        self._typename_from_annotation(definition)
-                        if (
-                            getattr(definition, "container_type", (None, None))[0]
-                            == "List"
-                        ):
-                            # TODO: Handle other container types
-                            ret = f"{ret}.to_vec()"
-                    else:
-                        fndef.returns.needs_reference = True
+                if is_reference(node.value) and not getattr(
+                    fndef.returns, "rust_needs_reference", True
+                ):
+                    # TODO: Handle other container types
+                    ret = f"{ret}.to_vec()"
+                print(return_type, value_type)
                 if return_type != value_type and value_type is not None:
                     return f"return {ret} as {return_type};"
             return f"return {ret};"
@@ -519,7 +513,7 @@ class RustTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
-        index_typename = get_inferred_type(self._slice_value(node))
+        index_typename = get_inferred_rust_type(self._slice_value(node))
         if index_typename != "u64" or index_typename != "usize":
             index = self._cast(index, "usize")
         return "{0}[{1}]".format(value, index)

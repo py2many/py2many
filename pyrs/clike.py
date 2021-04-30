@@ -1,9 +1,8 @@
 import ast
 
-from py2many.inference import is_reference
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP
+from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP, is_rust_reference
 
 
 # allowed as names in Python but treated as keywords in Rust
@@ -78,10 +77,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         op = self.visit(node.ops[0])
         right = self.visit(node_right)
 
-        if not is_reference(node.left) and is_reference(node_right):
+        if not is_rust_reference(node.left) and is_rust_reference(node_right):
             right = f"*{right}"
 
-        if is_reference(node.left) and not is_reference(node_right):
+        if is_rust_reference(node.left) and not is_rust_reference(node_right):
             left = f"*{left}"
 
         left_rank = RUST_WIDTH_RANK.get(left_type, -1)
