@@ -5,7 +5,7 @@ import (
 )
 
 func show() {
-	var myfunc None = func(x T, y T) int { (x + y) }
+	var myfunc func(int, int) int = func(x int, y int) int { return (x + y) }
 	fmt.Printf("%v\n", myfunc(1, 2))
 }
 
