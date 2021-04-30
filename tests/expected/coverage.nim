@@ -1,3 +1,5 @@
+import sets
+import tables
 
 proc indexing(): int =
   var sum = 0
@@ -24,6 +26,21 @@ proc show() =
   echo len(a5)
   let a9: seq[string] = @["a", "b", "c", "d"]
   echo len(a9)
+  let a6 = toHashSet([1, 2, 3, 4])
+  echo len(a6)
+  let a7 = {"a": 1, "b": 2}.newTable
+  echo len(a7)
+  let a8 = true
+  if a8:
+    echo "true"
+  else:
+    if a4 > 0:
+      echo "never get here"
+
+  if a1 == 11:
+    echo "false"
+  else:
+    echo "true"
   if 1 != 0:
     echo "World is sane"
 

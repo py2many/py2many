@@ -30,6 +30,25 @@ show() {
   print(sprintf("%s", [a5.length]));
   List<String> a9 = ["a", "b", "c", "d"];
   print(sprintf("%s", [a9.length]));
+  final Set<int> a6 = new Set.from([1, 2, 3, 4]);
+  print(sprintf("%s", [a6.length]));
+  final Map<String, int> a7 = {"a": 1, "b": 2};
+  print(sprintf("%s", [a7.length]));
+  final bool a8 = true;
+
+  if (a8) {
+    print(sprintf("%s", ["true"]));
+  } else {
+    if (a4 > 0) {
+      print(sprintf("%s", ["never get here"]));
+    }
+  }
+
+  if (a1 == 11) {
+    print(sprintf("%s", ["false"]));
+  } else {
+    print(sprintf("%s", ["true"]));
+  }
 
   if (1 != null) {
     print(sprintf("%s", ["World is sane"]));

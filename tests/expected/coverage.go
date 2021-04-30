@@ -34,6 +34,23 @@ func show() {
 	fmt.Printf("%v\n", len(a5))
 	var a9 []string = []string{"a", "b", "c", "d"}
 	fmt.Printf("%v\n", len(a9))
+	a6 := map[int]bool{1: true, 2: true, 3: true, 4: true}
+	fmt.Printf("%v\n", len(a6))
+	a7 := map[string]int{"a": 1, "b": 2}
+	fmt.Printf("%v\n", len(a7))
+	var a8 bool = true
+	if a8 {
+		fmt.Printf("%v\n", "true")
+	} else {
+		if a4 > 0 {
+			fmt.Printf("%v\n", "never get here")
+		}
+	}
+	if a1 == 11 {
+		fmt.Printf("%v\n", "false")
+	} else {
+		fmt.Printf("%v\n", "true")
+	}
 	if 1 != 0 {
 		fmt.Printf("%v\n", "World is sane")
 	}

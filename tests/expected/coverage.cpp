@@ -2,6 +2,8 @@
 #include "py14/runtime/range.hpp"
 #include "py14/runtime/sys.h"
 #include <iostream>
+#include <map>
+#include <set>
 #include <vector>
 
 inline int indexing() {
@@ -41,6 +43,30 @@ inline void show() {
       std::string{"a"}, std::string{"b"}, std::string{"c"}, std::string{"d"}};
   std::cout << a9.size();
   std::cout << std::endl;
+  std::set<int> a6 = std::set<int>{1, 2, 3, 4};
+  std::cout << a6.size();
+  std::cout << std::endl;
+  std::map<std::string, int> a7 =
+      std::map<std::string, int>{{std::string{"a"}, 1}, {std::string{"b"}, 2}};
+  std::cout << a7.size();
+  std::cout << std::endl;
+  bool a8 = true;
+  if (a8) {
+    std::cout << std::string{"true"};
+    std::cout << std::endl;
+  } else {
+    if (a4 > 0) {
+      std::cout << std::string{"never get here"};
+      std::cout << std::endl;
+    }
+  }
+  if (a1 == 11) {
+    std::cout << std::string{"false"};
+    std::cout << std::endl;
+  } else {
+    std::cout << std::string{"true"};
+    std::cout << std::endl;
+  }
   if (1 != NULL) {
     std::cout << std::string{"World is sane"};
     std::cout << std::endl;

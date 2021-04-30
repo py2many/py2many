@@ -34,6 +34,29 @@ fun show() {
         val __tmp2 = a9.size
         println("$__tmp2")
     }
+    val a6 = setOf(1, 2, 3, 4)
+    if (true) {
+        val __tmp3 = a6.size
+        println("$__tmp3")
+    }
+    val a7 = hashMapOf("a" to 1, "b" to 2)
+    if (true) {
+        val __tmp4 = a7.size
+        println("$__tmp4")
+    }
+    val a8 = true
+    if (a8) {
+        println("true")
+    } else {
+        if (a4 > 0) {
+            println("never get here")
+        }
+    }
+    if (a1 == 11) {
+        println("false")
+    } else {
+        println("true")
+    }
     if (1 != null) {
         println("World is sane")
     } 

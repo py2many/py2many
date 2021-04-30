@@ -28,6 +28,25 @@ function show()
     println(join([length(a5)], " "))
     a9::Array{String} = ["a", "b", "c", "d"]
     println(join([length(a9)], " "))
+    a6 = Set([1, 2, 3, 4])
+    println(join([length(a6)], " "))
+    a7 = Dict("a" => 1, "b" => 2)
+    println(join([length(a7)], " "))
+    a8 = true
+    if a8
+        println(join(["true"], " "))
+    else
+
+        if a4 > 0
+            println(join(["never get here"], " "))
+        end
+    end
+    if a1 == 11
+        println(join(["false"], " "))
+    else
+
+        println(join(["true"], " "))
+    end
     if 1 != nothing
         println(join(["World is sane"], " "))
     end
