@@ -2,18 +2,18 @@
 fun foo() {
     val a = 10
     val b = 20
-    val c1 = (a + b)
-    val c2 = (a - b)
-    val c3 = (a * b)
-    val c4 = (a / b)
-    val c5 = -(a)
+    val _c1 = (a + b)
+    val _c2 = (a - b)
+    val _c3 = (a * b)
+    val _c4 = (a / b)
+    val _c5 = -(a)
     val d = 2.0
-    val e1 = (a + d)
-    val e2 = (a - d)
-    val e3 = (a * d)
-    val e4 = (a / d)
-    val f = -3.0
-    val g = -(a)
+    val _e1 = (a + d)
+    val _e2 = (a - d)
+    val _e3 = (a * d)
+    val _e4 = (a / d)
+    val _f = -3.0
+    val _g = -(a)
 }
 
 fun add1(x: Byte, y: Byte): Short {

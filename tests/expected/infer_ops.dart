@@ -4,18 +4,18 @@ import 'package:sprintf/sprintf.dart';
 foo() {
   final int a = 10;
   final int b = 20;
-  final int c1 = (a + b);
-  final int c2 = (a - b);
-  final int c3 = (a * b);
-  final double c4 = (a / b);
-  final int c5 = -(a);
+  final int _c1 = (a + b);
+  final int _c2 = (a - b);
+  final int _c3 = (a * b);
+  final double _c4 = (a / b);
+  final int _c5 = -(a);
   final double d = 2.0;
-  final double e1 = (a + d);
-  final double e2 = (a - d);
-  final double e3 = (a * d);
-  final double e4 = (a / d);
-  final double f = -3.0;
-  final int g = -(a);
+  final double _e1 = (a + d);
+  final double _e2 = (a - d);
+  final double _e3 = (a * d);
+  final double _e4 = (a / d);
+  final double _f = -3.0;
+  final int _g = -(a);
 }
 
 int add1(int x, int y) {

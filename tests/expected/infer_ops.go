@@ -7,18 +7,29 @@ import (
 func foo() {
 	var a int = 10
 	var b int = 20
-	var c1 int = (a + b)
-	var c2 int = (a - b)
-	var c3 int = (a * b)
-	var c4 float64 = float64((a / b))
-	var c5 int = -(a)
+	var _c1 int = (a + b)
+	_ = _c1
+	var _c2 int = (a - b)
+	_ = _c2
+	var _c3 int = (a * b)
+	_ = _c3
+	var _c4 float64 = float64((a / b))
+	_ = _c4
+	var _c5 int = -(a)
+	_ = _c5
 	var d float64 = 2.0
-	var e1 float64 = (float64(a) + d)
-	var e2 float64 = (float64(a) - d)
-	var e3 float64 = (float64(a) * d)
-	var e4 float64 = (float64(a) / d)
-	var f float64 = -3.0
-	var g int = -(a)
+	var _e1 float64 = (float64(a) + d)
+	_ = _e1
+	var _e2 float64 = (float64(a) - d)
+	_ = _e2
+	var _e3 float64 = (float64(a) * d)
+	_ = _e3
+	var _e4 float64 = (float64(a) / d)
+	_ = _e4
+	var _f float64 = -3.0
+	_ = _f
+	var _g int = -(a)
+	_ = _g
 }
 
 func add1(x int8, y int8) int16 {

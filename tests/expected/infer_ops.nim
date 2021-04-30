@@ -2,18 +2,18 @@
 proc foo() =
   let a = 10
   let b = 20
-  let c1 = (a + b)
-  let c2 = (a - b)
-  let c3 = (a * b)
-  let c4 = (a / b)
-  let c5 = -(a)
+  let _ = (a + b)
+  let _ = (a - b)
+  let _ = (a * b)
+  let _ = (a / b)
+  let _ = -(a)
   let d = 2.0
-  let e1 = (float(a) + d)
-  let e2 = (float(a) - d)
-  let e3 = (float(a) * d)
-  let e4 = (float(a) / d)
-  let f = -3.0
-  let g = -(a)
+  let _ = (float(a) + d)
+  let _ = (float(a) - d)
+  let _ = (float(a) * d)
+  let _ = (float(a) / d)
+  let _ = -3.0
+  let _ = -(a)
 
 proc add1(x: int8, y: int8): int16 =
   return (x + y)

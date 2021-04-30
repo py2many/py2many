@@ -614,7 +614,11 @@ class GoTranspiler(CLikeTranspiler):
             return f"{target_str} = {value}"
         else:
             if typename is not None:
-                return f"var {target_str} {typename} = {value}"
+                # Dummy assign to silence the compiler on unused vars
+                maybe_tail = ""
+                if target_str.startswith("_"):
+                    maybe_tail = f"\n_ = {target_str}"
+                return f"var {target_str} {typename} = {value}{maybe_tail}"
 
             if is_global(node):
                 return f"var {target_str} = {value}"

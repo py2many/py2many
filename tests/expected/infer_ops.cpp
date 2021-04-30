@@ -6,18 +6,18 @@
 inline void foo() {
   int a = 10;
   int b = 20;
-  int c1 = a + b;
-  int c2 = a - b;
-  int c3 = a * b;
-  double c4 = a / b;
-  int c5 = -(a);
+  int _c1 = a + b;
+  int _c2 = a - b;
+  int _c3 = a * b;
+  double _c4 = a / b;
+  int _c5 = -(a);
   double d = 2.0;
-  double e1 = a + d;
-  double e2 = a - d;
-  double e3 = a * d;
-  double e4 = a / d;
-  double f = -3.0;
-  int g = -(a);
+  double _e1 = a + d;
+  double _e2 = a - d;
+  double _e3 = a * d;
+  double _e4 = a / d;
+  double _f = -3.0;
+  int _g = -(a);
 }
 
 inline int16_t add1(int8_t x, int8_t y) { return x + y; }
