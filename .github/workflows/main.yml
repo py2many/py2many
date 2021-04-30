@@ -24,7 +24,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v1
+        with:
+          flutter-version: '2.0.5'
       - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
       - uses: jiro4989/setup-nim-action@v1
@@ -54,18 +56,18 @@ jobs:
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install kscript
 
-      - name: Install dart sprintf
+      - name: Install dart dependencies
         shell: bash
         run: |
           (cd tests && dart pub global run stagehand:stagehand --override package-simple \
            && dart pub add sprintf \
            && dart pub add tuple \
-           && dart pub add vnum)
+           && flutter pub add vnum)
 
       - name: Install rust-script and cargo-script
         run: cargo install rust-script cargo-script
 
-      - name: Install go range package
+      - name: Install go packages
         shell: bash
         run: |
           (go get github.com/hgfischer/go-iter \
