@@ -3,8 +3,10 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
+from typing import Optional
 
 from py2many.analysis import get_id
+from py2many.tracer import is_enum
 
 
 @dataclass
@@ -26,8 +28,11 @@ def get_inferred_type(node):
         # Prevent infinite recursion
         if definition != node:
             return get_inferred_type(definition)
+    elif isinstance(node, ast.Constant) or isinstance(node, ast.NameConstant):
+        return InferTypesTransformer._infer_primitive(node.value)
     if hasattr(node, "annotation"):
         return node.annotation
+    # TODO move this to a method of InferTypesTransformer
     elif isinstance(node, ast.Call):
         fname = get_id(node.func)
         if fname is not None:
@@ -87,15 +92,22 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.handling_annotation = False
         self.has_fixed_width_ints = False
 
-    def visit_NameConstant(self, node):
-        t = type(node.value)
-        if t in self.TYPE_DICT:
-            node.annotation = ast.Name(id=self.TYPE_DICT[t])
-        elif t in self.FIXED_WIDTH_INTS:
-            node.annotation = ast.Name(id=str(t))
+    @staticmethod
+    def _infer_primitive(value) -> Optional[ast.AST]:
+        t = type(value)
+        annotation = None
+        if t in InferTypesTransformer.TYPE_DICT:
+            annotation = ast.Name(id=InferTypesTransformer.TYPE_DICT[t])
+        elif t in InferTypesTransformer.FIXED_WIDTH_INTS:
+            annotation = ast.Name(id=str(t))
         elif t != type(None):
             raise (Exception(f"{t} not found in TYPE_DICT"))
+        return annotation
 
+    def visit_NameConstant(self, node):
+        annotation = self._infer_primitive(node.value)
+        if annotation is not None:
+            node.annotation = annotation
         self.generic_visit(node)
         return node
 
@@ -146,14 +158,16 @@ class InferTypesTransformer(ast.NodeTransformer):
         if len(node.keys) > 0:
             keys = [self.visit(e) for e in node.keys]
             key_types = set([get_id(get_inferred_type(e)) for e in keys])
-            if len(key_types) == 1 and hasattr(keys[0], "annotation"):
-                key_type = get_id(keys[0].annotation)
+            only_key_type = next(iter(key_types))
+            if len(key_types) == 1:
+                key_type = only_key_type
             else:
                 key_type = "Any"
             values = [self.visit(e) for e in node.values]
             value_types = set([get_id(get_inferred_type(e)) for e in values])
-            if len(value_types) == 1 and hasattr(values[0], "annotation"):
-                value_type = get_id(values[0].annotation)
+            only_value_type = next(iter(value_types))
+            if len(value_types) == 1:
+                value_type = only_value_type
             else:
                 value_type = "Any"
             self._annotate(node, f"Dict[{key_type}, {value_type}]")
@@ -312,4 +326,15 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
 
+        return node
+
+    def visit_ClassDef(self, node):
+        node.annotation = ast.Name(id=node.name)
+        return node
+
+    def visit_Attribute(self, node):
+        value_id = get_id(node.value)
+        if value_id is not None and hasattr(node, "scopes"):
+            if is_enum(value_id, node.scopes):
+                node.annotation = node.scopes.find(value_id)
         return node

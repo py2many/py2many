@@ -13,8 +13,12 @@ class Colors extends Vnum<String> {
 }
 
 show() {
-  final color_map = {Colors.RED: "1", Colors.GREEN: "2", Colors.BLUE: "3"};
-  final a = Colors.GREEN;
+  final Map<Colors, String> color_map = {
+    Colors.RED: "1",
+    Colors.GREEN: "2",
+    Colors.BLUE: "3"
+  };
+  final Colors a = Colors.GREEN;
 
   if (a == Colors.GREEN) {
     print(sprintf("%s", ["green"]));

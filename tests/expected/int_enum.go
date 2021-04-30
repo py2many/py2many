@@ -21,15 +21,15 @@ const (
 )
 
 func show() {
-	color_map := map[int]string{Colors.RED: "red", Colors.GREEN: "green", Colors.BLUE: "blue"}
-	a := Colors.GREEN
-	if a == Colors.GREEN {
+	color_map := map[Colors]string{RED: "red", GREEN: "green", BLUE: "blue"}
+	var a Colors = GREEN
+	if a == GREEN {
 		fmt.Printf("%v\n", "green")
 	} else {
 		fmt.Printf("%v\n", "Not green")
 	}
-	b := Permissions.R
-	if b == Permissions.R {
+	var b Permissions = R
+	if b == R {
 		fmt.Printf("%v\n", "R")
 	} else {
 		fmt.Printf("%v\n", "Not R")

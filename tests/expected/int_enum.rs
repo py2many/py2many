@@ -20,7 +20,7 @@ flags! {
 }
 
 fn show() {
-    let color_map: &_ = &[
+    let color_map: &HashMap<Colors, &str> = &[
         (Colors::RED, "red"),
         (Colors::GREEN, "green"),
         (Colors::BLUE, "blue"),
@@ -28,13 +28,13 @@ fn show() {
     .iter()
     .cloned()
     .collect::<HashMap<_, _>>();
-    let a: _ = Colors::GREEN;
+    let a: Colors = Colors::GREEN;
     if a == Colors::GREEN {
         println!("{}", "green");
     } else {
         println!("{}", "Not green");
     }
-    let b: _ = Permissions::R;
+    let b: Permissions = Permissions::R;
     if b == Permissions::R {
         println!("{}", "R");
     } else {

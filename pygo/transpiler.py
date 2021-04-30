@@ -6,7 +6,7 @@ from typing import Optional, List
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_go_type
-from py2many.tracer import is_list, defined_before, is_class_or_module
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from py2many.analysis import get_id, is_global, is_void_function
 
@@ -166,6 +166,9 @@ class GoTranspiler(CLikeTranspiler):
 
         if not value_id:
             value_id = ""
+
+        if is_enum(value_id, node.scopes):
+            return f"{attr}"
 
         if is_class_or_module(value_id, node.scopes):
             return f"{value_id}.{attr}"

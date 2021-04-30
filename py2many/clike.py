@@ -77,7 +77,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         return slice_value
 
     def _map_type(self, typename) -> str:
-        return self._type_map.get(typename, self._default_type)
+        return self._type_map.get(typename, typename)
 
     def _map_types(self, typenames: List[str]) -> List[str]:
         return [self._map_type(e) for e in typenames]

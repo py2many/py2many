@@ -19,19 +19,19 @@ class Permissions extends Vnum<int> {
 }
 
 show() {
-  final color_map = {
+  final Map<Colors, String> color_map = {
     Colors.RED: "red",
     Colors.GREEN: "green",
     Colors.BLUE: "blue"
   };
-  final a = Colors.GREEN;
+  final Colors a = Colors.GREEN;
 
   if (a == Colors.GREEN) {
     print(sprintf("%s", ["green"]));
   } else {
     print(sprintf("%s", ["Not green"]));
   }
-  final b = Permissions.R;
+  final Permissions b = Permissions.R;
 
   if (b == Permissions.R) {
     print(sprintf("%s", ["R"]));

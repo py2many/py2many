@@ -15,7 +15,7 @@ enum Colors {
 }
 
 fn show() {
-    let color_map: &_ = &[
+    let color_map: &HashMap<Colors, &str> = &[
         (Colors::RED, "1"),
         (Colors::GREEN, "2"),
         (Colors::BLUE, "3"),
@@ -23,7 +23,7 @@ fn show() {
     .iter()
     .cloned()
     .collect::<HashMap<_, _>>();
-    let a: _ = Colors::GREEN;
+    let a: Colors = Colors::GREEN;
     if a == Colors::GREEN {
         println!("{}", "green");
     } else {

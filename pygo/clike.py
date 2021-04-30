@@ -86,7 +86,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         elif right_rank > left_rank:
             left = f"{right_type}({left})"
 
-
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):

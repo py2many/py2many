@@ -17,11 +17,11 @@ enum Permissions : int {
 };
 
 inline void show() {
-  auto color_map =
-      std::map<int, std::string>{{Colors::RED, std::string{"red"}},
-                                 {Colors::GREEN, std::string{"green"}},
-                                 {Colors::BLUE, std::string{"blue"}}};
-  auto a = Colors::GREEN;
+  std::map<Colors, std::string> color_map =
+      std::map<Colors, std::string>{{Colors::RED, std::string{"red"}},
+                                    {Colors::GREEN, std::string{"green"}},
+                                    {Colors::BLUE, std::string{"blue"}}};
+  Colors a = Colors::GREEN;
   if (a == Colors::GREEN) {
     std::cout << std::string{"green"};
     std::cout << std::endl;
@@ -29,7 +29,7 @@ inline void show() {
     std::cout << std::string{"Not green"};
     std::cout << std::endl;
   }
-  auto b = Permissions::R;
+  Permissions b = Permissions::R;
   if (b == Permissions::R) {
     std::cout << std::string{"R"};
     std::cout << std::endl;

@@ -42,7 +42,6 @@ TEST_CASES = [
 EXPECTED_COMPILE_FAILURES = [
     "infer_ops.kt",  # https://github.com/adsharma/py2many/issues/28
     "infer_ops.nim",  # https://github.com/adsharma/py2many/issues/16
-    "int_enum.go",  # https://github.com/adsharma/py2many/issues/75
 ]
 
 
