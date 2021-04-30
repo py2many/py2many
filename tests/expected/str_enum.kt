@@ -11,6 +11,10 @@ fun show() {
         println("green")
     } else {
         println("Not green")
+    }
+    if (true) {
+        val __tmp1 = color_map.size
+        println("$__tmp1")
     } 
 }
 

@@ -14,6 +14,7 @@ proc show() =
     echo "green"
   else:
     echo "Not green"
+  echo len(color_map)
 
 proc main() =
   show()

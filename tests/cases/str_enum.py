@@ -14,6 +14,7 @@ def show():
         print("green")
     else:
         print("Not green")
+    print(len(color_map))
 
 
 if __name__ == "__main__":

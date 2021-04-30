@@ -25,6 +25,7 @@ show() {
   } else {
     print(sprintf("%s", ["Not green"]));
   }
+  print(sprintf("%s", [color_map.length]));
 }
 
 main() {

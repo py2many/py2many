@@ -29,6 +29,7 @@ fn show() {
     } else {
         println!("{}", "Not green");
     }
+    println!("{}", color_map.len());
 }
 
 fn main() {

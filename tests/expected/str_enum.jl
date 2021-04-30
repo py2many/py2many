@@ -16,6 +16,7 @@ function show()
 
         println(join(["Not green"], " "))
     end
+    println(join([length(color_map)], " "))
 end
 
 function main()

@@ -381,12 +381,13 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
 
         fields = []
         index = 0
@@ -411,13 +412,10 @@ class GoTranspiler(CLikeTranspiler):
             body = "\n".join(body)
             return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
 
-    def visit_IntEnum(self, node):
-        extractor = DeclarationExtractor(GoTranspiler())
-        extractor.visit(node)
-
-        ret = f"type {node.name} int\n\n"
+    def _visit_enum(self, node, typename, members):
+        ret = f"type {node.name} {typename}\n\n"
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(members):
             typename = f" {node.name}" if i == 0 else ""
             if var == "auto()":
                 fields.append(f"{member}{typename} = iota")
@@ -426,19 +424,29 @@ class GoTranspiler(CLikeTranspiler):
         fields = "\n".join(fields)
         return f"{ret} const (\n{fields}\n)\n\n"
 
-    def visit_IntFlag(self, node):
-        extractor = DeclarationExtractor(GoTranspiler())
-        extractor.visit(node)
-        ret = f"type {node.name} int\n\n"
-        fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
-            typename = f" {node.name}" if i == 0 else ""
+    def visit_IntEnum(self, node):
+        members = []
+        for i, (member, var) in enumerate(node.class_assignments.items()):
             if var == "auto()":
-                fields.append(f"{member}{typename} = 1 << iota")
+                members.append((member, "iota"))
             else:
-                fields.append(f"{member}{typename} = {var}")
-        fields = "\n".join(fields)
-        return f"{ret} const (\n{fields}\n)\n\n"
+                members.append((member, var))
+        return self._visit_enum(node, "int", members)
+
+    def visit_IntFlag(self, node):
+        members = []
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            if var == "auto()":
+                members.append((member, "1 << iota"))
+            else:
+                members.append((member, var))
+        return self._visit_enum(node, "int", members)
+
+    def visit_StrEnum(self, node):
+        members = []
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            members.append((member, var))
+        return self._visit_enum(node, "string", members)
 
     def visit_alias(self, node):
         return "use {0}".format(node.name)
