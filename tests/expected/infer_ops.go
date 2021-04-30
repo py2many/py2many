@@ -13,24 +13,24 @@ func foo() {
 	var c4 float64 = float64((a / b))
 	var c5 int = -(a)
 	var d float64 = 2.0
-	var e1 float64 = (a + d)
-	var e2 float64 = (a - d)
-	var e3 float64 = (a * d)
-	var e4 float64 = (a / d)
+	var e1 float64 = (float64(a) + d)
+	var e2 float64 = (float64(a) - d)
+	var e3 float64 = (float64(a) * d)
+	var e4 float64 = (float64(a) / d)
 	var f float64 = -3.0
 	var g int = -(a)
 }
 
 func add1(x int8, y int8) int16 {
-	return (x + y)
+	return int16((x + y))
 }
 
 func add2(x int16, y int16) int32 {
-	return (x + y)
+	return int32((x + y))
 }
 
 func add3(x int32, y int32) int64 {
-	return (x + y)
+	return int64((x + y))
 }
 
 func add4(x int64, y int64) int64 {
@@ -38,15 +38,15 @@ func add4(x int64, y int64) int64 {
 }
 
 func add5(x uint8, y uint8) uint16 {
-	return (x + y)
+	return uint16((x + y))
 }
 
 func add6(x uint16, y uint16) uint32 {
-	return (x + y)
+	return uint32((x + y))
 }
 
 func add7(x uint32, y uint32) uint64 {
-	return (x + y)
+	return uint64((x + y))
 }
 
 func add8(x uint64, y uint64) uint64 {
@@ -54,7 +54,7 @@ func add8(x uint64, y uint64) uint64 {
 }
 
 func add9(x int8, y uint16) uint32 {
-	return (x + y)
+	return uint32((uint16(x) + y))
 }
 
 func sub(x int8, y int8) int8 {
@@ -62,11 +62,11 @@ func sub(x int8, y int8) int8 {
 }
 
 func mul(x int8, y int8) int16 {
-	return (x * y)
+	return int16((x * y))
 }
 
 func fadd1(x int8, y float64) float64 {
-	return (x + y)
+	return (float64(x) + y)
 }
 
 func show() {

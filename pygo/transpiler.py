@@ -125,7 +125,18 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node):
         if node.value:
-            return "return {0}".format(self.visit(node.value))
+            ret = self.visit(node.value)
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                return_type = self._typename_from_annotation(fndef, attr="returns")
+                value_type = get_inferred_go_type(node.value)
+                if return_type != value_type and value_type is not None:
+                    return f"return {return_type}({ret})"
+            return f"return {ret}"
         return "return"
 
     def visit_arg(self, node):
@@ -140,6 +151,7 @@ class GoTranspiler(CLikeTranspiler):
     def visit_Lambda(self, node):
         typenames, args = self.visit(node.args)
         # HACK: to pass unit tests. TODO: infer types
+        # Need to get it from the annotation on the lhs of `node`
         typenames = ["int"] * len(args)
         return_type = "int"
         args = [f"{name} {typename}" for name, typename in zip(args, typenames)]
@@ -548,7 +560,7 @@ class GoTranspiler(CLikeTranspiler):
             return f"var {target} = {val}"
 
     def _needs_cast(self, left, right) -> bool:
-        if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
+        if not hasattr(left, "annotation"):
             return False
         left_type = self._typename_from_annotation(left)
         right_type = get_inferred_go_type(right)
@@ -584,27 +596,23 @@ class GoTranspiler(CLikeTranspiler):
                 value = "None"
             return "{0} = {1}".format(target, value)
 
-        definition = node.scopes.find(target.id)
         typename = self._typename_from_annotation(target)
+        needs_cast = self._needs_cast(target, node.value)
+        target_str = self.visit(target)
+        value = self.visit(node.value)
+        if needs_cast:
+            left_annotation = target.annotation
+            right_annotation = getattr(node.value, "annotation", None)
+            if right_annotation is None:
+                right_annotation = ast.Name(id=get_inferred_go_type(node.value))
+            value = self._assign_cast(
+                value, typename, left_annotation, right_annotation
+            )
+
+        definition = node.scopes.find(target.id)
         if isinstance(target, ast.Name) and defined_before(definition, node):
-            needs_cast = self._needs_cast(target, node.value)
-            target = self.visit(target)
-            value = self.visit(node.value)
-            if needs_cast:
-                value = self._assign_cast(
-                    value, typename, target.annotation, node.value.annotation
-                )
-            return "{0} = {1}".format(target, value)
+            return f"{target_str} = {value}"
         else:
-            needs_cast = self._needs_cast(target, node.value)
-            target_str = self.visit(target)
-            value = self.visit(node.value)
-
-            if needs_cast:
-                value = self._assign_cast(
-                    value, typename, target.annotation, node.value.annotation
-                )
-
             if typename is not None:
                 return f"var {target_str} {typename} = {value}"
 

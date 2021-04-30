@@ -1,7 +1,7 @@
 import ast
 
 from py2many.analysis import get_id
-from .inference import GO_TYPE_MAP
+from .inference import GO_TYPE_MAP, GO_WIDTH_RANK
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
@@ -71,17 +71,28 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                 self.visit(node.left), self.visit(node.right)
             )
 
+        left = self.visit(node.left)
+        op = self.visit(node.op)
+        right = self.visit(node.right)
+
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node.right)
+
+        left_rank = GO_WIDTH_RANK.get(left_type, -1)
+        right_rank = GO_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank:
+            right = f"{left_type}({right})"
+        elif right_rank > left_rank:
+            left = f"{right_type}({left})"
+
+
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):
-            return "({0}{1}{2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
-
+            return f"({left}{op}{right})"
         else:
-            return "({0} {1} {2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
+            return f"({left} {op} {right})"
 
     def visit_In(self, node):
         self._usings.add('"github.com/adsharma/py2many/pygo/runtime"')

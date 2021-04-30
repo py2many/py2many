@@ -37,6 +37,8 @@ def get_inferred_type(node):
             return_type = fn.returns if hasattr(fn, "returns") and fn.returns else None
             if return_type is not None:
                 return return_type
+            if fname in {"max", "min"}:
+                return get_inferred_type(node.args[0])
     return None
 
 

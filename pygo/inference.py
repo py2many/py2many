@@ -51,7 +51,7 @@ def map_type(typename):
 def get_inferred_go_type(node):
     if isinstance(node, ast.Call):
         fname = get_id(node.func)
-        if fname.startswith("math"):
+        if fname in {"max", "min", "floor"}:
             return "float64"
     if isinstance(node, ast.Name):
         if not hasattr(node, "scopes"):
@@ -121,11 +121,11 @@ class InferGoTypesTransformer(ast.NodeTransformer):
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
         if left is None and right is not None:
-            node.go_annotation = map_type(get_id(right))
+            node.go_annotation = get_inferred_go_type(right)
             return node
 
         if right is None and left is not None:
-            node.go_annotation = map_type(get_id(left))
+            node.go_annotation = get_inferred_go_type(left)
             return node
 
         if right is None and left is None:
