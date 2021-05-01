@@ -26,24 +26,12 @@ def get_inferred_type(node):
             return None
         definition = node.scopes.find(get_id(node))
         # Prevent infinite recursion
-        if definition != node:
+        if definition != node and definition is not None:
             return get_inferred_type(definition)
     elif isinstance(node, ast.Constant) or isinstance(node, ast.NameConstant):
         return InferTypesTransformer._infer_primitive(node.value)
     if hasattr(node, "annotation"):
         return node.annotation
-    # TODO move this to a method of InferTypesTransformer
-    elif isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname is not None:
-            fn = node.scopes.find(fname)
-            if isinstance(fn, ast.ClassDef):
-                return fn
-            return_type = fn.returns if hasattr(fn, "returns") and fn.returns else None
-            if return_type is not None:
-                return return_type
-            if fname in {"max", "min"}:
-                return get_inferred_type(node.args[0])
     return None
 
 
@@ -337,4 +325,23 @@ class InferTypesTransformer(ast.NodeTransformer):
         if value_id is not None and hasattr(node, "scopes"):
             if is_enum(value_id, node.scopes):
                 node.annotation = node.scopes.find(value_id)
+        return node
+
+    def visit_Call(self, node):
+        fname = get_id(node.func)
+        if fname is not None:
+            fn = node.scopes.find(fname)
+            if isinstance(fn, ast.ClassDef):
+                node.annotation = fn
+            elif isinstance(fn, ast.FunctionDef):
+                return_type = (
+                    fn.returns if hasattr(fn, "returns") and fn.returns else None
+                )
+                if return_type is not None:
+                    node.annotation = return_type
+            elif fname in {"max", "min"}:
+                return_type = get_inferred_type(node.args[0])
+                if return_type is not None:
+                    node.annotation = return_type
+        self.generic_visit(node)
         return node
