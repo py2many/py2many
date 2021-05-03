@@ -3,7 +3,7 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
-from py2many.inference import get_inferred_type, is_reference
+from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
 from py2many.analysis import get_id, is_mutable
 
 RUST_TYPE_MAP = {
@@ -24,16 +24,17 @@ RUST_TYPE_MAP = {
 
 
 RUST_WIDTH_RANK = {
-    "i8": 0,
-    "u8": 1,
-    "i16": 2,
-    "u16": 3,
-    "i32": 4,
-    "u32": 5,
-    "i64": 6,
-    "u64": 7,
-    "f32": 8,
-    "f64": 9,
+    "bool": 0,
+    "i8": 1,
+    "u8": 2,
+    "i16": 3,
+    "u16": 4,
+    "i32": 5,
+    "u32": 6,
+    "i64": 7,
+    "u64": 8,
+    "f32": 9,
+    "f64": 10,
 }
 
 
@@ -75,27 +76,9 @@ def get_inferred_rust_type(node):
 class InferRustTypesTransformer(ast.NodeTransformer):
     """Implements rust type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = {
-        c_int8,
-        c_int16,
-        c_int32,
-        c_int64,
-        c_uint8,
-        c_uint16,
-        c_uint32,
-        c_uint64,
-    }
-    FIXED_WIDTH_INTS_NAME_LIST = [
-        "c_int8",
-        "c_int16",
-        "c_int32",
-        "c_int64",
-        "c_uint8",
-        "c_uint16",
-        "c_uint32",
-        "c_uint64",
-    ]
-    FIXED_WIDTH_INTS_NAME = set(FIXED_WIDTH_INTS_NAME_LIST)
+    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
+    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
+    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
     def __init__(self):
         super().__init__()
@@ -139,6 +122,11 @@ class InferRustTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
+
+        if left_id == "int":
+            left_id = "c_int32"
+        if right_id == "int":
+            right_id = "c_int32"
 
         if (
             left_id in self.FIXED_WIDTH_INTS_NAME

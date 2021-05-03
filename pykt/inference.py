@@ -1,5 +1,5 @@
 import ast
-from py2many.inference import get_inferred_type
+from py2many.inference import get_inferred_type, InferTypesTransformer
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
@@ -25,16 +25,17 @@ KT_TYPE_MAP = {
 REVERSE_KT_TYPE_MAP = {v: k for k, v in KT_TYPE_MAP.items()}
 
 KT_WIDTH_RANK = {
-    "Byte": 0,
-    "UByte": 1,
-    "Short": 2,
-    "UShort": 3,
-    "Int": 4,
-    "UInt": 5,
-    "Long": 6,
-    "ULong": 7,
-    "Float": 8,
-    "Double": 9,
+    "Boolean": 0,
+    "Byte": 1,
+    "UByte": 2,
+    "Short": 3,
+    "UShort": 4,
+    "Int": 5,
+    "UInt": 6,
+    "Long": 7,
+    "ULong": 8,
+    "Float": 9,
+    "Double": 10,
 }
 
 
@@ -71,27 +72,9 @@ def get_inferred_kotlin_type(node):
 class InferKotlinTypesTransformer(ast.NodeTransformer):
     """Implements kotlin type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = {
-        c_int8,
-        c_int16,
-        c_int32,
-        c_int64,
-        c_uint8,
-        c_uint16,
-        c_uint32,
-        c_uint64,
-    }
-    FIXED_WIDTH_INTS_NAME_LIST = [
-        "c_int8",
-        "c_int16",
-        "c_int32",
-        "c_int64",
-        "c_uint8",
-        "c_uint16",
-        "c_uint32",
-        "c_uint64",
-    ]
-    FIXED_WIDTH_INTS_NAME = set(FIXED_WIDTH_INTS_NAME_LIST)
+    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
+    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
+    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
     def __init__(self):
         super().__init__()
@@ -149,6 +132,11 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
+
+        if left_id == "int":
+            left_id = "c_int32"
+        if right_id == "int":
+            right_id = "c_int32"
 
         if (
             left_id in self.FIXED_WIDTH_INTS_NAME

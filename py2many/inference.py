@@ -55,6 +55,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     TYPE_DICT = {int: "int", float: "float", str: "str", bool: "bool"}
     FIXED_WIDTH_INTS = {
+        bool,
         c_int8,
         c_int16,
         c_int32,
@@ -65,6 +66,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         c_uint64,
     }
     FIXED_WIDTH_INTS_NAME_LIST = [
+        "bool",
         "c_int8",
         "c_int16",
         "c_int32",
@@ -287,6 +289,12 @@ class InferTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
+
+        # Does this hold across all languages?
+        if left_id == "int":
+            left_id = "c_int32"
+        if right_id == "int":
+            right_id = "c_int32"
 
         if (
             left_id in self.FIXED_WIDTH_INTS_NAME

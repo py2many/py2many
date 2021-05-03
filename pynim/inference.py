@@ -1,5 +1,5 @@
 import ast
-from py2many.inference import get_inferred_type
+from py2many.inference import get_inferred_type, InferTypesTransformer
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
@@ -24,16 +24,17 @@ NIM_TYPE_MAP = {
 }
 
 NIM_WIDTH_RANK = {
-    "int8": 0,
-    "uint8": 1,
-    "int16": 2,
-    "uint16": 3,
-    "int32": 4,
-    "uint32": 5,
-    "int64": 6,
-    "uint64": 7,
-    "float32": 8,
-    "float64": 9,
+    "bool": 0,
+    "int8": 1,
+    "uint8": 2,
+    "int16": 3,
+    "uint16": 4,
+    "int32": 5,
+    "uint32": 6,
+    "int64": 7,
+    "uint64": 8,
+    "float32": 9,
+    "float64": 10,
     "float": 9,
 }
 
@@ -71,27 +72,9 @@ def get_inferred_nim_type(node):
 class InferNimTypesTransformer(ast.NodeTransformer):
     """Implements nim type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = {
-        c_int8,
-        c_int16,
-        c_int32,
-        c_int64,
-        c_uint8,
-        c_uint16,
-        c_uint32,
-        c_uint64,
-    }
-    FIXED_WIDTH_INTS_NAME_LIST = [
-        "c_int8",
-        "c_int16",
-        "c_int32",
-        "c_int64",
-        "c_uint8",
-        "c_uint16",
-        "c_uint32",
-        "c_uint64",
-    ]
-    FIXED_WIDTH_INTS_NAME = set(FIXED_WIDTH_INTS_NAME_LIST)
+    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
+    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
+    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
     def __init__(self):
         super().__init__()
