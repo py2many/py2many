@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from py2many.analysis import get_id
+from py2many.clike import CLikeTranspiler
 from py2many.tracer import is_enum
 
 
@@ -81,6 +82,8 @@ class InferTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         self.handling_annotation = False
         self.has_fixed_width_ints = False
+        # TODO: remove this and make the methods into classmethods
+        self._clike = CLikeTranspiler()
 
     @staticmethod
     def _infer_primitive(value) -> Optional[ast.AST]:
@@ -358,5 +361,15 @@ class InferTypesTransformer(ast.NodeTransformer):
                 return_type = get_inferred_type(node.args[0])
                 if return_type is not None:
                     node.annotation = return_type
+        self.generic_visit(node)
+        return node
+
+    def visit_Subscript(self, node):
+        definition = node.scopes.find(get_id(node.value))
+        if hasattr(definition, "annotation"):
+            self._clike._typename_from_annotation(definition)
+            if hasattr(definition, "container_type"):
+                _, element_type = definition.container_type
+                node.annotation = ast.Name(id=element_type)
         self.generic_visit(node)
         return node
