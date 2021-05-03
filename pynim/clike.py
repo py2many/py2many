@@ -1,37 +1,8 @@
 import ast
 
+from .inference import NIM_TYPE_MAP, NIM_WIDTH_RANK
+
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-
-
-nim_type_map = {
-    "int": "int",
-    "float": "float",
-    "bytes": "openArray[byte]",
-    "str": "string",
-    "bool": "bool",
-    "c_int8": "int8",
-    "c_int16": "int16",
-    "c_int32": "int32",
-    "c_int64": "int64",
-    "c_uint8": "uint8",
-    "c_uint16": "uint16",
-    "c_uint32": "uint32",
-    "c_uint64": "uint64",
-}
-
-NIM_WIDTH_RANK = {
-    "int8": 0,
-    "unt8": 1,
-    "int16": 2,
-    "unt16": 3,
-    "int32": 4,
-    "unt32": 5,
-    "int64": 6,
-    "unt64": 7,
-    "float32": 8,
-    "float64": 9,
-    "float": 9,
-}
 
 
 # allowed as names in Python but treated as keywords in Nim
@@ -144,7 +115,7 @@ def nim_symbol(node):
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = nim_type_map
+        self._type_map = NIM_TYPE_MAP
 
     def visit(self, node):
         if type(node) in nim_symbols:

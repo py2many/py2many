@@ -39,9 +39,7 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 
-EXPECTED_COMPILE_FAILURES = [
-    "infer_ops.nim"  # https://github.com/adsharma/py2many/issues/16
-]
+EXPECTED_COMPILE_FAILURES = []
 
 
 def has_main(filename):

@@ -1,6 +1,7 @@
 import ast
 
 from .clike import CLikeTranspiler
+from .inference import get_inferred_nim_type
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before
 
@@ -82,6 +83,21 @@ class NimTranspiler(CLikeTranspiler):
         return f"{funcdef}\n{body}\n{maybe_main}"
 
     def visit_Return(self, node):
+        if node.value:
+            ret = self.visit(node.value)
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                return_type = self._typename_from_annotation(fndef, attr="returns")
+                value_type = get_inferred_nim_type(node.value)
+                if return_type != value_type and value_type is not None:
+                    return f"return {return_type}({ret})"
+            return f"return {ret}"
+        return "return"
+
         if node.value:
             return "return {0}".format(self.visit(node.value))
         return "return"

@@ -27,6 +27,7 @@ from pyrs.transpiler import (
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
+from pynim.inference import infer_nim_types
 from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
 from pydart.transpiler import DartTranspiler
 from pygo.inference import infer_go_types
@@ -156,6 +157,7 @@ def nim_settings(args):
         ["nimpretty", *nimpretty_args],
         None,
         [NimNoneCompareRewriter()],
+        [infer_nim_types],
     )
 
 
