@@ -1,9 +1,6 @@
 import ast
+
 from py2many.inference import get_inferred_type, InferTypesTransformer
-
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
-
 from py2many.analysis import get_id
 
 KT_TYPE_MAP = {
@@ -132,6 +129,16 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
+
+        # Special case int op int = int, where op != Div
+        if (
+            left_id == right_id
+            and left_id == "int"
+            and not isinstance(node.op, ast.Div)
+        ):
+            node.annotation = left
+            node.go_annotation = map_type(left_id)
+            return node
 
         if left_id == "int":
             left_id = "c_int32"

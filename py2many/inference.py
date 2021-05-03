@@ -290,6 +290,13 @@ class InferTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
+        if left_id == right_id and left_id == "int":
+            if not isinstance(node.op, ast.Div):
+                node.annotation = left
+            else:
+                node.annotation = ast.Name(id="float")
+            return node
+
         # Does this hold across all languages?
         if left_id == "int":
             left_id = "c_int32"
