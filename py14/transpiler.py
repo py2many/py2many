@@ -1,5 +1,6 @@
 import ast
 import functools
+import textwrap
 
 from .tracer import decltype
 from .clike import CLikeTranspiler
@@ -215,16 +216,17 @@ class CppTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_ClassDef(self, node):
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
-        buf = [f"class {node.name} {{"]
-        buf += ["public:"]
-
         extractor = DeclarationExtractor(CppTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
 
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
+
+        buf = [f"class {node.name} {{"]
+        buf += ["public:"]
         fields = []
         index = 0
         for declaration, typename in declarations.items():
@@ -260,26 +262,49 @@ class CppTranspiler(CLikeTranspiler):
         return f"enum {node.name} : {typename} {{\n{fields_str}}};\n"
 
     def visit_IntEnum(self, node):
-        extractor = DeclarationExtractor(CppTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "int", fields)
 
     def visit_IntFlag(self, node):
-        extractor = DeclarationExtractor(CppTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "int", fields)
+
+    def visit_StrEnum(self, node):
+        fields = []
+        definitions = []
+        for i, (member, node_var) in enumerate(node.class_assignments.items()):
+            var = self.visit(node_var)
+            raw_string = node_var.raw_string
+            if var == "auto()":
+                var = f'"{member}"'
+            fields.append(f"static const {node.name} {member};")
+            definitions.append(
+                f"const {node.name} {node.name}::{member}= {raw_string};"
+            )
+        fields = "\n".join([f for f in fields])
+        definitions = "\n".join([d for d in definitions])
+        return textwrap.dedent(
+            f"""\
+            class {node.name} : public std::string {{
+            public:
+              {node.name}(const char* s) : std::string(s) {{}}
+              {fields}
+            }};
+
+            {definitions}
+
+            """
+        )
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
@@ -411,7 +436,8 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node):
         """Use a C++ 14 string literal instead of raw string"""
-        return "std::string {" + super().visit_Str(node) + "}"
+        node.raw_string = super().visit_Str(node)
+        return f"std::string{{{node.raw_string}}}"
 
     def visit_Name(self, node):
         if node.id == "None":

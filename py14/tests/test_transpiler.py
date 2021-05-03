@@ -31,7 +31,7 @@ def test_print_multiple_vars():
         source = parse('print("hi", "there" )')
     cpp = transpile(source)
     assert cpp == parse(
-        'std::cout << std::string {"hi"} << std::string {"there"};',
+        'std::cout << std::string{"hi"} << std::string{"there"};',
         "std::cout << std::endl;",
     )
 
