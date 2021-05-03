@@ -3,10 +3,10 @@ fun bubble_sort(seq: Array<Int>): Array<Int> {
     val L = seq.size
     for (__tmp1 in (0..L - 1)) {
         for (n in (1..L - 1)) {
-            if (seq[n] < seq[(n - 1)]) {
+            if (seq[n] < seq[(n.toInt() - 1)]) {
                 if (true) {
-                    val (__tmp1, __tmp2) = Pair(seq[n], seq[(n - 1)])
-                    seq[(n - 1)] = __tmp1
+                    val (__tmp1, __tmp2) = Pair(seq[n], seq[(n.toInt() - 1)])
+                    seq[(n.toInt() - 1)] = __tmp1
                     seq[n] = __tmp2
                 }
             }

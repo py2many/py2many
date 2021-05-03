@@ -1,10 +1,10 @@
 from py2many.declaration_extractor import (
     DeclarationExtractor as CommonDeclarationExtractor,
 )
-from .clike import kotlin_type_map
+from .inference import KT_TYPE_MAP
 
 
 class DeclarationExtractor(CommonDeclarationExtractor):
     def __init__(self, transpiler):
         super().__init__(transpiler)
-        self._type_map = kotlin_type_map
+        self._type_map = KT_TYPE_MAP

@@ -1,24 +1,10 @@
 import ast
 
+from .inference import KT_TYPE_MAP, KT_WIDTH_RANK
+
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-
-kotlin_type_map = {
-    "bool": "Boolean",
-    "int": "Int",
-    "float": "Double",
-    "bytes": "ByteArray",
-    "str": "String",
-    "c_int8": "Byte",
-    "c_int16": "Short",
-    "c_int32": "Int",
-    "c_int64": "Long",
-    "c_uint8": "UByte",
-    "c_uint16": "UShort",
-    "c_uint32": "UInt",
-    "c_uint64": "ULong",
-}
 
 # allowed as names in Python but treated as keywords in Kotlin
 kotlin_keywords = frozenset(
@@ -102,7 +88,7 @@ kotlin_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = kotlin_type_map
+        self._type_map = KT_TYPE_MAP
         self._temp = 0
 
     def _get_temp(self):
@@ -126,17 +112,49 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
 
+        left = self.visit(node.left)
+        op = self.visit(node.op)
+        right = self.visit(node.right)
+
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node.right)
+
+        left_rank = KT_WIDTH_RANK.get(left_type, -1)
+        right_rank = KT_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank:
+            right = f"{right}.to{left_type}()"
+        elif right_rank > left_rank:
+            left = f"{left}.to{right_type}()"
+
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):
-            return "({0}{1}{2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
-
+            return f"({left}{op}{right})"
         else:
-            return "({0} {1} {2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
+            return f"({left} {op} {right})"
+
+    def visit_Compare(self, node):
+        if isinstance(node.ops[0], ast.In):
+            return self.visit_In(node)
+
+        node_right = node.comparators[0]
+        left_type = self._typename_from_annotation(node.left)
+        right_type = self._typename_from_annotation(node_right)
+
+        left = self.visit(node.left)
+        op = self.visit(node.ops[0])
+        right = self.visit(node_right)
+
+        left_rank = KT_WIDTH_RANK.get(left_type, -1)
+        right_rank = KT_WIDTH_RANK.get(right_type, -1)
+
+        if left_rank > right_rank and right_rank != -1:
+            right = f"{right}.to{left_type}()"
+        elif right_rank > left_rank and left_rank != -1:
+            left = f"{left}.to{right_type}()"
+
+        return f"{left} {op} {right}"
 
     def visit_In(self, node):
         left = self.visit(node.left)

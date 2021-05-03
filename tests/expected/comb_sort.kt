@@ -5,7 +5,7 @@ fun comb_sort(seq: Array<Int>): Array<Int> {
     var gap = seq.size
     var swap = true
     while (gap > 1 || swap) {
-        gap = max(1, floor((gap / 1.25)).toInt())
+        gap = max(1, floor((gap.toDouble() / 1.25)).toInt())
         swap = false
         for (i in (0..(seq.size - gap) - 1)) {
             if (seq[i] > seq[(i + gap)]) {

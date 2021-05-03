@@ -25,6 +25,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
 )
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
+from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
 from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
 from pydart.transpiler import DartTranspiler
@@ -134,7 +135,12 @@ def julia_settings(args):
 
 def kotlin_settings(args):
     return LanguageSettings(
-        KotlinTranspiler(), ".kt", ["ktlint", "-F"], None, [KotlinPrintRewriter()]
+        KotlinTranspiler(),
+        ".kt",
+        ["ktlint", "-F"],
+        None,
+        [KotlinPrintRewriter()],
+        [infer_kotlin_types],
     )
 
 

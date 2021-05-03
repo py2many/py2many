@@ -4,6 +4,7 @@ import re
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
+from .inference import get_inferred_kotlin_type
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -105,7 +106,18 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node):
         if node.value:
-            return "return {0}".format(self.visit(node.value))
+            ret = self.visit(node.value)
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                return_type = self._typename_from_annotation(fndef, attr="returns")
+                value_type = get_inferred_kotlin_type(node.value)
+                if return_type != value_type and value_type is not None:
+                    return f"return {ret} as {return_type}"
+            return f"return {ret}"
         return "return"
 
     def visit_arg(self, node):
