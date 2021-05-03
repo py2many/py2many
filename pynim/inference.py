@@ -6,7 +6,7 @@ from py2many.analysis import get_id
 
 NIM_TYPE_MAP = {
     "int": "int",
-    "float": "float",
+    "float": "float64",
     "bytes": "openArray[byte]",
     "str": "string",
     "bool": "bool",

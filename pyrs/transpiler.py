@@ -216,8 +216,7 @@ class RustTranspiler(CLikeTranspiler):
             "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
             "sum": lambda: f"{vargs[0]}.iter().sum()",
             "int": functools.partial(visit_cast, cast_to="i32"),
-            "float": functools.partial(visit_cast, cast_to="f32"),
-            "double": functools.partial(visit_cast, cast_to="f64"),
+            "float": functools.partial(visit_cast, cast_to="f64"),
             "max": functools.partial(visit_min_max, is_max=True),
             "min": functools.partial(visit_min_max, is_min=True),
             # as usize below is a hack to pass comb_sort.rs. Need a better solution
@@ -695,7 +694,8 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Delete(self, node):
         target = node.targets[0]
-        return "{0}.drop();".format(self.visit(target))
+        target_str = self.visit(target)
+        return f"drop({target_str});"
 
     def visit_Raise(self, node):
         if node.exc is not None:
@@ -750,8 +750,13 @@ class RustTranspiler(CLikeTranspiler):
         target = self.visit(generator.target)
         iter = self.visit(generator.iter)
 
+        is_range = (
+            ("range" in get_id(generator.iter.func))
+            if isinstance(generator.iter, ast.Call)
+            else False
+        )
         # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
+        if not (iter.endswith("keys()") or iter.endswith("values()")) and not is_range:
             iter += ".iter()"
 
         map_str = ".map(|{0}| {1})".format(target, elt)

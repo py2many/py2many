@@ -4,7 +4,7 @@ proc comb_sort(seq: var seq[int]): seq[int] =
   var gap = len(seq)
   var swap = true
   while gap > 1 or swap:
-    gap = max(1, int(floor((float(gap) / 1.25))))
+    gap = max(1, int(floor((float64(gap) / 1.25))))
     swap = false
     for i in (0..(len(seq) - gap) - 1):
       if seq[i] > seq[(i + gap)]:

@@ -5,7 +5,7 @@ from py2many.analysis import get_id, is_mutable
 
 RUST_TYPE_MAP = {
     "int": "i32",
-    "float": "f32",
+    "float": "f64",
     "bytes": "&[u8]",
     "str": "&str",
     "bool": "bool",

@@ -8,10 +8,10 @@ proc foo() =
   let _ = (a / b)
   let _ = -(a)
   let d = 2.0
-  let _ = (float(a) + d)
-  let _ = (float(a) - d)
-  let _ = (float(a) * d)
-  let _ = (float(a) / d)
+  let _ = (float64(a) + d)
+  let _ = (float64(a) - d)
+  let _ = (float64(a) * d)
+  let _ = (float64(a) / d)
   let _ = -3.0
   let _ = -(a)
 
@@ -48,8 +48,8 @@ proc sub(x: int8, y: int8): int8 =
 proc mul(x: int8, y: int8): int16 =
   return int16((x * y))
 
-proc fadd1(x: int8, y: float): float =
-  return (float(x) + y)
+proc fadd1(x: int8, y: float64): float64 =
+  return (float64(x) + y)
 
 proc show() =
   let rv = fadd1(6, 6.0)

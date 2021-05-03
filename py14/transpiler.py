@@ -368,7 +368,6 @@ class CppTranspiler(CLikeTranspiler):
             "str": lambda: f"std::to_string({vargs[0]})",
             "len": lambda: f"{vargs[0]}.size()",
             "float": functools.partial(visit_cast, cast_to="float"),
-            "double": functools.partial(visit_cast, cast_to="double"),
             "max": functools.partial(visit_min_max, is_max=True),
             "min": functools.partial(visit_min_max, is_min=True),
             "floor": visit_floor,

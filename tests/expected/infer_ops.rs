@@ -4,14 +4,14 @@ fn foo() {
     let _c1: i32 = (a + b);
     let _c2: i32 = (a - b);
     let _c3: i32 = (a * b);
-    let _c4: f32 = (a / b) as f32;
+    let _c4: f64 = (a / b) as f64;
     let _c5: i32 = -(a);
-    let d: f32 = 2.0;
-    let _e1: f32 = (a as f32 + d);
-    let _e2: f32 = (a as f32 - d);
-    let _e3: f32 = (a as f32 * d);
-    let _e4: f32 = (a as f32 / d);
-    let _f: f32 = -3.0;
+    let d: f64 = 2.0;
+    let _e1: f64 = (a as f64 + d);
+    let _e2: f64 = (a as f64 - d);
+    let _e3: f64 = (a as f64 * d);
+    let _e4: f64 = (a as f64 / d);
+    let _f: f64 = -3.0;
     let _g: i32 = -(a);
 }
 
@@ -59,13 +59,13 @@ fn mul(x: i8, y: i8) -> i16 {
     return (x * y) as i16;
 }
 
-fn fadd1(x: i8, y: f32) -> f32 {
-    return (x as f32 + y);
+fn fadd1(x: i8, y: f64) -> f64 {
+    return (x as f64 + y);
 }
 
 fn show() {
-    let rv: f32 = fadd1(6, 6.0);
-    assert!(rv == 12 as f32);
+    let rv: f64 = fadd1(6, 6.0);
+    assert!(rv == 12 as f64);
     println!("{}", "OK");
 }
 

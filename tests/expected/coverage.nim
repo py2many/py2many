@@ -11,7 +11,7 @@ proc indexing(): int =
 
 proc show() =
   let a1 = 10
-  let a2: float = 2.1
+  let a2: float64 = 2.1
   echo a2
   for i in (0..10 - 1):
     echo i
