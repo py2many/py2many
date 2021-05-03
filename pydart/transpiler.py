@@ -291,12 +291,14 @@ class DartTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        extractor = DeclarationExtractor(DartTranspiler())
+        extractor.visit(node)
+        declarations = node.declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
+
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
-        extractor = DeclarationExtractor(DartTranspiler())
-        extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         index = 0
@@ -325,11 +327,9 @@ class DartTranspiler(CLikeTranspiler):
     def visit_IntEnum(self, node):
         # TODO: Consider using Vnum instead of the language built-in
         # Any python enum which specifies a non default value will break this
-        extractor = DeclarationExtractor(DartTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
@@ -340,12 +340,10 @@ class DartTranspiler(CLikeTranspiler):
     def visit_StrEnum(self, node):
         # TODO: Dedup with other enum implementations
         self._usings.add("package:vnum/vnum.dart")
-        extractor = DeclarationExtractor(DartTranspiler())
-        extractor.visit(node)
-
         fields = []
         ename = node.name
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = f'"{member}"'
             fields.append(
@@ -365,12 +363,10 @@ class DartTranspiler(CLikeTranspiler):
 
     def visit_IntFlag(self, node):
         self._usings.add("package:vnum/vnum.dart")
-        extractor = DeclarationExtractor(DartTranspiler())
-        extractor.visit(node)
-
         fields = []
         ename = node.name
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = i
             fields.append(

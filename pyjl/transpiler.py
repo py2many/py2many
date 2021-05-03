@@ -303,12 +303,13 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+        declarations = node.declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-        declarations = extractor.get_declarations()
 
         fields = []
         index = 0
@@ -346,33 +347,27 @@ class JuliaTranspiler(CLikeTranspiler):
         )
 
     def visit_StrEnum(self, node):
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = f'"{member}"'
             fields.append((member, var))
         return self._visit_enum(node, "String", fields)
 
     def visit_IntEnum(self, node):
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
 
     def visit_IntFlag(self, node):
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for i, (member, var) in enumerate(extractor.class_assignments.items()):
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 var = 1 << i
             fields.append((member, var))

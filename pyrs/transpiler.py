@@ -396,12 +396,13 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
         node.declarations = declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
 
         fields = []
         index = 0
@@ -417,11 +418,9 @@ class RustTranspiler(CLikeTranspiler):
         return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
 
     def visit_IntEnum(self, node):
-        extractor = DeclarationExtractor(RustTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
@@ -433,11 +432,9 @@ class RustTranspiler(CLikeTranspiler):
         self._usings.add("strum")
         self._usings.add("strum_macros::EnumString")
 
-        extractor = DeclarationExtractor(RustTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
@@ -449,11 +446,9 @@ class RustTranspiler(CLikeTranspiler):
     def visit_IntFlag(self, node):
         self._usings.add("flagset::flags")
         self._usings.add("std::os::raw::c_int")
-        extractor = DeclarationExtractor(RustTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:

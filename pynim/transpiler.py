@@ -296,12 +296,13 @@ class NimTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_ClassDef(self, node):
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
+        node.class_assignments = extractor.class_assignments
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
 
         fields = []
         index = 0
@@ -323,11 +324,9 @@ class NimTranspiler(CLikeTranspiler):
         return f"{object_def}\n{body}\n"
 
     def visit_IntEnum(self, node):
-        extractor = DeclarationExtractor(NimTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
@@ -336,11 +335,9 @@ class NimTranspiler(CLikeTranspiler):
         return f"type {node.name} = enum\n{fields}\n\n"
 
     def visit_IntFlag(self, node):
-        extractor = DeclarationExtractor(NimTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
@@ -358,11 +355,9 @@ class NimTranspiler(CLikeTranspiler):
         )
 
     def visit_StrEnum(self, node):
-        extractor = DeclarationExtractor(NimTranspiler())
-        extractor.visit(node)
-
         fields = []
-        for member, var in extractor.class_assignments.items():
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:

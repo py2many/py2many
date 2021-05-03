@@ -427,6 +427,7 @@ class GoTranspiler(CLikeTranspiler):
     def visit_IntEnum(self, node):
         members = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 members.append((member, "iota"))
             else:
@@ -436,6 +437,7 @@ class GoTranspiler(CLikeTranspiler):
     def visit_IntFlag(self, node):
         members = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             if var == "auto()":
                 members.append((member, "1 << iota"))
             else:
@@ -445,6 +447,7 @@ class GoTranspiler(CLikeTranspiler):
     def visit_StrEnum(self, node):
         members = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
+            var = self.visit(var)
             members.append((member, var))
         return self._visit_enum(node, "string", members)
 
