@@ -37,6 +37,7 @@ NIM_WIDTH_RANK = {
     "float": 9,
 }
 
+
 def infer_nim_types(node):
     visitor = InferNimTypesTransformer()
     visitor.visit(node)

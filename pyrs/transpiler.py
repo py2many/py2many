@@ -134,7 +134,6 @@ class RustTranspiler(CLikeTranspiler):
                 ):
                     # TODO: Handle other container types
                     ret = f"{ret}.to_vec()"
-                print(return_type, value_type)
                 if return_type != value_type and value_type is not None:
                     return f"return {ret} as {return_type};"
             return f"return {ret};"

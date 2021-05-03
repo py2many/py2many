@@ -267,7 +267,7 @@ def main():
             if args.outdir is None:
                 outdir = source.parent / f"{source.name}-py2many"
 
-            print(f"Transpiling whole directiory to {outdir}:")
+            print(f"Transpiling whole directory to {outdir}:")
             successful = failures = format_errors = 0
             for path in source.rglob("*.py"):
                 if path.suffix != ".py":
