@@ -9,6 +9,10 @@ function indexing()::Int64
     return sum
 end
 
+function infer_bool(code::Int64)::Bool
+    return code in [1, 2, 4]
+end
+
 function show()
     a1 = 10
     a2::Float64 = 2.1

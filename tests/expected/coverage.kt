@@ -9,6 +9,10 @@ fun indexing(): Int {
     return sum
 }
 
+fun infer_bool(code: Int): Boolean {
+    return code in arrayOf(1, 2, 4)
+}
+
 fun show() {
     val a1 = 10
     var a2: Double = 2.1

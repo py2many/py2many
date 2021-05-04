@@ -10,6 +10,10 @@ def indexing():
     return sum
 
 
+def infer_bool(code: int):
+    return code in [1, 2, 4]
+
+
 def show():
     # assign
     a1 = 10
