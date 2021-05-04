@@ -1,8 +1,16 @@
 // cargo-deps: lazy_static
+
+#![allow(non_snake_case)]
+#![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_parens)]
+
 extern crate lazy_static;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
 pub const code_0: i32 = 0;
 pub const code_1: i32 = 1;
 pub const code_a: &str = "a";

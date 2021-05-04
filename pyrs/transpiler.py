@@ -1,5 +1,6 @@
 import ast
 import functools
+from textwrap import dedent
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
@@ -60,7 +61,17 @@ class RustTranspiler(CLikeTranspiler):
         uses = "\n".join(
             f"use {mod};" for mod in usings if mod not in ("strum", "lazy_static")
         )
-        return f"// cargo-deps: {deps}\n{externs}\n{uses}" if deps else f"{uses}"
+        lint_ignores = dedent(
+            """
+        #![allow(non_snake_case)]
+        #![allow(non_upper_case_globals)]
+        #![allow(unused_imports)]
+        #![allow(unused_mut)]
+        #![allow(unused_parens)]
+        """
+        )
+        cargo_deps = f"// cargo-deps: {deps}\n" if deps else ""
+        return f"{cargo_deps}\n{lint_ignores}\n{externs}\n{uses}\n"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])

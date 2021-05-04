@@ -1,3 +1,9 @@
+#![allow(non_snake_case)]
+#![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_parens)]
+
 use std::collections;
 
 pub fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {

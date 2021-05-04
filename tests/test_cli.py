@@ -17,6 +17,11 @@ ROOT_DIR = TESTS_DIR.parent
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+ENV = {
+    "rust": {
+        "RUSTFLAGS": "--deny warnings",
+    },
+}
 COMPILERS = {
     "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
@@ -95,6 +100,12 @@ class CodeGeneratorTests(unittest.TestCase):
         self.assertTrue(expected_output)
         expected_output = expected_output.splitlines()
 
+        if ENV.get(lang):
+            env = os.environ.copy()
+            env.update(ENV.get(lang))
+        else:
+            env = None
+
         try:
             main()
             with open(f"cases/{case}{ext}") as actual:
@@ -117,7 +128,9 @@ class CodeGeneratorTests(unittest.TestCase):
             if compiler:
                 if not spawn.find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
-                proc = run([*compiler, f"cases/{case}{ext}"], check=not expect_failure)
+                proc = run(
+                    [*compiler, f"cases/{case}{ext}"], env=env, check=not expect_failure
+                )
 
                 assert not expect_failure or proc.returncode != 0
                 if proc.returncode:
@@ -129,15 +142,17 @@ class CodeGeneratorTests(unittest.TestCase):
 
             stdout = None
             if exe.exists() and os.access(exe, os.X_OK):
-                stdout = run([exe], capture_output=True, check=True).stdout
+                stdout = run([exe], env=env, capture_output=True, check=True).stdout
             elif ext in [".go", ".rs", ".kt"] and not is_script:
                 raise unittest.SkipTest(f"{case}{ext} needs main() to be invoked")
+
             elif INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 proc = run(
                     [*invoker, case_output],
+                    env=env,
                     capture_output=True,
                     check=not expect_failure,
                 )

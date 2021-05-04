@@ -1,4 +1,11 @@
+#![allow(non_snake_case)]
+#![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_parens)]
+
 use std::collections;
+
 pub const code_0: i32 = 0;
 pub const code_1: i32 = 1;
 pub const l_a: &[i32; 2] = &[code_0, code_1];
