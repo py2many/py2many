@@ -176,6 +176,7 @@ def go_settings(args):
         [GoNoneCompareRewriter()],
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
+        linter=["golint"],
     )
 
 
