@@ -163,6 +163,17 @@ class CodeGeneratorTests(unittest.TestCase):
                 stdout = stdout.splitlines()
                 self.assertEqual(expected_output, stdout)
 
+            if settings.linter:
+                if not spawn.find_executable(settings.linter[0]):
+                    raise unittest.SkipTest(f"{settings.linter[0]} not available")
+                if settings.ext == ".kt" and case_output.is_absolute():
+                    # KtLint does not support absolute path in globs
+                    case_output = case_output.relative_to(Path.cwd())
+                run(
+                    [*settings.linter, case_output],
+                    check=not expect_failure,
+                )
+
         finally:
             if not KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)

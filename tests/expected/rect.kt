@@ -17,7 +17,7 @@ fun show() {
     if (true) {
         val __tmp2 = r.length
         println("$__tmp2")
-    } 
+    }
 }
 
 fun main() {

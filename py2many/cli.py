@@ -99,6 +99,7 @@ class LanguageSettings:
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
     transformers: List[Callable] = field(default_factory=list)
     post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
+    linter: Optional[List[str]] = None
 
 
 def cpp_settings(args):
@@ -142,6 +143,7 @@ def kotlin_settings(args):
         None,
         [KotlinPrintRewriter()],
         [infer_kotlin_types],
+        linter=["ktlint"],
     )
 
 
@@ -212,6 +214,11 @@ def _process_once(settings, filename, outdir):
             )
         )
     if settings.formatter:
+        if subprocess.call([*settings.formatter, output_path]):
+            print(f"Error: Could not reformat: {output_path}")
+            return False
+    if settings.ext == ".kt":
+        # ktlint formatter needs to be invoked twice before output is lint free
         if subprocess.call([*settings.formatter, output_path]):
             print(f"Error: Could not reformat: {output_path}")
             return False

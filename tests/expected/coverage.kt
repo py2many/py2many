@@ -59,7 +59,7 @@ fun show() {
     }
     if (1 != null) {
         println("World is sane")
-    } 
+    }
 }
 
 fun main() {

@@ -13,5 +13,5 @@ fun main() {
     }
     if ("a" in arrayOf("a", "b")) {
         println("OK")
-    } 
+    }
 }
