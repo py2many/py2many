@@ -64,8 +64,8 @@ jobs:
            && dart pub add tuple \
            && flutter pub add vnum)
 
-      - name: Install rust-script and cargo-script
-        run: cargo install rust-script cargo-script
+      - name: Install cargo-script
+        run: cargo install cargo-script
 
       - name: Install go packages
         shell: bash

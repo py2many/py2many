@@ -92,6 +92,8 @@ class CodeGeneratorTests(unittest.TestCase):
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = TESTS_DIR / "cases" / f"{case}{ext}"
         is_script = has_main(case_filename)
+        self.assertTrue(is_script)
+
         sys.argv = ["test", f"--{lang}=1", str(case_filename)]
 
         expected_output = run(
@@ -115,16 +117,10 @@ class CodeGeneratorTests(unittest.TestCase):
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
 
-            if ext in [".cpp", ".dart"] and not is_script:
-                # See https://github.com/adsharma/py2many/issues/25
-                raise unittest.SkipTest(f"{case}{ext} doesnt have a main")
-
             expect_failure = (
                 not SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
             )
             compiler = COMPILERS[lang]
-            if ext == ".rs" and not is_script:
-                compiler = ["rust-script"]
             if compiler:
                 if not spawn.find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
@@ -143,8 +139,6 @@ class CodeGeneratorTests(unittest.TestCase):
             stdout = None
             if exe.exists() and os.access(exe, os.X_OK):
                 stdout = run([exe], env=env, capture_output=True, check=True).stdout
-            elif ext in [".go", ".rs", ".kt"] and not is_script:
-                raise unittest.SkipTest(f"{case}{ext} needs main() to be invoked")
 
             elif INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
