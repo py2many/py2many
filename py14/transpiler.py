@@ -522,7 +522,7 @@ class CppTranspiler(CLikeTranspiler):
         _ = self._typename_from_annotation(node)
         if hasattr(node, "container_type"):
             _, element_type = node.container_type
-            return self._map_type(element_type)
+            return element_type
         else:
             return self._default_type
 
@@ -557,12 +557,12 @@ class CppTranspiler(CLikeTranspiler):
         _ = self._typename_from_annotation(node)
         if hasattr(node, "container_type"):
             container_type, element_type = node.container_type
-            key_typename, value_typename = self._map_types(element_type)
+            key_typename, value_typename = element_type
             if key_typename == self._default_type:
                 key_typename = "int"
         else:
             typename = decltype(node)
-            return f"{typename}{{kv_pairs}}"
+            return f"{typename}{{{kv_pairs}}}"
         return f"std::map<{key_typename}, {value_typename}>{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):

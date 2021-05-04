@@ -149,15 +149,18 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Dict(self, node):
         self.generic_visit(node)
         if len(node.keys) > 0:
-            keys = [self.visit(e) for e in node.keys]
-            key_types = set([get_id(get_inferred_type(e)) for e in keys])
+
+            def typename(e):
+                get_inferred_type(e)  # populates e.annotation
+                return self._clike._generic_typename_from_annotation(e)
+
+            key_types = set([typename(e) for e in node.keys])
             only_key_type = next(iter(key_types))
             if len(key_types) == 1:
                 key_type = only_key_type
             else:
                 key_type = "Any"
-            values = [self.visit(e) for e in node.values]
-            value_types = set([get_id(get_inferred_type(e)) for e in values])
+            value_types = set([typename(e) for e in node.values])
             only_value_type = next(iter(value_types))
             if len(value_types) == 1:
                 value_type = only_value_type

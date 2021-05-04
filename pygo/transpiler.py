@@ -474,7 +474,6 @@ class GoTranspiler(CLikeTranspiler):
             _, element_type = node.container_type
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
-        element_type = self._map_type(element_type)
         return f"[]{element_type}{{{elements_str}}}"
 
     def visit_Set(self, node):
@@ -482,7 +481,6 @@ class GoTranspiler(CLikeTranspiler):
         element_type = self._default_type
         if hasattr(node, "container_type"):
             _, element_type = node.container_type
-        element_type = self._map_type(element_type)
         elements = [self.visit(e) for e in node.elts]
         kv_pairs = ", ".join([f"{k}: true" for k in elements])
         return f"map[{element_type}]bool{{{kv_pairs}}}"
@@ -495,7 +493,7 @@ class GoTranspiler(CLikeTranspiler):
         key_typename = value_typename = self._default_type
         if hasattr(node, "container_type"):
             container_type, element_type = node.container_type
-            key_typename, value_typename = self._map_types(element_type)
+            key_typename, value_typename = element_type
             if key_typename == self._default_type:
                 key_typename = "int"
         return f"map[{key_typename}]{value_typename}{{{kv_pairs}}}"

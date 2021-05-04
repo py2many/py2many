@@ -651,7 +651,6 @@ class RustTranspiler(CLikeTranspiler):
                 element_type = self._default_type
                 if hasattr(node.value, "container_type"):
                     container_type, element_type = node.value.container_type
-                    element_type = self._map_type(element_type)
                 return f"{kw} {target}: &[{element_type}; {count}] = {value};"
 
             mut = "mut " if is_mutable(node.scopes, target) else ""
@@ -668,7 +667,9 @@ class RustTranspiler(CLikeTranspiler):
                 self._usings.add("lazy_static::lazy_static")
                 if "str" in typename:
                     typename = typename.replace("str", "'static str")
-                return f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
+                return (
+                    f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
+                )
 
             mut = "mut " if is_mutable(node.scopes, target) else ""
             if hasattr(node.value, "container_type"):
@@ -683,7 +684,7 @@ class RustTranspiler(CLikeTranspiler):
             if kw.startswith("pub "):
                 if hasattr(node.value, "container_type"):
                     container_type, element_type = node.value.container_type
-                    key_typename, value_typename = self._map_types(element_type)
+                    key_typename, value_typename = element_type
                     if key_typename == "&str":
                         key_typename = "&'static str"
                     if value_typename == "&str":

@@ -2,7 +2,7 @@ import ast
 import sys
 
 from py2many.analysis import get_id
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 symbols = {
@@ -90,44 +90,77 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def _visit_container_type(self, typename: Tuple) -> str:
         value_type, index_type = typename
-        value_type = self._map_container_type(value_type)
         if isinstance(index_type, List):
             index_contains_default = "Any" in index_type
             if not index_contains_default:
-                index_type = [self._map_type(e) for e in index_type]
                 index_type = ", ".join(index_type)
         else:
             index_contains_default = index_type == "Any"
-            if not index_contains_default:
-                index_type = self._map_type(index_type)
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
         if index_contains_default or value_type == self._default_type:
             return self._default_type
         return self._combine_value_index(value_type, index_type)
 
+    def _typename_from_type_node(self, node) -> Optional[str]:
+        if isinstance(node, ast.Name):
+            return self._map_type(get_id(node))
+        elif isinstance(node, ast.ClassDef):
+            return get_id(node)
+        elif isinstance(node, ast.Tuple):
+            return [self._typename_from_type_node(e) for e in node.elts]
+        elif isinstance(node, ast.Subscript):
+            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
+            # in node.container_type
+            # And return a target specific type
+            slice_value = self._slice_value(node)
+            (value_type, index_type) = tuple(
+                map(self._typename_from_type_node, (node.value, slice_value))
+            )
+            value_type = self._map_container_type(value_type)
+            node.container_type = (value_type, index_type)
+            return self._combine_value_index(value_type, index_type)
+        return self._default_type
+
+    def _generic_typename_from_type_node(self, node) -> Optional[str]:
+        if isinstance(node, ast.Name):
+            return get_id(node)
+        elif isinstance(node, ast.ClassDef):
+            return get_id(node)
+        elif isinstance(node, ast.Tuple):
+            return [self._generic_typename_from_type_node(e) for e in node.elts]
+        elif isinstance(node, ast.Subscript):
+            slice_value = self._slice_value(node)
+            (value_type, index_type) = tuple(
+                map(self._generic_typename_from_type_node, (node.value, slice_value))
+            )
+            node.generic_container_type = (value_type, index_type)
+            return f"{value_type}[{index_type}]"
+        return self._default_type
+
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         default_type = self._default_type
         typename = default_type
         if hasattr(node, attr):
-            typename = getattr(node, attr)
-            if isinstance(typename, ast.Subscript):
-                # Store a tuple like (List, int) or (Dict, (str, int)) for container types
-                # in node.container_type
-                # And return a target specific type
-                slice_value = self._slice_value(typename)
-                if isinstance(slice_value, ast.Name):
-                    slice_value = get_id(slice_value)
-                elif isinstance(slice_value, ast.Tuple):
-                    slice_value = [get_id(e) for e in slice_value.elts]
-                node.container_type = (get_id(typename.value), slice_value)
-                return self._visit_container_type(node.container_type)
-            # TODO: get more disciplined about how we use type_map
-            elif isinstance(typename, ast.Name):
-                return self._map_type(get_id(typename))
-            elif isinstance(typename, ast.ClassDef):
-                return get_id(typename)
-            else:
-                raise Exception(typename, type(typename))
+            type_node = getattr(node, attr)
+            typename = self._typename_from_type_node(type_node)
+            if isinstance(type_node, ast.Subscript):
+                node.container_type = type_node.container_type
+                return self._visit_container_type(type_node.container_type)
+            if typename is None:
+                raise Exception(f"Could not infer: {type_node}")
+        return typename
+
+    def _generic_typename_from_annotation(
+        self, node, attr="annotation"
+    ) -> Optional[str]:
+        "Unlike the one above, this doesn't do any target specific mapping"
+        typename = None
+        if hasattr(node, attr):
+            type_node = getattr(node, attr)
+            ret = self._generic_typename_from_type_node(type_node)
+            if isinstance(type_node, ast.Subscript):
+                node.generic_container_type = type_node.generic_container_type
+            return ret
         return typename
 
     def visit(self, node):

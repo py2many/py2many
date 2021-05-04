@@ -97,10 +97,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         self._usings.add('"github.com/adsharma/py2many/pygo/runtime"')
         element = self.visit(node.left)
         container = node.comparators[0]
-        self._typename_from_annotation(container)
+        self._generic_typename_from_annotation(container)
         container_str = self.visit(container)
-        if hasattr(container, "container_type"):
-            container_type, _ = container.container_type
+        if hasattr(container, "generic_container_type"):
+            container_type, _ = container.generic_container_type
             if container_type in {"Set" or "Dict"}:
                 return f"pygo.MapContains({container_str}, {element})"
         return f"pygo.Contains({container_str}, {element})"
