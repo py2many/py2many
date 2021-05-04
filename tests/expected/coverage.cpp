@@ -1,6 +1,7 @@
 #include "py14/runtime/builtins.h"
 #include "py14/runtime/range.hpp"
 #include "py14/runtime/sys.h"
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <set>
@@ -14,6 +15,13 @@ inline int indexing() {
     sum += a[i];
   }
   return sum;
+}
+
+inline auto infer_bool(int code) {
+  return ({
+    std::vector<int> __tmp1 = {1, 2, 4};
+    (std::find(__tmp1.begin(), __tmp1.end(), code) != __tmp1.end());
+  });
 }
 
 inline void show() {

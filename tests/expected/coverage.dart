@@ -11,6 +11,10 @@ int indexing() {
   return sum;
 }
 
+bool infer_bool(int code) {
+  return [1, 2, 4].contains(code);
+}
+
 show() {
   final int a1 = 10;
   double a2 = 2.1;

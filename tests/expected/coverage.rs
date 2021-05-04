@@ -18,6 +18,10 @@ pub fn indexing() -> i32 {
     return sum;
 }
 
+pub fn infer_bool(code: i32) -> bool {
+    return vec![1, 2, 4].iter().any(|&x| x == code);
+}
+
 pub fn show() {
     let a1: i32 = 10;
     let a2: f64 = 2.1;

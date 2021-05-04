@@ -9,6 +9,9 @@ proc indexing(): int =
     sum += a[i];
   return sum
 
+proc infer_bool(code: int): bool =
+  return code in @[1, 2, 4]
+
 proc show() =
   let a1 = 10
   let a2: float64 = 2.1

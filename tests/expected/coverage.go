@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/adsharma/py2many/pygo/runtime"
 	iter "github.com/hgfischer/go-iter"
 )
 
@@ -13,6 +14,10 @@ func indexing() int {
 		sum += a[i]
 	}
 	return sum
+}
+
+func infer_bool(code int) bool {
+	return pygo.Contains([]int{1, 2, 4}, code)
 }
 
 func show() {
