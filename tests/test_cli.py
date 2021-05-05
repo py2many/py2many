@@ -169,8 +169,13 @@ class CodeGeneratorTests(unittest.TestCase):
                 if settings.ext == ".kt" and case_output.is_absolute():
                     # KtLint does not support absolute path in globs
                     case_output = case_output.relative_to(Path.cwd())
+                linter = settings.linter.copy()
+                if ext == ".cpp":
+                    linter.append("-Wno-unused-variable")
+                    if case == "coverage":
+                        linter.append("-Wno-null-arithmetic")
                 run(
-                    [*settings.linter, case_output],
+                    [*linter, case_output],
                     check=not expect_failure,
                 )
 

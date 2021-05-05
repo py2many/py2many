@@ -40,6 +40,9 @@ from pygo.transpiler import (
 
 from py2many.rewriters import ComplexDestructuringRewriter, PythonMainRewriter
 
+PY2MANY_DIR = pathlib.Path(__file__).parent
+ROOT_DIR = PY2MANY_DIR.parent
+
 
 def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     """
@@ -109,6 +112,7 @@ def cpp_settings(args):
         ["clang-format", "-i"],
         None,
         [CppListComparisonRewriter()],
+        linter=["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++", "-Wall", "-Werror"]
     )
 
 
