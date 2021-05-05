@@ -94,7 +94,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         elif t in InferTypesTransformer.FIXED_WIDTH_INTS:
             annotation = ast.Name(id=str(t))
         elif t != type(None):
-            raise (Exception(f"{t} not found in TYPE_DICT"))
+            raise NotImplementedError(f"{t} not found in TYPE_DICT")
         return annotation
 
     def visit_NameConstant(self, node):
