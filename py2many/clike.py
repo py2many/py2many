@@ -96,6 +96,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         if isinstance(index_type, List):
             index_contains_default = "Any" in index_type
             if not index_contains_default:
+                if any(t is None for t in index_type):
+                    raise NotImplementedError(f"{typename} not supported")
                 index_type = ", ".join(index_type)
         else:
             index_contains_default = index_type == "Any"
