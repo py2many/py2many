@@ -44,7 +44,11 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 
-EXPECTED_COMPILE_FAILURES = []
+EXPECTED_COMPILE_FAILURES = [
+    "int_enum.go",
+    "rect.go",
+    "str_enum.go",
+]
 
 
 def has_main(filename):
@@ -128,7 +132,6 @@ class CodeGeneratorTests(unittest.TestCase):
                     [*compiler, f"cases/{case}{ext}"], env=env, check=not expect_failure
                 )
 
-                assert not expect_failure or proc.returncode != 0
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
 
@@ -153,7 +156,6 @@ class CodeGeneratorTests(unittest.TestCase):
 
                 stdout = proc.stdout
 
-                assert not expect_failure or proc.returncode != 0
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
             else:
@@ -163,21 +165,23 @@ class CodeGeneratorTests(unittest.TestCase):
                 stdout = stdout.splitlines()
                 self.assertEqual(expected_output, stdout)
 
-            if settings.linter:
-                if not spawn.find_executable(settings.linter[0]):
-                    raise unittest.SkipTest(f"{settings.linter[0]} not available")
-                if settings.ext == ".kt" and case_output.is_absolute():
-                    # KtLint does not support absolute path in globs
-                    case_output = case_output.relative_to(Path.cwd())
-                linter = settings.linter.copy()
-                if ext == ".cpp":
-                    linter.append("-Wno-unused-variable")
-                    if case == "coverage":
-                        linter.append("-Wno-null-arithmetic")
-                run(
-                    [*linter, case_output],
-                    check=not expect_failure,
-                )
+                if settings.linter:
+                    if not spawn.find_executable(settings.linter[0]):
+                        raise unittest.SkipTest(f"{settings.linter[0]} not available")
+                    if settings.ext == ".kt" and case_output.is_absolute():
+                        # KtLint does not support absolute path in globs
+                        case_output = case_output.relative_to(Path.cwd())
+                    linter = settings.linter.copy()
+                    if ext == ".cpp":
+                        linter.append("-Wno-unused-variable")
+                        if case == "coverage":
+                            linter.append("-Wno-null-arithmetic")
+                    proc = run([*linter, case_output])
+                    if proc.returncode:
+                        raise unittest.SkipTest(f"{case}{ext} failed linter")
+
+                    if expect_failure:
+                        raise AssertionError(f"{case}{ext} passed unexpectedly")
 
         finally:
             if not KEEP_GENERATED:

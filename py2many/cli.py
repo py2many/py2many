@@ -180,7 +180,7 @@ def go_settings(args):
         [GoNoneCompareRewriter()],
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
-        linter=["golint"],
+        linter=["golint", "-set_exit_status", "-min_confidence", "1.0"],
     )
 
 
