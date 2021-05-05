@@ -18,7 +18,11 @@ class GoMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
                 needs_assign = True
-            node.args = [ast.Name(id=fname.value.id, lineno=node.lineno)] + node.args
+            if get_id(fname.value):
+                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
+            else:
+                node0 = fname.value
+            node.args = [node0] + node.args
             node.func = ast.Name(id=fname.attr, lineno=node.lineno, ctx=fname.ctx)
         if needs_assign:
             ret = ast.Assign(
