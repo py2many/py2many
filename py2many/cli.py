@@ -23,6 +23,7 @@ from pyrs.transpiler import (
     RustTranspiler,
     RustLoopIndexRewriter,
     RustNoneCompareRewriter,
+    RustStringJoinRewriter,
 )
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.inference import infer_kotlin_types
@@ -129,7 +130,7 @@ def rust_settings(args):
         None,
         [RustNoneCompareRewriter()],
         [infer_rust_types],
-        [RustLoopIndexRewriter()],
+        [RustLoopIndexRewriter(), RustStringJoinRewriter()],
     )
 
 

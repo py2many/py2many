@@ -101,6 +101,11 @@ class FStringJoinRewriter(ast.NodeTransformer):
                 args[0].elts.append(v)
             elif isinstance(v, ast.FormattedValue):
                 args[0].elts.append(
-                    ast.Call(func=ast.Name(id="str"), args=[v.value], keywords=[])
+                    ast.Call(
+                        func=ast.Name(id="str", ctx="Load"), args=[v.value], keywords=[]
+                    )
                 )
+        new_node.lineno = node.lineno
+        new_node.col_offset = node.col_offset
+        ast.fix_missing_locations(new_node)
         return new_node

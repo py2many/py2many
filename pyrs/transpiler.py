@@ -35,6 +35,27 @@ class RustNoneCompareRewriter(ast.NodeTransformer):
         return node
 
 
+class RustStringJoinRewriter(ast.NodeTransformer):
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "join":
+            if hasattr(node.func.value, "value") and isinstance(
+                node.func.value.value, str
+            ):
+                new_call = ast.Call(
+                    ast.Attribute(value=node.args[0], attr=node.func.attr, ctx="Load"),
+                    args=[node.func.value],
+                    keywords=[],
+                )
+                new_call.lineno = node.lineno
+                new_call.col_offset = node.col_offset
+                new_call.scopes = node.scopes
+                new_call.func.scopes = node.scopes
+                ast.fix_missing_locations(new_call)
+                return new_call
+        return node
+
+
 class RustTranspiler(CLikeTranspiler):
     NAME = "rust"
 
@@ -222,7 +243,7 @@ class RustTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "str": lambda: f"String::from({vargs[0]})",
+            "str": lambda: f"&{vargs[0]}.to_string()",
             "len": lambda: f"{vargs[0]}.len()",
             "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
             "sum": lambda: f"{vargs[0]}.iter().sum()",
