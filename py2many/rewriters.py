@@ -1,5 +1,7 @@
 import ast
 
+from typing import Optional
+
 
 class ComplexDestructuringRewriter(ast.NodeTransformer):
     def __init__(self, language):
@@ -109,3 +111,46 @@ class FStringJoinRewriter(ast.NodeTransformer):
         new_node.col_offset = node.col_offset
         ast.fix_missing_locations(new_node)
         return new_node
+
+
+class DocStringToCommentRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+        self._docstrings = set()
+
+    def _get_doc_node(self, node) -> Optional[ast.AST]:
+        if not (node.body and isinstance(node.body[0], ast.Expr)):
+            return None
+        node = node.body[0].value
+        if isinstance(node, ast.Str):
+            return node
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node
+        return None
+
+    def visit_FunctionDef(self, node):
+        self._docstrings.add(self._get_doc_node(node))
+        self.generic_visit(node)
+        return node
+
+    def visit_ClassDef(self, node):
+        self._docstrings.add(self._get_doc_node(node))
+        self.generic_visit(node)
+        return node
+
+    def visit_Module(self, node):
+        self._docstrings.add(self._get_doc_node(node))
+        self.generic_visit(node)
+        return node
+
+    def visit_Constant(self, node):
+        if node in self._docstrings:
+            node.docstring_comment = ast.Constant(value=node.value)
+            return None
+        return node
+
+    def visit_Expr(self, node):
+        self.generic_visit(node)
+        if not hasattr(node, "value"):
+            return None
+        return node

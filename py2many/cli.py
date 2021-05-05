@@ -43,6 +43,7 @@ from py2many.rewriters import (
     ComplexDestructuringRewriter,
     FStringJoinRewriter,
     PythonMainRewriter,
+    DocStringToCommentRewriter,
 )
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
@@ -63,6 +64,7 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(language),
         FStringJoinRewriter(language),
+        DocStringToCommentRewriter(language),
     ]
 
     # This is very basic and needs to be run before and after
@@ -121,7 +123,15 @@ def cpp_settings(args):
         ["clang-format", "-i"],
         None,
         [CppListComparisonRewriter()],
-        linter=["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++", "-Wall", "-Werror"]
+        linter=[
+            "clang++",
+            "-std=c++14",
+            "-I",
+            str(ROOT_DIR),
+            "-stdlib=libc++",
+            "-Wall",
+            "-Werror",
+        ],
     )
 
 

@@ -72,7 +72,6 @@ TEST_CASES = {
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
     "float_1": "a = float(1)",  # https://github.com/adsharma/py2many/issues/129
-    "docstrings": "'''docstring'''\ndef main(): pass",  # https://github.com/adsharma/py2many/issues/7
     "print_None": "print(None)",
     "class_vars": "class A:\n  B = 'FOO'\ndef main(): assert A.B == 'FOO'",  # https://github.com/adsharma/py2many/issues/144
     "default_init": dedent(
