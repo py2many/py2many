@@ -38,7 +38,11 @@ from pygo.transpiler import (
     GoPropagateTypeAnnotation,
 )
 
-from py2many.rewriters import ComplexDestructuringRewriter, PythonMainRewriter
+from py2many.rewriters import (
+    ComplexDestructuringRewriter,
+    FStringJoinRewriter,
+    PythonMainRewriter,
+)
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
@@ -54,6 +58,7 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(language),
+        FStringJoinRewriter(language),
     ]
 
     # This is very basic and needs to be run before and after

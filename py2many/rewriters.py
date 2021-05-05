@@ -87,3 +87,20 @@ class PythonMainRewriter(ast.NodeTransformer):
             ret.python_main = True
             return ret
         return node
+
+
+class FStringJoinRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+
+    def visit_JoinedStr(self, node):
+        new_node = ast.parse('"".join([])').body[0].value
+        args = new_node.args
+        for v in node.values:
+            if isinstance(v, ast.Constant):
+                args[0].elts.append(v)
+            elif isinstance(v, ast.FormattedValue):
+                args[0].elts.append(
+                    ast.Call(func=ast.Name(id="str"), args=[v.value], keywords=[])
+                )
+        return new_node
