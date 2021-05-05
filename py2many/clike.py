@@ -306,6 +306,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         val = self.visit(node.value) if node.value is not None else None
         return (target, type_str, val)
 
+    def visit_Delete(self, node):
+        raise NotImplementedError("del not implemented")
+
     def visit_ClassDef(self, node):
         bases = [get_id(base) for base in node.bases]
         if set(bases) == {"Enum", "str"}:
