@@ -78,6 +78,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         return slice_value
 
     def _map_type(self, typename) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
         return self._type_map.get(typename, typename)
 
     def _map_types(self, typenames: List[str]) -> List[str]:

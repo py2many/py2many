@@ -107,6 +107,7 @@ EXPECTED_SUCCESSES = [
     "bool_to_int.jl",
     "bool_to_int.nim",
     "bool_to_int.rs",
+    "complex_dict.nim",
     "del.rs",
     "dict_value_type.dart",
     "dict_value_type.jl",
