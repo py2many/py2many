@@ -54,7 +54,10 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     Transpile a single python translation unit (a python script) into
     Rust code.
     """
-    tree = ast.parse(source)
+    if isinstance(source, ast.Module):
+        tree = source
+    else:
+        tree = ast.parse(source)
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),

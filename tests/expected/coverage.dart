@@ -1,6 +1,14 @@
 // @dart=2.9
 import 'package:sprintf/sprintf.dart';
 
+do_pass() {
+/* pass */
+}
+
+inline_pass() {
+/* pass */
+}
+
 int indexing() {
   int sum = 0;
   List<int> a = [];
@@ -17,6 +25,9 @@ bool infer_bool(int code) {
 
 show() {
   final int a1 = 10;
+  final int b9 = 2;
+  final int b2 = 2;
+  assert(b2 == b9);
   double a2 = 2.1;
   print(sprintf("%s", [a2]));
   for (final i in ([for (var i = 0; i < 10; i += 1) i])) {
@@ -57,6 +68,10 @@ show() {
   if (1 != null) {
     print(sprintf("%s", ["World is sane"]));
   }
+  do_pass();
+  inline_pass();
+  final String s = "1    2";
+  print(sprintf("%s", [s]));
 }
 
 main() {

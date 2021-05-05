@@ -68,7 +68,7 @@ class CodeGeneratorTests(unittest.TestCase):
         os.chdir(TESTS_DIR)
 
     @foreach(SETTINGS.keys())
-    @foreach(TEST_CASES)
+    @foreach(sorted(TEST_CASES))
     def test_cli(self, case, lang):
         settings = self.SETTINGS[lang]
         ext = settings.ext
@@ -100,10 +100,16 @@ class CodeGeneratorTests(unittest.TestCase):
 
         sys.argv = ["test", f"--{lang}=1", str(case_filename)]
 
-        expected_output = run(
-            [sys.executable, str(case_filename)], capture_output=True, check=True
-        ).stdout
-        self.assertTrue(expected_output)
+        proc = run(
+            [sys.executable, str(case_filename)],
+            capture_output=True,
+        )
+        expected_output = proc.stdout
+        if proc.returncode:
+            raise RuntimeError(
+                f"Invalid cases/{case}.py:\n{expected_output}{proc.stderr}"
+            )
+        self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
         if ENV.get(lang):
@@ -157,7 +163,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 stdout = proc.stdout
 
                 if proc.returncode:
-                    raise unittest.SkipTest(f"{case}{ext} doesnt compile")
+                    raise unittest.SkipTest(f"Execution of {case}{ext} failed")
             else:
                 raise RuntimeError("Compiled output not detected")
 

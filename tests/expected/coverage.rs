@@ -8,6 +8,14 @@ use std::collections;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+pub fn do_pass() {
+    /* pass */
+}
+
+pub fn inline_pass() {
+    /* pass */
+}
+
 pub fn indexing() -> i32 {
     let mut sum: i32 = 0;
     let mut a: Vec<i32> = vec![];
@@ -24,6 +32,9 @@ pub fn infer_bool(code: i32) -> bool {
 
 pub fn show() {
     let a1: i32 = 10;
+    let b9: i32 = 2;
+    let b2: i32 = 2;
+    assert!(b2 == b9);
     let a2: f64 = 2.1;
     println!("{}", a2);
     for i in (0..10) {
@@ -64,6 +75,10 @@ pub fn show() {
     if Some(1) != None {
         println!("{}", "World is sane");
     }
+    do_pass();
+    inline_pass();
+    let s: &str = "1    2";
+    println!("{}", s);
 }
 
 pub fn main() {

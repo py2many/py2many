@@ -4,6 +4,10 @@ fun compare_assert(a: Int, b: Int) {
 }
 
 fun main() {
+    assert(true)
+    assert(!(false))
     compare_assert(1, 1)
+    assert(true)
+    assert(true)
     println("OK")
 }

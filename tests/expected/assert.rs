@@ -10,6 +10,10 @@ pub fn compare_assert(a: i32, b: i32) {
 }
 
 pub fn main() {
+    assert!(true);
+    assert!(!(false));
     compare_assert(1, 1);
+    assert!(true);
+    assert!(true);
     println!("{}", "OK");
 }

@@ -1,4 +1,12 @@
 
+function do_pass()
+    # pass
+end
+
+function inline_pass()
+    # pass
+end
+
 function indexing()::Int64
     sum = 0
     a::Array{Int64} = []
@@ -15,6 +23,9 @@ end
 
 function show()
     a1 = 10
+    b9 = 2
+    b2 = 2
+    @assert(b2 == b9)
     a2::Float64 = 2.1
     println(join([a2], " "))
     for i in (0:10-1)
@@ -54,6 +65,10 @@ function show()
     if 1 != nothing
         println(join(["World is sane"], " "))
     end
+    do_pass()
+    inline_pass()
+    s = "1    2"
+    println(join([s], " "))
 end
 
 function main()

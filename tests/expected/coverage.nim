@@ -1,6 +1,12 @@
 import sets
 import tables
 
+proc do_pass() =
+  discard
+
+proc inline_pass() =
+  discard
+
 proc indexing(): int =
   var sum = 0
   var a: seq[int] = @[]
@@ -14,6 +20,9 @@ proc infer_bool(code: int): bool =
 
 proc show() =
   let a1 = 10
+  let b9 = 2
+  let b2 = 2
+  assert(b2 == b9)
   let a2: float64 = 2.1
   echo a2
   for i in (0..10 - 1):
@@ -47,6 +56,10 @@ proc show() =
   if 1 != 0:
     echo "World is sane"
 
+  do_pass()
+  inline_pass()
+  let s = "1    2"
+  echo s
 
 proc main() =
   show()

@@ -1,4 +1,12 @@
 
+fun do_pass() {
+/* pass */
+}
+
+fun inline_pass() {
+/* pass */
+}
+
 fun indexing(): Int {
     var sum = 0
     var a: Array<Int> = arrayOf()
@@ -15,6 +23,9 @@ fun infer_bool(code: Int): Boolean {
 
 fun show() {
     val a1 = 10
+    val b9 = 2
+    val b2 = 2
+    assert(b2 == b9)
     var a2: Double = 2.1
     println("$a2")
     for (i in (0..10 - 1)) {
@@ -64,6 +75,10 @@ fun show() {
     if (1 != null) {
         println("World is sane")
     }
+    do_pass()
+    inline_pass()
+    val s = "1    2"
+    println("$s")
 }
 
 fun main() {

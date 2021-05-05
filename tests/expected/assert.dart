@@ -7,6 +7,10 @@ compare_assert(int a, int b) {
 }
 
 main() {
+  assert(true);
+  assert(!(false));
   compare_assert(1, 1);
+  assert(true);
+  assert(true);
   print(sprintf("%s", ["OK"]));
 }

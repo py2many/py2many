@@ -2,10 +2,17 @@
 #include "py14/runtime/range.hpp"
 #include "py14/runtime/sys.h"
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <map>
 #include <set>
 #include <vector>
+
+inline void do_pass() {
+/* pass */}
+
+inline void inline_pass() {
+/* pass */}
 
 inline int indexing() {
   int sum = 0;
@@ -26,6 +33,9 @@ inline auto infer_bool(int code) {
 
 inline void show() {
   int a1 = 10;
+  int b9 = 2;
+  int b2 = 2;
+  assert(b2 == b9);
   double a2 = 2.1;
   std::cout << a2;
   std::cout << std::endl;
@@ -79,6 +89,11 @@ inline void show() {
     std::cout << std::string{"World is sane"};
     std::cout << std::endl;
   }
+  do_pass();
+  inline_pass();
+  std::string s = std::string{"1    2"};
+  std::cout << s;
+  std::cout << std::endl;
 }
 
 int main(int argc, char **argv) {

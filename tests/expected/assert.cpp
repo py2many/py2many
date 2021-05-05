@@ -9,7 +9,11 @@ inline void compare_assert(int a, int b) {
 
 int main(int argc, char **argv) {
   py14::sys::argv = std::vector<std::string>(argv, argv + argc);
+  assert(true);
+  assert(!(false));
   compare_assert(1, 1);
+  assert(true);
+  assert(true);
   std::cout << std::string{"OK"};
   std::cout << std::endl;
 }

@@ -1,6 +1,13 @@
 from typing import List
 
 
+def do_pass():
+    pass
+
+
+def inline_pass(): pass
+
+
 def indexing():
     sum = 0
     a: List[int] = []
@@ -17,6 +24,10 @@ def infer_bool(code: int):
 def show():
     # assign
     a1 = 10
+    #b1 = b2 = 15
+    #assert b2 == 15
+    b9 = 2; b2 = 2;
+    assert b2 == b9
     # annotated assign
     a2: float = 2.1
     print(a2)
@@ -25,6 +36,8 @@ def show():
         print(i)
     for i in range(0, 10, 2):
         print(i)
+    # for i in range(1, 10):
+    #     print(i)
     # unary op
     a3 = -a1
     # binary op
@@ -32,7 +45,6 @@ def show():
     print(a4)
     sum1 = indexing()
     print(sum1)
-    # Uncomment as we fix things
     # lists, sets and dict
     a5 = [1, 2, 3]
     print(len(a5))
@@ -43,6 +55,7 @@ def show():
     a7 = {"a": 1, "b": 2}
     print(len(a7))
     a8 = True
+    # print()
     if a8:
         print("true")
     elif a4 > 0:
@@ -53,6 +66,15 @@ def show():
         print("true")
     if 1 != None:
         print("World is sane")
+    # print(True)
+    # if True: a1 += 1
+    # if True: print("true")
+    do_pass()
+    inline_pass()
+    s = '1\
+    2'
+    print(s)
+    # assert 1 != 2 != 3
 
 
 if __name__ == "__main__":

@@ -6,6 +6,14 @@ import (
 	iter "github.com/hgfischer/go-iter"
 )
 
+func do_pass() {
+	/* pass */
+}
+
+func inline_pass() {
+	/* pass */
+}
+
 func indexing() int {
 	var sum int = 0
 	var a []int = []int{}
@@ -22,6 +30,11 @@ func infer_bool(code int) bool {
 
 func show() {
 	var a1 int = 10
+	var b9 int = 2
+	var b2 int = 2
+	if !(b2 == b9) {
+		panic("assert")
+	}
 	var a2 float64 = 2.1
 	fmt.Printf("%v\n", a2)
 	for _, i := range iter.NewIntSeq(iter.Start(0), iter.Stop(10)).All() {
@@ -59,6 +72,10 @@ func show() {
 	if 1 != 0 {
 		fmt.Printf("%v\n", "World is sane")
 	}
+	do_pass()
+	inline_pass()
+	var s string = "1    2"
+	fmt.Printf("%v\n", s)
 }
 
 func main() {
