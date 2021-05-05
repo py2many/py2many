@@ -153,7 +153,10 @@ class ValueTypeVisitor(ast.NodeVisitor):
         return CLikeTranspiler().visit(node)
 
     def visit_Call(self, node):
-        params = ",".join([self.visit(arg) for arg in node.args])
+        params = [self.visit(arg) for arg in node.args]
+        if any(t is None for t in params):
+            raise NotImplementedError(f"Call({params}) not implemented")
+        params = ",".join(params)
         return "{0}({1})".format(node.func.id, params)
 
     def visit_Assign(self, node):
