@@ -84,6 +84,7 @@ jobs:
         # https://github.com/sdkman/sdkman-action/issues/8
         run: |
           source "$HOME/.sdkman/bin/sdkman-init.sh"
+          LINT=1
           tox
 
   lint:

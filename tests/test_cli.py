@@ -1,22 +1,19 @@
+import argparse
 import os.path
 import unittest
 import sys
+
 from distutils import spawn
 from pathlib import Path
 from subprocess import run
 from unittest.mock import Mock
-
 from unittest_expander import foreach, expand
 
 from py2many.cli import main, _get_all_settings
 
-SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
-
-TESTS_DIR = Path(__file__).parent
+TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
 
-KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
-UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 ENV = {
     "rust": {
         "RUSTFLAGS": "--deny warnings",
@@ -44,7 +41,7 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 
-EXPECTED_COMPILE_FAILURES = [
+EXPECTED_LINT_FAILURES = [
     "int_enum.go",
     "rect.go",
     "str_enum.go",
@@ -64,8 +61,14 @@ class CodeGeneratorTests(unittest.TestCase):
     SETTINGS = _get_all_settings(Mock(indent=4))
     maxDiff = None
 
+    SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
+    KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
+    UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+    LINT = os.environ.get("LINT", True)
+
     def setUp(self):
         os.chdir(TESTS_DIR)
+
 
     @foreach(SETTINGS.keys())
     @foreach(sorted(TEST_CASES))
@@ -73,8 +76,8 @@ class CodeGeneratorTests(unittest.TestCase):
         settings = self.SETTINGS[lang]
         ext = settings.ext
         if (
-            not UPDATE_EXPECTED
-            and not KEEP_GENERATED
+            not self.UPDATE_EXPECTED
+            and not self.KEEP_GENERATED
             and not os.path.exists(f"expected/{case}{ext}")
         ):
             raise unittest.SkipTest(f"expected/{case}{ext} not found")
@@ -122,13 +125,13 @@ class CodeGeneratorTests(unittest.TestCase):
             main()
             with open(f"cases/{case}{ext}") as actual:
                 generated = actual.read()
-                if os.path.exists(f"expected/{case}{ext}") and not UPDATE_EXPECTED:
+                if os.path.exists(f"expected/{case}{ext}") and not self.UPDATE_EXPECTED:
                     with open(f"expected/{case}{ext}") as f2:
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
 
             expect_failure = (
-                not SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
+                not self.SHOW_ERRORS and f"{case}{ext}" in EXPECTED_LINT_FAILURES
             )
             compiler = COMPILERS[lang]
             if compiler:
@@ -141,7 +144,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
 
-                if UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
+                if self.UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
                     with open(f"expected/{case}{ext}", "w") as f:
                         f.write(generated)
 
@@ -171,7 +174,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 stdout = stdout.splitlines()
                 self.assertEqual(expected_output, stdout)
 
-                if settings.linter:
+                if settings.linter and self.LINT:
                     if not spawn.find_executable(settings.linter[0]):
                         raise unittest.SkipTest(f"{settings.linter[0]} not available")
                     if settings.ext == ".kt" and case_output.is_absolute():
@@ -190,10 +193,23 @@ class CodeGeneratorTests(unittest.TestCase):
                         raise AssertionError(f"{case}{ext} passed unexpectedly")
 
         finally:
-            if not KEEP_GENERATED:
+            if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
             exe.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lint", type=bool, default=False, help="Lint generated code")
+    parser.add_argument("--show-errors", type=bool, default=False, help="Show compile errors")
+    parser.add_argument("--keep-generated", type=bool, default=False, help="Keep generated code for debug")
+    parser.add_argument("--update-expected", type=bool, default=False, help="Update tests/expected")
+    args, rest = parser.parse_known_args()
+
+    CodeGeneratorTests.SHOW_ERRORS |= args.show_errors
+    CodeGeneratorTests.KEEP_GENERATED |= args.keep_generated
+    CodeGeneratorTests.UPDATE_EXPECTED |= args.update_expected
+    CodeGeneratorTests.LINT |= args.lint
+
+    rest = [sys.argv[0]] + rest
+    unittest.main(argv=rest)
