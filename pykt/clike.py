@@ -89,6 +89,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = KT_TYPE_MAP
+        self._statement_separator = ""
         self._temp = 0
 
     def _get_temp(self):

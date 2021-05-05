@@ -53,6 +53,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._usings = set([])
         self._container_type_map = {}
         self._default_type = "auto"
+        self._statement_separator = ";"
 
     def headers(self, meta=None):
         return ""
@@ -190,6 +191,18 @@ class CLikeTranspiler(ast.NodeVisitor):
         if isinstance(node.value, str):
             return self.visit_Str(node)
         return str(self.visit_NameConstant(node))
+
+    def visit_Expr(self, node):
+        s = self.visit(node.value)
+        if not s:
+            return ""
+        s = s.strip()
+        if not s.endswith(self._statement_separator):
+            s += self._statement_separator
+        if s == self._statement_separator:
+            return ""
+        else:
+            return s
 
     def visit_Str(self, node):
         return f'"{node.value}"'

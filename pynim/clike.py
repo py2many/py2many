@@ -116,6 +116,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = NIM_TYPE_MAP
+        self._statement_separator = ""
 
     def visit(self, node):
         if type(node) in nim_symbols:

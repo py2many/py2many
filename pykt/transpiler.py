@@ -253,9 +253,6 @@ class KotlinTranspiler(CLikeTranspiler):
         buf.append("}")
         return "\n".join(buf)
 
-    def visit_Expr(self, node):
-        return self.visit(node.value)
-
     def visit_Str(self, node):
         return "" + super().visit_Str(node) + ""
 

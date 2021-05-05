@@ -200,15 +200,6 @@ class DartTranspiler(CLikeTranspiler):
         buf.append("}")
         return "\n".join(buf)
 
-    def visit_Expr(self, node):
-        s = self.visit(node.value)
-        if s.strip() and not s.endswith(";"):
-            s += ";"
-        if s == ";":
-            return ""
-        else:
-            return s
-
     def visit_Str(self, node):
         return "" + super().visit_Str(node) + ""
 
