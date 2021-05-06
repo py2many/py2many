@@ -19,11 +19,7 @@ ROOT_DIR = TESTS_DIR.parent
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
-ENV = {
-    "rust": {
-        "RUSTFLAGS": "--deny warnings",
-    },
-}
+ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
     "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
@@ -106,6 +102,7 @@ EXPECTED_SUCCESSES = [
     "bool_to_int.jl",
     "bool_to_int.nim",
     "bool_to_int.rs",
+    "complex_dict.jl",
     "complex_dict.nim",
     "del.rs",
     "dict_value_type.dart",
@@ -155,10 +152,7 @@ class CodeGeneratorTests(unittest.TestCase):
         print(f">{source_data}<")
         tree = ast.parse(source_data)
         astpretty.pprint(tree)
-        proc = run(
-            [sys.executable, "-c", source_data],
-            capture_output=True,
-        )
+        proc = run([sys.executable, "-c", source_data], capture_output=True)
         if proc.returncode:
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
         try:
@@ -229,11 +223,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
-                proc = run(
-                    [*invoker, case_output],
-                    env=env,
-                    capture_output=True,
-                )
+                proc = run([*invoker, case_output], env=env, capture_output=True)
 
                 if proc.returncode and not expect_success:
                     raise unittest.SkipTest(
