@@ -19,9 +19,10 @@ ROOT_DIR = TESTS_DIR.parent
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+CXX = os.environ.get("CXX", "clang++")
 ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
-    "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
+    "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
     "julia": ["julia", "--compiled-modules=yes"],
@@ -132,16 +133,20 @@ def has_main(source):
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    SETTINGS = _get_all_settings(Mock(indent=4))
+    LANGS = list(_get_all_settings(Mock(indent=4)).keys())
     maxDiff = None
 
     def setUp(self):
         os.chdir(TESTS_DIR)
 
-    @foreach(SETTINGS.keys())
+    @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES.keys()))
-    def test_cli(self, case, lang):
-        settings = self.SETTINGS[lang]
+    def test_snippet(self, case, lang):
+        env = os.environ.copy()
+        if ENV.get(lang):
+            env.update(ENV.get(lang))
+
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         ext = settings.ext
         source_data = TEST_CASES[case]
         is_script = has_main(source_data)
@@ -189,17 +194,11 @@ class CodeGeneratorTests(unittest.TestCase):
             if settings.ext == ".kt" and case_output.is_absolute():
                 # KtLint does not support absolute path in globs
                 case_output = case_output.relative_to(Path.cwd())
-            proc = run([*settings.formatter, case_output], capture_output=True)
+            proc = run([*settings.formatter, case_output], env=env, capture_output=True)
             if proc.returncode:
                 raise unittest.SkipTest(
-                    f"Error: Could not reformat:\n{proc.stdout}{proc.stderr}"
+                    f"Error: Could not reformat using {settings.formatter}:\n{proc.stdout}{proc.stderr}"
                 )
-
-        if ENV.get(lang):
-            env = os.environ.copy()
-            env.update(ENV.get(lang))
-        else:
-            env = None
 
         try:
             compiler = COMPILERS[lang]

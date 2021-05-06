@@ -49,6 +49,7 @@ jobs:
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
           if [ "$RUNNER_OS" == "Linux" ]; then
+              sudo apt-get install --yes astyle
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
@@ -56,11 +57,11 @@ jobs:
               (cd /usr/local/bin && sudo ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install clang-format kscript ktlint
+              brew install clang-format kscript ktlint astyle
               (cd /usr/local/bin && ln -s $(find ~/.julia -name format.jl))
               (cd /usr/local/bin && ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "Windows" ]; then
-              choco install zip curl
+              choco install zip curl astyle
           fi
           dart pub global activate stagehand
           curl -s "https://get.sdkman.io" | bash

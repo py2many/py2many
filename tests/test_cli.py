@@ -9,14 +9,25 @@ from subprocess import run
 from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
-from py2many.cli import main, _get_all_settings
+from py2many.cli import main, _create_cmd, _get_all_settings
 
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
 
-ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
+KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
+UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+CXX = os.environ.get("CXX", "clang++")
+ENV = {
+    "cpp": {
+        "CLANG_FORMAT_STYLE": "LLVM",
+    },
+    "rust": {
+        "RUSTFLAGS": "--deny warnings",
+    },
+}
 COMPILERS = {
-    "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
+    "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
+    + (["-stdlib=libc++"] if CXX == "clang++" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
     "julia": ["julia", "--compiled-modules=yes"],
@@ -52,7 +63,7 @@ def has_main(filename):
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    SETTINGS = _get_all_settings(Mock(indent=4))
+    LANGS = list(_get_all_settings(Mock(indent=4)).keys())
     maxDiff = None
 
     SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
@@ -63,10 +74,14 @@ class CodeGeneratorTests(unittest.TestCase):
     def setUp(self):
         os.chdir(TESTS_DIR)
 
-    @foreach(SETTINGS.keys())
+    @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES))
-    def test_cli(self, case, lang):
-        settings = self.SETTINGS[lang]
+    def test_generated(self, case, lang):
+        env = os.environ.copy()
+        if ENV.get(lang):
+            env.update(ENV.get(lang))
+
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         ext = settings.ext
         if (
             not self.UPDATE_EXPECTED
@@ -74,6 +89,7 @@ class CodeGeneratorTests(unittest.TestCase):
             and not os.path.exists(f"expected/{case}{ext}")
         ):
             raise unittest.SkipTest(f"expected/{case}{ext} not found")
+
         if settings.formatter:
             if not spawn.find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
@@ -94,8 +110,6 @@ class CodeGeneratorTests(unittest.TestCase):
         is_script = has_main(case_filename)
         self.assertTrue(is_script)
 
-        sys.argv = ["test", f"--{lang}=1", str(case_filename)]
-
         proc = run([sys.executable, str(case_filename)], capture_output=True)
         expected_output = proc.stdout
         if proc.returncode:
@@ -105,14 +119,10 @@ class CodeGeneratorTests(unittest.TestCase):
         self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
-        if ENV.get(lang):
-            env = os.environ.copy()
-            env.update(ENV.get(lang))
-        else:
-            env = None
+        args = [f"--{lang}=1", str(case_filename)]
 
         try:
-            main()
+            rv = main(args=args, env=env)
             with open(f"cases/{case}{ext}") as actual:
                 generated = actual.read()
                 if os.path.exists(f"expected/{case}{ext}") and not self.UPDATE_EXPECTED:
@@ -123,6 +133,12 @@ class CodeGeneratorTests(unittest.TestCase):
             expect_failure = (
                 not self.SHOW_ERRORS and f"{case}{ext}" in EXPECTED_LINT_FAILURES
             )
+
+            if not expect_failure:
+                assert rv, "formatting failed"
+            elif not rv:
+                raise unittest.SkipTest("formatting failed")
+
             compiler = COMPILERS[lang]
             if compiler:
                 if not spawn.find_executable(compiler[0]):
@@ -175,14 +191,22 @@ class CodeGeneratorTests(unittest.TestCase):
                     if settings.ext == ".kt" and case_output.is_absolute():
                         # KtLint does not support absolute path in globs
                         case_output = case_output.relative_to(Path.cwd())
-                    linter = settings.linter.copy()
+                    linter = _create_cmd(settings.linter, case_output)
                     if ext == ".cpp":
                         linter.append("-Wno-unused-variable")
                         if case == "coverage":
-                            linter.append("-Wno-null-arithmetic")
-                    proc = run([*linter, case_output])
-                    if proc.returncode:
+                            linter.append(
+                                "-Wno-null-arithmetic"
+                                if CXX == "clang++"
+                                else "-Wno-pointer-arith"
+                            )
+                    proc = run(linter, env=env)
+                    # golint is failing regularly due to exports without docs
+                    if proc.returncode and linter[0] == "golint":
+                        expect_failure = True
+                    if proc.returncode and expect_failure:
                         raise unittest.SkipTest(f"{case}{ext} failed linter")
+                    self.assertFalse(proc.returncode)
 
                     if expect_failure:
                         raise AssertionError(f"{case}{ext} passed unexpectedly")
@@ -191,6 +215,69 @@ class CodeGeneratorTests(unittest.TestCase):
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
             exe.unlink(missing_ok=True)
+
+    @foreach(sorted(TEST_CASES))
+    # This test name must be alpha before `test_generated` otherwise
+    # KEEP_GENERATED does not work.
+    def test_env_cxx_gcc(self, case):
+        lang = "cpp"
+        ext = ".cpp"
+        if not os.path.exists(f"expected/{case}{ext}"):
+            raise unittest.SkipTest(f"expected/{case}{ext} not found")
+
+        env = os.environ.copy()
+        env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
+        env["CXXFLAGS"] = "-std=c++14 -Wall -Werror"
+
+        if not spawn.find_executable(env["CXX"]):
+            raise unittest.SkipTest(f"{env['CXX']} not available")
+
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
+        assert settings.linter[0].startswith("g++")
+
+        if not spawn.find_executable("astyle"):
+            raise unittest.SkipTest("astyle not available")
+
+        settings.formatter = ["astyle"]
+
+        exe = TESTS_DIR / "a.out"
+        exe.unlink(missing_ok=True)
+
+        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
+
+        args = [f"--{lang}=1", str(case_filename)]
+
+        linter = _create_cmd(settings.linter, case_output)
+
+        try:
+            rv = main(args=args, env=env)
+            assert rv
+
+            linter.append("-Wno-unused-variable")
+            if case == "coverage":
+                linter.append("-Wno-pointer-arith")
+            proc = run(linter, env=env)
+            assert not proc.returncode
+        except FileNotFoundError as e:
+            raise unittest.SkipTest(f"Failed invoking {env['CXX']} or {linter}: {e}")
+        finally:
+            if not KEEP_GENERATED:
+                case_output.unlink(missing_ok=True)
+            exe.unlink(missing_ok=True)
+
+    def test_env_clang_format_style(self):
+        lang = "cpp"
+        env = {
+            "CLANG_FORMAT_STYLE": "Google",
+        }
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
+        self.assertIn("-style=Google", settings.formatter)
+
+    def test_arg_nim_indent(self):
+        lang = "nim"
+        settings = _get_all_settings(Mock(indent=2))[lang]
+        self.assertIn("--indent:2", settings.formatter)
 
 
 if __name__ == "__main__":
