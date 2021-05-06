@@ -526,8 +526,12 @@ class RustTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
+        # TODO: optimize this. We need to compute value_type once per definition
+        self._generic_typename_from_annotation(node.value)
+        value_type = getattr(node.value.annotation, "generic_container_type", None)
+        is_list = value_type is not None and value_type[0] == "List"
         index_typename = get_inferred_rust_type(self._slice_value(node))
-        if index_typename != "u64" or index_typename != "usize":
+        if is_list and (index_typename != "u64" or index_typename != "usize"):
             index = self._cast(index, "usize")
         return "{0}[{1}]".format(value, index)
 

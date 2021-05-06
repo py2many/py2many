@@ -408,8 +408,14 @@ class JuliaTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)
-        # Julia array indices start at 1
-        return "{0}[{1} + 1]".format(value, index)
+        # TODO: optimize this. We need to compute value_type once per definition
+        self._generic_typename_from_annotation(node.value)
+        value_type = getattr(node.value.annotation, "generic_container_type", None)
+        if value_type is not None and value_type[0] == "List":
+            # Julia array indices start at 1
+            return "{0}[{1} + 1]".format(value, index)
+        else:
+            return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
         return self.visit(node.value)
