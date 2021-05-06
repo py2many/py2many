@@ -117,6 +117,7 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
         self._docstrings = set()
+        self._docstring_parent = {}
 
     def _get_doc_node(self, node) -> Optional[ast.AST]:
         if not (node.body and isinstance(node.body[0], ast.Expr)):
@@ -129,23 +130,30 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         return None
 
     def visit_FunctionDef(self, node):
-        self._docstrings.add(self._get_doc_node(node))
+        doc_node = self._get_doc_node(node)
+        self._docstrings.add(doc_node)
+        self._docstring_parent[doc_node] = node
         self.generic_visit(node)
         return node
 
     def visit_ClassDef(self, node):
-        self._docstrings.add(self._get_doc_node(node))
+        doc_node = self._get_doc_node(node)
+        self._docstrings.add(doc_node)
+        self._docstring_parent[doc_node] = node
         self.generic_visit(node)
         return node
 
     def visit_Module(self, node):
-        self._docstrings.add(self._get_doc_node(node))
+        doc_node = self._get_doc_node(node)
+        self._docstrings.add(doc_node)
+        self._docstring_parent[doc_node] = node
         self.generic_visit(node)
         return node
 
     def visit_Constant(self, node):
         if node in self._docstrings:
-            node.docstring_comment = ast.Constant(value=node.value)
+            parent = self._docstring_parent[node]
+            parent.docstring_comment = ast.Constant(value=node.value)
             return None
         return node
 

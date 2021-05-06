@@ -177,7 +177,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return super().visit(node)
 
     def visit_Module(self, node):
-        buf = [self.visit(b) for b in node.body]
+        docstring = getattr(node, "docstring_comment", None)
+        buf = [self.comment(docstring.value)] if docstring is not None else []
+        buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
 
     def visit_Name(self, node):

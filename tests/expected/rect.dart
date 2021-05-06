@@ -1,5 +1,6 @@
 // @dart=2.9
 import 'package:sprintf/sprintf.dart';
+/* This file implements a rectangle class  */
 
 class Rectangle {
   int height;

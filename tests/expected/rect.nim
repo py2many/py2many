@@ -1,3 +1,5 @@
+# This file implements a rectangle class
+
 
 type
   Rectangle = object

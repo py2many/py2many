@@ -4,6 +4,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+/* This file implements a rectangle class  */
+
 pub struct Rectangle {
     pub height: i32,
     pub length: i32,

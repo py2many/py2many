@@ -7,11 +7,11 @@ import (
 )
 
 func do_pass() {
-	/* pass */
+	// pass
 }
 
 func inline_pass() {
-	/* pass */
+	// pass
 }
 
 func indexing() int {

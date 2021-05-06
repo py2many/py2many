@@ -1,3 +1,4 @@
+# This file implements a rectangle class 
 
 struct Rectangle
     height::Int64

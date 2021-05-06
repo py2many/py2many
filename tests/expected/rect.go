@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// This file implements a rectangle class
+
 type Rectangle struct {
 	height int
 	length int

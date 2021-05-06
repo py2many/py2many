@@ -54,6 +54,9 @@ class NimTranspiler(CLikeTranspiler):
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
 
+    def comment(self, text):
+        return f"# {text}\n"
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)

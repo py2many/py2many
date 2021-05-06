@@ -2,6 +2,7 @@
 #include "py14/runtime/sys.h"
 #include <cassert>
 #include <iostream>
+/* This file implements a rectangle class  */
 
 class Rectangle {
 public:
