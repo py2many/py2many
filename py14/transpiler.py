@@ -490,10 +490,6 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def visit_Module(self, node):
-        buf = [self.visit(b) for b in node.body]
-        return "\n".join(buf)
-
     def visit_alias(self, node):
         return '#include "{0}.h"'.format(node.name)
 

@@ -176,6 +176,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         else:
             return super().visit(node)
 
+    def visit_Module(self, node):
+        buf = [self.visit(b) for b in node.body]
+        return "\n".join(buf)
+
     def visit_Name(self, node):
         if node.id in self.builtin_constants:
             return node.id.lower()

@@ -374,13 +374,6 @@ class GoTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def visit_Module(self, node):
-        buf = []
-        for header in self._headers:
-            buf.append(header)
-        buf += [self.visit(b) for b in node.body]
-        return "\n".join(buf)
-
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(GoTranspiler())
         extractor.visit(node)
