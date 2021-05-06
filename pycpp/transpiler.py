@@ -316,7 +316,7 @@ class CppTranspiler(CLikeTranspiler):
             return f"rangepp::xrange({args})"
 
         def visit_print(node, vargs: List[str]) -> str:
-            self._headers.append("#include <iostream>")
+            self._usings.add("<iostream>")
             buf = []
             for n in node.args:
                 value = self.visit(n)
@@ -360,7 +360,7 @@ class CppTranspiler(CLikeTranspiler):
             return f"static_cast<{cast_to}>({vargs[0]})"
 
         def visit_floor() -> str:
-            self._headers.append("#include <math.h>")
+            self._usings.add("<math.h>")
             return f"static_cast<size_t>(floor({vargs[0]}))"
 
         # small one liners are inlined here as lambdas
@@ -512,7 +512,7 @@ class CppTranspiler(CLikeTranspiler):
             return self._default_type
 
     def visit_List(self, node):
-        self._headers.append("#include <vector>")
+        self._usings.add("<vector>")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         element_type = self._get_element_type(node)
@@ -525,7 +525,7 @@ class CppTranspiler(CLikeTranspiler):
         return f"std::vector<{element_type}>{{{elements_str}}}"
 
     def visit_Set(self, node):
-        self._headers.append("#include <set>")
+        self._usings.add("<set>")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         element_type = self._get_element_type(node)
@@ -535,7 +535,7 @@ class CppTranspiler(CLikeTranspiler):
         return f"std::set<{element_type}>{{{elements_str}}}"
 
     def visit_Dict(self, node):
-        self._headers.append("#include <map>")
+        self._usings.add("<map>")
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
         kv_pairs = ", ".join([f"{{ {k}, {v} }}" for k, v in zip(keys, values)])
@@ -569,7 +569,7 @@ class CppTranspiler(CLikeTranspiler):
         return "std::make_tuple({0})".format(", ".join(elts))
 
     def visit_TryExcept(self, node, finallybody=None):
-        self._headers.append("#include <iostream>")
+        self._usings.add("<iostream>")
         buf = ["try {"]
         buf += [self.visit(n) for n in node.body]
         buf.append("} catch (const std::exception& e) {")
@@ -596,7 +596,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Assert(self, node):
         if not self.use_catch_test_cases:
-            self._headers.append("#include <cassert>")
+            self._usings.add("<cassert>")
             return "assert({0});".format(self.visit(node.test))
         return "REQUIRE({0});".format(self.visit(node.test))
 
@@ -628,7 +628,7 @@ class CppTranspiler(CLikeTranspiler):
             elements_str = ", ".join(elements)
             target = self.visit(target)
             element_typename = self._get_element_type(node.value)
-            self._headers.append("#include <vector>")
+            self._usings.add("<vector>")
             if element_typename == self._default_type:
                 typename = decltype(node)
                 return f"{typename} {target} = {{{elements_str}}};"

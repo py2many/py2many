@@ -160,7 +160,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         return " ".join([left, self.visit(node.op), right])
 
     def visit_In(self, node):
-        self._headers.append("#include <algorithm>")
+        self._usings.add("<algorithm>")
         left_str = self.visit(node.left)
         right = node.comparators[0]
         right_str = self.visit(right)
