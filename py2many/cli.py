@@ -95,6 +95,9 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     out = []
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
+    features = transpiler.features()
+    if features:
+        out.append(features)
     if headers:
         out.append(headers)
     usings = transpiler.usings()

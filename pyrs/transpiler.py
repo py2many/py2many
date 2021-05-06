@@ -94,6 +94,11 @@ class RustTranspiler(CLikeTranspiler):
         cargo_deps = f"// cargo-deps: {deps}\n" if deps else ""
         return f"{cargo_deps}\n{lint_ignores}\n{externs}\n{uses}\n"
 
+    def features(self):
+        if self._features:
+            features = ", ".join(sorted(list(set(self._features))))
+            return f"#![feature({features})]"
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -758,7 +763,12 @@ class RustTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node):
-        return "//yield is unimplemented"
+        self._features.add("generators")
+        self._features.add("generator_trait")
+        self._usings.add("std::ops::Generator")
+        self._usings.add("std::ops::GeneratorState")
+        value = self.visit(node.value)
+        return f"yield {value};"
 
     def visit_Print(self, node):
         buf = []

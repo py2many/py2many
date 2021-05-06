@@ -51,6 +51,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
+        self._features = set([])
         self._container_type_map = {}
         self._default_type = "auto"
         self._statement_separator = ";"
@@ -59,6 +60,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         return ""
 
     def usings(self):
+        return ""
+
+    def features(self):
         return ""
 
     def comment(self, text):
