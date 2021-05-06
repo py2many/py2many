@@ -14,11 +14,7 @@ from py2many.cli import main, _get_all_settings
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
 
-ENV = {
-    "rust": {
-        "RUSTFLAGS": "--deny warnings",
-    },
-}
+ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
     "cpp": ["clang++", "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
     "dart": ["dart", "compile", "exe"],
@@ -41,10 +37,10 @@ TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 
-EXPECTED_LINT_FAILURES = [
-    "int_enum.go",
-    "rect.go",
-    "str_enum.go",
+EXPECTED_LINT_FAILURES = ["int_enum.go", "rect.go", "str_enum.go"]
+
+EXPECTED_COMPILE_FAILURES = [
+    "asyncio_test.rs"  # https://github.com/adsharma/py2many/issues/198
 ]
 
 
@@ -68,7 +64,6 @@ class CodeGeneratorTests(unittest.TestCase):
 
     def setUp(self):
         os.chdir(TESTS_DIR)
-
 
     @foreach(SETTINGS.keys())
     @foreach(sorted(TEST_CASES))
@@ -103,10 +98,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         sys.argv = ["test", f"--{lang}=1", str(case_filename)]
 
-        proc = run(
-            [sys.executable, str(case_filename)],
-            capture_output=True,
-        )
+        proc = run([sys.executable, str(case_filename)], capture_output=True)
         expected_output = proc.stdout
         if proc.returncode:
             raise RuntimeError(
@@ -137,6 +129,11 @@ class CodeGeneratorTests(unittest.TestCase):
             if compiler:
                 if not spawn.find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
+                expect_compile_failure = (
+                    not self.SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
+                )
+                if expect_compile_failure:
+                    return
                 proc = run(
                     [*compiler, f"cases/{case}{ext}"], env=env, check=not expect_failure
                 )
@@ -201,9 +198,18 @@ class CodeGeneratorTests(unittest.TestCase):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--lint", type=bool, default=False, help="Lint generated code")
-    parser.add_argument("--show-errors", type=bool, default=False, help="Show compile errors")
-    parser.add_argument("--keep-generated", type=bool, default=False, help="Keep generated code for debug")
-    parser.add_argument("--update-expected", type=bool, default=False, help="Update tests/expected")
+    parser.add_argument(
+        "--show-errors", type=bool, default=False, help="Show compile errors"
+    )
+    parser.add_argument(
+        "--keep-generated",
+        type=bool,
+        default=False,
+        help="Keep generated code for debug",
+    )
+    parser.add_argument(
+        "--update-expected", type=bool, default=False, help="Update tests/expected"
+    )
     args, rest = parser.parse_known_args()
 
     CodeGeneratorTests.SHOW_ERRORS |= args.show_errors

@@ -44,7 +44,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     builtin_constants = frozenset(["True", "False"])
     IGNORED_MODULE_LIST = set(
-        ["typing", "enum", "dataclasses", "ctypes", "math", "__future__"]
+        ["typing", "enum", "dataclasses", "ctypes", "math", "__future__", "asyncio"]
     )
 
     def __init__(self):

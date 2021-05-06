@@ -142,7 +142,7 @@ def rust_settings(args):
     return LanguageSettings(
         RustTranspiler(),
         ".rs",
-        ["rustfmt"],
+        ["rustfmt", "--edition=2018"],
         None,
         [RustNoneCompareRewriter()],
         [infer_rust_types],

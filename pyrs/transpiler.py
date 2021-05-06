@@ -99,7 +99,7 @@ class RustTranspiler(CLikeTranspiler):
             features = ", ".join(sorted(list(set(self._features))))
             return f"#![feature({features})]"
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node, async_prefix=""):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
 
@@ -135,8 +135,9 @@ class RustTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "<{0}>".format(", ".join(typedecls))
 
-        funcdef = "pub fn {0}{1}({2}) {3}".format(
-            node.name, template, ", ".join(args_list), return_type
+        args_list = ", ".join(args_list)
+        funcdef = (
+            f"pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
         )
         return funcdef + " {\n" + body + "\n}\n"
 
@@ -246,6 +247,10 @@ class RustTranspiler(CLikeTranspiler):
             else:
                 return f"{cast_to}::from({vargs[0]})"
 
+        def visit_asyncio_run() -> str:
+            self._usings.add("futures::executor::block_on")
+            return f"block_on({vargs[0]})"
+
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "str": lambda: f"&{vargs[0]}.to_string()",
@@ -262,6 +267,7 @@ class RustTranspiler(CLikeTranspiler):
             "map": lambda: f"{vargs[1]}.iter().map({vargs[0]})",
             "filter": lambda: f"{vargs[1]}.into_iter().filter({vargs[0]})",
             "list": lambda: f"{vargs[0]}.collect::<Vec<_>>()",
+            "asyncio.run": visit_asyncio_run,
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
@@ -757,10 +763,11 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Await(self, node):
-        return "await!({0})".format(self.visit(node.value))
+        value = self.visit(node.value)
+        return f"{value}.await"
 
     def visit_AsyncFunctionDef(self, node):
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+        return self.visit_FunctionDef(node, async_prefix="async ")
 
     def visit_Yield(self, node):
         self._features.add("generators")
