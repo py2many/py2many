@@ -218,8 +218,11 @@ class DartTranspiler(CLikeTranspiler):
         return super().visit_Compare(node)
 
     def visit_Name(self, node):
+        exception_name_map = {"ZeroDivisionError": "IntegerDivisionByZeroException"}
         if node.id == "None":
             return "null"
+        elif node.id in exception_name_map:
+            return exception_name_map[node.id]
         else:
             return super().visit_Name(node)
 
@@ -438,25 +441,39 @@ class DartTranspiler(CLikeTranspiler):
         buf.append("};")
         return buf
 
-    def visit_Try(self, node, finallybody=None):
-        buf = self.visit_unsupported_body("try_dummy", node.body)
+    def visit_Raise(self, node):
+        exc = self.visit(node.exc)
+        return f"throw new {exc};"
+
+    def visit_Try(self, node):
+        buf = []
+        buf.append("try {")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("}")
 
         for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
+            buf.append(self.visit(handler))
 
-        if finallybody:
-            buf += self.visit_unsupported_body("finally_dummy", finallybody)
+        if node.finalbody:
+            buf.append("finally {")
+            buf.extend([self.visit(child) for child in node.finalbody])
+            buf.append("}")
 
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node):
-        exception_type = ""
+        buf = []
         if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(name, node.body)
-        return body
+            type_str = self.visit(node.type)
+            catch_str = ""
+            if node.name:
+                catch_str = f" catch({node.name})"
+            buf.append(f"on {type_str}{catch_str} {{")
+        else:
+            buf.append("catch(e) {")
+        buf.extend([self.visit(child) for child in node.body])
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_Assert(self, node):
         condition = self.visit(node.test)
@@ -521,13 +538,6 @@ class DartTranspiler(CLikeTranspiler):
     def visit_Delete(self, node):
         target = node.targets[0]
         return "{0}.drop()".format(self.visit(target))
-
-    def visit_Raise(self, node):
-        if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
-        # This handles the case where `raise` is used without
-        # specifying the exception.
-        return "raise!(); //unsupported"
 
     def visit_With(self, node):
         buf = []

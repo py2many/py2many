@@ -7,7 +7,7 @@ foo() {
   final int _c1 = (a + b);
   final int _c2 = (a - b);
   final int _c3 = (a * b);
-  final double _c4 = (a / b);
+  final double _c4 = (a ~/ b);
   final int _c5 = -(a);
   final double d = 2.0;
   final double _e1 = (a + d);

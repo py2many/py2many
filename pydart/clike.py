@@ -1,6 +1,7 @@
 import ast
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.inference import get_inferred_type, get_id
 
 
 dart_type_map = {
@@ -73,17 +74,21 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
 
+        left = self.visit(node.left)
+        op = self.visit(node.op)
+        right = self.visit(node.right)
+
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):
-            return "({0}{1}{2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
-
+            left_type = get_id(get_inferred_type(node.left))
+            right_type = get_id(get_inferred_type(node.right))
+            if set([left_type, right_type]) == {"int"} and isinstance(node.op, ast.Div):
+                # Use integer division operator
+                op = "~/"
+            return f"({left}{op}{right})"
         else:
-            return "({0} {1} {2})".format(
-                self.visit(node.left), self.visit(node.op), self.visit(node.right)
-            )
+            return f"({left} {op} {right})"
 
     def visit_In(self, node):
         left = self.visit(node.left)

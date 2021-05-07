@@ -298,6 +298,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div):
                 node.annotation = left
             else:
+                # TODO: This is not true for dart when using integer division
                 node.annotation = ast.Name(id="float")
             return node
 

@@ -5,7 +5,7 @@ int bisect_right(List<int> data, int item) {
   int low = 0;
   int high = data.length.toInt();
   while (low < high) {
-    final middle = ((low + high) / 2).toInt();
+    final middle = ((low + high) ~/ 2).toInt();
 
     if (item < data[middle]) {
       high = middle;

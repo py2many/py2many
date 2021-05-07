@@ -40,7 +40,8 @@ TEST_CASES = [
 EXPECTED_LINT_FAILURES = ["int_enum.go", "rect.go", "str_enum.go"]
 
 EXPECTED_COMPILE_FAILURES = [
-    "asyncio_test.rs"  # https://github.com/adsharma/py2many/issues/198
+    "asyncio_test.rs",  # https://github.com/adsharma/py2many/issues/198
+    "infer_ops.dart",  # https://github.com/adsharma/py2many/issues/199
 ]
 
 
