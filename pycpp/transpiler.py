@@ -9,7 +9,7 @@ from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
-from py2many.analysis import add_imports, is_void_function, get_id
+from py2many.analysis import add_imports, is_global, is_void_function, get_id
 from py2many.rewriters import PythonMainRewriter
 from py2many.tracer import (
     defined_before,
@@ -118,14 +118,14 @@ class CppTranspiler(CLikeTranspiler):
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        uses = "\n".join(f"#include {mod}" for mod in usings)
+        uses = "\n".join(f"#include {mod}  // NOLINT(build/include_order)" for mod in usings)
         return uses
 
     def headers(self, meta: InferMeta):
-        self._headers.append('#include "pycpp/runtime/sys.h"')
-        self._headers.append('#include "pycpp/runtime/builtins.h"')
+        self._headers.append('#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)')
+        self._headers.append('#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)')
         if self.use_catch_test_cases:
-            self._headers.append('#include "pycpp/runtime/catch.hpp"')
+            self._headers.append('#include "pycpp/runtime/catch.hpp"  // NOLINT(build/include_order)')
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)
@@ -300,7 +300,7 @@ class CppTranspiler(CLikeTranspiler):
             f"""\
             class {node.name} : public std::string {{
             public:
-              {node.name}(const char* s) : std::string(s) {{}}
+              {node.name}(const char* s) : std::string(s) {{}}  // NOLINT(runtime/explicit)
               {fields}
             }};
 
@@ -311,7 +311,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
-            self._headers.append('#include "pycpp/runtime/range.hpp"')
+            self._headers.append('#include "pycpp/runtime/range.hpp"  // NOLINT(build/include_order)')
             args = ", ".join(vargs)
             return f"rangepp::xrange({args})"
 
@@ -633,11 +633,14 @@ class CppTranspiler(CLikeTranspiler):
                 typename = decltype(node)
                 return f"{typename} {target} = {{{elements_str}}};"
             return f"std::vector<{element_typename}> {target} = {{{elements_str}}};"
-        else:
-            typename = self._typename_from_annotation(target)
-            target = self.visit(target)
-            value = self.visit(node.value)
-            return f"{typename} {target} = {value};"
+
+        typename = self._typename_from_annotation(target)
+        target = self.visit(target)
+        value = self.visit(node.value)
+        if typename == "std::string" and is_global(node):
+            return f"{typename} {target} = {value}; // NOLINT(runtime/string)"
+
+        return f"{typename} {target} = {value};"
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)

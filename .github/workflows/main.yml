@@ -100,7 +100,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install linters
-        run: pip install black pyflakes
+        run: pip install black pyflakes cpplint
 
       - name: Remove tests/cases/*.py
         run: rm tests/cases/*.py
@@ -110,3 +110,6 @@ jobs:
 
       - name: Run pyflakes
         run: pyflakes */ *.py
+
+      - name: Run cpplint
+        run: cpplint --filter=-legal/copyright tests/expected/*.cpp
