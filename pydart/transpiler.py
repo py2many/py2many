@@ -7,8 +7,23 @@ from .declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.inference import get_inferred_type
 
 from typing import Optional, List
+
+
+class DartIntegerDivRewriter(ast.NodeTransformer):
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Div):
+            left_type = get_id(get_inferred_type(node.left))
+            right_type = get_id(get_inferred_type(node.right))
+            if set([left_type, right_type]) == {"int"}:
+                # This attribute should technically be on node.op
+                # But python seems to use the same AST node for other
+                # division operations?
+                node.use_integer_div = True
+        return node
 
 
 class DartTranspiler(CLikeTranspiler):

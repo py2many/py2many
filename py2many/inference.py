@@ -295,7 +295,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         right_id = get_id(right)
 
         if left_id == right_id and left_id == "int":
-            if not isinstance(node.op, ast.Div):
+            if not isinstance(node.op, ast.Div) or getattr(
+                node, "use_integer_div", False
+            ):
                 node.annotation = left
             else:
                 # TODO: This is not true for dart when using integer division

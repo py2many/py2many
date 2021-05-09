@@ -30,7 +30,7 @@ from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
 from pynim.inference import infer_nim_types
 from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
-from pydart.transpiler import DartTranspiler
+from pydart.transpiler import DartTranspiler, DartIntegerDivRewriter
 from pygo.inference import infer_go_types
 from pygo.transpiler import (
     GoTranspiler,
@@ -91,7 +91,9 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
-
+    # Some of the transformers or rewriters above may have changed types
+    # Rerun inference
+    infer_meta = infer_types(tree)
     out = []
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
@@ -190,7 +192,12 @@ def nim_settings(args):
 
 
 def dart_settings(args):
-    return LanguageSettings(DartTranspiler(), ".dart", ["dart", "format"])
+    return LanguageSettings(
+        DartTranspiler(),
+        ".dart",
+        ["dart", "format"],
+        post_rewriters=[DartIntegerDivRewriter()],
+    )
 
 
 def go_settings(args):
