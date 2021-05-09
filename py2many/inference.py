@@ -131,7 +131,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                     elt_type = get_id(elements[0].annotation)
                     self._annotate(node, f"List[{elt_type}]")
         else:
-            node.annotation = ast.Name(id="List")
+            if not hasattr(node, "annotation"):
+                node.annotation = ast.Name(id="List")
         return node
 
     def visit_Set(self, node):
@@ -143,7 +144,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                 elt_type = get_id(elements[0].annotation)
                 self._annotate(node, f"Set[{elt_type}]")
         else:
-            node.annotation = ast.Name(id="Set")
+            if not hasattr(node, "annotation"):
+                node.annotation = ast.Name(id="Set")
         return node
 
     def visit_Dict(self, node):
@@ -168,7 +170,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                 value_type = "Any"
             self._annotate(node, f"Dict[{key_type}, {value_type}]")
         else:
-            node.annotation = ast.Name(id="Dict")
+            if not hasattr(node, "annotation"):
+                node.annotation = ast.Name(id="Dict")
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
