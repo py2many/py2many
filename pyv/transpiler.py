@@ -159,10 +159,9 @@ class VTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         args = []
         for n in vargs:
-            args.append(n)
-            args.append('" "')
-        args = ", ".join(args[:-1])
-        return f"println({args})"
+            args.append('${' + n + '}')
+        args = " ".join(args)
+        return f"println('{args}')"
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
@@ -477,10 +476,10 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        kw = "mut" if is_mutable(node.scopes, target) else ""
+        kw = "mut " if is_mutable(node.scopes, target) else ""
         if type_str == self._default_type:
-            return f"{kw} {target} := {val}"
-        return f"{kw} {target}: {type_str} = {val}"
+            return f"{kw}{target} := {val}"
+        return f"{kw}{target} := {type_str}({val})"
 
     def visit_Assign(self, node):
         target = node.targets[0]
