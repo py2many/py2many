@@ -10,11 +10,11 @@ pub fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
     let mut low: i32 = 0;
     let mut high: i32 = data.len() as i32;
     while low < high {
-        let middle: _ = i32::from(((low + high) / 2));
+        let middle: i32 = i32::from(((low + high) / 2));
         if item < data[middle as usize] {
             high = middle;
         } else {
-            low = (middle as i32 + 1);
+            low = (middle + 1);
         }
     }
     return low;

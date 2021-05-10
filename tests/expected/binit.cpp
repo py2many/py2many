@@ -8,7 +8,7 @@ inline int bisect_right(std::vector<int> data, int item) {
   int low = 0;
   int high = py14::to_int(data.size());
   while (low < high) {
-    auto middle = py14::to_int((low + high) / 2);
+    int middle = py14::to_int((low + high) / 2);
     if (item < data[middle]) {
       high = middle;
     } else {

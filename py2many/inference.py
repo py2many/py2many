@@ -196,8 +196,11 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         target = node.target
-        if hasattr(node.value, "annotation"):
+        annotation = get_inferred_type(target)
+        if hasattr(node.value, "annotation") and not annotation:
             target.annotation = node.value.annotation
+        else:
+            target.annotation = annotation
 
         return node
 
@@ -368,6 +371,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                 return_type = get_inferred_type(node.args[0])
                 if return_type is not None:
                     node.annotation = return_type
+            elif fname in self.TYPE_DICT.values():
+                node.annotation = ast.Name(id=fname)
         self.generic_visit(node)
         return node
 

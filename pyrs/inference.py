@@ -67,7 +67,9 @@ def get_inferred_rust_type(node):
         if definition != node:
             return get_inferred_rust_type(definition)
     python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    ret = map_type(get_id(python_type))
+    node.rust_annotation = ret
+    return ret
 
 
 class InferRustTypesTransformer(ast.NodeTransformer):

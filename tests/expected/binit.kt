@@ -7,7 +7,7 @@ fun bisect_right(data_: Array<Int>, item: Int): Int {
         if (item < data_[middle]) {
             high = middle
         } else {
-            low = (middle.toInt() + 1)
+            low = (middle + 1)
         }
     }
     return low

@@ -616,6 +616,20 @@ class RustTranspiler(CLikeTranspiler):
         # python/rust annotations provided to customize the cast if necessary
         return f"{value_str} as {cast_to}"
 
+    def visit_AugAssign(self, node):
+        target = node.target
+        target_str = self.visit(node.target)
+        op = self.visit(node.op)
+        value = self.visit(node.value)
+
+        needs_cast = self._needs_cast(target, node.value)
+        if needs_cast:
+            target_type = self._typename_from_annotation(target)
+            value = self._assign_cast(
+                value, target_type, target.annotation, node.value.rust_annotation
+            )
+        return f"{target_str} {op}= {value};"
+
     def visit_Assign(self, node):
         target = node.targets[0]
 
