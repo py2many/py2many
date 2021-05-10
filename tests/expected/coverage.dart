@@ -9,6 +9,10 @@ inline_pass() {
 /* pass */
 }
 
+inline_ellipsis() {
+/* ... */
+}
+
 int indexing() {
   int sum = 0;
   List<int> a = [];

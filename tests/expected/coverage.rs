@@ -24,6 +24,10 @@ pub fn inline_pass() {
     /* pass */
 }
 
+pub fn inline_ellipsis() {
+    /* ... */
+}
+
 pub fn indexing() -> i32 {
     let mut sum: i32 = 0;
     let mut a: Vec<i32> = vec![];

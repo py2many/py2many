@@ -59,7 +59,6 @@ _INT_FLAG = dedent(
 TEST_CASES = {
     "assert_0": "assert not 0",
     "assert_None": "assert not None",
-    "ellipsis": "...",  # https://github.com/adsharma/py2many/issues/183
     "dict_value_type": "a = {1: 1, 2: 2.0}",  # https://github.com/adsharma/py2many/issues/171
     "empty_print": "print()",
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74

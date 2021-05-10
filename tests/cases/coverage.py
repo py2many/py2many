@@ -9,6 +9,10 @@ def inline_pass():
     pass
 
 
+def inline_ellipsis():
+    ...
+
+
 def indexing():
     sum = 0
     a: List[int] = []

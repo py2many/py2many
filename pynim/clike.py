@@ -124,6 +124,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         else:
             return super().visit(node)
 
+    def visit_Ellipsis(self, node):
+        return "discard"
+
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
             left = self.visit(node.left)

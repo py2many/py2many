@@ -7,6 +7,10 @@ fun inline_pass() {
 /* pass */
 }
 
+fun inline_ellipsis() {
+/* ... */
+}
+
 fun indexing(): Int {
     var sum = 0
     var a: Array<Int> = arrayOf()

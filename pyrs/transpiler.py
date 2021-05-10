@@ -566,9 +566,6 @@ class RustTranspiler(CLikeTranspiler):
 
         return "{0}..{1}".format(lower, upper)
 
-    def visit_Elipsis(self, node):
-        return "compile_error!('Elipsis is not supported');"
-
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)

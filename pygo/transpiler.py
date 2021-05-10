@@ -128,7 +128,7 @@ class GoTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         funcdef = f"func {node.name}{template}({args}){return_type} {{"
-        return funcdef + "\n" + body + "}\n\n"
+        return f"{funcdef}\n{body}}}\n\n"
 
     def visit_Return(self, node):
         if node.value:
@@ -518,9 +518,6 @@ class GoTranspiler(CLikeTranspiler):
             upper = self.visit(node.upper)
 
         return "{0}..{1}".format(lower, upper)
-
-    def visit_Elipsis(self, node):
-        return "compile_error!('Elipsis is not supported');"
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]

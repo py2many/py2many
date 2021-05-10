@@ -98,6 +98,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         return annotation
 
     def visit_NameConstant(self, node):
+        if node.value is Ellipsis:
+            return node
         annotation = self._infer_primitive(node.value)
         if annotation is not None:
             node.annotation = annotation

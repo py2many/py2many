@@ -7,6 +7,9 @@ proc do_pass() =
 proc inline_pass() =
   discard
 
+proc inline_ellipsis() =
+  discard
+
 proc indexing(): int =
   var sum = 0
   var a: seq[int] = @[]

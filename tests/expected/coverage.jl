@@ -7,6 +7,10 @@ function inline_pass()
     # pass
 end
 
+function inline_ellipsis()
+    # ...
+end
+
 function indexing()::Int64
     sum = 0
     a::Array{Int64} = []

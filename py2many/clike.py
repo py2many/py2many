@@ -173,12 +173,13 @@ class CLikeTranspiler(ast.NodeVisitor):
         return typename
 
     def visit(self, node):
-        if type(node) == ast.Pass:
-            return self.comment("pass")
         if type(node) in symbols:
             return c_symbol(node)
         else:
             return super().visit(node)
+
+    def visit_Pass(self, node):
+        return self.comment("pass")
 
     def visit_Module(self, node):
         docstring = getattr(node, "docstring_comment", None)
@@ -191,6 +192,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return node.id.lower()
         return node.id
 
+    def visit_Ellipsis(self, node):
+        return self.comment("...")
+
     def visit_NameConstant(self, node):
         if node.value is True:
             return "true"
@@ -198,6 +202,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return "false"
         elif node.value is None:
             return "NULL"
+        elif node.value is Ellipsis:
+            return self.visit_Ellipsis(node)
         else:
             return node.value
 
@@ -208,6 +214,8 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Expr(self, node):
         s = self.visit(node.value)
+        if isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:
+            return s
         if not s:
             return ""
         s = s.strip()

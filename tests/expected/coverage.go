@@ -14,6 +14,10 @@ func inline_pass() {
 	// pass
 }
 
+func inline_ellipsis() {
+	// ...
+}
+
 func indexing() int {
 	var sum int = 0
 	var a []int = []int{}

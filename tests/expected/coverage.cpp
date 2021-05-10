@@ -14,6 +14,9 @@ inline void do_pass() {
 inline void inline_pass() {
 /* pass */}
 
+inline void inline_ellipsis() {
+/* ... */}
+
 inline int indexing() {
   int sum = 0;
   std::vector<int> a = {};
