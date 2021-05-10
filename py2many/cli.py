@@ -49,6 +49,8 @@ from pygo.transpiler import (
     GoVisibilityRewriter,
     GoIfExpRewriter,
 )
+from pyv.inference import infer_v_types
+from pyv.transpiler import VTranspiler, VNoneCompareRewriter
 
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
@@ -335,6 +337,22 @@ def go_settings(args, env=os.environ):
     )
 
 
+def v_settings(args, env=os.environ):
+    v_args = {}
+    vfmt_args = ["fmt"]
+    if args.indent is not None:
+        v_args["indent"] = args.indent
+        vfmt_args.append(f"--indent:{args.indent}")
+    return LanguageSettings(
+        VTranspiler(**v_args),
+        ".v",
+        ["v", *vfmt_args],
+        None,
+        [VNoneCompareRewriter()],
+        [infer_v_types],
+    )
+
+
 def _get_all_settings(args, env=os.environ):
     return {
         "python": python_settings(args, env=env),
@@ -345,6 +363,7 @@ def _get_all_settings(args, env=os.environ):
         "nim": nim_settings(args, env=env),
         "dart": dart_settings(args, env=env),
         "go": go_settings(args, env=env),
+        "v": v_settings(args, env=env),
     }
 
 
@@ -585,6 +604,8 @@ def main(args=None, env=os.environ):
             settings = dart_settings(args, env=env)
         elif args.go:
             settings = go_settings(args, env=env)
+        elif args.v:
+            settings = v_settings(args, env=env)
 
         if args.comment_unsupported:
             settings.transpiler._throw_on_unimplemented = False
