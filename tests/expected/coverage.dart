@@ -25,9 +25,13 @@ bool infer_bool(int code) {
 
 show() {
   final int a1 = 10;
+  final int b1 = 15;
+  final b2 = 15;
+  assert(b1 == 15);
+  assert(b2 == 15);
   final int b9 = 2;
-  final int b2 = 2;
-  assert(b2 == b9);
+  final int b10 = 2;
+  assert(b9 == b10);
   double a2 = 2.1;
   print(sprintf("%s", [a2]));
   for (final i in ([for (var i = 0; i < 10; i += 1) i])) {

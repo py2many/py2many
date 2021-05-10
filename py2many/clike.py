@@ -302,6 +302,14 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_UnaryOp(self, node):
         return "{0}({1})".format(self.visit(node.op), self.visit(node.operand))
 
+    def _visit_AssignOne(self, node, target) -> str:
+        ...
+
+    def visit_Assign(self, node):
+        return "\n".join(
+            [self._visit_AssignOne(node, target) for target in node.targets]
+        )
+
     def visit_AugAssign(self, node):
         target = self.visit(node.target)
         op = self.visit(node.op)

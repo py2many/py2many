@@ -482,7 +482,14 @@ class NimTranspiler(CLikeTranspiler):
         return f"{kw} {target}: {type_str} = {val}"
 
     def visit_Assign(self, node):
-        target = node.targets[0]
+        lines = [self._visit_AssignOne(node, target) for target in node.targets]
+        if len(lines) > 1:
+            line0 = lines[0]
+            lines = [self.indent(line, node.level) for line in lines]
+            lines[0] = line0  # parent node is going to add indentation
+        return "\n".join(lines)
+
+    def _visit_AssignOne(self, node, target):
         kw = "var" if is_mutable(node.scopes, get_id(target)) else "let"
 
         if isinstance(target, ast.Tuple):

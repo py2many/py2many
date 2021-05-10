@@ -23,9 +23,13 @@ fun infer_bool(code: Int): Boolean {
 
 fun show() {
     val a1 = 10
+    val b1 = 15
+    val b2 = 15
+    assert(b1 == 15)
+    assert(b2 == 15)
     val b9 = 2
-    val b2 = 2
-    assert(b2 == b9)
+    val b10 = 2
+    assert(b9 == b10)
     var a2: Double = 2.1
     println("$a2")
     for (i in (0..10 - 1)) {

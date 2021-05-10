@@ -33,9 +33,13 @@ inline auto infer_bool(int code) {
 
 inline void show() {
   int a1 = 10;
+  int b1 = 15;
+  auto b2 = 15;
+  assert(b1 == 15);
+  assert(b2 == 15);
   int b9 = 2;
-  int b2 = 2;
-  assert(b2 == b9);
+  int b10 = 2;
+  assert(b9 == b10);
   double a2 = 2.1;
   std::cout << a2;
   std::cout << std::endl;

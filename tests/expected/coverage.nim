@@ -20,9 +20,13 @@ proc infer_bool(code: int): bool =
 
 proc show() =
   let a1 = 10
+  let b1 = 15
+  let b2 = 15
+  assert(b1 == 15)
+  assert(b2 == 15)
   let b9 = 2
-  let b2 = 2
-  assert(b2 == b9)
+  let b10 = 2
+  assert(b9 == b10)
   let a2: float64 = 2.1
   echo a2
   for i in (0..10 - 1):

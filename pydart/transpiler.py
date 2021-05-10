@@ -498,8 +498,7 @@ class DartTranspiler(CLikeTranspiler):
         target, type_str, val = super().visit_AnnAssign(node)
         return f"{type_str} {target} = {val};"
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
+    def _visit_AssignOne(self, node, target):
         kw = "var" if is_mutable(node.scopes, get_id(target)) else "final"
 
         if isinstance(target, ast.Tuple):

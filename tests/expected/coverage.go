@@ -30,9 +30,17 @@ func infer_bool(code int) bool {
 
 func show() {
 	var a1 int = 10
+	var b1 int = 15
+	b2 := 15
+	if !(b1 == 15) {
+		panic("assert")
+	}
+	if !(b2 == 15) {
+		panic("assert")
+	}
 	var b9 int = 2
-	var b2 int = 2
-	if !(b2 == b9) {
+	var b10 int = 2
+	if !(b9 == b10) {
 		panic("assert")
 	}
 	var a2 float64 = 2.1

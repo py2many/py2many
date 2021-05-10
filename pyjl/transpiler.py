@@ -481,9 +481,7 @@ class JuliaTranspiler(CLikeTranspiler):
         val = self.visit(node.value)
         return "{0} {1}= {2}".format(target, op, val)
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
-
+    def _visit_AssignOne(self, node, target):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)

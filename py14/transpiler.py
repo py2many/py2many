@@ -601,9 +601,7 @@ class CppTranspiler(CLikeTranspiler):
             return "assert({0});".format(self.visit(node.test))
         return "REQUIRE({0});".format(self.visit(node.test))
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
-
+    def _visit_AssignOne(self, node, target):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)

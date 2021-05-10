@@ -61,7 +61,6 @@ TEST_CASES = {
     "assert_None": "assert not None",
     "ellipsis": "...",  # https://github.com/adsharma/py2many/issues/183
     "dict_value_type": "a = {1: 1, 2: 2.0}",  # https://github.com/adsharma/py2many/issues/171
-    "assign_multi": "b1 = b2 = 15; assert b1 == b2",  # https://github.com/adsharma/py2many/issues/181
     "empty_print": "print()",
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73

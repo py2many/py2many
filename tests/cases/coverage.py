@@ -5,7 +5,8 @@ def do_pass():
     pass
 
 
-def inline_pass(): pass
+def inline_pass():
+    pass
 
 
 def indexing():
@@ -24,10 +25,13 @@ def infer_bool(code: int):
 def show():
     # assign
     a1 = 10
-    #b1 = b2 = 15
-    #assert b2 == 15
-    b9 = 2; b2 = 2;
-    assert b2 == b9
+    # multi-assign
+    b1 = b2 = 15
+    assert b1 == 15
+    assert b2 == 15
+    b9 = 2
+    b10 = 2
+    assert b9 == b10
     # annotated assign
     a2: float = 2.1
     print(a2)
@@ -71,8 +75,8 @@ def show():
     # if True: print("true")
     do_pass()
     inline_pass()
-    s = '1\
-    2'
+    s = "1\
+    2"
     print(s)
     # assert 1 != 2 != 3
 

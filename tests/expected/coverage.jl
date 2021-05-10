@@ -23,9 +23,13 @@ end
 
 function show()
     a1 = 10
+    b1 = 15
+    b2 = 15
+    @assert(b1 == 15)
+    @assert(b2 == 15)
     b9 = 2
-    b2 = 2
-    @assert(b2 == b9)
+    b10 = 2
+    @assert(b9 == b10)
     a2::Float64 = 2.1
     println(join([a2], " "))
     for i in (0:10-1)

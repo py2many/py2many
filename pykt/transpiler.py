@@ -484,8 +484,7 @@ class KotlinTranspiler(CLikeTranspiler):
             return f"var {target} = {val}"
         return f"var {target}: {type_str} = {val}"
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
+    def _visit_AssignOne(self, node, target):
         kw = "var" if is_mutable(node.scopes, get_id(target)) else "val"
 
         if isinstance(target, ast.Tuple):

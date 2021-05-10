@@ -583,9 +583,7 @@ class GoTranspiler(CLikeTranspiler):
         # python/rust annotations provided to customize the cast if necessary
         return f"{cast_to}({value_str})"
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
-
+    def _visit_AssignOne(self, node, target):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)

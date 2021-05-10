@@ -637,9 +637,7 @@ class RustTranspiler(CLikeTranspiler):
             )
         return f"{target_str} {op}= {value};"
 
-    def visit_Assign(self, node):
-        target = node.targets[0]
-
+    def _visit_AssignOne(self, node, target):
         kw = "let"
         mut = is_mutable(node.scopes, get_id(target))
         if is_global(node):

@@ -48,3 +48,8 @@ class NestingTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         self.level -= 1
         return node
+
+    def visit_Assign(self, node):
+        node.level = self.level
+        self.generic_visit(node)
+        return node

@@ -40,9 +40,13 @@ pub fn infer_bool(code: i32) -> bool {
 
 pub fn show() {
     let a1: i32 = 10;
+    let b1: i32 = 15;
+    let b2: _ = 15;
+    assert!(b1 == 15);
+    assert!(b2 as i32 == 15);
     let b9: i32 = 2;
-    let b2: i32 = 2;
-    assert!(b2 == b9);
+    let b10: i32 = 2;
+    assert!(b9 == b10);
     let a2: f64 = 2.1;
     println!("{}", a2);
     for i in (0..10) {
