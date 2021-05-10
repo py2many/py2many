@@ -1,4 +1,10 @@
-// cargo-deps: futures
+
+//! ```cargo
+//! [package]
+//! edition = "2018"
+//! [dependencies]
+//! futures = "*"
+//! ```
 
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]

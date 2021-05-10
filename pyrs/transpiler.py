@@ -77,7 +77,7 @@ class RustTranspiler(CLikeTranspiler):
             set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
         )
         externs = [f"extern crate {dep};" for dep in deps]
-        deps = ",".join(deps)
+        deps = "\n//! ".join([f'{dep} = "*"' for dep in deps])
         externs = "\n".join(externs)
         uses = "\n".join(
             f"use {mod};" for mod in usings if mod not in ("strum", "lazy_static")
@@ -91,8 +91,15 @@ class RustTranspiler(CLikeTranspiler):
         #![allow(unused_parens)]
         """
         )
-        cargo_deps = f"// cargo-deps: {deps}\n" if deps else ""
-        return f"{cargo_deps}\n{lint_ignores}\n{externs}\n{uses}\n"
+        cargo_toml = f"""
+        //! ```cargo
+        //! [package]
+        //! edition = "2018"
+        //! [dependencies]
+        //! {deps}
+        //! ```
+        """
+        return f"{cargo_toml}\n{lint_ignores}\n{externs}\n{uses}\n"
 
     def features(self):
         if self._features:

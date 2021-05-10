@@ -1,4 +1,10 @@
-// cargo-deps: lazy_static
+
+//! ```cargo
+//! [package]
+//! edition = "2018"
+//! [dependencies]
+//! lazy_static = "*"
+//! ```
 
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]

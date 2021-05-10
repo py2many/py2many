@@ -1,4 +1,11 @@
-// cargo-deps: strum,strum_macros
+
+//! ```cargo
+//! [package]
+//! edition = "2018"
+//! [dependencies]
+//! strum = "*"
+//! strum_macros = "*"
+//! ```
 
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
