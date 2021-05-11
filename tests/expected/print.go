@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func show() {
+func Show() {
 	fmt.Printf("%v\n", "b")
 	fmt.Printf("%v %v\n", 2, "b")
 	var a float64 = 2.1
@@ -14,5 +14,5 @@ func show() {
 }
 
 func main() {
-	show()
+	Show()
 }

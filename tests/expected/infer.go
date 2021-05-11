@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func foo() {
+func Foo() {
 	var a int = 10
 	var b int = a
 	if !(b == 10) {
@@ -14,5 +14,5 @@ func foo() {
 }
 
 func main() {
-	foo()
+	Foo()
 }

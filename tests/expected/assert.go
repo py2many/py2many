@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func compare_assert(a int, b int) {
+func CompareAssert(a int, b int) {
 	if !(a == b) {
 		panic("assert")
 	}
@@ -20,7 +20,7 @@ func main() {
 	if !(!(false)) {
 		panic("assert")
 	}
-	compare_assert(1, 1)
+	CompareAssert(1, 1)
 	if !(true) {
 		panic("assert")
 	}

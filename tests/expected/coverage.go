@@ -6,19 +6,19 @@ import (
 	iter "github.com/hgfischer/go-iter"
 )
 
-func do_pass() {
+func DoPass() {
 	// pass
 }
 
-func inline_pass() {
+func InlinePass() {
 	// pass
 }
 
-func inline_ellipsis() {
+func InlineEllipsis() {
 	// ...
 }
 
-func indexing() int {
+func Indexing() int {
 	var sum int = 0
 	var a []int = []int{}
 	for _, i := range iter.NewIntSeq(iter.Start(0), iter.Stop(10)).All() {
@@ -28,11 +28,11 @@ func indexing() int {
 	return sum
 }
 
-func infer_bool(code int) bool {
+func InferBool(code int) bool {
 	return pygo.Contains([]int{1, 2, 4}, code)
 }
 
-func show() {
+func Show() {
 	var a1 int = 10
 	var b1 int = 15
 	b2 := 15
@@ -58,7 +58,7 @@ func show() {
 	var a3 int = -(a1)
 	var a4 int = (a3 + a1)
 	fmt.Printf("%v\n", a4)
-	var sum1 int = indexing()
+	var sum1 int = Indexing()
 	fmt.Printf("%v\n", sum1)
 	var a5 []int = []int{1, 2, 3}
 	fmt.Printf("%v\n", len(a5))
@@ -84,12 +84,12 @@ func show() {
 	if 1 != 0 {
 		fmt.Printf("%v\n", "World is sane")
 	}
-	do_pass()
-	inline_pass()
+	DoPass()
+	InlinePass()
 	var s string = "1    2"
 	fmt.Printf("%v\n", s)
 }
 
 func main() {
-	show()
+	Show()
 }

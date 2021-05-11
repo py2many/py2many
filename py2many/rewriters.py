@@ -61,6 +61,23 @@ class RenameTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name) and node.func.id == self._old_name:
+            node.func.id = self._new_name
+        self.generic_visit(node)
+        return node
+
+
+def capitalize_first(name):
+    first = name[0].upper()
+    return first + name[1:]
+
+
+def camel_case(name):
+    if "_" not in name:
+        return name
+    return "".join(capitalize_first(part) for part in name.split("_"))
+
 
 def rename(scope, old_name, new_name):
     tx = RenameTransformer(old_name, new_name)

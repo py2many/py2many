@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-func comb_sort(seq []int) []int {
+func CombSort(seq []int) []int {
 	gap := len(seq)
 	var swap bool = true
 	for gap > 1 || swap {
@@ -30,7 +30,7 @@ func comb_sort(seq []int) []int {
 func main() {
 	var unsorted []int = []int{14, 11, 19, 5, 16, 10, 19, 12, 5, 12}
 	var expected []int = []int{5, 5, 10, 11, 12, 12, 14, 16, 19, 19}
-	if !(cmp.Equal(comb_sort(unsorted), expected)) {
+	if !(cmp.Equal(CombSort(unsorted), expected)) {
 		panic("assert")
 	}
 	fmt.Printf("%v\n", "OK")

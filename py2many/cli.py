@@ -37,6 +37,7 @@ from pygo.transpiler import (
     GoMethodCallRewriter,
     GoNoneCompareRewriter,
     GoPropagateTypeAnnotation,
+    GoVisibilityRewriter,
 )
 
 from py2many.rewriters import (
@@ -210,7 +211,7 @@ def go_settings(args):
         ".go",
         ["gofmt", "-w"],
         None,
-        [GoNoneCompareRewriter()],
+        [GoNoneCompareRewriter(), GoVisibilityRewriter()],
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
         linter=["golint", "-set_exit_status", "-min_confidence", "1.0"],

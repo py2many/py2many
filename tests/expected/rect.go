@@ -15,7 +15,7 @@ func is_square(self Rectangle) bool {
 	return self.height == self.length
 }
 
-func show() {
+func Show() {
 	var r Rectangle = Rectangle{height: 1, length: 1}
 	if !(is_square(r)) {
 		panic("assert")
@@ -29,5 +29,5 @@ func show() {
 }
 
 func main() {
-	show()
+	Show()
 }

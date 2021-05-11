@@ -6,9 +6,10 @@ from typing import Optional, List
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_go_type
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from py2many.analysis import get_id, is_global, is_void_function
+from py2many.rewriters import capitalize_first, rename, camel_case
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
@@ -65,6 +66,28 @@ class GoPropagateTypeAnnotation(ast.NodeTransformer):
     def visit_AnnAssign(self, node):
         target = node.target
         return self._visit_assign(node, target)
+
+
+class GoVisibilityRewriter(ast.NodeTransformer):
+    def visit_Name(self, node):
+        if hasattr(node, "scopes") and is_global(node):
+            old_name = get_id(node)
+            new_name = camel_case(old_name)
+            if old_name != new_name:
+                rename(node.scopes[-1], old_name, new_name)
+        return node
+
+    def visit_FunctionDef(self, node):
+        if hasattr(node, "scopes") and isinstance(node.scopes[-2], ast.Module):
+            old_name = get_id(node)
+            if old_name is not None:
+                if "_" in old_name:
+                    new_name = camel_case(old_name)
+                else:
+                    new_name = capitalize_first(old_name)
+                if old_name != new_name:
+                    rename(node.scopes[-2], old_name, new_name)
+        return node
 
 
 class GoTranspiler(CLikeTranspiler):

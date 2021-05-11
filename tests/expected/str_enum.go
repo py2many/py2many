@@ -12,7 +12,7 @@ const (
 	BLUE         = "blue"
 )
 
-func show() {
+func Show() {
 	color_map := map[Colors]string{RED: "1", GREEN: "2", BLUE: "3"}
 	var a Colors = GREEN
 	if a == GREEN {
@@ -24,5 +24,5 @@ func show() {
 }
 
 func main() {
-	show()
+	Show()
 }

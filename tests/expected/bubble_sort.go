@@ -6,7 +6,7 @@ import (
 	iter "github.com/hgfischer/go-iter"
 )
 
-func bubble_sort(seq []int) []int {
+func BubbleSort(seq []int) []int {
 	L := len(seq)
 	for range iter.NewIntSeq(iter.Start(0), iter.Stop(L)).All() {
 		for _, n := range iter.NewIntSeq(iter.Start(1), iter.Stop(L)).All() {
@@ -25,7 +25,7 @@ func bubble_sort(seq []int) []int {
 func main() {
 	var unsorted []int = []int{14, 11, 19, 5, 16, 10, 19, 12, 5, 12}
 	var expected []int = []int{5, 5, 10, 11, 12, 12, 14, 16, 19, 19}
-	if !(cmp.Equal(bubble_sort(unsorted), expected)) {
+	if !(cmp.Equal(BubbleSort(unsorted), expected)) {
 		panic("assert")
 	}
 	fmt.Printf("%v\n", "OK")
