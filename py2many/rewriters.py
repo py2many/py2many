@@ -1,5 +1,7 @@
 import ast
 
+from py2many.analysis import get_id
+
 from typing import Optional
 
 
@@ -161,4 +163,22 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         if not hasattr(node, "value"):
             return None
+        return node
+
+
+class PrintBoolRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+
+    def visit_Call(self, node):
+        if get_id(node.func) == "print":
+            if len(node.args) == 1:
+                anno = getattr(node.args[0], "annotation", None)
+                if get_id(anno) == "bool":
+                    ifexpr = ast.parse("'True' if true else 'False'").body[0].value
+                    ifexpr.test = node.args[0]
+                    ifexpr.lineno = node.lineno
+                    ifexpr.col_offset = node.col_offset
+                    ast.fix_missing_locations(ifexpr)
+                    node.args[0] = ifexpr
         return node

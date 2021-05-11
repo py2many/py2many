@@ -44,6 +44,7 @@ from py2many.rewriters import (
     FStringJoinRewriter,
     PythonMainRewriter,
     DocStringToCommentRewriter,
+    PrintBoolRewriter,
 )
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
@@ -66,7 +67,6 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
         FStringJoinRewriter(language),
         DocStringToCommentRewriter(language),
     ]
-
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
@@ -88,6 +88,10 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     # Language specific transformers
     for tx in transformers:
         tx(tree)
+    # Language independent rewriters that run after type inference
+    generic_post_rewriters = [PrintBoolRewriter(language)]
+    for rewriter in generic_post_rewriters:
+        tree = rewriter.visit(tree)
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
