@@ -39,6 +39,8 @@ proc show() =
   let a3 = -(a1)
   let a4 = (a3 + a1)
   echo a4
+  let t1 = if a1 > 5: 10 else: 5
+  assert(t1 == 10)
   let sum1 = indexing()
   echo sum1
   let a5 = @[1, 2, 3]

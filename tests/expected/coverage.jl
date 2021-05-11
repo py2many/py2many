@@ -45,6 +45,8 @@ function show()
     a3 = -(a1)
     a4 = (a3 + a1)
     println(join([a4], " "))
+    t1 = a1 > 5 ? (10) : (5)
+    @assert(t1 == 10)
     sum1 = indexing()
     println(join([sum1], " "))
     a5 = [1, 2, 3]

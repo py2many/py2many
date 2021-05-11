@@ -51,6 +51,9 @@ def show():
     # binary op
     a4 = a3 + a1
     print(a4)
+    # ternary op
+    t1 = 10 if a1 > 5 else 5
+    assert t1 == 10
     sum1 = indexing()
     print(sum1)
     # lists, sets and dict

@@ -586,4 +586,4 @@ class KotlinTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return f"if {test} {{ {body} }} else {{ {orelse} }}"
+        return f"if ({test}) {body} else {orelse}"

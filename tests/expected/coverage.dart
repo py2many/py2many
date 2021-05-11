@@ -47,6 +47,8 @@ show() {
   final int a3 = -(a1);
   final int a4 = (a3 + a1);
   print(sprintf("%s", [a4]));
+  final t1 = a1 > 5 ? (10) : (5);
+  assert(t1 == 10);
   final int sum1 = indexing();
   print(sprintf("%s", [sum1]));
   final a5 = [1, 2, 3];

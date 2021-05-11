@@ -360,3 +360,9 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_IntFlag(self, node):
         raise Exception("Unimplemented")
+
+    def visit_IfExp(self, node):
+        body = self.visit(node.body)
+        orelse = self.visit(node.orelse)
+        test = self.visit(node.test)
+        return f"{test}? ({{ {body}; }}) : ({{ {orelse}; }})"

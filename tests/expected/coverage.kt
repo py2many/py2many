@@ -45,6 +45,8 @@ fun show() {
     val a3 = -(a1)
     val a4 = (a3 + a1)
     println("$a4")
+    val t1 = if (a1 > 5) 10 else 5
+    assert(t1 == 10)
     val sum1 = indexing()
     println("$sum1")
     val a5 = arrayOf(1, 2, 3)

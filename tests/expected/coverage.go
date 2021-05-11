@@ -58,6 +58,15 @@ func Show() {
 	var a3 int = -(a1)
 	var a4 int = (a3 + a1)
 	fmt.Printf("%v\n", a4)
+	var t1 int
+	if a1 > 5 {
+		t1 = 10
+	} else {
+		t1 = 5
+	}
+	if !(t1 == 10) {
+		panic("assert")
+	}
 	var sum1 int = Indexing()
 	fmt.Printf("%v\n", sum1)
 	var a5 []int = []int{1, 2, 3}

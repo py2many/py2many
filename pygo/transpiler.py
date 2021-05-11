@@ -1,5 +1,6 @@
 import ast
 import functools
+import textwrap
 
 from typing import Optional, List
 
@@ -87,6 +88,31 @@ class GoVisibilityRewriter(ast.NodeTransformer):
                     new_name = capitalize_first(old_name)
                 if old_name != new_name:
                     rename(node.scopes[-2], old_name, new_name)
+        return node
+
+
+class GoIfExpRewriter(ast.NodeTransformer):
+    def visit_Assign(self, node):
+        if isinstance(node.value, ast.IfExp):
+            if_stmt = ast.parse(
+                textwrap.dedent(
+                    """\
+                if True:
+                    a = 1
+                else:
+                    a = 2"""
+                )
+            ).body[0]
+            assert isinstance(if_stmt, ast.If)
+            if_stmt.test = node.value.test
+            if_stmt.body[0].targets = node.targets
+            if_stmt.body[0].value = node.value.body
+            if_stmt.orelse[0].targets = node.targets
+            if_stmt.orelse[0].value = node.value.orelse
+            if_stmt.lineno = node.lineno
+            if_stmt.col_offset = node.col_offset
+            ast.fix_missing_locations(if_stmt)
+            return if_stmt
         return node
 
 
@@ -373,10 +399,17 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_If(self, node):
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
-        node.common_vars = body_vars.intersection(orelse_vars)
-        return super().visit_If(node)
+        body_vars = {get_id(v): v for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v): v for v in node.scopes[-1].orelse_vars}
+        node.common_vars = set(body_vars.keys()).intersection(set(orelse_vars.keys()))
+        types = [self._typename_from_annotation(body_vars[v]) for v in node.common_vars]
+        common_vars = "\n".join(
+            [f"var {v} {t}" for v, t in zip(node.common_vars, types)]
+        )
+        if common_vars:
+            return common_vars + "\n" + super().visit_If(node)
+        else:
+            return super().visit_If(node)
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -614,7 +647,7 @@ class GoTranspiler(CLikeTranspiler):
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} := {1}".format(target_id, value)
+                return "{0} = {1}".format(target_id, value)
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
@@ -730,9 +763,3 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Starred(self, node):
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_IfExp(self, node):
-        body = self.visit(node.body)
-        orelse = self.visit(node.orelse)
-        test = self.visit(node.test)
-        return "if {0} {{ {1} }} else {{ {2} }}".format(test, body, orelse)

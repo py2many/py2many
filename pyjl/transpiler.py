@@ -594,4 +594,4 @@ class JuliaTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return "if {0} {{ {1} }} else {{ {2} }}".format(test, body, orelse)
+        return f"{test} ? ({body}) : ({orelse})"
