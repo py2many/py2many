@@ -303,7 +303,7 @@ def _process_once(settings, filename, outdir, env=None):
     return True
 
 
-def main(args=None, env=None):
+def main(args=None, env=os.environ):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
     parser.add_argument("--rust", type=bool, default=False, help="Generate Rust code")
