@@ -14,6 +14,9 @@ inline void show() {
   double b = 2.1;
   std::cout << b;
   std::cout << std::endl;
+  bool c = true;
+  std::cout << (c ? ({ std::string{"True"}; }) : ({ std::string{"False"}; }));
+  std::cout << std::endl;
 }
 
 int main(int argc, char **argv) {

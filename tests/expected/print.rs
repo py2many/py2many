@@ -19,6 +19,8 @@ pub fn show() {
     println!("{}", a);
     let b: f64 = 2.1;
     println!("{}", b);
+    let c: bool = true;
+    println!("{}", if c { "True" } else { "False" });
 }
 
 pub fn main() {

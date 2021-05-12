@@ -5,6 +5,8 @@ def show():
     print(a)
     b = 2.1
     print(b)
+    c = True
+    print(c)
 
 
 if __name__ == "__main__":

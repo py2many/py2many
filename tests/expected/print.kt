@@ -5,6 +5,11 @@ fun show() {
     println("$a")
     val b = 2.1
     println("$b")
+    val c = true
+    if (true) {
+        val __tmp1 = if (c) "True" else "False"
+        println("$__tmp1")
+    }
 }
 
 fun main() {

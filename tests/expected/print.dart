@@ -8,6 +8,8 @@ show() {
   print(sprintf("%s", [a]));
   final double b = 2.1;
   print(sprintf("%s", [b]));
+  final bool c = true;
+  print(sprintf("%s", [c ? ("True") : ("False")]));
 }
 
 main() {

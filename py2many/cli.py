@@ -53,6 +53,18 @@ PY2MANY_DIR = pathlib.Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
 
 
+def core_transformers(tree):
+    add_variable_context(tree)
+    add_scope_context(tree)
+    add_list_calls(tree)
+    detect_mutable_vars(tree)
+    detect_nesting_levels(tree)
+    add_annotation_flags(tree)
+    infer_meta = infer_types(tree)
+    add_imports(tree)
+    return tree, infer_meta
+
+
 def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     """
     Transpile a single python translation unit (a python script) into
@@ -78,15 +90,8 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
-    # Language independent transformers
-    add_variable_context(tree)
-    add_scope_context(tree)
-    add_list_calls(tree)
-    detect_mutable_vars(tree)
-    detect_nesting_levels(tree)
-    add_annotation_flags(tree)
-    infer_meta = infer_types(tree)
-    add_imports(tree)
+    # Language independent core transformers
+    tree, infer_meta = core_transformers(tree)
     # Language specific transformers
     for tx in transformers:
         tx(tree)
@@ -97,9 +102,8 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
-    # Some of the transformers or rewriters above may have changed types
-    # Rerun inference
-    infer_meta = infer_types(tree)
+    # Rerun core transformers
+    tree, infer_meta = core_transformers(tree)
     out = []
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
@@ -174,9 +178,8 @@ def kotlin_settings(args):
         KotlinTranspiler(),
         ".kt",
         ["ktlint", "-F"],
-        None,
-        [KotlinPrintRewriter()],
-        [infer_kotlin_types],
+        transformers=[infer_kotlin_types],
+        post_rewriters=[KotlinPrintRewriter()],
         linter=["ktlint"],
     )
 

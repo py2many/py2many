@@ -11,6 +11,12 @@ func Show() {
 	fmt.Printf("%v\n", a)
 	var b float64 = 2.1
 	fmt.Printf("%v\n", b)
+	var c bool = true
+	if c {
+		fmt.Printf("%v\n", "True")
+	} else {
+		fmt.Printf("%v\n", "False")
+	}
 }
 
 func main() {

@@ -5,6 +5,8 @@ function show()
     println(join([a], " "))
     b = 2.1
     println(join([b], " "))
+    c = true
+    println(join([c ? ("True") : ("False")], " "))
 end
 
 function main()

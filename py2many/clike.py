@@ -365,4 +365,4 @@ class CLikeTranspiler(ast.NodeVisitor):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return f"{test}? ({{ {body}; }}) : ({{ {orelse}; }})"
+        return f"({test}? ({{ {body}; }}) : ({{ {orelse}; }}))"
