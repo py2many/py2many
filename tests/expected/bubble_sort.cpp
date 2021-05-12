@@ -3,6 +3,7 @@
 #include "py14/runtime/sys.h"
 #include <cassert>
 #include <iostream>
+#include <tuple>
 #include <vector>
 
 inline std::vector<int> bubble_sort(std::vector<int> seq) {

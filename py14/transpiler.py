@@ -566,6 +566,7 @@ class CppTranspiler(CLikeTranspiler):
         return f"{value}[{index}]"
 
     def visit_Tuple(self, node):
+        self._headers.append("#include <tuple>")
         elts = [self.visit(e) for e in node.elts]
         return "std::make_tuple({0})".format(", ".join(elts))
 
