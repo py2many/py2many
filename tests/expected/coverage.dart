@@ -1,10 +1,6 @@
 // @dart=2.9
 import 'package:sprintf/sprintf.dart';
 
-do_pass() {
-/* pass */
-}
-
 inline_pass() {
 /* pass */
 }
@@ -28,7 +24,7 @@ bool infer_bool(int code) {
 }
 
 show() {
-  final int a1 = 10;
+  int a1 = 10;
   final int b1 = 15;
   final b2 = 15;
   assert(b1 == 15);
@@ -78,10 +74,20 @@ show() {
   if (1 != null) {
     print(sprintf("%s", ["World is sane"]));
   }
-  do_pass();
+  print(sprintf("%s", [true ? ("True") : ("False")]));
+
+  if (true) {
+    a1 += 1;
+  }
+  assert(a1 == 11);
+
+  if (true) {
+    print(sprintf("%s", ["true"]));
+  }
   inline_pass();
   final String s = "1    2";
   print(sprintf("%s", [s]));
+  assert(infer_bool(1));
 }
 
 main() {

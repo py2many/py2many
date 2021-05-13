@@ -266,6 +266,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             isinstance(node.test, ast.Constant)
             and node.test.value == True
             and node.orelse == []
+            and hasattr(node, "rewritten")
+            and node.rewritten
         )
         if make_block:
             return self._make_block(node)

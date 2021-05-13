@@ -41,6 +41,7 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
             ret = ast.If(
                 test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
             )
+            ret.rewritten = True
             return ret
         return node
 

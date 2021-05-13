@@ -1,9 +1,6 @@
 import sets
 import tables
 
-proc do_pass() =
-  discard
-
 proc inline_pass() =
   discard
 
@@ -22,7 +19,7 @@ proc infer_bool(code: int): bool =
   return code in @[1, 2, 4]
 
 proc show() =
-  let a1 = 10
+  var a1 = 10
   let b1 = 15
   let b2 = 15
   assert(b1 == 15)
@@ -65,10 +62,18 @@ proc show() =
   if 1 != 0:
     echo "World is sane"
 
-  do_pass()
+  echo if true: "True" else: "False"
+  if true:
+    a1 += 1;
+
+  assert(a1 == 11)
+  if true:
+    echo "true"
+
   inline_pass()
   let s = "1    2"
   echo s
+  assert(infer_bool(1))
 
 proc main() =
   show()

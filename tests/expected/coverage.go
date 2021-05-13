@@ -6,10 +6,6 @@ import (
 	iter "github.com/hgfischer/go-iter"
 )
 
-func DoPass() {
-	// pass
-}
-
 func InlinePass() {
 	// pass
 }
@@ -93,10 +89,26 @@ func Show() {
 	if 1 != 0 {
 		fmt.Printf("%v\n", "World is sane")
 	}
-	DoPass()
+	if true {
+		fmt.Printf("%v\n", "True")
+	} else {
+		fmt.Printf("%v\n", "False")
+	}
+	if true {
+		a1 += 1
+	}
+	if !(a1 == 11) {
+		panic("assert")
+	}
+	if true {
+		fmt.Printf("%v\n", "true")
+	}
 	InlinePass()
 	var s string = "1    2"
 	fmt.Printf("%v\n", s)
+	if !(InferBool(1)) {
+		panic("assert")
+	}
 }
 
 func main() {

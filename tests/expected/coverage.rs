@@ -18,10 +18,6 @@ use std::collections;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-pub fn do_pass() {
-    /* pass */
-}
-
 pub fn inline_pass() {
     /* pass */
 }
@@ -45,7 +41,7 @@ pub fn infer_bool(code: i32) -> bool {
 }
 
 pub fn show() {
-    let a1: i32 = 10;
+    let mut a1: i32 = 10;
     let b1: i32 = 15;
     let b2: _ = 15;
     assert!(b1 == 15);
@@ -95,10 +91,18 @@ pub fn show() {
     if Some(1) != None {
         println!("{}", "World is sane");
     }
-    do_pass();
+    println!("{}", if true { "True" } else { "False" });
+    if true {
+        a1 += 1;
+    };
+    assert!(a1 == 11);
+    if true {
+        println!("{}", "true");
+    };
     inline_pass();
     let s: &str = "1    2";
     println!("{}", s);
+    assert!(infer_bool(1));
 }
 
 pub fn main() {

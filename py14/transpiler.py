@@ -83,7 +83,7 @@ class CppListComparisonRewriter(ast.NodeTransformer):
         if isinstance(right, ast.List):
             tmp = ast.Name(id=self._get_temp(), lineno=node.lineno)
             comparators[0] = tmp
-            return ast.If(
+            ret = ast.If(
                 test=ast.Constant(value=True),
                 body=[
                     ast.Assign(targets=[tmp], value=right, lineno=node.lineno),
@@ -92,6 +92,8 @@ class CppListComparisonRewriter(ast.NodeTransformer):
                 orelse=[],
                 lineno=node.lineno,
             )
+            ret.rewritten = True
+            return ret
 
         return node
 

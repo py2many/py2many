@@ -1,8 +1,4 @@
 
-fun do_pass() {
-/* pass */
-}
-
 fun inline_pass() {
 /* pass */
 }
@@ -26,7 +22,7 @@ fun infer_bool(code: Int): Boolean {
 }
 
 fun show() {
-    val a1 = 10
+    var a1 = 10
     val b1 = 15
     val b2 = 15
     assert(b1 == 15)
@@ -85,10 +81,21 @@ fun show() {
     if (1 != null) {
         println("World is sane")
     }
-    do_pass()
+    if (true) {
+        val __tmp5 = if (true) "True" else "False"
+        println("$__tmp5")
+    }
+    if (true) {
+        a1 += 1
+    }
+    assert(a1 == 11)
+    if (true) {
+        println("true")
+    }
     inline_pass()
     val s = "1    2"
     println("$s")
+    assert(infer_bool(1))
 }
 
 fun main() {

@@ -41,6 +41,7 @@ class KotlinPrintRewriter(ast.NodeTransformer):
                 lineno=node.lineno,
             )
             node.args[0] = tmp
+            ret.rewritten = True
             return ret
 
         return node

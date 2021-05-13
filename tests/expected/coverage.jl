@@ -1,8 +1,4 @@
 
-function do_pass()
-    # pass
-end
-
 function inline_pass()
     # pass
 end
@@ -75,10 +71,18 @@ function show()
     if 1 != nothing
         println(join(["World is sane"], " "))
     end
-    do_pass()
+    println(join([true ? ("True") : ("False")], " "))
+    if true
+        a1 += 1
+    end
+    @assert(a1 == 11)
+    if true
+        println(join(["true"], " "))
+    end
     inline_pass()
     s = "1    2"
     println(join([s], " "))
+    @assert(infer_bool(1))
 end
 
 function main()

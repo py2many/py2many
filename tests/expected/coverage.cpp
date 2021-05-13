@@ -8,9 +8,6 @@
 #include <set>
 #include <vector>
 
-inline void do_pass() {
-/* pass */}
-
 inline void inline_pass() {
 /* pass */}
 
@@ -98,11 +95,22 @@ inline void show() {
     std::cout << std::string{"World is sane"};
     std::cout << std::endl;
   }
-  do_pass();
+  std::cout << (true ? ({ std::string{"True"}; })
+                     : ({ std::string{"False"}; }));
+  std::cout << std::endl;
+  if (true) {
+    a1 += 1;
+  }
+  assert(a1 == 11);
+  if (true) {
+    std::cout << std::string{"true"};
+    std::cout << std::endl;
+  }
   inline_pass();
   std::string s = std::string{"1    2"};
   std::cout << s;
   std::cout << std::endl;
+  assert(infer_bool(1));
 }
 
 int main(int argc, char **argv) {

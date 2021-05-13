@@ -1,10 +1,6 @@
 from typing import List
 
 
-def do_pass():
-    pass
-
-
 def inline_pass():
     pass
 
@@ -77,14 +73,15 @@ def show():
         print("true")
     if 1 != None:
         print("World is sane")
-    # print(True)
-    # if True: a1 += 1
-    # if True: print("true")
-    do_pass()
+    print(True)
+    if True: a1 += 1
+    assert a1 == 11
+    if True: print("true")
     inline_pass()
     s = "1\
     2"
     print(s)
+    assert infer_bool(1)
     # assert 1 != 2 != 3
 
 
