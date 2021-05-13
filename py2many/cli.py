@@ -288,12 +288,16 @@ def _process_once(settings, filename, outdir, env=None):
         cmd = _create_cmd(settings.formatter, output_path)
         proc = run(cmd, env=env)
         if proc.returncode:
+            # format.jl exit code is unreliable
+            if settings.ext == ".jl":
+                if proc.stderr is not None:
+                    print(
+                        f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
+                    )
+                return True
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
             )
-            # format.jl exit code is unreliable
-            if settings.ext == ".jl":
-                return True
             return False
         if settings.ext == ".kt":
             # ktlint formatter needs to be invoked twice before output is lint free
