@@ -158,6 +158,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_In(self, node):
         self._headers.append("#include <algorithm>")
-        left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
-        return f"(std::find({right}.begin(), {right}.end(), {left}) != {right}.end())"
+        left_str = self.visit(node.left)
+        right = node.comparators[0]
+        right_str = self.visit(right)
+
+        _ = self._generic_typename_from_annotation(right)
+        if hasattr(right, "generic_container_type"):
+            container_type, _ = right.generic_container_type
+            if container_type == "Dict":
+                return f"({right_str}.find({left_str}) != {right_str}.end())"
+        return f"(std::find({right_str}.begin(), {right_str}.end(), {left_str}) != {right_str}.end())"

@@ -417,6 +417,9 @@ class CppTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
+            # TODO: Generalize this to other types
+            if "std::map" in typename:
+                self._headers.append("#include <map>")
         return (typename, node_id)
 
     def visit_Lambda(self, node):
