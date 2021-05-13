@@ -383,7 +383,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         if hasattr(definition, "annotation"):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type"):
-                _, element_type = definition.container_type
+                container_type, element_type = definition.container_type
+                if container_type == "Dict" or isinstance(element_type, list):
+                    element_type = element_type[1]
                 node.annotation = ast.Name(id=element_type)
         self.generic_visit(node)
         return node
