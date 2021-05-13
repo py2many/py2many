@@ -1,15 +1,22 @@
 import ast
 import functools
-from textwrap import dedent
+import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type
 
-from py2many.analysis import get_id, is_global, is_mutable, is_void_function
+from py2many.analysis import (
+    FunctionTransformer,
+    get_id,
+    is_global,
+    is_mutable,
+    is_void_function,
+)
 from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
+from pathlib import Path
 from typing import List, Optional
 
 
@@ -66,12 +73,16 @@ class RustTranspiler(CLikeTranspiler):
         "Optional": "Option",
     }
 
-    def __init__(self):
+    def __init__(self, extension: bool = False):
         super().__init__()
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._default_type = "_"
+        self._extension = extension
 
     def usings(self):
+        if self._extension:
+            self._usings.add("pyo3::prelude::*")
+            self._usings.add("pyo3::wrap_pyfunction")
         usings = sorted(list(set(self._usings)))
         deps = sorted(
             set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
@@ -82,7 +93,7 @@ class RustTranspiler(CLikeTranspiler):
         uses = "\n".join(
             f"use {mod};" for mod in usings if mod not in ("strum", "lazy_static")
         )
-        lint_ignores = dedent(
+        lint_ignores = textwrap.dedent(
             """
         #![allow(clippy::upper_case_acronyms)]
         #![allow(non_camel_case_types)]
@@ -107,6 +118,30 @@ class RustTranspiler(CLikeTranspiler):
         if self._features:
             features = ", ".join(sorted(list(set(self._features))))
             return f"#![feature({features})]"
+
+    def extension_module(self, tree) -> str:
+        if self._extension:
+            funcs = []
+            tx = FunctionTransformer()
+            tx.visit(tree)
+            for f in tree.defined_functions:
+                fname = f.name
+                if fname.startswith("_"):
+                    continue
+                funcs.append(f"m.add_function(wrap_pyfunction!({fname}, m)?)?;")
+            funcs_str = "\n".join(funcs)
+            module_name = Path(tree.__file__).stem
+            return textwrap.dedent(
+                f"""\
+            #[pymodule]
+            fn {module_name}(_py: Python, m: &PyModule) -> PyResult<()> {{
+                {funcs_str}
+
+                Ok(())
+            }}
+            """
+            )
+        return ""
 
     def visit_FunctionDef(self, node, async_prefix=""):
         body = "\n".join([self.visit(n) for n in node.body])
@@ -144,10 +179,9 @@ class RustTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "<{0}>".format(", ".join(typedecls))
 
+        extension = "#[pyfunction]\n" if self.extension else ""
         args_list = ", ".join(args_list)
-        funcdef = (
-            f"pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
-        )
+        funcdef = f"{extension}pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
         return funcdef + " {\n" + body + "\n}\n"
 
     def visit_arg(self, node):

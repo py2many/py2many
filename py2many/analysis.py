@@ -74,6 +74,23 @@ class FunctionTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def _visit_Scoped(self, node):
+        node.defined_functions = []
+        self.generic_visit(node)
+        return node
+
+    def visit_ClassDef(self, node):
+        return self._visit_Scoped(node)
+
+    def visit_For(self, node):
+        return self._visit_Scoped(node)
+
+    def visit_If(self, node):
+        return self._visit_Scoped(node)
+
+    def visit_With(self, node):
+        return self._visit_Scoped(node)
+
     def visit_ImportFrom(self, node):
         for name in node.names:
             node.scopes[-1].defined_functions.append(name)

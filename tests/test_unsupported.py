@@ -160,6 +160,7 @@ class CodeGeneratorTests(unittest.TestCase):
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
         try:
             result = transpile(
+                "stdin",
                 tree,
                 settings.transpiler,
                 settings.rewriters,

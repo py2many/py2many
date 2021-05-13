@@ -65,7 +65,7 @@ def core_transformers(tree):
     return tree, infer_meta
 
 
-def transpile(source, transpiler, rewriters, transformers, post_rewriters):
+def transpile(filename, source, transpiler, rewriters, transformers, post_rewriters):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
@@ -74,6 +74,7 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
         tree = source
     else:
         tree = ast.parse(source)
+    tree.__file__ = filename
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
@@ -116,6 +117,8 @@ def transpile(source, transpiler, rewriters, transformers, post_rewriters):
     if usings:
         out.append(usings)
     out.append(code)
+    if transpiler.extension:
+        out.append(transpiler.extension_module(tree))
     return "\n".join(out)
 
 
@@ -179,7 +182,7 @@ def cpp_settings(args, env=os.environ):
 
 def rust_settings(args, env=os.environ):
     return LanguageSettings(
-        RustTranspiler(),
+        RustTranspiler(args.extension),
         ".rs",
         ["rustfmt", "--edition=2018"],
         None,
@@ -276,6 +279,7 @@ def _process_once(settings, filename, outdir, env=None):
     with open(output_path, "w") as f:
         f.write(
             transpile(
+                filename,
                 source_data,
                 settings.transpiler,
                 settings.rewriters,
@@ -326,7 +330,16 @@ def main(args=None, env=os.environ):
         default=None,
         help="Indentation to use in languages that care",
     )
+    parser.add_argument(
+        "--extension", type=bool, default=False, help="Build a python extension"
+    )
     args, rest = parser.parse_known_args(args=args)
+
+    # Validation of the args
+    if args.extension and not args.rust:
+        print("extension supported only with rust via pyo3")
+        return -1
+
     for filename in rest:
         settings = cpp_settings(args, env=env)
         if args.cpp:

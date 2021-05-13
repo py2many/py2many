@@ -55,6 +55,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._container_type_map = {}
         self._default_type = "auto"
         self._statement_separator = ";"
+        self._extension = False
 
     def headers(self, meta=None):
         return ""
@@ -63,6 +64,13 @@ class CLikeTranspiler(ast.NodeVisitor):
         return ""
 
     def features(self):
+        return ""
+
+    @property
+    def extension(self):
+        return self._extension
+
+    def extension_module(self) -> str:
         return ""
 
     def comment(self, text):
