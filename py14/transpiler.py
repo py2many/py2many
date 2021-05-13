@@ -410,13 +410,14 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_arg(self, node):
-        id = get_id(node)
-        if id == "self":
+        node_id = get_id(node)
+        if node_id == "self":
             return (None, "self")
+        node_id, _ = self._check_keyword(node_id)
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
-        return (typename, id)
+        return (typename, node_id)
 
     def visit_Lambda(self, node):
         _, args = self.visit(node.args)
