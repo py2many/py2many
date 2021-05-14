@@ -29,9 +29,6 @@ RUST_TYPE_MAP = {
 RUST_EXTENSION_TYPE_MAP = {
     str: "&PyUnicode",
     bytes: "&PyBytes",
-    bool: "&PyBool",
-    int: "&PyLong",
-    float: "&PyFloat",
     complex: "&PyComplex",
     list: "&PyList",
     dict: "&PyDict",
@@ -75,11 +72,10 @@ def infer_rust_types(node, extension=False):
 def extension_map_type(typename, return_type=False):
     if typename == "_":
         return "&PyAny"
-    if (
-        typename in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME
-        and typename != "bool"
-    ):
-        typename = "int"
+    if typename == None and return_type:
+        return "PyResult<()>"
+    if typename in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
+        return RUST_TYPE_MAP[typename]
     try:
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval
@@ -221,16 +217,23 @@ class InferRustTypesTransformer(ast.NodeTransformer):
 
             raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
 
+    def visit_FunctionDef(self, node):
+        node.no_return = True
+        node.rust_pyresult_type = self._extension
+        self.generic_visit(node)
+        return node
+
     def visit_Return(self, node):
         self.generic_visit(node)
+        fndef = None
+        for scope in node.scopes:
+            if isinstance(scope, ast.FunctionDef):
+                fndef = scope
+                break
+        if fndef:
+            fndef.no_return = False
         if node.value:
-            fndef = None
-            for scope in node.scopes:
-                if isinstance(scope, ast.FunctionDef):
-                    fndef = scope
-                    break
             if fndef:
-                fndef.returns.rust_pyresult_type = self._extension
                 if is_reference(node.value):
                     mut = is_mutable(node.scopes, get_id(node.value))
                     fndef.returns.rust_needs_reference = not mut

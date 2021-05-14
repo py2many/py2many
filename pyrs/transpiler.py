@@ -165,16 +165,20 @@ class RustTranspiler(CLikeTranspiler):
             args_list.append("{0}: {1}".format(arg, typename))
 
         return_type = ""
-        if not is_void_function(node):
-            if node.returns:
-                typename = self._typename_from_annotation(node, attr="returns")
-                if getattr(node.returns, "rust_needs_reference", False):
-                    typename = f"&{typename}"
-                if getattr(node.returns, "rust_pyresult_type", False):
+        if node.returns:
+            typename = self._typename_from_annotation(node, attr="returns")
+            if getattr(node.returns, "rust_needs_reference", False):
+                typename = f"&{typename}"
+            if getattr(node, "rust_pyresult_type", False):
+                if node.no_return:
+                    typename = None
+                else:
                     typename = self._generic_typename_from_type_node(node.returns)
-                    typename = map_type(typename, extension=True, return_type=True)
+                typename = map_type(typename, extension=True, return_type=True)
+            if typename != "_":
                 return_type = f"-> {typename}"
-            else:
+        else:
+            if not is_void_function(node):
                 return_type = "-> RT"
                 typedecls.append("RT")
 
@@ -207,15 +211,15 @@ class RustTranspiler(CLikeTranspiler):
         return (typename, id)
 
     def visit_Return(self, node):
+        fndef = None
+        for scope in node.scopes:
+            if isinstance(scope, ast.FunctionDef):
+                fndef = scope
+                break
         if node.value:
             ret = self.visit(node.value)
-            fndef = None
-            for scope in node.scopes:
-                if isinstance(scope, ast.FunctionDef):
-                    fndef = scope
-                    break
             if fndef:
-                if getattr(fndef.returns, "rust_pyresult_type", False):
+                if getattr(fndef, "rust_pyresult_type", False):
                     # TODO: Design a more robust solution for this
                     # For now, PyResult and references don't mix
                     if ret.startswith("&"):
@@ -231,6 +235,9 @@ class RustTranspiler(CLikeTranspiler):
                 if return_type != value_type and value_type is not None:
                     return f"return {ret} as {return_type};"
             return f"return {ret};"
+        if fndef:
+            if getattr(fndef, "rust_pyresult_type", False):
+                return "return Ok(())"
         return "return;"
 
     def visit_Lambda(self, node):
