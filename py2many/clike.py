@@ -1,7 +1,7 @@
 import ast
 import sys
 
-from py2many.analysis import get_id
+from py2many.analysis import get_id, IGNORED_MODULE_SET
 from typing import List, Optional, Tuple
 
 
@@ -43,9 +43,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     builtin_constants = frozenset(["True", "False"])
-    IGNORED_MODULE_LIST = set(
-        ["typing", "enum", "dataclasses", "ctypes", "math", "__future__", "asyncio"]
-    )
+    IGNORED_MODULE_LIST = IGNORED_MODULE_SET
 
     def __init__(self):
         self._type_map = {}
@@ -141,6 +139,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _generic_typename_from_type_node(self, node) -> Optional[str]:
         if isinstance(node, ast.Name):
             return get_id(node)
+        elif isinstance(node, ast.Constant):
+            return node.value
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):

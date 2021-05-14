@@ -2,6 +2,11 @@ import sys
 import ast
 
 
+IGNORED_MODULE_SET = set(
+    ["typing", "enum", "dataclasses", "ctypes", "math", "__future__", "asyncio"]
+)
+
+
 def add_imports(node):
     """Provide context of imports Module"""
     return ImportTransformer().visit(node)
@@ -93,7 +98,8 @@ class FunctionTransformer(ast.NodeTransformer):
 
     def visit_ImportFrom(self, node):
         for name in node.names:
-            node.scopes[-1].defined_functions.append(name)
+            if node.module not in IGNORED_MODULE_SET:
+                node.scopes[-1].defined_functions.append(name)
         return node
 
 
