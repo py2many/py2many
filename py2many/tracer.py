@@ -37,7 +37,7 @@ def is_class_or_module(name, scopes):
 
 def is_enum(name, scopes):
     entry = _lookup_class_or_module(name, scopes)
-    if entry:
+    if entry and hasattr(entry, "bases"):
         bases = set([get_id(base) for base in entry.bases])
         enum_bases = {"Enum", "IntEnum", "IntFlag"}
         return bases & enum_bases
