@@ -1,5 +1,5 @@
-#include "py14/runtime/builtins.h"
-#include "py14/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 #include <algorithm>
 #include <iostream>
 #include <map>
@@ -14,7 +14,7 @@ inline bool nested_containers() {
 }
 
 int main(int argc, char **argv) {
-  py14::sys::argv = std::vector<std::string>(argv, argv + argc);
+  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   if (nested_containers()) {
     std::cout << std::string{"OK"};
     std::cout << std::endl;

@@ -17,7 +17,7 @@ from .nesting_transformer import detect_nesting_levels
 from .context import add_variable_context, add_list_calls
 from .inference import infer_types
 
-from py14.transpiler import CppTranspiler, CppListComparisonRewriter
+from pycpp.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.inference import infer_rust_types
 from pyrs.transpiler import (
     RustTranspiler,

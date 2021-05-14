@@ -1,5 +1,5 @@
-#include "py14/runtime/builtins.h"
-#include "py14/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -10,7 +10,7 @@ std::string code_a = std::string{"a"};
 std::string code_b = std::string{"b"};
 std::vector<std::string> l_b = {code_a, code_b};
 int main(int argc, char **argv) {
-  py14::sys::argv = std::vector<std::string>(argv, argv + argc);
+  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   for (auto i : l_a) {
     std::cout << i;
     std::cout << std::endl;

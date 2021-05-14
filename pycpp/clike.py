@@ -2,7 +2,7 @@ import ast
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-py14_type_map = {
+pycpp_type_map = {
     "bool": "bool",
     "int": "int",
     "float": "double",
@@ -126,7 +126,7 @@ cpp_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = py14_type_map
+        self._type_map = pycpp_type_map
 
     def _check_keyword(self, name):
         if name in cpp_keywords:

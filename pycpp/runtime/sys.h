@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 
-namespace py14 {
+namespace pycpp {
 namespace sys {
 static std::vector<std::string> argv;
 }

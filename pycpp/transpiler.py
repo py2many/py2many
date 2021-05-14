@@ -122,10 +122,10 @@ class CppTranspiler(CLikeTranspiler):
         return uses
 
     def headers(self, meta: InferMeta):
-        self._headers.append('#include "py14/runtime/sys.h"')
-        self._headers.append('#include "py14/runtime/builtins.h"')
+        self._headers.append('#include "pycpp/runtime/sys.h"')
+        self._headers.append('#include "pycpp/runtime/builtins.h"')
         if self.use_catch_test_cases:
-            self._headers.append('#include "py14/runtime/catch.hpp"')
+            self._headers.append('#include "pycpp/runtime/catch.hpp"')
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)
@@ -184,7 +184,7 @@ class CppTranspiler(CLikeTranspiler):
             funcdef = "\n".join(
                 [
                     "int main(int argc, char ** argv) {",
-                    "py14::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
+                    "pycpp::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
                 ]
             )
         return funcdef + "\n" + body + "}\n"
@@ -193,7 +193,7 @@ class CppTranspiler(CLikeTranspiler):
         attr = node.attr
         value_id = get_id(node.value)
         if is_builtin_import(value_id):
-            return "py14::" + value_id + "::" + attr
+            return "pycpp::" + value_id + "::" + attr
         elif value_id == "math":
             if node.attr == "asin":
                 return "std::asin"
@@ -310,7 +310,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
-            self._headers.append('#include "py14/runtime/range.hpp"')
+            self._headers.append('#include "pycpp/runtime/range.hpp"')
             args = ", ".join(vargs)
             return f"rangepp::xrange({args})"
 
@@ -364,8 +364,8 @@ class CppTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "int": lambda: f"py14::to_int({vargs[0]})",
-            # Is py14::to_int() necessary?
+            "int": lambda: f"pycpp::to_int({vargs[0]})",
+            # Is pycpp::to_int() necessary?
             # "int": functools.partial(visit_cast, cast_to="i32"),
             "str": lambda: f"std::to_string({vargs[0]})",
             "len": lambda: f"{vargs[0]}.size()",

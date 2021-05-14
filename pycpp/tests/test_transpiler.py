@@ -1,7 +1,7 @@
 import sys
 import textwrap
 
-from py14.transpiler import transpile
+from pycpp.transpiler import transpile
 
 
 def parse(*args):
@@ -83,8 +83,8 @@ def test_print_program_args():
     cpp = transpile(source)
     assert cpp == parse(
         "int main(int argc, char ** argv) {",
-        "py14::sys::argv = std::vector<std::string>(argv, argv + argc);",
-        "for(auto arg : py14::sys::argv) {",
+        "pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);",
+        "for(auto arg : pycpp::sys::argv) {",
         "std::cout << arg;",
         "std::cout << std::endl;",
         "}}",
@@ -177,8 +177,8 @@ def test_normal_pdf():
     cpp = transpile(source)
     expected = """\
         template <typename T0, typename T1, typename T2>auto pdf(T0 x, T1 mean, T2 std_dev) {
-        auto term1 = 1.0 / (std::pow(2 * (py14::math::pi), 0.5));
-        auto term2 = std::pow(py14::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
+        auto term1 = 1.0 / (std::pow(2 * (pycpp::math::pi), 0.5));
+        auto term2 = std::pow(pycpp::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
         return term1 * term2;}
     """
     assert cpp == parse(textwrap.dedent(expected))

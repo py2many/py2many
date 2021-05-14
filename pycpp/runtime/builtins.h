@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <iterator>
 
-namespace py14 {
+namespace pycpp {
 
 template <typename T>
 auto to_int(T val) {
