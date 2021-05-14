@@ -58,11 +58,25 @@ julia_keywords = frozenset(
     ]
 )
 
+jl_symbols = {ast.BitXor: "⊻"}
+
+
+def jl_symbol(node):
+    """Find the equivalent Julia symbol for a Python ast symbol node"""
+    symbol_type = type(node)
+    return jl_symbols[symbol_type]
+
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = julia_type_map
+
+    def visit(self, node):
+        if type(node) in jl_symbols:
+            return jl_symbol(node)
+        else:
+            return super().visit(node)
 
     def visit_Name(self, node):
         if node.id in julia_keywords:

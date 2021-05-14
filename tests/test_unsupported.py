@@ -116,6 +116,7 @@ EXPECTED_SUCCESSES = [
     "intenum_iter.nim",
     "float_1.jl",
     "float_1.nim",
+    "intflag_bitop.kt",
     "print_None.dart",
     "print_None.jl",
     "simple_dict.kt",

@@ -22,6 +22,5 @@ pub fn fib(i: i32) -> i32 {
 }
 
 pub fn main() {
-    let rv: i32 = fib(5);
-    println!("{}", rv);
+    println!("{}", fib(5));
 }

@@ -53,11 +53,25 @@ go_keywords = frozenset(
     ]
 )
 
+go_symbols = {ast.BitAnd: "&&", ast.BitOr: "||", ast.BitXor: "!="}
+
+
+def go_symbol(node):
+    """Find the equivalent Go symbol for a Python ast symbol node"""
+    symbol_type = type(node)
+    return go_symbols[symbol_type]
+
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = GO_TYPE_MAP
+
+    def visit(self, node):
+        if type(node) in go_symbols:
+            return go_symbol(node)
+        else:
+            return super().visit(node)
 
     def visit_Name(self, node):
         if node.id in go_keywords:

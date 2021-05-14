@@ -10,7 +10,6 @@ inline int fib(int i) {
 
 int main(int argc, char **argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  int rv = fib(5);
-  std::cout << rv;
+  std::cout << fib(5);
   std::cout << std::endl;
 }

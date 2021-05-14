@@ -9,6 +9,5 @@ int fib(int i) {
 }
 
 main() {
-  final int rv = fib(5);
-  print(sprintf("%s", [rv]));
+  print(sprintf("%s", [fib(5)]));
 }

@@ -27,7 +27,7 @@ from pyrs.transpiler import (
 )
 from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.inference import infer_kotlin_types
-from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter
+from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
 from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
 from pydart.transpiler import DartTranspiler, DartIntegerDivRewriter
@@ -208,6 +208,7 @@ def kotlin_settings(args, env=os.environ):
         KotlinTranspiler(),
         ".kt",
         ["ktlint", "-F"],
+        rewriters=[KotlinBitOpRewriter()],
         transformers=[infer_kotlin_types],
         post_rewriters=[KotlinPrintRewriter()],
         linter=["ktlint"],

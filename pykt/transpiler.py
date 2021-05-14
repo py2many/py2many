@@ -47,6 +47,27 @@ class KotlinPrintRewriter(ast.NodeTransformer):
         return node
 
 
+class KotlinBitOpRewriter(ast.NodeTransformer):
+    BITOPS_DICT = {ast.BitAnd: "and", ast.BitOr: "or", ast.BitXor: "xor"}
+    BITOPS = tuple(BITOPS_DICT.keys())
+
+    def visit_BinOp(self, node):
+        left = node.left
+        right = node.right
+        op = node.op
+
+        if isinstance(op, self.BITOPS):
+            attr = self.BITOPS_DICT[type(op)]
+            ret = ast.Call(
+                func=ast.Attribute(value=left, attr=attr, ctx=ast.Load()), args=[right], keywords=[],
+            )
+            ret.lineno = node.lineno
+            ret.col_offset = node.col_offset
+            ast.fix_missing_locations(ret)
+            return ret
+        return node
+
+
 class KotlinTranspiler(CLikeTranspiler):
     NAME = "kotlin"
 

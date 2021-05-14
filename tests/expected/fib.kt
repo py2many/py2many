@@ -6,6 +6,8 @@ fun fib(i: Int): Int {
 }
 
 fun main() {
-    val rv = fib(5)
-    println("$rv")
+    if (true) {
+        val __tmp1 = fib(5)
+        println("$__tmp1")
+    }
 }
