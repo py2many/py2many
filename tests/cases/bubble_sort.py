@@ -2,6 +2,7 @@
 
 from typing import List
 
+
 def bubble_sort(seq: List[int]) -> List[int]:
     L = len(seq)
     for _ in range(L):

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+
 def show():
     print("b")
     print(2, "b")

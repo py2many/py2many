@@ -74,9 +74,11 @@ def show():
     if 1 != None:
         print("World is sane")
     print(True)
-    if True: a1 += 1
+    if True:
+        a1 += 1
     assert a1 == 11
-    if True: print("true")
+    if True:
+        print("true")
     inline_pass()
     s = "1\
     2"
