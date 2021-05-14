@@ -2,7 +2,7 @@ import ast
 import sys
 
 from py2many.analysis import get_id
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 
 symbols = {
@@ -79,7 +79,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _cast(self, name: str, to) -> str:
         return f"({to}) {name}"
 
-    def _slice_value(self, node: ast.AST):
+    def _slice_value(self, node: ast.Subscript):
         # 3.9 compatibility shim
         if sys.version_info < (3, 9, 0):
             if not isinstance(node.slice, ast.Index):
@@ -118,7 +118,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._default_type
         return self._combine_value_index(value_type, index_type)
 
-    def _typename_from_type_node(self, node) -> Optional[str]:
+    def _typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
             return self._map_type(get_id(node))
         elif isinstance(node, ast.ClassDef):
@@ -138,7 +138,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._combine_value_index(value_type, index_type)
         return self._default_type
 
-    def _generic_typename_from_type_node(self, node) -> Optional[str]:
+    def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
             return get_id(node)
         elif isinstance(node, ast.ClassDef):
@@ -237,7 +237,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Str(self, node):
         return f'"{node.value}"'
 
-    def visit_arguments(self, node):
+    def visit_arguments(self, node) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]
         if args == []:
             return [], []

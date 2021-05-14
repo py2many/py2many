@@ -90,7 +90,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
-        typenames, args = self.visit(node.args)
+        typenames, args = self.visit_arguments(node.args)
 
         args_list = []
         if len(args) and hasattr(node, "self_type"):
