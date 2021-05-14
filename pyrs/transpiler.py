@@ -4,7 +4,7 @@ import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from .inference import get_inferred_rust_type
+from .inference import get_inferred_rust_type, map_type
 
 from py2many.analysis import (
     FunctionTransformer,
@@ -170,6 +170,9 @@ class RustTranspiler(CLikeTranspiler):
                 typename = self._typename_from_annotation(node, attr="returns")
                 if getattr(node.returns, "rust_needs_reference", False):
                     typename = f"&{typename}"
+                if getattr(node.returns, "rust_pyresult_type", False):
+                    typename = self._generic_typename_from_type_node(node.returns)
+                    typename = map_type(typename, extension=True)
                 return_type = f"-> {typename}"
             else:
                 return_type = "-> RT"
@@ -208,6 +211,12 @@ class RustTranspiler(CLikeTranspiler):
                     fndef = scope
                     break
             if fndef:
+                if getattr(fndef.returns, "rust_pyresult_type", False):
+                    # TODO: Design a more robust solution for this
+                    # For now, PyResult and references don't mix
+                    if ret.startswith("&"):
+                        ret = ret[1:]
+                    ret = f"Ok({ret})"
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_rust_type(node.value)
                 if is_reference(node.value) and not getattr(

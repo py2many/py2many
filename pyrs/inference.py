@@ -35,12 +35,21 @@ RUST_WIDTH_RANK = {
 }
 
 
-def infer_rust_types(node):
-    visitor = InferRustTypesTransformer()
+def infer_rust_types(node, extension=False):
+    visitor = InferRustTypesTransformer(extension)
     visitor.visit(node)
 
+def extension_map_type(typename):
+    if typename in RUST_TYPE_MAP:
+        if typename == "str":
+            typename = "String"
+        else:
+            return RUST_TYPE_MAP[typename]
+    return f"PyResult<{typename}>"
 
-def map_type(typename):
+def map_type(typename, extension=False):
+    if extension:
+        return extension_map_type(typename)
     if typename in RUST_TYPE_MAP:
         return RUST_TYPE_MAP[typename]
     return typename
@@ -79,8 +88,9 @@ class InferRustTypesTransformer(ast.NodeTransformer):
     FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
     FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
-    def __init__(self):
+    def __init__(self, extension):
         super().__init__()
+        self._extension = extension
 
     def _handle_overflow(self, op, left_id, right_id):
         left_rust_id = map_type(left_id)
@@ -168,6 +178,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
                     fndef = scope
                     break
             if fndef:
+                fndef.returns.rust_pyresult_type = self._extension
                 if is_reference(node.value):
                     mut = is_mutable(node.scopes, get_id(node.value))
                     fndef.returns.rust_needs_reference = not mut

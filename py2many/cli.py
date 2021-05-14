@@ -1,5 +1,6 @@
 import argparse
 import ast
+import functools
 import os
 import pathlib
 
@@ -187,7 +188,7 @@ def rust_settings(args, env=os.environ):
         ["rustfmt", "--edition=2018"],
         None,
         [RustNoneCompareRewriter()],
-        [infer_rust_types],
+        [functools.partial(infer_rust_types, extension=args.extension)],
         [RustLoopIndexRewriter(), RustStringJoinRewriter()],
     )
 
