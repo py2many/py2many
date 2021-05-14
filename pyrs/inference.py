@@ -1,7 +1,13 @@
 import ast
+import datetime
+import logging
+import typing
+import types
 
 from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
 from py2many.analysis import get_id, is_mutable
+
+logger = logging.Logger("py2many")
 
 RUST_TYPE_MAP = {
     "int": "i32",
@@ -19,6 +25,32 @@ RUST_TYPE_MAP = {
     "c_uint64": "u64",
 }
 
+# https://pyo3.rs/v0.13.2/conversions/tables.html
+RUST_EXTENSION_TYPE_MAP = {
+    str: "&PyUnicode",
+    bytes: "&PyBytes",
+    bool: "&PyBool",
+    int: "&PyLong",
+    float: "&PyFloat",
+    complex: "&PyComplex",
+    list: "&PyList",
+    dict: "&PyDict",
+    tuple: "&PyTuple",
+    set: "&PySet",
+    frozenset: "&PyFrozenSet",
+    bytearray: "&PyByteArray",
+    slice: "&PySlice",
+    type: "&PyType",
+    types.ModuleType: "&PyModule",
+    datetime.datetime: "&PyDateTime",
+    datetime.date: "&PyDate",
+    datetime.time: "&PyTime",
+    datetime.tzinfo: "&PyTzInfo",
+    datetime.timedelta: "&PyDelta",
+    typing.Sequence: "&PySequence",
+    typing.Iterator: "&PyIterator",
+    object: "&PyAny",
+}
 
 RUST_WIDTH_RANK = {
     "bool": 0,
@@ -39,17 +71,37 @@ def infer_rust_types(node, extension=False):
     visitor = InferRustTypesTransformer(extension)
     visitor.visit(node)
 
-def extension_map_type(typename):
-    if typename in RUST_TYPE_MAP:
-        if typename == "str":
+
+def extension_map_type(typename, return_type=False):
+    if typename == "_":
+        return "&PyAny"
+    if (
+        typename in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME
+        and typename != "bool"
+    ):
+        typename = "int"
+    try:
+        # TODO: take into account any imports happening in the file being parsed
+        # and pass them into eval
+        typeclass = eval(typename)
+    except NameError:
+        logger.warning(f"could not evaluate {typename}")
+        return "&PyAny"
+
+    if typeclass in RUST_EXTENSION_TYPE_MAP:
+        if return_type and typename == "str":
             typename = "String"
         else:
-            return RUST_TYPE_MAP[typename]
-    return f"PyResult<{typename}>"
+            return RUST_EXTENSION_TYPE_MAP[typeclass]
+    if return_type and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
+        return f"PyResult<{typename}>"
+    else:
+        return typename
 
-def map_type(typename, extension=False):
+
+def map_type(typename, extension=False, return_type=False):
     if extension:
-        return extension_map_type(typename)
+        return extension_map_type(typename, return_type)
     if typename in RUST_TYPE_MAP:
         return RUST_TYPE_MAP[typename]
     return typename

@@ -172,7 +172,7 @@ class RustTranspiler(CLikeTranspiler):
                     typename = f"&{typename}"
                 if getattr(node.returns, "rust_pyresult_type", False):
                     typename = self._generic_typename_from_type_node(node.returns)
-                    typename = map_type(typename, extension=True)
+                    typename = map_type(typename, extension=True, return_type=True)
                 return_type = f"-> {typename}"
             else:
                 return_type = "-> RT"
@@ -193,7 +193,11 @@ class RustTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = "T"
         if node.annotation:
-            typename = self._typename_from_annotation(node)
+            if not self._extension:
+                typename = self._typename_from_annotation(node)
+            else:
+                typename = self._generic_typename_from_annotation(node)
+                typename = map_type(typename, extension=True)
             mut = "mut " if is_mutable(node.scopes, id) else ""
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
