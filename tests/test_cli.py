@@ -17,14 +17,7 @@ ROOT_DIR = TESTS_DIR.parent
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 CXX = os.environ.get("CXX", "clang++")
-ENV = {
-    "cpp": {
-        "CLANG_FORMAT_STYLE": "LLVM",
-    },
-    "rust": {
-        "RUSTFLAGS": "--deny warnings",
-    },
-}
+ENV = {"cpp": {"CLANG_FORMAT_STYLE": "LLVM"}, "rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
     + (["-stdlib=libc++"] if CXX == "clang++" else []),
@@ -45,6 +38,12 @@ INVOKER = {
 TEST_CASES = [
     item.stem
     for item in (TESTS_DIR / "cases").glob("*.py")
+    if not item.stem.startswith("test_")
+]
+
+EXTENSION_TEST_CASES = [
+    item.stem
+    for item in (TESTS_DIR / "ext_cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
 
@@ -268,9 +267,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
     def test_env_clang_format_style(self):
         lang = "cpp"
-        env = {
-            "CLANG_FORMAT_STYLE": "Google",
-        }
+        env = {"CLANG_FORMAT_STYLE": "Google"}
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         self.assertIn("-style=Google", settings.formatter)
 
@@ -278,6 +275,36 @@ class CodeGeneratorTests(unittest.TestCase):
         lang = "nim"
         settings = _get_all_settings(Mock(indent=2))[lang]
         self.assertIn("--indent:2", settings.formatter)
+
+    @foreach(sorted(EXTENSION_TEST_CASES))
+    def test_ext(self, case):
+        lang = "rust"
+        env = os.environ.copy()
+        if ENV.get(lang):
+            env.update(ENV.get(lang))
+
+        settings = _get_all_settings(Mock(indent=2))[lang]
+        ext = settings.ext
+        case_filename = TESTS_DIR / "ext_cases" / f"{case}.py"
+        case_output = TESTS_DIR / "ext_cases" / f"{case}{ext}"
+
+        args = ["--rust=1", "--extension=1", str(case_filename)]
+        sys.argv += args
+
+        try:
+            main(args=args, env=env)
+            with open(f"ext_cases/{case}{ext}") as actual:
+                generated = actual.read()
+                if (
+                    os.path.exists(f"ext_expected/{case}{ext}")
+                    and not self.UPDATE_EXPECTED
+                ):
+                    with open(f"ext_expected/{case}{ext}") as f2:
+                        self.assertEqual(f2.read(), generated)
+                        print("expected = generated")
+        finally:
+            if not self.KEEP_GENERATED:
+                case_output.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
