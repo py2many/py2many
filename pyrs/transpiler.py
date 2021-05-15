@@ -500,12 +500,15 @@ class RustTranspiler(CLikeTranspiler):
                 index += 1
             fields.append("pub {0}: {1},".format(declaration, typename))
 
+        extension = "#[pyclass]\n" if self.extension else ""
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
             node.name, "\n".join(fields)
         )
-        impl_def = "impl {0} {{\n".format(node.name)
+        impl_extension = "#[pymethods]\n" if self.extension else ""
+        impl_def = f"{impl_extension}impl {node.name} {{\n"
         buf = [self.visit(b) for b in node.body]
-        return "{0}{1}{2} \n}}".format(struct_def, impl_def, "\n".join(buf))
+        buf_str = "\n".join(buf)
+        return f"{extension}{struct_def}{impl_def}{buf_str} \n}}"
 
     def visit_IntEnum(self, node):
         fields = []
