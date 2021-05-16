@@ -65,8 +65,7 @@ fun fadd1(x: Byte, y: Double): Double {
 }
 
 fun show() {
-    val rv = fadd1(6, 6.0)
-    assert(rv == 12.toDouble())
+    assert(fadd1(6, 6.0) == 12.toDouble())
     println("OK")
 }
 

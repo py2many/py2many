@@ -45,8 +45,7 @@ inline int16_t mul(int8_t x, int8_t y) { return x * y; }
 inline double fadd1(int8_t x, double y) { return x + y; }
 
 inline void show() {
-  double rv = fadd1(6, 6.0);
-  assert(rv == 12);
+  assert(fadd1(6, 6.0) == 12);
   std::cout << std::string{"OK"};
   std::cout << std::endl;
 }

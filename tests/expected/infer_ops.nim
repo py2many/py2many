@@ -52,8 +52,7 @@ proc fadd1(x: int8, y: float64): float64 =
   return (float64(x) + y)
 
 proc show() =
-  let rv = fadd1(6, 6.0)
-  assert(rv == 12)
+  assert(fadd1(6, 6.0) == 12)
   echo "OK"
 
 proc main() =

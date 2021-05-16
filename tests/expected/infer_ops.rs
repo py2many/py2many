@@ -80,8 +80,7 @@ pub fn fadd1(x: i8, y: f64) -> f64 {
 }
 
 pub fn show() {
-    let rv: f64 = fadd1(6, 6.0);
-    assert!(rv == 12 as f64);
+    assert!(fadd1(6, 6.0) == 12 as f64);
     println!("{}", "OK");
 }
 

@@ -78,8 +78,7 @@ def fadd1(x: c_int8, y: float):
 
 
 def show():
-    rv = fadd1(6, 6.0)
-    assert rv == 12
+    assert fadd1(6, 6.0) == 12
     print("OK")
 
 

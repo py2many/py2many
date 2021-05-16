@@ -65,8 +65,7 @@ function fadd1(x::Int8, y::Float64)::Float64
 end
 
 function show()
-    rv = fadd1(convert(Int8, 6), 6.0)
-    @assert(rv == 12)
+    @assert(fadd1(convert(Int8, 6), 6.0) == 12)
     println(join(["OK"], " "))
 end
 

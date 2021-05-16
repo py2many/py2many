@@ -81,8 +81,7 @@ func Fadd1(x int8, y float64) float64 {
 }
 
 func Show() {
-	var rv float64 = Fadd1(6, 6.0)
-	if !(rv == 12) {
+	if !(Fadd1(6, 6.0) == 12) {
 		panic("assert")
 	}
 	fmt.Printf("%v\n", "OK")
