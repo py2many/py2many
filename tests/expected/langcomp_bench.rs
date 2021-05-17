@@ -16,7 +16,7 @@
 
 pub fn test_python(iterations: i32) {
     let mut iteration: i32 = 0;
-    let mut total: f64 = f64::from(0.0);
+    let mut total: f64 = 0.0 as f64;
     let array_length: i32 = 1000;
     let array: Vec<i32> = (0..array_length).map(|i| i).collect::<Vec<_>>();
     println!("{} {}", "iterations", iterations);

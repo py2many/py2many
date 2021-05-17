@@ -79,6 +79,10 @@ def fadd1(x: c_int8, y: float):
 
 def show():
     assert fadd1(6, 6.0) == 12
+    # assert add1(127, 1) == 128
+    # assert add2(32767, 1) == 32768
+    # assert add3(2147483647, 1) == 2147483648
+    # assert add4(9223372036854775807, 1) == 9223372036854775808
     print("OK")
 
 

@@ -305,10 +305,7 @@ class RustTranspiler(CLikeTranspiler):
                 return f"cmp::{min_max}({all_vargs})"
 
         def visit_cast(cast_to: str) -> str:
-            if "()" in vargs[0]:
-                return f"{vargs[0]} as {cast_to}"
-            else:
-                return f"{cast_to}::from({vargs[0]})"
+            return f"{vargs[0]} as {cast_to}"
 
         def visit_asyncio_run() -> str:
             self._usings.add("futures::executor::block_on")

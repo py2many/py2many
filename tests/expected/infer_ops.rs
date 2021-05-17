@@ -20,7 +20,7 @@ pub fn foo() {
     let _c1: i32 = (a + b);
     let _c2: i32 = (a - b);
     let _c3: i32 = (a * b);
-    let _c4: f64 = (a / b) as f64;
+    let _c4: f64 = (a as f64 / b as f64) as f64;
     let _c5: i32 = -(a);
     let d: f64 = 2.0;
     let _e1: f64 = (a as f64 + d);
@@ -32,15 +32,15 @@ pub fn foo() {
 }
 
 pub fn add1(x: i8, y: i8) -> i16 {
-    return (x + y) as i16;
+    return (x as i16 + y as i16) as i16;
 }
 
 pub fn add2(x: i16, y: i16) -> i32 {
-    return (x + y) as i32;
+    return (x as i32 + y as i32) as i32;
 }
 
 pub fn add3(x: i32, y: i32) -> i64 {
-    return (x + y) as i64;
+    return (x as i64 + y as i64) as i64;
 }
 
 pub fn add4(x: i64, y: i64) -> i64 {
@@ -48,15 +48,15 @@ pub fn add4(x: i64, y: i64) -> i64 {
 }
 
 pub fn add5(x: u8, y: u8) -> u16 {
-    return (x + y) as u16;
+    return (x as u16 + y as u16) as u16;
 }
 
 pub fn add6(x: u16, y: u16) -> u32 {
-    return (x + y) as u32;
+    return (x as u32 + y as u32) as u32;
 }
 
 pub fn add7(x: u32, y: u32) -> u64 {
-    return (x + y) as u64;
+    return (x as u64 + y as u64) as u64;
 }
 
 pub fn add8(x: u64, y: u64) -> u64 {
@@ -64,7 +64,7 @@ pub fn add8(x: u64, y: u64) -> u64 {
 }
 
 pub fn add9(x: i8, y: u16) -> u32 {
-    return (x as u16 + y) as u32;
+    return (x as u32 + y as u32) as u32;
 }
 
 pub fn sub(x: i8, y: i8) -> i8 {
@@ -72,7 +72,7 @@ pub fn sub(x: i8, y: i8) -> i8 {
 }
 
 pub fn mul(x: i8, y: i8) -> i16 {
-    return (x * y) as i16;
+    return (x as i16 * y as i16) as i16;
 }
 
 pub fn fadd1(x: i8, y: f64) -> f64 {

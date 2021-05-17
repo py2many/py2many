@@ -63,6 +63,8 @@ RUST_WIDTH_RANK = {
     "f64": 10,
 }
 
+RUST_RANK_TO_TYPE = {v: k for k, v in RUST_WIDTH_RANK.items()}
+
 
 def infer_rust_types(node, extension=False):
     visitor = InferRustTypesTransformer(extension)

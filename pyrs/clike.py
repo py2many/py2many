@@ -2,7 +2,12 @@ import ast
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import RUST_WIDTH_RANK, RUST_TYPE_MAP, is_rust_reference
+from .inference import (
+    RUST_RANK_TO_TYPE,
+    RUST_WIDTH_RANK,
+    RUST_TYPE_MAP,
+    is_rust_reference,
+)
 
 
 # allowed as names in Python but treated as keywords in Rust
@@ -49,14 +54,24 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         left_type = self._typename_from_annotation(node.left)
         right_type = self._typename_from_annotation(node.right)
+        op_type = self._typename_from_annotation(node)
 
         left_rank = RUST_WIDTH_RANK.get(left_type, -1)
         right_rank = RUST_WIDTH_RANK.get(right_type, -1)
+        left_target_rank = left_rank
+        right_target_rank = right_rank
 
-        if left_rank > right_rank:
-            right = f"{right} as {left_type}"
-        elif right_rank > left_rank:
-            left = f"{left} as {right_type}"
+        op_rank = -1
+        if op_type != self._default_type:
+            op_rank = RUST_WIDTH_RANK.get(op_type, -1)
+            left_target_rank = right_target_rank = op_rank
+
+        if right_target_rank > right_rank:
+            right_target_type = RUST_RANK_TO_TYPE[right_target_rank]
+            right = f"{right} as {right_target_type}"
+        if left_target_rank > left_rank:
+            left_target_type = RUST_RANK_TO_TYPE[left_target_rank]
+            left = f"{left} as {left_target_type}"
 
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
