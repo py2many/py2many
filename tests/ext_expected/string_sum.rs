@@ -20,7 +20,7 @@ use pyo3::wrap_pyfunction;
 
 #[pyfunction]
 pub fn sum_as_string(a: i8, b: i8) -> PyResult<String> {
-    return Ok((a + b).to_string());
+    return Ok((a as i16 + b as i16).to_string());
 }
 
 #[pyfunction]
