@@ -1,22 +1,26 @@
 import ast
 
-from py2many.inference import get_inferred_type, InferTypesTransformer
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
 from py2many.analysis import get_id
+from py2many.clike import class_for_typename
+from py2many.inference import get_inferred_type, InferTypesTransformer
 
 GO_TYPE_MAP = {
-    "bool": "bool",
-    "int": "int",
-    "float": "float64",
-    "bytes": "[]uint8",
-    "str": "string",
-    "c_int8": "int8",
-    "c_int16": "int16",
-    "c_int32": "int32",
-    "c_int64": "int64",
-    "c_uint8": "uint8",
-    "c_uint16": "uint16",
-    "c_uint32": "uint32",
-    "c_uint64": "uint64",
+    bool: "bool",
+    int: "int",
+    float: "float64",
+    bytes: "[]uint8",
+    str: "string",
+    c_int8: "int8",
+    c_int16: "int16",
+    c_int32: "int32",
+    c_int64: "int64",
+    c_uint8: "uint8",
+    c_uint16: "uint16",
+    c_uint32: "uint32",
+    c_uint64: "uint64",
 }
 
 
@@ -41,8 +45,9 @@ def infer_go_types(node):
 
 
 def map_type(typename):
-    if typename in GO_TYPE_MAP:
-        return GO_TYPE_MAP[typename]
+    typeclass = class_for_typename(typename, None)
+    if typeclass in GO_TYPE_MAP:
+        return GO_TYPE_MAP[typeclass]
     return typename
 
 
@@ -82,7 +87,7 @@ class InferGoTypesTransformer(ast.NodeTransformer):
         left_go_rank = GO_WIDTH_RANK.get(left_go_id, -1)
         right_go_rank = GO_WIDTH_RANK.get(right_go_id, -1)
 
-        return left_id if left_go_rank > right_go_rank else right_id
+        return left_go_id if left_go_rank > right_go_rank else right_go_id
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -135,7 +140,7 @@ class InferGoTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.go_annotation = map_type(ret)
+            node.go_annotation = ret
             return node
         if left_id == right_id:
             node.annotation = left

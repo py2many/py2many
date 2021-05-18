@@ -1,5 +1,32 @@
 import ast
+import logging
 import sys
+
+# Fixed width ints and aliases
+from ctypes import (
+    c_int8 as i8,
+    c_int16 as i16,
+    c_int32 as i32,
+    c_int64 as i64,
+    c_uint8 as u8,
+    c_uint16 as u16,
+    c_uint32 as u32,
+    c_uint64 as u64,
+)
+
+ilong = i64
+ulong = u64
+isize = i64
+usize = u64
+c_int8 = i8
+c_int16 = i16
+c_int32 = i32
+c_int64 = i64
+c_uint8 = u8
+c_uint16 = u16
+c_uint32 = u32
+c_uint64 = u64
+
 
 from py2many.analysis import get_id, IGNORED_MODULE_SET
 from typing import List, Optional, Tuple, Union
@@ -31,6 +58,21 @@ symbols = {
     ast.Or: "||",
     ast.In: "in",
 }
+
+logger = logging.Logger("py2many")
+
+
+def class_for_typename(typename, default_type) -> Union[str, object]:
+    if typename is None:
+        return None
+    try:
+        # TODO: take into account any imports happening in the file being parsed
+        # and pass them into eval
+        typeclass = eval(typename)
+        return typeclass
+    except NameError:
+        logger.warning(f"could not evaluate {typename}")
+        return default_type
 
 
 def c_symbol(node):
@@ -90,7 +132,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _map_type(self, typename) -> str:
         if isinstance(typename, list):
             raise NotImplementedError(f"{typename} not supported in this context")
-        return self._type_map.get(typename, typename)
+        typeclass = class_for_typename(typename, self._default_type)
+        return self._type_map.get(typeclass, typename)
 
     def _map_types(self, typenames: List[str]) -> List[str]:
         return [self._map_type(e) for e in typenames]

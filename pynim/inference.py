@@ -1,23 +1,27 @@
 import ast
 
-from py2many.inference import get_inferred_type, InferTypesTransformer
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
 from py2many.analysis import get_id
+from py2many.clike import class_for_typename
+from py2many.inference import get_inferred_type, InferTypesTransformer
 
 
 NIM_TYPE_MAP = {
-    "int": "int",
-    "float": "float64",
-    "bytes": "openArray[byte]",
-    "str": "string",
-    "bool": "bool",
-    "c_int8": "int8",
-    "c_int16": "int16",
-    "c_int32": "int32",
-    "c_int64": "int64",
-    "c_uint8": "uint8",
-    "c_uint16": "uint16",
-    "c_uint32": "uint32",
-    "c_uint64": "uint64",
+    int: "int",
+    float: "float64",
+    bytes: "openArray[byte]",
+    str: "string",
+    bool: "bool",
+    c_int8: "int8",
+    c_int16: "int16",
+    c_int32: "int32",
+    c_int64: "int64",
+    c_uint8: "uint8",
+    c_uint16: "uint16",
+    c_uint32: "uint32",
+    c_uint64: "uint64",
 }
 
 NIM_WIDTH_RANK = {
@@ -42,8 +46,9 @@ def infer_nim_types(node):
 
 
 def map_type(typename):
-    if typename in NIM_TYPE_MAP:
-        return NIM_TYPE_MAP[typename]
+    typeclass = class_for_typename(typename, None)
+    if typeclass in NIM_TYPE_MAP:
+        return NIM_TYPE_MAP[typeclass]
     return typename
 
 
@@ -83,7 +88,7 @@ class InferNimTypesTransformer(ast.NodeTransformer):
         left_nim_rank = NIM_WIDTH_RANK.get(left_nim_id, -1)
         right_nim_rank = NIM_WIDTH_RANK.get(right_nim_id, -1)
 
-        return left_id if left_nim_rank > right_nim_rank else right_id
+        return left_nim_id if left_nim_rank > right_nim_rank else right_nim_id
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -136,7 +141,7 @@ class InferNimTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.nim_annotation = map_type(ret)
+            node.nim_annotation = ret
             return node
         if left_id == right_id:
             node.annotation = left

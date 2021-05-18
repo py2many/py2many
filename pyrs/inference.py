@@ -1,28 +1,28 @@
 import ast
 import datetime
-import logging
 import typing
 import types
 
-from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from py2many.analysis import get_id, is_mutable
-
-logger = logging.Logger("py2many")
+from py2many.clike import class_for_typename
+from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
 
 RUST_TYPE_MAP = {
-    "int": "i32",
-    "float": "f64",
-    "bytes": "&[u8]",
-    "str": "&str",
-    "bool": "bool",
-    "c_int8": "i8",
-    "c_int16": "i16",
-    "c_int32": "i32",
-    "c_int64": "i64",
-    "c_uint8": "u8",
-    "c_uint16": "u16",
-    "c_uint32": "u32",
-    "c_uint64": "u64",
+    int: "i32",
+    float: "f64",
+    bytes: "&[u8]",
+    str: "&str",
+    bool: "bool",
+    c_int8: "i8",
+    c_int16: "i16",
+    c_int32: "i32",
+    c_int64: "i64",
+    c_uint8: "u8",
+    c_uint16: "u16",
+    c_uint32: "u32",
+    c_uint64: "u64",
 }
 
 # https://pyo3.rs/v0.13.2/conversions/tables.html
@@ -76,21 +76,19 @@ def extension_map_type(typename, return_type=False):
         return "&PyAny"
     if typename == None and return_type:
         return "PyResult<()>"
-    if typename in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
-        return RUST_TYPE_MAP[typename]
-    try:
-        # TODO: take into account any imports happening in the file being parsed
-        # and pass them into eval
-        typeclass = eval(typename)
-    except NameError:
-        logger.warning(f"could not evaluate {typename}")
-        return "&PyAny"
+
+    typeclass = class_for_typename(typename, "&PyAny")
 
     if typeclass in RUST_EXTENSION_TYPE_MAP:
-        if return_type and typename == "str":
+        if return_type and typeclass == str:
             typename = "String"
+            return f"PyResult<{typename}>"
         else:
             return RUST_EXTENSION_TYPE_MAP[typeclass]
+
+    if typeclass in RUST_TYPE_MAP:
+        return RUST_TYPE_MAP[typeclass]
+
     if return_type and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
         return f"PyResult<{typename}>"
     else:
@@ -100,8 +98,9 @@ def extension_map_type(typename, return_type=False):
 def map_type(typename, extension=False, return_type=False):
     if extension:
         return extension_map_type(typename, return_type)
-    if typename in RUST_TYPE_MAP:
-        return RUST_TYPE_MAP[typename]
+    typeclass = class_for_typename(typename, "&PyAny")
+    if typeclass in RUST_TYPE_MAP:
+        return RUST_TYPE_MAP[typeclass]
     return typename
 
 
@@ -149,7 +148,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
         left_rust_rank = RUST_WIDTH_RANK.get(left_rust_id, -1)
         right_rust_rank = RUST_WIDTH_RANK.get(right_rust_id, -1)
 
-        return left_id if left_rust_rank > right_rust_rank else right_id
+        return left_rust_id if left_rust_rank > right_rust_rank else right_rust_id
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -202,7 +201,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.rust_annotation = map_type(ret)
+            node.rust_annotation = ret
             return node
         if left_id == right_id:
             node.annotation = left

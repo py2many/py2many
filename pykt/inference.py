@@ -1,22 +1,26 @@
 import ast
 
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
 from py2many.inference import get_inferred_type, InferTypesTransformer
+from py2many.clike import class_for_typename
 from py2many.analysis import get_id
 
 KT_TYPE_MAP = {
-    "bool": "Boolean",
-    "int": "Int",
-    "float": "Double",
-    "bytes": "ByteArray",
-    "str": "String",
-    "c_int8": "Byte",
-    "c_int16": "Short",
-    "c_int32": "Int",
-    "c_int64": "Long",
-    "c_uint8": "UByte",
-    "c_uint16": "UShort",
-    "c_uint32": "UInt",
-    "c_uint64": "ULong",
+    bool: "Boolean",
+    int: "Int",
+    float: "Double",
+    bytes: "ByteArray",
+    str: "String",
+    c_int8: "Byte",
+    c_int16: "Short",
+    c_int32: "Int",
+    c_int64: "Long",
+    c_uint8: "UByte",
+    c_uint16: "UShort",
+    c_uint32: "UInt",
+    c_uint64: "ULong",
 }
 
 REVERSE_KT_TYPE_MAP = {v: k for k, v in KT_TYPE_MAP.items()}
@@ -42,8 +46,9 @@ def infer_kotlin_types(node):
 
 
 def map_type(typename):
-    if typename in KT_TYPE_MAP:
-        return KT_TYPE_MAP[typename]
+    typeclass = class_for_typename(typename, None)
+    if typeclass in KT_TYPE_MAP:
+        return KT_TYPE_MAP[typeclass]
     return typename
 
 
@@ -97,7 +102,9 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
         left_kotlin_rank = KT_WIDTH_RANK.get(left_kotlin_id, -1)
         right_kotlin_rank = KT_WIDTH_RANK.get(right_kotlin_id, -1)
 
-        return left_id if left_kotlin_rank > right_kotlin_rank else right_id
+        return (
+            left_kotlin_id if left_kotlin_rank > right_kotlin_rank else right_kotlin_id
+        )
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -137,7 +144,7 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
             and not isinstance(node.op, ast.Div)
         ):
             node.annotation = left
-            node.go_annotation = map_type(left_id)
+            node.kotlin_annotation = map_type(left_id)
             return node
 
         if left_id == "int":
@@ -150,7 +157,7 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.kotlin_annotation = map_type(ret)
+            node.kotlin_annotation = ret
             return node
         if left_id == right_id:
             node.annotation = left
