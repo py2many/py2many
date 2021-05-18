@@ -2,6 +2,8 @@ import ast
 import logging
 import sys
 
+from typing import Dict
+
 # Fixed width ints and aliases
 from ctypes import (
     c_int8 as i8,
@@ -91,6 +93,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
+        self._imported_names: Dict[str, object] = {}
         self._features = set([])
         self._container_type_map = {}
         self._default_type = "auto"
@@ -237,6 +240,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         buf = [self.comment(docstring.value)] if docstring is not None else []
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
+
+    def visit_alias(self, node):
+        return (node.name, node.asname)
 
     def visit_Name(self, node):
         if node.id in self.builtin_constants:

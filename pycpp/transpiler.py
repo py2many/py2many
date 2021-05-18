@@ -496,20 +496,26 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def visit_alias(self, node):
-        return '#include "{0}.h"'.format(node.name)
-
     def visit_Import(self, node):
-        imports = [self.visit(n) for n in node.names]
-        return "\n".join(i for i in imports if i)
+        names = [self.visit(n) for n in node.names]
+        imports = []
+        for name, asname in names:
+            if asname is not None:
+                self._imported_names[asname] = name
+            imports.append(f'#include "{name}.h"')
+        return "\n".join(imports)
 
     def visit_ImportFrom(self, node):
         if node.module in self.IGNORED_MODULE_LIST:
             return ""
 
-        # TODO: use node.module below
-        imports = [self.visit(n) for n in node.names]
-        return "\n".join(i for i in imports if i)
+        names = [self.visit(n) for n in node.names]
+        for name, asname in names:
+            asname = asname if asname is not None else name
+            self._imported_names[asname] = (node.module, name)
+
+        imports = [f'#include "{m}.h"' for m in [node.module]]
+        return "\n".join(imports)
 
     def _get_element_type(self, node):
         _ = self._typename_from_annotation(node)

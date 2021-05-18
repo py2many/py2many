@@ -71,6 +71,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     def visit_Import(self, node):
         for name in node.names:
             name.imported_from = node
+        return node
 
     def visit_If(self, node):
         node.vars = []

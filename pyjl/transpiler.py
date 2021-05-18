@@ -367,18 +367,23 @@ class JuliaTranspiler(CLikeTranspiler):
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
 
-    def visit_alias(self, node):
-        return "use {0}".format(node.name)
-
     def visit_Import(self, node):
-        imports = [self.visit(n) for n in node.names]
-        return "\n".join(i for i in imports if i)
+        names = [self.visit(n) for n in node.names]
+        imports = [f"use {name}" for name, alias in names if name not in self.IGNORED_MODULE_LIST]
+        for name, asname in names:
+            if asname is not None:
+                self._imported_names[asname] = name
+        return "\n".join(imports)
 
     def visit_ImportFrom(self, node):
         if node.module in self.IGNORED_MODULE_LIST:
             return ""
 
-        names = [n.name for n in node.names]
+        names = [self.visit(n) for n in node.names]
+        for name, asname in names:
+            asname = asname if asname is not None else name
+            self._imported_names[asname] = (node.module, name)
+        names = [n for n, _ in names]
         names = ", ".join(names)
         module_path = node.module.replace(".", "::")
         return "use {0}::{{{1}}}".format(module_path, names)
