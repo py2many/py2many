@@ -45,7 +45,7 @@ pub fn show() {
     let b1: i32 = 15;
     let b2: _ = 15;
     assert!(b1 == 15);
-    assert!(b2 as i32 == 15);
+    assert!((b2 as i32) == 15);
     let b9: i32 = 2;
     let b10: i32 = 2;
     assert!(b9 == b10);
@@ -61,7 +61,7 @@ pub fn show() {
     let a4: i32 = (a3 + a1);
     println!("{}", a4);
     let t1: _ = if a1 > 5 { 10 } else { 5 };
-    assert!(t1 as i32 == 10);
+    assert!((t1 as i32) == 10);
     let sum1: i32 = indexing();
     println!("{}", sum1);
     let a5: &Vec<i32> = &vec![1, 2, 3];

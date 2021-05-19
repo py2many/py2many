@@ -22,7 +22,7 @@ pub async fn nested() -> i32 {
 }
 
 pub async fn async_main() {
-    assert!(nested().await as i32 == 42);
+    assert!((nested().await as i32) == 42);
     println!("{}", "OK");
 }
 

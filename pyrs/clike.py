@@ -68,10 +68,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         if right_target_rank > right_rank:
             right_target_type = RUST_RANK_TO_TYPE[right_target_rank]
-            right = f"{right} as {right_target_type}"
+            right = f"({right} as {right_target_type})"
         if left_target_rank > left_rank:
             left_target_type = RUST_RANK_TO_TYPE[left_target_rank]
-            left = f"{left} as {left_target_type}"
+            left = f"({left} as {left_target_type})"
 
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.
@@ -102,9 +102,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         right_rank = RUST_WIDTH_RANK.get(right_type, -1)
 
         if left_rank > right_rank:
-            right = f"{right} as {left_type}"
+            right = f"({right} as {left_type})"
         elif right_rank > left_rank:
-            left = f"{left} as {right_type}"
+            left = f"({left} as {right_type})"
 
         return f"{left} {op} {right}"
 

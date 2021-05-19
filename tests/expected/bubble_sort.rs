@@ -20,10 +20,10 @@ pub fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     let L: _ = seq.len();
     for _ in (0..L) {
         for n in (1..L) {
-            if seq[n as usize] < seq[(n as i32 - 1) as usize] {
+            if seq[n as usize] < seq[((n as i32) - 1) as usize] {
                 ({
-                    let (__tmp1, __tmp2) = (seq[n as usize], seq[(n as i32 - 1) as usize]);
-                    seq[(n as i32 - 1) as usize] = __tmp1;
+                    let (__tmp1, __tmp2) = (seq[n as usize], seq[((n as i32) - 1) as usize]);
+                    seq[((n as i32) - 1) as usize] = __tmp1;
                     seq[n as usize] = __tmp2;
                 });
             }

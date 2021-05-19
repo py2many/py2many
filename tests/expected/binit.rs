@@ -20,7 +20,7 @@ pub fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
     let mut low: i32 = 0;
     let mut high: i32 = data.len() as i32;
     while low < high {
-        let middle: i32 = ((low + high) as f64 / 2 as f64) as i32;
+        let middle: i32 = (((low + high) as f64) / (2 as f64)) as i32;
         if item < data[middle as usize] {
             high = middle;
         } else {

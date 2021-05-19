@@ -28,7 +28,7 @@ pub fn test_python(iterations: i32) {
         }
         iteration += 1;
     }
-    if total == 15150 as f64 {
+    if total == (15150 as f64) {
         println!("{}", "OK");
     }
     drop(array);
