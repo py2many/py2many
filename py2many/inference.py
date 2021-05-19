@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from py2many.analysis import get_id
-from py2many.clike import CLikeTranspiler
+from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.tracer import is_enum
 
 
@@ -55,7 +55,7 @@ class InferTypesTransformer(ast.NodeTransformer):
     """
 
     TYPE_DICT = {int: "int", float: "float", str: "str", bool: "bool"}
-    FIXED_WIDTH_INTS = {
+    FIXED_WIDTH_INTS_LIST = [
         bool,
         c_int8,
         c_int16,
@@ -65,7 +65,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         c_uint16,
         c_uint32,
         c_uint64,
-    }
+    ]
+    FIXED_WIDTH_INTS = set(FIXED_WIDTH_INTS_LIST)
+    # The order needs to match FIXED_WIDTH_INTS_LIST. Extra elements ok.
     FIXED_WIDTH_INTS_NAME_LIST = [
         "bool",
         "c_int8",
@@ -76,6 +78,18 @@ class InferTypesTransformer(ast.NodeTransformer):
         "c_uint16",
         "c_uint32",
         "c_uint64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "isize",
+        "ilong",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "usize",
+        "ulong",
     ]
     FIXED_WIDTH_INTS_NAME = set(FIXED_WIDTH_INTS_NAME_LIST)
 
@@ -247,23 +261,25 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
+        left_class_name = class_for_typename(left_id, None)
+        right_class_name = class_for_typename(right_id, None)
         left_idx = (
-            self.FIXED_WIDTH_INTS_NAME_LIST.index(left_id)
-            if left_id in self.FIXED_WIDTH_INTS_NAME
+            self.FIXED_WIDTH_INTS_LIST.index(left_class_name)
+            if left_class_name in self.FIXED_WIDTH_INTS
             else -1
         )
         right_idx = (
-            self.FIXED_WIDTH_INTS_NAME_LIST.index(right_id)
-            if right_id in self.FIXED_WIDTH_INTS_NAME
+            self.FIXED_WIDTH_INTS_LIST.index(right_class_name)
+            if right_class_name in self.FIXED_WIDTH_INTS
             else -1
         )
         max_idx = max(left_idx, right_idx)
-        cint64_idx = self.FIXED_WIDTH_INTS_NAME_LIST.index("c_int64")
+        cint64_idx = self.FIXED_WIDTH_INTS_LIST.index(c_int64)
         if widening_op:
             if max_idx not in {
                 -1,
                 cint64_idx,
-                len(self.FIXED_WIDTH_INTS_NAME_LIST) - 1,
+                len(self.FIXED_WIDTH_INTS_LIST) - 1,
             }:
                 # i8 + i8 => i16 for example
                 return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx + 1]
