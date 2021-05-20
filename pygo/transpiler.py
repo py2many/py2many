@@ -504,26 +504,12 @@ class GoTranspiler(CLikeTranspiler):
             members.append((member, var))
         return self._visit_enum(node, "string", members)
 
-    def visit_Import(self, node):
-        names = [self.visit(n) for n in node.names]
-        imports = [f"use {name}" for name, alias in names if name not in self.IGNORED_MODULE_LIST]
-        for name, asname in names:
-            if asname is not None:
-                self._imported_names[asname] = name
-        return "\n".join(imports)
+    def _import(self, name: str) -> str:
+        return f'import ("{name}")'
 
-    def visit_ImportFrom(self, node):
-        if node.module in self.IGNORED_MODULE_LIST:
-            return ""
-
-        names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            self._imported_names[asname] = (node.module, name)
-        names = [n for n, _ in names]
-        names = ", ".join(names)
-        module_path = node.module.replace(".", "::")
-        return "use {0}::{{{1}}}".format(module_path, names)
+    def _import_from(self, module_name: str, names: List[str]) -> str:
+        module_name = module_name.replace(".", "/")
+        return "\n".join([f'import ("{module_name}/{name}"")' for name in names])
 
     def visit_List(self, node):
         _ = self._typename_from_annotation(node)

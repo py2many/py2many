@@ -1,8 +1,9 @@
 import ast
+import importlib
 import logging
 import sys
 
-from typing import Dict
+from typing import Any, Dict
 
 # Fixed width ints and aliases
 from ctypes import (
@@ -87,18 +88,18 @@ class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     builtin_constants = frozenset(["True", "False"])
-    IGNORED_MODULE_LIST = IGNORED_MODULE_SET
 
     def __init__(self):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
-        self._imported_names: Dict[str, object] = {}
+        self._imported_names: Dict[str, Any] = {}
         self._features = set([])
         self._container_type_map = {}
         self._default_type = "auto"
         self._statement_separator = ";"
         self._extension = False
+        self._ignored_module_set = IGNORED_MODULE_SET.copy()
 
     def headers(self, meta=None):
         return ""
@@ -243,6 +244,50 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_alias(self, node):
         return (node.name, node.asname)
+
+    def _import(self, name: str) -> str:
+        ...
+
+    def _import_from(self, module_name: str, names: List[str]) -> str:
+        ...
+
+    def visit_Import(self, node):
+        names = [self.visit(n) for n in node.names]
+        imports = [
+            self._import(name)
+            for name, alias in names
+            if name not in self._ignored_module_set
+        ]
+        for name, asname in names:
+            if asname is not None:
+                try:
+                    imported_name = importlib.import_module(name)
+                except:
+                    imported_name = name
+                self._imported_names[asname] = imported_name
+        return "\n".join(imports)
+
+    def visit_ImportFrom(self, node):
+        if node.module in self._ignored_module_set:
+            return ""
+
+        had_import_exception = False
+        try:
+            imported_name = importlib.import_module(node.module)
+        except:
+            had_import_exception = True
+            imported_name = node.module
+
+        names = [self.visit(n) for n in node.names]
+        for name, asname in names:
+            asname = asname if asname is not None else name
+            if had_import_exception:
+                self._imported_names[asname] = (node.module, name)
+            else:
+                self._imported_names[asname] = getattr(imported_name, name, None)
+        names = [n for n, _ in names]
+        module_path = node.module
+        return self._import_from(module_path, names)
 
     def visit_Name(self, node):
         if node.id in self.builtin_constants:

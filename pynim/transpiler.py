@@ -34,14 +34,14 @@ class NimTranspiler(CLikeTranspiler):
         "Optional": "Option",
     }
 
-    ALLOW_MODULE_LIST = ["math"]
-
     def __init__(self, indent=2):
         super().__init__()
         self._headers = set([])
         self._indent = " " * indent
         self._default_type = "var"
         self._container_type_map = self.CONTAINER_TYPE_MAP
+        if "math" in self._ignored_module_set:
+            self._ignored_module_set.remove("math")
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -374,28 +374,12 @@ class NimTranspiler(CLikeTranspiler):
         fields = "\n".join([self.indent(f) for f in fields])
         return f"type {node.name} = enum\n{fields}\n\n"
 
-    def visit_Import(self, node):
-        names = [self.visit(n) for n in node.names]
-        imports = [f"use {name}" for name, alias in names if name not in self.IGNORED_MODULE_LIST]
-        for name, asname in names:
-            if asname is not None:
-                self._imported_names[asname] = name
-        return "\n".join(imports)
+    def _import(self, name: str) -> str:
+        return f"import {name}"
 
-    def visit_ImportFrom(self, node):
-        if (
-            node.module not in self.ALLOW_MODULE_LIST
-            and node.module in self.IGNORED_MODULE_LIST
-        ):
-            return ""
-        names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            self._imported_names[asname] = (node.module, name)
-        names = [n for n, _ in names]
+    def _import_from(self, module_name: str, names: List[str]) -> str:
         names = ", ".join(names)
-        module_path = node.module.replace(".", "::")
-        return f"from {module_path} import {names}"
+        return f"from {module_name} import {names}"
 
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]

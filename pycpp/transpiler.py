@@ -184,7 +184,8 @@ class CppTranspiler(CLikeTranspiler):
             funcdef = "\n".join(
                 [
                     "int main(int argc, char ** argv) {",
-                    "pycpp::sys::argv = " "std::vector<std::string>(argv, argv + argc);",
+                    "pycpp::sys::argv = "
+                    "std::vector<std::string>(argv, argv + argc);",
                 ]
             )
         return funcdef + "\n" + body + "}\n"
@@ -496,26 +497,11 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def visit_Import(self, node):
-        names = [self.visit(n) for n in node.names]
-        imports = []
-        for name, asname in names:
-            if asname is not None:
-                self._imported_names[asname] = name
-            imports.append(f'#include "{name}.h"')
-        return "\n".join(imports)
+    def _import(self, name: str) -> str:
+        return f'#include "{name}.h"'
 
-    def visit_ImportFrom(self, node):
-        if node.module in self.IGNORED_MODULE_LIST:
-            return ""
-
-        names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            self._imported_names[asname] = (node.module, name)
-
-        imports = [f'#include "{m}.h"' for m in [node.module]]
-        return "\n".join(imports)
+    def _import_from(self, module_name: str, names: List[str]) -> str:
+        return f'#include "{module_name}.h"'
 
     def _get_element_type(self, node):
         _ = self._typename_from_annotation(node)
