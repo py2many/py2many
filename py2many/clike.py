@@ -3,6 +3,7 @@ import importlib
 import logging
 import sys
 
+from pathlib import Path
 from typing import Any, Dict
 
 # Fixed width ints and aliases
@@ -65,15 +66,15 @@ symbols = {
 logger = logging.Logger("py2many")
 
 
-def class_for_typename(typename, default_type) -> Union[str, object]:
+def class_for_typename(typename, default_type, locals=None) -> Union[str, object]:
     if typename is None:
         return None
     try:
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval
-        typeclass = eval(typename)
+        typeclass = eval(typename, globals(), locals)
         return typeclass
-    except NameError:
+    except (NameError, SyntaxError):
         logger.warning(f"could not evaluate {typename}")
         return default_type
 
@@ -100,6 +101,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._statement_separator = ";"
         self._extension = False
         self._ignored_module_set = IGNORED_MODULE_SET.copy()
+        self._module = None
 
     def headers(self, meta=None):
         return ""
@@ -239,6 +241,12 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Module(self, node):
         docstring = getattr(node, "docstring_comment", None)
         buf = [self.comment(docstring.value)] if docstring is not None else []
+        filename = getattr(node, "__file__", None)
+        if filename is not None:
+            self._module = Path(filename).stem
+        # TODO: generalize this to reset all state that needs to be reset
+        self._imported_names = {}
+        self._usings.clear()
         buf += [self.visit(b) for b in node.body]
         return "\n".join(buf)
 

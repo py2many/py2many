@@ -1,10 +1,12 @@
 import ast
 import functools
+from py2many.clike import class_for_typename
 import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type, map_type
+from .plugins import CLASS_DISPATCH_TABLE, FUNC_DISPATCH_TABLE
 
 from py2many.analysis import (
     FunctionTransformer,
@@ -78,6 +80,7 @@ class RustTranspiler(CLikeTranspiler):
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._default_type = "_"
         self._extension = extension
+        self._rust_ignored_module_set = {"argparse_dataclass"}
 
     def usings(self):
         if self._extension:
@@ -331,6 +334,20 @@ class RustTranspiler(CLikeTranspiler):
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
+
+        fname_for_lookup = fname.replace("::", ".")
+        func = class_for_typename(fname_for_lookup, None, self._imported_names)
+        if func is not None and func in FUNC_DISPATCH_TABLE:
+            return FUNC_DISPATCH_TABLE[func](node)
+        # string based fallback
+        splits = fname.rsplit("::", maxsplit=1)
+        if len(splits) == 2:
+            fname_stem, fname_leaf = splits
+        else:
+            fname_stem = ""
+            fname_leaf = splits[0]
+        if fname_leaf in FUNC_DISPATCH_TABLE:
+            return fname_stem + FUNC_DISPATCH_TABLE[fname_leaf](node)
         return None
 
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
@@ -484,10 +501,21 @@ class RustTranspiler(CLikeTranspiler):
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
         node.declarations = declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
+
+        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
 
         fields = []
         index = 0
@@ -495,7 +523,7 @@ class RustTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append("pub {0}: {1},".format(declaration, typename))
+            fields.append(f"pub {declaration}: {typename},")
 
         extension = "#[pyclass]\n" if self.extension else ""
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
@@ -549,9 +577,13 @@ class RustTranspiler(CLikeTranspiler):
         )
 
     def _import(self, name: str) -> str:
+        if name in self._rust_ignored_module_set:
+            return ""
         return f"use {name};"
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
+        if module_name in self._rust_ignored_module_set:
+            return ""
         module_name = module_name.replace(".", "::")
         names = ", ".join(names)
         return f"use {module_name}::{{{names}}};"

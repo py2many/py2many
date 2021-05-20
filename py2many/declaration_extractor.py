@@ -15,7 +15,8 @@ class DeclarationExtractor(ast.NodeVisitor):
         return None
 
     def get_declarations(self):
-        typed_members = self.already_annotated
+        # strip out default values for backward compat with callers
+        typed_members = {k: v[0] for k, v in self.already_annotated.items()}
         for member, var in self.class_assignments.items():
             if member in self.already_annotated:
                 continue
@@ -26,6 +27,21 @@ class DeclarationExtractor(ast.NodeVisitor):
         for member, value in self.class_assignments.items():
             if member not in typed_members:
                 typed_members[member] = self.type_by_initialization(value)
+
+        return typed_members
+
+    def get_declarations_with_defaults(self):
+        typed_members = self.already_annotated
+        for member, var in self.class_assignments.items():
+            if member in self.already_annotated:
+                continue
+
+            if var in self.typed_vars:
+                typed_members[member] = (self.typed_vars[var], None)
+
+        for member, value in self.class_assignments.items():
+            if member not in typed_members:
+                typed_members[member] = (self.type_by_initialization(value), None)
 
         return typed_members
 
@@ -66,11 +82,11 @@ class DeclarationExtractor(ast.NodeVisitor):
         if self.is_member(target):
             type_str = self.transpiler._typename_from_annotation(node)
             if target.attr not in self.already_annotated:
-                self.already_annotated[target.attr] = type_str
+                self.already_annotated[target.attr] = (type_str, node.value)
         if dataclass:
             type_str = self.transpiler._typename_from_annotation(node)
             if target.id not in self.already_annotated:
-                self.already_annotated[target.id] = type_str
+                self.already_annotated[target.id] = (type_str, node.value)
 
     def visit_Assign(self, node):
         target = node.targets[0]

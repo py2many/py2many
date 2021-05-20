@@ -43,7 +43,7 @@ jobs:
       - name: Install tox
         run: pip3 install tox
 
-      - name: Install ${{ runner.os }} dependencies.
+      - name: Install Julia dependencies for ${{ runner.os }}.
         shell: bash
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'

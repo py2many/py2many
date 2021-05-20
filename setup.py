@@ -6,7 +6,7 @@ __version__ = "0.2.1"
 
 install_requires = []
 setup_requires = []
-tests_require = ["pytest", "unittest-expander"]
+tests_require = ["pytest", "unittest-expander", "argparse_dataclass"]
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
