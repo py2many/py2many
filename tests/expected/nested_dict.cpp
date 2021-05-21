@@ -1,9 +1,10 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <vector>
+
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 inline bool nested_containers() {
   std::map<std::string, std::vector<int>> CODES =
       std::map<std::string, std::vector<int>>{
@@ -13,7 +14,7 @@ inline bool nested_containers() {
                     1) != CODES[std::string{"KEY"}].end());
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   if (nested_containers()) {
     std::cout << std::string{"OK"};

@@ -1,11 +1,13 @@
+#include <math.h>
+
+#include <cassert>
+#include <iostream>
+#include <tuple>
+#include <vector>
+
 #include "pycpp/runtime/builtins.h"
 #include "pycpp/runtime/range.hpp"
 #include "pycpp/runtime/sys.h"
-#include <cassert>
-#include <iostream>
-#include <math.h>
-#include <tuple>
-#include <vector>
 
 inline std::vector<int> comb_sort(std::vector<int> seq) {
   auto gap = seq.size();
@@ -24,7 +26,7 @@ inline std::vector<int> comb_sort(std::vector<int> seq) {
   return seq;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   std::vector<int> unsorted = {14, 11, 19, 5, 16, 10, 19, 12, 5, 12};
   std::vector<int> expected = {5, 5, 10, 11, 12, 12, 14, 16, 19, 19};

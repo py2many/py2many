@@ -1,8 +1,9 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
 #include <cassert>
 #include <iostream>
 #include <map>
+
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 
 enum Colors : int {
   RED = 0,
@@ -40,7 +41,7 @@ inline void show() {
   assert(color_map.size() != 0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   show();
 }

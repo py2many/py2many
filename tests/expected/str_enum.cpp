@@ -1,11 +1,12 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
 #include <iostream>
 #include <map>
 
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
+
 class Colors : public std::string {
-public:
-  Colors(const char *s) : std::string(s) {}
+ public:
+  Colors(const char* s) : std::string(s) {}
   static const Colors RED;
   static const Colors GREEN;
   static const Colors BLUE;
@@ -32,7 +33,7 @@ inline void show() {
   std::cout << std::endl;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   show();
 }

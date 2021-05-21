@@ -1,11 +1,12 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
 #include <cassert>
 #include <iostream>
+
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 /* This file implements a rectangle class  */
 
 class Rectangle {
-public:
+ public:
   int height;
   int length;
 
@@ -27,7 +28,7 @@ inline void show() {
   std::cout << std::endl;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   show();
 }

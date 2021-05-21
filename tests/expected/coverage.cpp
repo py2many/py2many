@@ -1,12 +1,13 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/range.hpp"
-#include "pycpp/runtime/sys.h"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <map>
 #include <set>
 #include <vector>
+
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/range.hpp"
+#include "pycpp/runtime/sys.h"
 
 inline void inline_pass() {
 /* pass */}
@@ -113,7 +114,7 @@ inline void show() {
   assert(infer_bool(1));
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   show();
 }

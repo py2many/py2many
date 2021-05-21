@@ -1,8 +1,9 @@
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
+
+#include "pycpp/runtime/builtins.h"
+#include "pycpp/runtime/sys.h"
 
 inline void main_func() {
   std::vector<bool> ands = {};
@@ -31,7 +32,7 @@ inline void main_func() {
   std::cout << std::endl;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   main_func();
 }
