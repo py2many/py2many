@@ -48,6 +48,7 @@ from py2many.rewriters import (
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
+    WithToBlockTransformer,
 )
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
@@ -82,6 +83,7 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
         PythonMainRewriter(language),
         FStringJoinRewriter(language),
         DocStringToCommentRewriter(language),
+        WithToBlockTransformer(language),
     ]
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue

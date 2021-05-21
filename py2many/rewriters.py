@@ -70,6 +70,41 @@ class RenameTransformer(ast.NodeTransformer):
         return node
 
 
+class WithToBlockTransformer(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+        self._no_underscore = False
+        if language in {"nim"}:
+            self._no_underscore = True
+        self._temp = 0
+
+    def _get_temp(self):
+        self._temp += 1
+        if self._no_underscore:
+            return f"tmp{self._temp}"
+        return f"__tmp{self._temp}"
+
+    def visit_With(self, node):
+        self.generic_visit(node)
+        stmts = []
+        for i in node.items:
+            if i.optional_vars:
+                target = i.optional_vars
+            else:
+                target = ast.Name(id=self._get_temp(), lineno=node.lineno)
+            stmt = ast.Assign(
+                targets=[target], value=i.context_expr, lineno=node.lineno
+            )
+            stmts.append(stmt)
+        node.body = stmts + node.body
+        ret = ast.If(
+            test=ast.Constant(value=True), body=node.body, orelse=[], lineno=node.lineno
+        )
+        ret.rewritten = True
+        ast.fix_missing_locations(ret)
+        return ret
+
+
 def capitalize_first(name):
     first = name[0].upper()
     return first + name[1:]

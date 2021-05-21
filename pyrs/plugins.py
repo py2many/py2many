@@ -39,11 +39,30 @@ class RustTranspilerPlugins:
         )
         return clsdef
 
+    def visit_open(self, node, vargs):
+        self._usings.add("std::fs::File")
+        if len(vargs) > 1:
+            self._usings.add("std::fs::OpenOptions")
+            mode = vargs[1]
+            opts = "OpenOptions::new()"
+            for c in mode:
+                if c == "w":
+                    opts += ".write(true)"
+                if c == "r":
+                    opts += ".read(true)"
+                if c == "a":
+                    opts += ".append(true)"
+                if c == "+":
+                    opts += ".read(true).write(true)"
+            return f"{opts}.open({vargs[0]}).unwrap()"
+        return f"File::open({vargs[0]}).unwrap()"
+
 
 CLASS_DISPATCH_TABLE = {ap_dataclass: RustTranspilerPlugins.visit_argparse_dataclass}
 FUNC_DISPATCH_TABLE = {
     # Uncomment after upstream uploads a new version
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
     # HACK: remove once the evaluation machinery can use the line above
-    "parse_args": lambda node: "::from_args()"
+    "parse_args": lambda self, node, vargs: "::from_args()",
+    open: RustTranspilerPlugins.visit_open,
 }

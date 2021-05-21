@@ -338,7 +338,7 @@ class RustTranspiler(CLikeTranspiler):
         fname_for_lookup = fname.replace("::", ".")
         func = class_for_typename(fname_for_lookup, None, self._imported_names)
         if func is not None and func in FUNC_DISPATCH_TABLE:
-            return FUNC_DISPATCH_TABLE[func](node)
+            return FUNC_DISPATCH_TABLE[func](self, node, vargs)
         # string based fallback
         splits = fname.rsplit("::", maxsplit=1)
         if len(splits) == 2:
@@ -347,7 +347,7 @@ class RustTranspiler(CLikeTranspiler):
             fname_stem = ""
             fname_leaf = splits[0]
         if fname_leaf in FUNC_DISPATCH_TABLE:
-            return fname_stem + FUNC_DISPATCH_TABLE[fname_leaf](node)
+            return fname_stem + FUNC_DISPATCH_TABLE[fname_leaf](self, node, vargs)
         return None
 
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
@@ -579,13 +579,15 @@ class RustTranspiler(CLikeTranspiler):
     def _import(self, name: str) -> str:
         if name in self._rust_ignored_module_set:
             return ""
-        return f"use {name};"
+        self._usings.add(name)
+        return ""
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
         if module_name in self._rust_ignored_module_set:
             return ""
         module_name = module_name.replace(".", "::")
         names = ", ".join(names)
+        self._usings.add(module_name)
         return f"use {module_name}::{{{names}}};"
 
     def visit_List(self, node):
@@ -836,27 +838,6 @@ class RustTranspiler(CLikeTranspiler):
         # This handles the case where `raise` is used without
         # specifying the exception.
         return "raise!(); //unsupported"
-
-    def visit_With(self, node):
-        buf = []
-
-        with_statement = "// with!("
-        for i in node.items:
-            if i.optional_vars:
-                with_statement += "{0} as {1}, ".format(
-                    self.visit(i.context_expr), self.visit(i.optional_vars)
-                )
-            else:
-                with_statement += "{0}, ".format(self.visit(i.context_expr))
-        with_statement = with_statement[:-2] + ") //unsupported\n{"
-        buf.append(with_statement)
-
-        for n in node.body:
-            buf.append(self.visit(n))
-
-            buf.append("}")
-
-        return "\n".join(buf)
 
     def visit_Await(self, node):
         value = self.visit(node.value)

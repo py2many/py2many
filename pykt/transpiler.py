@@ -545,27 +545,6 @@ class KotlinTranspiler(CLikeTranspiler):
             return f"throw Exception({exc})"
         return "throw Exception()"
 
-    def visit_With(self, node):
-        buf = []
-
-        with_statement = "// with!("
-        for i in node.items:
-            if i.optional_vars:
-                with_statement += "{0} as {1}, ".format(
-                    self.visit(i.context_expr), self.visit(i.optional_vars)
-                )
-            else:
-                with_statement += "{0}, ".format(self.visit(i.context_expr))
-        with_statement = with_statement[:-2] + ") //unsupported\n{"
-        buf.append(with_statement)
-
-        for n in node.body:
-            buf.append(self.visit(n))
-
-            buf.append("}")
-
-        return "\n".join(buf)
-
     def visit_Await(self, node):
         expr = self.visit(node.value)
         return f"{expr}.await()"
