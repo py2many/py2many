@@ -1,10 +1,10 @@
-#include <algorithm>
-#include <iostream>
-#include <map>
-#include <vector>
+#include <algorithm>  // NOLINT(build/include_order)
+#include <iostream>   // NOLINT(build/include_order)
+#include <map>        // NOLINT(build/include_order)
+#include <vector>     // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 inline bool nested_containers() {
   std::map<std::string, std::vector<int>> CODES =
       std::map<std::string, std::vector<int>>{

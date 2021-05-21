@@ -1,12 +1,12 @@
-#include <iostream>
-#include <map>
+#include <iostream>  // NOLINT(build/include_order)
+#include <map>       // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 class Colors : public std::string {
  public:
-  Colors(const char* s) : std::string(s) {}
+  Colors(const char* s) : std::string(s) {}  // NOLINT(runtime/explicit)
   static const Colors RED;
   static const Colors GREEN;
   static const Colors BLUE;

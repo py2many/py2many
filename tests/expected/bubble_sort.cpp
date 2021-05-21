@@ -1,11 +1,11 @@
-#include <cassert>
-#include <iostream>
+#include <cassert>   // NOLINT(build/include_order)
+#include <iostream>  // NOLINT(build/include_order)
 #include <tuple>
-#include <vector>
+#include <vector>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/range.hpp"
-#include "pycpp/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
+#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline std::vector<int> bubble_sort(std::vector<int> seq) {
   auto L = seq.size();

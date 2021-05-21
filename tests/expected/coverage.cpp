@@ -1,13 +1,13 @@
-#include <algorithm>
-#include <cassert>
-#include <iostream>
-#include <map>
-#include <set>
-#include <vector>
+#include <algorithm>  // NOLINT(build/include_order)
+#include <cassert>    // NOLINT(build/include_order)
+#include <iostream>   // NOLINT(build/include_order)
+#include <map>        // NOLINT(build/include_order)
+#include <set>        // NOLINT(build/include_order)
+#include <vector>     // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"
-#include "pycpp/runtime/range.hpp"
-#include "pycpp/runtime/sys.h"
+#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
+#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline void inline_pass() {
 /* pass */}
