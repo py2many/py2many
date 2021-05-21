@@ -6,7 +6,7 @@ import textwrap
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type, map_type
-from .plugins import CLASS_DISPATCH_TABLE, FUNC_DISPATCH_TABLE
+from .plugins import CLASS_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 
 from py2many.analysis import (
     FunctionTransformer,
@@ -91,10 +91,12 @@ class RustTranspiler(CLikeTranspiler):
             set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
         )
         externs = [f"extern crate {dep};" for dep in deps]
-        deps = "\n//! ".join([f'{dep} = "*"' for dep in deps])
+        deps_str = "\n//! ".join([f'{dep} = "*"' for dep in deps])
         externs = "\n".join(externs)
         uses = "\n".join(
-            f"use {mod};" for mod in usings if mod not in ("strum", "lazy_static")
+            f"use {mod};"
+            for mod in usings
+            if mod not in ("strum", "lazy_static") and mod not in deps
         )
         lint_ignores = textwrap.dedent(
             """
@@ -112,7 +114,7 @@ class RustTranspiler(CLikeTranspiler):
         //! [package]
         //! edition = "2018"
         //! [dependencies]
-        //! {deps}
+        //! {deps_str}
         //! ```
         """
         return f"{cargo_toml}\n{lint_ignores}\n{externs}\n{uses}\n"
@@ -263,7 +265,10 @@ class RustTranspiler(CLikeTranspiler):
         if is_class_or_module(value_id, node.scopes):
             return "{0}::{1}".format(value_id, attr)
 
-        return value_id + "." + attr
+        ret = f"{value_id}.{attr}"
+        if ret in FUNC_DISPATCH_TABLE:
+            return FUNC_DISPATCH_TABLE[ret](self, node, [])
+        return ret
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
@@ -585,9 +590,16 @@ class RustTranspiler(CLikeTranspiler):
     def _import_from(self, module_name: str, names: List[str]) -> str:
         if module_name in self._rust_ignored_module_set:
             return ""
+        self._usings.add(module_name)
+        if len(names) == 1:
+            # TODO: make this more generic so it works for len(names) > 1
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                rust_use = MODULE_DISPATCH_TABLE[lookup]
+                return f"use {rust_use};"
         module_name = module_name.replace(".", "::")
         names = ", ".join(names)
-        self._usings.add(module_name)
         return f"use {module_name}::{{{names}}};"
 
     def visit_List(self, node):
