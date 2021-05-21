@@ -17,7 +17,7 @@ ROOT_DIR = TESTS_DIR.parent
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 CXX = os.environ.get("CXX", "clang++")
-ENV = {"cpp": {"CLANG_FORMAT_STYLE": "LLVM"}, "rust": {"RUSTFLAGS": "--deny warnings"}}
+ENV = {"cpp": {"CLANG_FORMAT_STYLE": "Google"}, "rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
     + (["-stdlib=libc++"] if CXX == "clang++" else []),
