@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-20.04
+          - ubuntu-18.04
           - macos-10.15
           - windows-2019
     runs-on: ${{ matrix.os }}
@@ -30,6 +30,9 @@ jobs:
       - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
       - uses: jiro4989/setup-nim-action@v1
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
 
       - name: Install go packages
         shell: bash
@@ -41,7 +44,9 @@ jobs:
           )
 
       - name: Install tox
-        run: pip3 install tox
+        run: |
+          pip3 --version
+          pip3 install setuptools tox
 
       - name: Install Julia dependencies for ${{ runner.os }}.
         shell: bash
