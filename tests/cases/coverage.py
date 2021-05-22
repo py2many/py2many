@@ -85,6 +85,8 @@ def show():
     print(s)
     assert infer_bool(1)
     # assert 1 != 2 != 3
+    # Escape quotes
+    _escape_quotes = """ foo "bar" baz """
 
 
 if __name__ == "__main__":

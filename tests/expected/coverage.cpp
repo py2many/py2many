@@ -112,6 +112,7 @@ inline void show() {
   std::cout << s;
   std::cout << std::endl;
   assert(infer_bool(1));
+  std::string _escape_quotes = std::string{" foo \"bar\" baz "};
 }
 
 int main(int argc, char** argv) {

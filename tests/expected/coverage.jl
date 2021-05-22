@@ -83,6 +83,7 @@ function show()
     s = "1    2"
     println(join([s], " "))
     @assert(infer_bool(1))
+    _escape_quotes = " foo \"bar\" baz "
 end
 
 function main()

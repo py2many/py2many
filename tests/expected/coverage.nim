@@ -74,6 +74,7 @@ proc show() =
   let s = "1    2"
   echo s
   assert(infer_bool(1))
+  let _ = " foo \"bar\" baz "
 
 proc main() =
   show()

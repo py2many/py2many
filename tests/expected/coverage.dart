@@ -88,6 +88,7 @@ show() {
   final String s = "1    2";
   print(sprintf("%s", [s]));
   assert(infer_bool(1));
+  final String _escape_quotes = " foo \"bar\" baz ";
 }
 
 main() {

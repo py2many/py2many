@@ -96,6 +96,7 @@ fun show() {
     val s = "1    2"
     println("$s")
     assert(infer_bool(1))
+    val _escape_quotes = " foo \"bar\" baz "
 }
 
 fun main() {
