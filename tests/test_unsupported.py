@@ -116,12 +116,10 @@ EXPECTED_SUCCESSES = [
     "intenum_iter.nim",
     "float_1.jl",
     "float_1.nim",
-    "intflag_bitop.kt",
     "print_None.dart",
     "print_None.jl",
     "simple_dict.kt",
     "simple_dict.nim",
-    "str_format.go",
     "str_format.kt",
     "tuple_destruct.jl",
 ]
@@ -138,6 +136,8 @@ def has_main(source):
 class CodeGeneratorTests(unittest.TestCase):
     LANGS = list(_get_all_settings(Mock(indent=4)).keys())
     maxDiff = None
+
+    SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
     def setUp(self):
         os.chdir(TESTS_DIR)
@@ -199,10 +199,11 @@ class CodeGeneratorTests(unittest.TestCase):
                 # KtLint does not support absolute path in globs
                 case_output = case_output.relative_to(Path.cwd())
             proc = run([*settings.formatter, case_output], env=env, capture_output=True)
-            if proc.returncode:
+            if proc.returncode and not self.SHOW_ERRORS:
                 raise unittest.SkipTest(
                     f"Error: Could not reformat using {settings.formatter}:\n{proc.stdout}{proc.stderr}"
                 )
+            assert not proc.returncode
 
         try:
             compiler = COMPILERS[lang]
@@ -211,10 +212,11 @@ class CodeGeneratorTests(unittest.TestCase):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
                 proc = run([*compiler, case_output], env=env, capture_output=True)
 
-                if proc.returncode and not expect_success:
+                if proc.returncode and not expect_success and not self.SHOW_ERRORS:
                     raise unittest.SkipTest(
                         f"{case}{ext} doesnt compile:\n{proc.stdout}{proc.stderr}"
                     )
+                assert not proc.returncode
 
             if exe.exists() and os.access(exe, os.X_OK):
                 if not expect_success:
@@ -226,12 +228,14 @@ class CodeGeneratorTests(unittest.TestCase):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 proc = run([*invoker, case_output], env=env, capture_output=True)
 
-                if proc.returncode and not expect_success:
+                if proc.returncode and not expect_success and not self.SHOW_ERRORS:
                     raise unittest.SkipTest(
                         f"Execution of {case}{ext} failed:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
-                    raise AssertionError(f"{case}{ext} invoked")
+                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                if expect_success:
+                    assert not proc.returncode, f"{case}{ext} failed"
             else:
                 return
 
