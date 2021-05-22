@@ -109,6 +109,8 @@ func Show() {
 	if !(InferBool(1)) {
 		panic("assert")
 	}
+	var _escape_quotes string = " foo \"bar\" baz "
+	_ = _escape_quotes
 }
 
 func main() {

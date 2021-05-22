@@ -337,7 +337,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return s
 
     def visit_Str(self, node):
-        return f'"{node.value}"'
+        node_str = node.value
+        node_str = node_str.replace('"', '\\"')
+        return f'"{node_str}"'
 
     def visit_arguments(self, node) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]

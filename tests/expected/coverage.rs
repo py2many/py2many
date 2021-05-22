@@ -103,6 +103,7 @@ pub fn show() {
     let s: &str = "1    2";
     println!("{}", s);
     assert!(infer_bool(1));
+    let _escape_quotes: &str = " foo \"bar\" baz ";
 }
 
 pub fn main() {
