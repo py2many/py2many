@@ -100,6 +100,7 @@ class RustTranspiler(CLikeTranspiler):
         )
         lint_ignores = textwrap.dedent(
             """
+        #![allow(clippy::redundant_static_lifetimes)]
         #![allow(clippy::upper_case_acronyms)]
         #![allow(non_camel_case_types)]
         #![allow(non_snake_case)]
@@ -816,8 +817,6 @@ class RustTranspiler(CLikeTranspiler):
 
             if kw.startswith("pub "):
                 self._usings.add("lazy_static::lazy_static")
-                if "str" in typename:
-                    typename = typename.replace("str", "'static str")
                 return (
                     f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
                 )
@@ -836,10 +835,6 @@ class RustTranspiler(CLikeTranspiler):
                 if hasattr(node.value, "container_type"):
                     container_type, element_type = node.value.container_type
                     key_typename, value_typename = element_type
-                    if key_typename == "&str":
-                        key_typename = "&'static str"
-                    if value_typename == "&str":
-                        value_typename = "&'static str"
                     typename = f"{key_typename}, {value_typename}"
 
                 return f"lazy_static! {{ pub static ref {target}: HashMap<{typename}> = {value}; }}"

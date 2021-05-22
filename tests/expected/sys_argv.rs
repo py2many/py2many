@@ -6,6 +6,7 @@
 //!
 //! ```
 
+#![allow(clippy::redundant_static_lifetimes)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -17,10 +18,10 @@
 use std::env;
 
 pub fn main() {
-    let a: Vec<&str> = env::args()
+    let a: Vec<&'static str> = env::args()
         .map(|s| &*Box::leak(s.into_boxed_str()))
         .collect();
-    let cmd: &str = a[0 as usize];
+    let cmd: &'static str = a[0 as usize];
     assert!(cmd != "");
     if (a.len() as i32) > 1 {
         println!("{}", a[1 as usize]);

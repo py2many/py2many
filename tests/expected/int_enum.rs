@@ -6,6 +6,7 @@
 //! flagset = "*"
 //! ```
 
+#![allow(clippy::redundant_static_lifetimes)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -35,7 +36,7 @@ flags! {
 }
 
 pub fn show() {
-    let color_map: &HashMap<Colors, &str> = &[
+    let color_map: &HashMap<Colors, &'static str> = &[
         (Colors::RED, "red"),
         (Colors::GREEN, "green"),
         (Colors::BLUE, "blue"),

@@ -6,6 +6,7 @@
 //!
 //! ```
 
+#![allow(clippy::redundant_static_lifetimes)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -19,9 +20,9 @@ use std::collections;
 pub const code_0: i32 = 0;
 pub const code_1: i32 = 1;
 pub const l_a: &[i32; 2] = &[code_0, code_1];
-pub const code_a: &str = "a";
-pub const code_b: &str = "b";
-pub const l_b: &[&str; 2] = &[code_a, code_b];
+pub const code_a: &'static str = "a";
+pub const code_b: &'static str = "b";
+pub const l_b: &[&'static str; 2] = &[code_a, code_b];
 pub fn main() {
     for i in l_a {
         println!("{}", *i);

@@ -13,7 +13,7 @@ RUST_TYPE_MAP = {
     int: "i32",
     float: "f64",
     bytes: "&[u8]",
-    str: "&str",
+    str: "&'static str",
     bool: "bool",
     c_int8: "i8",
     c_int16: "i16",

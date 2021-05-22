@@ -6,6 +6,7 @@
 //! lazy_static = "*"
 //! ```
 
+#![allow(clippy::redundant_static_lifetimes)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -21,8 +22,8 @@ use std::collections::HashSet;
 
 pub const code_0: i32 = 0;
 pub const code_1: i32 = 1;
-pub const code_a: &str = "a";
-pub const code_b: &str = "b";
+pub const code_a: &'static str = "a";
+pub const code_b: &'static str = "b";
 lazy_static! {
     pub static ref l_b: HashSet<&'static str> = [code_a].iter().cloned().collect::<HashSet<_>>();
 }
