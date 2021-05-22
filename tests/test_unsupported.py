@@ -81,6 +81,9 @@ TEST_CASES = {
     ),  # https://github.com/adsharma/py2many/issues/143
     "complex_dict": "a = ('a', ); b = {a: 'a'}; assert 'a' == b[a]",
     "simple_dict": "l_b = {'a': 0}; assert 'a' in l_b",
+    "dict_keys_explicit": "{1: 1}.keys()",  # https://github.com/adsharma/py2many/issues/248
+    "dict_keys_compare": "a = {1: 1}; 1 in a.keys()",  # https://github.com/adsharma/py2many/issues/248
+    "dict_values": "1 in {1: 1}.values()",
     "annassign_List": "from typing import List; items : List = ['a', 'b']; print(items)",
     "intenum_iter": f"{_INT_ENUM}\ndef main():\n  for val in Colors:    print(val)",  # https://github.com/adsharma/py2many/issues/31
     "intflag_bitop": f"{_INT_FLAG}\ndef main():\n  if a & Permissions.R:    print('R')",  # https://github.com/adsharma/py2many/issues/115
@@ -106,9 +109,17 @@ EXPECTED_SUCCESSES = [
     "complex_dict.nim",
     "complex_dict.rs",
     "del.rs",
+    "dict_keys.jl",
+    "dict_keys.rs",
+    "dict_keys_compare.jl",
+    "dict_keys_compare.rs",
+    "dict_keys_explicit.jl",
+    "dict_keys_explicit.rs",
     "dict_value_type.dart",
     "dict_value_type.jl",
     "dict_value_type.kt",
+    "dict_values.jl",
+    "dict_values.rs",
     "empty_print.dart",
     "empty_print.jl",
     "empty_print.kt",
@@ -118,8 +129,10 @@ EXPECTED_SUCCESSES = [
     "float_1.nim",
     "print_None.dart",
     "print_None.jl",
+    "simple_dict.jl",
     "simple_dict.kt",
     "simple_dict.nim",
+    "simple_dict.rs",
     "str_format.kt",
     "tuple_destruct.jl",
 ]

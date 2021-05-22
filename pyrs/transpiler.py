@@ -420,14 +420,22 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Compare(self, node):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
+
+        if hasattr(node.comparators[0], "annotation"):
+            self._generic_typename_from_annotation(node.comparators[0])
+            value_type = getattr(
+                node.comparators[0].annotation, "generic_container_type", None
+            )
+            if value_type and value_type[0] == "Dict":
+                right += ".keys()"
+
+        if not right.endswith(".keys()") and not right.endswith(".values()"):
+            right += ".iter()"
+
         if isinstance(node.ops[0], ast.In):
-            return "{0}.iter().any(|&x| x == {1})".format(
-                right, left
-            )  # is it too much?
+            return "{0}.any(|&x| x == {1})".format(right, left)  # is it too much?
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.iter().all(|&x| x != {1})".format(
-                right, left
-            )  # is it even more?
+            return "{0}.all(|&x| x != {1})".format(right, left)  # is it even more?
 
         return super().visit_Compare(node)
 

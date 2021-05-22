@@ -231,6 +231,25 @@ class JuliaTranspiler(CLikeTranspiler):
         bytes_str = "{0}".format(node.s)
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
+    def visit_Compare(self, node):
+        left = self.visit(node.left)
+        right = self.visit(node.comparators[0])
+
+        if hasattr(node.comparators[0], "annotation"):
+            self._generic_typename_from_annotation(node.comparators[0])
+            value_type = getattr(
+                node.comparators[0].annotation, "generic_container_type", None
+            )
+            if value_type and value_type[0] == "Dict":
+                right = f"keys({right})"
+
+        if isinstance(node.ops[0], ast.In):
+            return "{0} in {1}".format(left, right)
+        elif isinstance(node.ops[0], ast.NotIn):
+            return "{0} not in {1}".format(left, right)
+
+        return super().visit_Compare(node)
+
     def visit_Name(self, node):
         if node.id == "None":
             return "None"
