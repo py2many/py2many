@@ -134,8 +134,8 @@ class CodeGeneratorTests(unittest.TestCase):
             )
 
             if not expect_failure:
-                assert rv, "formatting failed"
-            elif not rv:
+                assert rv == 0, "formatting failed"
+            elif rv:
                 raise unittest.SkipTest("formatting failed")
 
             compiler = COMPILERS[lang]
@@ -251,7 +251,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         try:
             rv = main(args=args, env=env)
-            assert rv
+            assert rv == 0
 
             linter.append("-Wno-unused-variable")
             if case == "coverage":

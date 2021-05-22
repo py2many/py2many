@@ -402,5 +402,6 @@ def main(args=None, env=os.environ):
                 print(f"Failed to reformat: {format_errors}")
             print(f"Failed to convert: {failures}")
             print()
-            rv = not failures or format_errors
+            rv = not (failures or format_errors)
+        rv = 0 if rv is True else 1
         return rv
