@@ -65,6 +65,13 @@ TEST_CASES = {
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
+    "nested_func": dedent("""
+        def foo():
+            def bar():
+                return 1
+            return bar()
+        def main(): foo()
+    """),
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
     "float_1": "a = float(1)",  # https://github.com/adsharma/py2many/issues/129
     "print_None": "print(None)",
@@ -127,6 +134,9 @@ EXPECTED_SUCCESSES = [
     "intenum_iter.nim",
     "float_1.jl",
     "float_1.nim",
+    "nested_func.dart",
+    "nested_func.kt",
+    "nested_func.rs",
     "print_None.dart",
     "print_None.jl",
     "simple_dict.jl",
