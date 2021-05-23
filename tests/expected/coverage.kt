@@ -97,6 +97,7 @@ fun show() {
     println("$s")
     assert(infer_bool(1))
     val _escape_quotes = " foo \"bar\" baz "
+    assert("bbc" in "aaabbccc")
 }
 
 fun main(argv: Array<String>) {

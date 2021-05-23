@@ -1,3 +1,4 @@
+import strutils
 let code_0 = 0
 let code_1 = 1
 let l_a = @[code_0, code_1]

@@ -48,6 +48,7 @@ from py2many.rewriters import (
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
+    StrStrRewriter,
     WithToBlockTransformer,
 )
 
@@ -100,7 +101,7 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
     for tx in transformers:
         tx(tree)
     # Language independent rewriters that run after type inference
-    generic_post_rewriters = [PrintBoolRewriter(language)]
+    generic_post_rewriters = [PrintBoolRewriter(language), StrStrRewriter(language)]
     for rewriter in generic_post_rewriters:
         tree = rewriter.visit(tree)
     # Language specific rewriters that depend on previous steps

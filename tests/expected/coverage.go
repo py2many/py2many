@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/adsharma/py2many/pygo/runtime"
 	iter "github.com/hgfischer/go-iter"
+	"strings"
 )
 
 func InlinePass() {
@@ -111,6 +112,9 @@ func Show() {
 	}
 	var _escape_quotes string = " foo \"bar\" baz "
 	_ = _escape_quotes
+	if !(strings.Contains("aaabbccc", "bbc")) {
+		panic("assert")
+	}
 }
 
 func main() {

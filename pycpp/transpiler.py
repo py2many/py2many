@@ -192,7 +192,7 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
-        value_id = get_id(node.value)
+        value_id = self.visit(node.value)
         if is_builtin_import(value_id):
             return "pycpp::" + value_id + "::" + attr
         elif value_id == "math":
@@ -206,6 +206,9 @@ class CppTranspiler(CLikeTranspiler):
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
+
+        if value_id in {"string"}:
+            return f"std::{value_id}::{attr}"
 
         if is_enum(value_id, node.scopes):
             return f"{value_id}::{attr}"

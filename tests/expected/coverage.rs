@@ -104,6 +104,7 @@ pub fn show() {
     println!("{}", s);
     assert!(infer_bool(1));
     let _escape_quotes: &'static str = " foo \"bar\" baz ";
+    assert!("aaabbccc".contains("bbc"));
 }
 
 pub fn main() {

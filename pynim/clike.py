@@ -160,4 +160,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_In(self, node):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
+        left_type = self._typename_from_annotation(node.left)
+        if left_type == "string":
+            self._usings.add("strutils")
         return f"{left} in {right}"

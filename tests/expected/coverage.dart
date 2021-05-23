@@ -89,6 +89,7 @@ show() {
   print(sprintf("%s", [s]));
   assert(infer_bool(1));
   final String _escape_quotes = " foo \"bar\" baz ";
+  assert("aaabbccc".contains("bbc"));
 }
 
 main(List<String> argv) {

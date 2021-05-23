@@ -392,6 +392,10 @@ class GoTranspiler(CLikeTranspiler):
     def visit_Name(self, node):
         if node.id == "None":
             return "None"
+        elif node.id == "StringsContains":
+            # TODO: move to plugins
+            self._usings.add('"strings"')
+            return "strings.Contains"
         else:
             return super().visit_Name(node)
 

@@ -2,6 +2,7 @@ import ast
 import textwrap
 
 from py2many.analysis import get_id
+from py2many.inference import get_inferred_type
 
 from typing import Optional
 
@@ -261,4 +262,44 @@ class PrintBoolRewriter(ast.NodeTransformer):
                         return self._do_go_rewrite(node)
                     else:
                         return self._do_other_rewrite(node)
+        return node
+
+
+class StrStrRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+        self._language = language
+
+    def visit_Compare(self, node):
+        if self._language in {"dart", "kotlin", "nim"}:
+            return node
+
+        if isinstance(node.ops[0], ast.In):
+            left = node.left
+            right = node.comparators[0]
+            left_type = get_id(get_inferred_type(left))
+            right_type = get_id(get_inferred_type(right))
+            if left_type == "str" and right_type == "str":
+                if self._language == "julia":
+                    ret = ast.parse("findfirst(a, b) != Nothing").body[0].value
+                    ret.left.args[0] = left
+                    ret.left.args[1] = right
+                elif self._language == "go":
+                    # To be rewritten to strings.Contains via plugins
+                    ret = ast.parse("StringsContains(a, b)").body[0].value
+                    ret.args[0] = right
+                    ret.args[1] = left
+                elif self._language == "cpp":
+                    ret = ast.parse("a.find(b) != string.npos").body[0].value
+                    ret.left.func.value = right
+                    ret.left.args[0] = left
+                else:
+                    # rust and c++23
+                    ret = ast.parse("a.contains(b)").body[0].value
+                    ret.func.value = right
+                    ret.args[0] = left
+                ret.lineno = node.lineno
+                ast.fix_missing_locations(ret)
+                return ret
+
         return node

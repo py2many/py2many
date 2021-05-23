@@ -1,4 +1,5 @@
 import sets
+import strutils
 import tables
 
 proc inline_pass() =
@@ -75,6 +76,7 @@ proc show() =
   echo s
   assert(infer_bool(1))
   let _ = " foo \"bar\" baz "
+  assert("bbc" in "aaabbccc")
 
 proc main() =
   show()

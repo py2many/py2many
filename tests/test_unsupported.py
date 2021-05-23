@@ -63,7 +63,6 @@ TEST_CASES = {
     "assert_str": "assert 'a'",
     "dict_value_type": "a = {1: 1, 2: 2.0}",  # https://github.com/adsharma/py2many/issues/171
     "empty_print": "print()",
-    "str_in_str": "assert 'a' in 'ba'",  # https://github.com/adsharma/py2many/issues/257
     "list_compre": "[i for i in ['a']]",
     "str_compre": "[i for i in 'a']",
     "all": "assert all(i for i in [True])",
@@ -153,8 +152,6 @@ EXPECTED_SUCCESSES = [
     "simple_dict.nim",
     "simple_dict.rs",
     "str_format.kt",
-    "str_in_str.dart",
-    "str_in_str.kt",
     "tuple_destruct.jl",
 ]
 

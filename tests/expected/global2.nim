@@ -1,4 +1,5 @@
 import sets
+import strutils
 import tables
 let code_0 = 0
 let code_1 = 1
