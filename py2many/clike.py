@@ -444,7 +444,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
         if (
-            isinstance(node.target.annotation, ast.Subscript)
+            hasattr(node.target, "annotation")
+            and isinstance(node.target.annotation, ast.Subscript)
             and get_id(node.target.annotation.value) == "Callable"
         ):
             type_str = self._default_type
