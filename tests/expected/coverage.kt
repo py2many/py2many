@@ -99,6 +99,6 @@ fun show() {
     val _escape_quotes = " foo \"bar\" baz "
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     show()
 }

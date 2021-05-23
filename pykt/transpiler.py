@@ -102,9 +102,14 @@ class KotlinTranspiler(CLikeTranspiler):
 
         typedecls = []
         index = 0
+
+        is_python_main = getattr(node, "python_main", False)
+
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg == "argc":
+                continue
             if typename == "T":
                 typename = "T{0}".format(index)
                 typedecls.append(typename)
@@ -164,6 +169,10 @@ class KotlinTranspiler(CLikeTranspiler):
         attr = node.attr
 
         value_id = self.visit(node.value)
+
+        if value_id == "sys":
+            if attr == "argv":
+                return '(arrayOf("") + argv)'
 
         if not value_id:
             value_id = ""

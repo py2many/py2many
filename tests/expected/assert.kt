@@ -3,7 +3,7 @@ fun compare_assert(a: Int, b: Int) {
     assert(!(0 == 1))
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     assert(true)
     assert(!(false))
     compare_assert(1, 1)

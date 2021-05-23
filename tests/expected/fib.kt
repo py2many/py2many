@@ -5,7 +5,7 @@ fun fib(i: Int): Int {
     return (fib((i - 1)) + fib((i - 2)))
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     if (true) {
         val __tmp1 = fib(5)
         println("$__tmp1")

@@ -1,7 +1,7 @@
 // @dart=2.9
 import 'package:sprintf/sprintf.dart';
 
-main() {
+main(List<String> argv) {
   print(sprintf("%s", ["Hello world!"]));
   print(sprintf("%s %s", ["Hello", "world!"]));
 }

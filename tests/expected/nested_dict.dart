@@ -8,7 +8,7 @@ bool nested_containers() {
   return CODES["KEY"].contains(1);
 }
 
-main() {
+main(List<String> argv) {
   if (nested_containers()) {
     print(sprintf("%s", ["OK"]));
   }

@@ -26,6 +26,6 @@ fun show() {
     assert(color_map.size != 0)
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     show()
 }

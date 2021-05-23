@@ -74,12 +74,16 @@ class JuliaTranspiler(CLikeTranspiler):
         typedecls = []
         index = 0
 
+        is_python_main = getattr(node, "python_main", False)
+
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
             typenames[0] = node.self_type
 
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg in ["argc", "argv"]:
+                continue
             if typename == "T":
                 typename = "T{0}".format(index)
                 typedecls.append(typename)
@@ -102,7 +106,7 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(args_list)
         funcdef = f"function {node.name}{template}({args}){return_type}"
         maybe_main = ""
-        if getattr(node, "python_main", False):
+        if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
@@ -133,6 +137,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if not value_id:
             value_id = ""
+
+        if value_id == "sys":
+            if attr == "argv":
+                return 'append!([PROGRAM_FILE], ARGS)'
 
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"
@@ -421,12 +429,13 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0}{{{1}}}".format(value, index)
         # TODO: optimize this. We need to compute value_type once per definition
         self._generic_typename_from_annotation(node.value)
-        value_type = getattr(node.value.annotation, "generic_container_type", None)
-        if value_type is not None and value_type[0] == "List":
-            # Julia array indices start at 1
-            return "{0}[{1} + 1]".format(value, index)
-        else:
-            return "{0}[{1}]".format(value, index)
+        if hasattr(node.value, "annotation"):
+            value_type = getattr(node.value.annotation, "generic_container_type", None)
+            if value_type is not None and value_type[0] == "List":
+                # Julia array indices start at 1
+                return "{0}[{1} + 1]".format(value, index)
+
+        return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
         return self.visit(node.value)

@@ -18,6 +18,6 @@ fun show() {
     }
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     show()
 }

@@ -71,7 +71,7 @@ show() {
   print(sprintf("%s", ["OK"]));
 }
 
-main() {
+main(List<String> argv) {
   foo();
   show();
 }

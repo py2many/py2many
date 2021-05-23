@@ -21,6 +21,6 @@ show() {
   }
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

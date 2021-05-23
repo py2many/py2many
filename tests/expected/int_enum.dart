@@ -41,6 +41,6 @@ show() {
   assert(color_map.length != 0);
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

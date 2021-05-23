@@ -21,6 +21,6 @@ show() {
   print(sprintf("%s", [r.length]));
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

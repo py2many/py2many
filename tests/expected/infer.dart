@@ -8,6 +8,6 @@ foo() {
   print(sprintf("%s", [b]));
 }
 
-main() {
+main(List<String> argv) {
   foo();
 }

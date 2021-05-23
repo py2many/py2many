@@ -7,7 +7,7 @@ final String code_a = "a";
 final String code_b = "b";
 final Set<String> l_b = new Set.from([code_a]);
 final Map<String, int> l_c = {code_b: code_0};
-main() {
+main(List<String> argv) {
   assert(l_b.contains("a"));
   print(sprintf("%s", ["OK"]));
 }

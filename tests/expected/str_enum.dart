@@ -28,6 +28,6 @@ show() {
   print(sprintf("%s", [color_map.length]));
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

@@ -158,11 +158,16 @@ class RustTranspiler(CLikeTranspiler):
             del args[0]
             args_list.append("&self")
 
+        is_python_main = getattr(node, "python_main", False)
+
         typedecls = []
         index = 0
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg in ["argc", "argv"]:
+                continue
+
             if typename == "T":
                 typename = "T{0}".format(index)
                 typedecls.append(typename)
@@ -255,6 +260,11 @@ class RustTranspiler(CLikeTranspiler):
         attr = node.attr
 
         value_id = self.visit(node.value)
+
+        if value_id == "sys":
+            if attr == "argv":
+                self._usings.add("std::env")
+                return "env::args().map(|s| &*Box::leak(s.into_boxed_str())).collect()"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -648,11 +658,13 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}<{1}>".format(value, index)
         # TODO: optimize this. We need to compute value_type once per definition
         self._generic_typename_from_annotation(node.value)
-        value_type = getattr(node.value.annotation, "generic_container_type", None)
-        is_list = value_type is not None and value_type[0] == "List"
-        index_typename = get_inferred_rust_type(self._slice_value(node))
-        if is_list and (index_typename != "u64" or index_typename != "usize"):
-            index = self._cast(index, "usize")
+        if hasattr(node.value, "annotation"):
+            value_type = getattr(node.value.annotation, "generic_container_type", None)
+            is_list = value_type is not None and value_type[0] == "List"
+            if is_list:
+                index_typename = get_inferred_rust_type(self._slice_value(node))
+                if index_typename != "u64" or index_typename != "usize":
+                    index = self._cast(index, "usize")
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):

@@ -69,7 +69,7 @@ fun show() {
     println("OK")
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     foo()
     show()
 }

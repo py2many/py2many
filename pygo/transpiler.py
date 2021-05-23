@@ -150,12 +150,17 @@ class GoTranspiler(CLikeTranspiler):
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
             typenames[0] = node.self_type
 
+        is_python_main = getattr(node, "python_main", False)
+
         args_list = []
         typedecls = []
         index = 0
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg in ["argc", "argv"]:
+                continue
+
             if typename == "T":
                 typename = "T{0} any".format(index)
                 typedecls.append(typename)
@@ -219,6 +224,11 @@ class GoTranspiler(CLikeTranspiler):
         attr = node.attr
 
         value_id = self.visit(node.value)
+
+        if value_id == "sys":
+            if attr == "argv":
+                self._usings.add('"os"')
+                return "os.Args"
 
         if not value_id:
             value_id = ""

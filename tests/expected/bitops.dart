@@ -18,6 +18,6 @@ main_func() {
   print(sprintf("%s", ["OK"]));
 }
 
-main() {
+main(List<String> argv) {
   main_func();
 }

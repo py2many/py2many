@@ -6,7 +6,7 @@ compare_assert(int a, int b) {
   assert(!(0 == 1));
 }
 
-main() {
+main(List<String> argv) {
   assert(true);
   assert(!(false));
   compare_assert(1, 1);

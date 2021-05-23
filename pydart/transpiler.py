@@ -61,11 +61,16 @@ class DartTranspiler(CLikeTranspiler):
             del typenames[0]
             del args[0]
 
+        is_python_main = getattr(node, "python_main", False)
+
         typedecls = []
         index = 0
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg == "argc":
+                continue
+
             if typename == "T":
                 typename = "T{0}".format(index)
                 typedecls.append(typename)
@@ -113,6 +118,10 @@ class DartTranspiler(CLikeTranspiler):
         attr = node.attr
 
         value_id = self.visit(node.value)
+
+        if value_id == "sys":
+            if attr == "argv":
+                return "(new List<String>.from([''])..addAll(argv))"
 
         if is_list(node.value):
             if node.attr == "append":

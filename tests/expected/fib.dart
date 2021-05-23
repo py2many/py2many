@@ -8,6 +8,6 @@ int fib(int i) {
   return (fib((i - 1)) + fib((i - 2)));
 }
 
-main() {
+main(List<String> argv) {
   print(sprintf("%s", [fib(5)]));
 }

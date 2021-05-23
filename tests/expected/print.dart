@@ -12,6 +12,6 @@ show() {
   print(sprintf("%s", [c ? ("True") : ("False")]));
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

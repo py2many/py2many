@@ -17,13 +17,15 @@ ROOT_DIR = TESTS_DIR.parent
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 CXX = os.environ.get("CXX", "clang++")
-ENV = {"cpp": {"CLANG_FORMAT_STYLE": "Google"}, "rust": {"RUSTFLAGS": "--deny warnings"}}
+ENV = {
+    "cpp": {"CLANG_FORMAT_STYLE": "Google"},
+    "rust": {"RUSTFLAGS": "--deny warnings"},
+}
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
     + (["-stdlib=libc++"] if CXX == "clang++" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
-    "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "script", "--build-only", "--debug"],
@@ -40,6 +42,10 @@ TEST_CASES = [
     for item in (TESTS_DIR / "cases").glob("*.py")
     if not item.stem.startswith("test_")
 ]
+
+CASE_ARGS = {
+    "sys_argv": ["arg1"],
+}
 
 EXTENSION_TEST_CASES = [
     item.stem
@@ -96,9 +102,7 @@ class CodeGeneratorTests(unittest.TestCase):
         if ext == ".kt":
             class_name = str(case.title()) + "Kt"
             exe = TESTS_DIR / (class_name + ".class")
-        elif ext == ".cpp":
-            exe = TESTS_DIR / "a.out"
-        elif ext == ".dart" or (ext == ".nim" and sys.platform == "win32"):
+        elif ext in [".dart", ".cpp"] or (ext == ".nim" and sys.platform == "win32"):
             exe = TESTS_DIR / "cases" / f"{case}.exe"
         else:
             exe = TESTS_DIR / "cases" / f"{case}"
@@ -109,7 +113,10 @@ class CodeGeneratorTests(unittest.TestCase):
         is_script = has_main(case_filename)
         self.assertTrue(is_script)
 
-        proc = run([sys.executable, str(case_filename)], capture_output=True)
+        main_args = CASE_ARGS.get(case, [])
+        proc = run(
+            [sys.executable, str(case_filename), *main_args], capture_output=True
+        )
         expected_output = proc.stdout
         if proc.returncode:
             raise RuntimeError(
@@ -138,7 +145,7 @@ class CodeGeneratorTests(unittest.TestCase):
             elif rv:
                 raise unittest.SkipTest("formatting failed")
 
-            compiler = COMPILERS[lang]
+            compiler = COMPILERS.get(lang)
             if compiler:
                 if not spawn.find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
@@ -159,15 +166,21 @@ class CodeGeneratorTests(unittest.TestCase):
                         f.write(generated)
 
             stdout = None
+            if ext == ".cpp" and (TESTS_DIR / "a.out").exists():
+                os.rename(TESTS_DIR / "a.out", exe)
+
             if exe.exists() and os.access(exe, os.X_OK):
-                stdout = run([exe], env=env, capture_output=True, check=True).stdout
+                stdout = run(
+                    [exe, *main_args], env=env, capture_output=True, check=True
+                ).stdout
 
             elif INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
+                print([*invoker, case_output, *main_args])
                 proc = run(
-                    [*invoker, case_output],
+                    [*invoker, case_output, *main_args],
                     env=env,
                     capture_output=True,
                     check=not expect_failure,
@@ -177,6 +190,10 @@ class CodeGeneratorTests(unittest.TestCase):
 
                 if proc.returncode:
                     raise unittest.SkipTest(f"Execution of {case}{ext} failed")
+
+                if self.UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
+                    with open(f"expected/{case}{ext}", "w") as f:
+                        f.write(generated)
             else:
                 raise RuntimeError("Compiled output not detected")
 
@@ -302,6 +319,11 @@ class CodeGeneratorTests(unittest.TestCase):
                     with open(f"ext_expected/{case}{ext}") as f2:
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
+
+            if self.UPDATE_EXPECTED or not os.path.exists(f"ext_expected/{case}{ext}"):
+                with open(f"ext_expected/{case}{ext}", "w") as f:
+                    f.write(generated)
+
         finally:
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)

@@ -27,7 +27,7 @@ List<int> bin_it(List<int> limits, List<int> data) {
   return bins;
 }
 
-main() {
+main(List<String> argv) {
   final limits = [23, 37, 43, 53, 67, 83];
   final data = [
     95,

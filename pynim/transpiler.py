@@ -61,6 +61,8 @@ class NimTranspiler(CLikeTranspiler):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)
 
+        is_python_main = getattr(node, "python_main", False)
+
         args_list = []
         if len(args) and hasattr(node, "self_type"):
             typenames[0] = node.self_type
@@ -68,6 +70,9 @@ class NimTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            if is_python_main and arg in ["argc", "argv"]:
+                continue
+
             args_list.append(f"{arg}: {typename}".format(arg, typename))
 
         return_type = ""
@@ -81,7 +86,7 @@ class NimTranspiler(CLikeTranspiler):
         args = ", ".join(args_list)
         funcdef = f"proc {node.name}({args}){return_type} ="
         maybe_main = ""
-        if getattr(node, "python_main", False):
+        if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\n{maybe_main}"
 
@@ -135,6 +140,11 @@ class NimTranspiler(CLikeTranspiler):
         attr = node.attr
 
         value_id = self.visit(node.value)
+
+        if value_id == "sys":
+            if attr == "argv":
+                self._usings.add("os")
+                return '(@[getAppFilename()] & commandLineParams())'
 
         if is_list(node.value):
             if node.attr == "append":

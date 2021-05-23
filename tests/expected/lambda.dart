@@ -6,6 +6,6 @@ show() {
   print(sprintf("%s", [myfunc(1, 2)]));
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

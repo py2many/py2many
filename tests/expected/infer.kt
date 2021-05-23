@@ -5,6 +5,6 @@ fun foo() {
     println("$b")
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     foo()
 }

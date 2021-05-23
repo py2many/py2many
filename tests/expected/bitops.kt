@@ -16,6 +16,6 @@ fun main_func() {
     println("OK")
 }
 
-fun main() {
+fun main(argv: Array<String>) {
     main_func()
 }

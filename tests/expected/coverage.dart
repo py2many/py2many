@@ -91,6 +91,6 @@ show() {
   final String _escape_quotes = " foo \"bar\" baz ";
 }
 
-main() {
+main(List<String> argv) {
   show();
 }

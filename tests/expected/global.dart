@@ -7,7 +7,7 @@ final l_a = [code_0, code_1];
 final String code_a = "a";
 final String code_b = "b";
 final l_b = [code_a, code_b];
-main() {
+main(List<String> argv) {
   for (final i in l_a) {
     print(sprintf("%s", [i]));
   }
