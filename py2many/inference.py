@@ -49,6 +49,32 @@ def is_reference(arg):
     return annotation_has_ref
 
 
+def bit_length(val: ast.AST) -> int:
+    if isinstance(val, ast.Constant) and isinstance(val.value, int):
+        return int.bit_length(val.value)
+    return 0
+
+
+def is_compatible(
+    cls1, cls2, target: Optional[ast.AST] = None, source: Optional[ast.AST] = None
+):
+    """This needs to return true if narrowing one of the classes leads to the other class"""
+    # For now, handle fixed width only. In the future look into List[int] vs List
+    fixed_width = InferTypesTransformer.FIXED_WIDTH_INTS
+    fixed_width_bit_length = InferTypesTransformer.FIXED_WIDTH_BIT_LENGTH
+    if cls1 in fixed_width and (cls2 in fixed_width or cls2 is int):
+        target_bit_length = fixed_width_bit_length[cls1]
+        source_bit_length = fixed_width_bit_length[cls2]
+        # Sometimes we have more information about the actual bit length
+        # For example 100 is of type int, which maps to i32 on many target platforms, but has
+        # an actual bit length of 7
+        source_value_bit_length = bit_length(source) if source is not None else 0
+        if source_value_bit_length:
+            source_bit_length = source_value_bit_length
+        return target_bit_length >= source_bit_length
+    return True
+
+
 class InferTypesTransformer(ast.NodeTransformer):
     """
     Tries to infer types
@@ -67,6 +93,19 @@ class InferTypesTransformer(ast.NodeTransformer):
         c_uint64,
     ]
     FIXED_WIDTH_INTS = set(FIXED_WIDTH_INTS_LIST)
+    FIXED_WIDTH_BIT_LENGTH = {
+        bool: 1,
+        c_int8: 7,
+        c_uint8: 8,
+        c_int16: 15,
+        c_uint16: 16,
+        # This is based on how int maps to i32 on many platforms
+        int: 31,
+        c_int32: 31,
+        c_uint32: 32,
+        c_int64: 63,
+        c_uint64: 64,
+    }
     # The order needs to match FIXED_WIDTH_INTS_LIST. Extra elements ok.
     FIXED_WIDTH_INTS_NAME_LIST = [
         "bool",
@@ -204,8 +243,21 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         node.target.annotation = node.annotation
-        if get_id(node.annotation) in self.FIXED_WIDTH_INTS_NAME:
+        target = node.target
+        target_typename = self._clike._typename_from_annotation(target)
+        if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
+        annotation = get_inferred_type(node.value)
+        value_typename = self._clike._generic_typename_from_type_node(annotation)
+        target_class = class_for_typename(target_typename, None)
+        value_class = class_for_typename(value_typename, None)
+        if (
+            not is_compatible(target_class, value_class, target, node.value)
+            and target_class != None
+        ):
+            raise TypeError(
+                f"{target_class} incompatible with {value_class} on lineno: {node.lineno}"
+            )
         return node
 
     def visit_AugAssign(self, node: ast.AugAssign) -> ast.AST:
@@ -276,11 +328,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         max_idx = max(left_idx, right_idx)
         cint64_idx = self.FIXED_WIDTH_INTS_LIST.index(c_int64)
         if widening_op:
-            if max_idx not in {
-                -1,
-                cint64_idx,
-                len(self.FIXED_WIDTH_INTS_LIST) - 1,
-            }:
+            if max_idx not in {-1, cint64_idx, len(self.FIXED_WIDTH_INTS_LIST) - 1}:
                 # i8 + i8 => i16 for example
                 return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx + 1]
         if left_id == "float" or right_id == "float":

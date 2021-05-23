@@ -65,13 +65,15 @@ TEST_CASES = {
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
-    "nested_func": dedent("""
+    "nested_func": dedent(
+        """
         def foo():
             def bar():
                 return 1
             return bar()
         def main(): foo()
-    """),
+    """
+    ),
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
     "float_1": "a = float(1)",  # https://github.com/adsharma/py2many/issues/129
     "print_None": "print(None)",
@@ -146,6 +148,11 @@ EXPECTED_SUCCESSES = [
     "str_format.kt",
     "tuple_destruct.jl",
 ]
+
+TEST_ERROR_CASES = {
+    "a: i8 = 300 ": TypeError,
+    "a: i8 = 10; b: i16 = 300; c: i16 = a + b": TypeError,
+}
 
 
 def has_main(source):
@@ -269,6 +276,39 @@ class CodeGeneratorTests(unittest.TestCase):
 
         if not expect_success:
             assert False
+
+    # These tests are expected to fail for all languages
+    @foreach(sorted(TEST_ERROR_CASES.keys()))
+    def test_error_cases(self, case):
+        env = os.environ.copy()
+        lang = "rust"  # Just so we avoid running tests N times
+        if ENV.get(lang):
+            env.update(ENV.get(lang))
+
+        settings = _get_all_settings(Mock(indent=4, extension=False), env=env)[lang]
+        ext = settings.ext
+        source_data = case
+        expected_error = TEST_ERROR_CASES[case]
+        is_script = has_main(source_data)
+        if ext in [".dart", ".kt", ".rs"] and not is_script:
+            source_data = f"def main():\n  {source_data}"
+        print(f">{source_data}<")
+        tree = ast.parse(source_data)
+        astpretty.pprint(tree)
+        proc = run([sys.executable, "-c", source_data], capture_output=True)
+        if proc.returncode:
+            raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
+        try:
+            transpile(
+                "stdin",
+                tree,
+                settings.transpiler,
+                settings.rewriters,
+                settings.transformers,
+                settings.post_rewriters,
+            )
+        except Exception as e:
+            assert type(e) == expected_error
 
 
 if __name__ == "__main__":
