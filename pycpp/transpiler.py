@@ -400,6 +400,9 @@ class CppTranspiler(CLikeTranspiler):
         if ret is not None:
             return ret
 
+        if any(i is None for i in vargs):
+            raise NotImplementedError(f"Call {fname} ({vargs}) not supported")
+
         args = ", ".join(vargs)
         return f"{fname}({args})"
 

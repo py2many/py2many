@@ -60,8 +60,14 @@ _INT_FLAG = dedent(
 TEST_CASES = {
     "assert_0": "assert not 0",
     "assert_None": "assert not None",
+    "assert_str": "assert 'a'",
     "dict_value_type": "a = {1: 1, 2: 2.0}",  # https://github.com/adsharma/py2many/issues/171
     "empty_print": "print()",
+    "str_in_str": "assert 'a' in 'ba'",  # https://github.com/adsharma/py2many/issues/257
+    "list_compre": "[i for i in ['a']]",
+    "str_compre": "[i for i in 'a']",
+    "all": "assert all(i for i in [True])",
+    "any": "assert all(i for i in [True])",
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
@@ -98,6 +104,7 @@ TEST_CASES = {
     "intflag_bitop": f"{_INT_FLAG}\ndef main():\n  if a & Permissions.R:    print('R')",  # https://github.com/adsharma/py2many/issues/115
     "bool_to_int": "print(int(True))",  # https://github.com/adsharma/py2many/issues/130
     "bool_plus_int": "print(True+1)",  # https://github.com/adsharma/py2many/issues/131
+    "bool_func": "bool(1)",  # https://github.com/adsharma/py2many/issues/253
     "del": "a = 1; del a",
     "dict_empty": "assert not {}",
     "dict_del": "a = {1: 1}; del a[1]; assert not a",
@@ -146,6 +153,8 @@ EXPECTED_SUCCESSES = [
     "simple_dict.nim",
     "simple_dict.rs",
     "str_format.kt",
+    "str_in_str.dart",
+    "str_in_str.kt",
     "tuple_destruct.jl",
 ]
 
@@ -249,8 +258,15 @@ class CodeGeneratorTests(unittest.TestCase):
                 assert not proc.returncode
 
             if exe.exists() and os.access(exe, os.X_OK):
+                proc = run([exe], env=env, capture_output=True)
+                if proc.returncode and not expect_success and not self.SHOW_ERRORS:
+                    raise unittest.SkipTest(
+                        f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
+                    )
                 if not expect_success:
-                    raise AssertionError(f"{case}{ext} compiled")
+                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                if expect_success:
+                    assert not proc.returncode, f"{case}{ext} failed"
 
             elif INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
