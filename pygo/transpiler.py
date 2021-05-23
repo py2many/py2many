@@ -299,9 +299,9 @@ class GoTranspiler(CLikeTranspiler):
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-            raise Exception("Missing declarations")
+            raise NotImplementedError(f"Missing declarations for {fname}")
         if node.args:
-            for arg, decl in zip(node.args, fndef.declaration.keys()):
+            for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
