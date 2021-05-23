@@ -904,7 +904,7 @@ class RustTranspiler(CLikeTranspiler):
 
         is_range = (
             ("range" in get_id(generator.iter.func))
-            if isinstance(generator.iter, ast.Call)
+            if isinstance(generator.iter, ast.Call) and get_id(generator.iter.func)
             else False
         )
         # HACK for dictionary iterators to work

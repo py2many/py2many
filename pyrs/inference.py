@@ -170,7 +170,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
         if fndef:
             fndef.no_return = False
         if node.value:
-            if fndef:
+            if fndef and fndef.returns:
                 if is_reference(node.value):
                     mut = is_mutable(node.scopes, get_id(node.value))
                     fndef.returns.rust_needs_reference = not mut
@@ -236,7 +236,7 @@ def get_inferred_rust_type(node):
             return None
         definition = node.scopes.find(get_id(node))
         # Prevent infinite recursion
-        if definition != node:
+        if definition and definition != node:
             return get_inferred_rust_type(definition)
     python_type = get_inferred_type(node)
     ret = map_type(get_id(python_type))
