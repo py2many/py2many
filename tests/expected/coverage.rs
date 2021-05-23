@@ -100,10 +100,10 @@ pub fn show() {
         println!("{}", "true");
     };
     inline_pass();
-    let s: &str = "1    2";
+    let s: &'static str = "1    2";
     println!("{}", s);
     assert!(infer_bool(1));
-    let _escape_quotes: &str = " foo \"bar\" baz ";
+    let _escape_quotes: &'static str = " foo \"bar\" baz ";
 }
 
 pub fn main() {

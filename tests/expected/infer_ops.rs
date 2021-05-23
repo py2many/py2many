@@ -20,7 +20,7 @@ pub fn foo() {
     let _c1: i32 = (a + b);
     let _c2: i32 = (a - b);
     let _c3: i32 = (a * b);
-    let _c4: f64 = ((a as f64) / (b as f64)) as f64;
+    let _c4: f64 = ((a as f64) / (b as f64));
     let _c5: i32 = -(a);
     let d: f64 = 2.0;
     let _e1: f64 = ((a as f64) + d);

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from py2many.analysis import get_id
-from py2many.clike import CLikeTranspiler, class_for_typename
+from py2many.clike import CLikeTranspiler, LifeTime, class_for_typename
 from py2many.tracer import is_enum
 
 
@@ -156,6 +156,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         annotation = self._infer_primitive(node.value)
         if annotation is not None:
             node.annotation = annotation
+            node.annotation.lifetime = (
+                LifeTime.STATIC if type(node.value) == str else LifeTime.UNKNOWN
+            )
         self.generic_visit(node)
         return node
 
@@ -233,10 +236,17 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         target = node.targets[0]
-        annotation = get_inferred_type(node.value)
-        if annotation is not None:
+        annotation = getattr(node.value, "annotation", None)
+        target_has_annotation = hasattr(target, "annotation")
+        inferred = (
+            getattr(target.annotation, "inferred", False)
+            if target_has_annotation
+            else False
+        )
+        if annotation is not None and (not target_has_annotation or inferred):
             target.annotation = annotation
-
+            target.annotation.inferred = True
+        # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
@@ -264,10 +274,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         target = node.target
-        annotation = get_inferred_type(target)
-        if hasattr(node.value, "annotation") and not annotation:
-            target.annotation = node.value.annotation
-        else:
+        annotation = getattr(node.value, "annotation", None)
+        if annotation is not None and not hasattr(target, "annotation"):
             target.annotation = annotation
 
         return node
@@ -372,7 +380,6 @@ class InferTypesTransformer(ast.NodeTransformer):
             ):
                 node.annotation = left
             else:
-                # TODO: This is not true for dart when using integer division
                 node.annotation = ast.Name(id="float")
             return node
 

@@ -1,6 +1,6 @@
 import ast
 
-from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, LifeTime
 
 from .inference import (
     RUST_RANK_TO_TYPE,
@@ -38,6 +38,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = RUST_TYPE_MAP
+
+    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        ret = super()._map_type(typename, lifetime)
+        if lifetime == LifeTime.STATIC:
+            assert ret[0] == "&"
+            return f"&'static {ret[1:]}"
+        return ret
 
     def visit_Name(self, node):
         if node.id in rust_keywords:
