@@ -66,70 +66,6 @@ RUST_WIDTH_RANK = {
 RUST_RANK_TO_TYPE = {v: k for k, v in RUST_WIDTH_RANK.items()}
 
 
-def infer_rust_types(node, extension=False):
-    visitor = InferRustTypesTransformer(extension)
-    visitor.visit(node)
-
-
-def extension_map_type(typename, return_type=False):
-    if typename == "_":
-        return "&PyAny"
-    if typename == None and return_type:
-        return "PyResult<()>"
-
-    typeclass = class_for_typename(typename, "&PyAny")
-
-    if typeclass in RUST_EXTENSION_TYPE_MAP:
-        if return_type and typeclass == str:
-            typename = "String"
-            return f"PyResult<{typename}>"
-        else:
-            return RUST_EXTENSION_TYPE_MAP[typeclass]
-
-    if typeclass in RUST_TYPE_MAP:
-        return RUST_TYPE_MAP[typeclass]
-
-    if return_type and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
-        return f"PyResult<{typename}>"
-    else:
-        return typename
-
-
-def map_type(typename, extension=False, return_type=False):
-    if extension:
-        return extension_map_type(typename, return_type)
-    typeclass = class_for_typename(typename, "&PyAny")
-    if typeclass in RUST_TYPE_MAP:
-        return RUST_TYPE_MAP[typeclass]
-    return typename
-
-
-def is_rust_reference(node):
-    if not is_reference(node):
-        return False
-    if isinstance(node, ast.Call):
-        definition = node.scopes.find(get_id(node.func))
-        needs_reference = getattr(definition, "rust_return_needs_reference", True)
-        return needs_reference
-    return True
-
-
-def get_inferred_rust_type(node):
-    if hasattr(node, "rust_annotation"):
-        return node.rust_annotation
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_rust_type(definition)
-    python_type = get_inferred_type(node)
-    ret = map_type(get_id(python_type))
-    node.rust_annotation = ret
-    return ret
-
-
 class InferRustTypesTransformer(ast.NodeTransformer):
     """Implements rust type inference logic as opposed to python type inference logic"""
 
@@ -242,3 +178,67 @@ class InferRustTypesTransformer(ast.NodeTransformer):
                         fndef.returns.rust_needs_reference
                     )
         return node
+
+
+def infer_rust_types(node, extension=False):
+    visitor = InferRustTypesTransformer(extension)
+    visitor.visit(node)
+
+
+def extension_map_type(typename, return_type=False):
+    if typename == "_":
+        return "&PyAny"
+    if typename == None and return_type:
+        return "PyResult<()>"
+
+    typeclass = class_for_typename(typename, "&PyAny")
+
+    if typeclass in RUST_EXTENSION_TYPE_MAP:
+        if return_type and typeclass == str:
+            typename = "String"
+            return f"PyResult<{typename}>"
+        else:
+            return RUST_EXTENSION_TYPE_MAP[typeclass]
+
+    if typeclass in RUST_TYPE_MAP:
+        return RUST_TYPE_MAP[typeclass]
+
+    if return_type and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
+        return f"PyResult<{typename}>"
+    else:
+        return typename
+
+
+def map_type(typename, extension=False, return_type=False):
+    if extension:
+        return extension_map_type(typename, return_type)
+    typeclass = class_for_typename(typename, "&PyAny")
+    if typeclass in RUST_TYPE_MAP:
+        return RUST_TYPE_MAP[typeclass]
+    return typename
+
+
+def is_rust_reference(node):
+    if not is_reference(node):
+        return False
+    if isinstance(node, ast.Call):
+        definition = node.scopes.find(get_id(node.func))
+        needs_reference = getattr(definition, "rust_return_needs_reference", True)
+        return needs_reference
+    return True
+
+
+def get_inferred_rust_type(node):
+    if hasattr(node, "rust_annotation"):
+        return node.rust_annotation
+    if isinstance(node, ast.Name):
+        if not hasattr(node, "scopes"):
+            return None
+        definition = node.scopes.find(get_id(node))
+        # Prevent infinite recursion
+        if definition != node:
+            return get_inferred_rust_type(definition)
+    python_type = get_inferred_type(node)
+    ret = map_type(get_id(python_type))
+    node.rust_annotation = ret
+    return ret
