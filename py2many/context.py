@@ -42,6 +42,7 @@ class ListCallTransformer(ast.NodeTransformer):
             isinstance(node.func.ctx, ast.Load)
             and hasattr(node.func, "value")
             and isinstance(node.func.value, ast.Name)
+            and hasattr(node.func, "attr")
             and node.func.attr in list_operations
         )
 
