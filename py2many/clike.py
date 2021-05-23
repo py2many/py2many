@@ -69,12 +69,15 @@ logger = logging.Logger("py2many")
 def class_for_typename(typename, default_type, locals=None) -> Union[str, object]:
     if typename is None:
         return None
+    if typename == "super" or typename.startswith("super()"):
+        # Cant eval super; causes RuntimeError
+        return None
     try:
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval
         typeclass = eval(typename, globals(), locals)
         return typeclass
-    except (NameError, SyntaxError):
+    except (NameError, SyntaxError, AttributeError, TypeError):
         logger.warning(f"could not evaluate {typename}")
         return default_type
 
