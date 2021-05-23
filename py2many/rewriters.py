@@ -139,7 +139,7 @@ class PythonMainRewriter(ast.NodeTransformer):
             if hasattr(node, "scopes") and len(node.scopes) > 1:
                 rename(node.scopes[-2], "main", "main_func")
             # ast.parse produces a Module object that needs to be destructured
-            ret = ast.parse("def main(argc: int, argv: List[str]): True").body[0]
+            ret = ast.parse("def main(argv: List[str]): True").body[0]
             ret.lineno = node.lineno
             ret.body = node.body
             # So backends know to insert argc, argv etc

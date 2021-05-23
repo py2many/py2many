@@ -103,13 +103,9 @@ class KotlinTranspiler(CLikeTranspiler):
         typedecls = []
         index = 0
 
-        is_python_main = getattr(node, "python_main", False)
-
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            if is_python_main and arg == "argc":
-                continue
             if typename == "T":
                 typename = "T{0}".format(index)
                 typedecls.append(typename)

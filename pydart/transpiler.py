@@ -61,15 +61,11 @@ class DartTranspiler(CLikeTranspiler):
             del typenames[0]
             del args[0]
 
-        is_python_main = getattr(node, "python_main", False)
-
         typedecls = []
         index = 0
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            if is_python_main and arg == "argc":
-                continue
 
             if typename == "T":
                 typename = "T{0}".format(index)

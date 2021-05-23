@@ -82,7 +82,7 @@ class JuliaTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            if is_python_main and arg in ["argc", "argv"]:
+            if is_python_main and arg == "argv":
                 continue
             if typename == "T":
                 typename = "T{0}".format(index)
