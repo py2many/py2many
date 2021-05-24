@@ -726,9 +726,7 @@ class RustTranspiler(CLikeTranspiler):
         if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
             return False
         left_type = self._typename_from_annotation(left)
-        # populate right.rust_annotation
-        get_inferred_rust_type(right)
-        right_type = self._typename_from_annotation(right)
+        right_type = get_inferred_rust_type(right)
         return left_type != right_type and left_type != self._default_type
 
     def _assign_cast(

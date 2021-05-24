@@ -6,6 +6,7 @@
 //!
 //! ```
 
+#![allow(clippy::redundant_static_lifetimes)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -66,11 +67,11 @@ pub fn show() {
     println!("{}", sum1);
     let a5: &Vec<i32> = &vec![1, 2, 3];
     println!("{}", a5.len());
-    let a9: Vec<&str> = vec!["a", "b", "c", "d"];
+    let a9: Vec<&'static str> = vec!["a", "b", "c", "d"];
     println!("{}", a9.len());
     let a6: &HashSet<i32> = &[1, 2, 3, 4].iter().cloned().collect::<HashSet<_>>();
     println!("{}", a6.len());
-    let a7: &HashMap<&str, i32> = &[("a", 1), ("b", 2)]
+    let a7: &HashMap<&'static str, i32> = &[("a", 1), ("b", 2)]
         .iter()
         .cloned()
         .collect::<HashMap<_, _>>();

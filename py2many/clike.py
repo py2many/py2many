@@ -3,7 +3,6 @@ import importlib
 import logging
 import sys
 
-from enum import IntEnum
 from pathlib import Path
 from typing import Any, Dict
 
@@ -63,12 +62,6 @@ symbols = {
     ast.Or: "||",
     ast.In: "in",
 }
-
-
-class LifeTime(IntEnum):
-    UNKNOWN = 0
-    STATIC = 1
-
 
 logger = logging.Logger("py2many")
 
@@ -145,7 +138,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+    def _map_type(self, typename) -> str:
         if isinstance(typename, list):
             raise NotImplementedError(f"{typename} not supported in this context")
         typeclass = class_for_typename(typename, self._default_type)
@@ -177,9 +170,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def _typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
-            return self._map_type(
-                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
-            )
+            return self._map_type(get_id(node))
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):
