@@ -188,12 +188,15 @@ class CodeGeneratorTests(unittest.TestCase):
         ext = settings.ext
         source_data = TEST_CASES[case]
         is_script = has_main(source_data)
-        if ext in [".dart", ".kt", ".rs"] and not is_script:
-            source_data = f"def main():\n  {source_data}"
         print(f">{source_data}<")
         tree = ast.parse(source_data)
         astpretty.pprint(tree)
         proc = run([sys.executable, "-c", source_data], capture_output=True)
+        if ext in [".dart", ".kt", ".rs"] and not is_script:
+            source_data = f"if __name__ == '__main__':\n  {source_data}"
+            print(f">{source_data}<")
+            tree = ast.parse(source_data)
+            astpretty.pprint(tree)
         if proc.returncode:
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
         try:
@@ -302,6 +305,9 @@ class CodeGeneratorTests(unittest.TestCase):
         source_data = case
         expected_error = TEST_ERROR_CASES[case]
         is_script = has_main(source_data)
+        # TODO: Fix and run the Python snippets
+        # c.f. https://github.com/adsharma/py2many/pull/254/files#r637588902
+        # This if is unnecessary if the lang is constant.
         if ext in [".dart", ".kt", ".rs"] and not is_script:
             source_data = f"def main():\n  {source_data}"
         print(f">{source_data}<")
