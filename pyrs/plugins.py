@@ -2,10 +2,11 @@ import io
 import ast
 import textwrap
 
+from tempfile import NamedTemporaryFile
+
 try:
     from argparse_dataclass import dataclass as ap_dataclass
     from argparse_dataclass import ArgumentParser
-    from tempfile import NamedTemporaryFile
 except:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
