@@ -36,4 +36,4 @@ jobs:
       # Duplicated because of https://github.com/actions-rs/clippy-check/issues/2
       - name: Run clippy manually without annotations
         if: ${{ !steps.check_permissions.outputs.has-permission }}
-        run: rustup run nightly cargo clippy --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp
+        run: rustup run nightly cargo clippy --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp -A clippy::eq_op

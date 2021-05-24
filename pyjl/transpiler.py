@@ -237,8 +237,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node):
-        bytes_str = "{0}".format(node.s)
-        return bytes_str.replace("'", '"')  # replace single quote with double quote
+        bytes_str = node.s
+        bytes_str = bytes_str.replace(b'"', b'\\"')
+        return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 
     def visit_Compare(self, node):
         left = self.visit(node.left)
