@@ -138,3 +138,8 @@ path = "tests/expected/sys_argv.rs"
 name = "fib_with_argparse"
 test = true
 path = "tests/expected/fib_with_argparse.rs"
+
+[[bin]]
+name = "byte_literals"
+test = true
+path = "tests/expected/byte_literals.rs"

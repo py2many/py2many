@@ -332,6 +332,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Constant(self, node):
         if isinstance(node.value, str):
             return self.visit_Str(node)
+        elif isinstance(node.value, bytes):
+            return self.visit_Bytes(node)
         return str(self.visit_NameConstant(node))
 
     def visit_Expr(self, node):
@@ -352,6 +354,11 @@ class CLikeTranspiler(ast.NodeVisitor):
         node_str = node.value
         node_str = node_str.replace('"', '\\"')
         return f'"{node_str}"'
+
+    def visit_Bytes(self, node):
+        bytes_str = node.s
+        byte_array = ", ".join([hex(c) for c in bytes_str])
+        return f"{{{byte_array}}}"
 
     def visit_arguments(self, node) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]

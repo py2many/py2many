@@ -443,6 +443,11 @@ class CppTranspiler(CLikeTranspiler):
         node.raw_string = super().visit_Str(node)
         return f"std::string{{{node.raw_string}}}"
 
+    def visit_Bytes(self, node):
+        byte_literal = super().visit_Bytes(node)
+        n = len(node.s)
+        return f"((std::array<unsigned char, {n}>){byte_literal})"
+
     def visit_Name(self, node):
         if node.id == "None":
             return "nullptr"
