@@ -445,7 +445,14 @@ class KotlinTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
-        return "{0}[{1}]".format(value, index)
+        self._generic_typename_from_annotation(node.value)
+        container_type = hasattr(node.value, "annotation") and getattr(
+            node.value.annotation, "generic_container_type", None
+        )
+        is_container_dict = (
+            container_type and len(container_type) > 0 and container_type[0] == "Dict"
+        )
+        return f"{value}[{index}]!!" if is_container_dict else f"{value}[{index}]"
 
     def visit_Index(self, node):
         return self.visit(node.value)
