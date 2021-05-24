@@ -16,9 +16,21 @@ bool dict_values() {
   return CODES.values.contains(1);
 }
 
+int return_dict_index_str(String key) {
+  final Map<String, int> CODES = {"KEY": 1};
+  return CODES[key];
+}
+
+String return_dict_index_int(int key) {
+  final Map<int, String> CODES = {1: "one"};
+  return CODES[key];
+}
+
 main(List<String> argv) {
   assert(implicit_keys());
   assert(explicit_keys());
   assert(dict_values());
+  assert(return_dict_index_str("KEY") == 1);
+  assert(return_dict_index_int(1) == "one");
   print(sprintf("%s", ["OK"]));
 }

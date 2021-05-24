@@ -689,6 +689,12 @@ class RustTranspiler(CLikeTranspiler):
                 index_typename = get_inferred_rust_type(self._slice_value(node))
                 if index_typename != "u64" or index_typename != "usize":
                     index = self._cast(index, "usize")
+            is_dict = value_type is not None and value_type[0] == "Dict"
+            if is_dict:
+                value_type = getattr(node.value.annotation, "container_type", None)
+                index_typename = get_inferred_rust_type(self._slice_value(node))
+                if index_typename == value_type[1][0]:
+                    index = "&" + index
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node):
@@ -866,6 +872,7 @@ class RustTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(node.value)
 
             if kw.startswith("pub "):
+                self._usings.add("lazy_static::lazy_static")
                 if hasattr(node.value, "container_type"):
                     container_type, element_type = node.value.container_type
                     key_typename, value_typename = element_type

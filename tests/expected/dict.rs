@@ -42,10 +42,22 @@ pub fn dict_values() -> bool {
     return CODES.values().any(|&x| x == 1);
 }
 
+pub fn return_dict_index_str(key: &str) -> i32 {
+    let CODES: &HashMap<&str, i32> = &[("KEY", 1)].iter().cloned().collect::<HashMap<_, _>>();
+    return CODES[&key];
+}
+
+pub fn return_dict_index_int(key: i32) -> &'static str {
+    let CODES: &HashMap<i32, &str> = &[(1, "one")].iter().cloned().collect::<HashMap<_, _>>();
+    return CODES[&key] as &'static str;
+}
+
 pub fn main() -> Result<()> {
     assert!(implicit_keys());
     assert!(explicit_keys());
     assert!(dict_values());
+    assert!(return_dict_index_str("KEY") == 1);
+    assert!(return_dict_index_int(1) == "one");
     println!("{}", "OK");
     Ok(())
 }
