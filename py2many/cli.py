@@ -6,6 +6,7 @@ import pathlib
 
 from dataclasses import dataclass, field
 from distutils import spawn
+from functools import lru_cache
 from subprocess import run
 from typing import Callable, List, Optional
 
@@ -124,6 +125,17 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
     if transpiler.extension:
         out.append(transpiler.extension_module(tree))
     return "\n".join(out)
+
+@lru_cache(maxsize=100)
+def process_once_data(source_data, filename, settings):
+    return transpile(
+        filename,
+        source_data,
+        settings.transpiler,
+        settings.rewriters,
+        settings.transformers,
+        settings.post_rewriters,
+    )
 
 
 def _create_cmd(parts, filename):
