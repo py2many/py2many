@@ -336,6 +336,7 @@ class RustTranspiler(CLikeTranspiler):
             "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
             "sum": lambda: f"{vargs[0]}.iter().sum()",
             "int": functools.partial(visit_cast, cast_to="i32"),
+            "bool": lambda: f"({vargs[0]} != 0)",
             "float": functools.partial(visit_cast, cast_to="f64"),
             "max": functools.partial(visit_min_max, is_max=True),
             "min": functools.partial(visit_min_max, is_min=True),

@@ -288,6 +288,7 @@ class GoTranspiler(CLikeTranspiler):
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "str": lambda: f"String({vargs[0]})",
+            "bool": lambda: f"({vargs[0]} != 0)",
             "max": functools.partial(visit_min_max, is_max=True),
             "min": functools.partial(visit_min_max, is_min=True),
             "floor": visit_floor,

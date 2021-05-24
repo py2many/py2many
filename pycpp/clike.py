@@ -36,7 +36,7 @@ cpp_keywords = frozenset(
         # "auto",
         "bitand",
         "bitor",
-        "bool",
+        # "bool",
         "break",
         "case",
         "catch",

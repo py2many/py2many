@@ -372,6 +372,7 @@ class CppTranspiler(CLikeTranspiler):
             # Is pycpp::to_int() necessary?
             # "int": functools.partial(visit_cast, cast_to="i32"),
             "str": lambda: f"std::to_string({vargs[0]})",
+            "bool": lambda: f"static_cast<bool>({vargs[0]})",
             "len": lambda: f"{vargs[0]}.size()",
             "float": functools.partial(visit_cast, cast_to="float"),
             "max": functools.partial(visit_min_max, is_max=True),

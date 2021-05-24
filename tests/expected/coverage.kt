@@ -98,6 +98,7 @@ fun show() {
     assert(infer_bool(1))
     val _escape_quotes = " foo \"bar\" baz "
     assert("bbc" in "aaabbccc")
+    assert((1 != 0))
 }
 
 fun main(argv: Array<String>) {

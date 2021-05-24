@@ -103,7 +103,6 @@ TEST_CASES = {
     "intflag_bitop": f"{_INT_FLAG}\ndef main():\n  if a & Permissions.R:    print('R')",  # https://github.com/adsharma/py2many/issues/115
     "bool_to_int": "print(int(True))",  # https://github.com/adsharma/py2many/issues/130
     "bool_plus_int": "print(True+1)",  # https://github.com/adsharma/py2many/issues/131
-    "bool_func": "bool(1)",  # https://github.com/adsharma/py2many/issues/253
     "del": "a = 1; del a",
     "dict_empty": "assert not {}",
     "dict_del": "a = {1: 1}; del a[1]; assert not a",

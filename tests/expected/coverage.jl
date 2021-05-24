@@ -85,6 +85,7 @@ function show()
     @assert(infer_bool(1))
     _escape_quotes = " foo \"bar\" baz "
     @assert(findfirst("bbc", "aaabbccc") != Nothing)
+    @assert(Bool(1))
 end
 
 function main()

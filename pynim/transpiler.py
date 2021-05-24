@@ -187,6 +187,7 @@ class NimTranspiler(CLikeTranspiler):
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "str": lambda: f"$({vargs[0]})",
+            "bool": lambda: f"bool({vargs[0]})",
             "floor": lambda: f"int(floor({vargs[0]}))",
         }
         if fname in small_dispatch_map:

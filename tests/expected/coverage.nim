@@ -77,6 +77,7 @@ proc show() =
   assert(infer_bool(1))
   let _ = " foo \"bar\" baz "
   assert("bbc" in "aaabbccc")
+  assert(bool(1))
 
 proc main() =
   show()

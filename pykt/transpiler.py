@@ -236,6 +236,7 @@ class KotlinTranspiler(CLikeTranspiler):
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "int": lambda: f"{vargs[0]}.toInt()",
+            "bool": lambda: f"({vargs[0]} != 0)",
             "str": lambda: f"{vargs[0]}.toString()",
             # TODO: strings use .length
             "len": lambda: f"{vargs[0]}.size",

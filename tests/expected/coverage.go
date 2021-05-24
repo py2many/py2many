@@ -115,6 +115,9 @@ func Show() {
 	if !(strings.Contains("aaabbccc", "bbc")) {
 		panic("assert")
 	}
+	if !(1 != 0) {
+		panic("assert")
+	}
 }
 
 func main() {

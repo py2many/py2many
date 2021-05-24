@@ -186,6 +186,7 @@ class DartTranspiler(CLikeTranspiler):
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
             "int": lambda: f"{vargs[0]}.toInt()",
+            "bool": lambda: f"({vargs[0]} != 0)",
             "str": lambda: f"{vargs[0]}.toString()",
             "len": lambda: f"{vargs[0]}.length",
             "floor": lambda: f"{vargs[0]}.floor()",

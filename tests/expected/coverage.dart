@@ -90,6 +90,7 @@ show() {
   assert(infer_bool(1));
   final String _escape_quotes = " foo \"bar\" baz ";
   assert("aaabbccc".contains("bbc"));
+  assert((1 != 0));
 }
 
 main(List<String> argv) {
