@@ -1,0 +1,39 @@
+name: Clippy check
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  clippy_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy
+          override: true
+      - name: Check workflow permissions
+        id: check_permissions
+        uses: scherermichael-oss/action-has-permission@1.0.6
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # clippy lints caused by explicit bad Python code in tests belong here.
+      # No config exists yet https://github.com/rust-lang/cargo/issues/5034
+      # - assertions_on_constants triggered by `assert True`
+      # - float_cmp: triggered by infer_ops and langcomp_bench using floats
+      #   where int/long would be sufficient.
+      # TODO: Remove --bins, after fixing ext_expected/*.rs
+      - name: Run clippy action to produce annotations
+        uses: actions-rs/clippy-check@v1
+        if: steps.check_permissions.outputs.has-permission
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp
+      # Duplicated because of https://github.com/actions-rs/clippy-check/issues/2
+      - name: Run clippy manually without annotations
+        if: ${{ !steps.check_permissions.outputs.has-permission }}
+        run: rustup run nightly cargo clippy --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp

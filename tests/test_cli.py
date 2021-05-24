@@ -57,6 +57,12 @@ EXPECTED_LINT_FAILURES = ["int_enum.go", "rect.go", "str_enum.go"]
 
 EXPECTED_COMPILE_FAILURES = []
 
+CARGO_TOML = [l.strip() for l in open(ROOT_DIR / "Cargo.toml").readlines()]
+
+
+def in_cargo_toml(case: str):
+    return f'path = "tests/expected/{case}.rs"' in CARGO_TOML
+
 
 def has_main(filename):
     with open(filename) as f:
@@ -231,6 +237,8 @@ class CodeGeneratorTests(unittest.TestCase):
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
             exe.unlink(missing_ok=True)
+        if settings.ext == ".rs":
+            assert in_cargo_toml(case)
 
     @foreach(sorted(TEST_CASES))
     # This test name must be alpha before `test_generated` otherwise
