@@ -31,6 +31,7 @@ COMPILERS = {
     "rust": ["cargo", "script", "--build-only", "--debug"],
 }
 INVOKER = {
+    "dart": ["dart", "--enable-asserts"],
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
@@ -160,9 +161,8 @@ class CodeGeneratorTests(unittest.TestCase):
                 )
                 if expect_compile_failure:
                     return
-                proc = run(
-                    [*compiler, f"cases/{case}{ext}"], env=env, check=not expect_failure
-                )
+                cmd = _create_cmd(compiler, f"cases/{case}{ext}")
+                proc = run(cmd, env=env, check=not expect_failure)
 
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
@@ -175,12 +175,7 @@ class CodeGeneratorTests(unittest.TestCase):
             if ext == ".cpp" and (TESTS_DIR / "a.out").exists():
                 os.rename(TESTS_DIR / "a.out", exe)
 
-            if exe.exists() and os.access(exe, os.X_OK):
-                stdout = run(
-                    [exe, *main_args], env=env, capture_output=True, check=True
-                ).stdout
-
-            elif INVOKER.get(lang):
+            if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
@@ -189,17 +184,23 @@ class CodeGeneratorTests(unittest.TestCase):
                     [*invoker, case_output, *main_args],
                     env=env,
                     capture_output=True,
-                    check=not expect_failure,
                 )
 
                 stdout = proc.stdout
 
-                if proc.returncode:
+                if proc.returncode and expect_failure:
                     raise unittest.SkipTest(f"Execution of {case}{ext} failed")
+                assert (
+                    not proc.returncode
+                ), f"Execution of {case}{ext} failed:\n{stdout}{proc.stderr}"
 
                 if self.UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
                     with open(f"expected/{case}{ext}", "w") as f:
                         f.write(generated)
+            elif exe.exists() and os.access(exe, os.X_OK):
+                stdout = run(
+                    [exe, *main_args], env=env, capture_output=True, check=True
+                ).stdout
             else:
                 raise RuntimeError("Compiled output not detected")
 
