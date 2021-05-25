@@ -1,4 +1,5 @@
 // @dart=2.9
+import 'package:collection/collection.dart';
 import 'package:sprintf/sprintf.dart';
 
 int bisect_right(List<int> data, int item) {
@@ -81,6 +82,7 @@ main(List<String> argv) {
     43,
     55
   ];
-  assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13]);
+  assert(DeepCollectionEquality()
+      .equals(bin_it(limits, data), [11, 4, 2, 6, 9, 5, 13]));
   print(sprintf("%s", ["OK"]));
 }

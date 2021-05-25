@@ -1,4 +1,5 @@
 // @dart=2.9
+import 'package:collection/collection.dart';
 import 'package:sprintf/sprintf.dart';
 
 main_func() {
@@ -12,9 +13,9 @@ main_func() {
       xors.add((a ^ b));
     }
   }
-  assert(ands == [false, false, false, true]);
-  assert(ors == [false, true, true, true]);
-  assert(xors == [false, true, true, false]);
+  assert(DeepCollectionEquality().equals(ands, [false, false, false, true]));
+  assert(DeepCollectionEquality().equals(ors, [false, true, true, true]));
+  assert(DeepCollectionEquality().equals(xors, [false, true, true, false]));
   print(sprintf("%s", ["OK"]));
 }
 

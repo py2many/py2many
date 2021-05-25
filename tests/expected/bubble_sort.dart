@@ -1,4 +1,5 @@
 // @dart=2.9
+import 'package:collection/collection.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:tuple/tuple.dart';
 
@@ -19,6 +20,6 @@ List<int> bubble_sort(List<int> seq) {
 main(List<String> argv) {
   var unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
   final expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
-  assert(bubble_sort(unsorted) == expected);
+  assert(DeepCollectionEquality().equals(bubble_sort(unsorted), expected));
   print(sprintf("%s", ["OK"]));
 }

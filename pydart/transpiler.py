@@ -240,6 +240,15 @@ class DartTranspiler(CLikeTranspiler):
             return "{0}.contains({1})".format(right, left)
         elif isinstance(node.ops[0], ast.NotIn):
             return "!({0}.contains({1}))".format(right, left)
+        elif isinstance(node.ops[0], ast.Eq):
+            if hasattr(node.left, "annotation"):
+                self._generic_typename_from_annotation(node.left)
+                value_type = getattr(
+                    node.left.annotation, "generic_container_type", None
+                )
+                if value_type and value_type[0] == "List":
+                    self._usings.add("package:collection/collection.dart")
+                    return f"DeepCollectionEquality().equals({left}, {right})"
 
         return super().visit_Compare(node)
 

@@ -1,5 +1,6 @@
 // @dart=2.9
 import 'dart:math';
+import 'package:collection/collection.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:tuple/tuple.dart';
 
@@ -24,6 +25,6 @@ List<int> comb_sort(List<int> seq) {
 main(List<String> argv) {
   var unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
   final expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
-  assert(comb_sort(unsorted) == expected);
+  assert(DeepCollectionEquality().equals(comb_sort(unsorted), expected));
   print(sprintf("%s", ["OK"]));
 }
