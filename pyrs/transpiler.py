@@ -898,8 +898,11 @@ class RustTranspiler(CLikeTranspiler):
         self._features.add("generator_trait")
         self._usings.add("std::ops::Generator")
         self._usings.add("std::ops::GeneratorState")
-        value = self.visit(node.value)
-        return f"yield {value};"
+        if node.value is not None:
+            value = self.visit(node.value)
+            return f"yield {value};"
+        else:
+            return "yield None;"
 
     def visit_Print(self, node):
         buf = []

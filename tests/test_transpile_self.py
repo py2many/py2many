@@ -31,4 +31,4 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=(NotImplementedError,),
         )
-        assert len(successful) == 1  # The __init__.py
+        assert len(successful) == 4  # Four files transpile ok
