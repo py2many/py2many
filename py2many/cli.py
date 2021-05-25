@@ -357,9 +357,9 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
             if _suppress_exceptions:
                 if _suppress_exceptions is not True:
                     if not isinstance(e, _suppress_exceptions):
-                        raise
+                        raise e
             else:
-                raise
+                raise e
 
     print("\nFinished!")
     print(f"Successful: {len(successful)}")

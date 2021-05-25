@@ -225,13 +225,13 @@ class CLikeTranspiler(ast.NodeVisitor):
                 node.container_type = type_node.container_type
                 return self._visit_container_type(type_node.container_type)
             if typename is None:
-                raise Exception(f"Could not infer: {type_node}")
+                raise NotImplementedError(f"Could not infer: {type_node}")
         return typename
 
     def _generic_typename_from_annotation(
         self, node, attr="annotation"
     ) -> Optional[str]:
-        "Unlike the one above, this doesn't do any target specific mapping"
+        """Unlike the one above, this doesn't do any target specific mapping."""
         typename = None
         if hasattr(node, attr):
             type_node = getattr(node, attr)
