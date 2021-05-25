@@ -34,6 +34,7 @@ COMPILERS = {
 INVOKER = {
     "dart": ["dart", "--enable-asserts"],
     "go": ["go", "run"],
+    "javascript": ["node"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
     "rust": ["cargo", "script"],

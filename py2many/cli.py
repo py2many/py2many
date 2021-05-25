@@ -172,6 +172,7 @@ def _create_cmd(parts, filename, **kw):
 class LanguageSettings:
     transpiler: CLikeTranspiler
     ext: str
+    display_name: str
     formatter: Optional[List[str]] = None
     indent: Optional[int] = None
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
@@ -217,6 +218,7 @@ def cpp_settings(args, env=os.environ):
     return LanguageSettings(
         CppTranspiler(args.extension, args.no_prologue),
         ".cpp",
+        "C++",
         clang_format_cmd,
         None,
         [CppListComparisonRewriter()],
@@ -228,6 +230,7 @@ def rust_settings(args, env=os.environ):
     return LanguageSettings(
         RustTranspiler(args.extension, args.no_prologue),
         ".rs",
+        "Rust",
         ["rustfmt", "--edition=2018"],
         None,
         [RustNoneCompareRewriter()],
@@ -243,7 +246,14 @@ def julia_settings(args, env=os.environ):
     else:
         format_jl = ["format.jl", "-v"]
     return LanguageSettings(
-        JuliaTranspiler(), ".jl", format_jl, None, [], [], [JuliaMethodCallRewriter()]
+        JuliaTranspiler(),
+        ".jl",
+        "Julia",
+        format_jl,
+        None,
+        [],
+        [],
+        [JuliaMethodCallRewriter()],
     )
 
 
@@ -251,6 +261,7 @@ def kotlin_settings(args, env=os.environ):
     return LanguageSettings(
         KotlinTranspiler(),
         ".kt",
+        "Kotlin",
         ["ktlint", "-F"],
         rewriters=[KotlinBitOpRewriter()],
         transformers=[infer_kotlin_types],
@@ -268,6 +279,7 @@ def nim_settings(args, env=os.environ):
     return LanguageSettings(
         NimTranspiler(**nim_args),
         ".nim",
+        "Nim",
         ["nimpretty", *nimpretty_args],
         None,
         [NimNoneCompareRewriter()],
@@ -279,8 +291,55 @@ def dart_settings(args, env=os.environ):
     return LanguageSettings(
         DartTranspiler(),
         ".dart",
+        "Dart",
         ["dart", "format"],
         post_rewriters=[DartIntegerDivRewriter()],
+    )
+
+
+class JavascriptTranspiler(CLikeTranspiler):
+    NAME = "JavaScript"
+    BASE = DartTranspiler
+
+    def __init__(self, settings):
+        self.settings = settings
+        self._extension = False
+        self._temp = 0
+
+    def visit(self, tree):
+        intermediate_path = tree.__file__.with_suffix(".dart")
+        intermediate_source = process_once_data(
+            tree,
+            tree.__file__,
+            self.settings,
+            temp_counter_start=self._temp,
+        )
+        with open(intermediate_path, "w") as f:
+            f.write(intermediate_source)
+        js_file = intermediate_path.with_suffix(".js")
+        proc = run(["dart2js", str(intermediate_path), "-o", str(js_file)])
+        if proc.returncode:
+            print(proc.stdout)
+            print(proc.stderr)
+            raise NotImplementedError(f"dart2js exit {proc.returncode}")
+        with open(js_file) as f:
+            generated_by = f.readline()
+            if not generated_by:
+                raise NotImplementedError("dart2js did not generate output")
+            version_start = generated_by.find(" version")
+            assert version_start != -1
+            generated_by = generated_by[:version_start] + "\n"
+            lines = f.readlines()
+            assert lines
+            result = "\n".join(line.rstrip() for line in lines)
+            return generated_by + result
+
+
+def javascript_settings(args, env=os.environ):
+    return LanguageSettings(
+        JavascriptTranspiler(dart_settings(args, env=env)),
+        ".js",
+        "JavaScript",
     )
 
 
@@ -288,6 +347,7 @@ def go_settings(args, env=os.environ):
     return LanguageSettings(
         GoTranspiler(),
         ".go",
+        "Go",
         ["gofmt", "-w"],
         None,
         [GoNoneCompareRewriter(), GoVisibilityRewriter(), GoIfExpRewriter()],
@@ -306,6 +366,7 @@ def _get_all_settings(args, env=os.environ):
         "nim": nim_settings(args, env=env),
         "dart": dart_settings(args, env=env),
         "go": go_settings(args, env=env),
+        "javascript": javascript_settings(args, env=env),
     }
 
 
@@ -321,17 +382,9 @@ def _process_once(settings, filename, outdir, env=None):
     print(f"{filename}...{output_path}")
     with open(filename) as f:
         source_data = f.read()
+    new_source = process_once_data(source_data, filename, settings)
     with open(output_path, "w") as f:
-        f.write(
-            transpile(
-                filename,
-                source_data,
-                settings.transpiler,
-                settings.rewriters,
-                settings.transformers,
-                settings.post_rewriters,
-            )
-        )
+        f.write(new_source)
 
     if settings.formatter:
         cmd = _create_cmd(settings.formatter, filename=output_path)
@@ -398,17 +451,19 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
     return (successful, format_errors, failures)
 
 
+from unittest.mock import Mock
+
+
 def main(args=None, env=os.environ):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cpp", type=bool, default=False, help="Generate C++ code")
-    parser.add_argument("--rust", type=bool, default=False, help="Generate Rust code")
-    parser.add_argument("--julia", type=bool, default=False, help="Generate Julia code")
-    parser.add_argument(
-        "--kotlin", type=bool, default=False, help="Generate Kotlin code"
-    )
-    parser.add_argument("--nim", type=bool, default=False, help="Generate Nim code")
-    parser.add_argument("--dart", type=bool, default=False, help="Generate Dart code")
-    parser.add_argument("--go", type=bool, default=False, help="Generate Go code")
+    LANGS = _get_all_settings(Mock(indent=4))
+    for lang, settings in LANGS.items():
+        parser.add_argument(
+            f"--{lang}",
+            type=bool,
+            default=False,
+            help=f"Generate {settings.display_name} code",
+        )
     parser.add_argument("--outdir", default=None, help="Output directory")
     parser.add_argument(
         "-i",
@@ -444,6 +499,8 @@ def main(args=None, env=os.environ):
             settings = dart_settings(args, env=env)
         elif args.go:
             settings = go_settings(args, env=env)
+        elif args.javascript:
+            settings = javascript_settings(args, env=env)
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent
