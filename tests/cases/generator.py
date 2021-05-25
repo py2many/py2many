@@ -9,6 +9,7 @@ def gen():
 
 def main():
     assert list(gen()) == [4, 5]
+    print("OK")
 
 
 if __name__ == "__main__":

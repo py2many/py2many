@@ -40,7 +40,7 @@ INVOKER = {
 TEST_CASES = [
     item.stem
     for item in (TESTS_DIR / "cases").glob("*.py")
-    if not item.stem.startswith("test_")
+    if not item.stem.startswith("test_") and not item.stem in ["generator", "with_open"]
 ]
 
 CASE_ARGS = {
