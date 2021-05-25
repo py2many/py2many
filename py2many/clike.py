@@ -5,7 +5,7 @@ import sys
 
 from enum import IntEnum
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, OrderedDict
 
 # Fixed width ints and aliases
 from ctypes import (
@@ -259,7 +259,17 @@ class CLikeTranspiler(ast.NodeVisitor):
         # TODO: generalize this to reset all state that needs to be reset
         self._imported_names = {}
         self._usings.clear()
-        buf += [self.visit(b) for b in node.body]
+        body_dict: Dict[ast.AST, str] = OrderedDict()
+        for b in node.body:
+            if not isinstance(b, ast.FunctionDef):
+                body_dict[b] = self.visit(b)
+        # Second pass to handle functiondefs whose body
+        # may refer to other members of node.body
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body_dict[b] = self.visit(b)
+
+        buf += [body_dict[b] for b in node.body]
         return "\n".join(buf)
 
     def visit_alias(self, node):
