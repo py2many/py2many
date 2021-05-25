@@ -30,7 +30,11 @@ pub fn main() {
         .map(|s| &*Box::leak(s.into_boxed_str()))
         .collect();
     let cmd: &str = a[0 as usize];
-    assert!(cmd.contains("sys_argv"));
+    if cmd == "dart" {
+        /* pass */
+    } else {
+        assert!(cmd.contains("sys_argv"));
+    }
     if (a.len() as i32) > 1 {
         println!("{}", a[1 as usize]);
     } else {
