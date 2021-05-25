@@ -33,6 +33,8 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
 
       - name: Install go packages
         shell: bash
@@ -66,7 +68,7 @@ jobs:
               (cd /usr/local/bin && ln -s $(find ~/.julia -name format.jl))
               (cd /usr/local/bin && ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "Windows" ]; then
-              choco install zip curl astyle
+              choco install zip curl astyle llvm
           fi
           dart pub global activate stagehand
           curl -s "https://get.sdkman.io" | bash
@@ -91,6 +93,9 @@ jobs:
         run: |
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           LINT=1
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            export PATH="$PATH:/C/Program Files/LLVM/bin"
+          fi
           tox
 
   lint:
