@@ -3,6 +3,7 @@ import ast
 import functools
 import os
 import pathlib
+import sys
 
 from dataclasses import dataclass, field
 from distutils import spawn
@@ -139,8 +140,8 @@ def process_once_data(source_data, filename, settings):
     )
 
 
-def _create_cmd(parts, filename):
-    cmd = [arg.format(filename=filename) for arg in parts]
+def _create_cmd(parts, filename, **kw):
+    cmd = [arg.format(filename=filename, **kw) for arg in parts]
     if cmd != parts:
         return cmd
     return [*parts, str(filename)]
@@ -179,7 +180,7 @@ def cpp_settings(args, env=os.environ):
     else:
         cxx_flags = ["-std=c++14", "-Wall", "-Werror"]
     cxx_flags = ["-I", str(ROOT_DIR)] + cxx_flags
-    if cxx == "clang++":
+    if cxx.startswith("clang++") and not sys.platform == "win32":
         cxx_flags += ["-stdlib=libc++"]
 
     if clang_format_style:
@@ -307,7 +308,7 @@ def _process_once(settings, filename, outdir, env=None):
         )
 
     if settings.formatter:
-        cmd = _create_cmd(settings.formatter, output_path)
+        cmd = _create_cmd(settings.formatter, filename=output_path)
         proc = run(cmd, env=env)
         if proc.returncode:
             # format.jl exit code is unreliable
