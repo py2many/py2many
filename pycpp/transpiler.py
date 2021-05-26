@@ -108,32 +108,32 @@ class CppTranspiler(CLikeTranspiler):
         "Optional": "std::optional",
     }
 
-    def __init__(self):
+    def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         # TODO: include only when needed
         self._headers = []
         self._usings = set([])
         self.use_catch_test_cases = False
         self._container_type_map = self.CONTAINER_TYPES
+        self._extension = extension
+        self._no_prologue = no_prologue
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        uses = "\n".join(
-            f"#include {mod}  // NOLINT(build/include_order)" for mod in usings
+        lint_exception = (
+            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
         )
+        uses = "\n".join(f"#include {mod}{lint_exception}" for mod in usings)
         return uses
 
     def headers(self, meta: InferMeta):
-        self._headers.append(
-            '#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)'
+        lint_exception = (
+            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
         )
-        self._headers.append(
-            '#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)'
-        )
+        self._headers.append(f'#include "pycpp/runtime/sys.h"{lint_exception}')
+        self._headers.append(f'#include "pycpp/runtime/builtins.h"{lint_exception}')
         if self.use_catch_test_cases:
-            self._headers.append(
-                '#include "pycpp/runtime/catch.hpp"  // NOLINT(build/include_order)'
-            )
+            self._headers.append(f'#include "pycpp/runtime/catch.hpp"{lint_exception}')
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)
@@ -307,11 +307,14 @@ class CppTranspiler(CLikeTranspiler):
             )
         fields = "\n".join([f for f in fields])
         definitions = "\n".join([d for d in definitions])
+        lint_exception = (
+            "  // NOLINT(runtime/explicit)" if not self._no_prologue else ""
+        )
         return textwrap.dedent(
             f"""\
             class {node.name} : public std::string {{
             public:
-              {node.name}(const char* s) : std::string(s) {{}}  // NOLINT(runtime/explicit)
+              {node.name}(const char* s) : std::string(s) {{}}{lint_exception}
               {fields}
             }};
 
@@ -322,9 +325,10 @@ class CppTranspiler(CLikeTranspiler):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
-            self._headers.append(
-                '#include "pycpp/runtime/range.hpp"  // NOLINT(build/include_order)'
+            lint_exception = (
+                "  // NOLINT(build/include_order)" if not self._no_prologue else ""
             )
+            self._headers.append(f'#include "pycpp/runtime/range.hpp"{lint_exception}')
             args = ", ".join(vargs)
             return f"rangepp::xrange({args})"
 
@@ -659,8 +663,9 @@ class CppTranspiler(CLikeTranspiler):
         typename = self._typename_from_annotation(target)
         target = self.visit(target)
         value = self.visit(node.value)
+        lint_exception = "  // NOLINT(runtime/string)" if not self._no_prologue else ""
         if typename == "std::string" and is_global(node):
-            return f"{typename} {target} = {value}; // NOLINT(runtime/string)"
+            return f"{typename} {target} = {value};{lint_exception}"
 
         return f"{typename} {target} = {value};"
 

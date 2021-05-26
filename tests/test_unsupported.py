@@ -112,7 +112,6 @@ TEST_CASES = {
 # NOTE: Inclusion here does not indicate that the case is comparable
 EXPECTED_SUCCESSES = [
     "annassign_List.dart",
-    "assert_None.dart",
     "bool_plus_int.jl",
     "bool_plus_int.rs",
     "bool_to_int.jl",

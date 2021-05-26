@@ -194,7 +194,7 @@ def cpp_settings(args, env=os.environ):
         clang_format_cmd = ["clang-format", "-i"]
 
     return LanguageSettings(
-        CppTranspiler(),
+        CppTranspiler(args.extension, args.no_prologue),
         ".cpp",
         clang_format_cmd,
         None,

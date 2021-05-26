@@ -16,7 +16,7 @@ PY2MANY_MODULE = ROOT_DIR / "py2many"
 
 
 class SelfTranspileTests(unittest.TestCase):
-    SETTINGS = _get_all_settings(Mock(indent=4))
+    SETTINGS = _get_all_settings(Mock(indent=4, extension=False))
 
     def test_rust_recursive(self):
         settings = self.SETTINGS["rust"]
