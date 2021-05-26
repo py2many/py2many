@@ -200,7 +200,7 @@ def cpp_settings(args, env=os.environ):
 
 def rust_settings(args, env=os.environ):
     return LanguageSettings(
-        RustTranspiler(args.extension),
+        RustTranspiler(args.extension, args.no_prologue),
         ".rs",
         ["rustfmt", "--edition=2018"],
         None,
@@ -394,6 +394,7 @@ def main(args=None, env=os.environ):
     parser.add_argument(
         "--extension", type=bool, default=False, help="Build a python extension"
     )
+    parser.add_argument("--no-prologue", type=bool, default=False, help="")
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args

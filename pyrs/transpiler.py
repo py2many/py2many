@@ -75,12 +75,13 @@ class RustTranspiler(CLikeTranspiler):
         "Optional": "Option",
     }
 
-    def __init__(self, extension: bool = False):
+    def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._default_type = "_"
         self._extension = extension
         self._rust_ignored_module_set = {"argparse_dataclass"}
+        self._no_prologue = no_prologue
 
     def usings(self):
         if self._extension:
@@ -101,8 +102,9 @@ class RustTranspiler(CLikeTranspiler):
         # This should not contain lints which mask possibly erroneous semantics, e.g. float_cmp
         # Those, and lints triggered by explicitly bad test logic, belong in
         # .github/workflows/clippy.yml
-        lint_ignores = textwrap.dedent(
-            """
+        lint_ignores = (
+            textwrap.dedent(
+                """
         #![allow(clippy::collapsible_else_if)]
         #![allow(clippy::double_parens)]  // https://github.com/adsharma/py2many/issues/17
         #![allow(clippy::map_identity)]
@@ -120,8 +122,12 @@ class RustTranspiler(CLikeTranspiler):
         #![allow(unused_mut)]
         #![allow(unused_parens)]
         """
+            )
+            if not self._no_prologue
+            else ""
         )
-        cargo_toml = f"""
+        cargo_toml = (
+            f"""
         //! ```cargo
         //! [package]
         //! edition = "2018"
@@ -129,6 +135,9 @@ class RustTranspiler(CLikeTranspiler):
         //! {deps_str}
         //! ```
         """
+            if not self._no_prologue
+            else ""
+        )
         return f"{cargo_toml}\n{lint_ignores}\n{externs}\n{uses}\n"
 
     def features(self):

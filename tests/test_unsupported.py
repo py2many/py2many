@@ -184,7 +184,9 @@ class CodeGeneratorTests(unittest.TestCase):
         if ENV.get(lang):
             env.update(ENV.get(lang))
 
-        settings = _get_all_settings(Mock(indent=4, extension=False), env=env)[lang]
+        settings = _get_all_settings(
+            Mock(indent=4, extension=False, no_prologue=False), env=env
+        )[lang]
         ext = settings.ext
         source_data = TEST_CASES[case]
         is_script = has_main(source_data)
