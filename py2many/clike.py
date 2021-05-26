@@ -489,9 +489,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self.visit_StrEnum(node)
         if len(bases) != 1:
             return None
-        if not bases[0] in {"IntEnum", "IntFlag"}:
+        if not bases[0] in {"Enum", "IntEnum", "IntFlag"}:
             return None
-        if bases == ["IntEnum"]:
+        if bases == ["IntEnum"] or bases == ["Enum"]:
             return self.visit_IntEnum(node)
         if bases == ["IntFlag"]:
             return self.visit_IntFlag(node)

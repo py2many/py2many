@@ -32,7 +32,7 @@ jobs:
         if: steps.check_permissions.outputs.has-permission
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp
+          args: --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp -A clippy::eq_op
       # Duplicated because of https://github.com/actions-rs/clippy-check/issues/2
       - name: Run clippy manually without annotations
         if: ${{ !steps.check_permissions.outputs.has-permission }}
