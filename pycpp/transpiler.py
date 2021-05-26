@@ -118,14 +118,22 @@ class CppTranspiler(CLikeTranspiler):
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        uses = "\n".join(f"#include {mod}  // NOLINT(build/include_order)" for mod in usings)
+        uses = "\n".join(
+            f"#include {mod}  // NOLINT(build/include_order)" for mod in usings
+        )
         return uses
 
     def headers(self, meta: InferMeta):
-        self._headers.append('#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)')
-        self._headers.append('#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)')
+        self._headers.append(
+            '#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)'
+        )
+        self._headers.append(
+            '#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)'
+        )
         if self.use_catch_test_cases:
-            self._headers.append('#include "pycpp/runtime/catch.hpp"  // NOLINT(build/include_order)')
+            self._headers.append(
+                '#include "pycpp/runtime/catch.hpp"  // NOLINT(build/include_order)'
+            )
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)
@@ -314,7 +322,9 @@ class CppTranspiler(CLikeTranspiler):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         def visit_range(node, vargs: List[str]) -> str:
-            self._headers.append('#include "pycpp/runtime/range.hpp"  // NOLINT(build/include_order)')
+            self._headers.append(
+                '#include "pycpp/runtime/range.hpp"  // NOLINT(build/include_order)'
+            )
             args = ", ".join(vargs)
             return f"rangepp::xrange({args})"
 

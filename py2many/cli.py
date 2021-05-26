@@ -126,6 +126,7 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
         out.append(transpiler.extension_module(tree))
     return "\n".join(out)
 
+
 @lru_cache(maxsize=100)
 def process_once_data(source_data, filename, settings):
     return transpile(

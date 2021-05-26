@@ -111,11 +111,11 @@ jobs:
       - name: Install linters
         run: pip install black pyflakes cpplint
 
+      - name: Run black
+        run: black --check */ *.py
+
       - name: Remove tests/cases/*.py
         run: rm tests/cases/*.py
-
-      - name: Run black
-        run: black */ *.py
 
       - name: Run pyflakes
         run: pyflakes */ *.py

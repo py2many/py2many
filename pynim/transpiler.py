@@ -144,7 +144,7 @@ class NimTranspiler(CLikeTranspiler):
         if value_id == "sys":
             if attr == "argv":
                 self._usings.add("os")
-                return '(@[getAppFilename()] & commandLineParams())'
+                return "(@[getAppFilename()] & commandLineParams())"
 
         if is_list(node.value):
             if node.attr == "append":

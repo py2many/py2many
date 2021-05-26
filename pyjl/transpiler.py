@@ -140,7 +140,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if value_id == "sys":
             if attr == "argv":
-                return 'append!([PROGRAM_FILE], ARGS)'
+                return "append!([PROGRAM_FILE], ARGS)"
 
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"
