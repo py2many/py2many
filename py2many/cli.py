@@ -158,6 +158,11 @@ class LanguageSettings:
     post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
     linter: Optional[List[str]] = None
 
+    def __hash__(self):
+        f = tuple(self.formatter) if self.formatter is not None else ()
+        l = tuple(self.linter) if self.linter is not None else ()
+        return hash((self.transpiler, f, l))
+
 
 def cpp_settings(args, env=os.environ):
     clang_format_style = env.get("CLANG_FORMAT_STYLE")
