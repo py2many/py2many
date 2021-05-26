@@ -50,11 +50,15 @@ jobs:
           pip3 --version
           pip3 install setuptools tox
 
-      - name: Install Julia dependencies for ${{ runner.os }}.
+      - name: Install Julia packages
         shell: bash
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
+
+      - name: Install dependencies for ${{ runner.os }}.
+        shell: bash
+        run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes astyle
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
