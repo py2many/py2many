@@ -42,7 +42,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
         )
-        assert len(successful) == 4
+        assert len(successful) == 2
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -50,7 +50,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=False,
         )
-        assert len(successful) == 14
+        assert len(successful) == 3
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]

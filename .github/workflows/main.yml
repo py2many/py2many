@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: subosito/flutter-action@v1
         with:
-          flutter-version: '2.0.5'
+          channel: 'stable'
       - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
       - uses: jiro4989/setup-nim-action@v1
@@ -74,7 +74,6 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
-          dart pub global activate stagehand
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install kscript
@@ -82,6 +81,8 @@ jobs:
       - name: Install dart dependencies
         shell: bash
         run: |
+          dart --version
+          dart pub global activate stagehand
           (cd tests && dart pub global run stagehand:stagehand --override package-simple \
            && dart pub add sprintf \
            && dart pub add tuple \
