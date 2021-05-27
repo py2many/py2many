@@ -99,6 +99,8 @@ TEST_CASES = {
     "dict_keys_explicit": "{1: 1}.keys()",  # https://github.com/adsharma/py2many/issues/248
     "dict_keys_compare": "a = {1: 1}; 1 in a.keys()",  # https://github.com/adsharma/py2many/issues/248
     "dict_values": "1 in {1: 1}.values()",
+    "dict_get": "assert {1: 2}.get(1) == 2",
+    "dict_get_default": "assert {1: 2}.get(3, 3) == 3",
     "annassign_List": "from typing import List; items : List = ['a', 'b']; print(items)",
     "intenum_iter": f"{_INT_ENUM}\ndef main():\n  for val in Colors:    print(val)",  # https://github.com/adsharma/py2many/issues/31
     "intflag_bitop": f"{_INT_FLAG}\ndef main():\n  if a & Permissions.R:    print('R')",  # https://github.com/adsharma/py2many/issues/115
@@ -123,6 +125,8 @@ EXPECTED_SUCCESSES = [
     "complex_dict.nim",
     "complex_dict.rs",
     "del.rs",
+    "dict_get.kt",
+    "dict_get_default.jl",
     "dict_keys.dart",
     "dict_keys.jl",
     "dict_keys.rs",
@@ -293,7 +297,7 @@ class CodeGeneratorTests(unittest.TestCase):
         finally:
             if not KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
-            exe.unlink(missing_ok=True)
+                exe.unlink(missing_ok=True)
 
         if not expect_success:
             assert False
