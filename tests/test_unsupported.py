@@ -144,6 +144,7 @@ EXPECTED_SUCCESSES = [
     "float_1.jl",
     "float_1.nim",
     "nested_func.dart",
+    "nested_func.js",
     "nested_func.kt",
     "nested_func.rs",
     "print_None.dart",
