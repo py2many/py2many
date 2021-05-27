@@ -5,7 +5,7 @@ bool nested_containers() {
   final Map<String, List<int>> CODES = {
     "KEY": [1, 3]
   };
-  return CODES["KEY"].contains(1);
+  return (CODES["KEY"] ?? (throw Exception("key not found"))).contains(1);
 }
 
 main(List<String> argv) {

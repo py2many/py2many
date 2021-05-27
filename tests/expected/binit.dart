@@ -8,7 +8,7 @@ int bisect_right(List<int> data, int item) {
   while (low < high) {
     final int middle = ((low + high) ~/ 2).toInt();
 
-    if (item < data[middle]) {
+    if (item < (data[middle] ?? (throw Exception("key not found")))) {
       high = middle;
     } else {
       low = (middle + 1);

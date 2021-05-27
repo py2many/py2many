@@ -18,12 +18,12 @@ bool dict_values() {
 
 int return_dict_index_str(String key) {
   final Map<String, int> CODES = {"KEY": 1};
-  return CODES[key];
+  return (CODES[key] ?? (throw Exception("key not found")));
 }
 
 String return_dict_index_int(int key) {
   final Map<int, String> CODES = {1: "one"};
-  return CODES[key];
+  return (CODES[key] ?? (throw Exception("key not found")));
 }
 
 main(List<String> argv) {

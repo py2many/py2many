@@ -3,7 +3,7 @@ import 'package:sprintf/sprintf.dart';
 
 int test() {
   List<int> a = [1, 2, 3];
-  return a[1];
+  return (a[1] ?? (throw Exception("key not found")));
 }
 
 main(List<String> argv) {
