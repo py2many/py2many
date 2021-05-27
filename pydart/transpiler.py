@@ -530,7 +530,8 @@ class DartTranspiler(CLikeTranspiler):
             tmp_var = self._get_temp()
             buf = [f"{kw} {tmp_var} = Tuple{count}<{value_types}>{value};"]
             for i, elt in enumerate(elts):
-                buf.extend([f"{elt} = {tmp_var}.item{i+1};"])
+                elt_kw = f"{kw} " if elt.startswith("__tmp") else ""
+                buf.extend([f"{elt_kw} {elt} = {tmp_var}.item{i+1};"])
             return "\n".join(buf)
 
         if isinstance(node.scopes[-1], ast.If):
