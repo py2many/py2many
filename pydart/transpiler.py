@@ -421,7 +421,9 @@ class DartTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}<{1}>".format(value, index)
-        return "{0}[{1}]".format(value, index)
+        if getattr(node, "lhs", False):
+            return "{0}[{1}]".format(value, index)
+        return '({0}[{1}] ?? (throw Exception("key not found")))'.format(value, index)
 
     def visit_Index(self, node):
         return self.visit(node.value)

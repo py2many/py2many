@@ -11,8 +11,11 @@ List<int> comb_sort(List<int> seq) {
     gap = max(1, (gap / 1.25).floor());
     swap = false;
     for (final i in ([for (var i = 0; i < (seq.length - gap); i += 1) i])) {
-      if (seq[i] > seq[(i + gap)]) {
-        final __tmp1 = Tuple2<int, int>(seq[(i + gap)], seq[i]);
+      if ((seq[i] ?? (throw Exception("key not found"))) >
+          (seq[(i + gap)] ?? (throw Exception("key not found")))) {
+        final __tmp1 = Tuple2<int, int>(
+            (seq[(i + gap)] ?? (throw Exception("key not found"))),
+            (seq[i] ?? (throw Exception("key not found"))));
         seq[i] = __tmp1.item1;
         seq[(i + gap)] = __tmp1.item2;
         swap = true;

@@ -14,7 +14,7 @@ int indexing() {
   List<int> a = [];
   for (final i in ([for (var i = 0; i < 10; i += 1) i])) {
     a.add(i);
-    sum += a[i];
+    sum += (a[i] ?? (throw Exception("key not found")));
   }
   return sum;
 }
