@@ -31,6 +31,7 @@ COMPILERS = {
     "rust": ["cargo", "script", "--build-only", "--debug"],
 }
 INVOKER = {
+    "dart": ["dart", "--enable-asserts"],
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
@@ -200,9 +201,12 @@ class CodeGeneratorTests(unittest.TestCase):
             astpretty.pprint(tree)
         if proc.returncode:
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
+
+        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
         try:
             result = transpile(
-                "stdin",
+                case_filename,
                 tree,
                 settings.transpiler,
                 settings.rewriters,
@@ -227,7 +231,6 @@ class CodeGeneratorTests(unittest.TestCase):
             exe = TESTS_DIR / "cases" / f"{case}"
         exe.unlink(missing_ok=True)
 
-        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
         expect_success = f"{case}{ext}" in EXPECTED_SUCCESSES
 
         with open(case_output, "w") as f:
@@ -245,7 +248,7 @@ class CodeGeneratorTests(unittest.TestCase):
             assert not proc.returncode
 
         try:
-            compiler = COMPILERS[lang]
+            compiler = COMPILERS.get(lang)
             if compiler:
                 if not spawn.find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
@@ -257,18 +260,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     )
                 assert not proc.returncode
 
-            if exe.exists() and os.access(exe, os.X_OK):
-                proc = run([exe], env=env, capture_output=True)
-                if proc.returncode and not expect_success and not self.SHOW_ERRORS:
-                    raise unittest.SkipTest(
-                        f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
-                    )
-                if not expect_success:
-                    assert proc.returncode, f"{case}{ext} invoked successfully"
-                if expect_success:
-                    assert not proc.returncode, f"{case}{ext} failed"
-
-            elif INVOKER.get(lang):
+            if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
                 if not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
@@ -277,6 +269,16 @@ class CodeGeneratorTests(unittest.TestCase):
                 if proc.returncode and not expect_success and not self.SHOW_ERRORS:
                     raise unittest.SkipTest(
                         f"Execution of {case}{ext} failed:\n{proc.stdout}{proc.stderr}"
+                    )
+                if not expect_success:
+                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                if expect_success:
+                    assert not proc.returncode, f"{case}{ext} failed"
+            elif exe.exists() and os.access(exe, os.X_OK):
+                proc = run([exe], env=env, capture_output=True)
+                if proc.returncode and not expect_success and not self.SHOW_ERRORS:
+                    raise unittest.SkipTest(
+                        f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
                     assert proc.returncode, f"{case}{ext} invoked successfully"
