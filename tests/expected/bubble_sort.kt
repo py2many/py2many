@@ -1,7 +1,7 @@
 
 fun bubble_sort(seq: Array<Int>): Array<Int> {
     val L = seq.size
-    for (__tmp1 in (0..L - 1)) {
+    for (__tmp3 in (0..L - 1)) {
         for (n in (1..L - 1)) {
             if (seq[n] < seq[(n.toInt() - 1)]) {
                 if (true) {

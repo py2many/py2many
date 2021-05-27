@@ -70,7 +70,15 @@ def core_transformers(tree):
     return tree, infer_meta
 
 
-def transpile(filename, source, transpiler, rewriters, transformers, post_rewriters):
+def transpile(
+    filename,
+    source,
+    transpiler,
+    rewriters,
+    transformers,
+    post_rewriters,
+    temp_counter_start=0,
+):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
@@ -92,26 +100,38 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
     # First run Language independent rewriters
+    running_temp_var = temp_counter_start
     for rewriter in generic_rewriters:
+        setattr(rewriter, "_temp", running_temp_var)
         tree = rewriter.visit(tree)
+        running_temp_var = getattr(rewriter, "_temp")
     # Language specific rewriters
     for rewriter in rewriters:
+        setattr(rewriter, "_temp", running_temp_var)
         tree = rewriter.visit(tree)
+        running_temp_var = getattr(rewriter, "_temp")
     # Language independent core transformers
     tree, infer_meta = core_transformers(tree)
     # Language specific transformers
-    for tx in transformers:
-        tx(tree)
+    for rewriter in transformers:
+        setattr(rewriter, "_temp", running_temp_var)
+        rewriter(tree)
+        running_temp_var = getattr(rewriter, "_temp")
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [PrintBoolRewriter(language), StrStrRewriter(language)]
     for rewriter in generic_post_rewriters:
+        setattr(rewriter, "_temp", running_temp_var)
         tree = rewriter.visit(tree)
+        running_temp_var = getattr(rewriter, "_temp")
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
+        setattr(rewriter, "_temp", running_temp_var)
         tree = rewriter.visit(tree)
+        running_temp_var = getattr(rewriter, "_temp")
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree)
     out = []
+    setattr(transpiler, "_temp", running_temp_var)
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
     features = transpiler.features()
@@ -129,7 +149,7 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
 
 
 @lru_cache(maxsize=100)
-def process_once_data(source_data, filename, settings):
+def process_once_data(source_data, filename, settings, temp_counter_start=0):
     return transpile(
         filename,
         source_data,
@@ -137,6 +157,7 @@ def process_once_data(source_data, filename, settings):
         settings.rewriters,
         settings.transformers,
         settings.post_rewriters,
+        temp_counter_start=temp_counter_start,
     )
 
 
