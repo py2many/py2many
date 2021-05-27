@@ -236,6 +236,17 @@ class DartTranspiler(CLikeTranspiler):
     def visit_Compare(self, node):
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
+        if hasattr(node.comparators[0], "annotation"):
+            self._generic_typename_from_annotation(node.comparators[0])
+            value_type = getattr(
+                node.comparators[0].annotation, "generic_container_type", None
+            )
+            if value_type and value_type[0] == "Dict":
+                right += ".keys"
+
+        if right.endswith(".keys()") or right.endswith(".values()"):
+            right = right[:-2]
+
         if isinstance(node.ops[0], ast.In):
             return "{0}.contains({1})".format(right, left)
         elif isinstance(node.ops[0], ast.NotIn):
