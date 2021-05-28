@@ -118,6 +118,13 @@ func Show() {
 	if !(1 != 0) {
 		panic("assert")
 	}
+	{
+		var _c1 int = 1
+		_ = _c1
+		_ = 2
+		var _c2 int = 3
+		_ = _c2
+	}
 }
 
 func main() {

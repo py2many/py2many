@@ -140,6 +140,11 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.visit(n) for n in node.body])
+        # If rewriter inserted a block, we need to terminate it with a semicolon
+        if len(node.body):
+            last = node.body[-1]
+            if getattr(last, "make_block", False):
+                body += ";"
 
         if (
             self.use_catch_test_cases
@@ -478,12 +483,20 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
+    def visit_Expr(self, node):
+        s = super().visit_Expr(node)
+        if getattr(node, "unused", False):
+            s = "(void) " + s
+        return s
+
     def _make_block(self, node):
         buf = []
         buf.append("({")
         buf.extend([self.visit(child) for child in node.body])
-        buf.append(";")
+        if not buf[-1].endswith(";"):
+            buf.append(";")
         buf.append("})")
+        node.make_block = True
         return "\n".join(buf)
 
     def visit_If(self, node):

@@ -303,3 +303,63 @@ class StrStrRewriter(ast.NodeTransformer):
                 return ret
 
         return node
+
+
+class IgnoredAssignRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+        self._language = language
+        self._disable = language in {"nim"}
+        self._unpack = language in {"go", "cpp", "dart"}
+
+    def _visit_assign_unpack_all(self, node):
+        keep_ignored = self._language == "go"
+        body = []
+        target = node.targets[0]
+        for i in range(len(target.elts)):
+            elt = target.elts[i]
+            if isinstance(elt, ast.Name):
+                name = get_id(elt)
+                if name == "_" and not keep_ignored:
+                    body.append(ast.Expr(value=node.value.elts[i]))
+                    body[-1].unused = True
+                    continue
+            body.append(ast.Assign(targets=[target.elts[i]], value=node.value.elts[i]))
+        ret = ast.If(
+            test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
+        )
+        ret.lineno = node.lineno
+        ret.rewritten = True
+        ast.fix_missing_locations(ret)
+        return ret
+
+    def visit_Assign(self, node):
+        if self._disable:
+            return node
+
+        target = node.targets[0]
+        if isinstance(target, ast.Tuple) and isinstance(node.value, ast.Tuple):
+            names = [get_id(elt) for elt in target.elts if isinstance(elt, ast.Name)]
+            has_ignored = "_" in names
+            if self._unpack and has_ignored:
+                return self._visit_assign_unpack_all(node)
+            if not has_ignored:
+                return node
+
+            body = [node]
+            to_eval = []
+            for i in range(len(target.elts)):
+                if names[i] == "_":
+                    del target.elts[i]
+                    to_eval.append(node.value.elts[i])
+                    del node.value.elts[i]
+            # TODO: Evaluation order - we may have to split the tuple assignment to get
+            # it right. For now, keep it simple
+            body = [ast.Expr(value=e) for e in to_eval] + body
+            ret = ast.If(
+                test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
+            )
+            ret.rewritten = True
+            ast.fix_missing_locations(ret)
+            return ret
+        return node

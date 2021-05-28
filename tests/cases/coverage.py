@@ -89,6 +89,7 @@ def show():
     _escape_quotes = """ foo "bar" baz """
     assert "bbc" in "aaabbccc"
     assert bool(1)
+    (_c1, _, _c2) = (1, 2, 3)
 
 
 if __name__ == "__main__":

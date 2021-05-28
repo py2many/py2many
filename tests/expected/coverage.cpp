@@ -115,6 +115,11 @@ inline void show() {
   std::string _escape_quotes = std::string{" foo \"bar\" baz "};
   assert(std::string{"aaabbccc"}.find(std::string{"bbc"}) != std::string::npos);
   assert(static_cast<bool>(1));
+  ({
+    int _c1 = 1;
+    (void)2;
+    int _c2 = 3;
+  });
 }
 
 int main(int argc, char** argv) {

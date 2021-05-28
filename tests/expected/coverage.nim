@@ -78,6 +78,7 @@ proc show() =
   let _ = " foo \"bar\" baz "
   assert("bbc" in "aaabbccc")
   assert(bool(1))
+  let (_, _, _) = (1, 2, 3)
 
 proc main() =
   show()
