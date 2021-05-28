@@ -25,7 +25,7 @@ from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 
 class RustLoopIndexRewriter(ast.NodeTransformer):
@@ -88,6 +88,11 @@ class RustTranspiler(CLikeTranspiler):
         self._extension = extension
         self._rust_ignored_module_set = {"argparse_dataclass"}
         self._no_prologue = no_prologue
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+
 
     def usings(self):
         if self._extension:
@@ -307,29 +312,18 @@ class RustTranspiler(CLikeTranspiler):
             return FUNC_DISPATCH_TABLE[ret](self, node, [])
         return ret
 
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        if fname in DISPATCH_MAP:
-            return DISPATCH_MAP[fname](self, node, vargs)
-
-        if fname in SMALL_DISPATCH_MAP:
-            if fname in SMALL_USINGS_MAP:
-                self._usings.add(SMALL_USINGS_MAP[fname])
-            return SMALL_DISPATCH_MAP[fname](node, vargs)
-
+    def _func_for_lookup(self, fname) -> Union[str, object]:
         fname_for_lookup = fname.replace("::", ".")
         func = class_for_typename(fname_for_lookup, None, self._imported_names)
-        if func is not None and func in FUNC_DISPATCH_TABLE:
-            return FUNC_DISPATCH_TABLE[func](self, node, vargs)
+        return func
+
+    def _func_name_split(self, fname: str) -> Tuple[str, str]:
         # string based fallback
         splits = fname.rsplit("::", maxsplit=1)
         if len(splits) == 2:
-            fname_stem, fname_leaf = splits
+            return tuple(splits)
         else:
-            fname_stem = ""
-            fname_leaf = splits[0]
-        if fname_leaf in FUNC_DISPATCH_TABLE:
-            return fname_stem + FUNC_DISPATCH_TABLE[fname_leaf](self, node, vargs)
-        return None
+            return ("", splits[0])
 
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args

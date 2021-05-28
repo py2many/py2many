@@ -112,6 +112,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._extension = False
         self._ignored_module_set = IGNORED_MODULE_SET.copy()
         self._module = None
+        self._dispatch_map = {}
+        self._small_dispatch_map = {}
+        self._small_usings_map = {}
+        self._func_dispatch_table = {}
 
     def headers(self, meta=None):
         return ""
@@ -510,3 +514,33 @@ class CLikeTranspiler(ast.NodeVisitor):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"({test}? ({{ {body}; }}) : ({{ {orelse}; }}))"
+
+    def _func_for_lookup(self, fname) -> Union[str, object]:
+        func = class_for_typename(fname, None, self._imported_names)
+        return func
+
+    def _func_name_split(self, fname: str) -> Tuple[str, str]:
+        splits = fname.rsplit(".", maxsplit=1)
+        if len(splits) == 2:
+            return tuple(splits)
+        else:
+            return ("", splits[0])
+
+    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        if fname in self._dispatch_map:
+            return self._dispatch_map[fname](self, node, vargs)
+
+        if fname in self._small_dispatch_map:
+            if fname in self._small_usings_map:
+                self._usings.add(self._small_usings_map[fname])
+            return self._small_dispatch_map[fname](node, vargs)
+
+        func = self._func_for_lookup(fname)
+        if func is not None and func in self._func_dispatch_table:
+            return self._func_dispatch_table[func](self, node, vargs)
+
+        # string based fallback
+        fname_stem, fname_leaf = self._func_name_split(fname)
+        if fname_leaf in self._func_dispatch_table:
+            return fname_stem + self._func_dispatch_table[fname_leaf](self, node, vargs)
+        return None
