@@ -1,12 +1,18 @@
 import ast
-import functools
 from py2many.clike import class_for_typename
 import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type, map_type
-from .plugins import CLASS_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
+from .plugins import (
+    CLASS_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
 
 from py2many.analysis import (
     FunctionTransformer,
@@ -302,75 +308,13 @@ class RustTranspiler(CLikeTranspiler):
         return ret
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        def visit_range(node, vargs: List[str]) -> str:
-            if len(node.args) == 1:
-                return "(0..{})".format(vargs[0])
-            elif len(node.args) == 2:
-                return "({}..{})".format(vargs[0], vargs[1])
-            elif len(node.args) == 3:
-                return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+        if fname in DISPATCH_MAP:
+            return DISPATCH_MAP[fname](self, node, vargs)
 
-            raise Exception(
-                "encountered range() call with unknown parameters: range({})".format(
-                    vargs
-                )
-            )
-
-        def visit_print(node, vargs: List[str]) -> str:
-            placeholders = []
-            for n in node.args:
-                placeholders.append("{}")
-            return 'println!("{0}",{1});'.format(
-                " ".join(placeholders), ", ".join(vargs)
-            )
-
-        dispatch_map = {
-            "range": visit_range,
-            "xrange": visit_range,
-            "print": visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_min_max(is_max: bool) -> str:
-            self._usings.add("std::cmp")
-            min_max = "max" if is_max else "min"
-            self._typename_from_annotation(node.args[0])
-            if hasattr(node.args[0], "container_type"):
-                return f"{vargs[0]}.iter().{min_max}().unwrap()"
-            else:
-                all_vargs = ", ".join(vargs)
-                return f"cmp::{min_max}({all_vargs})"
-
-        def visit_cast(cast_to: str) -> str:
-            return f"{vargs[0]} as {cast_to}"
-
-        def visit_asyncio_run() -> str:
-            self._usings.add("futures::executor::block_on")
-            return f"block_on({vargs[0]})"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "str": lambda: f"&{vargs[0]}.to_string()",
-            "len": lambda: f"{vargs[0]}.len()",
-            "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
-            "sum": lambda: f"{vargs[0]}.iter().sum()",
-            "int": functools.partial(visit_cast, cast_to="i32"),
-            "bool": lambda: f"({vargs[0]} != 0)",
-            "float": functools.partial(visit_cast, cast_to="f64"),
-            "max": functools.partial(visit_min_max, is_max=True),
-            "min": functools.partial(visit_min_max, is_min=True),
-            # as usize below is a hack to pass comb_sort.rs. Need a better solution
-            "floor": lambda: f"{vargs[0]}.floor() as usize",
-            "reversed": lambda: f"{vargs[0]}.iter().rev()",
-            "map": lambda: f"{vargs[1]}.iter().map({vargs[0]})",
-            "filter": lambda: f"{vargs[1]}.into_iter().filter({vargs[0]})",
-            "list": lambda: f"{vargs[0]}.collect::<Vec<_>>()",
-            "asyncio.run": visit_asyncio_run,
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
+        if fname in SMALL_DISPATCH_MAP:
+            if fname in SMALL_USINGS_MAP:
+                self._usings.add(SMALL_USINGS_MAP[fname])
+            return SMALL_DISPATCH_MAP[fname](node, vargs)
 
         fname_for_lookup = fname.replace("::", ".")
         func = class_for_typename(fname_for_lookup, None, self._imported_names)
