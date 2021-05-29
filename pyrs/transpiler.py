@@ -25,7 +25,7 @@ from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 
 
 class RustLoopIndexRewriter(ast.NodeTransformer):
@@ -92,7 +92,6 @@ class RustTranspiler(CLikeTranspiler):
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
-
 
     def usings(self):
         if self._extension:
@@ -206,7 +205,7 @@ class RustTranspiler(CLikeTranspiler):
                 index += 1
             args_list.append("{0}: {1}".format(arg, typename))
 
-        return_type = ""
+        return_type = "" if not is_python_main else "-> Result<(), std::io::Error>"
         if node.returns:
             typename = self._typename_from_annotation(node, attr="returns")
             if getattr(node.returns, "rust_needs_reference", False):
@@ -231,7 +230,10 @@ class RustTranspiler(CLikeTranspiler):
         extension = "#[pyfunction]\n" if self.extension else ""
         args_list = ", ".join(args_list)
         funcdef = f"{extension}pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
-        return funcdef + " {\n" + body + "\n}\n"
+        return_success = (
+            "Ok(())" if is_python_main else ""
+        )  # TODO: generalize this to functions that return Result<T, E>
+        return f"{funcdef} {{\n{body}\n {return_success}}}\n"
 
     def visit_arg(self, node):
         id = get_id(node)
@@ -308,8 +310,9 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}::{1}".format(value_id, attr)
 
         ret = f"{value_id}.{attr}"
-        if ret in FUNC_DISPATCH_TABLE:
-            return FUNC_DISPATCH_TABLE[ret](self, node, [])
+        if ret in self._func_dispatch_table:
+            ret, node.result_type = self._func_dispatch_table[ret]
+            return ret(self, node, [])
         return ret
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
@@ -369,7 +372,10 @@ class RustTranspiler(CLikeTranspiler):
             ref_args = vargs
 
         args = ", ".join(ref_args)
-        return f"{fname}({args})"
+        node_result_type = getattr(node, "result_type", False)
+        node_func_result_type = getattr(node.func, "result_type", False)
+        unwrap = "?" if node_result_type or node_func_result_type else ""
+        return f"{fname}({args}){unwrap}"
 
     def visit_For(self, node):
         target = self.visit(node.target)

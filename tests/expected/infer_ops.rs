@@ -93,7 +93,8 @@ pub fn show() {
     println!("{}", "OK");
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     foo();
     show();
+    Ok(())
 }

@@ -42,10 +42,11 @@ pub fn fib(i: i32) -> i32 {
     return (fib((i - 1)) + fib((i - 2)));
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     let mut args: _ = Options::from_args();
     if (args.n as i32) == 0 {
         args.n = 5;
     }
     println!("{}", fib(args.n));
+    Ok(())
 }

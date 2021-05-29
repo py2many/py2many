@@ -30,6 +30,7 @@ pub fn fib(i: i32) -> i32 {
     return (fib((i - 1)) + fib((i - 2)));
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     println!("{}", fib(5));
+    Ok(())
 }

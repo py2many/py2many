@@ -57,6 +57,7 @@ pub fn show() {
     println!("{}", color_map.len());
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }

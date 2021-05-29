@@ -34,8 +34,9 @@ pub fn nested_containers() -> bool {
     return CODES["KEY"].iter().any(|&x| x == 1);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     if nested_containers() {
         println!("{}", "OK");
     }
+    Ok(())
 }

@@ -34,6 +34,7 @@ pub fn show() {
     println!("{}", if c { "True" } else { "False" });
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }

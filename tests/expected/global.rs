@@ -31,7 +31,7 @@ pub const l_a: &[i32; 2] = &[code_0, code_1];
 pub const code_a: &'static str = "a";
 pub const code_b: &'static str = "b";
 pub const l_b: &[&str; 2] = &[code_a, code_b];
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     for i in l_a {
         println!("{}", *i);
     }
@@ -41,4 +41,5 @@ pub fn main() {
     if vec!["a", "b"].iter().any(|&x| x == "a") {
         println!("{}", "OK");
     }
+    Ok(())
 }

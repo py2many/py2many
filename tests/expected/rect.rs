@@ -50,6 +50,7 @@ pub fn show() {
     println!("{}", r.length);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }

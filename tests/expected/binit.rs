@@ -50,7 +50,7 @@ pub fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
     return bins.to_vec();
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     let limits: &Vec<i32> = &vec![23, 37, 43, 53, 67, 83];
     let data: &Vec<i32> = &vec![
         95, 21, 94, 12, 99, 4, 70, 75, 83, 93, 52, 80, 57, 5, 53, 86, 65, 17, 92, 83, 71, 61, 54,
@@ -59,4 +59,5 @@ pub fn main() {
     ];
     assert!(bin_it(limits, data) == *vec![11, 4, 2, 6, 9, 5, 13]);
     println!("{}", "OK");
+    Ok(())
 }

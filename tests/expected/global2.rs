@@ -41,7 +41,8 @@ lazy_static! {
         .cloned()
         .collect::<HashMap<_, _>>();
 }
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     assert!(l_b.iter().any(|&x| x == "a"));
     println!("{}", "OK");
+    Ok(())
 }

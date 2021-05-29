@@ -121,6 +121,7 @@ pub fn show() {
     });
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }

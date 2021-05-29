@@ -25,10 +25,11 @@
 
 use std::collections;
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     let a: i32 = 10;
     println!(
         "{}",
         vec!["hello ", &(a + 1).to_string(), " world"].join("")
     );
+    Ok(())
 }

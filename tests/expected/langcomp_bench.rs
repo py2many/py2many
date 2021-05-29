@@ -43,6 +43,7 @@ pub fn test_python(iterations: i32) {
     drop(array);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     test_python(3);
+    Ok(())
 }

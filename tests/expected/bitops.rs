@@ -42,6 +42,7 @@ pub fn main_func() {
     println!("{}", "OK");
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     main_func();
+    Ok(())
 }

@@ -537,10 +537,12 @@ class CLikeTranspiler(ast.NodeVisitor):
 
         func = self._func_for_lookup(fname)
         if func is not None and func in self._func_dispatch_table:
-            return self._func_dispatch_table[func](self, node, vargs)
+            ret, node.result_type = self._func_dispatch_table[func]
+            return ret(self, node, vargs)
 
         # string based fallback
         fname_stem, fname_leaf = self._func_name_split(fname)
         if fname_leaf in self._func_dispatch_table:
-            return fname_stem + self._func_dispatch_table[fname_leaf](self, node, vargs)
+            ret, node.result_type = self._func_dispatch_table[fname_leaf]
+            return fname_stem + ret(self, node, vargs)
         return None

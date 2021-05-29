@@ -4,7 +4,7 @@ import functools
 import textwrap
 
 from tempfile import NamedTemporaryFile
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 try:
     from argparse_dataclass import dataclass as ap_dataclass
@@ -159,16 +159,16 @@ CLASS_DISPATCH_TABLE = {ap_dataclass: RustTranspilerPlugins.visit_argparse_datac
 
 FuncType = Union[Callable, str]
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Callable] = {
+FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Uncomment after upstream uploads a new version
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
     # HACKs: remove all string based dispatch here, once we replace them with type based
-    "parse_args": lambda self, node, vargs: "::from_args()",
-    "temp_file.name": lambda self, node, vargs: "temp_file.path()",
-    "f.read": lambda self, node, vargs: "f.read_string().unwrap",
-    "f.write": lambda self, node, vargs: "f.write_string",
-    open: RustTranspilerPlugins.visit_open,
-    NamedTemporaryFile: RustTranspilerPlugins.visit_named_temp_file,
-    io.TextIOWrapper.read: RustTranspilerPlugins.visit_textio_read,
-    io.TextIOWrapper.read: RustTranspilerPlugins.visit_textio_write,
+    "parse_args": (lambda self, node, vargs: "::from_args()", False),
+    "temp_file.name": (lambda self, node, vargs: "temp_file.path()", False),
+    "f.read": (lambda self, node, vargs: "f.read_string", True),
+    "f.write": (lambda self, node, vargs: "f.write_string", True),
+    open: (RustTranspilerPlugins.visit_open, True),
+    NamedTemporaryFile: (RustTranspilerPlugins.visit_named_temp_file, True),
+    io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_read, True),
+    io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_write, True),
 }

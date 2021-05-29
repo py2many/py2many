@@ -67,6 +67,7 @@ pub fn show() {
     assert!((color_map.len() as i32) != 0);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }

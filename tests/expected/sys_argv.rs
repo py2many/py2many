@@ -25,7 +25,7 @@
 
 use std::env;
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     let a: Vec<&str> = env::args()
         .map(|s| &*Box::leak(s.into_boxed_str()))
         .collect();
@@ -40,4 +40,5 @@ pub fn main() {
     } else {
         println!("{}", "OK");
     }
+    Ok(())
 }

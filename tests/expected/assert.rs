@@ -28,11 +28,12 @@ pub fn compare_assert(a: i32, b: i32) {
     assert!(!(0 == 1));
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     assert!(true);
     assert!(!(false));
     compare_assert(1, 1);
     assert!(true);
     assert!(true);
     println!("{}", "OK");
+    Ok(())
 }

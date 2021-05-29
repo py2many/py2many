@@ -46,9 +46,10 @@ pub fn comb_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     return seq.to_vec();
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     let mut unsorted: &mut Vec<i32> = &mut vec![14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
     let expected: &Vec<i32> = &vec![5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
     assert!(comb_sort(unsorted) == *expected);
     println!("{}", "OK");
+    Ok(())
 }

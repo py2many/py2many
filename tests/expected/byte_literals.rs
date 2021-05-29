@@ -23,10 +23,11 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     assert!(b"foo" != b"bar");
     assert!(b"\"" == b"\"");
     assert!(b"'" == b"'");
     assert!(b"\xbbfoo" == b"\xbbfoo");
     println!("{}", "OK");
+    Ok(())
 }

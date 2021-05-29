@@ -30,6 +30,7 @@ pub fn foo() {
     println!("{}", b);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     foo();
+    Ok(())
 }

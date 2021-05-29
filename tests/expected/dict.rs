@@ -40,9 +40,10 @@ pub fn dict_values() -> bool {
     return CODES.values().any(|&x| x == 1);
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     assert!(implicit_keys());
     assert!(explicit_keys());
     assert!(dict_values());
     println!("{}", "OK");
+    Ok(())
 }

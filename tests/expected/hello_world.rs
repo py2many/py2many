@@ -23,7 +23,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     println!("{}", "Hello world!");
     println!("{} {}", "Hello", "world!");
+    Ok(())
 }

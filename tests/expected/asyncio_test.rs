@@ -35,6 +35,7 @@ pub async fn async_main() {
     println!("{}", "OK");
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     block_on(async_main());
+    Ok(())
 }

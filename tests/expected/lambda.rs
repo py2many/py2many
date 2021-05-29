@@ -28,6 +28,7 @@ pub fn show() {
     println!("{}", myfunc(1, 2));
 }
 
-pub fn main() {
+pub fn main() -> Result<(), std::io::Error> {
     show();
+    Ok(())
 }
