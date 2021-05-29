@@ -359,8 +359,11 @@ class RustTranspiler(CLikeTranspiler):
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
         ret = self._dispatch(node, fname, vargs)
+        node_result_type = getattr(node, "result_type", False)
+        node_func_result_type = getattr(node.func, "result_type", False)
         if ret is not None:
-            return ret
+            unwrap = "?" if node_result_type or node_func_result_type else ""
+            return f"{ret}{unwrap}"
 
         # Check if some args need to be passed by reference
         ref_args = []
@@ -374,8 +377,6 @@ class RustTranspiler(CLikeTranspiler):
             ref_args = vargs
 
         args = ", ".join(ref_args)
-        node_result_type = getattr(node, "result_type", False)
-        node_func_result_type = getattr(node.func, "result_type", False)
         unwrap = "?" if node_result_type or node_func_result_type else ""
         return f"{fname}({args}){unwrap}"
 

@@ -1,4 +1,5 @@
 import io
+import os
 import ast
 import functools
 import textwrap
@@ -65,12 +66,15 @@ class RustTranspilerPlugins:
                     opts += ".append(true)"
                 if c == "+":
                     opts += ".read(true).write(true)"
-            return f"{opts}.open({vargs[0]}).unwrap()"
-        return f"File::open({vargs[0]}).unwrap()"
+            node.result_type = True
+            return f"{opts}.open({vargs[0]})"
+        node.result_type = True
+        return f"File::open({vargs[0]})"
 
     def visit_named_temp_file(self, node, vargs):
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
-        return "NamedTempFile::new().unwrap()"
+        node.result_type = True
+        return "NamedTempFile::new()"
 
     def visit_textio_read(self, node, vargs):
         # TODO
@@ -107,7 +111,8 @@ class RustTranspilerPlugins:
         min_max = "max" if is_max else "min"
         self._typename_from_annotation(node.args[0])
         if hasattr(node.args[0], "container_type"):
-            return f"{vargs[0]}.iter().{min_max}().unwrap()"
+            node.result_type = True
+            return f"{vargs[0]}.iter().{min_max}()"
         else:
             all_vargs = ", ".join(vargs)
             return f"cmp::{min_max}({all_vargs})"

@@ -3,7 +3,17 @@ import ast
 
 
 IGNORED_MODULE_SET = set(
-    ["typing", "enum", "dataclasses", "ctypes", "math", "__future__", "asyncio", "sys"]
+    [
+        "typing",
+        "enum",
+        "dataclasses",
+        "ctypes",
+        "math",
+        "__future__",
+        "asyncio",
+        "sys",
+        "os",
+    ]
 )
 
 

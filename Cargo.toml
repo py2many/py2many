@@ -13,6 +13,9 @@ structopt = "*"
 strum = "*"
 strum_macros = "*"
 lazy_static = "*"
+pylib = "*"
+tempfile = "*"
+
 
 [lib]
 crate-type = ["cdylib"]
@@ -143,3 +146,8 @@ path = "tests/expected/fib_with_argparse.rs"
 name = "byte_literals"
 test = true
 path = "tests/expected/byte_literals.rs"
+
+[[bin]]
+name = "with_open"
+test = true
+path = "tests/expected/with_open.rs"
