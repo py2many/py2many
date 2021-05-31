@@ -144,8 +144,10 @@ class ValueTypeVisitor(ast.NodeVisitor):
             return CLikeTranspiler().visit(node)
 
         var = node.scopes.find(node.id)
+        if not var:
+            return get_id(node)
         if defined_before(var, node):
-            return node.id
+            return get_id(node)
         else:
             return self.visit(var.assigned_from.value)
 
@@ -157,7 +159,11 @@ class ValueTypeVisitor(ast.NodeVisitor):
         if any(t is None for t in params):
             raise NotImplementedError(f"Call({params}) not implemented")
         params = ",".join(params)
-        return "{0}({1})".format(node.func.id, params)
+        return "{0}({1})".format(self.visit(node.func), params)
+
+    def visit_Attribute(self, node):
+        value_id = get_id(node.value)
+        return f"{value_id}.{node.attr}"
 
     def visit_Assign(self, node):
         if isinstance(node.value, ast.List):
@@ -166,9 +172,12 @@ class ValueTypeVisitor(ast.NodeVisitor):
                 return self.visit(val)
             else:
                 target = node.targets[0]
-                var = node.scopes.find(target.id)
-                first_added_value = var.calls[0].args[0]
-                return value_expr(first_added_value)
+                var = node.scopes.find(get_id(target))
+                if hasattr(var, "calls"):
+                    first_added_value = var.calls[0].args[0]
+                    return value_expr(first_added_value)
+                else:
+                    return None
         else:
             return self.visit(node.value)
 
@@ -211,6 +220,6 @@ class RecursionFinder(ast.NodeVisitor):
 
     def visit_Call(self, node):
         self.recursive = (
-            isinstance(node.func, ast.Name) and node.func.id == self.function_name
+            isinstance(node.func, ast.Name) and get_id(node.func) == self.function_name
         )
         self.generic_visit(node)

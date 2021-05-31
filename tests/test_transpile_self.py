@@ -131,7 +131,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=NotImplementedError,
         )
-        assert len(successful) == 9  # The __init__.py
+        assert len(successful) == 10
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -143,7 +143,7 @@ class SelfTranspileTests(unittest.TestCase):
                 TypeError,
             ),
         )
-        assert len(successful) == 5
+        assert len(successful) == 8
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
