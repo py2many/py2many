@@ -36,6 +36,7 @@ c_uint64 = u64
 from py2many.analysis import get_id, IGNORED_MODULE_SET
 from typing import List, Optional, Tuple, Union
 
+os.path  # silence pyflakes
 
 symbols = {
     ast.Eq: "==",
@@ -116,6 +117,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._small_dispatch_map = {}
         self._small_usings_map = {}
         self._func_dispatch_table = {}
+        self._attr_dispatch_table = {}
 
     def headers(self, meta=None):
         return ""

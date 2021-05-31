@@ -157,6 +157,10 @@ DECORATOR_DISPATCH_TABLE = {ap_dataclass: RustTranspilerPlugins.visit_ap_datacla
 
 CLASS_DISPATCH_TABLE = {ap_dataclass: RustTranspilerPlugins.visit_argparse_dataclass}
 
+ATTR_DISPATCH_TABLE = {
+    "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
+}
+
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
@@ -164,11 +168,12 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
     # HACKs: remove all string based dispatch here, once we replace them with type based
     "parse_args": (lambda self, node, vargs: "::from_args()", False),
-    "temp_file.name": (lambda self, node, vargs: "temp_file.path()", False),
-    "f.read": (lambda self, node, vargs: "f.read_string", True),
-    "f.write": (lambda self, node, vargs: "f.write_string", True),
+    "f.read": (lambda self, node, vargs: "f.read_string()", True),
+    "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
+    "f.close": (lambda self, node, vargs: "drop(f)", False),
     open: (RustTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (RustTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_write, True),
+    os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
 }

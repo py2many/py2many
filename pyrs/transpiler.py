@@ -6,6 +6,7 @@ from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type, map_type
 from .plugins import (
+    ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
@@ -92,6 +93,7 @@ class RustTranspiler(CLikeTranspiler):
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def usings(self):
         if self._extension:
@@ -310,9 +312,9 @@ class RustTranspiler(CLikeTranspiler):
             return "{0}::{1}".format(value_id, attr)
 
         ret = f"{value_id}.{attr}"
-        if ret in self._func_dispatch_table:
-            ret, node.result_type = self._func_dispatch_table[ret]
-            return ret(self, node, [])
+        if ret in self._attr_dispatch_table:
+            ret = self._attr_dispatch_table[ret]
+            return ret(self, node, value_id, attr)
         return ret
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
