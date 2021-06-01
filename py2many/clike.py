@@ -395,19 +395,23 @@ class CLikeTranspiler(ast.NodeVisitor):
         buf.append("})")
         return "\n".join(buf)
 
-    def visit_If(self, node, use_parens=True):
-        buf = []
+    @staticmethod
+    def is_block(node):
         # if True: s1; s2  should be transpiled into ({s1; s2;})
         # such that the value of the expression is s2
         # This is a idiom used by rewriters to transform a single ast Node s0
         # into multiple statements s1, s2
-        make_block = (
+        return (
             isinstance(node.test, ast.Constant)
             and node.test.value == True
             and node.orelse == []
             and hasattr(node, "rewritten")
             and node.rewritten
         )
+
+    def visit_If(self, node, use_parens=True):
+        buf = []
+        make_block = self.is_block(node)
         if make_block:
             return self._make_block(node)
         else:

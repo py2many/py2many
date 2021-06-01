@@ -99,10 +99,8 @@ fun show() {
     val _escape_quotes = " foo \"bar\" baz "
     assert("bbc" in "aaabbccc")
     assert((1 != 0))
-    if (true) {
-        2
-        val (_c1, _c2) = Pair(1, 3)
-    }
+    2
+    val (_c1, _c2) = Pair(1, 3)
 }
 
 fun main(argv: Array<String>) {

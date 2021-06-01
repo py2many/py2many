@@ -53,6 +53,7 @@ from py2many.rewriters import (
     StrStrRewriter,
     WithToBlockTransformer,
     IgnoredAssignRewriter,
+    UnpackScopeRewriter,
 )
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
@@ -105,7 +106,11 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
     for tx in transformers:
         tx(tree)
     # Language independent rewriters that run after type inference
-    generic_post_rewriters = [PrintBoolRewriter(language), StrStrRewriter(language)]
+    generic_post_rewriters = [
+        PrintBoolRewriter(language),
+        StrStrRewriter(language),
+        UnpackScopeRewriter(language),
+    ]
     for rewriter in generic_post_rewriters:
         tree = rewriter.visit(tree)
     # Language specific rewriters that depend on previous steps

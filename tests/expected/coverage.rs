@@ -115,10 +115,8 @@ pub fn show() {
     let _escape_quotes: &'static str = " foo \"bar\" baz ";
     assert!("aaabbccc".contains("bbc"));
     assert!((1 != 0));
-    ({
-        2;
-        let (_c1, _c2) = (1, 3);
-    });
+    2;
+    let (_c1, _c2) = (1, 3);
 }
 
 pub fn main() -> Result<(), std::io::Error> {

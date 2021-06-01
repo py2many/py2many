@@ -2,6 +2,7 @@ import ast
 import textwrap
 
 from py2many.analysis import get_id
+from py2many.clike import CLikeTranspiler
 from py2many.inference import get_inferred_type
 
 from typing import Optional
@@ -102,6 +103,8 @@ class WithToBlockTransformer(ast.NodeTransformer):
             test=ast.Constant(value=True), body=node.body, orelse=[], lineno=node.lineno
         )
         ret.rewritten = True
+        # Hint to UnpackScopeRewriter below to leave the new scope alone
+        ret.unpack = False
         ast.fix_missing_locations(ret)
         return ret
 
@@ -362,4 +365,40 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
             ret.rewritten = True
             ast.fix_missing_locations(ret)
             return ret
+        return node
+
+
+class UnpackScopeRewriter(ast.NodeTransformer):
+    def __init__(self, language):
+        super().__init__()
+        self._language = language
+
+    def _visit_body(self, body):
+        unpacked = []
+        for s in body:
+            do_unpack = getattr(s, "unpack", True)
+            if isinstance(s, ast.If) and CLikeTranspiler.is_block(s) and do_unpack:
+                unpacked.extend(self._visit_body(s.body))
+            else:
+                unpacked.append(s)
+        return unpacked
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        node.body = self._visit_body(node.body)
+        return node
+
+    def visit_For(self, node: ast.For) -> ast.For:
+        node.body = self._visit_body(node.body)
+        return node
+
+    def visit_If(self, node: ast.If) -> ast.If:
+        node.body = self._visit_body(node.body)
+        return node
+
+    def visit_With(self, node: ast.With) -> ast.With:
+        node.body = self._visit_body(node.body)
+        return node
+
+    def visit_While(self, node: ast.With) -> ast.With:
+        node.body = self._visit_body(node.body)
         return node

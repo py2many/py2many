@@ -91,12 +91,9 @@ show() {
   final String _escape_quotes = " foo \"bar\" baz ";
   assert("aaabbccc".contains("bbc"));
   assert((1 != 0));
-
-  {
-    final int _c1 = 1;
-    2;
-    final int _c2 = 3;
-  }
+  final int _c1 = 1;
+  2;
+  final int _c2 = 3;
 }
 
 main(List<String> argv) {
