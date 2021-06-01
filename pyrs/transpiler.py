@@ -663,23 +663,27 @@ class RustTranspiler(CLikeTranspiler):
         return buf
 
     def visit_Try(self, node, finallybody=None):
-        buf = self.visit_unsupported_body("try_dummy", node.body)
+        # buf = self.visit_unsupported_body("try_dummy", node.body)
+        buf = ["if true {"]
+        buf += [self.visit(n) for n in node.body]
 
         for handler in node.handlers:
             buf += self.visit(handler)
         # buf.append("\n".join(excepts));
 
         if finallybody:
-            buf += self.visit_unsupported_body("finally_dummy", finallybody)
+            buf += [self.visit(n) for n in finallybody]
 
+        buf += ["}"]
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node):
         exception_type = ""
         if node.type:
             exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
+        name = "// except!({0})".format(exception_type)
         body = self.visit_unsupported_body(name, node.body)
+        body = [self.comment(b) for b in body]
         return body
 
     def visit_Assert(self, node):
