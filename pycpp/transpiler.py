@@ -4,12 +4,23 @@ import textwrap
 
 from .tracer import decltype
 from .clike import CLikeTranspiler
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
 
+
+from py2many.analysis import add_imports, is_global, is_void_function, get_id
+from py2many.clike import class_for_typename
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
-from py2many.analysis import add_imports, is_global, is_void_function, get_id
 from py2many.rewriters import PythonMainRewriter
 from py2many.tracer import (
     defined_before,
@@ -117,6 +128,11 @@ class CppTranspiler(CLikeTranspiler):
         self._container_type_map = self.CONTAINER_TYPES
         self._extension = extension
         self._no_prologue = no_prologue
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -243,6 +259,16 @@ class CppTranspiler(CLikeTranspiler):
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
+
+        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
 
         buf = [f"class {node.name} {{"]
         buf += ["public:"]
@@ -540,6 +566,15 @@ class CppTranspiler(CLikeTranspiler):
         return f'#include "{name}.h"'
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
+        if len(names) == 1:
+            # TODO: make this more generic so it works for len(names) > 1
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                cpp_module_name, _ = MODULE_DISPATCH_TABLE[lookup]
+                cpp_module_name = cpp_module_name.replace(".", "::")
+                return f'#include "{cpp_module_name}.h"'
+        module_name = module_name.replace(".", "::")
         return f'#include "{module_name}.h"'
 
     def _get_element_type(self, node):

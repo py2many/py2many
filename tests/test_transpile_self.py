@@ -161,7 +161,7 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if FileNotFoundError not in suppress_exceptions:
-            assert len(successful) == 1  # The __init__.py
+            assert len(successful) == 2
 
         suppress_exceptions = suppress_exceptions + (ValueError,)
         successful, format_errors, failures = _process_dir(

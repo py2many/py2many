@@ -4,10 +4,20 @@ import textwrap
 
 from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
 
 from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.clike import class_for_typename
 from py2many.inference import get_inferred_type
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 from typing import Optional, List
 
@@ -41,6 +51,11 @@ class DartTranspiler(CLikeTranspiler):
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._default_type = "var"
         self._temp = 0
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def _get_temp(self):
         self._temp += 1
@@ -333,6 +348,16 @@ class DartTranspiler(CLikeTranspiler):
         if ret is not None:
             return ret
 
+        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
+
         fields = []
         index = 0
         constructor = ""
@@ -421,6 +446,14 @@ class DartTranspiler(CLikeTranspiler):
         return f'import "{name}";'
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
+        if len(names) == 1:
+            # TODO: make this more generic so it works for len(names) > 1
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                dart_module_name, dart_name = MODULE_DISPATCH_TABLE[lookup]
+                dart_module_name = dart_module_name.replace(".", "::")
+                return f"import {dart_module_name};  // {dart_name}"
         module_name = module_name.replace(".", "::")
         names = ", ".join(names)
         return f'import "{module_name}";  // {names}'

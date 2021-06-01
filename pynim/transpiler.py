@@ -2,10 +2,21 @@ import ast
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_nim_type
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
+
+from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before
 
-from py2many.analysis import get_id, is_mutable, is_void_function
 from typing import Optional, List
 
 
@@ -42,6 +53,11 @@ class NimTranspiler(CLikeTranspiler):
         self._container_type_map = self.CONTAINER_TYPE_MAP
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -324,6 +340,16 @@ class NimTranspiler(CLikeTranspiler):
         if ret is not None:
             return ret
 
+        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
+
         fields = []
         index = 0
         for declaration, typename in declarations.items():
@@ -390,6 +416,13 @@ class NimTranspiler(CLikeTranspiler):
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
         names = ", ".join(names)
+        if len(names) == 1:
+            # TODO: make this more generic so it works for len(names) > 1
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                nim_module_name, nim_name = MODULE_DISPATCH_TABLE[lookup]
+                return f"from {nim_module_name} import {nim_name}"
         return f"from {module_name} import {names}"
 
     def visit_List(self, node):

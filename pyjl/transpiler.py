@@ -1,11 +1,22 @@
 import ast
 import textwrap
 
-from .clike import CLikeTranspiler
 from .declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
+from .clike import CLikeTranspiler
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
 
 from py2many.analysis import get_id, is_void_function
+from py2many.clike import class_for_typename
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
+
 from typing import Optional, List, Tuple
 
 
@@ -44,6 +55,11 @@ class JuliaTranspiler(CLikeTranspiler):
         self._headers = set([])
         self._default_type = None
         self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -334,6 +350,16 @@ class JuliaTranspiler(CLikeTranspiler):
         if ret is not None:
             return ret
 
+        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
+
         fields = []
         index = 0
         for declaration, typename in declarations.items():
@@ -400,6 +426,14 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
+        if len(names) == 1:
+            # TODO: make this more generic so it works for len(names) > 1
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
+                jl_module_name = jl_module_name.replace(".", "::")
+                return f"using {jl_module_name}: {jl_name}"
         module_name = module_name.replace(".", "::")
         names = ", ".join(names)
         return f"using {module_name}: {names}"

@@ -1,5 +1,4 @@
 import ast
-from py2many.clike import class_for_typename
 import textwrap
 
 from .clike import CLikeTranspiler
@@ -22,6 +21,7 @@ from py2many.analysis import (
     is_mutable,
     is_void_function,
 )
+from py2many.clike import class_for_typename
 from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
