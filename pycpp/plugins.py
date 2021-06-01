@@ -2,7 +2,6 @@ import io
 import os
 import ast
 import functools
-import textwrap
 
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
@@ -62,37 +61,51 @@ class CppTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
-        elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
-        elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
+        lint_exception = (
+            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
         )
+        self._headers.append(f'#include "pycpp/runtime/range.hpp"{lint_exception}')
+        args = ", ".join(vargs)
+        return f"rangepp::xrange({args})"
 
     def visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
+        self._usings.add("<iostream>")
+        buf = []
         for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
+            value = self.visit(n)
+            if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
+                buf.append(
+                    "std::cout << {0};".format(
+                        " << ".join([self.visit(el) for el in n.elts])
+                    )
+                )
+            else:
+                buf.append("std::cout << {0};".format(value))
+            buf.append('std::cout << " ";')
+        return "\n".join(buf[:-1]) + "\nstd::cout << std::endl;"
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
-        self._usings.add("std::cmp")
         min_max = "max" if is_max else "min"
-        self._typename_from_annotation(node.args[0])
+        t1 = self._typename_from_annotation(node.args[0])
+        t2 = None
+        if len(node.args) > 1:
+            t2 = self._typename_from_annotation(node.args[1])
         if hasattr(node.args[0], "container_type"):
-            node.result_type = True
-            return f"{vargs[0]}.iter().{min_max}()"
+            self._usings.add("<algorithm>")
+            return f"*std::{min_max}_element({vargs[0]}.begin(), {vargs[0]}.end());"
         else:
+            # C++ can't deal with max(1, size_t)
+            if t1 == "int" and t2 == self._default_type:
+                vargs[0] = f"static_cast<size_t>({vargs[0]})"
             all_vargs = ", ".join(vargs)
-            return f"cmp::{min_max}({all_vargs})"
+            return f"std::{min_max}({all_vargs})"
 
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
-        return f"{vargs[0]} as {cast_to}"
+        return f"static_cast<{cast_to}>({vargs[0]})"
+
+    def visit_floor(node, vargs) -> str:
+        return f"static_cast<size_t>(floor({vargs[0]}))"
 
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
@@ -101,24 +114,20 @@ class CppTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"&{vargs[0]}.to_string()",
-    "len": lambda n, vargs: f"{vargs[0]}.len()",
-    "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
-    "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
-    "int": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="i32"),
-    "bool": lambda n, vargs: f"({vargs[0]} != 0)",
-    "float": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="f64"),
-    # as usize below is a hack to pass comb_sort.rs. Need a better solution
-    "floor": lambda n, vargs: f"{vargs[0]}.floor() as usize",
-    "reversed": lambda n, vargs: f"{vargs[0]}.iter().rev()",
-    "map": lambda n, vargs: f"{vargs[1]}.iter().map({vargs[0]})",
-    "filter": lambda n, vargs: f"{vargs[1]}.into_iter().filter({vargs[0]})",
-    "list": lambda n, vargs: f"{vargs[0]}.collect::<Vec<_>>()",
-    "asyncio.run": CppTranspilerPlugins.visit_asyncio_run,
+    "int": lambda n, vargs: f"pycpp::to_int({vargs[0]})",
+    # Is pycpp::to_int() necessary?
+    # "int": functools.partial(visit_cast, cast_to="i32"),
+    "str": lambda n, vargs: f"std::to_string({vargs[0]})",
+    "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})",
+    "len": lambda n, vargs: f"{vargs[0]}.size()",
+    "float": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="float"),
+    "max": functools.partial(CppTranspilerPlugins.visit_min_max, is_max=True),
+    "min": functools.partial(CppTranspilerPlugins.visit_min_max, is_min=True),
+    "floor": CppTranspilerPlugins.visit_floor,
 }
 
 SMALL_USINGS_MAP = {
-    "asyncio.run": "futures::executor::block_on",
+    "floor": "<math.h>",
 }
 
 DISPATCH_MAP = {

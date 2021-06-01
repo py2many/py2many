@@ -1,5 +1,4 @@
 import ast
-import functools
 import textwrap
 
 from .tracer import decltype
@@ -31,7 +30,7 @@ from py2many.tracer import (
     is_self_arg,
 )
 
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 
 
 # TODO: merge this into py2many.cli.transpiler and fixup the tests
@@ -353,88 +352,6 @@ class CppTranspiler(CLikeTranspiler):
 
             """
         )
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        def visit_range(node, vargs: List[str]) -> str:
-            lint_exception = (
-                "  // NOLINT(build/include_order)" if not self._no_prologue else ""
-            )
-            self._headers.append(f'#include "pycpp/runtime/range.hpp"{lint_exception}')
-            args = ", ".join(vargs)
-            return f"rangepp::xrange({args})"
-
-        def visit_print(node, vargs: List[str]) -> str:
-            self._usings.add("<iostream>")
-            buf = []
-            for n in node.args:
-                value = self.visit(n)
-                if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
-                    buf.append(
-                        "std::cout << {0};".format(
-                            " << ".join([self.visit(el) for el in n.elts])
-                        )
-                    )
-                else:
-                    buf.append("std::cout << {0};".format(value))
-                buf.append('std::cout << " ";')
-            return "\n".join(buf[:-1]) + "\nstd::cout << std::endl;"
-
-        dispatch_map = {
-            "range": visit_range,
-            "xrange": visit_range,
-            "print": visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_min_max(is_max: bool) -> str:
-            min_max = "max" if is_max else "min"
-            t1 = self._typename_from_annotation(node.args[0])
-            t2 = None
-            if len(node.args) > 1:
-                t2 = self._typename_from_annotation(node.args[1])
-            if hasattr(node.args[0], "container_type"):
-                self._usings.add("<algorithm>")
-                return f"*std::{min_max}_element({vargs[0]}.begin(), {vargs[0]}.end());"
-            else:
-                # C++ can't deal with max(1, size_t)
-                if t1 == "int" and t2 == self._default_type:
-                    vargs[0] = f"static_cast<size_t>({vargs[0]})"
-                all_vargs = ", ".join(vargs)
-                return f"std::{min_max}({all_vargs})"
-
-        def visit_cast(cast_to: str) -> str:
-            return f"static_cast<{cast_to}>({vargs[0]})"
-
-        def visit_floor() -> str:
-            self._usings.add("<math.h>")
-            return f"static_cast<size_t>(floor({vargs[0]}))"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "int": lambda: f"pycpp::to_int({vargs[0]})",
-            # Is pycpp::to_int() necessary?
-            # "int": functools.partial(visit_cast, cast_to="i32"),
-            "str": lambda: f"std::to_string({vargs[0]})",
-            "bool": lambda: f"static_cast<bool>({vargs[0]})",
-            "len": lambda: f"{vargs[0]}.size()",
-            "float": functools.partial(visit_cast, cast_to="float"),
-            "max": functools.partial(visit_min_max, is_max=True),
-            "min": functools.partial(visit_min_max, is_min=True),
-            "floor": visit_floor,
-            # "enumerate": lambda: f"{vargs[0]}.iter().enumerate()",
-            # "sum": lambda: f"{vargs[0]}.iter().sum()",
-            # # as usize below is a hack to pass comb_sort.rs. Need a better solution
-            # "reversed": lambda: f"{vargs[0]}.iter().rev()",
-            # "map": lambda: f"{vargs[1]}.iter().map({vargs[0]})",
-            # "filter": lambda: f"{vargs[1]}.into_iter().filter({vargs[0]})",
-            # "list": lambda: f"{vargs[0]}.collect::<Vec<_>>()",
-        }
-
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
