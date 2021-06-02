@@ -12,10 +12,6 @@ def decltype(node):
     pass
 
 
-def is_builtin_import(name):
-    return name == "sys" or name == "math"
-
-
 # is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:

@@ -2,6 +2,9 @@ import io
 import os
 import ast
 import functools
+import math
+import random
+import time
 
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
@@ -100,6 +103,10 @@ class CppTranspilerPlugins:
             all_vargs = ", ".join(vargs)
             return f"std::{min_max}({all_vargs})"
 
+    def visit_random(self, node, vargs) -> str:
+        self._usings.add("<cstdlib>")
+        return "(static_cast<float>(rand()) / static_cast<float>(RAND_MAX))"
+
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
         return f"static_cast<{cast_to}>({vargs[0]})"
@@ -138,7 +145,10 @@ DISPATCH_MAP = {
     "print": CppTranspilerPlugins.visit_print,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE = {
+    "time": "<chrono>",
+    "random": "<cstdlib>",
+}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_ap_dataclass}
 
@@ -146,6 +156,9 @@ CLASS_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_argparse_datacl
 
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
+    "sys.argv": lambda self, node, value, attr: "pycpp::sys::argv",
+    "math.pi": lambda self, node, value, attr: "pycpp::math::pi",
+    "math.e": lambda self, node, value, attr: "pycpp::math::e",
 }
 
 FuncType = Union[Callable, str]
@@ -162,5 +175,19 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     NamedTemporaryFile: (CppTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_write, True),
+    math.asin: (lambda self, node, vargs: f"std::asin({vargs[0]})", False),
+    math.acos: (lambda self, node, vargs: f"std::acos({vargs[0]})", False),
+    math.cos: (lambda self, node, vargs: f"std::cos({vargs[0]})", False),
+    math.atan: (lambda self, node, vargs: f"std::atan({vargs[0]})", False),
+    math.pow: (lambda self, node, vargs: f"std::pow({vargs[0]}, {vargs[1]})", False),
+    random.random: (CppTranspilerPlugins.visit_random, False),
+    random.seed: (
+        lambda self, node, vargs: f"srand(static_cast<int>({vargs[0]}))",
+        False,
+    ),
+    time.time: (
+        lambda self, node, vargs: "(std::chrono::system_clock::now().time_since_epoch())",
+        False,
+    ),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
 }

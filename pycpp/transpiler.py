@@ -23,7 +23,6 @@ from py2many.scope import add_scope_context
 from py2many.rewriters import PythonMainRewriter
 from py2many.tracer import (
     defined_before,
-    is_builtin_import,
     is_class_or_module,
     is_enum,
     is_list,
@@ -221,15 +220,6 @@ class CppTranspiler(CLikeTranspiler):
     def visit_Attribute(self, node):
         attr = node.attr
         value_id = self.visit(node.value)
-        if is_builtin_import(value_id):
-            return "pycpp::" + value_id + "::" + attr
-        elif value_id == "math":
-            if node.attr == "asin":
-                return "std::asin"
-            elif node.attr == "atan":
-                return "std::atan"
-            elif node.attr == "acos":
-                return "std::acos"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -247,7 +237,12 @@ class CppTranspiler(CLikeTranspiler):
         if is_self_arg(value_id, node.scopes):
             return f"this->{attr}"
 
-        return f"{value_id}.{attr}"
+        ret = f"{value_id}.{attr}"
+        if ret in self._attr_dispatch_table:
+            ret = self._attr_dispatch_table[ret]
+            return ret(self, node, value_id, attr)
+
+        return ret
 
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(CppTranspiler())
@@ -480,6 +475,9 @@ class CppTranspiler(CLikeTranspiler):
             return super().visit_BinOp(node)
 
     def _import(self, name: str) -> str:
+        name = MODULE_DISPATCH_TABLE[name] if name in MODULE_DISPATCH_TABLE else name
+        if "<" in name:
+            return f"#include {name}"
         return f'#include "{name}.h"'
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
