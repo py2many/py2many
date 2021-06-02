@@ -413,7 +413,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id="float")
                 return node
 
-            raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+            err = TypeError(f"{left_id} {type(node.op)} {right_id}")
+            err.lineno, err.col_offset = node.lineno, node.col_offset
+            raise err
 
         return node
 
