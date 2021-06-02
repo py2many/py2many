@@ -3,7 +3,6 @@ import functools
 import textwrap
 
 from .clike import CLikeTranspiler
-from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_go_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -16,6 +15,7 @@ from .plugins import (
 )
 
 from py2many.analysis import get_id, is_global, is_void_function
+from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import class_for_typename
 from py2many.rewriters import capitalize_first, rename, camel_case
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum

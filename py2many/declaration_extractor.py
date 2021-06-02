@@ -8,11 +8,6 @@ class DeclarationExtractor(ast.NodeVisitor):
         self.already_annotated = {}
         self.class_assignments = {}
         self.typed_vars = {}
-        self._type_map = {}
-
-    # See rust for a concrete implementation
-    def type_by_initialization(self, init_str):
-        return None
 
     def get_declarations(self):
         # strip out default values for backward compat with callers
@@ -26,7 +21,7 @@ class DeclarationExtractor(ast.NodeVisitor):
 
         for member, value in self.class_assignments.items():
             if member not in typed_members:
-                typed_members[member] = self.type_by_initialization(value)
+                typed_members[member] = self.transpiler._typename_from_annotation(value)
 
         return typed_members
 
@@ -41,7 +36,10 @@ class DeclarationExtractor(ast.NodeVisitor):
 
         for member, value in self.class_assignments.items():
             if member not in typed_members:
-                typed_members[member] = (self.type_by_initialization(value), None)
+                typed_members[member] = (
+                    self.transpiler._typename_from_annotation(value),
+                    None,
+                )
 
         return typed_members
 

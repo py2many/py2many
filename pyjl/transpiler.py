@@ -1,7 +1,6 @@
 import ast
 import textwrap
 
-from .declaration_extractor import DeclarationExtractor
 from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -14,6 +13,7 @@ from .plugins import (
 )
 
 from py2many.analysis import get_id, is_void_function
+from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 

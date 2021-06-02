@@ -2,7 +2,6 @@ import ast
 import textwrap
 
 from .clike import CLikeTranspiler
-from .declaration_extractor import DeclarationExtractor
 from .inference import get_inferred_rust_type, map_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -22,6 +21,7 @@ from py2many.analysis import (
     is_void_function,
 )
 from py2many.clike import class_for_typename
+from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 

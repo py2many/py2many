@@ -42,7 +42,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
         )
-        assert len(successful) == 2
+        assert len(successful) == 1
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -79,7 +79,7 @@ class SelfTranspileTests(unittest.TestCase):
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert len(successful) == 3
+        assert len(successful) == 1
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]

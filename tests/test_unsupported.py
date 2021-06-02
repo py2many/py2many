@@ -125,6 +125,7 @@ EXPECTED_SUCCESSES = [
     "complex_dict.nim",
     "complex_dict.rs",
     "del.rs",
+    "default_init.dart",
     "dict_get.kt",
     "dict_get_default.jl",
     "dict_keys.dart",
