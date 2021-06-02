@@ -438,7 +438,14 @@ def main(args=None, env=os.environ):
 
         if source.is_file():
             print(f"Writing to: {outdir}")
-            rv = _process_once(settings, source, outdir, env=env)
+            try:
+                rv = _process_once(settings, source, outdir, env=env)
+            except Exception as e:
+                import traceback
+
+                formatted_lines = traceback.format_exc().splitlines()
+                print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                rv = False
         else:
             if args.outdir is None:
                 outdir = source.parent / f"{source.name}-py2many"
