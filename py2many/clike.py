@@ -125,6 +125,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._small_usings_map = {}
         self._func_dispatch_table = {}
         self._attr_dispatch_table = {}
+        self._keywords = {}
 
     def headers(self, meta=None):
         return ""

@@ -339,10 +339,14 @@ class RustTranspiler(CLikeTranspiler):
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)
+                if decl in self._keywords:
+                    decl += "_"
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
             for kw in node.keywords:
                 value = self.visit(kw.value)
+                if kw.arg in self._keywords:
+                    kw.arg += "_"
                 vargs += [f"{kw.arg}: {value}"]
         args = ", ".join(vargs)
         return f"{fname}{{{args}}}"
@@ -492,6 +496,19 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
+    def visit_sealed_class(self, node):
+        variants = []
+        for member, var in node.class_assignments.items():
+            member_id = get_id(member)
+            typename = node.declarations_with_defaults.get(member_id, None)
+            if typename == None:
+                variants.append(f"{member_id},")
+            else:
+                typename, _ = typename
+                variants.append(f"{member_id}({typename}),")
+        body_str = "\n".join(variants)
+        return f"enum {node.name} {{ {body_str} }}"
+
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
@@ -503,6 +520,10 @@ class RustTranspiler(CLikeTranspiler):
             return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
+        if "sealed" in decorators:
+            # TODO: handle cases where sealed is stacked with other decorators
+            return self.visit_sealed_class(node)
+
         decorators = [
             class_for_typename(t, None, self._imported_names) for t in decorators
         ]
