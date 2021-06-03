@@ -690,10 +690,21 @@ class RustTranspiler(CLikeTranspiler):
     def visit_Assert(self, node):
         return "assert!({0});".format(self.visit(node.test))
 
+    def _compute_kw(self, node, target) -> str:
+        kw = "let"
+        mut = is_mutable(node.scopes, get_id(target))
+        if is_global(node) or getattr(node, "class_assignment", False):
+            # Note that static are not really supported, as modifying them requires adding
+            # "unsafe" blocks, which pyrs does not do.
+            kw = "pub static" if mut else "pub const"
+        elif mut:
+            kw = "let mut"
+        return kw
+
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        mut = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
-        return f"let {mut}{target}: {type_str} = {val};"
+        kw = self._compute_kw(node, node.target)
+        return f"{kw} {target}: {type_str} = {val};"
 
     def _needs_cast(self, left, right) -> bool:
         if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
@@ -725,14 +736,7 @@ class RustTranspiler(CLikeTranspiler):
         return f"{target_str} {op}= {value};"
 
     def _visit_AssignOne(self, node, target):
-        kw = "let"
-        mut = is_mutable(node.scopes, get_id(target))
-        if is_global(node):
-            # Note that static are not really supported, as modifying them requires adding
-            # "unsafe" blocks, which pyrs does not do.
-            kw = "pub static" if mut else "pub const"
-        elif mut:
-            kw = "let mut"
+        kw = self._compute_kw(node, target)
 
         if isinstance(target, ast.Tuple):
             elts = ", ".join([self.visit(e) for e in target.elts])
