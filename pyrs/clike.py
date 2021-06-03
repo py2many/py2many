@@ -11,7 +11,7 @@ from .inference import (
 
 
 # allowed as names in Python but treated as keywords in Rust
-rust_keywords = frozenset(
+RUST_KEYWORDS = frozenset(
     [
         "struct",
         "type",
@@ -38,6 +38,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = RUST_TYPE_MAP
+        self._keywords = RUST_KEYWORDS
 
     def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
         ret = super()._map_type(typename, lifetime)
@@ -47,7 +48,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         return ret
 
     def visit_Name(self, node):
-        if node.id in rust_keywords:
+        if node.id in self._keywords:
             return node.id + "_"
         return super().visit_Name(node)
 

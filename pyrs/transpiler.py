@@ -294,6 +294,8 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node):
         attr = node.attr
+        if attr in self._keywords:
+            attr = attr + "_"
 
         value_id = self.visit(node.value)
 

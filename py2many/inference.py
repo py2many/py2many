@@ -420,7 +420,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                 ("List", ast.Add),
             }
 
-            if (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
+            if (
+                left_id is not None
+                and (left_id, type(node.op)) not in LEGAL_COMBINATIONS
+            ):
                 err = TypeError(f"{left_id} {type(node.op)} {right_id}")
                 err.lineno, err.col_offset = node.lineno, node.col_offset
                 raise err
