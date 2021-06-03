@@ -152,7 +152,18 @@ class InferRustTypesTransformer(ast.NodeTransformer):
                 node.rust_annotation = map_type("float")
                 return node
 
-            raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+            LEGAL_COMBINATIONS = {
+                ("str", ast.Mult),
+                ("str", ast.Mod),
+                ("List", ast.Add),
+            }
+
+            if (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
+                err = TypeError(f"{left_id} {type(node.op)} {right_id}")
+                err.lineno, err.col_offset = node.lineno, node.col_offset
+                raise err
+
+        return node
 
     def visit_FunctionDef(self, node):
         node.no_return = True

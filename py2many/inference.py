@@ -199,11 +199,12 @@ class InferTypesTransformer(ast.NodeTransformer):
             elements = [self.visit(e) for e in node.elts]
             elt_types = set([get_id(get_inferred_type(e)) for e in elements])
             if len(elt_types) == 1:
-                elt_type = get_id(elements[0].annotation)
-                self._annotate(node, f"Set[{elt_type}]")
-        else:
-            if not hasattr(node, "annotation"):
-                node.annotation = ast.Name(id="Set")
+                if hasattr(elements[0], "annotation"):
+                    elt_type = get_id(elements[0].annotation)
+                    self._annotate(node, f"Set[{elt_type}]")
+                    return node
+        if not hasattr(node, "annotation"):
+            node.annotation = ast.Name(id="Set")
         return node
 
     def visit_Dict(self, node):
@@ -413,9 +414,16 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id="float")
                 return node
 
-            err = TypeError(f"{left_id} {type(node.op)} {right_id}")
-            err.lineno, err.col_offset = node.lineno, node.col_offset
-            raise err
+            LEGAL_COMBINATIONS = {
+                ("str", ast.Mult),
+                ("str", ast.Mod),
+                ("List", ast.Add),
+            }
+
+            if (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
+                err = TypeError(f"{left_id} {type(node.op)} {right_id}")
+                err.lineno, err.col_offset = node.lineno, node.col_offset
+                raise err
 
         return node
 

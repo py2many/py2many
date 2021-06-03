@@ -114,6 +114,7 @@ class ValueExpressionVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node):
         arg_strings = [self.visit(arg) for arg in node.args]
+        arg_strings = [a for a in arg_strings if a is not None]
         params = ",".join(arg_strings)
         return "{0}({1})".format(self.visit(node.func), params)
 

@@ -50,7 +50,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=False,
         )
-        assert len(successful) == 3
+        assert len(successful) == 4
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
@@ -79,7 +79,7 @@ class SelfTranspileTests(unittest.TestCase):
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert len(successful) == 1
+        assert len(successful) == 4
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
