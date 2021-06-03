@@ -421,6 +421,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_ClassDef(self, node):
         node.annotation = ast.Name(id=node.name)
+        self.generic_visit(node)
         return node
 
     def visit_Attribute(self, node):
