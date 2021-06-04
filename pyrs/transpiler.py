@@ -1,4 +1,5 @@
 import ast
+from py2many.rewriters import camel_case
 import textwrap
 
 from .clike import CLikeTranspiler
@@ -498,16 +499,43 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_sealed_class(self, node):
         variants = []
+        accessors = []
+        tag_checkers = []
+        camel_node_name = camel_case(node.name)
         for member, var in node.class_assignments.items():
             member_id = get_id(member)
+            camel_member_id = camel_case(member_id)
+            lower_member_id = member_id.lower()
             typename = node.declarations_with_defaults.get(member_id, None)
             if typename == None:
                 variants.append(f"{member_id},")
             else:
                 typename, _ = typename
                 variants.append(f"{member_id}({typename}),")
+            tag_check = textwrap.dedent(
+                f"""
+                    fn is_{lower_member_id}(&self) -> bool {{
+                        match *self {{
+                            {camel_node_name}::{camel_member_id}(_)=> true,
+                            _ => false,
+                        }}
+                    }}"""
+            )
+            tag_checkers.append(tag_check)
+            accessor = textwrap.dedent(
+                f"""
+                    fn {lower_member_id}(&self) -> Option<&{typename}>{{
+                        if let {camel_node_name}::{camel_member_id}(val) = self {{
+                            Some(val)
+                        }} else {{
+                            None
+                        }}
+                    }}"""
+            )
+            accessors.append(accessor)
         body_str = "\n".join(variants)
-        return f"enum {node.name} {{ {body_str} }}"
+        impl_str = "\n".join(accessors) + "\n" + "\n".join(tag_checkers)
+        return f"enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
 
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(RustTranspiler())

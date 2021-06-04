@@ -151,3 +151,8 @@ path = "tests/expected/byte_literals.rs"
 name = "with_open"
 test = true
 path = "tests/expected/with_open.rs"
+
+[[bin]]
+name = "sealed"
+test = true
+path = "tests/expected/sealed.rs"

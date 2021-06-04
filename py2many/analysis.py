@@ -13,6 +13,7 @@ IGNORED_MODULE_SET = set(
         "asyncio",
         "sys",
         "os",
+        "adt",
     ]
 )
 

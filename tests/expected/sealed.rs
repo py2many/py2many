@@ -1,0 +1,77 @@
+
+//! ```cargo
+//! [package]
+//! edition = "2018"
+//! [dependencies]
+//!
+//! ```
+
+#![allow(clippy::collapsible_else_if)]
+#![allow(clippy::double_parens)] // https://github.com/adsharma/py2many/issues/17
+#![allow(clippy::map_identity)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::print_literal)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::redundant_static_lifetimes)] // https://github.com/adsharma/py2many/issues/266
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::useless_vec)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+#![allow(non_upper_case_globals)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_parens)]
+
+pub struct Packet {
+    pub val: f64,
+}
+
+impl Packet {}
+enum Register {
+    PACKET(Packet),
+    VALUE(i32),
+}
+
+impl Register {
+    fn packet(&self) -> Option<&Packet> {
+        if let Register::PACKET(val) = self {
+            Some(val)
+        } else {
+            None
+        }
+    }
+
+    fn value(&self) -> Option<&i32> {
+        if let Register::VALUE(val) = self {
+            Some(val)
+        } else {
+            None
+        }
+    }
+
+    fn is_packet(&self) -> bool {
+        match *self {
+            Register::PACKET(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_value(&self) -> bool {
+        match *self {
+            Register::VALUE(_) => true,
+            _ => false,
+        }
+    }
+}
+
+pub fn main() -> Result<(), std::io::Error> {
+    let a: _ = Register::VALUE(10);
+    assert!(a.is_value());
+    a.value();
+    let b: _ = Register::PACKET(Packet { val: 1.3 });
+    assert!(b.is_packet());
+    b.packet();
+    println!("{}", "OK");
+    Ok(())
+}
