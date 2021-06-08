@@ -124,6 +124,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._small_dispatch_map = {}
         self._small_usings_map = {}
         self._func_dispatch_table = {}
+        self._func_usings_map = {}
         self._attr_dispatch_table = {}
         self._keywords = {}
 
@@ -551,6 +552,8 @@ class CLikeTranspiler(ast.NodeVisitor):
 
         func = self._func_for_lookup(fname)
         if func is not None and func in self._func_dispatch_table:
+            if func in self._func_usings_map:
+                self._usings.add(self._func_usings_map[func])
             ret, node.result_type = self._func_dispatch_table[func]
             return ret(self, node, vargs)
 

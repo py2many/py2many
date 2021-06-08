@@ -8,6 +8,7 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
+    FUNC_USINGS_MAP,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
@@ -94,6 +95,7 @@ class RustTranspiler(CLikeTranspiler):
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._func_usings_map = FUNC_USINGS_MAP
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def usings(self):

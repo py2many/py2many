@@ -2,6 +2,9 @@ import io
 import os
 import ast
 import functools
+import math
+import time
+import random
 import textwrap
 
 from tempfile import NamedTemporaryFile
@@ -180,5 +183,24 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     NamedTemporaryFile: (RustTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_write, True),
+    math.pow: (lambda self, node, vargs: f"{vargs[0]}.powf({vargs[1]})", False),
+    math.sin: (lambda self, node, vargs: f"{vargs[0]}.sin()", False),
+    math.cos: (lambda self, node, vargs: f"{vargs[0]}.cos()", False),
+    math.tan: (lambda self, node, vargs: f"{vargs[0]}.tan()", False),
+    math.asin: (lambda self, node, vargs: f"{vargs[0]}.asin()", False),
+    math.acos: (lambda self, node, vargs: f"{vargs[0]}.acos()", False),
+    math.atan: (lambda self, node, vargs: f"{vargs[0]}.atan()", False),
+    time.time: (lambda self, node, vargs: "pylib::time()", False),
+    random.seed: (
+        lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
+        False,
+    ),
+    random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+}
+
+FUNC_USINGS_MAP = {
+    time.time: "pylib",
+    random.seed: "pylib",
+    random.random: "pylib",
 }
