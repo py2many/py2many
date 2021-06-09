@@ -493,9 +493,8 @@ class RustTranspiler(CLikeTranspiler):
             and isinstance(node.op, ast.Mult)
             and isinstance(node.right, ast.Num)
         ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
+            elt, n = self.visit(node.left.elts[0]), self.visit(node.right)
+            return f"vec![{elt};{n}]"
         else:
             return super().visit_BinOp(node)
 
