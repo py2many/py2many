@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! pylib = "*"
 //! tempfile = "*"
 //! ```
@@ -24,15 +25,18 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate pylib;
 extern crate tempfile;
+use anyhow::Result;
+use pylib::FileReadBytes;
 use pylib::FileReadString;
 use pylib::FileWriteString;
 use std::fs::File;
 use std::fs::OpenOptions;
 
 use tempfile::NamedTempFile;
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     ({
         let temp_file: _ = NamedTempFile::new()?;
         let file_path: _ = temp_file.path();
@@ -42,7 +46,9 @@ pub fn main() -> Result<(), std::io::Error> {
         });
         ({
             let mut f: _ = OpenOptions::new().read(true).open(file_path)?;
-            println!("{}", f.read_string()?);
+            assert!(std::str::from_utf8(&f.read_bytes(1)?)? == "h");
+            assert!(f.read_string()? == "ello");
+            println!("{}", "OK");
         });
     });
     Ok(())

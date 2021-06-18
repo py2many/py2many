@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! structopt = "*"
 //! ```
 
@@ -23,7 +24,9 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate structopt;
+use anyhow::Result;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -42,7 +45,7 @@ pub fn fib(i: i32) -> i32 {
     return (fib((i - 1)) + fib((i - 2)));
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     let mut args: _ = Options::from_args();
     if (args.n as i32) == 0 {
         args.n = 5;

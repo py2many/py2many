@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,9 +23,11 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
 use std::collections;
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     let a: i32 = 10;
     println!(
         "{}",

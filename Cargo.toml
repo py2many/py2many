@@ -6,6 +6,7 @@ edition = "2018"
 include = ["tests/ext_expected/*.rs"]
 
 [dependencies]
+anyhow = "*"
 flagset = "*"
 futures = "*"
 pyo3 = "*"

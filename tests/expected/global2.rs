@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! lazy_static = "*"
 //! ```
 
@@ -23,7 +24,9 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate lazy_static;
+use anyhow::Result;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -41,7 +44,7 @@ lazy_static! {
         .cloned()
         .collect::<HashMap<_, _>>();
 }
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     assert!(l_b.iter().any(|&x| x == "a"));
     println!("{}", "OK");
     Ok(())

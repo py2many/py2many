@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -22,6 +22,9 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(unused_parens)]
+
+extern crate anyhow;
+use anyhow::Result;
 
 /* This file implements a rectangle class  */
 
@@ -50,7 +53,7 @@ pub fn show() {
     println!("{}", r.length);
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     show();
     Ok(())
 }

@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,6 +23,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
 use std::collections;
 
 pub fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
@@ -41,7 +43,7 @@ pub fn bubble_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     return seq.to_vec();
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     let mut unsorted: &mut Vec<i32> = &mut vec![14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
     let expected: &Vec<i32> = &vec![5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
     assert!(bubble_sort(unsorted) == *expected);

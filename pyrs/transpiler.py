@@ -195,6 +195,8 @@ class RustTranspiler(CLikeTranspiler):
             args_list.append("&self")
 
         is_python_main = getattr(node, "python_main", False)
+        if is_python_main:
+            self._usings.add("anyhow::Result")
 
         typedecls = []
         index = 0
@@ -210,7 +212,7 @@ class RustTranspiler(CLikeTranspiler):
                 index += 1
             args_list.append("{0}: {1}".format(arg, typename))
 
-        return_type = "" if not is_python_main else "-> Result<(), std::io::Error>"
+        return_type = "" if not is_python_main else "-> Result<()>"
         if node.returns:
             typename = self._typename_from_annotation(node, attr="returns")
             if getattr(node.returns, "rust_needs_reference", False):

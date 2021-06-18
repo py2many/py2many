@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! strum = "*"
 //! strum_macros = "*"
 //! ```
@@ -24,8 +25,10 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate strum;
 extern crate strum_macros;
+use anyhow::Result;
 use std::collections::HashMap;
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
@@ -57,7 +60,7 @@ pub fn show() {
     println!("{}", color_map.len());
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     show();
     Ok(())
 }

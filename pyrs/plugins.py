@@ -74,6 +74,22 @@ class RustTranspilerPlugins:
         node.result_type = True
         return f"File::open({vargs[0]})"
 
+    def visit_read(self, node, vargs):
+        if len(vargs) == 0:
+            return "f.read_string()"
+        elif len(vargs) == 1:
+            self._usings.add("pylib::FileReadBytes")
+            return f"std::str::from_utf8(&f.read_bytes({vargs[0]})?)"
+        raise Exception("read() with more than one argument")
+
+    def visit_write(self, node, vargs):
+        if len(vargs) == 1:
+            return f"f.write_string({vargs[0]})"
+        elif len(vargs) == 2:
+            self._usings.add("pylib::FileWriteBytes")
+            return f"f.write_bytes({vargs[0]}, {vargs[1]})"
+        raise Exception("write() with more than one argument")
+
     def visit_named_temp_file(self, node, vargs):
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
         node.result_type = True
@@ -176,8 +192,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
     # HACKs: remove all string based dispatch here, once we replace them with type based
     "parse_args": (lambda self, node, vargs: "::from_args()", False),
-    "f.read": (lambda self, node, vargs: "f.read_string()", True),
-    "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
+    "f.read": (RustTranspilerPlugins.visit_read, True),
+    "f.write": (RustTranspilerPlugins.visit_write, True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
     open: (RustTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (RustTranspilerPlugins.visit_named_temp_file, True),

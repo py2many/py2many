@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,12 +23,15 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
+
 pub fn compare_assert(a: i32, b: i32) {
     assert!(a == b);
     assert!(!(0 == 1));
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     assert!(true);
     assert!(!(false));
     compare_assert(1, 1);

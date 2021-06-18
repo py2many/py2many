@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! futures = "*"
 //! ```
 
@@ -23,7 +24,9 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate futures;
+use anyhow::Result;
 use futures::executor::block_on;
 
 pub async fn nested() -> i32 {
@@ -35,7 +38,7 @@ pub async fn async_main() {
     println!("{}", "OK");
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     block_on(async_main());
     Ok(())
 }

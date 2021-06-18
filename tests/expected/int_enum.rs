@@ -3,6 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
+//! anyhow = "*"
 //! flagset = "*"
 //! ```
 
@@ -23,7 +24,9 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
 extern crate flagset;
+use anyhow::Result;
 use flagset::flags;
 use std::collections::HashMap;
 use std::os::raw::c_int;
@@ -67,7 +70,7 @@ pub fn show() {
     assert!((color_map.len() as i32) != 0);
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     show();
     Ok(())
 }

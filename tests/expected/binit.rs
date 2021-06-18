@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,6 +23,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
 use std::collections;
 
 pub fn bisect_right(data: &Vec<i32>, item: i32) -> i32 {
@@ -50,7 +52,7 @@ pub fn bin_it(limits: &Vec<i32>, data: &Vec<i32>) -> Vec<i32> {
     return bins.to_vec();
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     let limits: &Vec<i32> = &vec![23, 37, 43, 53, 67, 83];
     let data: &Vec<i32> = &vec![
         95, 21, 94, 12, 99, 4, 70, 75, 83, 93, 52, 80, 57, 5, 53, 86, 65, 17, 92, 83, 71, 61, 54,

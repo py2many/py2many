@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,6 +23,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
 use std::collections;
 use std::collections::HashMap;
 
@@ -34,7 +36,7 @@ pub fn nested_containers() -> bool {
     return CODES["KEY"].iter().any(|&x| x == 1);
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     if nested_containers() {
         println!("{}", "OK");
     }

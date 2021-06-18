@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -22,6 +22,9 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(unused_parens)]
+
+extern crate anyhow;
+use anyhow::Result;
 
 pub struct Packet {
     pub val: f64,
@@ -65,7 +68,7 @@ impl Register {
     }
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     let a: _ = Register::VALUE(10);
     assert!(a.is_value());
     a.value();
