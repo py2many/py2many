@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -22,6 +22,9 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(unused_parens)]
+
+extern crate anyhow;
+use anyhow::Result;
 
 pub fn test_python(iterations: i32) {
     let mut iteration: i32 = 0;
@@ -43,7 +46,7 @@ pub fn test_python(iterations: i32) {
     drop(array);
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     test_python(3);
     Ok(())
 }

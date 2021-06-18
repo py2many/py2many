@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,6 +23,9 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
+
 pub fn fib(i: i32) -> i32 {
     if i == 0 || i == 1 {
         return 1;
@@ -30,7 +33,7 @@ pub fn fib(i: i32) -> i32 {
     return (fib((i - 1)) + fib((i - 2)));
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     println!("{}", fib(5));
     Ok(())
 }

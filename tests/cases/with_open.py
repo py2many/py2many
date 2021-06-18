@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import os
 from tempfile import NamedTemporaryFile
 
 
@@ -10,4 +9,6 @@ if __name__ == "__main__":
         with open(file_path, "w") as f:
             f.write("hello")
         with open(file_path, "r") as f:
-            print(f.read())
+            assert f.read(1) == "h"
+            assert f.read() == "ello"
+            print("OK")

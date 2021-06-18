@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,7 +23,10 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
-pub fn main() -> Result<(), std::io::Error> {
+extern crate anyhow;
+use anyhow::Result;
+
+pub fn main() -> Result<()> {
     assert!(b"foo" != b"bar");
     assert!(b"\"" == b"\"");
     assert!(b"'" == b"'");

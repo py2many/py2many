@@ -3,7 +3,7 @@
 //! [package]
 //! edition = "2018"
 //! [dependencies]
-//!
+//! anyhow = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,6 +23,8 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+extern crate anyhow;
+use anyhow::Result;
 use std::collections;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -119,7 +121,7 @@ pub fn show() {
     let (_c1, _c2) = (1, 3);
 }
 
-pub fn main() -> Result<(), std::io::Error> {
+pub fn main() -> Result<()> {
     show();
     Ok(())
 }
