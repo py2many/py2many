@@ -17,12 +17,21 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-18.04
+          - ubuntu-20.04
           - macos-10.15
           - windows-2019
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: C++ sanity check for r${{ runner.os }}.
+        shell: bash
+        run: |
+          ls -l /usr/lib/llvm-10/include/c++/v1/cassert
+          sudo apt install libstdc++-10-dev
+          echo "#include <vector>" > /tmp/foo.cpp
+          echo "int main(int argc, char **argv) {}" >> /tmp/foo.cpp
+          clang++ -std=c++14 -stdlib=libc++ /tmp/foo.cpp
+
       - uses: actions/checkout@v2
       - uses: subosito/flutter-action@v1
         with:
@@ -77,6 +86,7 @@ jobs:
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install kscript
+
 
       - name: Install dart dependencies
         shell: bash
