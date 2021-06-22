@@ -33,7 +33,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=False,
         )
-        assert len(successful) == 4  # Four files transpile ok
+        assert len(successful) == 5  # Some files transpile ok
 
     def test_dart_recursive(self):
         settings = self.SETTINGS["dart"]
@@ -143,7 +143,7 @@ class SelfTranspileTests(unittest.TestCase):
                 TypeError,
             ),
         )
-        assert len(successful) == 8
+        assert len(successful) == 9
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
@@ -173,4 +173,4 @@ class SelfTranspileTests(unittest.TestCase):
         if FileNotFoundError in suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert len(successful) == 4
+        assert len(successful) == 5

@@ -14,6 +14,7 @@ IGNORED_MODULE_SET = set(
         "sys",
         "os",
         "adt",
+        "py2many.result",
     ]
 )
 

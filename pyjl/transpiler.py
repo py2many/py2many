@@ -366,7 +366,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append(f"{declaration}::{typename}".format(declaration, typename))
+            fields.append(f"{declaration}::{typename}")
 
         fields = "\n".join(fields)
         struct_def = f"struct {node.name}\n{fields}\nend\n"

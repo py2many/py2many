@@ -82,6 +82,7 @@ class RustTranspiler(CLikeTranspiler):
         "Dict": "HashMap",
         "Set": "HashSet",
         "Optional": "Option",
+        "Result": "Result",
     }
 
     def __init__(self, extension: bool = False, no_prologue: bool = False):
