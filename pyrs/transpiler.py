@@ -625,9 +625,8 @@ class RustTranspiler(CLikeTranspiler):
         )
 
     def _import(self, name: str) -> str:
-        if name in self._rust_ignored_module_set:
-            return ""
-        self._usings.add(name)
+        if name not in self._rust_ignored_module_set:
+            self._usings.add(name)
         return ""
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
