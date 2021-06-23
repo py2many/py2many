@@ -271,7 +271,7 @@ class GoTranspiler(CLikeTranspiler):
             "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
-    def visit_print(self, node, vargs: List[str]) -> str:
+    def _visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
             placeholders.append("%v")
@@ -284,7 +284,7 @@ class GoTranspiler(CLikeTranspiler):
         dispatch_map = {
             "range_": self.visit_range,
             "xrange": self.visit_range,
-            "print": self.visit_print,
+            "print": self._visit_print,
         }
 
         if fname in dispatch_map:

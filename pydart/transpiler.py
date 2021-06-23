@@ -174,7 +174,7 @@ class DartTranspiler(CLikeTranspiler):
 
         return f"([for(var i = {start}; i < {end}; i += {step}) i])"
 
-    def visit_print(self, node, vargs: List[str]) -> str:
+    def _visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
             placeholders.append("%s")
@@ -187,7 +187,7 @@ class DartTranspiler(CLikeTranspiler):
         dispatch_map = {
             "range": self.visit_range,
             "xrange": self.visit_range,
-            "print": self.visit_print,
+            "print": self._visit_print,
         }
 
         if fname in dispatch_map:

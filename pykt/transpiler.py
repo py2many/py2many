@@ -213,7 +213,7 @@ class KotlinTranspiler(CLikeTranspiler):
             "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
-    def visit_print(self, node, vargs: List[str]) -> str:
+    def _visit_print(self, node, vargs: List[str]) -> str:
         def _format(arg):
             if arg.isdigit():
                 return arg
@@ -229,7 +229,7 @@ class KotlinTranspiler(CLikeTranspiler):
         dispatch_map = {
             "range": self.visit_range,
             "xrange": self.visit_range,
-            "print": self.visit_print,
+            "print": self._visit_print,
         }
 
         if fname in dispatch_map:
