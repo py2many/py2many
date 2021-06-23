@@ -19,7 +19,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Arun Sharma",
     python_requires=">=3.8",
-    url="http://github.com/adsharma/py2many",
+    url="https://github.com/adsharma/py2many",
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
