@@ -1,0 +1,30 @@
+ignoreGeneratedHeader = false
+severity = "warning"
+confidence = 0.8  # 0.1 also works
+errorCode = 1
+warningCode = 1
+
+# Enable default rules per https://github.com/mgechev/revive/blob/master/defaults.toml
+[rule.blank-imports]
+[rule.context-as-argument]
+[rule.context-keys-type]
+[rule.dot-imports]
+[rule.error-return]
+[rule.error-strings]
+[rule.error-naming]
+[rule.if-return]
+[rule.range]
+[rule.receiver-naming]
+[rule.time-naming]
+[rule.unexported-return]
+[rule.indent-error-flow]
+[rule.errorf]
+
+# Except these rules which are unlikely to be relevant
+# [rule.package-comments]
+# [rule.exported]
+
+# And these rules failing due to generator issues
+# [rule.var-naming] - fails due to __tmp..
+# [rule.var-declaration]
+# [rule.increment-decrement]

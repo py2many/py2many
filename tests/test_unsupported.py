@@ -13,6 +13,8 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import _get_all_settings, _relative_to_cwd, transpile
 
+import py2many.cli
+
 from tests.test_cli import (
     BUILD_DIR,
     GENERATED_DIR,
@@ -189,6 +191,7 @@ class CodeGeneratorTests(unittest.TestCase):
     def setUp(self):
         os.makedirs(BUILD_DIR, exist_ok=True)
         os.chdir(BUILD_DIR)
+        py2many.cli.CWD = BUILD_DIR
 
     @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES.keys()))

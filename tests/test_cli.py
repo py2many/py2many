@@ -11,6 +11,8 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import _create_cmd, _get_all_settings, _relative_to_cwd, main
 
+import py2many.cli
+
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
 BUILD_DIR = TESTS_DIR / "build"
@@ -57,7 +59,7 @@ EXTENSION_TEST_CASES = [
     if not item.stem.startswith("test_")
 ]
 
-EXPECTED_LINT_FAILURES = ["int_enum.go", "rect.go", "str_enum.go"]
+EXPECTED_LINT_FAILURES = []
 
 EXPECTED_COMPILE_FAILURES = []
 
@@ -100,6 +102,7 @@ class CodeGeneratorTests(unittest.TestCase):
     def setUp(self):
         os.makedirs(BUILD_DIR, exist_ok=True)
         os.chdir(BUILD_DIR)
+        py2many.cli.CWD = BUILD_DIR
 
     @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES))

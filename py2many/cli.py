@@ -58,6 +58,7 @@ from py2many.rewriters import (
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
+CWD = pathlib.Path.cwd()
 
 
 def core_transformers(tree):
@@ -271,6 +272,12 @@ def dart_settings(args, env=os.environ):
 
 
 def go_settings(args, env=os.environ):
+    if os.path.exists(CWD / "revive.toml"):
+        revive_config = CWD / "revive.toml"
+    elif os.path.exists(PY2MANY_DIR / "revive.toml"):
+        revive_config = PY2MANY_DIR / "revive.toml"
+    else:
+        revive_config = None
     return LanguageSettings(
         GoTranspiler(),
         ".go",
@@ -279,7 +286,9 @@ def go_settings(args, env=os.environ):
         [GoNoneCompareRewriter(), GoVisibilityRewriter(), GoIfExpRewriter()],
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
-        linter=["golint", "-set_exit_status", "-min_confidence", "1.0"],
+        linter=(
+            ["revive", "--config", str(revive_config)] if revive_config else ["revive"]
+        ),
     )
 
 
@@ -296,7 +305,7 @@ def _get_all_settings(args, env=os.environ):
 
 
 def _relative_to_cwd(absolute_path):
-    return pathlib.Path(os.path.relpath(absolute_path, pathlib.Path.cwd()))
+    return pathlib.Path(os.path.relpath(absolute_path, CWD))
 
 
 def _process_once(settings, filename, outdir, env=None):
@@ -327,7 +336,8 @@ def _process_once(settings, filename, outdir, env=None):
         restore_cwd = False
         if settings.ext == ".kt" and output_path.parts[0] == "..":
             # ktlint can not handle relative paths starting with ..
-            restore_cwd = pathlib.Path.cwd()
+            restore_cwd = CWD
+
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
