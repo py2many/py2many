@@ -124,10 +124,6 @@ class NimTranspiler(CLikeTranspiler):
             return f"return {ret}"
         return "return"
 
-        if node.value:
-            return "return {0}".format(self.visit(node.value))
-        return "return"
-
     def visit_arg(self, node):
         id = get_id(node)
         if id == "self":
