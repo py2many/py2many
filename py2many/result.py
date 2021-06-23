@@ -1,4 +1,4 @@
-from typing import Optional, Generic, TypeVar
+from typing import TypeVar, Generic, Union
 from dataclasses import dataclass
 from enum import IntEnum
 
@@ -7,14 +7,13 @@ E = TypeVar("E", Exception, IntEnum)
 
 
 @dataclass
-class Result(Generic[T, E]):
-    data: Optional[T]
-    error: Optional[E]
+class Ok(Generic[T]):
+    value: T
 
 
-def Ok(t: T) -> Result[T, E]:
-    return Result(t, None)
+@dataclass
+class Err(Generic[E]):
+    error: E
 
 
-def Err(e: Exception, val: T = None) -> Result[T, E]:
-    return Result(val, e)
+Result = Union[Ok[T], Err[E]]

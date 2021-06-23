@@ -119,7 +119,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=AttributeError,
         )
-        assert len(successful) == 2
+        assert len(successful) == 3
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
