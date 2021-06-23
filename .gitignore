@@ -9,7 +9,7 @@
 .tox
 build
 .DS_Store
-.dart/
+tests/build
 tests/cases/binit
 tests/cases/fib
 tests/cases/infer
@@ -25,9 +25,3 @@ tests/cases/*.rs
 tests/cases/*.cpp
 tests/cases/*.kt
 tests/cases/*.nim
-*.json
-*.o
-*.nim.c
-.dart
-*.class
-META-INF

@@ -13,6 +13,7 @@ from py2many.cli import main, _create_cmd, _get_all_settings, _relative_to_cwd
 
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
+BUILD_DIR = TESTS_DIR / "build"
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
@@ -85,7 +86,8 @@ class CodeGeneratorTests(unittest.TestCase):
     LINT = os.environ.get("LINT", True)
 
     def setUp(self):
-        os.chdir(TESTS_DIR)
+        os.makedirs(BUILD_DIR, exist_ok=True)
+        os.chdir(BUILD_DIR)
 
     @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES))
@@ -96,12 +98,14 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         ext = settings.ext
+        expected_filename = TESTS_DIR / "expected" / f"{case}{ext}"
+
         if (
             not self.UPDATE_EXPECTED
             and not self.KEEP_GENERATED
-            and not os.path.exists(f"expected/{case}{ext}")
+            and not os.path.exists(expected_filename)
         ):
-            raise unittest.SkipTest(f"expected/{case}{ext} not found")
+            raise unittest.SkipTest(f"{expected_filename} not found")
 
         if settings.formatter:
             if not spawn.find_executable(settings.formatter[0]):
@@ -109,7 +113,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         if ext == ".kt":
             class_name = str(case.title()) + "Kt"
-            exe = TESTS_DIR / (class_name + ".class")
+            exe = BUILD_DIR / (class_name + ".class")
         elif ext in [".dart", ".cpp"] or (ext == ".nim" and sys.platform == "win32"):
             exe = TESTS_DIR / "cases" / f"{case}.exe"
         else:
@@ -137,10 +141,10 @@ class CodeGeneratorTests(unittest.TestCase):
 
         try:
             rv = main(args=args, env=env)
-            with open(f"cases/{case}{ext}") as actual:
+            with open(case_output) as actual:
                 generated = actual.read()
-                if os.path.exists(f"expected/{case}{ext}") and not self.UPDATE_EXPECTED:
-                    with open(f"expected/{case}{ext}") as f2:
+                if os.path.exists(expected_filename) and not self.UPDATE_EXPECTED:
+                    with open(expected_filename) as f2:
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
 
@@ -169,13 +173,13 @@ class CodeGeneratorTests(unittest.TestCase):
                 if proc.returncode:
                     raise unittest.SkipTest(f"{case}{ext} doesnt compile")
 
-                if self.UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
-                    with open(f"expected/{case}{ext}", "w") as f:
+                if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
+                    with open(expected_filename, "w") as f:
                         f.write(generated)
 
             stdout = None
-            if ext == ".cpp" and (TESTS_DIR / "a.out").exists():
-                os.rename(TESTS_DIR / "a.out", exe)
+            if ext == ".cpp" and (BUILD_DIR / "a.out").exists():
+                os.rename(BUILD_DIR / "a.out", exe)
 
             if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
@@ -197,8 +201,8 @@ class CodeGeneratorTests(unittest.TestCase):
                     not proc.returncode
                 ), f"Execution of {case}{ext} failed:\n{stdout}{proc.stderr}"
 
-                if self.UPDATE_EXPECTED or not os.path.exists(f"expected/{case}{ext}"):
-                    with open(f"expected/{case}{ext}", "w") as f:
+                if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
+                    with open(expected_filename, "w") as f:
                         f.write(generated)
             elif exe.exists() and os.access(exe, os.X_OK):
                 cmd = [exe, *main_args]
@@ -250,8 +254,9 @@ class CodeGeneratorTests(unittest.TestCase):
     def test_env_cxx_gcc(self, case):
         lang = "cpp"
         ext = ".cpp"
-        if not os.path.exists(f"expected/{case}{ext}"):
-            raise unittest.SkipTest(f"expected/{case}{ext} not found")
+        expected_filename = TESTS_DIR / "expected" / f"{case}{ext}"
+        if not os.path.exists(expected_filename):
+            raise unittest.SkipTest(f"{expected_filename} not found")
 
         env = os.environ.copy()
         env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
@@ -268,7 +273,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings.formatter = ["astyle"]
 
-        exe = TESTS_DIR / "a.out"
+        exe = BUILD_DIR / "a.out"
         exe.unlink(missing_ok=True)
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
@@ -314,6 +319,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings = _get_all_settings(Mock(indent=2))[lang]
         ext = settings.ext
+        expected_filename = TESTS_DIR / "ext_expected" / f"{case}{ext}"
         case_filename = TESTS_DIR / "ext_cases" / f"{case}.py"
         case_output = TESTS_DIR / "ext_cases" / f"{case}{ext}"
 
@@ -322,18 +328,15 @@ class CodeGeneratorTests(unittest.TestCase):
 
         try:
             main(args=args, env=env)
-            with open(f"ext_cases/{case}{ext}") as actual:
+            with open(case_output) as actual:
                 generated = actual.read()
-                if (
-                    os.path.exists(f"ext_expected/{case}{ext}")
-                    and not self.UPDATE_EXPECTED
-                ):
-                    with open(f"ext_expected/{case}{ext}") as f2:
+                if os.path.exists(expected_filename) and not self.UPDATE_EXPECTED:
+                    with open(expected_filename) as f2:
                         self.assertEqual(f2.read(), generated)
                         print("expected = generated")
 
-            if self.UPDATE_EXPECTED or not os.path.exists(f"ext_expected/{case}{ext}"):
-                with open(f"ext_expected/{case}{ext}", "w") as f:
+            if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
+                with open(expected_filename, "w") as f:
                     f.write(generated)
 
         finally:

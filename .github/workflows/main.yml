@@ -82,8 +82,8 @@ jobs:
         shell: bash
         run: |
           dart --version
-          dart pub global activate stagehand
-          (cd tests && dart pub global run stagehand:stagehand --override package-simple \
+          # tests/build here must be the same as defined in test_cli
+          (dart create --no-pub -t package-simple tests/build && cd tests/build \
            && dart pub add sprintf \
            && dart pub add tuple \
            && flutter pub add vnum)

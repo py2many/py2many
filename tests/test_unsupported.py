@@ -3,7 +3,6 @@ import os.path
 import unittest
 import sys
 from distutils import spawn
-from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
@@ -14,12 +13,14 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import transpile, _get_all_settings, _relative_to_cwd
 
-TESTS_DIR = Path(__file__).parent
-ROOT_DIR = TESTS_DIR.parent
+from tests.test_cli import (
+    BUILD_DIR,
+    ROOT_DIR,
+    TESTS_DIR,
+    KEEP_GENERATED,
+    CXX,
+)
 
-KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
-UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
-CXX = os.environ.get("CXX", "clang++")
 ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
@@ -184,7 +185,8 @@ class CodeGeneratorTests(unittest.TestCase):
     SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
     def setUp(self):
-        os.chdir(TESTS_DIR)
+        os.makedirs(BUILD_DIR, exist_ok=True)
+        os.chdir(BUILD_DIR)
 
     @foreach(sorted(LANGS))
     @foreach(sorted(TEST_CASES.keys()))
