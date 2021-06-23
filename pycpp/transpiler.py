@@ -15,7 +15,7 @@ from .plugins import (
 
 
 from py2many.analysis import add_imports, is_global, is_void_function, get_id
-from py2many.clike import class_for_typename
+from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import InferMeta
@@ -30,6 +30,8 @@ from py2many.tracer import (
 )
 
 from typing import List, Tuple
+
+_AUTO = "auto()"
 
 
 # TODO: merge this into py2many.cli.transpiler and fixup the tests
@@ -304,7 +306,7 @@ class CppTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "int", fields)
@@ -313,7 +315,7 @@ class CppTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "int", fields)
@@ -324,7 +326,7 @@ class CppTranspiler(CLikeTranspiler):
         for i, (member, node_var) in enumerate(node.class_assignments.items()):
             var = self.visit(node_var)
             raw_string = node_var.raw_string
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = f'"{member}"'
             fields.append(f"static const {node.name} {member};")
             definitions.append(

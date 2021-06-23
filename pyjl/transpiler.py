@@ -14,7 +14,7 @@ from .plugins import (
 
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.clike import class_for_typename
+from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Optional, List, Tuple
@@ -399,7 +399,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = f'"{member}"'
             fields.append((member, var))
         return self._visit_enum(node, "String", fields)
@@ -408,7 +408,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
@@ -417,7 +417,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 var = 1 << i
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)

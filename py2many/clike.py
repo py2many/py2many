@@ -74,6 +74,9 @@ symbols = {
     ast.In: "in",
 }
 
+_AUTO = "auto"
+_AUTO_INVOKED = "auto()"
+
 
 class LifeTime(IntEnum):
     UNKNOWN = 0
@@ -117,7 +120,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
         self._container_type_map = {}
-        self._default_type = "auto"
+        self._default_type = _AUTO
         self._statement_separator = ";"
         self._extension = False
         self._ignored_module_set = IGNORED_MODULE_SET.copy()

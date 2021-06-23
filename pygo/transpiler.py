@@ -16,7 +16,7 @@ from .plugins import (
 
 from py2many.analysis import get_id, is_global, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.clike import class_for_typename
+from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.rewriters import capitalize_first, rename, camel_case
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
@@ -510,7 +510,7 @@ class GoTranspiler(CLikeTranspiler):
         fields = []
         for i, (member, var) in enumerate(members):
             typename = f" {node.name}" if i == 0 else ""
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 fields.append(f"{member}{typename} = iota")
             else:
                 fields.append(f"{member}{typename} = {var}")
@@ -521,7 +521,7 @@ class GoTranspiler(CLikeTranspiler):
         members = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 members.append((member, "iota"))
             else:
                 members.append((member, var))
@@ -531,7 +531,7 @@ class GoTranspiler(CLikeTranspiler):
         members = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
             var = self.visit(var)
-            if var == "auto()":
+            if var == _AUTO_INVOKED:
                 members.append((member, "1 << iota"))
             else:
                 members.append((member, var))
