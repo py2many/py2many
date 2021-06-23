@@ -312,7 +312,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             if asname is not None:
                 try:
                     imported_name = importlib.import_module(name)
-                except:
+                except ImportError:
                     imported_name = name
                 self._imported_names[asname] = imported_name
         return "\n".join(imports)
@@ -324,7 +324,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         had_import_exception = False
         try:
             imported_name = importlib.import_module(node.module)
-        except:
+        except ImportError:
             had_import_exception = True
             imported_name = node.module
 
