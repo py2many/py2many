@@ -111,6 +111,7 @@ class CppTranspilerPlugins:
     def visit_cast(node, vargs, cast_to: str) -> str:
         return f"static_cast<{cast_to}>({vargs[0]})"
 
+    @staticmethod
     def visit_floor(node, vargs) -> str:
         return f"static_cast<size_t>(floor({vargs[0]}))"
 
