@@ -84,8 +84,10 @@ jobs:
           dart --version
           # tests/build here must be the same as defined in test_cli
           (dart create --no-pub -t package-simple tests/build && cd tests/build \
+           && dart pub add collection \
            && dart pub add sprintf \
            && dart pub add tuple \
+           && sed -i.bak '/test:/d' pubspec.yaml \
            && flutter pub add vnum)
 
       - name: Install cargo-script
