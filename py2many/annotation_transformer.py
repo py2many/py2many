@@ -28,30 +28,24 @@ class AnnotationTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def _visit_record_handling_annotation(self, node) -> ast.AST:
+        if self.handling_annotation:
+            node.is_annotation = True
+        self.generic_visit(node)
+        return node
+
     # without this Dict[x,y] will be translated to HashMap<(x,y)>
     def visit_Tuple(self, node):
-        if self.handling_annotation:
-            node.is_annotation = True
-        self.generic_visit(node)
-        return node
+        return self._visit_record_handling_annotation(node)
 
     def visit_List(self, node):
-        if self.handling_annotation:
-            node.is_annotation = True
-        self.generic_visit(node)
-        return node
+        return self._visit_record_handling_annotation(node)
 
     def visit_Name(self, node):
-        if self.handling_annotation:
-            node.is_annotation = True
-        self.generic_visit(node)
-        return node
+        return self._visit_record_handling_annotation(node)
 
     def visit_Subscript(self, node):
-        if self.handling_annotation:
-            node.is_annotation = True
-        self.generic_visit(node)
-        return node
+        return self._visit_record_handling_annotation(node)
 
     def visit_AnnAssign(self, node):
         self.handling_annotation = True

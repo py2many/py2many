@@ -192,26 +192,21 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
             return node
         return None
 
-    def visit_FunctionDef(self, node):
+    def _visit_documentable(self, node):
         doc_node = self._get_doc_node(node)
         self._docstrings.add(doc_node)
         self._docstring_parent[doc_node] = node
         self.generic_visit(node)
         return node
+
+    def visit_FunctionDef(self, node):
+        return self._visit_documentable(node)
 
     def visit_ClassDef(self, node):
-        doc_node = self._get_doc_node(node)
-        self._docstrings.add(doc_node)
-        self._docstring_parent[doc_node] = node
-        self.generic_visit(node)
-        return node
+        return self._visit_documentable(node)
 
     def visit_Module(self, node):
-        doc_node = self._get_doc_node(node)
-        self._docstrings.add(doc_node)
-        self._docstring_parent[doc_node] = node
-        self.generic_visit(node)
-        return node
+        return self._visit_documentable(node)
 
     def visit_Constant(self, node):
         if node in self._docstrings:
@@ -386,22 +381,21 @@ class UnpackScopeRewriter(ast.NodeTransformer):
                 unpacked.append(s)
         return unpacked
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+    def _visit_assign_node_body(self, node):
         node.body = self._visit_body(node.body)
         return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        return self._visit_assign_node_body(node)
 
     def visit_For(self, node: ast.For) -> ast.For:
-        node.body = self._visit_body(node.body)
-        return node
+        return self._visit_assign_node_body(node)
 
     def visit_If(self, node: ast.If) -> ast.If:
-        node.body = self._visit_body(node.body)
-        return node
+        return self._visit_assign_node_body(node)
 
     def visit_With(self, node: ast.With) -> ast.With:
-        node.body = self._visit_body(node.body)
-        return node
+        return self._visit_assign_node_body(node)
 
     def visit_While(self, node: ast.With) -> ast.With:
-        node.body = self._visit_body(node.body)
-        return node
+        return self._visit_assign_node_body(node)

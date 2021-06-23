@@ -80,11 +80,6 @@ class ReturnFinder(ast.NodeVisitor):
 class FunctionTransformer(ast.NodeTransformer):
     """Tracks defined functions in scope"""
 
-    def visit_Module(self, node):
-        node.defined_functions = []
-        self.generic_visit(node)
-        return node
-
     def visit_FunctionDef(self, node):
         node.defined_functions = []
         node.scopes[-2].defined_functions.append(node)
@@ -95,6 +90,9 @@ class FunctionTransformer(ast.NodeTransformer):
         node.defined_functions = []
         self.generic_visit(node)
         return node
+
+    def visit_Module(self, node):
+        return self._visit_Scoped(node)
 
     def visit_ClassDef(self, node):
         return self._visit_Scoped(node)

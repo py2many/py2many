@@ -43,7 +43,7 @@ class MutabilityTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def visit_AugAssign(self, node):
+    def _visit_assign_target(self, node) -> ast.AST:
         old = self.lvalue
         self.lvalue = True
         self.visit(node.target)
@@ -51,13 +51,11 @@ class MutabilityTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_AugAssign(self, node):
+        return self._visit_assign_target(node)
+
     def visit_AnnAssign(self, node):
-        old = self.lvalue
-        self.lvalue = True
-        self.visit(node.target)
-        self.lvalue = old
-        self.generic_visit(node)
-        return node
+        return self._visit_assign_target(node)
 
     def visit_Subscript(self, node):
         self.visit(node.value)
