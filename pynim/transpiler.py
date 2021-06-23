@@ -6,6 +6,7 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
+    FUNC_USINGS_MAP,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
@@ -17,7 +18,7 @@ from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before
 
-from typing import Optional, List
+from typing import List
 
 
 class NimNoneCompareRewriter(ast.NodeTransformer):
@@ -58,6 +59,7 @@ class NimTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._func_usings_map = FUNC_USINGS_MAP
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -168,47 +170,11 @@ class NimTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
 
-        return value_id + "." + attr
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0..{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}..{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"countup({vargs[0]}, {vargs[1]} - 1, {vargs[2]})"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def visit_print(self, node, vargs: List[str]) -> str:
-        args = []
-        for n in vargs:
-            args.append(n)
-            args.append('" "')
-        args = ", ".join(args[:-1])
-        return f"echo {args}"
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self.visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "str": lambda: f"$({vargs[0]})",
-            "bool": lambda: f"bool({vargs[0]})",
-            "floor": lambda: f"int(floor({vargs[0]}))",
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
+        ret = f"{value_id}.{attr}"
+        if ret in self._attr_dispatch_table:
+            ret = self._attr_dispatch_table[ret]
+            return ret(self, node, value_id, attr)
+        return ret
 
     def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
