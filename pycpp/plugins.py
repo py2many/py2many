@@ -175,7 +175,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     open: (CppTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (CppTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_read, True),
-    io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_write, True),
+    io.TextIOWrapper.write: (CppTranspilerPlugins.visit_textio_write, True),
     math.asin: (lambda self, node, vargs: f"std::asin({vargs[0]})", False),
     math.acos: (lambda self, node, vargs: f"std::acos({vargs[0]})", False),
     math.cos: (lambda self, node, vargs: f"std::cos({vargs[0]})", False),
