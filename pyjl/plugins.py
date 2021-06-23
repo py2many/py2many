@@ -10,7 +10,7 @@ from typing import Callable, Dict, List, Tuple, Union
 try:
     from argparse_dataclass import dataclass as ap_dataclass
     from argparse_dataclass import ArgumentParser
-except:
+except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
