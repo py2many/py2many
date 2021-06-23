@@ -384,7 +384,7 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
                 format_errors.append(path)
         except Exception as e:
             print(f"Error: Could not transpile: {path}")
-            print(f"Due to: {e}")
+            print(f"Due to: {e.__class__.__name__} {e}")
             failures.append(path)
             if _suppress_exceptions:
                 if _suppress_exceptions is not True:
@@ -462,7 +462,10 @@ def main(args=None, env=os.environ):
                 import traceback
 
                 formatted_lines = traceback.format_exc().splitlines()
-                print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                if hasattr(e, "lineno"):
+                    print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                else:
+                    print(f"{source}: {formatted_lines[-1]}")
                 rv = False
         else:
             if args.outdir is None:
