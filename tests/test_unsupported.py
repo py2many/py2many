@@ -11,14 +11,16 @@ import astpretty
 
 from unittest_expander import foreach, expand
 
-from py2many.cli import transpile, _get_all_settings, _relative_to_cwd
+from py2many.cli import _get_all_settings, _relative_to_cwd, transpile
 
 from tests.test_cli import (
     BUILD_DIR,
+    GENERATED_DIR,
     ROOT_DIR,
     TESTS_DIR,
     KEEP_GENERATED,
     CXX,
+    get_exe_filename,
 )
 
 ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
@@ -214,7 +216,7 @@ class CodeGeneratorTests(unittest.TestCase):
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
-        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
+        case_output = GENERATED_DIR / f"{case}{ext}"
         try:
             result = transpile(
                 case_filename,
@@ -231,15 +233,7 @@ class CodeGeneratorTests(unittest.TestCase):
             if not spawn.find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        if ext == ".kt":
-            class_name = str(case.title()) + "Kt"
-            exe = TESTS_DIR / (class_name + ".class")
-        elif ext == ".cpp":
-            exe = TESTS_DIR / "a.out"
-        elif ext == ".dart" or (ext == ".nim" and sys.platform == "win32"):
-            exe = TESTS_DIR / "cases" / f"{case}.exe"
-        else:
-            exe = TESTS_DIR / "cases" / f"{case}"
+        exe = get_exe_filename(case, ext)
         exe.unlink(missing_ok=True)
 
         expect_success = f"{case}{ext}" in EXPECTED_SUCCESSES

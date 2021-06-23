@@ -9,11 +9,12 @@ from subprocess import run
 from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
-from py2many.cli import main, _create_cmd, _get_all_settings, _relative_to_cwd
+from py2many.cli import _create_cmd, _get_all_settings, _relative_to_cwd, main
 
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
 BUILD_DIR = TESTS_DIR / "build"
+GENERATED_DIR = BUILD_DIR
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
@@ -75,6 +76,17 @@ def has_main(filename):
     )
 
 
+def get_exe_filename(case, ext):
+    if ext == ".kt":
+        class_name = str(case.title()) + "Kt"
+        exe = BUILD_DIR / (class_name + ".class")
+    elif ext in [".dart", ".cpp"] or (ext == ".nim" and sys.platform == "win32"):
+        exe = GENERATED_DIR / f"{case}.exe"
+    else:
+        exe = GENERATED_DIR / f"{case}"
+    return exe
+
+
 @expand
 class CodeGeneratorTests(unittest.TestCase):
     LANGS = list(_get_all_settings(Mock(indent=4)).keys())
@@ -111,17 +123,12 @@ class CodeGeneratorTests(unittest.TestCase):
             if not spawn.find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        if ext == ".kt":
-            class_name = str(case.title()) + "Kt"
-            exe = BUILD_DIR / (class_name + ".class")
-        elif ext in [".dart", ".cpp"] or (ext == ".nim" and sys.platform == "win32"):
-            exe = TESTS_DIR / "cases" / f"{case}.exe"
-        else:
-            exe = TESTS_DIR / "cases" / f"{case}"
+        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_output = GENERATED_DIR / f"{case}{ext}"
+
+        exe = get_exe_filename(case, ext)
         exe.unlink(missing_ok=True)
 
-        case_filename = TESTS_DIR / "cases" / f"{case}.py"
-        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
         is_script = has_main(case_filename)
         self.assertTrue(is_script)
 
@@ -137,7 +144,7 @@ class CodeGeneratorTests(unittest.TestCase):
         self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
-        args = [f"--{lang}=1", str(case_filename)]
+        args = [f"--{lang}=1", str(case_filename), "--outdir", str(GENERATED_DIR)]
 
         try:
             rv = main(args=args, env=env)
@@ -277,9 +284,9 @@ class CodeGeneratorTests(unittest.TestCase):
         exe.unlink(missing_ok=True)
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
-        case_output = TESTS_DIR / "cases" / f"{case}{ext}"
+        case_output = GENERATED_DIR / f"{case}{ext}"
 
-        args = [f"--{lang}=1", str(case_filename)]
+        args = [f"--{lang}=1", str(case_filename), "--outdir", str(GENERATED_DIR)]
 
         linter = _create_cmd(settings.linter, case_output)
 
@@ -321,9 +328,15 @@ class CodeGeneratorTests(unittest.TestCase):
         ext = settings.ext
         expected_filename = TESTS_DIR / "ext_expected" / f"{case}{ext}"
         case_filename = TESTS_DIR / "ext_cases" / f"{case}.py"
-        case_output = TESTS_DIR / "ext_cases" / f"{case}{ext}"
+        case_output = GENERATED_DIR / f"{case}{ext}"
 
-        args = ["--rust=1", "--extension=1", str(case_filename)]
+        args = [
+            "--rust=1",
+            "--extension=1",
+            str(case_filename),
+            "--outdir",
+            str(GENERATED_DIR),
+        ]
         sys.argv += args
 
         try:
