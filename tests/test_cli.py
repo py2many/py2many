@@ -70,12 +70,14 @@ def in_cargo_toml(case: str):
     return f'path = "tests/expected/{case}.rs"' in CARGO_TOML
 
 
+def has_main_lines(lines):
+    return any("def main" in line or "__main__" in line for line in lines)
+
+
 def has_main(filename):
     with open(filename) as f:
         lines = f.readlines()
-    return bool(
-        [line in line for line in lines if "def main" in line or "__main__" in line]
-    )
+    return has_main_lines(lines)
 
 
 def get_exe_filename(case, ext):

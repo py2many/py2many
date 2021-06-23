@@ -23,6 +23,7 @@ from tests.test_cli import (
     KEEP_GENERATED,
     CXX,
     get_exe_filename,
+    has_main_lines,
 )
 
 ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
@@ -176,9 +177,7 @@ TEST_ERROR_CASES = {
 
 def has_main(source):
     lines = source.splitlines()
-    return bool(
-        [line in line for line in lines if "def main" in line or "__main__" in line]
-    )
+    return has_main_lines(lines)
 
 
 @expand
