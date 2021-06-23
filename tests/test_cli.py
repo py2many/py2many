@@ -9,7 +9,7 @@ from subprocess import run
 from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
-from py2many.cli import main, _create_cmd, _get_all_settings
+from py2many.cli import main, _create_cmd, _get_all_settings, _relative_to_cwd
 
 TESTS_DIR = Path(__file__).parent.absolute()
 ROOT_DIR = TESTS_DIR.parent
@@ -216,7 +216,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     raise unittest.SkipTest(f"{settings.linter[0]} not available")
                 if settings.ext == ".kt" and case_output.is_absolute():
                     # KtLint does not support absolute path in globs
-                    case_output = case_output.relative_to(Path.cwd())
+                    case_output = _relative_to_cwd(case_output)
                 linter = _create_cmd(settings.linter, case_output)
                 if ext == ".cpp":
                     linter.append("-Wno-unused-variable")

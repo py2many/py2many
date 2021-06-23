@@ -295,6 +295,10 @@ def _get_all_settings(args, env=os.environ):
     }
 
 
+def _relative_to_cwd(absolute_path):
+    return pathlib.Path(os.path.relpath(absolute_path, pathlib.Path.cwd()))
+
+
 def _process_once(settings, filename, outdir, env=None):
     """Transpile and reformat.
 
@@ -303,8 +307,8 @@ def _process_once(settings, filename, outdir, env=None):
     output_path = outdir / (filename.stem + settings.ext)
     if settings.ext == ".kt" and output_path.is_absolute():
         # KtLint does not support absolute path in globs
-        output_path = output_path.relative_to(pathlib.Path.cwd())
-    print(f"{filename}...{output_path}")
+        output_path = _relative_to_cwd(output_path)
+    print(f"{filename} ... {output_path}")
     with open(filename) as f:
         source_data = f.read()
     with open(output_path, "w") as f:
@@ -320,6 +324,12 @@ def _process_once(settings, filename, outdir, env=None):
         )
 
     if settings.formatter:
+        restore_cwd = False
+        if settings.ext == ".kt" and output_path.parts[0] == "..":
+            # ktlint can not handle relative paths starting with ..
+            restore_cwd = pathlib.Path.cwd()
+            os.chdir(output_path.parent)
+            output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
         proc = run(cmd, env=env)
         if proc.returncode:
@@ -333,12 +343,20 @@ def _process_once(settings, filename, outdir, env=None):
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
             )
+            if restore_cwd:
+                os.chdir(restore_cwd)
             return False
         if settings.ext == ".kt":
             # ktlint formatter needs to be invoked twice before output is lint free
             if run(cmd, env=env).returncode:
                 print(f"Error: Could not reformat: {cmd}")
+                if restore_cwd:
+                    os.chdir(restore_cwd)
                 return False
+
+        if restore_cwd:
+            os.chdir(restore_cwd)
+
     return True
 
 

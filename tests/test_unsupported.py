@@ -12,7 +12,7 @@ import astpretty
 
 from unittest_expander import foreach, expand
 
-from py2many.cli import transpile, _get_all_settings
+from py2many.cli import transpile, _get_all_settings, _relative_to_cwd
 
 TESTS_DIR = Path(__file__).parent
 ROOT_DIR = TESTS_DIR.parent
@@ -248,7 +248,7 @@ class CodeGeneratorTests(unittest.TestCase):
         if settings.formatter:
             if settings.ext == ".kt" and case_output.is_absolute():
                 # KtLint does not support absolute path in globs
-                case_output = case_output.relative_to(Path.cwd())
+                case_output = _relative_to_cwd(case_output)
             proc = run([*settings.formatter, case_output], env=env, capture_output=True)
             if proc.returncode and not self.SHOW_ERRORS:
                 raise unittest.SkipTest(
