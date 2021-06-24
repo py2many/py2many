@@ -77,9 +77,6 @@ class InferGoTypesTransformer(ast.NodeTransformer):
     FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
     FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
-    def __init__(self):
-        super().__init__()
-
     def _handle_overflow(self, op, left_id, right_id):
         left_go_id = map_type(left_id)
         right_go_id = map_type(right_id)

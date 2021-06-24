@@ -21,9 +21,6 @@ from typing import Optional, List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
-    def __init__(self):
-        super().__init__()
-
     def visit_Call(self, node):
         fname = node.func
         if isinstance(fname, ast.Attribute):
