@@ -228,6 +228,19 @@ class InferTypesTransformer(ast.NodeTransformer):
             else:
                 value_type = "Any"
             self._annotate(node, f"Dict[{key_type}, {value_type}]")
+            lifetimes = set(
+                [
+                    getattr(e.annotation, "lifetime", None)
+                    for e in node.values
+                    if hasattr(e, "annotation")
+                ]
+            )
+            only_lifetime = next(iter(lifetimes)) if len(lifetimes) == 1 else None
+            if len(lifetimes) == 1 and only_lifetime != None:
+                lifetime = only_lifetime
+            else:
+                lifetime = LifeTime.UNKNOWN
+            node.annotation.lifetime = lifetime
         else:
             if not hasattr(node, "annotation"):
                 node.annotation = ast.Name(id="Dict")
@@ -305,6 +318,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                     # Do not overwrite source annotation with inferred
                     if scope.returns is None:
                         scope.returns = ast.Name(id=new_type_str)
+                        lifetime = getattr(node.value.annotation, "lifetime", None)
+                        if lifetime is not None:
+                            scope.returns.lifetime = lifetime
         return node
 
     def visit_UnaryOp(self, node):
@@ -454,6 +470,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 )
                 if return_type is not None:
                     node.annotation = return_type
+                    lifetime = getattr(fn.returns, "lifetime", None)
+                    if lifetime is not None:
+                        node.annotation.lifetime = lifetime
             elif fname in {"max", "min"}:
                 return_type = get_inferred_type(node.args[0])
                 if return_type is not None:
@@ -472,5 +491,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
                 node.annotation = ast.Name(id=element_type)
+                if hasattr(definition.annotation, "lifetime"):
+                    node.annotation.lifetime = definition.annotation.lifetime
         self.generic_visit(node)
         return node
