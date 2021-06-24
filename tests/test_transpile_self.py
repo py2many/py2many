@@ -25,7 +25,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
         )
-        assert len(successful) == 2  # The two __init__.py
+        assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -33,7 +33,13 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=False,
         )
-        assert len(successful) == 5  # Some files transpile ok
+        assert set(successful) == {
+            PY2MANY_MODULE / "__init__.py",
+            PY2MANY_MODULE / "annotation_transformer.py",
+            PY2MANY_MODULE / "context.py",
+            PY2MANY_MODULE / "nesting_transformer.py",
+            PY2MANY_MODULE / "result.py",
+        }
 
     def test_dart_recursive(self):
         settings = self.SETTINGS["dart"]
@@ -42,7 +48,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
         )
-        assert len(successful) == 1
+        assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -50,7 +56,12 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=False,
         )
-        assert len(successful) == 4
+        assert set(successful) == {
+            PY2MANY_MODULE / "__init__.py",
+            PY2MANY_MODULE / "annotation_transformer.py",
+            PY2MANY_MODULE / "context.py",
+            PY2MANY_MODULE / "nesting_transformer.py",
+        }
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
@@ -68,7 +79,8 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if not suppress_exceptions:
-            assert len(successful) == 1  # The __init__.py
+            assert len(successful) == 1
+            assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -79,7 +91,12 @@ class SelfTranspileTests(unittest.TestCase):
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert len(successful) == 4
+        assert set(successful) == {
+            PY2MANY_MODULE / "__init__.py",
+            PY2MANY_MODULE / "annotation_transformer.py",
+            PY2MANY_MODULE / "context.py",
+            PY2MANY_MODULE / "nesting_transformer.py",
+        }
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
@@ -91,7 +108,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=NotImplementedError,
         )
-        assert len(successful) == 1  # The __init__.py
+        assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -99,7 +116,8 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=(NotImplementedError, IndexError),
         )
-        assert len(successful) == 1  # The __init__.py
+        assert len(successful) == 1
+        assert set([i.name for i in successful]) == {"__init__.py"}
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
@@ -111,7 +129,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=AttributeError,
         )
-        assert len(successful) == 1  # The __init__.py
+        assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -119,7 +137,11 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=AttributeError,
         )
-        assert len(successful) == 3
+        assert set(successful) == {
+            PY2MANY_MODULE / "__init__.py",
+            PY2MANY_MODULE / "__main__.py",
+            PY2MANY_MODULE / "result.py",
+        }
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
@@ -132,6 +154,10 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=NotImplementedError,
         )
         assert len(successful) == 10
+        assert set(failures) == {
+            transpiler_module / "plugins.py",
+            transpiler_module / "transpiler.py",
+        }
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -144,6 +170,7 @@ class SelfTranspileTests(unittest.TestCase):
             ),
         )
         assert len(successful) == 9
+        assert len(failures) == 6
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
@@ -161,7 +188,10 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if FileNotFoundError not in suppress_exceptions:
-            assert len(successful) == 2
+            assert set(successful) == {
+                transpiler_module / "__init__.py",
+                transpiler_module / "plugins.py",
+            }
 
         suppress_exceptions = suppress_exceptions + (ValueError,)
         successful, format_errors, failures = _process_dir(
@@ -173,4 +203,10 @@ class SelfTranspileTests(unittest.TestCase):
         if FileNotFoundError in suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert len(successful) == 5
+        assert set(successful) == {
+            PY2MANY_MODULE / "__init__.py",
+            PY2MANY_MODULE / "__main__.py",
+            PY2MANY_MODULE / "annotation_transformer.py",
+            PY2MANY_MODULE / "nesting_transformer.py",
+            PY2MANY_MODULE / "result.py",
+        }
