@@ -38,6 +38,7 @@ c_uint64 = u64
 
 
 from py2many.analysis import get_id, IGNORED_MODULE_SET
+from py2many.exceptions import AstNotImplementedError
 from py2many.result import Result
 from typing import List, Optional, Tuple, Union
 
@@ -98,7 +99,7 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
         typeclass = eval(typename, globals(), locals)
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):
-        logger.warning(f"could not evaluate {typename}")
+        logger.info(f"could not evaluate {typename}")
         return default_type
 
 
@@ -159,7 +160,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         # 3.9 compatibility shim
         if sys.version_info < (3, 9, 0):
             if not isinstance(node.slice, ast.Index):
-                raise NotImplementedError("Advanced Slicing not supported")
+                raise AstNotImplementedError("Advanced Slicing not supported", node)
             slice_value = node.slice.value
         else:
             slice_value = node.slice
@@ -245,7 +246,7 @@ class CLikeTranspiler(ast.NodeVisitor):
                 node.container_type = type_node.container_type
                 return self._visit_container_type(type_node.container_type)
             if typename is None:
-                raise NotImplementedError(f"Could not infer: {type_node}")
+                raise AstNotImplementedError(f"Could not infer: {type_node}", node)
         return typename
 
     def _generic_typename_from_annotation(
@@ -505,7 +506,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         return (target, type_str, val)
 
     def visit_Delete(self, node):
-        raise NotImplementedError("del not implemented")
+        raise AstNotImplementedError("del not implemented", node)
 
     def visit_ClassDef(self, node):
         bases = [get_id(base) for base in node.bases]

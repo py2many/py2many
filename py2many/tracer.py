@@ -1,8 +1,10 @@
 # Trace object types that are inserted into Python list.
 
 import ast
+
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler
+from py2many.exceptions import AstNotImplementedError
 
 from typing import Optional
 
@@ -154,7 +156,7 @@ class ValueTypeVisitor(ast.NodeVisitor):
     def visit_Call(self, node):
         params = [self.visit(arg) for arg in node.args]
         if any(t is None for t in params):
-            raise NotImplementedError(f"Call({params}) not implemented")
+            raise AstNotImplementedError(f"Call({params}) not implemented", node)
         params = ",".join(params)
         return "{0}({1})".format(self.visit(node.func), params)
 

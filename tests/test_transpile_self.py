@@ -37,6 +37,7 @@ class SelfTranspileTests(unittest.TestCase):
             PY2MANY_MODULE / "__init__.py",
             PY2MANY_MODULE / "annotation_transformer.py",
             PY2MANY_MODULE / "context.py",
+            PY2MANY_MODULE / "exceptions.py",
             PY2MANY_MODULE / "nesting_transformer.py",
             PY2MANY_MODULE / "result.py",
         }
@@ -60,6 +61,7 @@ class SelfTranspileTests(unittest.TestCase):
             PY2MANY_MODULE / "__init__.py",
             PY2MANY_MODULE / "annotation_transformer.py",
             PY2MANY_MODULE / "context.py",
+            PY2MANY_MODULE / "exceptions.py",
             PY2MANY_MODULE / "nesting_transformer.py",
         }
 
@@ -184,7 +186,7 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=suppress_exceptions,
         )
-        assert len(successful) == 9
+        assert len(successful) == 10
         assert len(failures) == 6
 
     def test_julia_recursive(self):

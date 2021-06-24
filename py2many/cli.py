@@ -12,13 +12,14 @@ from subprocess import run
 from typing import Callable, List, Optional
 
 from .analysis import add_imports
-from .clike import CLikeTranspiler
-from .scope import add_scope_context
 from .annotation_transformer import add_annotation_flags
+from .clike import CLikeTranspiler
+from .context import add_variable_context, add_list_calls
+from .exceptions import AstNotImplementedError
+from .inference import infer_types
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
-from .context import add_variable_context, add_list_calls
-from .inference import infer_types
+from .scope import add_scope_context
 
 from pycpp.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.inference import infer_rust_types
@@ -394,7 +395,10 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
                 format_errors.append(path)
         except Exception as e:
             print(f"Error: Could not transpile: {path}")
-            print(f"Due to: {e.__class__.__name__} {e}")
+            if isinstance(e, AstNotImplementedError):
+                print(f"Due to {e.lineno}:{e.col_offset}: {e.__class__.__name__} {e}")
+            else:
+                print(f"Due to: {e.__class__.__name__} {e}")
             failures.append(path)
             if _suppress_exceptions:
                 if _suppress_exceptions is not True:
@@ -472,7 +476,7 @@ def main(args=None, env=os.environ):
                 import traceback
 
                 formatted_lines = traceback.format_exc().splitlines()
-                if hasattr(e, "lineno"):
+                if isinstance(e, AstNotImplementedError):
                     print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
                 else:
                     print(f"{source}: {formatted_lines[-1]}")

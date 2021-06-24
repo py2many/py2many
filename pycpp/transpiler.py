@@ -18,6 +18,7 @@ from py2many.analysis import add_imports, is_global, is_void_function, get_id
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
+from py2many.exceptions import AstNotImplementedError
 from py2many.inference import InferMeta
 from py2many.scope import add_scope_context
 from py2many.rewriters import PythonMainRewriter
@@ -364,7 +365,7 @@ class CppTranspiler(CLikeTranspiler):
             return ret
 
         if any(i is None for i in vargs):
-            raise NotImplementedError(f"Call {fname} ({vargs}) not supported")
+            raise AstNotImplementedError(f"Call {fname} ({vargs}) not supported", node)
 
         args = ", ".join(vargs)
         return f"{fname}({args})"
@@ -544,7 +545,7 @@ class CppTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node):
         value = self.visit(node.value)
         if isinstance(node.slice, ast.Ellipsis):
-            raise NotImplementedError("Ellipsis not supported")
+            raise AstNotImplementedError("Ellipsis not supported", node)
 
         slice_value = self._slice_value(node)
         index = self.visit(slice_value)

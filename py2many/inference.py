@@ -7,6 +7,7 @@ from typing import Optional
 
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, LifeTime, class_for_typename
+from py2many.exceptions import AstNotImplementedError
 from py2many.tracer import is_enum
 
 
@@ -440,9 +441,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 left_id is not None
                 and (left_id, type(node.op)) not in LEGAL_COMBINATIONS
             ):
-                err = TypeError(f"{left_id} {type(node.op)} {right_id}")
-                err.lineno, err.col_offset = node.lineno, node.col_offset
-                raise err
+                raise AstNotImplementedError(
+                    f"{left_id} {type(node.op)} {right_id}", node
+                )
 
         return node
 
