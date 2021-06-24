@@ -67,7 +67,7 @@ class SelfTranspileTests(unittest.TestCase):
         settings = self.SETTINGS["kotlin"]
 
         suppress_exceptions = False
-        if settings.formatter:
+        if not SHOW_ERRORS and settings.formatter:
             if not spawn.find_executable(settings.formatter[0]):
                 suppress_exceptions = FileNotFoundError
 
@@ -100,34 +100,44 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
+        if SHOW_ERRORS:
+            suppress_exceptions = False
+        else:
+            suppress_exceptions = NotImplementedError
 
         transpiler_module = ROOT_DIR / "pygo"
         successful, format_errors, failures = _process_dir(
             settings,
             transpiler_module,
             OUT_DIR,
-            _suppress_exceptions=NotImplementedError,
+            _suppress_exceptions=suppress_exceptions,
         )
         assert set([i.name for i in successful]) == {"__init__.py"}
+
+        if not SHOW_ERRORS:
+            suppress_exceptions = (NotImplementedError, IndexError)
 
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
             OUT_DIR,
-            _suppress_exceptions=(NotImplementedError, IndexError),
+            _suppress_exceptions=suppress_exceptions,
         )
         assert len(successful) == 1
         assert set([i.name for i in successful]) == {"__init__.py"}
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
+        suppress_exceptions = False
+        if not SHOW_ERRORS:
+            suppress_exceptions = AttributeError
 
         transpiler_module = ROOT_DIR / "pynim"
         successful, format_errors, failures = _process_dir(
             settings,
             transpiler_module,
             OUT_DIR,
-            _suppress_exceptions=AttributeError,
+            _suppress_exceptions=suppress_exceptions,
         )
         assert set([i.name for i in successful]) == {"__init__.py"}
 
@@ -135,7 +145,7 @@ class SelfTranspileTests(unittest.TestCase):
             settings,
             PY2MANY_MODULE,
             OUT_DIR,
-            _suppress_exceptions=AttributeError,
+            _suppress_exceptions=suppress_exceptions,
         )
         assert set(successful) == {
             PY2MANY_MODULE / "__init__.py",
@@ -145,13 +155,16 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
+        suppress_exceptions = False
+        if not SHOW_ERRORS:
+            suppress_exceptions = NotImplementedError
 
         transpiler_module = ROOT_DIR / "pycpp"
         successful, format_errors, failures = _process_dir(
             settings,
             transpiler_module,
             OUT_DIR,
-            _suppress_exceptions=NotImplementedError,
+            _suppress_exceptions=suppress_exceptions,
         )
         assert len(successful) == 10
         assert set(failures) == {
@@ -159,15 +172,17 @@ class SelfTranspileTests(unittest.TestCase):
             transpiler_module / "transpiler.py",
         }
 
+        if not SHOW_ERRORS:
+            suppress_exceptions = (
+                AttributeError,
+                NotImplementedError,
+                TypeError,
+            )
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
             OUT_DIR,
-            _suppress_exceptions=(
-                AttributeError,
-                NotImplementedError,
-                TypeError,
-            ),
+            _suppress_exceptions=suppress_exceptions,
         )
         assert len(successful) == 9
         assert len(failures) == 6
@@ -175,10 +190,12 @@ class SelfTranspileTests(unittest.TestCase):
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
 
-        suppress_exceptions = (NotImplementedError,)
-        if settings.formatter:
-            if not spawn.find_executable(settings.formatter[0]):
-                suppress_exceptions = (FileNotFoundError, NotImplementedError)
+        suppress_exceptions = False
+        if not SHOW_ERRORS:
+            suppress_exceptions = (NotImplementedError,)
+            if settings.formatter:
+                if not spawn.find_executable(settings.formatter[0]):
+                    suppress_exceptions = (FileNotFoundError, NotImplementedError)
 
         transpiler_module = ROOT_DIR / "pyjl"
         successful, format_errors, failures = _process_dir(
@@ -193,7 +210,9 @@ class SelfTranspileTests(unittest.TestCase):
                 transpiler_module / "plugins.py",
             }
 
-        suppress_exceptions = suppress_exceptions + (ValueError,)
+        if not SHOW_ERRORS:
+            suppress_exceptions = suppress_exceptions + (ValueError,)
+
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
