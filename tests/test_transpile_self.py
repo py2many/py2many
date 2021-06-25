@@ -229,10 +229,7 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if FileNotFoundError not in suppress_exceptions:
-            assert set(successful) == {
-                transpiler_module / "__init__.py",
-                transpiler_module / "plugins.py",
-            }
+            assert_only_init_successful(successful)
 
         if not SHOW_ERRORS:
             suppress_exceptions = suppress_exceptions + (ValueError,)
