@@ -199,7 +199,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
-        suppress_exceptions = False if SHOW_ERRORS else (NotImplementedError,)
+        suppress_exceptions = (False,) if SHOW_ERRORS else (NotImplementedError,)
 
         if not SHOW_ERRORS:
             if settings.formatter:
@@ -225,10 +225,17 @@ class SelfTranspileTests(unittest.TestCase):
         if FileNotFoundError in suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert set(successful) == {
-            PY2MANY_MODULE / "__init__.py",
-            PY2MANY_MODULE / "__main__.py",
-            PY2MANY_MODULE / "annotation_transformer.py",
-            PY2MANY_MODULE / "nesting_transformer.py",
-            PY2MANY_MODULE / "result.py",
-        }
+        assert_no_failures(
+            successful,
+            format_errors,
+            failures,
+            expected_success={
+                "__main__.py",
+                "analysis.py",
+                "annotation_transformer.py",
+                "context.py",
+                "mutability_transformer.py",
+                "nesting_transformer.py",
+                "result.py",
+            },
+        )
