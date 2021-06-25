@@ -74,16 +74,19 @@ def core_transformers(tree):
     return tree, infer_meta
 
 
-def transpile(filename, source, transpiler, rewriters, transformers, post_rewriters):
+def transpile(filenames, sources, transpiler, rewriters, transformers, post_rewriters):
     """
     Transpile a single python translation unit (a python script) into
     Rust code.
     """
-    if isinstance(source, ast.Module):
-        tree = source
-    else:
-        tree = ast.parse(source)
-    tree.__file__ = filename
+    trees = []
+    for filename, source in zip(filenames, sources):
+        if isinstance(source, ast.Module):
+            tree = source
+        else:
+            tree = ast.parse(source)
+        tree.__file__ = filename
+        trees.append(tree)
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
@@ -93,12 +96,24 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
     ]
+    # Language independent rewriters that run after type inference
+    generic_post_rewriters = [
+        PrintBoolRewriter(language),
+        StrStrRewriter(language),
+        UnpackScopeRewriter(language),
+    ]
+    rewriters = generic_rewriters + rewriters
+    post_rewriters = generic_post_rewriters + post_rewriters
+    return [
+        transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters)
+        for tree in trees
+    ]
+
+
+def transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
-    # First run Language independent rewriters
-    for rewriter in generic_rewriters:
-        tree = rewriter.visit(tree)
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
@@ -107,14 +122,6 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
     # Language specific transformers
     for tx in transformers:
         tx(tree)
-    # Language independent rewriters that run after type inference
-    generic_post_rewriters = [
-        PrintBoolRewriter(language),
-        StrStrRewriter(language),
-        UnpackScopeRewriter(language),
-    ]
-    for rewriter in generic_post_rewriters:
-        tree = rewriter.visit(tree)
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
@@ -140,13 +147,13 @@ def transpile(filename, source, transpiler, rewriters, transformers, post_rewrit
 @lru_cache(maxsize=100)
 def process_once_data(source_data, filename, settings):
     return transpile(
-        filename,
-        source_data,
+        [filename],
+        [source_data],
         settings.transpiler,
         settings.rewriters,
         settings.transformers,
         settings.post_rewriters,
-    )
+    )[0]
 
 
 def _create_cmd(parts, filename, **kw):
@@ -328,13 +335,13 @@ def _process_once(settings, filename, outdir, env=None):
     with open(output_path, "w") as f:
         f.write(
             transpile(
-                filename,
-                source_data,
+                [filename],
+                [source_data],
                 settings.transpiler,
                 settings.rewriters,
                 settings.transformers,
                 settings.post_rewriters,
-            )
+            )[0]
         )
 
     if settings.formatter:
