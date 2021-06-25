@@ -117,7 +117,10 @@ def capitalize_first(name):
 def camel_case(name):
     if "_" not in name:
         return name
-    return "".join(capitalize_first(part) for part in name.split("_"))
+    # Dont rewrite dunders
+    if name[:2] == "__" and name[-2:] == "__":
+        return name
+    return "".join(capitalize_first(part) if part else "" for part in name.split("_"))
 
 
 def rename(scope, old_name, new_name):
