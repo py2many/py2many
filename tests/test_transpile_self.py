@@ -15,6 +15,20 @@ OUT_DIR = TESTS_DIR / "output"
 PY2MANY_MODULE = ROOT_DIR / "py2many"
 
 
+def assert_only_init_successful(successful, format_errors=None, failures=None):
+    assert {i.name for i in successful} == {"__init__.py"}
+
+
+def assert_reformat_fails(successful, format_errors, failures):
+    assert_only_init_successful(successful, format_errors, failures)
+    assert not failures
+
+
+def assert_no_failures(successful, format_errors, failures, expected_success):
+    assert not failures
+    assert {i.name for i in successful if i.name != "__init__.py"} == expected_success
+
+
 class SelfTranspileTests(unittest.TestCase):
     SETTINGS = _get_all_settings(Mock(indent=4, extension=False))
 
@@ -22,46 +36,50 @@ class SelfTranspileTests(unittest.TestCase):
         settings = self.SETTINGS["rust"]
 
         transpiler_module = ROOT_DIR / "pyrs"
-        successful, format_errors, failures = _process_dir(
-            settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+        assert_reformat_fails(
+            *_process_dir(
+                settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+            )
         )
-        assert set([i.name for i in successful]) == {"__init__.py"}
 
-        successful, format_errors, failures = _process_dir(
-            settings,
-            PY2MANY_MODULE,
-            OUT_DIR,
-            _suppress_exceptions=False,
+        assert_no_failures(
+            *_process_dir(
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                _suppress_exceptions=False,
+            ),
+            expected_success={
+                "annotation_transformer.py",
+                "context.py",
+                "nesting_transformer.py",
+                "result.py",
+            },
         )
-        assert set(successful) == {
-            PY2MANY_MODULE / "__init__.py",
-            PY2MANY_MODULE / "annotation_transformer.py",
-            PY2MANY_MODULE / "context.py",
-            PY2MANY_MODULE / "nesting_transformer.py",
-            PY2MANY_MODULE / "result.py",
-        }
 
     def test_dart_recursive(self):
         settings = self.SETTINGS["dart"]
 
         transpiler_module = ROOT_DIR / "pydart"
-        successful, format_errors, failures = _process_dir(
-            settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+        assert_only_init_successful(
+            *_process_dir(
+                settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+            )
         )
-        assert set([i.name for i in successful]) == {"__init__.py"}
 
-        successful, format_errors, failures = _process_dir(
-            settings,
-            PY2MANY_MODULE,
-            OUT_DIR,
-            _suppress_exceptions=False,
+        assert_no_failures(
+            *_process_dir(
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                _suppress_exceptions=False,
+            ),
+            expected_success={
+                "annotation_transformer.py",
+                "context.py",
+                "nesting_transformer.py",
+            },
         )
-        assert set(successful) == {
-            PY2MANY_MODULE / "__init__.py",
-            PY2MANY_MODULE / "annotation_transformer.py",
-            PY2MANY_MODULE / "context.py",
-            PY2MANY_MODULE / "nesting_transformer.py",
-        }
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
@@ -79,8 +97,7 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if not suppress_exceptions:
-            assert len(successful) == 1
-            assert set([i.name for i in successful]) == {"__init__.py"}
+            assert_only_init_successful(successful)
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -91,12 +108,16 @@ class SelfTranspileTests(unittest.TestCase):
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert set(successful) == {
-            PY2MANY_MODULE / "__init__.py",
-            PY2MANY_MODULE / "annotation_transformer.py",
-            PY2MANY_MODULE / "context.py",
-            PY2MANY_MODULE / "nesting_transformer.py",
-        }
+        assert_no_failures(
+            successful,
+            format_errors,
+            failures,
+            expected_success={
+                "annotation_transformer.py",
+                "context.py",
+                "nesting_transformer.py",
+            },
+        )
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
@@ -106,25 +127,26 @@ class SelfTranspileTests(unittest.TestCase):
             suppress_exceptions = NotImplementedError
 
         transpiler_module = ROOT_DIR / "pygo"
-        successful, format_errors, failures = _process_dir(
-            settings,
-            transpiler_module,
-            OUT_DIR,
-            _suppress_exceptions=suppress_exceptions,
+        assert_only_init_successful(
+            *_process_dir(
+                settings,
+                transpiler_module,
+                OUT_DIR,
+                _suppress_exceptions=suppress_exceptions,
+            )
         )
-        assert set([i.name for i in successful]) == {"__init__.py"}
 
         if not SHOW_ERRORS:
             suppress_exceptions = (NotImplementedError, IndexError)
 
-        successful, format_errors, failures = _process_dir(
-            settings,
-            PY2MANY_MODULE,
-            OUT_DIR,
-            _suppress_exceptions=suppress_exceptions,
+        assert_only_init_successful(
+            *_process_dir(
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                _suppress_exceptions=suppress_exceptions,
+            )
         )
-        assert len(successful) == 1
-        assert set([i.name for i in successful]) == {"__init__.py"}
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
@@ -133,13 +155,14 @@ class SelfTranspileTests(unittest.TestCase):
             suppress_exceptions = AttributeError
 
         transpiler_module = ROOT_DIR / "pynim"
-        successful, format_errors, failures = _process_dir(
-            settings,
-            transpiler_module,
-            OUT_DIR,
-            _suppress_exceptions=suppress_exceptions,
+        assert_only_init_successful(
+            *_process_dir(
+                settings,
+                transpiler_module,
+                OUT_DIR,
+                _suppress_exceptions=suppress_exceptions,
+            )
         )
-        assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -152,6 +175,7 @@ class SelfTranspileTests(unittest.TestCase):
             PY2MANY_MODULE / "__main__.py",
             PY2MANY_MODULE / "result.py",
         }
+        assert len(failures) == 4
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]

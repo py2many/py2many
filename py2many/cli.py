@@ -320,6 +320,10 @@ def _process_once(settings, filename, outdir, env=None):
     print(f"{filename} ... {output_path}")
     with open(filename) as f:
         source_data = f.read()
+    dunder_init = filename.stem == "__init__"
+    if dunder_init and not source_data:
+        print("Detected empty __init__; skipping")
+        return True
     with open(output_path, "w") as f:
         f.write(
             transpile(
