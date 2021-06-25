@@ -346,14 +346,16 @@ def _process_once(settings, filename, outdir, env=None):
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env)
+        proc = run(cmd, env=env, capture_output=True)
         if proc.returncode:
             # format.jl exit code is unreliable
             if settings.ext == ".jl":
                 if proc.stderr is not None:
                     print(
-                        f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
+                        f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
                     )
+                    if b"ERROR: " in proc.stderr:
+                        return False
                 return True
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
