@@ -11,7 +11,7 @@ import astpretty
 
 from unittest_expander import foreach, expand
 
-from py2many.cli import _get_all_settings, _relative_to_cwd, transpile
+from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile
 
 import py2many.cli
 
@@ -220,14 +220,9 @@ class CodeGeneratorTests(unittest.TestCase):
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
         try:
-            result = transpile(
-                case_filename,
-                tree,
-                settings.transpiler,
-                settings.rewriters,
-                settings.transformers,
-                settings.post_rewriters,
-            )
+            result = _transpile([case_filename], [tree], settings,)[
+                0
+            ][0]
         except NotImplementedError as e:
             raise unittest.SkipTest(str(e))
 
@@ -327,7 +322,7 @@ class CodeGeneratorTests(unittest.TestCase):
         if proc.returncode:
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
         try:
-            transpile(
+            _transpile(
                 "stdin",
                 tree,
                 settings.transpiler,

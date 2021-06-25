@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from distutils import spawn
 from functools import lru_cache
 from subprocess import run
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Set, Tuple
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -74,17 +74,37 @@ def core_transformers(tree):
     return tree, infer_meta
 
 
-def transpile(filenames, sources, transpiler, rewriters, transformers, post_rewriters):
+@dataclass
+class LanguageSettings:
+    transpiler: CLikeTranspiler
+    ext: str
+    formatter: Optional[List[str]] = None
+    indent: Optional[int] = None
+    rewriters: List[ast.NodeVisitor] = field(default_factory=list)
+    transformers: List[Callable] = field(default_factory=list)
+    post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
+    linter: Optional[List[str]] = None
+
+    def __hash__(self):
+        f = tuple(self.formatter) if self.formatter is not None else ()
+        l = tuple(self.linter) if self.linter is not None else ()
+        return hash((self.transpiler, f, l))
+
+
+def _transpile(
+    filenames: List[pathlib.Path], sources: List[str], settings: LanguageSettings
+):
     """
     Transpile a single python translation unit (a python script) into
-    Rust code.
+    target language
     """
+    transpiler = settings.transpiler
+    rewriters = settings.rewriters
+    transformers = settings.transformers
+    post_rewriters = settings.post_rewriters
     trees = []
     for filename, source in zip(filenames, sources):
-        if isinstance(source, ast.Module):
-            tree = source
-        else:
-            tree = ast.parse(source)
+        tree = ast.parse(source)
         tree.__file__ = filename
         trees.append(tree)
     language = transpiler.NAME
@@ -104,13 +124,28 @@ def transpile(filenames, sources, transpiler, rewriters, transformers, post_rewr
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
-    return [
-        transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters)
-        for tree in trees
-    ]
+    outputs = []
+    successful = []
+    for filename, tree in zip(filenames, trees):
+        try:
+            output = _transpile_one(
+                trees, tree, transpiler, rewriters, transformers, post_rewriters
+            )
+            successful.append(filename)
+            outputs.append(output)
+        except Exception as e:
+            import traceback
+
+            formatted_lines = traceback.format_exc().splitlines()
+            if isinstance(e, AstNotImplementedError):
+                print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+            else:
+                print(f"{filename}: {formatted_lines[-1]}")
+            outputs.append("FAILED")
+    return outputs, successful
 
 
-def transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters):
+def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
@@ -145,15 +180,10 @@ def transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrite
 
 
 @lru_cache(maxsize=100)
-def process_once_data(source_data, filename, settings):
-    return transpile(
-        [filename],
-        [source_data],
-        settings.transpiler,
-        settings.rewriters,
-        settings.transformers,
-        settings.post_rewriters,
-    )[0]
+def _process_one_data(source_data, filename, settings):
+    return _transpile([filename], [source_data], settings,)[
+        0
+    ][0]
 
 
 def _create_cmd(parts, filename, **kw):
@@ -161,23 +191,6 @@ def _create_cmd(parts, filename, **kw):
     if cmd != parts:
         return cmd
     return [*parts, str(filename)]
-
-
-@dataclass
-class LanguageSettings:
-    transpiler: CLikeTranspiler
-    ext: str
-    formatter: Optional[List[str]] = None
-    indent: Optional[int] = None
-    rewriters: List[ast.NodeVisitor] = field(default_factory=list)
-    transformers: List[Callable] = field(default_factory=list)
-    post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
-    linter: Optional[List[str]] = None
-
-    def __hash__(self):
-        f = tuple(self.formatter) if self.formatter is not None else ()
-        l = tuple(self.linter) if self.linter is not None else ()
-        return hash((self.transpiler, f, l))
 
 
 def cpp_settings(args, env=os.environ):
@@ -316,51 +329,22 @@ def _relative_to_cwd(absolute_path):
     return pathlib.Path(os.path.relpath(absolute_path, CWD))
 
 
-def _format_one(settings, output_path, env=None):
-    restore_cwd = False
-    if settings.ext == ".kt" and output_path.parts[0] == "..":
-        # ktlint can not handle relative paths starting with ..
-        restore_cwd = CWD
-
-        os.chdir(output_path.parent)
-        output_path = output_path.name
-    cmd = _create_cmd(settings.formatter, filename=output_path)
-    proc = run(cmd, env=env, capture_output=True)
-    if proc.returncode:
-        # format.jl exit code is unreliable
-        if settings.ext == ".jl":
-            if proc.stderr is not None:
-                print(f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}")
-                if b"ERROR: " in proc.stderr:
-                    return False
-            return True
-        print(f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}")
-        if restore_cwd:
-            os.chdir(restore_cwd)
-        return False
-    if settings.ext == ".kt":
-        # ktlint formatter needs to be invoked twice before output is lint free
-        if run(cmd, env=env).returncode:
-            print(f"Error: Could not reformat: {cmd}")
-            if restore_cwd:
-                os.chdir(restore_cwd)
-            return False
-
-    if restore_cwd:
-        os.chdir(restore_cwd)
-
-    return True
+def _get_output_path(filename, ext, outdir):
+    output_path = outdir / (filename.stem + ext)
+    if ext == ".kt" and output_path.is_absolute():
+        # KtLint does not support absolute path in globs
+        output_path = _relative_to_cwd(output_path)
+    return output_path
 
 
-def _process_once(settings, filename, outdir, env=None):
+def _process_one(
+    settings: LanguageSettings, filename: pathlib.Path, outdir: str, env=None
+):
     """Transpile and reformat.
 
     Returns False if reformatter failed.
     """
-    output_path = outdir / (filename.stem + settings.ext)
-    if settings.ext == ".kt" and output_path.is_absolute():
-        # KtLint does not support absolute path in globs
-        output_path = _relative_to_cwd(output_path)
+    output_path = _get_output_path(filename, settings.ext, outdir)
     print(f"{filename} ... {output_path}")
     with open(filename) as f:
         source_data = f.read()
@@ -370,14 +354,9 @@ def _process_once(settings, filename, outdir, env=None):
         return True
     with open(output_path, "w") as f:
         f.write(
-            transpile(
-                [filename],
-                [source_data],
-                settings.transpiler,
-                settings.rewriters,
-                settings.transformers,
-                settings.post_rewriters,
-            )[0]
+            _transpile([filename], [source_data], settings,)[
+                0
+            ][0]
         )
 
     if settings.formatter:
@@ -386,11 +365,91 @@ def _process_once(settings, filename, outdir, env=None):
     return True
 
 
+def _format_one(settings, output_path, env=None):
+    try:
+        restore_cwd = False
+        if settings.ext == ".kt" and output_path.parts[0] == "..":
+            # ktlint can not handle relative paths starting with ..
+            restore_cwd = CWD
+
+            os.chdir(output_path.parent)
+            output_path = output_path.name
+        cmd = _create_cmd(settings.formatter, filename=output_path)
+        proc = run(cmd, env=env, capture_output=True)
+        if proc.returncode:
+            # format.jl exit code is unreliable
+            if settings.ext == ".jl":
+                if proc.stderr is not None:
+                    print(
+                        f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
+                    )
+                    if b"ERROR: " in proc.stderr:
+                        return False
+                return True
+            print(
+                f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
+            )
+            if restore_cwd:
+                os.chdir(restore_cwd)
+            return False
+        if settings.ext == ".kt":
+            # ktlint formatter needs to be invoked twice before output is lint free
+            if run(cmd, env=env).returncode:
+                print(f"Error: Could not reformat: {cmd}")
+                if restore_cwd:
+                    os.chdir(restore_cwd)
+                return False
+
+        if restore_cwd:
+            os.chdir(restore_cwd)
+    except Exception as e:
+        print(f"Error: Could not format: {output_path}")
+        print(f"Due to: {e.__class__.__name__} {e}")
+        return False
+
+    return True
+
+
+FileSet = Set[pathlib.Path]
+
+
+def _process_many(settings, filenames, outdir, env=None) -> Tuple[FileSet, FileSet]:
+    """Transpile and reformat many files."""
+
+    source_data = []
+    for filename in filenames:
+        with open(filename) as f:
+            source_data.append(f.read())
+
+    outputs, successful = _transpile(
+        filenames,
+        source_data,
+        settings,
+    )
+
+    output_paths = [
+        _get_output_path(filename, settings.ext, outdir) for filename in filenames
+    ]
+    for filename, output, output_path in zip(filenames, outputs, output_paths):
+        with open(output_path, "w") as f:
+            f.write(output)
+
+    successful = set(successful)
+    format_errors = set()
+    if settings.formatter:
+        # TODO: Optimize to a single invocation
+        for filename, output_path in zip(filenames, output_paths):
+            if filename in successful and not _format_one(settings, output_path, env):
+                format_errors.add(pathlib.Path(filename))
+
+    return (successful, format_errors)
+
+
 def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
     print(f"Transpiling whole directory to {outdir}:")
     successful = []
     failures = []
-    format_errors = []
+    input_paths = []
     for path in source.rglob("*.py"):
         if path.suffix != ".py":
             continue
@@ -401,26 +460,10 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
         target_path = outdir / relative_path
         target_dir = target_path.parent
         os.makedirs(target_dir, exist_ok=True)
+        input_paths.append(path)
 
-        try:
-            if _process_once(settings, path, target_dir, env=env):
-                successful.append(path)
-            else:
-                print(f"Error: Could not reformat: {path}")
-                format_errors.append(path)
-        except Exception as e:
-            print(f"Error: Could not transpile: {path}")
-            if isinstance(e, AstNotImplementedError):
-                print(f"Due to {e.lineno}:{e.col_offset}: {e.__class__.__name__} {e}")
-            else:
-                print(f"Due to: {e.__class__.__name__} {e}")
-            failures.append(path)
-            if _suppress_exceptions:
-                if _suppress_exceptions is not True:
-                    if not isinstance(e, _suppress_exceptions):
-                        raise e
-            else:
-                raise e
+    successful, format_errors = _process_many(settings, input_paths, outdir, env=env)
+    failures = set(input_paths) - set(successful)
 
     print("\nFinished!")
     print(f"Successful: {len(successful)}")
@@ -486,7 +529,7 @@ def main(args=None, env=os.environ):
         if source.is_file():
             print(f"Writing to: {outdir}")
             try:
-                rv = _process_once(settings, source, outdir, env=env)
+                rv = _process_one(settings, source, outdir, env=env)
             except Exception as e:
                 import traceback
 
