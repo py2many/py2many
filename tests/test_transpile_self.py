@@ -216,7 +216,7 @@ class SelfTranspileTests(unittest.TestCase):
 
         suppress_exceptions = False
         if not SHOW_ERRORS:
-            suppress_exceptions = (NotImplementedError,)
+            suppress_exceptions = (False,)
             if settings.formatter:
                 if not spawn.find_executable(settings.formatter[0]):
                     suppress_exceptions = (FileNotFoundError, NotImplementedError)
@@ -231,9 +231,6 @@ class SelfTranspileTests(unittest.TestCase):
         if FileNotFoundError not in suppress_exceptions:
             assert_only_init_successful(successful)
 
-        if not SHOW_ERRORS:
-            suppress_exceptions = suppress_exceptions + (ValueError,)
-
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
@@ -243,10 +240,17 @@ class SelfTranspileTests(unittest.TestCase):
         if FileNotFoundError in suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert set(successful) == {
-            PY2MANY_MODULE / "__init__.py",
-            PY2MANY_MODULE / "__main__.py",
-            PY2MANY_MODULE / "annotation_transformer.py",
-            PY2MANY_MODULE / "nesting_transformer.py",
-            PY2MANY_MODULE / "result.py",
-        }
+        assert_no_failures(
+            successful,
+            format_errors,
+            failures,
+            expected_success={
+                "__main__.py",
+                "analysis.py",
+                "annotation_transformer.py",
+                "context.py",
+                "mutability_transformer.py",
+                "nesting_transformer.py",
+                "result.py",
+            },
+        )
