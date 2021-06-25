@@ -510,8 +510,9 @@ class DartTranspiler(CLikeTranspiler):
         return buf
 
     def visit_Raise(self, node):
-        exc = self.visit(node.exc)
-        return f"throw new {exc};"
+        if node.exc is not None:
+            return "throw new {};".format(self.visit(node.exc))
+        return "throw new Exception();"
 
     def visit_Try(self, node):
         buf = []
