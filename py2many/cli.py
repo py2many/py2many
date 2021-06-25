@@ -316,6 +316,42 @@ def _relative_to_cwd(absolute_path):
     return pathlib.Path(os.path.relpath(absolute_path, CWD))
 
 
+def _format_one(settings, output_path, env=None):
+    restore_cwd = False
+    if settings.ext == ".kt" and output_path.parts[0] == "..":
+        # ktlint can not handle relative paths starting with ..
+        restore_cwd = CWD
+
+        os.chdir(output_path.parent)
+        output_path = output_path.name
+    cmd = _create_cmd(settings.formatter, filename=output_path)
+    proc = run(cmd, env=env, capture_output=True)
+    if proc.returncode:
+        # format.jl exit code is unreliable
+        if settings.ext == ".jl":
+            if proc.stderr is not None:
+                print(f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}")
+                if b"ERROR: " in proc.stderr:
+                    return False
+            return True
+        print(f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}")
+        if restore_cwd:
+            os.chdir(restore_cwd)
+        return False
+    if settings.ext == ".kt":
+        # ktlint formatter needs to be invoked twice before output is lint free
+        if run(cmd, env=env).returncode:
+            print(f"Error: Could not reformat: {cmd}")
+            if restore_cwd:
+                os.chdir(restore_cwd)
+            return False
+
+    if restore_cwd:
+        os.chdir(restore_cwd)
+
+    return True
+
+
 def _process_once(settings, filename, outdir, env=None):
     """Transpile and reformat.
 
@@ -345,41 +381,7 @@ def _process_once(settings, filename, outdir, env=None):
         )
 
     if settings.formatter:
-        restore_cwd = False
-        if settings.ext == ".kt" and output_path.parts[0] == "..":
-            # ktlint can not handle relative paths starting with ..
-            restore_cwd = CWD
-
-            os.chdir(output_path.parent)
-            output_path = output_path.name
-        cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env, capture_output=True)
-        if proc.returncode:
-            # format.jl exit code is unreliable
-            if settings.ext == ".jl":
-                if proc.stderr is not None:
-                    print(
-                        f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
-                    )
-                    if b"ERROR: " in proc.stderr:
-                        return False
-                return True
-            print(
-                f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
-            )
-            if restore_cwd:
-                os.chdir(restore_cwd)
-            return False
-        if settings.ext == ".kt":
-            # ktlint formatter needs to be invoked twice before output is lint free
-            if run(cmd, env=env).returncode:
-                print(f"Error: Could not reformat: {cmd}")
-                if restore_cwd:
-                    os.chdir(restore_cwd)
-                return False
-
-        if restore_cwd:
-            os.chdir(restore_cwd)
+        return _format_one(settings, output_path, env)
 
     return True
 
