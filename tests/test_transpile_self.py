@@ -81,7 +81,6 @@ class SelfTranspileTests(unittest.TestCase):
             _suppress_exceptions=suppress_exceptions,
         )
         if not suppress_exceptions:
-            assert len(successful) == 1
             assert set([i.name for i in successful]) == {"__init__.py"}
 
         successful, format_errors, failures = _process_dir(
@@ -102,10 +101,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
-        if SHOW_ERRORS:
-            suppress_exceptions = False
-        else:
-            suppress_exceptions = NotImplementedError
+        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pygo"
         successful, format_errors, failures = _process_dir(
@@ -116,23 +112,17 @@ class SelfTranspileTests(unittest.TestCase):
         )
         assert set([i.name for i in successful]) == {"__init__.py"}
 
-        if not SHOW_ERRORS:
-            suppress_exceptions = (NotImplementedError, IndexError)
-
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
             OUT_DIR,
             _suppress_exceptions=suppress_exceptions,
         )
-        assert len(successful) == 1
         assert set([i.name for i in successful]) == {"__init__.py"}
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
-        suppress_exceptions = False
-        if not SHOW_ERRORS:
-            suppress_exceptions = AttributeError
+        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pynim"
         successful, format_errors, failures = _process_dir(
@@ -157,9 +147,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
-        suppress_exceptions = False
-        if not SHOW_ERRORS:
-            suppress_exceptions = NotImplementedError
+        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pycpp"
         successful, format_errors, failures = _process_dir(
@@ -174,12 +162,6 @@ class SelfTranspileTests(unittest.TestCase):
             transpiler_module / "transpiler.py",
         }
 
-        if not SHOW_ERRORS:
-            suppress_exceptions = (
-                AttributeError,
-                NotImplementedError,
-                TypeError,
-            )
         successful, format_errors, failures = _process_dir(
             settings,
             PY2MANY_MODULE,
@@ -191,10 +173,9 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
+        suppress_exceptions = False if SHOW_ERRORS else (NotImplementedError,)
 
-        suppress_exceptions = False
         if not SHOW_ERRORS:
-            suppress_exceptions = (NotImplementedError,)
             if settings.formatter:
                 if not spawn.find_executable(settings.formatter[0]):
                     suppress_exceptions = (FileNotFoundError, NotImplementedError)
@@ -211,9 +192,6 @@ class SelfTranspileTests(unittest.TestCase):
                 transpiler_module / "__init__.py",
                 transpiler_module / "plugins.py",
             }
-
-        if not SHOW_ERRORS:
-            suppress_exceptions = suppress_exceptions + (ValueError,)
 
         successful, format_errors, failures = _process_dir(
             settings,

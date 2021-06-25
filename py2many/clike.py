@@ -263,10 +263,17 @@ class CLikeTranspiler(ast.NodeVisitor):
         return typename
 
     def visit(self, node):
+        if node is None:
+            raise TypeError("node can not be None")
         if type(node) in symbols:
             return c_symbol(node)
         else:
-            return super().visit(node)
+            try:
+                return super().visit(node)
+            except AstNotImplementedError:
+                raise
+            except Exception as e:
+                raise AstNotImplementedError(e, node) from e
 
     def visit_Pass(self, node):
         return self.comment("pass")
