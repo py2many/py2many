@@ -121,10 +121,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
-        if SHOW_ERRORS:
-            suppress_exceptions = False
-        else:
-            suppress_exceptions = NotImplementedError
+        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pygo"
         assert_only_init_successful(
@@ -135,9 +132,6 @@ class SelfTranspileTests(unittest.TestCase):
                 _suppress_exceptions=suppress_exceptions,
             )
         )
-
-        if not SHOW_ERRORS:
-            suppress_exceptions = (NotImplementedError, IndexError)
 
         assert_only_init_successful(
             *_process_dir(
