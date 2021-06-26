@@ -6,7 +6,7 @@ from py2many.scope import add_scope_context
 def parse(*args):
     source = ast.parse("\n".join(args))
     add_scope_context(source)
-    add_variable_context(source)
+    add_variable_context(source, (source,))
     return source
 
 

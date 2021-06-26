@@ -7,7 +7,7 @@ from py2many.tracer import is_list, is_recursive, value_expr, value_type
 
 def parse(*args):
     source = ast.parse("\n".join(args))
-    add_variable_context(source)
+    add_variable_context(source, (source,))
     add_scope_context(source)
     return source
 

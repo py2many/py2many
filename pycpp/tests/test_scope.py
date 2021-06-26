@@ -20,6 +20,6 @@ class TestScopeTransformer:
 class TestScopeList:
     def test_find_returns_most_upper_definition(self):
         source = parse("x = 1", "def foo():", "   x = 2")
-        add_variable_context(source)
+        add_variable_context(source, (source,))
         definition = source.scopes.find("x")
         assert definition.lineno == 1

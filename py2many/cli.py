@@ -62,8 +62,8 @@ ROOT_DIR = PY2MANY_DIR.parent
 CWD = pathlib.Path.cwd()
 
 
-def core_transformers(tree):
-    add_variable_context(tree)
+def core_transformers(tree, trees):
+    add_variable_context(tree, trees)
     add_scope_context(tree)
     add_list_calls(tree)
     detect_mutable_vars(tree)
@@ -102,11 +102,12 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
-    trees = []
+    tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source)
         tree.__file__ = filename
-        trees.append(tree)
+        tree_list.append(tree)
+    trees = tuple(tree_list)
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
@@ -153,7 +154,7 @@ def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrit
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
     # Language independent core transformers
-    tree, infer_meta = core_transformers(tree)
+    tree, infer_meta = core_transformers(tree, trees)
     # Language specific transformers
     for tx in transformers:
         tx(tree)
@@ -161,7 +162,7 @@ def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrit
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
     # Rerun core transformers
-    tree, infer_meta = core_transformers(tree)
+    tree, infer_meta = core_transformers(tree, trees)
     out = []
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)

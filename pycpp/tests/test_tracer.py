@@ -7,7 +7,7 @@ import ast
 
 def parse(*args):
     source = ast.parse("\n".join(args))
-    add_variable_context(source)
+    add_variable_context(source, (source,))
     add_scope_context(source)
     return source
 

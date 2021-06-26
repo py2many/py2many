@@ -7,9 +7,9 @@ def add_list_calls(node):
     return ListCallTransformer().visit(node)
 
 
-def add_variable_context(node):
+def add_variable_context(node, trees):
     """Provide context to Module and Function Def"""
-    return VariableTransformer().visit(node)
+    return VariableTransformer(trees).visit(node)
 
 
 class ListCallTransformer(ast.NodeTransformer):
@@ -50,6 +50,13 @@ class ListCallTransformer(ast.NodeTransformer):
 class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     """Adds all defined variables to scope block"""
 
+    def __init__(self, trees):
+        super().__init__()
+        if len(trees) == 1:
+            self._trees = {}
+        else:
+            self._trees = {t.__file__.stem: t for t in trees}
+
     def visit_FunctionDef(self, node):
         node.vars = []
         # So function signatures are accessible even after they're
@@ -72,6 +79,15 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     def visit_Import(self, node):
         for name in node.names:
             name.imported_from = node
+        return node
+
+    def visit_ImportFrom(self, node):
+        module_path = node.module
+        names = [n.name for n in node.names]
+        if module_path in self._trees:
+            m = self._trees[module_path]
+            resolved_names = [m.scopes.find(n) for n in names]
+            node.scopes[-1].vars += resolved_names
         return node
 
     def visit_If(self, node):

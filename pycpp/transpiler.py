@@ -44,7 +44,7 @@ def transpile(source, headers=False, testing=False):
     tree = ast.parse(source)
     rewriter = PythonMainRewriter("cpp")
     tree = rewriter.visit(tree)
-    add_variable_context(tree)
+    add_variable_context(tree, (tree,))
     add_scope_context(tree)
     add_list_calls(tree)
     add_imports(tree)
