@@ -4,6 +4,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+env:
+  ALLOWS: -A clippy::assertions_on_constants -A clippy::float_cmp -A clippy::eq_op
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
@@ -32,8 +34,8 @@ jobs:
         if: steps.check_permissions.outputs.has-permission
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp -A clippy::eq_op
+          args: --bins -- ${{env.ALLOWS}}
       # Duplicated because of https://github.com/actions-rs/clippy-check/issues/2
       - name: Run clippy manually without annotations
         if: ${{ !steps.check_permissions.outputs.has-permission }}
-        run: rustup run nightly cargo clippy --bins -- -A clippy::assertions_on_constants -A clippy::float_cmp -A clippy::eq_op
+        run: rustup run nightly cargo clippy --bins -- ${{env.ALLOWS}}
