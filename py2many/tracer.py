@@ -91,6 +91,10 @@ def value_type(node):
 
 
 class ValueExpressionVisitor(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        self._stack = []
+
     def visit_Constant(self, node):
         return str(node.n)
 
@@ -98,21 +102,36 @@ class ValueExpressionVisitor(ast.NodeVisitor):
         return node.s
 
     def visit_Name(self, node):
-        var = node.scopes.find(get_id(node))
+        name = get_id(node)
+        if name in self._stack:
+            # Avoid infinite recursion in cases like foo = bar(foo)
+            return name
+        self._stack.append(name)
+        try:
+            return self._visit_Name(node)
+        finally:
+            self._stack.pop()
+
+    def _visit_Name(self, node):
+        name = get_id(node)
+        var = node.scopes.find(name)
 
         if not var:  # TODO why no scopes found for node id?
-            return get_id(node)
+            return name
 
         # TODO: code looks C++ specific. Move out
-        if isinstance(var.assigned_from, ast.For):
-            it = var.assigned_from.iter
-            return "std::declval<typename decltype({0})::value_type>()".format(
-                self.visit(it)
-            )
-        elif isinstance(var.assigned_from, ast.FunctionDef):
-            return get_id(var)
+        if hasattr(var, "assigned_from"):
+            if isinstance(var.assigned_from, ast.For):
+                it = var.assigned_from.iter
+                return "std::declval<typename decltype({0})::value_type>()".format(
+                    self.visit(it)
+                )
+            elif isinstance(var.assigned_from, ast.FunctionDef):
+                return get_id(var)
+            else:
+                return self.visit(var.assigned_from.value)
         else:
-            return self.visit(var.assigned_from.value)
+            return name
 
     def visit_Call(self, node):
         arg_strings = [self.visit(arg) for arg in node.args]
@@ -132,6 +151,9 @@ class ValueExpressionVisitor(ast.NodeVisitor):
 
 
 class ValueTypeVisitor(ast.NodeVisitor):
+    def generic_visit(self, node):
+        return "auto"
+
     def visit_Constant(self, node):
         return value_expr(node)
 

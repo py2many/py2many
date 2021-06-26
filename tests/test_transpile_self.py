@@ -194,14 +194,14 @@ class SelfTranspileTests(unittest.TestCase):
         assert len(successful) == 10
         assert set(failures) == {
             transpiler_module / "plugins.py",
-            transpiler_module / "transpiler.py",
+            transpiler_module / "__init__.py",
         }
 
         successful, format_errors, failures = _process_dir(
             settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
         )
-        assert len(successful) == 13
-        assert len(failures) == 3
+        assert len(successful) == 16
+        assert len(failures) == 1
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]

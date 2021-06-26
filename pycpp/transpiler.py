@@ -511,7 +511,7 @@ class CppTranspiler(CLikeTranspiler):
         if element_type == self._default_type:
             typename = decltype(node)
             # Workaround for cases where we couldn't figure out type
-            if "(None)" in typename:
+            if "auto" in typename:
                 return f"{{{elements_str}}}"
             return f"{typename}{{{elements_str}}}"
         return f"std::vector<{element_type}>{{{elements_str}}}"
