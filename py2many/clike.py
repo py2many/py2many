@@ -441,7 +441,9 @@ class CLikeTranspiler(ast.NodeVisitor):
                 buf.append("if({0}) {{".format(self.visit(node.test)))
             else:
                 buf.append("if {0} {{".format(self.visit(node.test)))
-        buf.extend([self.visit(child) for child in node.body])
+        body = [self.visit(child) for child in node.body]
+        body = [b for b in body if b is not None]
+        buf.extend(body)
 
         orelse = [self.visit(child) for child in node.orelse]
         if orelse:
@@ -513,7 +515,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         return (target, type_str, val)
 
     def visit_Delete(self, node):
-        raise AstNotImplementedError("del not implemented", node)
+        return "Del /* Unimplemented */"
 
     def visit_ClassDef(self, node):
         bases = [get_id(base) for base in node.bases]

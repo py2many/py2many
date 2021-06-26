@@ -200,8 +200,8 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
         )
-        assert len(successful) == 10
-        assert len(failures) == 6
+        assert len(successful) == 13
+        assert len(failures) == 3
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]

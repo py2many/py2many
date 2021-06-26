@@ -560,7 +560,7 @@ class CppTranspiler(CLikeTranspiler):
         elts = [self.visit(e) for e in node.elts]
         return "std::make_tuple({0})".format(", ".join(elts))
 
-    def visit_TryExcept(self, node, finallybody=None):
+    def visit_Try(self, node, finallybody=None):
         self._usings.add("<iostream>")
         buf = ["try {"]
         buf += [self.visit(n) for n in node.body]
@@ -585,6 +585,9 @@ class CppTranspiler(CLikeTranspiler):
         buf.append("catch (...) " '{ std::cout << "UNKNOWN ERROR" << std::endl; 0}')
 
         return "\n".join(buf)
+
+    def visit_ExceptHandler(self, node):
+        return "ExceptHandler /*unimplemented()*/"
 
     def visit_Assert(self, node):
         if not self.use_catch_test_cases:
@@ -652,3 +655,18 @@ class CppTranspiler(CLikeTranspiler):
             else:
                 buf.append("std::cout << {0} << std::endl;".format(value))
         return "\n".join(buf)
+
+    def visit_DictComp(self, node):
+        return "DictComp /*unimplemented()*/"
+
+    def visit_GeneratorExp(self, node):
+        return "GeneratorExp /*unimplemented()*/"
+
+    def visit_ListComp(self, node):
+        return "ListComp /*unimplemented()*/"
+
+    def visit_Raise(self, node):
+        return "Raise /*unimplemented()*/"
+
+    def visit_Starred(self, node):
+        return "Starred /*unimplemented()*/"
