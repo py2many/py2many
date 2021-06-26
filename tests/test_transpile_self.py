@@ -117,6 +117,7 @@ class SelfTranspileTests(unittest.TestCase):
                 "rewriters.py",
                 "scope.py",
                 "tracer.py",
+                "toposort_modules.py",
             },
         )
 
@@ -170,7 +171,6 @@ class SelfTranspileTests(unittest.TestCase):
                 "analysis.py",
                 "annotation_transformer.py",
                 "clike.py",
-                "context.py",
                 "declaration_extractor.py",
                 "exceptions.py",
                 "mutability_transformer.py",
@@ -191,17 +191,14 @@ class SelfTranspileTests(unittest.TestCase):
             OUT_DIR,
             _suppress_exceptions=suppress_exceptions,
         )
-        assert len(successful) == 10
-        assert set(failures) == {
-            transpiler_module / "plugins.py",
-            transpiler_module / "__init__.py",
-        }
+        assert len(successful) == 11
+        assert set(failures) == {Path("plugins.py")}
 
         successful, format_errors, failures = _process_dir(
             settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
         )
-        assert len(successful) == 16
-        assert len(failures) == 1
+        assert len(successful) == 15
+        assert len(failures) == 2
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]

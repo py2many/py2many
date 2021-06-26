@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 __version__ = "0.2.1"
 
-install_requires = []
+install_requires = ["toposort"]
 setup_requires = []
 tests_require = ["pytest", "unittest-expander", "argparse_dataclass"]
 

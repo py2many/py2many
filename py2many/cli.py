@@ -20,6 +20,7 @@ from .inference import infer_types
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
 from .scope import add_scope_context
+from .toposort_modules import toposort
 
 from pycpp.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.inference import infer_rust_types
@@ -107,7 +108,8 @@ def _transpile(
         tree = ast.parse(source)
         tree.__file__ = filename
         tree_list.append(tree)
-    trees = tuple(tree_list)
+    trees = toposort(tree_list)
+    topo_filenames = [t.__file__ for t in trees]
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
@@ -125,15 +127,15 @@ def _transpile(
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
-    outputs = []
+    outputs = {}
     successful = []
-    for filename, tree in zip(filenames, trees):
+    for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
                 trees, tree, transpiler, rewriters, transformers, post_rewriters
             )
             successful.append(filename)
-            outputs.append(output)
+            outputs[filename] = output
         except Exception as e:
             import traceback
 
@@ -142,8 +144,10 @@ def _transpile(
                 print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
                 print(f"{filename}: {formatted_lines[-1]}")
-            outputs.append("FAILED")
-    return outputs, successful
+            outputs[filename] = "FAILED"
+    # return output in the same order as input
+    output_list = [outputs[f] for f in filenames]
+    return output_list, successful
 
 
 def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters):
@@ -414,12 +418,14 @@ def _format_one(settings, output_path, env=None):
 FileSet = Set[pathlib.Path]
 
 
-def _process_many(settings, filenames, outdir, env=None) -> Tuple[FileSet, FileSet]:
+def _process_many(
+    settings, basedir, filenames, outdir, env=None
+) -> Tuple[FileSet, FileSet]:
     """Transpile and reformat many files."""
 
     source_data = []
     for filename in filenames:
-        with open(filename) as f:
+        with open(basedir / filename) as f:
             source_data.append(f.read())
 
     outputs, successful = _transpile(
@@ -429,7 +435,8 @@ def _process_many(settings, filenames, outdir, env=None) -> Tuple[FileSet, FileS
     )
 
     output_paths = [
-        _get_output_path(filename, settings.ext, outdir) for filename in filenames
+        _get_output_path(basedir / filename, settings.ext, outdir)
+        for filename in filenames
     ]
     for filename, output, output_path in zip(filenames, outputs, output_paths):
         with open(output_path, "w") as f:
@@ -461,9 +468,11 @@ def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=True):
         target_path = outdir / relative_path
         target_dir = target_path.parent
         os.makedirs(target_dir, exist_ok=True)
-        input_paths.append(path)
+        input_paths.append(relative_path)
 
-    successful, format_errors = _process_many(settings, input_paths, outdir, env=env)
+    successful, format_errors = _process_many(
+        settings, source, input_paths, outdir, env=env
+    )
     failures = set(input_paths) - set(successful)
 
     print("\nFinished!")
