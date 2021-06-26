@@ -98,7 +98,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
     def __init__(self):
         super().__init__()
-        self._default_type = "var"
+        self._default_type = ""
         self._container_type_map = self.CONTAINER_TYPE_MAP
 
     def usings(self):
@@ -136,8 +136,9 @@ class KotlinTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f": {typename}"
-            else:
+                if typename:
+                    return_type = f": {typename}"
+            if not return_type:
                 return_type = ": RT"
                 typedecls.append("RT")
 
