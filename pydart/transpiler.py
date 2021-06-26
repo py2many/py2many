@@ -96,8 +96,9 @@ class DartTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f"{typename}"
-            else:
+                if typename != self._default_type:
+                    return_type = f"{typename}"
+            if not return_type:
                 return_type = "RT"
                 typedecls.append("RT")
 
