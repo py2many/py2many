@@ -54,17 +54,11 @@ impl Register {
     }
 
     fn is_packet(&self) -> bool {
-        match *self {
-            Register::PACKET(_) => true,
-            _ => false,
-        }
+        matches!(*self, Register::PACKET(_))
     }
 
     fn is_value(&self) -> bool {
-        match *self {
-            Register::VALUE(_) => true,
-            _ => false,
-        }
+        matches!(*self, Register::VALUE(_))
     }
 }
 
