@@ -13,10 +13,11 @@ TESTS_DIR = Path(__file__).parent
 ROOT_DIR = TESTS_DIR.parent
 OUT_DIR = TESTS_DIR / "output"
 PY2MANY_MODULE = ROOT_DIR / "py2many"
+dunder_init_dot_py = "__init__.py"
 
 
 def assert_only_init_successful(successful, format_errors=None, failures=None):
-    assert {i.name for i in successful} == {"__init__.py"}
+    assert {i.name for i in successful} == {dunder_init_dot_py}
 
 
 def assert_reformat_fails(successful, format_errors, failures):
@@ -25,15 +26,21 @@ def assert_reformat_fails(successful, format_errors, failures):
 
 
 def assert_no_failures(successful, format_errors, failures, expected_success):
+    assert {
+        i.name for i in successful if i.name != dunder_init_dot_py
+    } == expected_success
     assert not failures
-    assert {i.name for i in successful if i.name != "__init__.py"} == expected_success
 
 
 def assert_some_failures(successful, format_errors, failures, expected_success):
-    assert {i.name for i in successful if i.name != "__init__.py"} == expected_success
+    assert {
+        i.name for i in successful if i.name != dunder_init_dot_py
+    } == expected_success
+    assert failures
 
 
 def assert_only_reformat_failures(successful, format_errors, failures):
+    assert successful
     assert not failures
     assert format_errors
 
@@ -97,28 +104,10 @@ class SelfTranspileTests(unittest.TestCase):
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
-        assert_no_failures(
+        assert_only_reformat_failures(
             successful,
             format_errors,
             failures,
-            expected_success={
-                "__main__.py",
-                "analysis.py",
-                "annotation_transformer.py",
-                "cli.py",
-                "clike.py",
-                "context.py",
-                "declaration_extractor.py",
-                "exceptions.py",
-                "inference.py",
-                "mutability_transformer.py",
-                "nesting_transformer.py",
-                "result.py",
-                "rewriters.py",
-                "scope.py",
-                "tracer.py",
-                "toposort_modules.py",
-            },
         )
 
     def test_go_recursive(self):
