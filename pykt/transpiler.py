@@ -1,6 +1,6 @@
 import ast
-import functools
-import re
+
+from typing import List, Tuple
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_kotlin_type
@@ -19,18 +19,11 @@ from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
-from typing import Optional, List, Tuple
-
 
 class KotlinPrintRewriter(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         self._temp = 0
-        self._dispatch_map = DISPATCH_MAP
-        self._small_dispatch_map = SMALL_DISPATCH_MAP
-        self._small_usings_map = SMALL_USINGS_MAP
-        self._func_dispatch_table = FUNC_DISPATCH_TABLE
-        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def _get_temp(self):
         self._temp += 1
@@ -38,6 +31,7 @@ class KotlinPrintRewriter(ast.NodeTransformer):
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
+
         if (
             get_id(fname) == "print"
             and len(node.args) == 1
@@ -100,6 +94,11 @@ class KotlinTranspiler(CLikeTranspiler):
         super().__init__()
         self._default_type = ""
         self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._main_signature_arg_names = ["argv"]
 
     def usings(self):
@@ -202,70 +201,6 @@ class KotlinTranspiler(CLikeTranspiler):
             return attr
 
         return f"{value_id}.{attr}"
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return "(0..{}-1)".format(vargs[0])
-        elif len(node.args) == 2:
-            return "({}..{}-1)".format(vargs[0], vargs[1])
-        elif len(node.args) == 3:
-            return "({}..{}-1 step {})".format(vargs[0], vargs[1], vargs[2])
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def _visit_print(self, node, vargs: List[str]) -> str:
-        def _format(arg):
-            if arg.isdigit():
-                return arg
-            if re.match(r"'.*'", arg) or re.match(r'".*"', arg):
-                return arg[1:-1]
-            else:
-                return f"${arg}"
-
-        vargs_str = " ".join([f"{_format(arg)}" for arg in vargs])
-        return f'println("{vargs_str}")'
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self._visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_min_max(is_max: bool) -> str:
-            min_max = "max" if is_max else "min"
-            self._usings.add(f"kotlin.math.{min_max}")
-            self._typename_from_annotation(node.args[0])
-            if hasattr(node.args[0], "container_type"):
-                return f"maxOf({vargs[0]})"
-            else:
-                all_vargs = ", ".join(vargs)
-                return f"{min_max}({all_vargs})"
-
-        def visit_floor():
-            self._usings.add("kotlin.math.floor")
-            return f"floor({vargs[0]}).toInt()"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "int": lambda: f"{vargs[0]}.toInt()",
-            "bool": lambda: f"({vargs[0]} != 0)",
-            "str": lambda: f"{vargs[0]}.toString()",
-            # TODO: strings use .length
-            "len": lambda: f"{vargs[0]}.size",
-            "max": functools.partial(visit_min_max, is_max=True),
-            "min": functools.partial(visit_min_max, is_min=True),
-            "floor": visit_floor,
-            "reversed": lambda: f"{vargs[0]}.reversed()",
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
