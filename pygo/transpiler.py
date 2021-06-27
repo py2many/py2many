@@ -1,6 +1,7 @@
 import ast
-import functools
 import textwrap
+
+from typing import List
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_go_type
@@ -20,8 +21,6 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
 from py2many.rewriters import capitalize_first, rename, camel_case
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
-
-from typing import Optional, List
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
@@ -252,62 +251,6 @@ class GoTranspiler(CLikeTranspiler):
             return f"{value_id}.{attr}"
 
         return f"{value_id}.{attr}"
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        self._usings.add('iter "github.com/hgfischer/go-iter"')
-        if len(node.args) == 1:
-            return f"iter.NewIntSeq(iter.Start(0), iter.Stop({vargs[0]})).All()"
-        elif len(node.args) == 2:
-            return (
-                f"iter.NewIntSeq(iter.Start({vargs[0]}), iter.Stop({vargs[1]})).All()"
-            )
-        elif len(node.args) == 3:
-            return f"iter.NewIntSeq(iter.Start({vargs[0]}), iter.Stop({vargs[1]}), iter.Step({vargs[2]})).All()"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def _visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
-        for n in node.args:
-            placeholders.append("%v")
-        self._usings.add('"fmt"')
-        placeholders_str = " ".join(placeholders)
-        vargs_str = ", ".join(vargs)
-        return f'fmt.Printf("{placeholders_str}\\n",{vargs_str})'
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range_": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self._visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_min_max(is_max: bool) -> str:
-            min_max = "math.Max" if is_max else "math.Min"
-            self._usings.add('"math"')
-            vargs_str = ", ".join(vargs)
-            return f"{min_max}({vargs_str})"
-
-        def visit_floor():
-            self._usings.add('"math"')
-            return f"math.Floor({vargs[0]})"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "str": lambda: f"String({vargs[0]})",
-            "bool": lambda: f"({vargs[0]} != 0)",
-            "max": functools.partial(visit_min_max, is_max=True),
-            "min": functools.partial(visit_min_max, is_min=True),
-            "floor": visit_floor,
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
