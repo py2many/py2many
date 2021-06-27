@@ -2,7 +2,9 @@ import ast
 import os.path
 import unittest
 import sys
+
 from distutils import spawn
+from functools import lru_cache
 from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
@@ -18,32 +20,17 @@ import py2many.cli
 
 from tests.test_cli import (
     BUILD_DIR,
+    COMPILERS,
+    ENV,
     GENERATED_DIR,
-    ROOT_DIR,
-    TESTS_DIR,
+    INVOKER,
     KEEP_GENERATED,
-    CXX,
+    LANGS,
+    SHOW_ERRORS,
+    TESTS_DIR,
     get_exe_filename,
     has_main_lines,
 )
-
-ENV = {"rust": {"RUSTFLAGS": "--deny warnings"}}
-COMPILERS = {
-    "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR), "-stdlib=libc++"],
-    "dart": ["dart", "compile", "exe"],
-    "go": ["go", "build"],
-    "julia": ["julia", "--compiled-modules=yes"],
-    "kotlin": ["kotlinc"],
-    "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["cargo", "script", "--build-only", "--debug"],
-}
-INVOKER = {
-    "dart": ["dart", "--enable-asserts"],
-    "go": ["go", "run"],
-    "julia": ["julia", "--compiled-modules=yes"],
-    "kotlin": ["kscript"],
-    "rust": ["cargo", "script"],
-}
 
 _INT_ENUM = dedent(
     """
@@ -181,6 +168,7 @@ def has_main(source):
     return has_main_lines(lines)
 
 
+@lru_cache()
 def get_tree(source_data, ext):
     is_script = has_main(source_data)
     if ext in [".dart", ".kt", ".rs"] and not is_script:
@@ -196,10 +184,9 @@ def get_tree(source_data, ext):
 
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    LANGS = list(_get_all_settings(Mock(indent=4)).keys())
     maxDiff = None
 
-    SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
+    SHOW_ERRORS = SHOW_ERRORS
 
     def setUp(self):
         os.makedirs(BUILD_DIR, exist_ok=True)

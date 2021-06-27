@@ -4,6 +4,7 @@ import unittest
 import sys
 
 from distutils import spawn
+from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from unittest.mock import Mock
@@ -19,8 +20,11 @@ BUILD_DIR = TESTS_DIR / "build"
 GENERATED_DIR = BUILD_DIR
 
 KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
+SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+
 CXX = os.environ.get("CXX", "clang++")
+LANGS = list(_get_all_settings(Mock(indent=4)).keys())
 ENV = {
     "cpp": {"CLANG_FORMAT_STYLE": "Google"},
     "rust": {"RUSTFLAGS": "--deny warnings"},
@@ -50,7 +54,7 @@ TEST_CASES = [
 ]
 
 CASE_ARGS = {
-    "sys_argv": ["arg1"],
+    "sys_argv": ("arg1",),
 }
 
 EXTENSION_TEST_CASES = [
@@ -93,14 +97,21 @@ def get_exe_filename(case, ext):
     return exe
 
 
+@lru_cache()
+def get_python_case_output(case_filename, main_args):
+    proc = run([sys.executable, str(case_filename), *main_args], capture_output=True)
+    if proc.returncode:
+        raise RuntimeError(f"Invalid {case_filename}:\n{proc.stdout}{proc.stderr}")
+    return proc.stdout
+
+
 @expand
 class CodeGeneratorTests(unittest.TestCase):
-    LANGS = list(_get_all_settings(Mock(indent=4)).keys())
     maxDiff = None
 
-    SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
-    KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
-    UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
+    SHOW_ERRORS = SHOW_ERRORS
+    KEEP_GENERATED = KEEP_GENERATED
+    UPDATE_EXPECTED = UPDATE_EXPECTED
     LINT = os.environ.get("LINT", True)
 
     def setUp(self):
@@ -139,15 +150,8 @@ class CodeGeneratorTests(unittest.TestCase):
         is_script = has_main(case_filename)
         self.assertTrue(is_script)
 
-        main_args = CASE_ARGS.get(case, [])
-        proc = run(
-            [sys.executable, str(case_filename), *main_args], capture_output=True
-        )
-        expected_output = proc.stdout
-        if proc.returncode:
-            raise RuntimeError(
-                f"Invalid cases/{case}.py:\n{expected_output}{proc.stderr}"
-            )
+        main_args = CASE_ARGS.get(case, tuple())
+        expected_output = get_python_case_output(case_filename, main_args)
         self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
