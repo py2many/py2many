@@ -123,6 +123,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._container_type_map = {}
         self._default_type = _AUTO
         self._statement_separator = ";"
+        self._main_signature_arg_names = []
         self._extension = False
         self._ignored_module_set = IGNORED_MODULE_SET.copy()
         self._module = None

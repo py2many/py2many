@@ -116,7 +116,7 @@ def _transpile(
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
-        PythonMainRewriter(language),
+        PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         FStringJoinRewriter(language),
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),

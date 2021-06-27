@@ -129,7 +129,8 @@ def rename(scope, old_name, new_name):
 
 
 class PythonMainRewriter(ast.NodeTransformer):
-    def __init__(self, language):
+    def __init__(self, main_signature_arg_names):
+        self.main_signature_arg_names = set(main_signature_arg_names)
         super().__init__()
 
     def visit_If(self, node):
@@ -145,10 +146,17 @@ class PythonMainRewriter(ast.NodeTransformer):
             if hasattr(node, "scopes") and len(node.scopes) > 1:
                 rename(node.scopes[-2], "main", "main_func")
             # ast.parse produces a Module object that needs to be destructured
-            ret = ast.parse("def main(argc: int, argv: List[str]): True").body[0]
+            if self.main_signature_arg_names == {"argc", "argv"}:
+                ret = ast.parse(
+                    "def main(argc: int, argv: List[str]) -> int: True"
+                ).body[0]
+            elif self.main_signature_arg_names == {"argv"}:
+                ret = ast.parse("def main(argv: List[str]): True").body[0]
+            else:
+                ret = ast.parse("def main(): True").body[0]
             ret.lineno = node.lineno
             ret.body = node.body
-            # So backends know to insert argc, argv etc
+            # So backends know to handle argc, argv etc
             ret.python_main = True
             return ret
         return node

@@ -134,6 +134,7 @@ class CppTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._main_signature_arg_names = ["argc", "argv"]
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -170,6 +171,7 @@ class CppTranspiler(CLikeTranspiler):
         ):
             return generate_catch_test_case(node, body)
 
+        is_python_main = getattr(node, "python_main", False)
         typenames, args = self.visit(node.args)
 
         args_list = []
@@ -187,6 +189,8 @@ class CppTranspiler(CLikeTranspiler):
                 typename = "T{0}".format(index)
                 typedecls.append(typename)
                 index += 1
+            if is_python_main and arg in ["argv"]:
+                typename = "char **"
             args_list.append(f"{typename} {arg}")
 
         template = "inline "
@@ -194,10 +198,12 @@ class CppTranspiler(CLikeTranspiler):
             typedecls_str = ", ".join([f"typename {t}" for t in typedecls])
             template = f"template <{typedecls_str}>"
 
-        return_type = "auto"
-        if node.name == "main":
+        if is_python_main:
+            body = (
+                "pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);\n"
+                + body
+            )
             template = ""
-            return_type = "int"
 
         if not is_void_function(node):
             if node.returns:
@@ -210,14 +216,7 @@ class CppTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         funcdef = f"{template}{return_type} {node.name}({args}) {{"
-        if getattr(node, "python_main", False):
-            funcdef = "\n".join(
-                [
-                    "int main(int argc, char ** argv) {",
-                    "pycpp::sys::argv = "
-                    "std::vector<std::string>(argv, argv + argc);",
-                ]
-            )
+
         return funcdef + "\n" + body + "}\n"
 
     def visit_Attribute(self, node):

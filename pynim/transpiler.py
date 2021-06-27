@@ -88,8 +88,6 @@ class NimTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            if is_python_main and arg in ["argc", "argv"]:
-                continue
 
             args_list.append(f"{arg}: {typename}".format(arg, typename))
 

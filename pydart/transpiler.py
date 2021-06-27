@@ -56,6 +56,7 @@ class DartTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._main_signature_arg_names = ["argv"]
 
     def _get_temp(self):
         self._temp += 1

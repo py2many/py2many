@@ -100,6 +100,7 @@ class KotlinTranspiler(CLikeTranspiler):
         super().__init__()
         self._default_type = ""
         self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._main_signature_arg_names = ["argv"]
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
