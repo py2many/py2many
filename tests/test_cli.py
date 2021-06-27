@@ -65,6 +65,8 @@ EXPECTED_COMPILE_FAILURES = []
 
 CARGO_TOML = [l.strip() for l in open(ROOT_DIR / "Cargo.toml").readlines()]
 
+a_dot_out = "a.out"
+
 
 def in_cargo_toml(case: str):
     return f'path = "tests/expected/{case}.rs"' in CARGO_TOML
@@ -190,8 +192,8 @@ class CodeGeneratorTests(unittest.TestCase):
                         f.write(generated)
 
             stdout = None
-            if ext == ".cpp" and (BUILD_DIR / "a.out").exists():
-                os.rename(BUILD_DIR / "a.out", exe)
+            if ext == ".cpp" and (BUILD_DIR / a_dot_out).exists():
+                os.rename(BUILD_DIR / a_dot_out, exe)
 
             if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
@@ -285,7 +287,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings.formatter = ["astyle"]
 
-        exe = BUILD_DIR / "a.out"
+        exe = BUILD_DIR / a_dot_out
         exe.unlink(missing_ok=True)
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
