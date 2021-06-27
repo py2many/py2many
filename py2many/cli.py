@@ -17,7 +17,7 @@ from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
 from .clike import CLikeTranspiler
 from .context import add_variable_context, add_list_calls
-from .exceptions import AstNotImplementedError
+from .exceptions import AstErrorBase
 from .inference import infer_types
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
@@ -143,7 +143,7 @@ def _transpile(
             import traceback
 
             formatted_lines = traceback.format_exc().splitlines()
-            if isinstance(e, AstNotImplementedError):
+            if isinstance(e, AstErrorBase):
                 print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
                 print(f"{filename}: {formatted_lines[-1]}")
@@ -563,7 +563,7 @@ def main(args=None, env=os.environ):
                 import traceback
 
                 formatted_lines = traceback.format_exc().splitlines()
-                if isinstance(e, AstNotImplementedError):
+                if isinstance(e, AstErrorBase):
                     print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
                 else:
                     print(f"{source}: {formatted_lines[-1]}")

@@ -7,7 +7,7 @@ from typing import Optional
 
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, LifeTime, class_for_typename
-from py2many.exceptions import AstNotImplementedError
+from py2many.exceptions import AstIncompatibleAssign, AstNotImplementedError
 from py2many.tracer import is_enum
 
 
@@ -280,8 +280,8 @@ class InferTypesTransformer(ast.NodeTransformer):
             not is_compatible(target_class, value_class, target, node.value)
             and target_class != None
         ):
-            raise TypeError(
-                f"{target_class} incompatible with {value_class} on lineno: {node.lineno}"
+            raise AstIncompatibleAssign(
+                f"{target_class} incompatible with {value_class}", node
             )
         return node
 

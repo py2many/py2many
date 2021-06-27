@@ -12,6 +12,7 @@ import astpretty
 from unittest_expander import foreach, expand
 
 from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile, _transpile_one
+from py2many.exceptions import AstIncompatibleAssign
 
 import py2many.cli
 
@@ -170,8 +171,8 @@ EXPECTED_SUCCESSES = [
 ]
 
 TEST_ERROR_CASES = {
-    "a: i8 = 300 ": TypeError,
-    "a: i8 = 10; b: i16 = 300; c: i16 = a + b": TypeError,
+    "a: i8 = 300": AstIncompatibleAssign,
+    "a: i8 = 10; b: i16 = 300; c: i16 = a + b": AstIncompatibleAssign,
 }
 
 
