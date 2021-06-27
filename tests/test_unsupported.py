@@ -11,7 +11,7 @@ import astpretty
 
 from unittest_expander import foreach, expand
 
-from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile
+from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile, _transpile_one
 
 import py2many.cli
 
@@ -322,8 +322,8 @@ class CodeGeneratorTests(unittest.TestCase):
         if proc.returncode:
             raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
         try:
-            _transpile(
-                "stdin",
+            _transpile_one(
+                [tree],
                 tree,
                 settings.transpiler,
                 settings.rewriters,
