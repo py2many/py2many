@@ -313,10 +313,11 @@ def dart_settings(args, env=os.environ):
 
 
 def go_settings(args, env=os.environ):
-    if os.path.exists(CWD / "revive.toml"):
-        revive_config = CWD / "revive.toml"
-    elif os.path.exists(PY2MANY_DIR / "revive.toml"):
-        revive_config = PY2MANY_DIR / "revive.toml"
+    config_filename = "revive.toml"
+    if os.path.exists(CWD / config_filename):
+        revive_config = CWD / config_filename
+    elif os.path.exists(PY2MANY_DIR / config_filename):
+        revive_config = PY2MANY_DIR / config_filename
     else:
         revive_config = None
     return LanguageSettings(
