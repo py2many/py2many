@@ -34,6 +34,9 @@ the first language to be supported.
 
 Preliminary support exists for Julia, Kotlin, Nim, Go and Dart.
 
+py2many can also emit Python 3 code that includes inferred type annotations,
+and revisions to the syntax intended to simplify parsing of the code.
+
 ## History
 
 Based on Julian Konchunas' pyrs

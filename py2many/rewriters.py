@@ -2,10 +2,43 @@ import ast
 import textwrap
 
 from py2many.analysis import get_id
+from py2many.ast_helpers import create_ast_block
 from py2many.clike import CLikeTranspiler
 from py2many.inference import get_inferred_type
 
 from typing import Optional
+
+
+class InferredAnnAssignRewriter(ast.NodeTransformer):
+    def visit_Assign(self, node):
+        target = node.targets[0]
+        annotation = getattr(target, "annotation", False)
+        if not annotation:
+            return node
+
+        if isinstance(annotation, ast.ClassDef):
+            annotation = ast.Name(id=get_id(annotation))
+
+        col_offset = getattr(node, "col_offset", None)
+
+        assigns = []
+        for assign_target in node.targets:
+            print(assign_target.__class__)
+            # assert False
+            new_node = ast.AnnAssign(
+                target=assign_target,
+                value=node.value,
+                lineno=node.lineno,
+                col_offset=col_offset,
+                simple=True,
+                annotation=annotation,
+            )
+            assigns.append(new_node)
+
+        if len(assigns) == 1:
+            return assigns[0]
+
+        return create_ast_block(body=assigns, at_node=node)
 
 
 class ComplexDestructuringRewriter(ast.NodeTransformer):
@@ -40,11 +73,7 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
                 body.append(
                     ast.Assign(targets=[orig[i]], value=temps[i], lineno=node.lineno)
                 )
-            ret = ast.If(
-                test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
-            )
-            ret.rewritten = True
-            return ret
+            return create_ast_block(body=body, at_node=node)
         return node
 
 
@@ -99,13 +128,9 @@ class WithToBlockTransformer(ast.NodeTransformer):
             )
             stmts.append(stmt)
         node.body = stmts + node.body
-        ret = ast.If(
-            test=ast.Constant(value=True), body=node.body, orelse=[], lineno=node.lineno
-        )
-        ret.rewritten = True
+        ret = create_ast_block(body=node.body, at_node=node)
         # Hint to UnpackScopeRewriter below to leave the new scope alone
         ret.unpack = False
-        ast.fix_missing_locations(ret)
         return ret
 
 
@@ -280,7 +305,7 @@ class StrStrRewriter(ast.NodeTransformer):
         self._language = language
 
     def visit_Compare(self, node):
-        if self._language in {"dart", "kotlin", "nim"}:
+        if self._language in {"dart", "kotlin", "nim", "python"}:
             return node
 
         if isinstance(node.ops[0], ast.In):
@@ -334,13 +359,7 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
                     body[-1].unused = True
                     continue
             body.append(ast.Assign(targets=[target.elts[i]], value=node.value.elts[i]))
-        ret = ast.If(
-            test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
-        )
-        ret.lineno = node.lineno
-        ret.rewritten = True
-        ast.fix_missing_locations(ret)
-        return ret
+        return create_ast_block(body=body, at_node=node)
 
     def visit_Assign(self, node):
         if self._disable:
@@ -365,12 +384,7 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
             # TODO: Evaluation order - we may have to split the tuple assignment to get
             # it right. For now, keep it simple
             body = [ast.Expr(value=e) for e in to_eval] + body
-            ret = ast.If(
-                test=ast.Constant(value=True), body=body, orelse=[], lineno=node.lineno
-            )
-            ret.rewritten = True
-            ast.fix_missing_locations(ret)
-            return ret
+            return create_ast_block(body=body, at_node=node)
         return node
 
 

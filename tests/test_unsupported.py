@@ -25,12 +25,14 @@ from tests.test_cli import (
     GENERATED_DIR,
     INVOKER,
     KEEP_GENERATED,
-    LANGS,
+    LANGS as _LANGS,
     SHOW_ERRORS,
     TESTS_DIR,
     get_exe_filename,
     has_main_lines,
 )
+
+LANGS = set(_LANGS) - {"python"}
 
 _INT_ENUM = dedent(
     """

@@ -15,6 +15,7 @@ from .plugins import (
 
 
 from py2many.analysis import add_imports, is_global, is_void_function, get_id
+from py2many.ast_helpers import create_ast_block
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
@@ -95,17 +96,13 @@ class CppListComparisonRewriter(ast.NodeTransformer):
         if isinstance(right, ast.List):
             tmp = ast.Name(id=self._get_temp(), lineno=node.lineno)
             comparators[0] = tmp
-            ret = ast.If(
-                test=ast.Constant(value=True),
+            return create_ast_block(
                 body=[
                     ast.Assign(targets=[tmp], value=right, lineno=node.lineno),
                     ast.Compare(left, ops, comparators, lineno=node.lineno),
                 ],
-                orelse=[],
-                lineno=node.lineno,
+                at_node=node,
             )
-            ret.rewritten = True
-            return ret
 
         return node
 

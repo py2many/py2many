@@ -5,22 +5,24 @@ import os
 import pathlib
 import sys
 
-from dataclasses import dataclass, field
+
 from distutils import spawn
 from functools import lru_cache
 from subprocess import run
-from typing import Callable, List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 from unittest.mock import Mock
 
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
-from .clike import CLikeTranspiler
+
 from .context import add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
 from .inference import infer_types
+from .language import LanguageSettings
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
+from .python_transformer import PythonTranspiler, RestoreMainRewriter
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
@@ -51,6 +53,7 @@ from pygo.transpiler import (
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
     FStringJoinRewriter,
+    InferredAnnAssignRewriter,
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
@@ -75,24 +78,6 @@ def core_transformers(tree, trees):
     infer_meta = infer_types(tree)
     add_imports(tree)
     return tree, infer_meta
-
-
-@dataclass
-class LanguageSettings:
-    transpiler: CLikeTranspiler
-    ext: str
-    display_name: str
-    formatter: Optional[List[str]] = None
-    indent: Optional[int] = None
-    rewriters: List[ast.NodeVisitor] = field(default_factory=list)
-    transformers: List[Callable] = field(default_factory=list)
-    post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
-    linter: Optional[List[str]] = None
-
-    def __hash__(self):
-        f = tuple(self.formatter) if self.formatter is not None else ()
-        l = tuple(self.linter) if self.linter is not None else ()
-        return hash((self.transpiler, f, l))
 
 
 def _transpile(
@@ -199,6 +184,17 @@ def _create_cmd(parts, filename, **kw):
     if cmd != parts:
         return cmd
     return [*parts, str(filename)]
+
+
+def python_settings(args, env=os.environ):
+    return LanguageSettings(
+        PythonTranspiler(),
+        ".py",
+        "Python",
+        formatter=["black"],
+        rewriters=[RestoreMainRewriter()],
+        post_rewriters=[InferredAnnAssignRewriter()],
+    )
 
 
 def cpp_settings(args, env=os.environ):
@@ -337,6 +333,7 @@ def go_settings(args, env=os.environ):
 
 def _get_all_settings(args, env=os.environ):
     return {
+        "python": python_settings(args, env=env),
         "cpp": cpp_settings(args, env=env),
         "rust": rust_settings(args, env=env),
         "julia": julia_settings(args, env=env),
@@ -539,6 +536,8 @@ def main(args=None, env=os.environ):
             pass
         if args.rust:
             settings = rust_settings(args, env=env)
+        elif args.python:
+            settings = python_settings(args, env=env)
         elif args.julia:
             settings = julia_settings(args, env=env)
         elif args.kotlin:

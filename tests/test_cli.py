@@ -44,6 +44,7 @@ INVOKER = {
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
+    "python": [sys.executable],
     "rust": ["cargo", "script"],
 }
 
@@ -110,6 +111,16 @@ def get_python_case_output(case_filename, main_args, exit_code):
     return proc.stdout
 
 
+def standardise_python(code):
+    """Ignore differences in black output.
+
+    black 21.6b0 outputs slightly different source between Python 3.8 amd 3.9
+    For tuples, it is not consistent adding round brackets.
+    And sometimes there are fewer blank newlines.
+    """
+    return code.replace("(", "").replace(")", "").replace("\n\n", "\n")
+
+
 @expand
 class CodeGeneratorTests(unittest.TestCase):
     maxDiff = None
@@ -171,7 +182,14 @@ class CodeGeneratorTests(unittest.TestCase):
                 generated = actual.read()
                 if os.path.exists(expected_filename) and not self.UPDATE_EXPECTED:
                     with open(expected_filename) as f2:
-                        self.assertEqual(f2.read(), generated)
+                        expected_case_contents = f2.read()
+                        generated_cleaned = generated
+                        if ext == ".py":
+                            expected_case_contents = standardise_python(
+                                expected_case_contents
+                            )
+                            generated_cleaned = standardise_python(generated)
+                        self.assertEqual(expected_case_contents, generated_cleaned)
                         print("expected = generated")
 
             expect_failure = (
