@@ -180,6 +180,19 @@ def has_main(source):
     return has_main_lines(lines)
 
 
+def get_tree(source_data, ext):
+    is_script = has_main(source_data)
+    if ext in [".dart", ".kt", ".rs"] and not is_script:
+        source_data = f"if __name__ == '__main__':\n  {source_data}"
+    print(f">{source_data}<")
+    tree = ast.parse(source_data)
+    astpretty.pprint(tree)
+    proc = run([sys.executable, "-c", source_data], capture_output=True)
+    if proc.returncode:
+        raise RuntimeError(f"Invalid case {source_data}:\n{proc.stdout}{proc.stderr}")
+    return tree
+
+
 @expand
 class CodeGeneratorTests(unittest.TestCase):
     LANGS = list(_get_all_settings(Mock(indent=4)).keys())
@@ -203,19 +216,7 @@ class CodeGeneratorTests(unittest.TestCase):
             Mock(indent=4, extension=False, no_prologue=False), env=env
         )[lang]
         ext = settings.ext
-        source_data = TEST_CASES[case]
-        is_script = has_main(source_data)
-        print(f">{source_data}<")
-        tree = ast.parse(source_data)
-        astpretty.pprint(tree)
-        proc = run([sys.executable, "-c", source_data], capture_output=True)
-        if ext in [".dart", ".kt", ".rs"] and not is_script:
-            source_data = f"if __name__ == '__main__':\n  {source_data}"
-            print(f">{source_data}<")
-            tree = ast.parse(source_data)
-            astpretty.pprint(tree)
-        if proc.returncode:
-            raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
+        tree = get_tree(TEST_CASES[case], ext)
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
@@ -307,20 +308,11 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings = _get_all_settings(Mock(indent=4, extension=False), env=env)[lang]
         ext = settings.ext
-        source_data = case
+
         expected_error = TEST_ERROR_CASES[case]
-        is_script = has_main(source_data)
-        # TODO: Fix and run the Python snippets
-        # c.f. https://github.com/adsharma/py2many/pull/254/files#r637588902
-        # This if is unnecessary if the lang is constant.
-        if ext in [".dart", ".kt", ".rs"] and not is_script:
-            source_data = f"def main():\n  {source_data}"
-        print(f">{source_data}<")
-        tree = ast.parse(source_data)
-        astpretty.pprint(tree)
-        proc = run([sys.executable, "-c", source_data], capture_output=True)
-        if proc.returncode:
-            raise RuntimeError(f"Invalid case {case}:\n{proc.stdout}{proc.stderr}")
+        source_data = "from ctypes import c_int8 as i8, c_int16 as i16\n" + case
+        tree = get_tree(source_data, ext)
+
         try:
             _transpile_one(
                 [tree],
