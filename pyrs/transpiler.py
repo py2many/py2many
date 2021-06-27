@@ -520,10 +520,7 @@ class RustTranspiler(CLikeTranspiler):
             tag_check = textwrap.dedent(
                 f"""
                     fn is_{lower_member_id}(&self) -> bool {{
-                        match *self {{
-                            {camel_node_name}::{camel_member_id}(_)=> true,
-                            _ => false,
-                        }}
+                        matches!(*self, {camel_node_name}::{camel_member_id}(_))
                     }}"""
             )
             tag_checkers.append(tag_check)
