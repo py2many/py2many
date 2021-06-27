@@ -1,7 +1,8 @@
-import io
-import os
 import ast
 import functools
+import io
+import os
+import sys
 import textwrap
 
 from tempfile import NamedTemporaryFile
@@ -122,6 +123,10 @@ class GoTranspilerPlugins:
         self._usings.add('"math"')
         return f"math.Floor({vargs[0]})"
 
+    def visit_exit(self, node, vargs) -> str:
+        self._usings.add('"os"')
+        return f"os.Exit({vargs[0]})"
+
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -166,4 +171,5 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (GoTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (GoTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (GoTranspilerPlugins.visit_exit, True),
 }

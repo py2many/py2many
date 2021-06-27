@@ -99,6 +99,7 @@ class RustTranspiler(CLikeTranspiler):
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._func_usings_map = FUNC_USINGS_MAP
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._allows = set()
 
     def usings(self):
         if self._extension:
@@ -143,6 +144,7 @@ class RustTranspiler(CLikeTranspiler):
             if not self._no_prologue
             else ""
         )
+        lint_ignores += "\n".join(f"#![allow({allow})]" for allow in self._allows)
         cargo_toml = (
             f"""
         //! ```cargo
@@ -155,7 +157,7 @@ class RustTranspiler(CLikeTranspiler):
             if not self._no_prologue
             else ""
         )
-        return f"{cargo_toml}\n{lint_ignores}\n{externs}\n{uses}\n"
+        return f"{cargo_toml}\n{lint_ignores}\n\n{externs}\n{uses}\n"
 
     def features(self):
         if self._features:
@@ -373,6 +375,8 @@ class RustTranspiler(CLikeTranspiler):
         node_result_type = getattr(node, "result_type", False)
         node_func_result_type = getattr(node.func, "result_type", False)
         if ret is not None:
+            if ret.startswith("std::process::exit("):
+                node_result_type = False
             unwrap = "?" if node_result_type or node_func_result_type else ""
             return f"{ret}{unwrap}"
 

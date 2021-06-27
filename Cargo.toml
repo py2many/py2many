@@ -139,6 +139,11 @@ test = true
 path = "tests/expected/sys_argv.rs"
 
 [[bin]]
+name = "sys_exit"
+test = true
+path = "tests/expected/sys_exit.rs"
+
+[[bin]]
 name = "fib_with_argparse"
 test = true
 path = "tests/expected/fib_with_argparse.rs"

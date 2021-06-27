@@ -5,6 +5,7 @@ import functools
 import math
 import time
 import random
+import sys
 import textwrap
 
 from tempfile import NamedTemporaryFile
@@ -126,6 +127,10 @@ class RustTranspilerPlugins:
             placeholders.append("{}")
         return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
 
+    def visit_exit(self, node, vargs) -> str:
+        self._allows.add("unreachable_code")
+        return f"std::process::exit({vargs[0]})"
+
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         self._usings.add("std::cmp")
         min_max = "max" if is_max else "min"
@@ -214,6 +219,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (RustTranspilerPlugins.visit_exit, True),
 }
 
 FUNC_USINGS_MAP = {

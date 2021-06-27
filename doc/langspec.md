@@ -47,6 +47,7 @@ py2many supports a subset of python and mixes it with concepts from other static
 * asyncio (rust only)
 * imports
 * asserts, prints
+* standalone scripts using `if __name__ == "__main__":`, `sys.argv` and `sys.exit(code)`
 
 # Not Supported Features
 

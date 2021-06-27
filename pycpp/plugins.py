@@ -1,9 +1,10 @@
-import io
-import os
 import ast
 import functools
+import io
 import math
+import os
 import random
+import sys
 import time
 
 from tempfile import NamedTemporaryFile
@@ -191,4 +192,5 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         False,
     ),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})", True),
 }

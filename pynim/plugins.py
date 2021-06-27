@@ -1,6 +1,7 @@
 import io
 import os
 import random
+import sys
 import time
 
 from tempfile import NamedTemporaryFile
@@ -87,6 +88,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (NimTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (NimTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
 }
 
 FUNC_USINGS_MAP = {

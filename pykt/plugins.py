@@ -3,6 +3,7 @@ import os
 import ast
 import functools
 import re
+import sys
 import textwrap
 
 from tempfile import NamedTemporaryFile
@@ -174,4 +175,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (KotlinTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (KotlinTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (
+        lambda self, node, vargs: f"kotlin.system.exitProcess({vargs[0]})",
+        True,
+    ),
 }

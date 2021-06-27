@@ -56,6 +56,9 @@ TEST_CASES = [
 CASE_ARGS = {
     "sys_argv": ("arg1",),
 }
+CASE_EXPECTED_EXITCODE = {
+    "sys_exit": 1,
+}
 
 EXTENSION_TEST_CASES = [
     item.stem
@@ -98,9 +101,11 @@ def get_exe_filename(case, ext):
 
 
 @lru_cache()
-def get_python_case_output(case_filename, main_args):
+def get_python_case_output(case_filename, main_args, exit_code):
     proc = run([sys.executable, str(case_filename), *main_args], capture_output=True)
-    if proc.returncode:
+    if exit_code:
+        assert proc.returncode == exit_code
+    elif proc.returncode:
         raise RuntimeError(f"Invalid {case_filename}:\n{proc.stdout}{proc.stderr}")
     return proc.stdout
 
@@ -151,7 +156,10 @@ class CodeGeneratorTests(unittest.TestCase):
         self.assertTrue(is_script)
 
         main_args = CASE_ARGS.get(case, tuple())
-        expected_output = get_python_case_output(case_filename, main_args)
+        expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
+        expected_output = get_python_case_output(
+            case_filename, main_args, expected_exit_code
+        )
         self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
@@ -213,10 +221,10 @@ class CodeGeneratorTests(unittest.TestCase):
 
                 stdout = proc.stdout
 
-                if proc.returncode and expect_failure:
+                if expect_failure and expected_exit_code != proc.returncode:
                     raise unittest.SkipTest(f"Execution of {case}{ext} failed")
                 assert (
-                    not proc.returncode
+                    expected_exit_code == proc.returncode
                 ), f"Execution of {case}{ext} failed:\n{stdout}{proc.stderr}"
 
                 if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
@@ -225,7 +233,10 @@ class CodeGeneratorTests(unittest.TestCase):
             elif exe.exists() and os.access(exe, os.X_OK):
                 cmd = [exe, *main_args]
                 print(f"Running {cmd} ...")
-                stdout = run(cmd, env=env, capture_output=True, check=True).stdout
+                proc = run(cmd, env=env, capture_output=True)
+                assert expected_exit_code == proc.returncode
+
+                stdout = proc.stdout
             else:
                 raise RuntimeError(f"Compiled output {exe} not detected")
 

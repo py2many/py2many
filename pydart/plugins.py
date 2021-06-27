@@ -2,6 +2,7 @@ import io
 import os
 import ast
 import functools
+import sys
 import textwrap
 
 from tempfile import NamedTemporaryFile
@@ -124,6 +125,10 @@ class DartTranspilerPlugins:
         vargs_str = ", ".join(vargs)
         return f"{min_max}({vargs_str})"
 
+    def visit_exit(self, node, vargs) -> str:
+        self._usings.add("dart:io")
+        return f"exit({vargs[0]})"
+
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -169,4 +174,5 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (DartTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (DartTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    sys.exit: (DartTranspilerPlugins.visit_exit, True),
 }
