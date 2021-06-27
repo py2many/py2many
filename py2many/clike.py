@@ -133,6 +133,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._func_usings_map = {}
         self._attr_dispatch_table = {}
         self._keywords = {}
+        self._throw_on_unimplemented = True
 
     def headers(self, meta=None):
         return ""
@@ -514,8 +515,20 @@ class CLikeTranspiler(ast.NodeVisitor):
         val = self.visit(node.value) if node.value is not None else None
         return (target, type_str, val)
 
+    def set_continue_on_unimplemented(self):
+        self._throw_on_unimplemented = False
+
+    def visit_unsupported_body(self, node, name, body):
+        if self._throw_on_unimplemented:
+            raise AstNotImplementedError(f"{name} not implemented", node)
+        else:
+            return self.comment(
+                f"{name} unimplemented on line {node.lineno}:{node.col_offset}"
+            )
+
     def visit_Delete(self, node):
-        return "Del /* Unimplemented */"
+        body = [self.visit(t) for t in node.targets]
+        return self.visit_unsupported_body(node, "del", body)
 
     def visit_ClassDef(self, node):
         bases = [get_id(base) for base in node.bases]

@@ -657,16 +657,16 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_DictComp(self, node):
-        return "DictComp /*unimplemented()*/"
+        return self.visit_unsupported_body(node, "dict", [])
 
     def visit_GeneratorExp(self, node):
-        return "GeneratorExp /*unimplemented()*/"
+        return self.visit_unsupported_body(node, "generator exp", [])
 
     def visit_ListComp(self, node):
-        return "ListComp /*unimplemented()*/"
+        return self.visit_unsupported_body(node, "list comprehension", [])
 
     def visit_Raise(self, node):
-        return "Raise /*unimplemented()*/"
+        return self.visit_unsupported_body(node, "raise", [])
 
     def visit_Starred(self, node):
-        return "Starred /*unimplemented()*/"
+        return self.visit_unsupported_body(node, "starred", [])

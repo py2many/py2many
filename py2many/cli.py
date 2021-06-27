@@ -423,6 +423,9 @@ def _process_many(
 ) -> Tuple[FileSet, FileSet]:
     """Transpile and reformat many files."""
 
+    # Try to flush out as many errors as possible
+    settings.transpiler.set_continue_on_unimplemented()
+
     source_data = []
     for filename in filenames:
         with open(basedir / filename) as f:
