@@ -1,6 +1,7 @@
 import ast
-import functools
 import textwrap
+
+from typing import List
 
 from .clike import CLikeTranspiler
 from .plugins import (
@@ -18,8 +19,6 @@ from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import get_inferred_type
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
-
-from typing import Optional, List
 
 
 class DartIntegerDivRewriter(ast.NodeTransformer):
@@ -154,67 +153,6 @@ class DartTranspiler(CLikeTranspiler):
             return attr
 
         return f"{value_id}.{attr}"
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        start = 0
-        step = 1
-        if len(vargs) == 1:
-            end = vargs[0]
-        elif len(node.args) == 2:
-            start = vargs[0]
-            end = vargs[1]
-        elif len(node.args) == 3:
-            start = vargs[0]
-            end = vargs[1]
-            step = vargs[2]
-        else:
-            raise Exception(
-                "encountered range() call with unknown parameters: range({})".format(
-                    vargs
-                )
-            )
-
-        return f"([for(var i = {start}; i < {end}; i += {step}) i])"
-
-    def _visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
-        for n in node.args:
-            placeholders.append("%s")
-        self._usings.add("package:sprintf/sprintf.dart")
-        placeholders_str = " ".join(placeholders)
-        vargs_str = ", ".join(vargs)
-        return rf'print(sprintf("{placeholders_str}", [{vargs_str}]))'
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self._visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_min_max(is_max: bool) -> str:
-            min_max = "max" if is_max else "min"
-            self._usings.add("dart:math")
-            vargs_str = ", ".join(vargs)
-            return f"{min_max}({vargs_str})"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "int": lambda: f"{vargs[0]}.toInt()",
-            "bool": lambda: f"({vargs[0]} != 0)",
-            "str": lambda: f"{vargs[0]}.toString()",
-            "len": lambda: f"{vargs[0]}.length",
-            "floor": lambda: f"{vargs[0]}.floor()",
-            "max": functools.partial(visit_min_max, is_max=True),
-            "min": functools.partial(visit_min_max, is_min=True),
-        }
-
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def visit_Call(self, node):
         fname = self.visit(node.func)

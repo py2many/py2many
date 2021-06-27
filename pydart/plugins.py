@@ -89,64 +89,52 @@ class DartTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+        start = 0
+        step = 1
+        if len(vargs) == 1:
+            end = vargs[0]
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            start = vargs[0]
+            end = vargs[1]
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            start = vargs[0]
+            end = vargs[1]
+            step = vargs[2]
+        else:
+            raise Exception(
+                "encountered range() call with unknown parameters: range({})".format(
+                    vargs
+                )
+            )
 
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
+        return f"([for(var i = {start}; i < {end}; i += {step}) i])"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
+            placeholders.append("%s")
+        self._usings.add("package:sprintf/sprintf.dart")
+        placeholders_str = " ".join(placeholders)
+        vargs_str = ", ".join(vargs)
+        return rf'print(sprintf("{placeholders_str}", [{vargs_str}]))'
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
-        self._usings.add("std::cmp")
         min_max = "max" if is_max else "min"
-        self._typename_from_annotation(node.args[0])
-        if hasattr(node.args[0], "container_type"):
-            node.result_type = True
-            return f"{vargs[0]}.iter().{min_max}()"
-        else:
-            all_vargs = ", ".join(vargs)
-            return f"cmp::{min_max}({all_vargs})"
-
-    @staticmethod
-    def visit_cast(node, vargs, cast_to: str) -> str:
-        return f"{vargs[0]} as {cast_to}"
-
-    @staticmethod
-    def visit_asyncio_run(node, vargs) -> str:
-        return f"block_on({vargs[0]})"
+        self._usings.add("dart:math")
+        vargs_str = ", ".join(vargs)
+        return f"{min_max}({vargs_str})"
 
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"&{vargs[0]}.to_string()",
-    "len": lambda n, vargs: f"{vargs[0]}.len()",
-    "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
-    "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
-    "int": functools.partial(DartTranspilerPlugins.visit_cast, cast_to="i32"),
+    "str": lambda n, vargs: f"{vargs[0]}.toString()",
+    "len": lambda n, vargs: f"{vargs[0]}.length",
+    "int": lambda n, vargs: f"{vargs[0]}.toInt()",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)",
-    "float": functools.partial(DartTranspilerPlugins.visit_cast, cast_to="f64"),
-    # as usize below is a hack to pass comb_sort.rs. Need a better solution
-    "floor": lambda n, vargs: f"{vargs[0]}.floor() as usize",
-    "reversed": lambda n, vargs: f"{vargs[0]}.iter().rev()",
-    "map": lambda n, vargs: f"{vargs[1]}.iter().map({vargs[0]})",
-    "filter": lambda n, vargs: f"{vargs[1]}.into_iter().filter({vargs[0]})",
-    "list": lambda n, vargs: f"{vargs[0]}.collect::<Vec<_>>()",
-    "asyncio.run": DartTranspilerPlugins.visit_asyncio_run,
+    "floor": lambda n, vargs: f"{vargs[0]}.floor()",
 }
 
-SMALL_USINGS_MAP = {
-    "asyncio.run": "futures::executor::block_on",
-}
+SMALL_USINGS_MAP = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=True),
