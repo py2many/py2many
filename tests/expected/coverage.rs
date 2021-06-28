@@ -22,6 +22,7 @@
 #![allow(unused_imports)]
 #![allow(unused_mut)]
 #![allow(unused_parens)]
+#![allow(clippy::no_effect)]
 
 extern crate anyhow;
 use anyhow::Result;
@@ -117,8 +118,9 @@ pub fn show() {
     let _escape_quotes: &'static str = " foo \"bar\" baz ";
     assert!("aaabbccc".contains("bbc"));
     assert!((1 != 0));
+    let _c1: i32 = 1;
     2;
-    let (_c1, _c2) = (1, 3);
+    let _c2: i32 = 3;
 }
 
 pub fn main() -> Result<()> {

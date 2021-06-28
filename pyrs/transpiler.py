@@ -188,6 +188,11 @@ class RustTranspiler(CLikeTranspiler):
             )
         return ""
 
+    def visit_Expr(self, node):
+        if hasattr(node, "unused"):
+            self._allows.add("clippy::no_effect")
+        return super().visit_Expr(node)
+
     def visit_FunctionDef(self, node, async_prefix=""):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)

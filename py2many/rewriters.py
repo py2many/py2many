@@ -319,7 +319,7 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
         super().__init__()
         self._language = language
         self._disable = language in {"nim"}
-        self._unpack = language in {"go", "cpp", "dart"}
+        self._unpack = language in {"cpp", "dart", "go", "rust"}
 
     def _visit_assign_unpack_all(self, node):
         keep_ignored = self._language == "go"
