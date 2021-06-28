@@ -15,7 +15,7 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
-from py2many.analysis import get_id, is_global, is_void_function
+from py2many.analysis import IGNORED_MODULE_SET, get_id, is_global, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
@@ -30,12 +30,14 @@ class GoMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
                 needs_assign = True
-            if get_id(fname.value):
-                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
-            else:
-                node0 = fname.value
-            node.args = [node0] + node.args
-            node.func = ast.Name(id=fname.attr, lineno=node.lineno, ctx=fname.ctx)
+            value_id = get_id(fname.value)
+            if value_id not in IGNORED_MODULE_SET:
+                if value_id:
+                    node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
+                else:
+                    node0 = fname.value
+                node.args = [node0] + node.args
+                node.func = ast.Name(id=fname.attr, lineno=node.lineno, ctx=fname.ctx)
         if needs_assign:
             ret = ast.Assign(
                 targets=[ast.Name(id=fname.value.id, lineno=node.lineno)],
