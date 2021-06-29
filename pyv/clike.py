@@ -32,7 +32,7 @@ v_symbols = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "discard",
+    ast.Pass: "",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",

@@ -1,23 +1,25 @@
 import ast
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 from py2many.inference import get_inferred_type, InferTypesTransformer
 from py2many.analysis import get_id
 
 
 V_TYPE_MAP = {
-    "int": "int",
-    "float": "f32",
-    "bytes": "openArray[byte]",
-    "str": "string",
-    "bool": "bool",
-    "c_int8": "i8",
-    "c_int16": "i16",
-    "c_int32": "i32",
-    "c_int64": "i64",
-    "c_uint8": "u8",
-    "c_uint16": "u16",
-    "c_uint32": "u32",
-    "c_uint64": "u64",
+    int: "int",
+    float: "f32",
+    bytes: "[]byte",
+    str: "string",
+    bool: "bool",
+    c_int8: "i8",
+    c_int16: "i16",
+    c_int32: "int",
+    c_int64: "i64",
+    c_uint8: "byte",
+    c_uint16: "u16",
+    c_uint32: "u32",
+    c_uint64: "u64",
 }
 
 V_WIDTH_RANK = {

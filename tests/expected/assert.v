@@ -9,5 +9,5 @@ fn main() {
 	compare_assert(1, 1)
 	assert true
 	assert true
-	println('${'OK'}')
+	println('OK')
 }

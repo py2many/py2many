@@ -1,12 +1,13 @@
 import ast
+from typing import Optional, List
+
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.tracer import is_list, defined_before
+from py2many.exceptions import AstNotImplementedError
+from py2many.analysis import get_id, is_mutable, is_void_function
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_v_type
-from py2many.declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before
-
-from py2many.analysis import get_id, is_mutable, is_void_function
-from typing import Optional, List
 
 
 class VNoneCompareRewriter(ast.NodeTransformer):
@@ -28,7 +29,7 @@ class VTranspiler(CLikeTranspiler):
     NAME = "v"
 
     CONTAINER_TYPE_MAP = {
-        "List": "seq",
+        "List": "[]",
         "Dict": "Table",
         "Set": "set",
         "Optional": "Option",
@@ -52,10 +53,16 @@ class VTranspiler(CLikeTranspiler):
         return uses
 
     def _combine_value_index(self, value_type, index_type) -> str:
-        return f"{value_type}[{index_type}]"
+        return f"{value_type}{index_type}"
 
     def comment(self, text):
         return f"# {text}\n"
+
+    def _import(self, name: str) -> str:
+        return f"import {name}"
+
+    def _import_from(self, module_name: str, names: List[str]) -> str:
+        return f"import {module_name} {{{' '.join(names)}}}"
 
     def visit_FunctionDef(self, node):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
@@ -113,12 +120,9 @@ class VTranspiler(CLikeTranspiler):
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
             mutable = is_mutable(node.scopes, id)
-            use_open_array = isinstance(node.annotation, ast.Subscript) and not mutable
             typename = self._typename_from_annotation(node)
-            if use_open_array:
-                typename = typename.replace("seq", "openArray")
             if mutable:
-                typename = f"var {typename}"
+                typename = f"mut {typename}"
         return (typename, id)
 
     def visit_Lambda(self, node):
@@ -138,7 +142,7 @@ class VTranspiler(CLikeTranspiler):
 
         if is_list(node.value):
             if node.attr == "append":
-                attr = "add"
+                return f"{value_id} <<"
         if not value_id:
             value_id = ""
 
@@ -158,10 +162,22 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_print(self, node, vargs: List[str]) -> str:
         args = []
-        for n in vargs:
-            args.append("${" + n + "}")
-        args = " ".join(args)
-        return f"println('{args}')"
+        total_args = []
+        for arg in node.args:
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                args.append(arg.value.replace("'", ""))
+            elif get_inferred_v_type(arg) == "string":
+                args.append(f"${{{self.visit(arg)}}}")
+            else:
+                if args:
+                    total_args.append(f"'{' '.join(args)}'")
+                    args = []
+                total_args.append(f"({self.visit(arg)}).str()")
+        if args:
+            total_args.append(f"'{' '.join(args)}'")
+        total_args = " + ' ' + ".join(total_args)
+
+        return f"println({total_args})"
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         dispatch_map = {
@@ -177,6 +193,7 @@ class VTranspiler(CLikeTranspiler):
         small_dispatch_map = {
             "str": lambda: f"$({vargs[0]})",
             "floor": lambda: f"int(floor({vargs[0]}))",
+            "len": lambda: f"{vargs[0]}.len",
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
@@ -207,7 +224,7 @@ class VTranspiler(CLikeTranspiler):
         vargs = []
 
         if node.args:
-            vargs += [self.visit(a) for a in node.args]
+            vargs.extend(map(self.visit, node.args))
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
@@ -224,18 +241,20 @@ class VTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {target} in {it}:")
+        buf.append(f"for {target} in {it} {{")
         buf.extend(
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
         )
+        buf.append("}")
         return "\n".join(buf)
 
     def visit_While(self, node):
         buf = []
-        buf.append("while {0}:".format(self.visit(node.test)))
+        buf.append("for {0} {{".format(self.visit(node.test)))
         buf.extend(
             [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
         )
+        buf.append("}}")
         return "\n".join(buf)
 
     def visit_Str(self, node):
@@ -276,7 +295,7 @@ class VTranspiler(CLikeTranspiler):
         )
         test = self.visit(node.test)
         if node.orelse:
-            orelse = self.indent(f"else:\n{orelse}", level=node.level)
+            orelse = self.indent(f"else {{\n{orelse}", level=node.level)
         else:
             orelse = ""
         bodyend = self.indent("}", level=node.level)
@@ -377,28 +396,13 @@ class VTranspiler(CLikeTranspiler):
     def visit_alias(self, node):
         return "use {0}".format(node.name)
 
-    def visit_Import(self, node):
-        imports = [self.visit(n) for n in node.names]
-        return "\n".join(i for i in imports if i)
-
-    def visit_ImportFrom(self, node):
-        if (
-            node.module not in self.ALLOW_MODULE_LIST
-            and node.module in self.IGNORED_MODULE_LIST
-        ):
-            return ""
-
-        names = [n.name for n in node.names]
-        names = ", ".join(names)
-        module_path = node.module.replace(".", "::")
-        return f"from {module_path} import {names}"
-
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]
         elements = ", ".join(elements)
-        return f"@[{elements}]"
+        return f"[{elements}]"
 
     def visit_Set(self, node):
+        raise AstNotImplementedError("Sets are not implemented in V yet.")
         self._usings.add("sets")
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
@@ -508,17 +512,17 @@ class VTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             return f"{target} = {value}"
-        elif isinstance(node.value, ast.List):
-            elements = [self.visit(e) for e in node.value.elts]
-            elements = ", ".join(elements)
-            target = self.visit(target)
-
-            return f"{kw}{target} = @[{elements}]"
         else:
             target = self.visit(target)
             value = self.visit(node.value)
 
             return f"{kw}{target} := {value}"
+
+    def visit_AugAssign(self, node):
+        target = self.visit(node.target)
+        op = self.visit(node.op)
+        val = self.visit(node.value)
+        return "{0} {1}= {2}".format(target, op, val)
 
     def visit_Delete(self, node):
         target = node.targets[0]
@@ -562,13 +566,6 @@ class VTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         return f"yield {value}"
 
-    def visit_Print(self, node):
-        buf = []
-        for n in node.values:
-            value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
-        return "\n".join(buf)
-
     def visit_DictComp(self, node):
         return "DictComp /*uvplemented()*/"
 
@@ -604,9 +601,4 @@ class VTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return f"""
-if {test}:
-    {body}
-else:
-    {orelse}
-"""
+        return f"if {test} {{ {body} }} else {{ {orelse} }}"
