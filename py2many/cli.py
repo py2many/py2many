@@ -346,6 +346,7 @@ def v_settings(args, env=os.environ):
     return LanguageSettings(
         VTranspiler(**v_args),
         ".v",
+        "V",
         ["v", *vfmt_args],
         None,
         [VNoneCompareRewriter()],
