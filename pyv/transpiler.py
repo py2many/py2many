@@ -472,7 +472,7 @@ class VTranspiler(CLikeTranspiler):
         return body
 
     def visit_Assert(self, node):
-        return "assert({0})".format(self.visit(node.test))
+        return f"assert {self.visit(node.test)}"
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
