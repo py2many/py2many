@@ -59,6 +59,8 @@ class VTranspiler(CLikeTranspiler):
         return f"# {text}\n"
 
     def _import(self, name: str) -> str:
+        if name == "sys":
+            return "import os"
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
@@ -191,9 +193,10 @@ class VTranspiler(CLikeTranspiler):
 
         # small one liners are inlined here as lambdas
         small_dispatch_map = {
-            "str": lambda: f"$({vargs[0]})",
+            "str": lambda: f"({vargs[0]}).str()",
             "floor": lambda: f"int(floor({vargs[0]}))",
             "len": lambda: f"{vargs[0]}.len",
+            "sys.exit": lambda: f"exit({vargs[0] if vargs else '0'})",
         }
         if fname in small_dispatch_map:
             return small_dispatch_map[fname]()
@@ -392,9 +395,6 @@ class VTranspiler(CLikeTranspiler):
                 fields.append(f"{member} = {var},")
         fields = "\n".join([self.indent(f) for f in fields])
         return f"type {node.name} = enum\n{fields}\n\n"
-
-    def visit_alias(self, node):
-        return "use {0}".format(node.name)
 
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]
