@@ -162,8 +162,8 @@ class SelfTranspileTests(unittest.TestCase):
                 "annotation_transformer.py",
                 "ast_helpers.py",
                 "astx.py",
-                "context.py",
                 "cli.py",
+                "context.py",
                 "declaration_extractor.py",
                 "exceptions.py",
                 "language.py",
@@ -263,5 +263,5 @@ class SelfTranspileTests(unittest.TestCase):
                 _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
             ),
             format_error_count=7,
-            failure_count=12,
+            failure_count=13,
         )
