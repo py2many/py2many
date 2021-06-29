@@ -97,16 +97,6 @@ class VTranspiler(CLikeTranspiler):
     def visit_Return(self, node):
         if node.value:
             ret = self.visit(node.value)
-            fndef = None
-            for scope in node.scopes:
-                if isinstance(scope, ast.FunctionDef):
-                    fndef = scope
-                    break
-            if fndef:
-                return_type = self._typename_from_annotation(fndef, attr="returns")
-                value_type = get_inferred_v_type(node.value)
-                if return_type != value_type and value_type is not None:
-                    return f"return {return_type}({ret})"
             return f"return {ret}"
         return "return"
 
@@ -409,11 +399,10 @@ class VTranspiler(CLikeTranspiler):
         return f"toHashSet([{elements_str}])"
 
     def visit_Dict(self, node):
-        self._usings.add("tables")
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
-        return f"{{{kv_pairs}}}.newTable"
+        kv_pairs = " ".join([f"{k}: {v}" for k, v in zip(keys, values)])
+        return f"map{{{kv_pairs}}}"
 
     def visit_Subscript(self, node):
         value = self.visit(node.value)
