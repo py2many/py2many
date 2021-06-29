@@ -81,8 +81,8 @@ class VTranspiler(CLikeTranspiler):
         args = ", ".join(args_list)
         funcdef = f"fn {node.name}({args}){return_type}"
         maybe_main = ""
-#        if getattr(node, "python_main", False):
-#            maybe_main = "\nmain()"
+        #        if getattr(node, "python_main", False):
+        #            maybe_main = "\nmain()"
         return f"{funcdef} {{\n{body}\n}}\n{maybe_main}"
 
     def visit_Return(self, node):
@@ -159,7 +159,7 @@ class VTranspiler(CLikeTranspiler):
     def visit_print(self, node, vargs: List[str]) -> str:
         args = []
         for n in vargs:
-            args.append('${' + n + '}')
+            args.append("${" + n + "}")
         args = " ".join(args)
         return f"println('{args}')"
 
@@ -279,7 +279,7 @@ class VTranspiler(CLikeTranspiler):
             orelse = self.indent(f"else:\n{orelse}", level=node.level)
         else:
             orelse = ""
-        bodyend = self.indent(f"}}", level=node.level)
+        bodyend = self.indent("}", level=node.level)
         return f"if {test} {{\n{body}\n{bodyend}\n{orelse}"
 
     def visit_UnaryOp(self, node):

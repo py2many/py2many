@@ -37,6 +37,17 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
+      - name: Install V
+        shell: bash
+        run: |
+          git clone --depth=1 https://github.com/vlang/v.git /tmp/v
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            (cd /tmp/v && ./make.bat)
+          else
+            (cd /tmp/v && make -j4)
+            (cd /usr/local/bin && sudo ln -s /tmp/v/v)
+          fi
+
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
 
@@ -105,7 +116,7 @@ jobs:
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
-            export PATH="$PATH:/C/Program Files/LLVM/bin"
+            export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
           tox
 

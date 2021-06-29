@@ -46,6 +46,7 @@ COMPILERS = {
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "script", "--build-only", "--debug"],
+    "vlang": ["v"],
 }
 INVOKER = {
     "dart": ["dart", "--enable-asserts"],
@@ -54,6 +55,7 @@ INVOKER = {
     "kotlin": ["kscript"],
     "python": [sys.executable],
     "rust": ["cargo", "script"],
+    "vlang": ["v", "run"],
 }
 
 TEST_CASES = [

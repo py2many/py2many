@@ -339,7 +339,7 @@ def go_settings(args, env=os.environ):
 
 def vlang_settings(args, env=os.environ):
     v_args = {}
-    vfmt_args = ["fmt"]
+    vfmt_args = ["fmt", "-w"]
     if args.indent is not None:
         v_args["indent"] = args.indent
         vfmt_args.append(f"--indent:{args.indent}")
