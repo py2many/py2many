@@ -13,13 +13,13 @@ from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
 from py2many.cli import (
-    _conan_include_dirs,
     _create_cmd,
     _get_all_settings,
     _get_output_path,
     _relative_to_cwd,
     main,
 )
+from pycpp import _conan_include_dirs
 
 import py2many.cli
 
