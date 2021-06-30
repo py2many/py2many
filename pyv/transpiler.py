@@ -1,13 +1,62 @@
 import ast
-from typing import Optional, List
+import string
+from typing import List
 
-from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
 from py2many.analysis import get_id, is_mutable, is_void_function
 
 from .clike import CLikeTranspiler
-from .inference import get_inferred_v_type
+from .inference import V_WIDTH_RANK
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
+
+_is_mutable = is_mutable
+
+
+def is_mutable(scopes, target):
+    if target == "_":
+        return False
+    return _is_mutable(scopes, target)
+
+
+def is_dict(node):
+    if isinstance(node, (ast.Dict, ast.DictComp)):
+        return True
+    elif isinstance(node, ast.Call) and get_id(node.func) == "dict":
+        return True
+    elif isinstance(node, ast.Assign):
+        return is_dict(node.value)
+    elif isinstance(node, ast.Name):
+        var = node.scopes.find(get_id(node))
+        return (
+            hasattr(var, "assigned_from")
+            and not isinstance(var.assigned_from, ast.FunctionDef)
+            and not isinstance(var.assigned_from, ast.For)
+            and is_dict(var.assigned_from.value)
+        )
+    else:
+        return False
+
+
+class VDictRewriter(ast.NodeTransformer):
+    def visit_Call(self, node):
+        if (
+            isinstance(node.func, ast.Attribute) and node.func.attr == "values"
+        ):  # and is_dict(node.func.value):
+            new_node = ast.parse("a.keys().map(a[it])").body[0].value
+            new_node.func.value.func.value = node.func.value
+            new_node.args[0].value = node.func.value
+            new_node.lineno = node.lineno
+            new_node.col_offset = node.col_offset
+            ast.fix_missing_locations(new_node)
+            return new_node
+        return node
 
 
 class VNoneCompareRewriter(ast.NodeTransformer):
@@ -30,9 +79,9 @@ class VTranspiler(CLikeTranspiler):
 
     CONTAINER_TYPE_MAP = {
         "List": "[]",
-        "Dict": "Table",
+        "Dict": "map",
         "Set": "set",
-        "Optional": "Option",
+        "Optional": "?",
     }
 
     ALLOW_MODULE_LIST = ["math"]
@@ -41,8 +90,13 @@ class VTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set([])
         self._indent = " " * indent
-        self._default_type = "var"
+        self._default_type = "any"
         self._container_type_map = self.CONTAINER_TYPE_MAP
+        self._dispatch_map = DISPATCH_MAP
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -56,7 +110,7 @@ class VTranspiler(CLikeTranspiler):
         return f"{value_type}{index_type}"
 
     def comment(self, text):
-        return f"# {text}\n"
+        return f"// {text}\n"
 
     def _import(self, name: str) -> str:
         if name == "sys":
@@ -66,33 +120,45 @@ class VTranspiler(CLikeTranspiler):
     def _import_from(self, module_name: str, names: List[str]) -> str:
         return f"import {module_name} {{{' '.join(names)}}}"
 
+    def function_signature(self, node) -> str:
+        signature = ["fn"]
+        if node.scopes[-1] is ast.ClassDef:
+            raise AstNotImplementedError("Class methods are not supported yet.", node)
+
+        if name := get_id(node):
+            signature.append(name)
+
+        args = []
+        generic_count = 0
+        for arg in node.args.args:
+            typename = string.ascii_uppercase[generic_count]
+            id = get_id(arg)
+            if is_mutable(node.scopes, id):
+                id = f"mut {id}"
+            if getattr(arg, "annotation", None):
+                typename = self._typename_from_annotation(arg, attr="annotation")
+            if len(typename) == 1 and typename.isupper():
+                generic_count += 1
+            args.append(f"{id} {typename}")
+
+        if generic_count:
+            signature.append(f"<{', '.join(string.ascii_uppercase[:generic_count])}>")
+
+        signature.append(f"({', '.join(args)})")
+        if isinstance(node, ast.Lambda):
+            if getattr(node, "annotation", None):
+                typename = self._typename_from_annotation(node, attr="annotation")
+                signature.append(typename)
+        elif not is_void_function(node):
+            if getattr(node, "returns", None):
+                typename = self._typename_from_annotation(node, attr="returns")
+                signature.append(typename)
+
+        return " ".join(signature)
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
-        typenames, args = self.visit(node.args)
-
-        args_list = []
-        if len(args) and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
-
-        for i in range(len(args)):
-            typename = typenames[i]
-            arg = args[i]
-            args_list.append(f"{arg} {typename}".format(arg, typename))
-
-        return_type = ""
-        if not is_void_function(node):
-            if node.returns:
-                typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f" {typename}"
-            else:
-                return_type = ""
-
-        args = ", ".join(args_list)
-        funcdef = f"fn {node.name}({args}){return_type}"
-        maybe_main = ""
-        #        if getattr(node, "python_main", False):
-        #            maybe_main = "\nmain()"
-        return f"{funcdef} {{\n{body}\n}}\n{maybe_main}"
+        return f"{self.function_signature(node)} {{\n{body}\n}}"
 
     def visit_Return(self, node):
         if node.value:
@@ -104,28 +170,8 @@ class VTranspiler(CLikeTranspiler):
             return "return {0}".format(self.visit(node.value))
         return "return"
 
-    def visit_arg(self, node):
-        id = get_id(node)
-        if id == "self":
-            return (None, "self")
-        typename = "T"
-        if node.annotation:
-            # This works only for arguments, for all other cases, use container_types
-            mutable = is_mutable(node.scopes, id)
-            typename = self._typename_from_annotation(node)
-            if mutable:
-                typename = f"mut {typename}"
-        return (typename, id)
-
     def visit_Lambda(self, node):
-        typenames, args = self.visit(node.args)
-        # HACK: to pass unit tests. TODO: infer types
-        typenames = ["int"] * len(args)
-        return_type = "int"
-        args = [f"{name}: {typename}" for name, typename in zip(args, typenames)]
-        args_string = ", ".join(args)
-        body = self.visit(node.body)
-        return f"proc({args_string}):{return_type} = return {body}"
+        raise AstNotImplementedError("Lambdas are not supported yet.", node)
 
     def visit_Attribute(self, node):
         attr = node.attr
@@ -137,60 +183,10 @@ class VTranspiler(CLikeTranspiler):
                 return f"{value_id} <<"
         if not value_id:
             value_id = ""
-
+        ret = f"{value_id}.{attr}"
+        if ret in self._attr_dispatch_table:
+            return self._attr_dispatch_table[ret](self, node)
         return value_id + "." + attr
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0..{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}..{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"countup({vargs[0]}, {vargs[1]} - 1, {vargs[2]})"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def visit_print(self, node, vargs: List[str]) -> str:
-        args = []
-        total_args = []
-        for arg in node.args:
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                args.append(arg.value.replace("'", ""))
-            elif get_inferred_v_type(arg) == "string":
-                args.append(f"${{{self.visit(arg)}}}")
-            else:
-                if args:
-                    total_args.append(f"'{' '.join(args)}'")
-                    args = []
-                total_args.append(f"({self.visit(arg)}).str()")
-        if args:
-            total_args.append(f"'{' '.join(args)}'")
-        total_args = " + ' ' + ".join(total_args)
-
-        return f"println({total_args})"
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self.visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "str": lambda: f"({vargs[0]}).str()",
-            "floor": lambda: f"int(floor({vargs[0]}))",
-            "len": lambda: f"{vargs[0]}.len",
-            "sys.exit": lambda: f"exit({vargs[0] if vargs else '0'})",
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
@@ -232,9 +228,21 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_For(self, node):
         target = self.visit(node.target)
-        it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {target} in {it} {{")
+        if (
+            isinstance(node.iter, ast.Call)
+            and get_id(node.iter.func) == "range"
+            and len(node.iter.args) == 3
+        ):
+            start = self.visit(node.iter.args[0])
+            end = self.visit(node.iter.args[1])
+            step = self.visit(node.iter.args[2])
+            buf.append(
+                f"for {target} := {start}; {target} < {end}; {target} += {step} {{"
+            )
+        else:
+            it = self.visit(node.iter)
+            buf.append(f"for {target} in {it} {{")
         buf.extend(
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
         )
@@ -243,31 +251,28 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_While(self, node):
         buf = []
-        buf.append("for {0} {{".format(self.visit(node.test)))
+        if isinstance(node.test, ast.Constant) and node.test.value == True:
+            buf.append("for {")
+        else:
+            buf.append(f"for {self.visit(node.test)} {{")
         buf.extend(
             [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
         )
-        buf.append("}}")
+        buf.append("}")
         return "\n".join(buf)
 
     def visit_Str(self, node):
-        return "" + super().visit_Str(node) + ""
+        return super().visit_Str(node)
 
     def visit_Bytes(self, node):
-        bytes_str = "{0}".format(node.s)
-        return bytes_str.replace("'", '"')  # replace single quote with double quote
+        if not node.s:
+            return "[]byte{}"
 
-    def visit_Name(self, node):
-        if node.id == "None":
-            return "nil"
-        else:
-            return super().visit_Name(node)
-
-    def visit_NameConstant(self, node):
-        if node.value is None:
-            return "nil"
-        else:
-            return super().visit_NameConstant(node)
+        chars = []
+        chars.append(f"byte({hex(node.s[0])})")
+        for c in node.s[1:]:
+            chars.append(hex(c))
+        return f"[{', '.join(chars)}]"
 
     def visit_If(self, node):
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
@@ -288,11 +293,10 @@ class VTranspiler(CLikeTranspiler):
         )
         test = self.visit(node.test)
         if node.orelse:
-            orelse = self.indent(f"else {{\n{orelse}", level=node.level)
+            orelse = self.indent(f"else {{\n{orelse}\n}}", level=node.level)
         else:
             orelse = ""
-        bodyend = self.indent("}", level=node.level)
-        return f"if {test} {{\n{body}\n{bodyend}\n{orelse}"
+        return f"if {test} {{\n{body}\n}}\n{orelse}"
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.USub):
@@ -304,87 +308,17 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node):
-        if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
-        ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        else:
-            return super().visit_BinOp(node)
-
     def visit_ClassDef(self, node):
-        extractor = DeclarationExtractor(VTranspiler())
-        extractor.visit(node)
-        declarations = node.declarations = extractor.get_declarations()
-        node.class_assignments = extractor.class_assignments
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
-
-        fields = []
-        index = 0
-        for declaration, typename in declarations.items():
-            if typename == None:
-                typename = "ST{0}".format(index)
-                index += 1
-            fields.append(f"{declaration}: {typename}")
-
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
-        object_def = "type\n"
-        object_def += self.indent(f"{node.name} = object\n", level=node.level + 1)
-        object_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
-        body = [self.visit(b) for b in node.body]
-        body = "\n".join(body)
-        return f"{object_def}\n{body}\n"
+        raise AstNotImplementedError("Classes are not supported yet.", node)
 
     def visit_IntEnum(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f) for f in fields])
-        return f"type {node.name} = enum\n{fields}\n\n"
+        raise AstNotImplementedError("Enums are not supported yet.", node)
 
     def visit_IntFlag(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f, level=2) for f in fields])
-        # flags = self.indent(f"{node.name}Flags = set[{node.name}]")
-        return "\n".join(
-            [
-                "type",
-                self.indent(f"{node.name} = enum"),
-                f"{fields}",
-                # f"{flags}",
-                "",
-            ]
-        )
+        raise AstNotImplementedError("Enums are not supported yet.", node)
 
     def visit_StrEnum(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f) for f in fields])
-        return f"type {node.name} = enum\n{fields}\n\n"
+        raise AstNotImplementedError("String enums are not supported in V.", node)
 
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]
@@ -392,11 +326,7 @@ class VTranspiler(CLikeTranspiler):
         return f"[{elements}]"
 
     def visit_Set(self, node):
-        raise AstNotImplementedError("Sets are not implemented in V yet.")
-        self._usings.add("sets")
-        elements = [self.visit(e) for e in node.elts]
-        elements_str = ", ".join(elements)
-        return f"toHashSet([{elements_str}])"
+        raise AstNotImplementedError("Sets are not implemented in V yet.", node)
 
     def visit_Dict(self, node):
         keys = [self.visit(k) for k in node.keys]
@@ -429,7 +359,7 @@ class VTranspiler(CLikeTranspiler):
         return "{0}..{1}".format(lower, upper)
 
     def visit_Elipsis(self, node):
-        return "compile_error!('Elipsis is not supported');"
+        return ""
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -438,31 +368,11 @@ class VTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def visit_unsupported_body(self, name, body):
-        buf = ["{0} := {{ //unsupported".format(name)]
-        buf += [self.visit(n) for n in body]
-        buf.append("};")
-        return buf
-
     def visit_Try(self, node, finallybody=None):
-        buf = self.visit_unsupported_body("try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body("finally_dummy", finallybody)
-
-        return "\n".join(buf)
+        raise AstNotImplementedError("Exceptions are not supported yet.", node)
 
     def visit_ExceptHandler(self, node):
-        exception_type = ""
-        if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(name, node.body)
-        return body
+        raise AstNotImplementedError("Exceptions are not supported yet.", node)
 
     def visit_Assert(self, node):
         return f"assert {self.visit(node.test)}"
@@ -470,42 +380,60 @@ class VTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
         kw = "mut " if is_mutable(node.scopes, target) else ""
-        if type_str == self._default_type:
+        if isinstance(node.value, ast.List):
+            if node.value.elts:
+                elts = []
+                if type_str[2:] in V_WIDTH_RANK:
+                    elts.append(f"{type_str[2:]}({self.visit(node.value.elts[0])})")
+                else:
+                    elts.append(self.visit(node.value.elts[0]))
+                elts.extend(map(self.visit, node.value.elts[1:]))
+                return f"{kw}{target} := [{', '.join(elts)}]"
+            return f"{kw}{target} := {type_str}{{}}"
+        else:
             return f"{kw}{target} := {val}"
-        return f"{kw}{target} := {type_str}({val})"
 
     def visit_Assign(self, node):
-        target = node.targets[0]
-        kw = "mut " if is_mutable(node.scopes, get_id(target)) else ""
-
-        if isinstance(target, ast.Tuple):
-            elts = [self.visit(e) for e in target.elts]
-            elts_str = ", ".join(elts)
-            value = self.visit(node.value)
-            return f"{kw}({elts_str}) = {value}"
-
-        if isinstance(node.scopes[-1], ast.If):
-            outer_if = node.scopes[-1]
-            target_id = self.visit(target)
-            if target_id in outer_if.common_vars:
+        assign = []
+        use_temp = len(node.targets) > 1 and isinstance(node.value, ast.Call)
+        if use_temp:
+            assign.append(f"mut tmp := {self.visit(node.value)}")
+        for target in node.targets:
+            kw = "mut " if is_mutable(node.scopes, get_id(target)) else ""
+            if use_temp:
+                value = "tmp"
+            else:
                 value = self.visit(node.value)
-                return f"{kw}{target_id} = {value}"
 
-        if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
-            target = self.visit(target)
-            value = self.visit(node.value)
-            return f"{target} = {value}"
+            if isinstance(target, (ast.Tuple, ast.List)):
+                value = value[1:-1]
+                subtargets = []
+                op = ":="
+                for subtarget in target.elts:
+                    subkw = "mut " if is_mutable(node.scopes, get_id(subtarget)) else ""
+                    subtargets.append(f"{subkw}{self.visit(subtarget)}")
+                    definition = node.scopes.find(get_id(subtarget))
+                    if definition is not None and defined_before(definition, subtarget):
+                        op = "="
+                    elif op == "=":
+                        raise AstNotImplementedError(
+                            "Mixing declarations and assignment in the same statement is unsupported.",
+                            node,
+                        )
+                assign.append(f"{', '.join(subtargets)} {op} {value}")
+            elif isinstance(target, (ast.Subscript, ast.Attribute)):
+                target = self.visit(target)
+                assign.append(f"{target} = {value}")
+            elif isinstance(target, ast.Name) and defined_before(
+                node.scopes.find(target.id), node
+            ):
+                target = self.visit(target)
+                assign.append(f"{target} = {value}")
+            else:
+                target = self.visit(target)
 
-        definition = node.scopes.find(target.id)
-        if isinstance(target, ast.Name) and defined_before(definition, node):
-            target = self.visit(target)
-            value = self.visit(node.value)
-            return f"{target} = {value}"
-        else:
-            target = self.visit(target)
-            value = self.visit(node.value)
-
-            return f"{kw}{target} := {value}"
+                assign.append(f"{kw}{target} := {value}")
+        return "\n".join(assign)
 
     def visit_AugAssign(self, node):
         target = self.visit(node.target)
@@ -514,77 +442,39 @@ class VTranspiler(CLikeTranspiler):
         return "{0} {1}= {2}".format(target, op, val)
 
     def visit_Delete(self, node):
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
+        raise AstNotImplementedError("`delete` statements are not supported yet.", node)
 
     def visit_Raise(self, node):
-        if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
-        # This handles the case where `raise` is used without
-        # specifying the exception.
-        return "raise!(); //unsupported"
+        raise AstNotImplementedError("Exceptions are not supported yet.", node)
 
     def visit_With(self, node):
-        buf = []
-
-        with_statement = "// with!("
-        for i in node.items:
-            if i.optional_vars:
-                with_statement += "{0} as {1}, ".format(
-                    self.visit(i.context_expr), self.visit(i.optional_vars)
-                )
-            else:
-                with_statement += "{0}, ".format(self.visit(i.context_expr))
-        with_statement = with_statement[:-2] + ") //unsupported\n{"
-        buf.append(with_statement)
-
-        for n in node.body:
-            buf.append(self.visit(n))
-
-            buf.append("}")
-
-        return "\n".join(buf)
+        raise AstNotImplementedError("`with` statements are not supported yet.", node)
 
     def visit_Await(self, node):
-        return "await!({0})".format(self.visit(node.value))
+        raise AstNotImplementedError("asyncio is not supported.", node)
 
     def visit_AsyncFunctionDef(self, node):
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+        raise AstNotImplementedError("asyncio is not supported.", node)
 
     def visit_Yield(self, node):
-        value = self.visit(node.value)
-        return f"yield {value}"
+        raise AstNotImplementedError("Generators are not supported yet.", node)
 
     def visit_DictComp(self, node):
-        return "DictComp /*uvplemented()*/"
+        raise AstNotImplementedError("Dict comprehensions are not supported yet.", node)
 
     def visit_GeneratorExp(self, node):
-        elt = self.visit(node.elt)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
-
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        raise AstNotImplementedError(
+            "Generator expressions are not supported yet.", node
+        )
 
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node)  # right now they are the same
 
     def visit_Global(self, node):
-        return "//global {0}".format(", ".join(node.names))
+        raise AstNotImplementedError("Globals are not supported yet.", node)
 
     def visit_Starred(self, node):
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
+        raise AstNotImplementedError("Starred expressions are not supported yet.", node)
 
     def visit_IfExp(self, node):
         body = self.visit(node.body)

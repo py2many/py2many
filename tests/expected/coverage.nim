@@ -1,4 +1,3 @@
-import sets
 import strutils
 import tables
 
@@ -45,8 +44,6 @@ proc show() =
   echo len(a5)
   let a9: seq[string] = @["a", "b", "c", "d"]
   echo len(a9)
-  let a6 = toHashSet([1, 2, 3, 4])
-  echo len(a6)
   let a7 = {"a": 1, "b": 2}.newTable
   echo len(a7)
   let a8 = true

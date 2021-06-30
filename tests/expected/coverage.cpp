@@ -2,7 +2,6 @@
 #include <cassert>    // NOLINT(build/include_order)
 #include <iostream>   // NOLINT(build/include_order)
 #include <map>        // NOLINT(build/include_order)
-#include <set>        // NOLINT(build/include_order)
 #include <vector>     // NOLINT(build/include_order)
 
 #include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
@@ -67,9 +66,6 @@ inline void show() {
   std::vector<std::string> a9 = {std::string{"a"}, std::string{"b"},
                                  std::string{"c"}, std::string{"d"}};
   std::cout << a9.size();
-  std::cout << std::endl;
-  std::set<int> a6 = std::set<int>{1, 2, 3, 4};
-  std::cout << a6.size();
   std::cout << std::endl;
   std::map<std::string, int> a7 =
       std::map<std::string, int>{{std::string{"a"}, 1}, {std::string{"b"}, 2}};

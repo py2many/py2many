@@ -49,8 +49,6 @@ function show()
     println(join([length(a5)], " "))
     a9::Array{String} = ["a", "b", "c", "d"]
     println(join([length(a9)], " "))
-    a6 = Set([1, 2, 3, 4])
-    println(join([length(a6)], " "))
     a7 = Dict("a" => 1, "b" => 2)
     println(join([length(a7)], " "))
     a8 = true

@@ -51,8 +51,8 @@ v_symbols = {
     ast.Not: "!",
     ast.IsNot: "!=",
     ast.USub: "-",
-    ast.And: " && ",
-    ast.Or: " || ",
+    ast.And: "&&",
+    ast.Or: "||",
     ast.In: "in",
 }
 
@@ -95,14 +95,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             right = f"{left_type}({right})"
         elif right_rank > left_rank:
             left = f"{right_type}({left})"
-
+        if "bool" in (left_type, right_type):
+            op = {"&": "&&", "|": "||", "^": "!="}.get(op, op)
         return f"({left} {op} {right})"
 
     def visit_Name(self, node):
         if node.id in v_keywords:
-            return node.id + "_"
-        if node.id.startswith("_"):
-            return "_"
+            return f"@{node.id}"
         return super().visit_Name(node)
 
     def visit_In(self, node):

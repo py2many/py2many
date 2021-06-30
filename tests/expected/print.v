@@ -1,7 +1,7 @@
 fn show() {
 	println('b')
 	println((2).str() + ' ' + 'b')
-	a := f32(2.1)
+	a := 2.1
 	println(a.str())
 	b := 2.1
 	println(b.str())

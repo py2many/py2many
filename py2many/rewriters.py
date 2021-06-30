@@ -375,7 +375,7 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
         self._language = language
-        self._disable = language in {"nim"}
+        self._disable = language in {"nim", "v"}
         self._unpack = language in {"cpp", "dart", "go", "rust"}
 
     def _visit_assign_unpack_all(self, node):

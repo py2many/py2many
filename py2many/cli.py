@@ -50,7 +50,7 @@ from pygo.transpiler import (
     GoIfExpRewriter,
 )
 from pyv.inference import infer_v_types
-from pyv.transpiler import VTranspiler, VNoneCompareRewriter
+from pyv.transpiler import VTranspiler, VNoneCompareRewriter, VDictRewriter
 
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
@@ -349,7 +349,7 @@ def vlang_settings(args, env=os.environ):
         "V",
         ["v", *vfmt_args],
         None,
-        [VNoneCompareRewriter()],
+        [VNoneCompareRewriter(), VDictRewriter()],
         [infer_v_types],
     )
 

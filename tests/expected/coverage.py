@@ -53,8 +53,6 @@ def show():
     print(len(a5))
     a9: List[str] = ["a", "b", "c", "d"]
     print(len(a9))
-    a6: Set[int] = {1, 2, 3, 4}
-    print(len(a6))
     a7: Dict[str, int] = {"a": 1, "b": 2}
     print(len(a7))
     a8: bool = True

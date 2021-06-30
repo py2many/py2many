@@ -1,6 +1,6 @@
 fn bisect_right(data []int, item int) int {
 	mut low := 0
-	mut high := int(int(data.len))
+	mut high := int(data.len)
 	for low < high {
 		middle := int(((low + high) / 2))
 		if item < data[middle] {
@@ -14,7 +14,7 @@ fn bisect_right(data []int, item int) int {
 
 fn bin_it(limits []int, data []int) []int {
 	mut bins := [0]
-	for _ in limits {
+	for _x in limits {
 		bins << (0)
 	}
 	for d in data {

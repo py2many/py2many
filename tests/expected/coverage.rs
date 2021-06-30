@@ -28,7 +28,6 @@ extern crate anyhow;
 use anyhow::Result;
 use std::collections;
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub fn inline_pass() {
     /* pass */
@@ -80,8 +79,6 @@ pub fn show() {
     println!("{}", a5.len());
     let a9: Vec<&str> = vec!["a", "b", "c", "d"];
     println!("{}", a9.len());
-    let a6: &HashSet<i32> = &[1, 2, 3, 4].iter().cloned().collect::<HashSet<_>>();
-    println!("{}", a6.len());
     let a7: &HashMap<&str, i32> = &[("a", 1), ("b", 2)]
         .iter()
         .cloned()

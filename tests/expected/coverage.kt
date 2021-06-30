@@ -55,15 +55,10 @@ fun show() {
         val __tmp2 = a9.size
         println("$__tmp2")
     }
-    val a6 = setOf(1, 2, 3, 4)
-    if (true) {
-        val __tmp3 = a6.size
-        println("$__tmp3")
-    }
     val a7 = hashMapOf("a" to 1, "b" to 2)
     if (true) {
-        val __tmp4 = a7.size
-        println("$__tmp4")
+        val __tmp3 = a7.size
+        println("$__tmp3")
     }
     val a8 = true
     if (a8) {
@@ -82,8 +77,8 @@ fun show() {
         println("World is sane")
     }
     if (true) {
-        val __tmp5 = if (true) "True" else "False"
-        println("$__tmp5")
+        val __tmp4 = if (true) "True" else "False"
+        println("$__tmp4")
     }
     if (true) {
         a1 += 1
