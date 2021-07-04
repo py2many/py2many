@@ -10,7 +10,24 @@ except ImportError:
 
     # https://github.com/isidentical/backports.ast_unparse/commit/e7b1aea is broken
 
+
 unparse  # ignore pyflakes
+
+
+def get_id(var):
+    if isinstance(var, ast.alias):
+        return var.name
+    elif isinstance(var, ast.Name):
+        return var.id
+    elif isinstance(var, ast.arg):
+        return var.arg
+    elif isinstance(var, ast.FunctionDef):
+        return var.name
+    elif isinstance(var, ast.ClassDef):
+        return var.name
+    else:
+        # print(f"warning: {var}"")
+        return None
 
 
 def create_ast_node(code, at_node=None):

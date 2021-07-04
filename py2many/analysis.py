@@ -1,6 +1,9 @@
-import sys
 import ast
 
+from .ast_helpers import get_id
+
+
+get_id  # quiten pyflakes; this should when code is updated to use ast_helpers
 
 IGNORED_MODULE_SET = set(
     [
@@ -28,33 +31,6 @@ def is_void_function(fun):
     finder = ReturnFinder()
     finder.visit(fun)
     return not (finder.returns or fun.returns is not None)
-
-
-if sys.version_info[0] >= 3:
-
-    def get_id(var):
-        if isinstance(var, ast.alias):
-            return var.name
-        elif isinstance(var, ast.Name):
-            return var.id
-        elif isinstance(var, ast.arg):
-            return var.arg
-        elif isinstance(var, ast.FunctionDef):
-            return var.name
-        elif isinstance(var, ast.ClassDef):
-            return var.name
-        else:
-            # print(f"warning: {var}"")
-            return None
-
-
-else:
-
-    def get_id(var):
-        if isinstance(var, ast.alias):
-            return var.name
-        elif isinstance(var, ast.Name):
-            return var.id
 
 
 def is_global(target):
