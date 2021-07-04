@@ -11,9 +11,9 @@ def bisect_right(data: List[int], item: int) -> int:
     while low < high:
         middle: int = int((low + high) / 2)
         if item < data[middle]:
-            high: int = middle
+            high = middle
         else:
-            low: int = middle + 1
+            low = middle + 1
     return low
 
 

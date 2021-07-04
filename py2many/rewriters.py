@@ -11,7 +11,9 @@ from typing import Optional
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
     def visit_Assign(self, node):
-        target = node.targets[0]
+        target = node.targets[0]  # Assumes all targets have same annotation
+        if isinstance(target, ast.Subscript):
+            return node
         annotation = getattr(target, "annotation", False)
         if not annotation:
             return node
@@ -23,8 +25,21 @@ class InferredAnnAssignRewriter(ast.NodeTransformer):
 
         assigns = []
         for assign_target in node.targets:
-            print(assign_target.__class__)
-            # assert False
+            definition = node.scopes.find(get_id(assign_target))
+            if definition is not assign_target:
+                previous_type = get_inferred_type(definition)
+                if get_id(previous_type) == get_id(annotation):
+                    if len(node.targets) == 1:
+                        return node
+                    else:
+                        new_node = ast.Assign(
+                            targets=[assign_target],
+                            value=node.value,
+                            lineno=node.lineno,
+                            col_offset=col_offset,
+                        )
+                        assigns.append(new_node)
+                        continue
             new_node = ast.AnnAssign(
                 target=assign_target,
                 value=node.value,

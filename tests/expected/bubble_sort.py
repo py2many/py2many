@@ -12,8 +12,8 @@ def bubble_sort(seq: List[int]) -> List[int]:
             if seq[n] < seq[n - 1]:
                 if True:
                     (__tmp1, __tmp2) = (seq[n], seq[n - 1])
-                    seq[n - 1]: int = __tmp1
-                    seq[n]: int = __tmp2
+                    seq[n - 1] = __tmp1
+                    seq[n] = __tmp2
     return seq
 
 

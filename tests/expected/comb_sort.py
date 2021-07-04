@@ -11,14 +11,14 @@ def comb_sort(seq: List[int]) -> List[int]:
     swap: bool = True
     while gap > 1 or swap:
         gap: int = max(1, floor(gap / 1.25))
-        swap: bool = False
+        swap = False
         for i in range(len(seq) - gap):
             if seq[i] > seq[i + gap]:
                 if True:
                     (__tmp1, __tmp2) = (seq[i + gap], seq[i])
-                    seq[i]: int = __tmp1
-                    seq[i + gap]: int = __tmp2
-                swap: bool = True
+                    seq[i] = __tmp1
+                    seq[i + gap] = __tmp2
+                swap = True
     return seq
 
 

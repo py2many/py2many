@@ -17,7 +17,7 @@ class Rectangle:
 def show():
     r: Rectangle = Rectangle(height=1, length=1)
     assert r.is_square()
-    r: Rectangle = Rectangle(height=1, length=2)
+    r = Rectangle(height=1, length=2)
     assert not r.is_square()
     print(r.height)
     print(r.length)
