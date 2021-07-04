@@ -156,7 +156,6 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
-        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pynim"
         assert_only_reformat_failures(
@@ -164,7 +163,7 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 transpiler_module,
                 OUT_DIR,
-                _suppress_exceptions=suppress_exceptions,
+                _suppress_exceptions=False,
             )
         )
         assert_only_reformat_failures(
@@ -172,36 +171,35 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 PY2MANY_MODULE,
                 OUT_DIR,
-                _suppress_exceptions=suppress_exceptions,
+                _suppress_exceptions=False,
             ),
         )
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
-        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
 
         transpiler_module = ROOT_DIR / "pycpp"
         successful, format_errors, failures = _process_dir(
             settings,
             transpiler_module,
             OUT_DIR,
-            _suppress_exceptions=suppress_exceptions,
+            _suppress_exceptions=False,
         )
         assert len(successful) >= 11
 
         successful, format_errors, failures = _process_dir(
-            settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
+            settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=False
         )
         assert len(successful) >= 15
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
-        suppress_exceptions = (False,) if SHOW_ERRORS else (NotImplementedError,)
+        suppress_exceptions = (False,)
 
         if not SHOW_ERRORS:
             if settings.formatter:
                 if not spawn.find_executable(settings.formatter[0]):
-                    suppress_exceptions = (FileNotFoundError, NotImplementedError)
+                    suppress_exceptions = (FileNotFoundError,)
 
         transpiler_module = ROOT_DIR / "pyjl"
         successful, format_errors, failures = _process_dir(
