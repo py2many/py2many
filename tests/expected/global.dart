@@ -11,8 +11,8 @@ main(List<String> argv) {
   for (final i in l_a) {
     print(sprintf("%s", [i]));
   }
-  for (final i in l_b) {
-    print(sprintf("%s", [i]));
+  for (final j in l_b) {
+    print(sprintf("%s", [j]));
   }
 
   if (["a", "b"].contains("a")) {

@@ -16,8 +16,8 @@ int main(int argc, char** argv) {
     std::cout << i;
     std::cout << std::endl;
   }
-  for (auto i : l_b) {
-    std::cout << i;
+  for (auto j : l_b) {
+    std::cout << j;
     std::cout << std::endl;
   }
   if (({

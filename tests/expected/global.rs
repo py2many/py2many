@@ -37,8 +37,8 @@ pub fn main() -> Result<()> {
     for i in l_a {
         println!("{}", *i);
     }
-    for i in l_b {
-        println!("{}", *i);
+    for j in l_b {
+        println!("{}", *j);
     }
     if vec!["a", "b"].iter().any(|&x| x == "a") {
         println!("{}", "OK");

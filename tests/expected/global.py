@@ -12,7 +12,7 @@ l_b: List[str] = [code_a, code_b]
 if __name__ == "__main__":
     for i in l_a:
         print(i)
-    for i in l_b:
-        print(i)
+    for j in l_b:
+        print(j)
     if "a" in ["a", "b"]:
         print("OK")

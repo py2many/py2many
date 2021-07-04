@@ -8,8 +8,8 @@ fun main(argv: Array<String>) {
     for (i in l_a) {
         println("$i")
     }
-    for (i in l_b) {
-        println("$i")
+    for (j in l_b) {
+        println("$j")
     }
     if ("a" in arrayOf("a", "b")) {
         println("OK")

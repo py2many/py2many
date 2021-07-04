@@ -8,8 +8,8 @@ function main()
     for i in l_a
         println(join([i], " "))
     end
-    for i in l_b
-        println(join([i], " "))
+    for j in l_b
+        println(join([j], " "))
     end
     if "a" in ["a", "b"]
         println(join(["OK"], " "))

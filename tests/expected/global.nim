@@ -8,8 +8,8 @@ let l_b = @[code_a, code_b]
 proc main() =
   for i in l_a:
     echo i
-  for i in l_b:
-    echo i
+  for j in l_b:
+    echo j
   if "a" in @["a", "b"]:
     echo "OK"
 

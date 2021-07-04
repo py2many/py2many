@@ -16,8 +16,8 @@ func main() {
 	for _, i := range LA {
 		fmt.Printf("%v\n", i)
 	}
-	for _, i := range LB {
-		fmt.Printf("%v\n", i)
+	for _, j := range LB {
+		fmt.Printf("%v\n", j)
 	}
 	if pygo.Contains([]string{"a", "b"}, "a") {
 		fmt.Printf("%v\n", "OK")
