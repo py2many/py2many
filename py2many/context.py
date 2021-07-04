@@ -39,7 +39,8 @@ class ListCallTransformer(ast.NodeTransformer):
         """Check if operation is adding something to a list"""
         list_operations = ["append", "extend", "insert"]
         return (
-            isinstance(node.func.ctx, ast.Load)
+            hasattr(node.func, "ctx")
+            and isinstance(node.func.ctx, ast.Load)
             and hasattr(node.func, "value")
             and isinstance(node.func.value, ast.Name)
             and hasattr(node.func, "attr")
