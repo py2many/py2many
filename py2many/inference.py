@@ -250,17 +250,20 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
 
-        target = node.targets[0]
         annotation = getattr(node.value, "annotation", None)
-        target_has_annotation = hasattr(target, "annotation")
-        inferred = (
-            getattr(target.annotation, "inferred", False)
-            if target_has_annotation
-            else False
-        )
-        if annotation is not None and (not target_has_annotation or inferred):
-            target.annotation = annotation
-            target.annotation.inferred = True
+        if annotation is None:
+            return node
+
+        for target in node.targets:
+            target_has_annotation = hasattr(target, "annotation")
+            inferred = (
+                getattr(target.annotation, "inferred", False)
+                if target_has_annotation
+                else False
+            )
+            if not target_has_annotation or inferred:
+                target.annotation = annotation
+                target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
 

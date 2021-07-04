@@ -35,7 +35,7 @@ inline auto infer_bool(int code) {
 inline void show() {
   int a1 = 10;
   int b1 = 15;
-  auto b2 = 15;
+  int b2 = 15;
   assert(b1 == 15);
   assert(b2 == 15);
   int b9 = 2;

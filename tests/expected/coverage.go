@@ -32,7 +32,7 @@ func InferBool(code int) bool {
 func Show() {
 	var a1 int = 10
 	var b1 int = 15
-	b2 := 15
+	var b2 int = 15
 	if !(b1 == 15) {
 		panic("assert")
 	}

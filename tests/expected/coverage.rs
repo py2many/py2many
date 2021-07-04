@@ -55,9 +55,9 @@ pub fn infer_bool(code: i32) -> bool {
 pub fn show() {
     let mut a1: i32 = 10;
     let b1: i32 = 15;
-    let b2: _ = 15;
+    let b2: i32 = 15;
     assert!(b1 == 15);
-    assert!((b2 as i32) == 15);
+    assert!(b2 == 15);
     let b9: i32 = 2;
     let b10: i32 = 2;
     assert!(b9 == b10);

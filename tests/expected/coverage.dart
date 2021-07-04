@@ -26,7 +26,7 @@ bool infer_bool(int code) {
 show() {
   int a1 = 10;
   final int b1 = 15;
-  final b2 = 15;
+  final int b2 = 15;
   assert(b1 == 15);
   assert(b2 == 15);
   final int b9 = 2;
