@@ -38,7 +38,7 @@ c_uint64 = u64
 
 
 from py2many.analysis import get_id, IGNORED_MODULE_SET
-from py2many.exceptions import AstNotImplementedError
+from py2many.exceptions import AstEmptyNodeFound, AstNotImplementedError
 from py2many.result import Result
 from typing import List, Optional, Tuple, Union
 
@@ -266,7 +266,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit(self, node):
         if node is None:
-            raise TypeError("node can not be None")
+            raise AstEmptyNodeFound
         if type(node) in symbols:
             return c_symbol(node)
         else:
