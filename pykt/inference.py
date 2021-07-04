@@ -5,6 +5,7 @@ from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 from py2many.inference import get_inferred_type, InferTypesTransformer
 from py2many.clike import class_for_typename
+from py2many.exceptions import AstUnrecognisedBinOp
 from py2many.analysis import get_id
 
 KT_TYPE_MAP = {
@@ -169,4 +170,4 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
                 node.kotlin_annotation = map_type("float")
                 return node
 
-            raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+            raise AstUnrecognisedBinOp(left_id, right_id, node)

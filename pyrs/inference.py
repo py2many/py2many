@@ -8,7 +8,7 @@ from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 from py2many.analysis import get_id, is_mutable
 from py2many.clike import class_for_typename
-from py2many.exceptions import AstNotImplementedError
+from py2many.exceptions import AstUnrecognisedBinOp
 from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
 
 RUST_TYPE_MAP = {
@@ -164,9 +164,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
                 left_id is not None
                 and (left_id, type(node.op)) not in LEGAL_COMBINATIONS
             ):
-                raise AstNotImplementedError(
-                    f"{left_id} {type(node.op)} {right_id}", node
-                )
+                raise AstUnrecognisedBinOp(left_id, right_id, node)
 
         return node
 

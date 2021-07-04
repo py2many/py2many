@@ -7,7 +7,7 @@ from typing import Optional
 
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, LifeTime, class_for_typename
-from py2many.exceptions import AstIncompatibleAssign, AstNotImplementedError
+from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import is_enum
 
 
@@ -452,9 +452,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 left_id is not None
                 and (left_id, type(node.op)) not in LEGAL_COMBINATIONS
             ):
-                raise AstNotImplementedError(
-                    f"{left_id} {type(node.op)} {right_id}", node
-                )
+                raise AstUnrecognisedBinOp(left_id, right_id, node)
 
         return node
 
