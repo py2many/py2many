@@ -14,3 +14,8 @@ class AstNotImplementedError(AstErrorBase, NotImplementedError):
 
 class AstIncompatibleAssign(AstErrorBase, TypeError):
     """Assignment target has type annotation that is incompatible with expression"""
+
+
+class AstEmptyNodeFound(TypeError):
+    def __init__(self):
+        super().__init__("node can not be None")
