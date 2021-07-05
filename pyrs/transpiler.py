@@ -24,7 +24,7 @@ from py2many.analysis import (
 )
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstNotImplementedError
+from py2many.exceptions import AstClassUsedBeforeDeclaration
 from py2many.inference import is_reference
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
@@ -346,7 +346,7 @@ class RustTranspiler(CLikeTranspiler):
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-            raise AstNotImplementedError(f"Missing declarations for {fname}", node)
+            raise AstClassUsedBeforeDeclaration(fndef, node)
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)

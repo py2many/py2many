@@ -16,6 +16,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
+from py2many.exceptions import AstClassUsedBeforeDeclaration
 from py2many.tracer import is_list, defined_before
 
 from typing import List
@@ -173,7 +174,7 @@ class NimTranspiler(CLikeTranspiler):
     def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-            raise Exception("Missing declarations")
+            raise AstClassUsedBeforeDeclaration(fndef, node)
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)
