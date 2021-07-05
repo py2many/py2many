@@ -175,7 +175,7 @@ class NimTranspiler(CLikeTranspiler):
         if not hasattr(fndef, "declarations"):
             raise Exception("Missing declarations")
         if node.args:
-            for arg, decl in zip(node.args, fndef.declaration.keys()):
+            for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
