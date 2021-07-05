@@ -1,6 +1,7 @@
 import ast
-from py2many.analysis import get_id
 from typing import Any, Dict, Tuple
+
+from py2many.ast_helpers import get_id
 
 
 class DeclarationExtractor(ast.NodeVisitor):
@@ -54,7 +55,7 @@ class DeclarationExtractor(ast.NodeVisitor):
         return typed_members
 
     def visit_ClassDef(self, node: ast.ClassDef):
-        decorators = [d.id for d in node.decorator_list]
+        decorators = [get_id(d) for d in node.decorator_list]
         if len(node.decorator_list) > 0 and "dataclass" in decorators:
             node.is_dataclass = True
             dataclass_members = []
