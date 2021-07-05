@@ -148,29 +148,13 @@ class SelfTranspileTests(unittest.TestCase):
                 _suppress_exceptions=suppress_exceptions,
             )
         )
-        assert_some_failures(
+        assert_only_reformat_failures(
             *_process_dir(
                 settings,
                 PY2MANY_MODULE,
                 OUT_DIR,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            expected_success={
-                "__main__.py",
-                "analysis.py",
-                "annotation_transformer.py",
-                "ast_helpers.py",
-                "astx.py",
-                "clike.py",
-                "declaration_extractor.py",
-                "exceptions.py",
-                "language.py",
-                "mutability_transformer.py",
-                "nesting_transformer.py",
-                "python_transformer.py",
-                "result.py",
-                "tracer.py",
-            },
         )
 
     def test_cpp_recursive(self):

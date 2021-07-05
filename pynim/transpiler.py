@@ -534,8 +534,10 @@ class NimTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node):
-        value = self.visit(node.value)
-        return f"yield {value}"
+        if node.value is not None:
+            value = self.visit(node.value)
+            return f"yield {value}"
+        return "yield nil"
 
     def visit_Print(self, node):
         buf = []
