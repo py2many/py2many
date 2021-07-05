@@ -61,6 +61,7 @@ TEST_CASES = {
     "dict_value_type": "a = {1: 1, 2: 2.0}",  # https://github.com/adsharma/py2many/issues/171
     "empty_print": "print()",
     "list_compre": "[i for i in ['a']]",
+    "list_destruct": "[a, b] = [1, 2]",
     "str_compre": "[i for i in 'a']",
     "all": "assert all(i for i in [True])",
     "any": "assert all(i for i in [True])",

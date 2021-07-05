@@ -503,7 +503,7 @@ class KotlinTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value}"
 
-        definition = node.scopes.find(target.id)
+        definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
