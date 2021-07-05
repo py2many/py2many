@@ -49,6 +49,11 @@ test = true
 path = "tests/expected/bubble_sort.rs"
 
 [[bin]]
+name = "built_ins"
+test = true
+path = "tests/expected/built_ins.rs"
+
+[[bin]]
 name = "comb_sort"
 test = true
 path = "tests/expected/comb_sort.rs"

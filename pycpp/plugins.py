@@ -130,8 +130,6 @@ SMALL_DISPATCH_MAP = {
     "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})",
     "len": lambda n, vargs: f"{vargs[0]}.size()",
     "float": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="float"),
-    "max": functools.partial(CppTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(CppTranspilerPlugins.visit_min_max, is_min=True),
     "floor": CppTranspilerPlugins.visit_floor,
 }
 
@@ -141,7 +139,7 @@ SMALL_USINGS_MAP = {
 
 DISPATCH_MAP = {
     "max": functools.partial(CppTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(CppTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(CppTranspilerPlugins.visit_min_max, is_max=False),
     "range": CppTranspilerPlugins.visit_range,
     "xrange": CppTranspilerPlugins.visit_range,
     "print": CppTranspilerPlugins.visit_print,

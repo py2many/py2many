@@ -143,7 +143,7 @@ SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(KotlinTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(KotlinTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(KotlinTranspilerPlugins.visit_min_max, is_max=False),
     "range": KotlinTranspilerPlugins.visit_range,
     "xrange": KotlinTranspilerPlugins.visit_range,
     "print": KotlinTranspilerPlugins.visit_print,

@@ -138,7 +138,7 @@ SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(GoTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(GoTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(GoTranspilerPlugins.visit_min_max, is_max=False),
     "range": GoTranspilerPlugins.visit_range,
     "range_": GoTranspilerPlugins.visit_range,
     "xrange": GoTranspilerPlugins.visit_range,

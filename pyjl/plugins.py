@@ -151,7 +151,7 @@ SMALL_USINGS_MAP = {
 
 DISPATCH_MAP = {
     "max": functools.partial(JuiliaTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(JuiliaTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(JuiliaTranspilerPlugins.visit_min_max, is_max=False),
     "range": JuiliaTranspilerPlugins.visit_range,
     "xrange": JuiliaTranspilerPlugins.visit_range,
     "print": JuiliaTranspilerPlugins.visit_print,

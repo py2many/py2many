@@ -175,7 +175,7 @@ SMALL_USINGS_MAP = {
 
 DISPATCH_MAP = {
     "max": functools.partial(RustTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(RustTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(RustTranspilerPlugins.visit_min_max, is_max=False),
     "range": RustTranspilerPlugins.visit_range,
     "xrange": RustTranspilerPlugins.visit_range,
     "print": RustTranspilerPlugins.visit_print,

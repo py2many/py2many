@@ -143,7 +143,7 @@ SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(DartTranspilerPlugins.visit_min_max, is_min=True),
+    "min": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=False),
     "range": DartTranspilerPlugins.visit_range,
     "xrange": DartTranspilerPlugins.visit_range,
     "print": DartTranspilerPlugins.visit_print,
