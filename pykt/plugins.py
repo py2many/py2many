@@ -139,7 +139,7 @@ SMALL_DISPATCH_MAP = {
     "reversed": lambda n, vargs: f"{vargs[0]}.reversed()",
 }
 
-SMALL_USINGS_MAP = {}
+SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(KotlinTranspilerPlugins.visit_min_max, is_max=True),
@@ -150,7 +150,7 @@ DISPATCH_MAP = {
     "floor": KotlinTranspilerPlugins.visit_floor,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: KotlinTranspilerPlugins.visit_ap_dataclass}
 

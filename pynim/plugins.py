@@ -64,7 +64,7 @@ SMALL_DISPATCH_MAP = {
     "floor": lambda n, vargs: f"int(floor({vargs[0]}))",
 }
 
-SMALL_USINGS_MAP = {}
+SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "range": NimTranspilerPlugins.visit_range,
@@ -72,13 +72,13 @@ DISPATCH_MAP = {
     "print": NimTranspilerPlugins.visit_print,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: NimTranspilerPlugins.visit_ap_dataclass}
 
-CLASS_DISPATCH_TABLE = {}
+CLASS_DISPATCH_TABLE: Dict[type, Callable] = {}
 
-ATTR_DISPATCH_TABLE = {}
+ATTR_DISPATCH_TABLE: Dict[type, Callable] = {}
 
 FuncType = Union[Callable, str]
 

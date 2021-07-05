@@ -5,7 +5,7 @@ class AstErrorBase:
     def __init__(self, msg: str, node: ast.AST):
         self.lineno = node.lineno
         self.col_offset = node.col_offset
-        super().__init__(msg)
+        super().__init__(msg)  # noqa: other mechanisms of subclassing Exception
 
 
 class AstNotImplementedError(AstErrorBase, NotImplementedError):

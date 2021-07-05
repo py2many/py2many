@@ -1,7 +1,9 @@
 import ast
+from py2many.astx import ASTxIf
+from typing import cast
 
 try:
-    from ast import unparse
+    from ast import unparse  # noqa: introduced in py3.9
 except ImportError:
     from astor import to_source as unparse
 
@@ -41,9 +43,9 @@ def create_ast_node(code, at_node=None):
     return new_node
 
 
-def create_ast_block(body, at_node=None):
-    block = ast.If(test=ast.Constant(value=True), body=body, orelse=[])
-    block.rewritten = True
+def create_ast_block(body, at_node=None) -> ASTxIf:
+    block = cast(ASTxIf, ast.If(test=ast.Constant(value=True), body=body, orelse=[]))
+    block.rewritten = True  # noqa
     if at_node:
         block.lineno = at_node.lineno
     ast.fix_missing_locations(block)

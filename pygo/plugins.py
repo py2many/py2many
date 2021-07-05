@@ -134,7 +134,7 @@ SMALL_DISPATCH_MAP = {
     "bool": lambda n, vargs: f"({vargs[0]} != 0)",
 }
 
-SMALL_USINGS_MAP = {}
+SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(GoTranspilerPlugins.visit_min_max, is_max=True),
@@ -146,7 +146,7 @@ DISPATCH_MAP = {
     "floor": GoTranspilerPlugins.visit_floor,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: GoTranspilerPlugins.visit_ap_dataclass}
 

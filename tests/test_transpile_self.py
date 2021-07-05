@@ -132,7 +132,7 @@ class SelfTranspileTests(unittest.TestCase):
                 OUT_DIR,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            expected_success={"result.py", "__main__.py"},
+            expected_success={"result.py", "__main__.py", "astx.py"},
         )
 
     def test_nim_recursive(self):
@@ -160,6 +160,7 @@ class SelfTranspileTests(unittest.TestCase):
                 "analysis.py",
                 "annotation_transformer.py",
                 "ast_helpers.py",
+                "astx.py",
                 "clike.py",
                 "declaration_extractor.py",
                 "exceptions.py",

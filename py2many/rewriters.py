@@ -2,11 +2,12 @@ import ast
 import textwrap
 
 from py2many.analysis import get_id
-from py2many.ast_helpers import create_ast_block
+from py2many.ast_helpers import create_ast_block, create_ast_node
+from py2many.astx import ASTxFunctionDef
 from py2many.clike import CLikeTranspiler
 from py2many.inference import get_inferred_type
 
-from typing import Optional
+from typing import cast, Optional
 
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
@@ -187,13 +188,17 @@ class PythonMainRewriter(ast.NodeTransformer):
                 rename(node.scopes[-2], "main", "main_func")
             # ast.parse produces a Module object that needs to be destructured
             if self.main_signature_arg_names == {"argc", "argv"}:
-                ret = ast.parse(
-                    "def main(argc: int, argv: List[str]) -> int: True"
-                ).body[0]
+                ret = cast(
+                    ast.FunctionDef,
+                    create_ast_node(
+                        "def main(argc: int, argv: List[str]) -> int: True", node
+                    ),
+                )
             elif self.main_signature_arg_names == {"argv"}:
-                ret = ast.parse("def main(argv: List[str]): True").body[0]
+                ret = create_ast_node("def main(argv: List[str]): True", node)
             else:
-                ret = ast.parse("def main(): True").body[0]
+                ret = create_ast_node("def main(): True")
+            ret = cast(ASTxFunctionDef, ret)
             ret.lineno = node.lineno
             ret.body = node.body
             # So backends know to handle argc, argv etc
@@ -207,13 +212,15 @@ class FStringJoinRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_JoinedStr(self, node):
-        new_node = ast.parse('"".join([])').body[0].value
+        new_node = cast(ast.Expr, create_ast_node('"".join([])', node)).value
+        new_node = cast(ast.Call, new_node)
         args = new_node.args
+        arg0 = cast(ast.List, args[0])
         for v in node.values:
             if isinstance(v, ast.Constant):
-                args[0].elts.append(v)
+                arg0.elts.append(v)
             elif isinstance(v, ast.FormattedValue):
-                args[0].elts.append(
+                arg0.elts.append(
                     ast.Call(
                         func=ast.Name(id="str", ctx="Load"), args=[v.value], keywords=[]
                     )
@@ -276,7 +283,10 @@ class PrintBoolRewriter(ast.NodeTransformer):
         self._language = language
 
     def _do_other_rewrite(self, node) -> ast.AST:
-        ifexpr = ast.parse("'True' if true else 'False'").body[0].value
+        ifexpr = cast(
+            ast.Expr, create_ast_node("'True' if true else 'False'", node)
+        ).value
+        ifexpr = cast(ast.IfExp, ifexpr)
         ifexpr.test = node.args[0]
         ifexpr.lineno = node.lineno
         ifexpr.col_offset = node.col_offset
@@ -286,7 +296,7 @@ class PrintBoolRewriter(ast.NodeTransformer):
 
     # Go can't handle IfExpr in print. Handle it differently here
     def _do_go_rewrite(self, node) -> ast.AST:
-        if_stmt = ast.parse(
+        if_stmt = create_ast_node(
             textwrap.dedent(
                 """\
             if True:
@@ -294,8 +304,10 @@ class PrintBoolRewriter(ast.NodeTransformer):
             else:
                 print('False')
         """
-            )
-        ).body[0]
+            ),
+            node,
+        )
+        if_stmt = cast(ast.If, if_stmt)
         if_stmt.test = node.args[0]
         if_stmt.lineno = node.lineno
         if_stmt.col_offset = node.col_offset

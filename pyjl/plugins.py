@@ -157,7 +157,7 @@ DISPATCH_MAP = {
     "print": JuiliaTranspilerPlugins.visit_print,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_ap_dataclass}
 

@@ -139,7 +139,7 @@ SMALL_DISPATCH_MAP = {
     "floor": lambda n, vargs: f"{vargs[0]}.floor()",
 }
 
-SMALL_USINGS_MAP = {}
+SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "max": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=True),
@@ -149,7 +149,7 @@ DISPATCH_MAP = {
     "print": DartTranspilerPlugins.visit_print,
 }
 
-MODULE_DISPATCH_TABLE = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: DartTranspilerPlugins.visit_ap_dataclass}
 

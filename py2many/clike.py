@@ -7,7 +7,6 @@ import random
 import sys
 import time
 
-from enum import IntEnum
 from pathlib import Path
 from typing import Any, Dict, OrderedDict
 
@@ -38,6 +37,7 @@ c_uint64 = u64
 
 
 from py2many.analysis import get_id, IGNORED_MODULE_SET
+from py2many.astx import LifeTime
 from py2many.exceptions import AstEmptyNodeFound, AstNotImplementedError
 from py2many.result import Result
 from typing import List, Optional, Tuple, Union
@@ -79,11 +79,6 @@ _AUTO = "auto"
 _AUTO_INVOKED = "auto()"
 
 
-class LifeTime(IntEnum):
-    UNKNOWN = 0
-    STATIC = 1
-
-
 logger = logging.Logger("py2many")
 
 
@@ -111,6 +106,8 @@ def c_symbol(node):
 
 class CLikeTranspiler(ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
+
+    NAME: str
 
     builtin_constants = frozenset(["True", "False"])
 
