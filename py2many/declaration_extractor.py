@@ -59,12 +59,10 @@ class DeclarationExtractor(ast.NodeVisitor):
         if len(node.decorator_list) > 0 and "dataclass" in decorators:
             node.is_dataclass = True
             dataclass_members = []
-            node.dataclass_fields = []
             for child in node.body:
                 if isinstance(child, ast.AnnAssign):
-                    dataclass_field = self.visit_AnnAssign(child, dataclass=True)
+                    self.visit_AnnAssign(child, dataclass=True)
                     dataclass_members.append(child)
-                    node.dataclass_fields.append(dataclass_field)
             for m in dataclass_members:
                 node.body.remove(m)
         else:
