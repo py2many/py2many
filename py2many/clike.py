@@ -558,6 +558,14 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
         func = class_for_typename(fname, None, self._imported_names)
+        if func is None:
+            return None
+        try:
+            hash(func)
+        except TypeError:
+            # Ignore unhashable, probably instance
+            logger.debug(f"{func} is not hashable")
+            return None
         return func
 
     def _func_name_split(self, fname: str) -> Tuple[str, str]:

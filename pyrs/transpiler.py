@@ -333,8 +333,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
         fname_for_lookup = fname.replace("::", ".")
-        func = class_for_typename(fname_for_lookup, None, self._imported_names)
-        return func
+        return super()._func_for_lookup(fname_for_lookup)
 
     def _func_name_split(self, fname: str) -> Tuple[str, str]:
         # string based fallback
