@@ -76,6 +76,11 @@ class JuliaTranspiler(CLikeTranspiler):
             return "false"
         elif node.value is None:
             return "nothing"
+        elif isinstance(node.value, complex):
+            str_value = str(node.value)
+            return (
+                str_value.replace("j", "im") if str_value.endswith("j") else str_value
+            )
         else:
             return super().visit_Constant(node)
 

@@ -443,6 +443,14 @@ class InferTypesTransformer(ast.NodeTransformer):
         if (left_id, right_id) in {("int", "float"), ("float", "int")}:
             node.annotation = ast.Name(id="float")
             return node
+        if (left_id, right_id) in {
+            ("int", "complex"),
+            ("complex", "int"),
+            ("float", "complex"),
+            ("complex", "float"),
+        }:
+            node.annotation = ast.Name(id="complex")
+            return node
 
         # Container multiplication
         if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
