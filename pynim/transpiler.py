@@ -435,21 +435,15 @@ class NimTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def visit_unsupported_body(self, name, body):
-        buf = ["let {0} = {{ //unsupported".format(name)]
-        buf += [self.visit(n) for n in body]
-        buf.append("};")
-        return buf
-
     def visit_Try(self, node, finallybody=None):
-        buf = self.visit_unsupported_body("try_dummy", node.body)
+        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
 
         for handler in node.handlers:
             buf += self.visit(handler)
         # buf.append("\n".join(excepts));
 
         if finallybody:
-            buf += self.visit_unsupported_body("finally_dummy", finallybody)
+            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
 
         return "\n".join(buf)
 
@@ -458,7 +452,7 @@ class NimTranspiler(CLikeTranspiler):
         if node.type:
             exception_type = self.visit(node.type)
         name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(name, node.body)
+        body = self.visit_unsupported_body(node, name, node.body)
         return body
 
     def visit_Assert(self, node):

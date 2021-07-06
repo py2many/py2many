@@ -443,12 +443,6 @@ class DartTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def visit_unsupported_body(self, name, body):
-        buf = ["let {0} = {{ //unsupported".format(name)]
-        buf += [self.visit(n) for n in body]
-        buf.append("};")
-        return buf
-
     def visit_Raise(self, node):
         if node.exc is not None:
             return "throw new {};".format(self.visit(node.exc))
