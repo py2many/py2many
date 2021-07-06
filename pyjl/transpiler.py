@@ -17,7 +17,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -176,35 +176,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def _visit_print(self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)
         return f'println(join([{args}], " "))'
-
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        dispatch_map = {
-            "range": self.visit_range,
-            "xrange": self.visit_range,
-            "print": self._visit_print,
-        }
-
-        if fname in dispatch_map:
-            return dispatch_map[fname](node, vargs)
-
-        def visit_cast_int() -> str:
-            arg_type = self._typename_from_annotation(node.args[0])
-            if arg_type is not None and arg_type.startswith("Float"):
-                return f"Int64(floor({vargs[0]}))"
-            return f"Int64({vargs[0]})"
-
-        # small one liners are inlined here as lambdas
-        small_dispatch_map = {
-            "int": visit_cast_int,
-            "str": lambda: f"string({vargs[0]})",
-            "bool": lambda: f"Bool({vargs[0]})",
-            "len": lambda: f"length({vargs[0]})",
-            # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
-            "floor": lambda: f"Int64(floor({vargs[0]}))",
-        }
-        if fname in small_dispatch_map:
-            return small_dispatch_map[fname]()
-        return None
 
     def visit_Call(self, node):
         fname = self.visit(node.func)

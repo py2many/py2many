@@ -1,7 +1,6 @@
 import io
 import os
 import ast
-import functools
 import sys
 import textwrap
 
@@ -91,36 +90,25 @@ class JuiliaTranspilerPlugins:
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return "(0..{})".format(vargs[0])
+            return f"(0:{vargs[0]} - 1)"
         elif len(node.args) == 2:
-            return "({}..{})".format(vargs[0], vargs[1])
+            return f"({vargs[0]}:{vargs[1]} - 1)"
         elif len(node.args) == 3:
-            return "({}..{}).step_by({})".format(vargs[0], vargs[1], vargs[2])
+            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
     def visit_print(self, node, vargs: List[str]) -> str:
-        placeholders = []
-        for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{0}",{1});'.format(" ".join(placeholders), ", ".join(vargs))
+        args = ", ".join(vargs)
+        return f'println(join([{args}], " "))'
 
-    def visit_min_max(self, node, vargs, is_max: bool) -> str:
-        self._usings.add("std::cmp")
-        min_max = "max" if is_max else "min"
-        self._typename_from_annotation(node.args[0])
-        if hasattr(node.args[0], "container_type"):
-            node.result_type = True
-            return f"{vargs[0]}.iter().{min_max}()"
-        else:
-            all_vargs = ", ".join(vargs)
-            return f"cmp::{min_max}({all_vargs})"
-
-    @staticmethod
-    def visit_cast(node, vargs, cast_to: str) -> str:
-        return f"{vargs[0]} as {cast_to}"
+    def visit_cast_int(self, node, vargs) -> str:
+        arg_type = self._typename_from_annotation(node.args[0])
+        if arg_type is not None and arg_type.startswith("Float"):
+            return f"Int64(floor({vargs[0]}))"
+        return f"Int64({vargs[0]})"
 
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
@@ -129,20 +117,13 @@ class JuiliaTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"&{vargs[0]}.to_string()",
-    "len": lambda n, vargs: f"{vargs[0]}.len()",
+    "str": lambda n, vargs: f"string({vargs[0]})",
+    "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
     "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
-    "int": functools.partial(JuiliaTranspilerPlugins.visit_cast, cast_to="i32"),
-    "bool": lambda n, vargs: f"({vargs[0]} != 0)",
-    "float": functools.partial(JuiliaTranspilerPlugins.visit_cast, cast_to="f64"),
-    # as usize below is a hack to pass comb_sort.rs. Need a better solution
-    "floor": lambda n, vargs: f"{vargs[0]}.floor() as usize",
-    "reversed": lambda n, vargs: f"{vargs[0]}.iter().rev()",
-    "map": lambda n, vargs: f"{vargs[1]}.iter().map({vargs[0]})",
-    "filter": lambda n, vargs: f"{vargs[1]}.into_iter().filter({vargs[0]})",
-    "list": lambda n, vargs: f"{vargs[0]}.collect::<Vec<_>>()",
-    "asyncio.run": JuiliaTranspilerPlugins.visit_asyncio_run,
+    "bool": lambda n, vargs: f"Bool({vargs[0]})",
+    # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
+    "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
 }
 
 SMALL_USINGS_MAP = {
@@ -150,11 +131,10 @@ SMALL_USINGS_MAP = {
 }
 
 DISPATCH_MAP = {
-    "max": functools.partial(JuiliaTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(JuiliaTranspilerPlugins.visit_min_max, is_max=False),
     "range": JuiliaTranspilerPlugins.visit_range,
     "xrange": JuiliaTranspilerPlugins.visit_range,
     "print": JuiliaTranspilerPlugins.visit_print,
+    "int": JuiliaTranspilerPlugins.visit_cast_int,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
