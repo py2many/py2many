@@ -371,12 +371,13 @@ def _process_one(
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
+    result = _transpile(
+        [filename],
+        [source_data],
+        settings,
+    )
     with open(output_path, "w") as f:
-        f.write(
-            _transpile([filename], [source_data], settings,)[
-                0
-            ][0]
-        )
+        f.write(result[0][0])
 
     if settings.formatter:
         return _format_one(settings, output_path, env)
