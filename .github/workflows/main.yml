@@ -128,4 +128,4 @@ jobs:
         run: pyflakes */ *.py
 
       - name: Run cpplint
-        run: cpplint --filter=-legal/copyright tests/expected/*.cpp
+        run: cpplint --filter=-legal/copyright,-whitespace/semicolon tests/expected/*.cpp
