@@ -118,7 +118,9 @@ def standardise_python(code):
     For tuples, it is not consistent adding round brackets.
     And sometimes there are fewer blank newlines.
     """
-    return code.replace("(", "").replace(")", "").replace("\n\n", "\n")
+    return (
+        code.replace("(", "").replace(")", "").replace("\n\n", "\n").replace(".0j", "j")
+    )
 
 
 @expand
