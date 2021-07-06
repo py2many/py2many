@@ -551,6 +551,13 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Nonlocal(self, node):
         return self.visit_unsupported_body(node, "nonlocal", node.names)
 
+    def visit_DictComp(self, node):
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+        return self.visit_unsupported_body(
+            node, f"dict comprehension ({key}, {value})", node.generators
+        )
+
     def visit_ListComp(self, node):
         return self.visit_GeneratorExp(node)  # by default, they are the same
 

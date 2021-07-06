@@ -652,14 +652,8 @@ class CppTranspiler(CLikeTranspiler):
                 buf.append("std::cout << {0} << std::endl;".format(value))
         return "\n".join(buf)
 
-    def visit_DictComp(self, node):
-        return self.visit_unsupported_body(node, "dict", [])
-
     def visit_GeneratorExp(self, node):
         return self.visit_unsupported_body(node, "generator exp", [])
-
-    def visit_ListComp(self, node):
-        return self.visit_unsupported_body(node, "list comprehension", [])
 
     def visit_Raise(self, node):
         return self.visit_unsupported_body(node, "raise", [])

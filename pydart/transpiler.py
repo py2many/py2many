@@ -557,9 +557,6 @@ class DartTranspiler(CLikeTranspiler):
             buf.append('println("{{:?}}",{0})'.format(value))
         return "\n".join(buf)
 
-    def visit_DictComp(self, node):
-        return "DictComp /*unimplemented()*/"
-
     def visit_GeneratorExp(self, node):
         elt = self.visit(node.elt)
         generator = node.generators[0]

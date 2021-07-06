@@ -59,6 +59,11 @@ test = true
 path = "tests/expected/comb_sort.rs"
 
 [[bin]]
+name = "comment_unsupported"
+test = true
+path = "tests/expected/comment_unsupported.rs"
+
+[[bin]]
 name = "coverage"
 test = true
 path = "tests/expected/coverage.rs"

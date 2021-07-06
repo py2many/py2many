@@ -539,9 +539,6 @@ class KotlinTranspiler(CLikeTranspiler):
         vargs_str = " ".join([f"${arg}" for arg in node.values])
         return f'println("{vargs_str}")'
 
-    def visit_DictComp(self, node):
-        return "DictComp /*unimplemented()*/"
-
     def visit_GeneratorExp(self, node):
         return "GeneratorExp /*unimplemented()*/"
 

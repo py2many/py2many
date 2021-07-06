@@ -174,7 +174,13 @@ class CodeGeneratorTests(unittest.TestCase):
         self.assertTrue(expected_output, "Test cases must print something")
         expected_output = expected_output.splitlines()
 
-        args = [f"--{lang}=1", str(case_filename), "--outdir", str(GENERATED_DIR)]
+        args = [
+            f"--{lang}=1",
+            "--comment-unsupported",
+            str(case_filename),
+            "--outdir",
+            str(GENERATED_DIR),
+        ]
 
         try:
             rv = main(args=args, env=env)
@@ -326,7 +332,13 @@ class CodeGeneratorTests(unittest.TestCase):
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
 
-        args = [f"--{lang}=1", str(case_filename), "--outdir", str(GENERATED_DIR)]
+        args = [
+            f"--{lang}=1",
+            "--comment-unsupported",
+            str(case_filename),
+            "--outdir",
+            str(GENERATED_DIR),
+        ]
 
         linter = _create_cmd(settings.linter, case_output)
 
@@ -372,7 +384,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         args = [
             "--rust=1",
-            "--extension=1",
+            "--extension",
             str(case_filename),
             "--outdir",
             str(GENERATED_DIR),

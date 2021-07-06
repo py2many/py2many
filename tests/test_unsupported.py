@@ -291,6 +291,44 @@ class CodeGeneratorTests(unittest.TestCase):
         if not expect_success:
             assert False
 
+    @foreach(sorted(LANGS))
+    def test_comment_unimplemented_body(self, lang):
+        env = os.environ.copy()
+        settings = _get_all_settings(
+            Mock(indent=4, extension=False, no_prologue=False), env=env
+        )[lang]
+
+        case = "unsupported_body"
+        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        source_data = dedent(
+            """
+            def outer():
+                a = 1
+                def inner():
+                    nonlocal a
+                    return a
+                return inner()
+
+
+            if __name__ == "__main__":
+                x = outer()
+                print(x)
+        """
+        )
+        tree = get_tree(source_data, settings.ext)
+
+        settings.transpiler._throw_on_unimplemented = False
+        try:
+            result = _transpile([case_filename], [tree], settings,)[
+                0
+            ][0]
+            print(result)
+            assert "nonlocal unimplemented on line 5:8" in result
+
+        except Exception:
+            settings.transpiler._throw_on_unimplemented = True
+            raise
+
     # These tests are expected to fail for all languages
     @foreach(sorted(TEST_ERROR_CASES.keys()))
     def test_error_cases(self, case):

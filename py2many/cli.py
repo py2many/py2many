@@ -520,15 +520,27 @@ def main(args=None, env=os.environ):
         help="Indentation to use in languages that care",
     )
     parser.add_argument(
-        "--extension", type=bool, default=False, help="Build a python extension"
+        "--comment-unsupported",
+        default=False,
+        action="store_true",
+        help="Place unsupported constructs in comments",
     )
-    parser.add_argument("--no-prologue", type=bool, default=False, help="")
+    parser.add_argument(
+        "--extension",
+        action="store_true",
+        default=False,
+        help="Build a python extension",
+    )
+    parser.add_argument("--no-prologue", action="store_true", default=False, help="")
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args
     if args.extension and not args.rust:
         print("extension supported only with rust via pyo3")
         return -1
+
+    if args.comment_unsupported:
+        print("Wrapping unimplemented in comments")
 
     for filename in rest:
         settings = cpp_settings(args, env=env)
@@ -548,6 +560,10 @@ def main(args=None, env=os.environ):
             settings = dart_settings(args, env=env)
         elif args.go:
             settings = go_settings(args, env=env)
+
+        if args.comment_unsupported:
+            settings.transpiler._throw_on_unimplemented = False
+
         source = pathlib.Path(filename)
         if args.outdir is None:
             outdir = source.parent
