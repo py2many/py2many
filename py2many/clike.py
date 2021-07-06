@@ -620,23 +620,35 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         if fname in self._dispatch_map:
-            return self._dispatch_map[fname](self, node, vargs)
+            try:
+                return self._dispatch_map[fname](self, node, vargs)
+            except IndexError:
+                return None
 
         if fname in self._small_dispatch_map:
             if fname in self._small_usings_map:
                 self._usings.add(self._small_usings_map[fname])
-            return self._small_dispatch_map[fname](node, vargs)
+            try:
+                return self._small_dispatch_map[fname](node, vargs)
+            except IndexError:
+                return None
 
         func = self._func_for_lookup(fname)
         if func is not None and func in self._func_dispatch_table:
             if func in self._func_usings_map:
                 self._usings.add(self._func_usings_map[func])
             ret, node.result_type = self._func_dispatch_table[func]
-            return ret(self, node, vargs)
+            try:
+                return ret(self, node, vargs)
+            except IndexError:
+                return None
 
         # string based fallback
         fname_stem, fname_leaf = self._func_name_split(fname)
         if fname_leaf in self._func_dispatch_table:
             ret, node.result_type = self._func_dispatch_table[fname_leaf]
-            return fname_stem + ret(self, node, vargs)
+            try:
+                return fname_stem + ret(self, node, vargs)
+            except IndexError:
+                return None
         return None
