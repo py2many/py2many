@@ -328,23 +328,26 @@ class CLikeTranspiler(ast.NodeVisitor):
         if node.module in self._ignored_module_set:
             return ""
 
-        had_import_exception = False
-        try:
-            imported_name = importlib.import_module(node.module)
-        except ImportError:
-            had_import_exception = True
-            imported_name = node.module
+        imported_name = node.module
+        imported_module = None
+        if node.module:
+            try:
+                imported_module = importlib.import_module(node.module)
+            except ImportError:
+                pass
+        else:
+            # Import from '.'
+            imported_name = "."
 
         names = [self.visit(n) for n in node.names]
         for name, asname in names:
             asname = asname if asname is not None else name
-            if had_import_exception:
-                self._imported_names[asname] = (node.module, name)
+            if imported_module:
+                self._imported_names[asname] = getattr(imported_module, name, None)
             else:
-                self._imported_names[asname] = getattr(imported_name, name, None)
+                self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
-        module_path = node.module
-        return self._import_from(module_path, names)
+        return self._import_from(imported_name, names)
 
     def visit_Name(self, node):
         if node.id in self.builtin_constants:
