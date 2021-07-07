@@ -527,6 +527,10 @@ class CLikeTranspiler(ast.NodeVisitor):
                 f"{name} unimplemented on line {node.lineno}:{node.col_offset}"
             )
 
+    def visit_NamedExpr(self, node):
+        target = self.visit(node.target)
+        return self.visit_unsupported_body(node, f"named expr {target}", node.value)
+
     def visit_Delete(self, node):
         body = [self.visit(t) for t in node.targets]
         return self.visit_unsupported_body(node, "del", body)
