@@ -18,7 +18,7 @@ from .plugins import (
 from py2many.analysis import IGNORED_MODULE_SET, get_id, is_global, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
 from py2many.rewriters import capitalize_first, rename, camel_case
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
@@ -183,11 +183,13 @@ class GoTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f" {typename}"
+                try:
+                    typename = self._typename_from_annotation(node, attr="returns")
+                    return_type = f" {typename}"
+                except AstCouldNotInfer:
+                    pass
             else:
-                return_type = " RT"
-                typedecls.append("RT")
+                return_type = " interface{}"
 
         template = ""
         if len(typedecls) > 0:
@@ -206,7 +208,11 @@ class GoTranspiler(CLikeTranspiler):
                     fndef = scope
                     break
             if fndef:
-                return_type = self._typename_from_annotation(fndef, attr="returns")
+                return_type = None
+                try:
+                    return_type = self._typename_from_annotation(fndef, attr="returns")
+                except AstCouldNotInfer:
+                    pass
                 value_type = get_inferred_go_type(node.value)
                 if return_type != value_type and value_type is not None:
                     return f"return {return_type}({ret})"

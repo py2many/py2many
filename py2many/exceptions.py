@@ -30,6 +30,13 @@ class AstClassUsedBeforeDeclaration(AstNotImplementedError):
         super().__init__(f"Declaration of {get_id(fndef)} not yet parsed", node)
 
 
+class AstCouldNotInfer(AstNotImplementedError):
+    """Unable to infer type"""
+
+    def __init__(self, type_node, node: ast.AST):
+        super().__init__(f"Could not infer: {type_node}", node)
+
+
 class AstIncompatibleAssign(AstErrorBase, TypeError):
     """Assignment target has type annotation that is incompatible with expression"""
 
