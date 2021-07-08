@@ -1,12 +1,14 @@
 import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+from typing import Dict
 
-from py2many.inference import get_inferred_type, InferTypesTransformer
 from py2many.analysis import get_id
+from py2many.clike import class_for_typename
+from py2many.inference import get_inferred_type, InferTypesTransformer
 
 
-V_TYPE_MAP = {
+V_TYPE_MAP: Dict[type, str] = {
     int: "int",
     float: "f32",
     bytes: "[]byte",
@@ -22,7 +24,7 @@ V_TYPE_MAP = {
     c_uint64: "u64",
 }
 
-V_WIDTH_RANK = {
+V_WIDTH_RANK: Dict[str, int] = {
     "bool": 0,
     "i8": 1,
     "byte": 2,
@@ -37,32 +39,31 @@ V_WIDTH_RANK = {
 }
 
 
-def infer_v_types(node):
+def infer_v_types(node: ast.AST):
     visitor = InferVTypesTransformer()
     visitor.visit(node)
 
 
-def map_type(typename):
-    if typename in V_TYPE_MAP:
-        return V_TYPE_MAP[typename]
-    return typename
+def map_type(typename: str) -> str:
+    typeclass = class_for_typename(typename, None)
+    return V_TYPE_MAP.get(typeclass, typename)
 
 
-def get_inferred_v_type(node):
+def get_inferred_v_type(node: ast.AST) -> str:
     if isinstance(node, ast.Call):
         fname = get_id(node.func)
         if fname in {"max", "min", "floor"}:
-            return "float64"
+            return "f64"
     if isinstance(node, ast.Name):
         if not hasattr(node, "scopes"):
             return None
-        definition = node.scopes.find(get_id(node))
+        definition: ast.AST = node.scopes.find(get_id(node))
         # Prevent infinite recursion
         if definition != node:
             return get_inferred_v_type(definition)
     if hasattr(node, "v_annotation"):
         return node.v_annotation
-    python_type = get_inferred_type(node)
+    python_type: ast.AST = get_inferred_type(node)
     return map_type(get_id(python_type))
 
 

@@ -1,4 +1,5 @@
 import ast
+from typing import Dict, Set
 
 from .inference import V_TYPE_MAP, V_WIDTH_RANK
 
@@ -6,7 +7,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 
 # allowed as names in Python but treated as keywords in V
-v_keywords = frozenset(
+v_keywords: Set[str] = frozenset(
     [
         "struct",
         "type",
@@ -28,7 +29,7 @@ v_keywords = frozenset(
     ]
 )
 
-v_symbols = {
+v_symbols: Dict[type, str] = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
@@ -57,7 +58,7 @@ v_symbols = {
 }
 
 
-def v_symbol(node):
+def v_symbol(node: ast.AST) -> str:
     """Find the equivalent C symbol for a Python ast symbol node"""
     symbol_type = type(node)
     return v_symbols[symbol_type]
@@ -67,29 +68,29 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = V_TYPE_MAP
-        self._statement_separator = ""
+        self._statement_separator: str = ""
 
-    def visit(self, node):
+    def visit(self, node: ast.AST) -> str:
         if type(node) in v_symbols:
             return v_symbol(node)
         else:
             return super().visit(node)
 
-    def visit_BinOp(self, node):
+    def visit_BinOp(self, node: ast.BinOp) -> str:
         if isinstance(node.op, ast.Pow):
-            left = self.visit(node.left)
-            right = self.visit(node.right)
+            left: str = self.visit(node.left)
+            right: str = self.visit(node.right)
             return f"{left}^{right}"
 
-        left = self.visit(node.left)
-        op = self.visit(node.op)
-        right = self.visit(node.right)
+        left: str = self.visit(node.left)
+        op: str = self.visit(node.op)
+        right: str = self.visit(node.right)
 
-        left_type = self._typename_from_annotation(node.left)
-        right_type = self._typename_from_annotation(node.right)
+        left_type: str = self._typename_from_annotation(node.left)
+        right_type: str = self._typename_from_annotation(node.right)
 
-        left_rank = V_WIDTH_RANK.get(left_type, -1)
-        right_rank = V_WIDTH_RANK.get(right_type, -1)
+        left_rank: int = V_WIDTH_RANK.get(left_type, -1)
+        right_rank: int = V_WIDTH_RANK.get(right_type, -1)
 
         if left_rank > right_rank:
             right = f"{left_type}({right})"
@@ -99,12 +100,12 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             op = {"&": "&&", "|": "||", "^": "!="}.get(op, op)
         return f"({left} {op} {right})"
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: ast.Name) -> str:
         if node.id in v_keywords:
             return f"@{node.id}"
         return super().visit_Name(node)
 
-    def visit_In(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
+    def visit_In(self, node: ast.Compare) -> str:
+        left: str = self.visit(node.left)
+        right: str = self.visit(node.comparators[0])
         return f"{left} in {right}"
