@@ -8,7 +8,7 @@ fn main() {
 		assert cmd.contains('sys_argv')
 	}
 	if a.len > 1 {
-		println((a[1]).str())
+		println('${a[1]}')
 	} else {
 		println('OK')
 	}
