@@ -38,7 +38,11 @@ c_uint64 = u64
 
 from py2many.analysis import get_id, IGNORED_MODULE_SET
 from py2many.astx import LifeTime
-from py2many.exceptions import AstEmptyNodeFound, AstNotImplementedError
+from py2many.exceptions import (
+    AstCouldNotInfer,
+    AstEmptyNodeFound,
+    AstNotImplementedError,
+)
 from py2many.result import Result
 from typing import List, Optional, Tuple, Union
 
@@ -245,7 +249,7 @@ class CLikeTranspiler(ast.NodeVisitor):
                 node.container_type = type_node.container_type
                 return self._visit_container_type(type_node.container_type)
             if typename is None:
-                raise AstNotImplementedError(f"Could not infer: {type_node}", node)
+                raise AstCouldNotInfer(type_node, node)
         return typename
 
     def _generic_typename_from_annotation(
