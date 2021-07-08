@@ -721,12 +721,6 @@ class RustTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def grrvisit_unsupported_body(self, node, name, body):
-        buf = ["let {0} = {{ //unsupported".format(name)]
-        buf += [self.visit(n) for n in body]
-        buf.append("};")
-        return "\n".join(buf)
-
     def visit_Try(self, node, finallybody=None):
         # buf = self.visit_unsupported_body(node, "try_dummy", node.body)
         buf = ["if true {"]
