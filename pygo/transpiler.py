@@ -491,9 +491,9 @@ class GoTranspiler(CLikeTranspiler):
             if lookup in MODULE_DISPATCH_TABLE:
                 go_module_name, go_name = MODULE_DISPATCH_TABLE[lookup]
                 go_module_name = go_module_name.replace(".", "/")
-                return f'import ("{go_module_name}/{go_name}"")'
+                return f'import ("{go_module_name}/{go_name}")'
         module_name = module_name.replace(".", "/")
-        return "\n".join([f'import ("{module_name}/{name}"")' for name in names])
+        return "\n".join([f'import ("{module_name}/{name}")' for name in names])
 
     def visit_List(self, node):
         _ = self._typename_from_annotation(node)

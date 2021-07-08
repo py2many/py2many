@@ -119,7 +119,7 @@ jobs:
         run: pip install black pyflakes cpplint
 
       - name: Remove tests/cases/*.py & tests/expected/*.py
-        run: rm tests/cases/*.py tests/expected/*.py
+        run: rm tests/cases/*.py tests/expected/*.py tests/dir_cases/test1-*-expected/*.py
 
       - name: Run black
         run: black --check */ *.py

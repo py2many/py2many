@@ -1,4 +1,6 @@
 import argparse
+import filecmp
+import logging
 import os.path
 import unittest
 import sys
@@ -74,6 +76,8 @@ EXPECTED_COMPILE_FAILURES = []
 CARGO_TOML = [l.strip() for l in open(ROOT_DIR / "Cargo.toml").readlines()]
 
 a_dot_out = "a.out"
+
+logger = logging.Logger("test_cli")
 
 
 def in_cargo_toml(case: str):
@@ -371,6 +375,18 @@ class CodeGeneratorTests(unittest.TestCase):
         settings = _get_all_settings(Mock(indent=2))[lang]
         self.assertIn("--indent:2", settings.formatter)
 
+    @staticmethod
+    def _rmdir_recursive(path: Path):
+        try:
+            for child in path.iterdir():
+                if child.is_file():
+                    child.unlink()
+                else:
+                    CodeGeneratorTests._rmdir_recursive(path)
+            path.rmdir()
+        except Exception as e:
+            logger.debug(f"{repr(e)}: when removing dir: {path}")
+
     @foreach(sorted(EXTENSION_TEST_CASES))
     def test_ext(self, case):
         lang = "rust"
@@ -409,6 +425,39 @@ class CodeGeneratorTests(unittest.TestCase):
         finally:
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
+
+    @foreach(sorted(LANGS))
+    @foreach(["test1"])
+    def test_directory(self, case, lang):
+        env = os.environ.copy()
+        if ENV.get(lang):
+            env.update(ENV.get(lang))
+
+        TEST_OUTPUT = f"{case}-{lang}-generated"
+        EXPECTED_OUTPUT = f"{case}-{lang}-expected"
+        case_dirname = ROOT_DIR / Path("tests/dir_cases") / case
+        output_dir = ROOT_DIR / Path("tests/dir_cases") / TEST_OUTPUT
+        expected_output_dir = ROOT_DIR / Path("tests/dir_cases") / EXPECTED_OUTPUT
+        output_dir.mkdir(exist_ok=True)
+        args = [
+            f"--{lang}=1",
+            str(case_dirname),
+            "--outdir",
+            str(output_dir),
+        ]
+
+        try:
+            rv = main(args=args, env=env)
+            if sys.platform == "win32" and rv != 0:
+                raise unittest.SkipTest("transpiler failed")
+            assert rv == 0
+            output = filecmp.dircmp(expected_output_dir, output_dir)
+            if sys.platform == "win32" and output.diff_files != []:
+                raise unittest.SkipTest("directories don't match")
+            assert output.diff_files == []
+        finally:
+            if not self.KEEP_GENERATED:
+                self._rmdir_recursive(output_dir)
 
 
 if __name__ == "__main__":
