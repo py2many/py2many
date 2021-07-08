@@ -436,16 +436,10 @@ class GoTranspiler(CLikeTranspiler):
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
 
-        if node.is_dataclass:
-            fields = "\n".join(fields)
-            body = [self.visit(b) for b in node.body]
-            body = "\n".join(body)
-            return f"type {node.name} struct {{\n{fields}\n}}\n{body}\n"
-        else:
-            fields = "\n".join(fields)
-            body = [self.visit(b) for b in node.body]
-            body = "\n".join(body)
-            return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
+        fields = "\n".join(fields)
+        body = [self.visit(b) for b in node.body]
+        body = "\n".join(body)
+        return f"type {node.name} struct {{\n{fields}\n}}\n{body}\n"
 
     def _visit_enum(self, node, typename, members):
         ret = f"type {node.name} {typename}\n\n"

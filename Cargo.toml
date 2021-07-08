@@ -54,6 +54,11 @@ test = true
 path = "tests/expected/built_ins.rs"
 
 [[bin]]
+name = "cls"
+test = true
+path = "tests/expected/cls.rs"
+
+[[bin]]
 name = "comb_sort"
 test = true
 path = "tests/expected/comb_sort.rs"
