@@ -210,6 +210,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return [self._typename_from_type_node(e) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
+            if node_id.startswith("typing."):
+                node_id = node_id[7:]
             return node_id
         elif isinstance(node, ast.Subscript):
             # Store a tuple like (List, int) or (Dict, (str, int)) for container types
@@ -235,6 +237,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return [self._generic_typename_from_type_node(e) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
+            if node_id.startswith("typing."):
+                node_id = node_id[7:]
             return node_id
         elif isinstance(node, ast.Subscript):
             slice_value = self._slice_value(node)
