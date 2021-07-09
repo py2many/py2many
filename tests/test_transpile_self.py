@@ -122,7 +122,7 @@ class SelfTranspileTests(unittest.TestCase):
                 OUT_DIR,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            expected_success=set(),
+            expected_success=set(["transpiler.py"]),
         )
 
         assert_some_failures(
@@ -139,11 +139,15 @@ class SelfTranspileTests(unittest.TestCase):
                 "ast_helpers.py",
                 "astx.py",
                 "context.py",
+                "cli.py",
+                "declaration_extractor.py",
+                "exceptions.py",
                 "language.py",
                 "mutability_transformer.py",
                 "nesting_transformer.py",
                 "python_transformer.py",
                 "result.py",
+                "rewriters.py",
                 "scope.py",
                 "toposort_modules.py",
                 "tracer.py",
