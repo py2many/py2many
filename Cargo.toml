@@ -177,3 +177,8 @@ path = "tests/expected/with_open.rs"
 name = "sealed"
 test = true
 path = "tests/expected/sealed.rs"
+
+[[bin]]
+name = "import_tests"
+test = true
+path = "tests/expected/import_tests.rs"
