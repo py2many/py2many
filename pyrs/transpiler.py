@@ -796,11 +796,6 @@ class RustTranspiler(CLikeTranspiler):
     def _visit_AssignOne(self, node, target):
         kw = self._compute_kw(node, target)
 
-        if isinstance(target, ast.Tuple):
-            elts = ", ".join([self.visit(e) for e in target.elts])
-            value = self.visit(node.value)
-            return f"{kw} ({elts}) = {value};"
-
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
@@ -896,7 +891,15 @@ class RustTranspiler(CLikeTranspiler):
                 value = self._assign_cast(
                     value, typename, target.annotation, node.value.annotation
                 )
-            return f"{kw} {target_str}: {typename} = {value};"
+            mut = "mut " if is_mutable(node.scopes, target) else ""
+            typename = f"{mut}{typename}"
+            if hasattr(node.value, "container_type"):
+                typename = f"&{typename}"
+                value = f"&{value}"
+            optional_typename = (
+                f": {typename}" if typename != self._default_type else ""
+            )
+            return f"{kw} {target_str}{optional_typename} = {value};"
 
     def visit_Delete(self, node):
         target = node.targets[0]

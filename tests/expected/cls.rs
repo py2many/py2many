@@ -35,7 +35,7 @@ impl Foo {
 }
 pub fn main() -> Result<()> {
     let f: Foo = Foo {};
-    let b: _ = f.bar();
+    let b = f.bar();
     println!("{}", b);
     Ok(())
 }

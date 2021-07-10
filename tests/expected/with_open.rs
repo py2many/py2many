@@ -38,14 +38,14 @@ use std::fs::OpenOptions;
 use tempfile::NamedTempFile;
 pub fn main() -> Result<()> {
     ({
-        let temp_file: _ = NamedTempFile::new()?;
-        let file_path: _ = temp_file.path();
+        let temp_file = NamedTempFile::new()?;
+        let file_path = temp_file.path();
         ({
-            let mut f: _ = OpenOptions::new().write(true).open(file_path)?;
+            let mut f = OpenOptions::new().write(true).open(file_path)?;
             f.write_string("hello")?;
         });
         ({
-            let mut f: _ = OpenOptions::new().read(true).open(file_path)?;
+            let mut f = OpenOptions::new().read(true).open(file_path)?;
             assert!(std::str::from_utf8(&f.read_bytes(1)?)? == "h");
             assert!(f.read_string()? == "ello");
             println!("{}", "OK");
