@@ -63,10 +63,10 @@ impl Register {
 }
 
 pub fn main() -> Result<()> {
-    let a: _ = Register::VALUE(10);
+    let a = Register::VALUE(10);
     assert!(a.is_value());
     a.value();
-    let b: _ = Register::PACKET(Packet { val: 1.3 });
+    let b = Register::PACKET(Packet { val: 1.3 });
     assert!(b.is_packet());
     b.packet();
     println!("{}", "OK");

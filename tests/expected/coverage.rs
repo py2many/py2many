@@ -72,7 +72,7 @@ pub fn show() {
     let a3: i32 = -(a1);
     let a4: i32 = (a3 + a1);
     println!("{}", a4);
-    let t1: _ = if a1 > 5 { 10 } else { 5 };
+    let t1 = if a1 > 5 { 10 } else { 5 };
     assert!((t1 as i32) == 10);
     let sum1: i32 = indexing();
     println!("{}", sum1);
