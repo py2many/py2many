@@ -174,9 +174,7 @@ def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrit
 
 @lru_cache(maxsize=100)
 def _process_one_data(source_data, filename, settings):
-    return _transpile([filename], [source_data], settings,)[
-        0
-    ][0]
+    return _transpile([filename], [source_data], settings)[0][0]
 
 
 def _create_cmd(parts, filename, **kw):
@@ -357,13 +355,18 @@ def _get_output_path(filename, ext, outdir):
 
 
 def _process_one(
-    settings: LanguageSettings, filename: pathlib.Path, outdir: str, env=None
+    settings: LanguageSettings, filename: pathlib.Path, outdir: str, args, env
 ):
     """Transpile and reformat.
 
     Returns False if reformatter failed.
     """
-    output_path = _get_output_path(filename, settings.ext, outdir)
+    suffix = f".{args.suffix}" if args.suffix is not None else settings.ext
+    output_path = _get_output_path(filename, suffix, outdir)
+    if filename.resolve() == output_path.resolve() and not args.force:
+        print(f"Refusing to overwrite {filename}. Use --force to overwrite")
+        return False
+
     print(f"{filename} ... {output_path}")
     with open(filename) as f:
         source_data = f.read()
@@ -371,11 +374,7 @@ def _process_one(
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
-    result = _transpile(
-        [filename],
-        [source_data],
-        settings,
-    )
+    result = _transpile([filename], [source_data], settings)
     with open(output_path, "w") as f:
         f.write(result[0][0])
 
@@ -446,11 +445,7 @@ def _process_many(
         with open(basedir / filename) as f:
             source_data.append(f.read())
 
-    outputs, successful = _transpile(
-        filenames,
-        source_data,
-        settings,
-    )
+    outputs, successful = _transpile(filenames, source_data, settings)
 
     output_paths = [
         _get_output_path(basedir / filename, settings.ext, outdir)
@@ -532,7 +527,18 @@ def main(args=None, env=os.environ):
         default=False,
         help="Build a python extension",
     )
+    parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Alternate suffix to use instead of the default one for the language",
+    )
     parser.add_argument("--no-prologue", action="store_true", default=False, help="")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="When output and input are the same file, force overwriting",
+    )
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args
@@ -574,7 +580,7 @@ def main(args=None, env=os.environ):
         if source.is_file():
             print(f"Writing to: {outdir}")
             try:
-                rv = _process_one(settings, source, outdir, env=env)
+                rv = _process_one(settings, source, outdir, args, env)
             except Exception as e:
                 import traceback
 
