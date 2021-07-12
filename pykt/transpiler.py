@@ -50,6 +50,7 @@ class KotlinPrintRewriter(ast.NodeTransformer):
                 at_node=node,
             )
             node.args[0] = tmp
+            ret.body_vars = [tmp]
             return ret
 
         return node
