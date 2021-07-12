@@ -827,67 +827,44 @@ class RustTranspiler(CLikeTranspiler):
                     value, target_type, target.annotation, node.value.rust_annotation
                 )
             return f"{target_str} = {value};"
-        elif isinstance(node.value, ast.List):
+        elif isinstance(node.value, ast.List) and kw.startswith("pub "):
             count = len(node.value.elts)
             target = self.visit(target)
             value = self.visit(node.value)
-            typename = self._typename_from_annotation(node.value)
-
-            if kw.startswith("pub "):
-                # Use arrays instead of Vec as globals must have fixed size
-                if value.startswith("vec!"):
-                    value = value.replace("vec!", "&")
-                element_type = self._default_type
-                if hasattr(node.value, "container_type"):
-                    container_type, element_type = node.value.container_type
-                return f"{kw} {target}: &[{element_type}; {count}] = {value};"
-
-            mut = "mut " if is_mutable(node.scopes, target) else ""
+            # populate node.value.container_type
+            self._typename_from_annotation(node.value)
+            # Use arrays instead of Vec as globals must have fixed size
+            if value.startswith("vec!"):
+                value = value.replace("vec!", "&")
+            element_type = self._default_type
             if hasattr(node.value, "container_type"):
-                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
-
-            return f"{kw} {target}: {typename} = {value};"
-        elif isinstance(node.value, ast.Set):
+                container_type, element_type = node.value.container_type
+            return f"{kw} {target}: &[{element_type}; {count}] = {value};"
+        elif isinstance(node.value, ast.Set) and kw.startswith("pub "):
             target = self.visit(target)
             value = self.visit(node.value)
             typename = self._typename_from_annotation(node.value)
 
-            if kw.startswith("pub "):
-                self._usings.add("lazy_static::lazy_static")
-                if "str" in typename:
-                    typename = typename.replace("str", "'static str")
-                return (
-                    f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
-                )
-
-            mut = "mut " if is_mutable(node.scopes, target) else ""
-            if hasattr(node.value, "container_type"):
-                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
-
-            return f"{kw} {target}: {typename} = {value};"
-        elif isinstance(node.value, ast.Dict):
+            self._usings.add("lazy_static::lazy_static")
+            if "str" in typename:
+                typename = typename.replace("str", "'static str")
+            return f"lazy_static! {{ pub static ref {target}: {typename} = {value}; }}"
+        elif isinstance(node.value, ast.Dict) and kw.startswith("pub "):
             target = self.visit(target)
             value = self.visit(node.value)
             typename = self._typename_from_annotation(node.value)
 
-            if kw.startswith("pub "):
-                self._usings.add("lazy_static::lazy_static")
-                if hasattr(node.value, "container_type"):
-                    container_type, element_type = node.value.container_type
-                    key_typename, value_typename = element_type
-                    if key_typename == "&str":
-                        key_typename = "&'static str"
-                    if value_typename == "&str":
-                        value_typename = "&'static str"
-                    typename = f"{key_typename}, {value_typename}"
-
-                return f"lazy_static! {{ pub static ref {target}: HashMap<{typename}> = {value}; }}"
-
-            mut = "mut " if is_mutable(node.scopes, target) else ""
+            self._usings.add("lazy_static::lazy_static")
             if hasattr(node.value, "container_type"):
-                return f"{kw} {target}: &{mut}{typename} = &{mut}{value};"
+                container_type, element_type = node.value.container_type
+                key_typename, value_typename = element_type
+                if key_typename == "&str":
+                    key_typename = "&'static str"
+                if value_typename == "&str":
+                    value_typename = "&'static str"
+                typename = f"{key_typename}, {value_typename}"
 
-            return f"{kw} {target}: {typename} = {value};"
+            return f"lazy_static! {{ pub static ref {target}: HashMap<{typename}> = {value}; }}"
         else:
             typename = self._typename_from_annotation(target)
             needs_cast = self._needs_cast(target, node.value)
@@ -897,11 +874,10 @@ class RustTranspiler(CLikeTranspiler):
                 value = self._assign_cast(
                     value, typename, target.annotation, node.value.annotation
                 )
-            mut = "mut " if is_mutable(node.scopes, target) else ""
-            typename = f"{mut}{typename}"
             if hasattr(node.value, "container_type"):
-                typename = f"&{typename}"
-                value = f"&{value}"
+                mut = "mut " if is_mutable(node.scopes, target_str) else ""
+                typename = f"&{mut}{typename}"
+                value = f"&{mut}{value}"
             optional_typename = (
                 f": {typename}" if typename != self._default_type else ""
             )
