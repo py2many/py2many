@@ -40,7 +40,8 @@ jobs:
       - name: Install V
         shell: bash
         run: |
-          git clone --depth=1 https://github.com/vlang/v.git /tmp/v
+          git clone --single-branch https://github.com/vlang/v.git /tmp/v
+          (cd /tmp/v && git checkout 02f0a3055515c8e13b5e016ef266b346b705e3d3)
           if [ "$RUNNER_OS" == "Windows" ]; then
             (cd /tmp/v && ./make.bat)
           else
