@@ -485,6 +485,10 @@ class RustTranspiler(CLikeTranspiler):
         return ret
 
     def visit_While(self, node):
+        test = self.visit(node.test)
+        if test == "true":
+            body = [self.visit(n) for n in node.body]
+            return "loop {{\n{}\n}}\n".format("\n".join(body))
         return super().visit_While(node, use_parens=False)
 
     def visit_UnaryOp(self, node):
