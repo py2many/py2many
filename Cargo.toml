@@ -129,6 +129,11 @@ test = true
 path = "tests/expected/langcomp_bench.rs"
 
 [[bin]]
+name = "loop"
+test = true
+path = "tests/expected/loop.rs"
+
+[[bin]]
 name = "nested_dict"
 test = true
 path = "tests/expected/nested_dict.rs"
