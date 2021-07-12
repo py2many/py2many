@@ -26,7 +26,9 @@ class InferredAnnAssignRewriter(ast.NodeTransformer):
 
         assigns = []
         for assign_target in node.targets:
-            definition = node.scopes.find(get_id(assign_target))
+            definition = node.scopes.parent_scopes.find(get_id(assign_target))
+            if definition is None:
+                definition = node.scopes.find(get_id(assign_target))
             if definition is not assign_target:
                 previous_type = get_inferred_type(definition)
                 if get_id(previous_type) == get_id(annotation):

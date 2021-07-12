@@ -513,7 +513,9 @@ class DartTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value};"
 
-        definition = node.scopes.find(get_id(target))
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is None:
+            definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)

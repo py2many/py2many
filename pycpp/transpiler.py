@@ -608,8 +608,9 @@ class CppTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
 
-        target_id = get_id(target)
-        definition = node.scopes.find(target_id)
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is None:
+            definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)

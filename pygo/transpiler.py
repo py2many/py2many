@@ -644,7 +644,9 @@ class GoTranspiler(CLikeTranspiler):
                 value, typename, left_annotation, right_annotation
             )
 
-        definition = node.scopes.find(get_id(target))
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is None:
+            definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             return f"{target_str} = {value}"
         else:

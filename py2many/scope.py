@@ -52,7 +52,7 @@ class ScopeList(list):
                 if get_id(var) == lookup:
                     return var
 
-        for scope in self:
+        for scope in reversed(self):
             defn = None
             if not defn and hasattr(scope, "vars"):
                 defn = find_definition(scope, "vars")
@@ -71,6 +71,10 @@ class ScopeList(list):
                 for imp in scope.imports:
                     if imp.name == lookup:
                         return imp
+
+    @property
+    def parent_scopes(self):
+        return ScopeList(self[:-1])
 
 
 class ScopeTransformer(ast.NodeTransformer, ScopeMixin):

@@ -519,7 +519,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 value = "None"
             return "{0} = {1}".format(target, value)
 
-        definition = node.scopes.find(get_id(target))
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is None:
+            definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target_str = self.visit(target)
             value = self.visit(node.value)
