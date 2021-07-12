@@ -7,8 +7,7 @@
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 inline bool nested_containers() {
   std::map<std::string, std::vector<int>> CODES =
-      std::map<std::string, std::vector<int>>{
-          {std::string{"KEY"}, std::vector<int>{1, 3}}};
+      std::map<std::string, std::vector<int>>{{std::string{"KEY"}, {1, 3}}};
   return (std::find(CODES[std::string{"KEY"}].begin(),
                     CODES[std::string{"KEY"}].end(),
                     1) != CODES[std::string{"KEY"}].end());

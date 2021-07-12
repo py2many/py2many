@@ -510,7 +510,7 @@ class CppTranspiler(CLikeTranspiler):
             if "auto" in typename:
                 return f"{{{elements_str}}}"
             return f"{typename}{{{elements_str}}}"
-        return f"std::vector<{element_type}>{{{elements_str}}}"
+        return f"{{{elements_str}}}"
 
     def visit_Set(self, node):
         self._usings.add("<set>")
@@ -615,18 +615,15 @@ class CppTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             return "{0} = {1};".format(target, value)
-        elif isinstance(node.value, ast.List):
-            elements = [self.visit(e) for e in node.value.elts]
-            elements_str = ", ".join(elements)
-            target = self.visit(target)
-            element_typename = self._get_element_type(node.value)
-            self._usings.add("<vector>")
-            if element_typename == self._default_type:
-                typename = decltype(node)
-                return f"{typename} {target} = {{{elements_str}}};"
-            return f"std::vector<{element_typename}> {target} = {{{elements_str}}};"
 
-        typename = self._typename_from_annotation(target)
+        if isinstance(node.value, ast.List):
+            element_type = self._get_element_type(node.value)
+            if element_type == self._default_type:
+                typename = decltype(node)
+            else:
+                typename = f"std::vector<{element_type}>"
+        else:
+            typename = self._typename_from_annotation(target)
         target = self.visit(target)
         value = self.visit(node.value)
         lint_exception = "  // NOLINT(runtime/string)" if not self._no_prologue else ""

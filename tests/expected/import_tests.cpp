@@ -6,7 +6,7 @@
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline int test() {
-  std::vector<int> a = std::vector<int>{1, 2, 3};
+  std::vector<int> a = {1, 2, 3};
   return a[1];
 }
 

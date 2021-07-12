@@ -9,8 +9,8 @@ inline void main_func() {
   std::vector<bool> ands = {};
   std::vector<bool> ors = {};
   std::vector<bool> xors = {};
-  for (auto a : std::vector<bool>{false, true}) {
-    for (auto b : std::vector<bool>{false, true}) {
+  for (auto a : {false, true}) {
+    for (auto b : {false, true}) {
       ands.push_back(a & b);
       ors.push_back(a | b);
       xors.push_back(a ^ b);
