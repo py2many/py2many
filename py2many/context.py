@@ -12,6 +12,11 @@ def add_variable_context(node, trees):
     return VariableTransformer(trees).visit(node)
 
 
+def add_assignment_context(node):
+    """Annotate nodes on the LHS of an assigment"""
+    return LHSAnnotationTransformer().visit(node)
+
+
 class ListCallTransformer(ast.NodeTransformer):
     """
     Adds all calls to list to scope block.
@@ -145,4 +150,40 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         if isinstance(target, ast.Name):
             target.assigned_from = node
             self.scope.vars.append(target)
+        return node
+
+
+class LHSAnnotationTransformer(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+        self._lhs = False
+
+    def visit(self, node):
+        if self._lhs:
+            node.lhs = self._lhs
+        return super().visit(node)
+
+    def visit_Assign(self, node):
+        for target in node.targets:
+            self._lhs = True
+            self.visit(target)
+            self._lhs = False
+        self.visit(node.value)
+        return node
+
+    def visit_AnnAssign(self, node):
+        self._lhs = True
+        self.visit(node.target)
+        self._lhs = False
+        self.visit(node.annotation)
+        if node.value is not None:
+            self.visit(node.value)
+        return node
+
+    def visit_AugAssign(self, node):
+        self._lhs = True
+        self.visit(node.target)
+        self._lhs = False
+        self.visit(node.op)
+        self.visit(node.value)
         return node

@@ -16,7 +16,7 @@ from unittest.mock import Mock
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
 
-from .context import add_variable_context, add_list_calls
+from .context import add_assignment_context, add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
 from .inference import infer_types
 from .language import LanguageSettings
@@ -71,6 +71,7 @@ CWD = pathlib.Path.cwd()
 def core_transformers(tree, trees):
     add_variable_context(tree, trees)
     add_scope_context(tree)
+    add_assignment_context(tree)
     add_list_calls(tree)
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)

@@ -47,5 +47,6 @@ class ASTxIf(ast.If):
 class ASTx(ast.AST):
     annotation: ASTxName
     rewritten: bool = False
+    lhs: bool = False
     scopes: List["ASTx"] = field(default_factory=list)
     id: Optional[str] = None
