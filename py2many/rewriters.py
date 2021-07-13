@@ -154,14 +154,17 @@ class WithToBlockTransformer(ast.NodeTransformer):
 
 def capitalize_first(name):
     first = name[0].upper()
-    return first + name[1:]
+    remainder = list(name)
+    remainder.remove(name[0])
+    remainder = "".join(remainder)
+    return first + remainder
 
 
 def camel_case(name):
     if "_" not in name:
         return name
     # Dont rewrite dunders
-    if name[:2] == "__" and name[-2:] == "__":
+    if name.startswith("__") and name.endswith("__"):
         return name
     return "".join(capitalize_first(part) if part else "" for part in name.split("_"))
 

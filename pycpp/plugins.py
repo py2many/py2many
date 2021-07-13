@@ -86,7 +86,8 @@ class CppTranspilerPlugins:
             else:
                 buf.append("std::cout << {0};".format(value))
             buf.append('std::cout << " ";')
-        return "\n".join(buf[:-1]) + "\nstd::cout << std::endl;"
+        buf.pop()
+        return "\n".join(buf) + "\nstd::cout << std::endl;"
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
