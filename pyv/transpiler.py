@@ -55,7 +55,8 @@ class VDictRewriter(ast.NodeTransformer):
             new_node.lineno = node.lineno
             new_node.col_offset = node.col_offset
             ast.fix_missing_locations(new_node)
-            return new_node
+            node = new_node
+
         return node
 
 
@@ -209,6 +210,13 @@ class VTranspiler(CLikeTranspiler):
 
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
+
+        if isinstance(node.func, ast.Attribute) and isinstance(
+            node.func.value, (ast.Dict, ast.DictComp)
+        ):
+            raise AstNotImplementedError(
+                "Cannot call methods on dict literals yet in V.", node
+            )  # https://github.com/vlang/v/issues/10780
 
         vargs: List[str] = []
 
