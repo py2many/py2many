@@ -164,10 +164,13 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _slice_value(self, node: ast.Subscript):
         # 3.9 compatibility shim
         if sys.version_info < (3, 9, 0):
-            if not isinstance(node.slice, ast.Index):
-                raise AstNotImplementedError("Advanced Slicing not supported", node)
-            slice_value = node.slice.value
+            if isinstance(node.slice, ast.Index):
+                slice_value = node.slice.value
+            else:
+                slice_value = node.slice
         else:
+            if isinstance(node.slice, ast.Slice):
+                raise AstNotImplementedError("Advanced Slicing not supported", node)
             slice_value = node.slice
         return slice_value
 
