@@ -501,12 +501,6 @@ class NimTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             return f"{target} = {value}"
-        elif isinstance(node.value, ast.List):
-            elements = [self.visit(e) for e in node.value.elts]
-            elements = ", ".join(elements)
-            target = self.visit(target)
-
-            return f"{kw} {target} = @[{elements}]"
         else:
             target = self.visit(target)
             value = self.visit(node.value)
