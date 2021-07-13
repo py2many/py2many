@@ -47,7 +47,7 @@ show() {
   assert(t1 == 10);
   final int sum1 = indexing();
   print(sprintf("%s", [sum1]));
-  final a5 = [1, 2, 3];
+  final List<int> a5 = [1, 2, 3];
   print(sprintf("%s", [a5.length]));
   List<String> a9 = ["a", "b", "c", "d"];
   print(sprintf("%s", [a9.length]));

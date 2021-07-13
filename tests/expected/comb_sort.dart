@@ -23,8 +23,8 @@ List<int> comb_sort(List<int> seq) {
 }
 
 main(List<String> argv) {
-  var unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
-  final expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
+  List<int> unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
+  final List<int> expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
   assert(DeepCollectionEquality().equals(comb_sort(unsorted), expected));
   print(sprintf("%s", ["OK"]));
 }

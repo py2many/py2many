@@ -18,7 +18,7 @@ int bisect_right(List<int> data, int item) {
 }
 
 List<int> bin_it(List<int> limits, List<int> data) {
-  var bins = [0];
+  List<int> bins = [0];
   for (final _x in limits) {
     bins.add(0);
   }
@@ -29,8 +29,8 @@ List<int> bin_it(List<int> limits, List<int> data) {
 }
 
 main(List<String> argv) {
-  final limits = [23, 37, 43, 53, 67, 83];
-  final data = [
+  final List<int> limits = [23, 37, 43, 53, 67, 83];
+  final List<int> data = [
     95,
     21,
     94,
