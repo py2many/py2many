@@ -419,7 +419,9 @@ class VTranspiler(CLikeTranspiler):
                         "mut " if is_mutable(node.scopes, get_id(subtarget)) else ""
                     )
                     subtargets.append(f"{subkw}{self.visit(subtarget)}")
-                    definition: Optional[ast.AST] = node.scopes.find(get_id(subtarget))
+                    definition: Optional[ast.AST] = node.scopes.parent_scopes.find(
+                        get_id(subtarget)
+                    ) or node.scopes.find(get_id(subtarget))
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
@@ -432,7 +434,9 @@ class VTranspiler(CLikeTranspiler):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
             elif isinstance(target, ast.Name) and defined_before(
-                node.scopes.find(target.id), node
+                node.scopes.parent_scopes.find(target.id)
+                or node.scopes.find(target.id),
+                node,
             ):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
