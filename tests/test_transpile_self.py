@@ -1,8 +1,9 @@
-import os.path
+import os
 import unittest
 
 from distutils import spawn
 from pathlib import Path
+from shutil import rmtree
 from unittest.mock import Mock
 
 from py2many.cli import _get_all_settings, _process_dir
@@ -48,6 +49,9 @@ def assert_only_reformat_failures(successful, format_errors, failures):
 class SelfTranspileTests(unittest.TestCase):
     SETTINGS = _get_all_settings(Mock(indent=4, extension=False))
 
+    def setUp(self):
+        rmtree(OUT_DIR, ignore_errors=True)
+
     def test_rust_recursive(self):
         settings = self.SETTINGS["rust"]
 
@@ -57,6 +61,9 @@ class SelfTranspileTests(unittest.TestCase):
                 settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
             )
         )
+
+        expected_file = OUT_DIR / "tests" / "test_clike.rs"
+        assert expected_file.is_file(), f"{expected_file} missing"
 
         assert_only_reformat_failures(
             *_process_dir(
