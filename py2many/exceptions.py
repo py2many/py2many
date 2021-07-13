@@ -3,6 +3,15 @@ import ast
 from .ast_helpers import get_id
 
 
+class _InternalErrorBase(Exception):
+    """Errors occurring when a node with lineno is not available"""
+
+
+class TypeNotSupported(_InternalErrorBase):
+    def __init__(self, typename):
+        super().__init__(f"{typename} not supported")
+
+
 class AstErrorBase:
     def __init__(self, msg: str, node: ast.AST):
         self.lineno = node.lineno
@@ -35,6 +44,13 @@ class AstCouldNotInfer(AstNotImplementedError):
 
     def __init__(self, type_node, node: ast.AST):
         super().__init__(f"Could not infer: {type_node}", node)
+
+
+class AstTypeNotSupported(AstNotImplementedError):
+    """Unable to infer type"""
+
+    def __init__(self, msg, node: ast.AST):
+        super().__init__(msg, node)
 
 
 class AstIncompatibleAssign(AstErrorBase, TypeError):

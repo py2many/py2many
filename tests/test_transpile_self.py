@@ -7,6 +7,7 @@ from shutil import rmtree
 from unittest.mock import Mock
 
 from py2many.cli import _get_all_settings, _process_dir
+from py2many.exceptions import AstTypeNotSupported
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
@@ -119,7 +120,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
-        suppress_exceptions = False if SHOW_ERRORS else NotImplementedError
+        suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pygo"
         assert_some_failures(
