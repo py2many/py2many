@@ -12,7 +12,13 @@ from subprocess import run
 from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
-from py2many.cli import _create_cmd, _get_all_settings, _relative_to_cwd, main
+from py2many.cli import (
+    _create_cmd,
+    _get_all_settings,
+    _get_output_path,
+    _relative_to_cwd,
+    main,
+)
 
 import py2many.cli
 
@@ -458,6 +464,15 @@ class CodeGeneratorTests(unittest.TestCase):
         finally:
             if not self.KEEP_GENERATED:
                 self._rmdir_recursive(output_dir)
+
+
+class TestPaths(unittest.TestCase):
+    def test_output_path(self):
+        base = Path(".")
+        self.assertEqual(_get_output_path(Path("foo.py"), ".rs", base), Path("foo.rs"))
+        self.assertEqual(
+            _get_output_path(Path("dir/foo.py"), ".rs", base), Path("dir") / "foo.rs"
+        )
 
 
 if __name__ == "__main__":

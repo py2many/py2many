@@ -353,7 +353,10 @@ def _relative_to_cwd(absolute_path):
 
 
 def _get_output_path(filename, ext, outdir):
-    output_path = outdir / (filename.stem + ext)
+    directory = outdir / filename.parent
+    if not directory.is_dir():
+        directory.mkdir(parents=True)
+    output_path = directory / (filename.stem + ext)
     if ext == ".kt" and output_path.is_absolute():
         # KtLint does not support absolute path in globs
         output_path = _relative_to_cwd(output_path)
@@ -368,7 +371,7 @@ def _process_one(
     Returns False if reformatter failed.
     """
     suffix = f".{args.suffix}" if args.suffix is not None else settings.ext
-    output_path = _get_output_path(filename, suffix, outdir)
+    output_path = _get_output_path(pathlib.Path(filename.name), suffix, outdir)
     if filename.resolve() == output_path.resolve() and not args.force:
         print(f"Refusing to overwrite {filename}. Use --force to overwrite")
         return False
@@ -459,8 +462,7 @@ def _process_many(
     )
 
     output_paths = [
-        _get_output_path(basedir / filename, settings.ext, outdir)
-        for filename in filenames
+        _get_output_path(filename, settings.ext, outdir) for filename in filenames
     ]
     for filename, output, output_path in zip(filenames, outputs, output_paths):
         with open(output_path, "w") as f:
