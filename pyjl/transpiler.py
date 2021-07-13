@@ -526,9 +526,6 @@ class JuliaTranspiler(CLikeTranspiler):
             target_str = self.visit(target)
             value = self.visit(node.value)
             return f"{target_str} = {value};"
-        elif isinstance(node.value, ast.List):
-            elements = [self.visit(e) for e in node.value.elts]
-            return "{0} = [{1}]".format(self.visit(target), ", ".join(elements))
         else:
             target = self.visit(target)
             value = self.visit(node.value)
