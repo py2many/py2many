@@ -74,7 +74,9 @@ class ScopeList(list):
 
     @property
     def parent_scopes(self):
-        return ScopeList(self[:-1])
+        scopes = list(self)
+        scopes.pop()
+        return ScopeList(scopes)
 
 
 class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
