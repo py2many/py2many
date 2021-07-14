@@ -7,7 +7,8 @@ from typing import Tuple
 
 def module_for_path(path: Path) -> str:
     # strip out .py at the end
-    return str(path).rsplit(".", 1)[0]
+    module = ".".join(path.parts)
+    return module.rsplit(".", 1)[0]
 
 
 class ImportDependencyVisitor(ast.NodeVisitor):
