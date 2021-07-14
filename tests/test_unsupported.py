@@ -156,6 +156,7 @@ EXPECTED_SUCCESSES = [
     "float_1.jl",
     "float_1.nim",
     "list_slice.nim",
+    "list_slice.v",
     "list_destruct.v",
     "nested_func.dart",
     "nested_func.kt",
