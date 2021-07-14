@@ -371,7 +371,9 @@ def _process_one(
     Returns False if reformatter failed.
     """
     suffix = f".{args.suffix}" if args.suffix is not None else settings.ext
-    output_path = _get_output_path(pathlib.Path(filename.name), suffix, outdir)
+    output_path = _get_output_path(
+        filename.relative_to(filename.parent), suffix, outdir
+    )
     if filename.resolve() == output_path.resolve() and not args.force:
         print(f"Refusing to overwrite {filename}. Use --force to overwrite")
         return False
