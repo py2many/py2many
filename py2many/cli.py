@@ -2,12 +2,12 @@ import argparse
 import ast
 import functools
 import os
-import pathlib
 import sys
 
 
 from distutils import spawn
 from functools import lru_cache
+from pathlib import Path
 from subprocess import run
 from typing import List, Set, Tuple
 from unittest.mock import Mock
@@ -63,9 +63,9 @@ from py2many.rewriters import (
     UnpackScopeRewriter,
 )
 
-PY2MANY_DIR = pathlib.Path(__file__).parent
+PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
-CWD = pathlib.Path.cwd()
+CWD = Path.cwd()
 
 
 def core_transformers(tree, trees):
@@ -82,7 +82,7 @@ def core_transformers(tree, trees):
 
 
 def _transpile(
-    filenames: List[pathlib.Path],
+    filenames: List[Path],
     sources: List[str],
     settings: LanguageSettings,
     _suppress_exceptions=Exception,
@@ -349,7 +349,7 @@ def _get_all_settings(args, env=os.environ):
 
 
 def _relative_to_cwd(absolute_path):
-    return pathlib.Path(os.path.relpath(absolute_path, CWD))
+    return Path(os.path.relpath(absolute_path, CWD))
 
 
 def _get_output_path(filename, ext, outdir):
@@ -363,9 +363,7 @@ def _get_output_path(filename, ext, outdir):
     return output_path
 
 
-def _process_one(
-    settings: LanguageSettings, filename: pathlib.Path, outdir: str, args, env
-):
+def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, env):
     """Transpile and reformat.
 
     Returns False if reformatter failed.
@@ -440,7 +438,7 @@ def _format_one(settings, output_path, env=None):
     return True
 
 
-FileSet = Set[pathlib.Path]
+FileSet = Set[Path]
 
 
 def _process_many(
@@ -476,7 +474,7 @@ def _process_many(
         # TODO: Optimize to a single invocation
         for filename, output_path in zip(filenames, output_paths):
             if filename in successful and not _format_one(settings, output_path, env):
-                format_errors.add(pathlib.Path(filename))
+                format_errors.add(Path(filename))
 
     return (successful, format_errors)
 
@@ -591,11 +589,11 @@ def main(args=None, env=os.environ):
         if args.comment_unsupported:
             settings.transpiler._throw_on_unimplemented = False
 
-        source = pathlib.Path(filename)
+        source = Path(filename)
         if args.outdir is None:
             outdir = source.parent
         else:
-            outdir = pathlib.Path(args.outdir)
+            outdir = Path(args.outdir)
 
         if source.is_file():
             print(f"Writing to: {outdir}")
