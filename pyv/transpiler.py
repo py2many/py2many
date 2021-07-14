@@ -1,6 +1,6 @@
 import ast
 import string
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
@@ -123,45 +123,53 @@ class VTranspiler(CLikeTranspiler):
         # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
         return ""  # f"import {module_name} {{{' '.join(names)}}}"
 
-    def function_signature(self, node: ast.FunctionDef) -> str:
+    def visit_arg(self, node) -> Tuple[Optional[str], str]:
+        id = get_id(node)
+        if id == "self":
+            return (None, "self")
+        typename = ""
+        if node.annotation:
+            typename = self._typename_from_annotation(node)
+        if is_mutable(node.scopes, id):
+            id = f"mut {id}"
+        return (typename, id)
+
+    def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
         if node.scopes[-1] is ast.ClassDef:
             raise AstNotImplementedError("Class methods are not supported yet.", node)
+        signature.append(node.name)
 
-        if name := get_id(node):
-            signature.append(name)
-
-        args: List[str] = []
-        generic_count: int = 0
+        generics: Set[str] = set()
+        args: List[Tuple[str, str]] = []
         for arg in node.args.args:
-            typename: str = string.ascii_uppercase[generic_count]
-            id: str = get_id(arg)
-            if is_mutable(node.scopes, id):
-                id = f"mut {id}"
-            if getattr(arg, "annotation", None):
-                typename = self._typename_from_annotation(arg, attr="annotation")
-            if len(typename) == 1 and typename.isupper():
-                generic_count += 1
-            args.append(f"{id} {typename}")
+            typename, id = self.visit(arg)
+            if typename is None:  # receiver
+                typename = "<struct name>"  # TODO: fetch struct name from node.scopes
+            elif len(typename) == 1 and typename.isupper():
+                generics.add(typename)
+            args.append((typename, id))
 
-        if generic_count:
-            signature.append(f"<{', '.join(string.ascii_uppercase[:generic_count])}>")
+        str_args: List[str] = []
+        for typename, id in args:
+            if typename == "":
+                for c in string.ascii_uppercase:
+                    if c not in generics:
+                        generics.add(c)
+                        typename = c
+            if typename == "":
+                raise AstNotImplementedError(
+                    "Cannot use more than 26 generics in a function.", node
+                )
 
-        signature.append(f"({', '.join(args)})")
-        if isinstance(node, ast.Lambda):
-            if getattr(node, "annotation", None):
-                typename: str = self._typename_from_annotation(node, attr="annotation")
-                signature.append(typename)
-        elif not is_void_function(node):
-            if getattr(node, "returns", None):
-                typename: str = self._typename_from_annotation(node, attr="returns")
-                signature.append(typename)
+            str_args.append(f"{id} {typename}")
+        signature.append(f"({', '.join(str_args)})")
 
-        return " ".join(signature)
+        if not is_void_function(node):
+            signature.append(self._typename_from_annotation(node, attr="returns"))
 
-    def visit_FunctionDef(self, node) -> str:
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
-        return f"{self.function_signature(node)} {{\n{body}\n}}"
+        return f"{' '.join(signature)} {{\n{body}\n}}"
 
     def visit_Return(self, node: ast.Return) -> str:
         if node.value:
@@ -215,8 +223,13 @@ class VTranspiler(CLikeTranspiler):
 
         vargs: List[str] = []
 
-        if node.args:
-            vargs.extend(map(self.visit, node.args))
+        for idx, arg in enumerate(node.args):
+            if hasattr(fndef, "args") and is_mutable(
+                fndef.scopes, fndef.args.args[idx].arg
+            ):
+                vargs.append(f"mut {self.visit(arg)}")
+            else:
+                vargs.append(self.visit(arg))
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
