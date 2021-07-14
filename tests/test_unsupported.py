@@ -126,7 +126,6 @@ EXPECTED_SUCCESSES = [
     "complex_dict.kt",
     "complex_dict.nim",
     "complex_dict.rs",
-    "complex_dict.v",  # ???
     "class_vars.rs",
     "del.rs",
     "default_init.dart",

@@ -1,8 +1,6 @@
 import ast
 import string
-import sys
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set
 
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
@@ -123,7 +121,7 @@ class VTranspiler(CLikeTranspiler):
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
         # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
-        return "" # f"import {module_name} {{{' '.join(names)}}}"
+        return ""  # f"import {module_name} {{{' '.join(names)}}}"
 
     def function_signature(self, node: ast.FunctionDef) -> str:
         signature = ["fn"]
@@ -371,11 +369,8 @@ class VTranspiler(CLikeTranspiler):
         return ""
 
     def visit_Tuple(self, node: ast.Tuple) -> str:
-        elts: List[str] = [self.visit(e) for e in node.elts]
-        elts: str = ", ".join(elts)
-        if hasattr(node, "is_annotation"):
-            return elts
-        return "({0})".format(elts)
+        # V does not have tuples, so treat them as same.
+        return self.visit_List(node)
 
     def visit_Try(self, node: ast.Try, finallybody: bool = None) -> str:
         raise AstNotImplementedError("Exceptions are not supported yet.", node)
