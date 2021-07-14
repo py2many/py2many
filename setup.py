@@ -23,7 +23,9 @@ setup(
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
-    packages=find_packages(exclude=["docs", "examples", "tests", "tests*"]),
+    packages=find_packages(
+        exclude=["docs", "examples", "tests", "tests*", "pycpp.tests", "pyrs.tests"]
+    ),
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
