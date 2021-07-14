@@ -1,4 +1,3 @@
-
 //! ```cargo
 //! [package]
 //! edition = "2018"

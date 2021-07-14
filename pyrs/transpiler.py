@@ -146,7 +146,7 @@ class RustTranspiler(CLikeTranspiler):
         )
         lint_ignores += "\n".join(f"#![allow({allow})]" for allow in self._allows)
         cargo_toml = (
-            f"""
+            f"""\
         //! ```cargo
         //! [package]
         //! edition = "2018"
