@@ -1,3 +1,5 @@
+module main
+
 fn test() int {
 	a := [int(1), 2, 3]
 	return a[1]

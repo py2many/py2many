@@ -1,3 +1,5 @@
+module main
+
 fn nested_containers() bool {
 	CODES := map{
 		'KEY': [1, 3]

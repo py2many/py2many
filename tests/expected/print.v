@@ -1,3 +1,5 @@
+module main
+
 fn show() {
 	println('b')
 	println((2).str() + ' ' + 'b')

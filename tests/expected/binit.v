@@ -1,3 +1,5 @@
+module main
+
 fn bisect_right(data []int, item int) int {
 	mut low := 0
 	mut high := int(data.len)

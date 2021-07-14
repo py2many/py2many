@@ -1,3 +1,5 @@
+module main
+
 fn foo() {
 	a := 10
 	b := a

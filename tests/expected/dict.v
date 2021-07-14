@@ -1,3 +1,5 @@
+module main
+
 fn implicit_keys() bool {
 	CODES := map{
 		'KEY': 1

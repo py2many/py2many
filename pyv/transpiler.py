@@ -1,6 +1,8 @@
 import ast
 import string
-from typing import Dict, List, Optional, Set
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Union
 
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
@@ -105,7 +107,9 @@ class VTranspiler(CLikeTranspiler):
     def usings(self):
         usings: List[str] = sorted(list(set(self._usings)))
         uses: str = "\n".join(f"import {mod}" for mod in usings)
-        return uses
+        # Module statement needs to be here as uses is applied to the top of the file
+        # but V expects the module statement to be at the top.
+        return f"module main\n{uses}"
 
     def _combine_value_index(self, value_type: str, index_type: str) -> str:
         return f"{value_type}{index_type}"
@@ -114,12 +118,12 @@ class VTranspiler(CLikeTranspiler):
         return f"// {text}\n"
 
     def _import(self, name: str) -> str:
-        if name == "sys":
-            return "import os"
-        return f"import {name}"
+        # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
+        return ""
 
     def _import_from(self, module_name: str, names: List[str]) -> str:
-        return f"import {module_name} {{{' '.join(names)}}}"
+        # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
+        return "" # f"import {module_name} {{{' '.join(names)}}}"
 
     def function_signature(self, node: ast.FunctionDef) -> str:
         signature = ["fn"]

@@ -1,3 +1,5 @@
+module main
+
 fn fib(i int) int {
 	if i == 0 || i == 1 {
 		return 1

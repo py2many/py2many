@@ -1,3 +1,5 @@
+module main
+
 fn inline_pass() {
 }
 
