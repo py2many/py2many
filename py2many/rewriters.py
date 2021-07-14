@@ -63,7 +63,7 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
         self._disable = False
-        if language in {"cpp", "julia", "dart"}:
+        if language in {"cpp", "julia", "dart", "v"}:
             self._disable = True
         self._no_underscore = False
         if language in {"nim"}:
