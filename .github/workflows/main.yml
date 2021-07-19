@@ -43,9 +43,14 @@ jobs:
           git clone --single-branch https://github.com/vlang/v.git /tmp/v
           (cd /tmp/v && git checkout 02f0a3055515c8e13b5e016ef266b346b705e3d3)
           if [ "$RUNNER_OS" == "Windows" ]; then
-            (cd /tmp/v && ./make.bat)
+            (cd /tmp/v && git clone https://github.com/vlang/vc.git)
+            (cd /tmp/v/thirdparty && git clone --depth 1 --single-branch --branch thirdparty-windows-amd64 https://github.com/vlang/tccbin.git tcc)
+            (cd /tmp/v/vc && git checkout 3a67714ab8134cbbf0276ce3418592dbe73c7a15)
+            (cd /tmp/v && ./make.bat --local)
           else
-            (cd /tmp/v && make -j4)
+            (cd /tmp/v && mkdir -p vc && curl -o vc/v.c https://raw.githubusercontent.com/vlang/vc/3a67714ab8134cbbf0276ce3418592dbe73c7a15/v.c)
+            (cd /tmp/v/thirdparty && git clone --depth 1 --quiet --single-branch --branch thirdparty-linux-amd64 https://github.com/vlang/tccbin.git tcc)
+            (cd /tmp/v && local=1 make -j4)
             (cd /usr/local/bin && sudo ln -s /tmp/v/v)
           fi
 
