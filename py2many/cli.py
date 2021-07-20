@@ -51,6 +51,8 @@ from pygo.transpiler import (
 )
 from pyv.inference import infer_v_types
 from pyv.transpiler import VTranspiler, VNoneCompareRewriter, VDictRewriter
+from pysmt.transpiler import SmtTranspiler
+from pysmt.inference import infer_smt_types
 
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
@@ -354,6 +356,20 @@ def vlang_settings(args, env=os.environ):
     )
 
 
+def smt_settings(args, env=os.environ):
+    smt_args = {}
+    cljstyle_args = ["fix"]
+    return LanguageSettings(
+        SmtTranspiler(**smt_args),
+        ".smt",
+        "SMT",
+        ["cljstyle", *cljstyle_args],
+        None,
+        [],
+        [infer_smt_types],
+    )
+
+
 def _get_all_settings(args, env=os.environ):
     return {
         "python": python_settings(args, env=env),
@@ -365,6 +381,7 @@ def _get_all_settings(args, env=os.environ):
         "dart": dart_settings(args, env=env),
         "go": go_settings(args, env=env),
         "vlang": vlang_settings(args, env=env),
+        "smt": smt_settings(args, env=env),
     }
 
 
@@ -475,10 +492,7 @@ def _process_many(
             source_data.append(f.read())
 
     outputs, successful = _transpile(
-        filenames,
-        source_data,
-        settings,
-        _suppress_exceptions=_suppress_exceptions,
+        filenames, source_data, settings, _suppress_exceptions=_suppress_exceptions
     )
 
     output_paths = [
@@ -607,6 +621,8 @@ def main(args=None, env=os.environ):
             settings = go_settings(args, env=env)
         elif args.vlang:
             settings = vlang_settings(args, env=env)
+        elif args.smt:
+            settings = smt_settings(args, env=env)
 
         if args.comment_unsupported:
             settings.transpiler._throw_on_unimplemented = False
