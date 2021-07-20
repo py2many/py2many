@@ -114,6 +114,15 @@ jobs:
       - name: Install cargo-script
         run: cargo install cargo-script
 
+      - name: Install smt dependencies
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            (curl -sLO https://raw.githubusercontent.com/greglook/cljstyle/main/script/install-cljstyle
+             sed -i.bak 's/--overwrite//' install-cljstyle
+             chmod +x install-cljstyle
+             sudo ./install-cljstyle)
+          fi
       - name: Run tox
         shell: bash
         # sdkman init can be replaced with actions setup when the following is fixed
