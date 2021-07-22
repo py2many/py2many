@@ -65,7 +65,7 @@ TEST_CASES = {
     "list_slice": "a = [1, 2]; b = a[0:1]",
     "str_compre": "[i for i in 'a']",
     "all": "assert all(i for i in [True])",
-    "any": "assert all(i for i in [True])",
+    "any": "assert any(i for i in [True])",
     "fstring": "assert f'{1+1}'",  # https://github.com/adsharma/py2many/issues/74
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
