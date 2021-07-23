@@ -50,7 +50,12 @@ from pygo.transpiler import (
     GoIfExpRewriter,
 )
 from pyv.inference import infer_v_types
-from pyv.transpiler import VTranspiler, VNoneCompareRewriter, VDictRewriter
+from pyv.transpiler import (
+    VTranspiler,
+    VNoneCompareRewriter,
+    VDictRewriter,
+    VComprehensionRewriter,
+)
 from pysmt.transpiler import SmtTranspiler
 from pysmt.inference import infer_smt_types
 
@@ -351,7 +356,7 @@ def vlang_settings(args, env=os.environ):
         "V",
         ["v", *vfmt_args],
         None,
-        [VNoneCompareRewriter(), VDictRewriter()],
+        [VNoneCompareRewriter(), VDictRewriter(), VComprehensionRewriter()],
         [infer_v_types],
     )
 

@@ -113,8 +113,10 @@ TEST_CASES = {
 
 # NOTE: Inclusion here does not indicate that the case is comparable
 EXPECTED_SUCCESSES = [
+    "all.v",
     "annassign_List.dart",
     "annassign_List.v",
+    "any.v",
     "bool_plus_int.jl",
     "bool_plus_int.rs",
     "bool_plus_int.v",
