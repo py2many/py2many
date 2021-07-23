@@ -61,6 +61,8 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "floor": lambda n, vargs: f"int(floor({vargs[0]}))",
     "len": lambda n, vargs: f"{vargs[0]}.len",
     "sys.exit": lambda n, vargs: f"exit({vargs[0] if vargs else '0'})",
+    "all": lambda n, vargs: f"{vargs[0]}.all(it)",
+    "any": lambda n, vargs: f"{vargs[0]}.any(it)",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}

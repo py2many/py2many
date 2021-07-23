@@ -1,10 +1,11 @@
 import ast
 import string
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
 from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.ast_helpers import create_ast_node
 
 from .clike import CLikeTranspiler
 from .inference import V_WIDTH_RANK
@@ -23,6 +24,16 @@ def is_mutable(scopes, target: str) -> bool:
     if target == "_":
         return False
     return _is_mutable(scopes, target)
+
+
+_create_ast_node = create_ast_node
+
+
+def create_ast_node(code, at_node=None) -> ast.AST:
+    res = _create_ast_node(code, at_node=at_node)
+    if isinstance(res, ast.Expr):
+        res = res.value
+    return res
 
 
 def is_dict(node: ast.AST) -> bool:
@@ -49,15 +60,61 @@ class VDictRewriter(ast.NodeTransformer):
         if (
             isinstance(node.func, ast.Attribute) and node.func.attr == "values"
         ):  # and is_dict(node.func.value):
-            new_node: ast.Call = ast.parse("a.keys().map(a[it])").body[0].value
+            new_node: ast.Call = create_ast_node("a.keys().map(a[it])", at_node=node)
             new_node.func.value.func.value = node.func.value
             new_node.args[0].value = node.func.value
-            new_node.lineno = node.lineno
-            new_node.col_offset = node.col_offset
-            ast.fix_missing_locations(new_node)
-            node = new_node
-
+            return new_node
         return node
+
+
+class VComprehensionRewriter(ast.NodeTransformer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.redirects: Dict[str, str] = {}
+
+    def visit_Name(self, node: ast.Name) -> Union[ast.Name, ast.Subscript]:
+        if node.id in self.redirects:
+            return create_ast_node(self.redirects[node.id], at_node=node)
+        return node
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.Call:
+        new_node = None
+        for comp in node.generators:
+            if isinstance(comp.target, ast.Name):
+                self.redirects[comp.target.id] = "it"
+            elif isinstance(comp.target, ast.Tuple):
+                for idx, elem in enumerate(comp.target.elts):
+                    assert isinstance(elem, ast.Name)
+                    self.redirects[elem.id] = f"it[{idx}]"
+            else:
+                raise AstNotImplementedError(
+                    f"Unknown target type {type(node.target).__qualname__}", node
+                )
+
+            subnode = comp.iter
+
+            for cmp in comp.ifs:
+                chain = create_ast_node("placeholder.filter(placeholder)", at_node=node)
+                chain.func.value = subnode
+                chain.args[0] = cmp
+                subnode = chain
+
+            chain = create_ast_node("placeholder.map(placeholder)", at_node=node)
+            chain.func.value = subnode
+            chain.args[0] = node.elt
+            subnode = chain
+
+            if new_node is None:
+                new_node = subnode
+            else:
+                new_node.args[0] = subnode
+
+        self.visit(new_node)
+        self.redirects.clear()
+        return new_node
+
+    def visit_ListComp(self, node: ast.ListComp) -> ast.Call:
+        return self.visit_GeneratorExp(node)
 
 
 class VNoneCompareRewriter(ast.NodeTransformer):
@@ -480,7 +537,7 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> str:
         raise AstNotImplementedError(
-            "Generator expressions are not supported yet.", node
+            "Comprehensions should have been handled in the rewriter.", node
         )
 
     def visit_ListComp(self, node: ast.ListComp) -> str:
