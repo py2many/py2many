@@ -1,7 +1,7 @@
 import ast
 from typing import Dict, Set
 
-from .inference import V_TYPE_MAP, V_WIDTH_RANK
+from .inference import V_TYPE_MAP, V_WIDTH_RANK, get_inferred_v_type
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
@@ -114,8 +114,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         op: str = self.visit(node.op)
         right: str = self.visit(node.right)
 
-        left_type: str = self._typename_from_annotation(node.left)
-        right_type: str = self._typename_from_annotation(node.right)
+        left_type: str = get_inferred_v_type(node.left)
+        right_type: str = get_inferred_v_type(node.right)
 
         left_rank: int = V_WIDTH_RANK.get(left_type, -1)
         right_rank: int = V_WIDTH_RANK.get(right_type, -1)

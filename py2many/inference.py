@@ -521,3 +521,22 @@ class InferTypesTransformer(ast.NodeTransformer):
                     node.annotation.lifetime = definition.annotation.lifetime
         self.generic_visit(node)
         return node
+
+    def visit_For(self, node):
+        self.visit(node.target)
+        self.visit(node.iter)
+        if (
+            isinstance(node.target, (ast.Name, ast.Attribute))
+            and hasattr(node.iter, "annotation")
+            and isinstance(node.iter.annotation, ast.Subscript)
+        ):
+            typ = node.iter.annotation.slice
+            # ast.Subscript.slice might be wrapped in python < 3.9 with an ast.Index object,
+            # this workaround un-wraps it.
+            if isinstance(typ, ast.Index):
+                typ = typ.value
+
+            if isinstance(typ, ast.Name):
+                node.target.annotation = typ
+        self.generic_visit(node)
+        return node
