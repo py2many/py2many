@@ -3,10 +3,10 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
-from typing import cast, Optional
+from typing import cast, Set, Optional
 
 from py2many.analysis import get_id
-from py2many.ast_helpers import create_ast_node
+from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
@@ -195,10 +195,20 @@ class InferTypesTransformer(ast.NodeTransformer):
             if getattr(node, "is_annotation", False):
                 return node
             else:
-                elt_types = set([get_id(get_inferred_type(e)) for e in elements])
-                if len(elt_types) == 1 and hasattr(elements[0], "annotation"):
-                    elt_type = get_id(elements[0].annotation)
-                    self._annotate(node, f"List[{elt_type}]")
+                elt_types: Set[str] = set()
+                for e in elements:
+                    typ = get_inferred_type(e)
+                    if typ is not None:
+                        elt_types.add(unparse(typ))
+                if len(elt_types) == 0:
+                    node.annotation = ast.Name(id="List")
+                elif len(elt_types) == 1:
+                    self._annotate(node, f"List[{elt_types.pop()}]")
+                else:
+                    self._annotate(
+                        node,
+                        f"List[Union[{', '.join(elt_types)}]]",
+                    )
         else:
             if not hasattr(node, "annotation"):
                 node.annotation = ast.Name(id="List")
@@ -259,6 +269,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
+        self.visit(node.value)
 
         annotation = getattr(node.value, "annotation", None)
         if annotation is None:
@@ -489,7 +500,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         if fname is not None:
             fn = node.scopes.find(fname)
             if isinstance(fn, ast.ClassDef):
-                node.annotation = fn
+                self._annotate(node, fn.name)
             elif isinstance(fn, ast.FunctionDef):
                 return_type = (
                     fn.returns if hasattr(fn, "returns") and fn.returns else None
@@ -525,18 +536,16 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_For(self, node):
         self.visit(node.target)
         self.visit(node.iter)
-        if (
-            isinstance(node.target, (ast.Name, ast.Attribute))
-            and hasattr(node.iter, "annotation")
-            and isinstance(node.iter.annotation, ast.Subscript)
+        if hasattr(node.iter, "annotation") and isinstance(
+            node.iter.annotation, ast.Subscript
         ):
-            typ = node.iter.annotation.slice
-            # ast.Subscript.slice might be wrapped in python < 3.9 with an ast.Index object,
-            # this workaround un-wraps it.
-            if isinstance(typ, ast.Index):
-                typ = typ.value
+            typ = self._clike._slice_value(node.iter.annotation)
 
-            if isinstance(typ, ast.Name):
+            if isinstance(node.target, ast.Name):
                 node.target.annotation = typ
+            elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
+                typ = self._clike._slice_value(typ)
+                for e in node.target.elts:
+                    e.annotation = typ
         self.generic_visit(node)
         return node
