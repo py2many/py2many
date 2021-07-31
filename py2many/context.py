@@ -113,7 +113,12 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_For(self, node):
         node.target.assigned_from = node
-        node.vars = [node.target]
+        if isinstance(node.target, ast.Name):
+            node.vars = [node.target]
+        elif isinstance(node.target, ast.Tuple):
+            node.vars = [*node.target.elts]
+        else:
+            node.vars = []
         self.generic_visit(node)
         return node
 
