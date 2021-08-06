@@ -5,7 +5,7 @@
 #include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
-inline int bisect_right(std::vector<int> data, int item) {
+inline int bisect_right(std::vector<int>& data, int item) {
   int low = 0;
   int high = pycpp::to_int(data.size());
   while (low < high) {
@@ -19,7 +19,8 @@ inline int bisect_right(std::vector<int> data, int item) {
   return low;
 }
 
-inline std::vector<int> bin_it(std::vector<int> limits, std::vector<int> data) {
+inline std::vector<int> bin_it(std::vector<int>& limits,
+                               std::vector<int>& data) {
   std::vector<int> bins = {0};
   for (auto _x : limits) {
     bins.push_back(0);
