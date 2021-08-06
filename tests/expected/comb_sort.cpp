@@ -9,7 +9,7 @@
 #include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
-inline std::vector<int> comb_sort(std::vector<int> seq) {
+inline std::vector<int> comb_sort(std::vector<int>& seq) {
   auto gap = seq.size();
   bool swap = true;
   while (gap > 1 || swap) {

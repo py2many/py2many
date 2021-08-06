@@ -7,7 +7,7 @@
 #include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
-inline std::vector<int> bubble_sort(std::vector<int> seq) {
+inline std::vector<int> bubble_sort(std::vector<int>& seq) {
   auto L = seq.size();
   for (auto _ : rangepp::xrange(L)) {
     for (auto n : rangepp::xrange(1, L)) {

@@ -383,6 +383,11 @@ class CppTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
+            # TODO: Should we make this if not primitive instead of checking
+            # for container types? That way we cover user defined structs too.
+            if hasattr(node, "container_type"):
+                # Python passes by reference by default.
+                typename = f"{typename}&"
             # TODO: Generalize this to other types
             if "std::map" in typename:
                 self._headers.append("#include <map>")
