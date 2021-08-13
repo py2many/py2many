@@ -16,7 +16,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.exceptions import AstClassUsedBeforeDeclaration, AstTypeNotSupported
 from py2many.tracer import is_list, defined_before
 
 from typing import List
@@ -272,19 +272,47 @@ class SmtTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
+    def visit_sealed_class(self, node):
+        variants = []
+        for member, var in node.class_assignments.items():
+            member_id = get_id(member)
+            typename, default_val = node.declarations_with_defaults.get(member_id, None)
+            if typename == self._default_type:
+                variants.append("(None)")
+            else:
+                innerv = []
+                definition = node.scopes.parent_scopes.find(typename)
+                if definition is None:
+                    raise AstTypeNotSupported(f"{typename}", node)
+                for member, var in definition.class_assignments.items():
+                    member_id = get_id(member)
+                    member_type = definition.declarations.get(member_id)
+                    innerv.append(f"({member_id} {member_type})")
+                innerv_str = f"{''.join(innerv)}"
+                cons = typename.lower()
+                variants.append(f"({cons} {innerv_str})")
+
+        variants_str = f"({''.join(variants)})"
+        return f"(declare-datatypes (({node.name} 0)) ({variants_str}))"
+
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(SmtTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
+        if "sealed" in decorators:
+            # TODO: handle cases where sealed is stacked with other decorators
+            return self.visit_sealed_class(node)
         decorators = [
             class_for_typename(t, None, self._imported_names) for t in decorators
         ]
+
         for d in decorators:
             if d in CLASS_DISPATCH_TABLE:
                 ret = CLASS_DISPATCH_TABLE[d](self, node)
@@ -302,13 +330,7 @@ class SmtTranspiler(CLikeTranspiler):
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
-
-        object_def = "type\n"
-        object_def += self.indent(f"{node.name} = object\n", level=node.level + 1)
-        object_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
-        body = [self.visit(b) for b in node.body]
-        body = "\n".join(body)
-        return f"{object_def}\n{body}\n"
+        return ""
 
     def visit_IntEnum(self, node):
         fields = []

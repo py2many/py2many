@@ -89,7 +89,13 @@ class DeclarationExtractor(ast.NodeVisitor):
         if target_id is None:
             return
 
-        type_str = self.transpiler._typename_from_annotation(node)
+        # Preserve string based types (Forward refs) instead of converting them
+        # to default type
+        type_str = None
+        if isinstance(node.annotation, ast.Constant):
+            type_str = node.annotation.value
+        if type_str is None:
+            type_str = self.transpiler._typename_from_annotation(node)
         if target_id not in self.annotated_members:
             self.annotated_members[target_id] = (type_str, node.value)
 
