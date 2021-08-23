@@ -1,5 +1,5 @@
 # docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1,CPP=1 .
+# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1 --build-arg CPP=1 .
 #
 # Edit the list of languages above based on what you're interested in
 FROM archlinux:base-devel
@@ -17,11 +17,8 @@ ARG VLANG
 
 RUN pacman -Syu --noconfirm python python-pip unzip
 
-# Rust
-RUN test -z "$RUST" || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
 # C++
-RUN test -z "$CPP" || pacman -Syu --noconfirm clang
+RUN test -z "$CPP" || pacman -Syu --noconfirm clang libc++
 
 # Go
 RUN test -z "$GOLANG" || pacman -Syu --noconfirm go
@@ -50,12 +47,17 @@ RUN pacman -Syu --noconfirm git python-tox
 
 RUN useradd --create-home --comment "Arch Build User" build
 ENV HOME /home/build
-ENV PATH "$PATH:/home/build/.local/bin:/home/build/bin"
+ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
 
 USER build
 RUN mkdir -p /home/build/bin
 
 # Per user package setup. Note that /root is inaccessible to user build
+
+# Rust
+RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+   sh -s -- -y  && \
+   cargo install cargo-script)
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
