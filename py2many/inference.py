@@ -498,6 +498,11 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Call(self, node):
         fname = get_id(node.func)
         if fname is not None:
+            # Handle methods calls by looking up the method name
+            # without the prefix
+            # TODO: use remove suffix
+            if fname.startswith("self."):
+                fname = fname.split(".", 1)[1]
             fn = node.scopes.find(fname)
             if isinstance(fn, ast.ClassDef):
                 self._annotate(node, fn.name)
