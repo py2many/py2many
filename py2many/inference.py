@@ -13,6 +13,14 @@ from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import is_enum
 
 
+try:
+    from typpete.inference_runner import infer_types_ast
+except ModuleNotFoundError:
+
+    def infer_types_ast(node):
+        return node
+
+
 @dataclass
 class InferMeta:
     has_fixed_width_ints: bool
@@ -22,6 +30,11 @@ def infer_types(node) -> InferMeta:
     visitor = InferTypesTransformer()
     visitor.visit(node)
     return InferMeta(visitor.has_fixed_width_ints)
+
+
+def infer_types_typpete(node) -> InferMeta:
+    infer_types_ast(node)
+    return InferMeta(True)
 
 
 def get_inferred_type(node):
@@ -205,10 +218,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 elif len(elt_types) == 1:
                     self._annotate(node, f"List[{elt_types.pop()}]")
                 else:
-                    self._annotate(
-                        node,
-                        f"List[Union[{', '.join(elt_types)}]]",
-                    )
+                    self._annotate(node, f"List[Union[{', '.join(elt_types)}]]")
         else:
             if not hasattr(node, "annotation"):
                 node.annotation = ast.Name(id="List")
@@ -473,10 +483,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id=left_id)
             return node
 
-        LEGAL_COMBINATIONS = {
-            ("str", ast.Mod),
-            ("List", ast.Add),
-        }
+        LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add)}
 
         if left_id is not None and (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)

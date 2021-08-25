@@ -9,7 +9,7 @@ from distutils import spawn
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
-from typing import List, Set, Tuple
+from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 
@@ -18,7 +18,7 @@ from .annotation_transformer import add_annotation_flags
 
 from .context import add_assignment_context, add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
-from .inference import infer_types
+from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
@@ -77,7 +77,7 @@ ROOT_DIR = PY2MANY_DIR.parent
 CWD = Path.cwd()
 
 
-def core_transformers(tree, trees):
+def core_transformers(tree, trees, args):
     add_variable_context(tree, trees)
     add_scope_context(tree)
     add_assignment_context(tree)
@@ -85,7 +85,9 @@ def core_transformers(tree, trees):
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
-    infer_meta = infer_types(tree)
+    infer_meta = (
+        infer_types_typpete(tree) if args and args.typpete else infer_types(tree)
+    )
     add_imports(tree)
     return tree, infer_meta
 
@@ -94,6 +96,7 @@ def _transpile(
     filenames: List[Path],
     sources: List[str],
     settings: LanguageSettings,
+    args: Optional[argparse.Namespace] = None,
     _suppress_exceptions=Exception,
 ):
     """
@@ -133,7 +136,7 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, args
             )
             successful.append(filename)
             outputs[filename] = output
@@ -153,7 +156,9 @@ def _transpile(
     return output_list, successful
 
 
-def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewriters):
+def _transpile_one(
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
@@ -161,7 +166,7 @@ def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrit
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
     # Language independent core transformers
-    tree, infer_meta = core_transformers(tree, trees)
+    tree, infer_meta = core_transformers(tree, trees, args)
     # Language specific transformers
     for tx in transformers:
         tx(tree)
@@ -169,7 +174,7 @@ def _transpile_one(trees, tree, transpiler, rewriters, transformers, post_rewrit
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
     # Rerun core transformers
-    tree, infer_meta = core_transformers(tree, trees)
+    tree, infer_meta = core_transformers(tree, trees, args)
     out = []
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
@@ -425,7 +430,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
-    result = _transpile([filename], [source_data], settings)
+    result = _transpile([filename], [source_data], settings, args)
     with open(output_path, "w") as f:
         f.write(result[0][0])
 
@@ -595,6 +600,12 @@ def main(args=None, env=os.environ):
         action="store_true",
         default=False,
         help="When output and input are the same file, force overwriting",
+    )
+    parser.add_argument(
+        "--typpete",
+        action="store_true",
+        default=False,
+        help="Use typpete for inference",
     )
     args, rest = parser.parse_known_args(args=args)
 

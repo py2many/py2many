@@ -365,6 +365,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 settings.rewriters,
                 settings.transformers,
                 settings.post_rewriters,
+                None,
             )
         except Exception as e:
             assert type(e) == expected_error
