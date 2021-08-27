@@ -209,6 +209,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
+        elif isinstance(node, ast.Constant) and node.value is not None:
+            return node.value
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):

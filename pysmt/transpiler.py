@@ -29,19 +29,11 @@ from typing import List
 class SmtTranspiler(CLikeTranspiler):
     NAME = "smt"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "seq",
-        "Dict": "Table",
-        "Set": "set",
-        "Optional": "Option",
-    }
-
     def __init__(self, indent=2):
         super().__init__()
         self._headers = set([])
         self._indent = " " * indent
         self._default_type = "var"
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
         self._dispatch_map = DISPATCH_MAP
@@ -60,7 +52,7 @@ class SmtTranspiler(CLikeTranspiler):
         return uses
 
     def _combine_value_index(self, value_type, index_type) -> str:
-        return f"{value_type}[{index_type}]"
+        return f"(_ {value_type} {index_type})"
 
     def comment(self, text):
         return f";; {text}\n"

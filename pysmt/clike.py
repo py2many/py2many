@@ -45,9 +45,19 @@ def smt_symbol(node):
 
 
 class CLikeTranspiler(CommonCLikeTranspiler):
+
+    CONTAINER_TYPE_MAP = {
+        "List": "seq",
+        "Dict": "Table",
+        "Set": "set",
+        "Optional": "Option",
+        "BitVec": "BitVec",
+    }
+
     def __init__(self):
         super().__init__()
         self._type_map = SMT_TYPE_MAP
+        self._container_type_map = self.CONTAINER_TYPE_MAP
         self._statement_separator = ""
 
     def visit(self, node):
