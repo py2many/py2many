@@ -3,6 +3,7 @@ import ast
 from .inference import SMT_TYPE_MAP, SMT_WIDTH_RANK
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.analysis import is_global
 
 
 # allowed as names in Python but treated as keywords in Smt
@@ -12,7 +13,7 @@ smt_symbols = {
     ast.Eq: "=",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "discard",
+    ast.Pass: "",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",
@@ -56,7 +57,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return super().visit(node)
 
     def visit_Ellipsis(self, node):
-        return "discard"
+        return ""
 
     def visit_UnaryOp(self, node):
         return "({0} {1})".format(self.visit(node.op), self.visit(node.operand))
@@ -111,3 +112,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if left_type == "string":
             self._usings.add("strutils")
         return f"{left} in {right}"
+
+    def visit_Expr(self, node) -> str:
+        """Writing assert x > 3 is tedious"""
+        ret = super().visit_Expr(node)
+        if is_global(node) and isinstance(node.value, ast.Compare):
+            return f"(assert {ret})"
+        return ret

@@ -16,7 +16,11 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration, AstTypeNotSupported
+from py2many.exceptions import (
+    AstClassUsedBeforeDeclaration,
+    AstNotImplementedError,
+    AstTypeNotSupported,
+)
 from py2many.tracer import is_list, defined_before
 
 from typing import List
@@ -463,10 +467,10 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        kw = "var" if is_mutable(node.scopes, target) else "let"
-        if type_str == self._default_type:
-            return f"{kw} {target} = {val}"
-        return f"{kw} {target}: {type_str} = {val}"
+        if val == None:
+            return f"(declare-const {target} {type_str})"
+        else:
+            raise AstNotImplementedError(f"{val} can't be assigned", node)
 
     def visit_Assign(self, node):
         lines = [self._visit_AssignOne(node, target) for target in node.targets]
