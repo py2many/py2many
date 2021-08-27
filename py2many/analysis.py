@@ -46,6 +46,14 @@ def is_mutable(scopes, target):
     return False
 
 
+def is_ellipsis(node):
+    return (
+        isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Constant)
+        and node.value.value == ...
+    )
+
+
 class ReturnFinder(ast.NodeVisitor):
     returns = False
 

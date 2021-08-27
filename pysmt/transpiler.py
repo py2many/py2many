@@ -13,7 +13,7 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function, is_ellipsis
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import (
@@ -65,6 +65,9 @@ class SmtTranspiler(CLikeTranspiler):
     def comment(self, text):
         return f";; {text}\n"
 
+    def _visit_DeclareFunc(self, node, return_type):
+        return f"(declare-fun {node.name}() {return_type})"
+
     def visit_FunctionDef(self, node):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)
@@ -86,6 +89,9 @@ class SmtTranspiler(CLikeTranspiler):
                 return_type = f" {typename}"
             else:
                 return_type = ""
+
+        if len(node.body) == 1 and is_ellipsis(node.body[0]):
+            return self._visit_DeclareFunc(node, return_type)
 
         args = "\n".join(args_list)
         funcdef = f"define-fun {node.name}() {return_type}"
