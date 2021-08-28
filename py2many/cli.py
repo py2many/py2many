@@ -3,6 +3,7 @@ import ast
 import functools
 import os
 import sys
+import tempfile
 
 
 from distutils import spawn
@@ -74,6 +75,8 @@ from py2many.rewriters import (
 
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
+STDIN = "-"
+STDOUT = "-"
 CWD = Path.cwd()
 
 
@@ -400,6 +403,8 @@ def _relative_to_cwd(absolute_path):
 
 
 def _get_output_path(filename, ext, outdir):
+    if filename.name == STDIN:
+        return Path(STDOUT)
     directory = outdir / filename.parent
     if not directory.is_dir():
         directory.mkdir(parents=True)
@@ -419,6 +424,24 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     output_path = _get_output_path(
         filename.relative_to(filename.parent), suffix, outdir
     )
+
+    if filename.name == STDIN:
+        # special case for simple pipes
+        output = _process_one_data(sys.stdin.read(), Path("test.py"), settings)
+        tmp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
+                tmp_name = f.name
+                f.write(output.encode("utf-8"))
+            if _format_one(settings, tmp_name, env):
+                sys.stdout.write(open(tmp_name).read())
+            else:
+                sys.stderr.write("Formatting failed")
+        finally:
+            if tmp_name is not None:
+                os.remove(tmp_name)
+        return ({filename}, {filename})
+
     if filename.resolve() == output_path.resolve() and not args.force:
         print(f"Refusing to overwrite {filename}. Use --force to overwrite")
         return False
@@ -617,6 +640,11 @@ def main(args=None, env=os.environ):
     if args.comment_unsupported:
         print("Wrapping unimplemented in comments")
 
+    if len(rest) == 0:
+        # Default is to consume stdin and write to stdout
+        rest = [STDIN]
+        args.outdir = STDOUT
+
     for filename in rest:
         settings = cpp_settings(args, env=env)
         if args.cpp:
@@ -649,7 +677,7 @@ def main(args=None, env=os.environ):
         else:
             outdir = Path(args.outdir)
 
-        if source.is_file():
+        if source.is_file() or source.name == STDIN:
             print(f"Writing to: {outdir}")
             try:
                 rv = _process_one(settings, source, outdir, args, env)
