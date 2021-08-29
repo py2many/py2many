@@ -131,11 +131,11 @@ class KotlinTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"{vargs[0]}.toString()",
+    "str": lambda n, vargs: f"{vargs[0]}.toString()" if vargs else '""',
     # TODO: strings use .length
     "len": lambda n, vargs: f"{vargs[0]}.size",
-    "int": lambda n, vargs: f"{vargs[0]}.toInt()",
-    "bool": lambda n, vargs: f"({vargs[0]} != 0)",
+    "int": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "reversed": lambda n, vargs: f"{vargs[0]}.reversed()",
 }
 

@@ -59,8 +59,9 @@ class NimTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"$({vargs[0]})",
-    "bool": lambda n, vargs: f"bool({vargs[0]})",
+    "str": lambda n, vargs: f"$({vargs[0]})" if vargs else '""',
+    "bool": lambda n, vargs: f"bool({vargs[0]})" if vargs else "false",
+    "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
     "floor": lambda n, vargs: f"int(floor({vargs[0]}))",
 }
 

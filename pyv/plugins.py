@@ -39,10 +39,17 @@ class VTranspilerPlugins:
         return f"println({total_args})"
 
     def visit_bool(self, node: ast.Call, vargs: List[str]) -> str:
+        if not vargs:
+            return "false"
         if get_inferred_v_type(node.args[0]) in V_WIDTH_RANK:
             return f"{self.visit(node.args[0])} != 0"
         else:
             return f"({self.visit(node.args[0])}).bool()"
+
+    def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
+        if not vargs:
+            return "0"
+        return f"int({vargs[0]})"
 
     def visit_min_max(self, node: ast.Call, vargs: List[str]) -> str:
         self._usings.add("arrays")
@@ -57,7 +64,7 @@ class VTranspilerPlugins:
 
 
 SMALL_DISPATCH_MAP: Dict[str, Callable] = {
-    "str": lambda n, vargs: f"({vargs[0]}).str()",
+    "str": lambda n, vargs: f"({vargs[0]}).str()" if vargs else '""',
     "floor": lambda n, vargs: f"int(math.floor({vargs[0]}))",
     "len": lambda n, vargs: f"{vargs[0]}.len",
     "sys.exit": lambda n, vargs: f"exit({vargs[0] if vargs else '0'})",
@@ -89,6 +96,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     range: (VTranspilerPlugins.visit_range, False),
     print: (VTranspilerPlugins.visit_print, False),
     bool: (VTranspilerPlugins.visit_bool, False),
+    int: (VTranspilerPlugins.visit_int, False),
     min: (VTranspilerPlugins.visit_min_max, False),
     max: (VTranspilerPlugins.visit_min_max, False),
 }

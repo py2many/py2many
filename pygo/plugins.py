@@ -130,8 +130,9 @@ class GoTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"String({vargs[0]})",
-    "bool": lambda n, vargs: f"({vargs[0]} != 0)",
+    "str": lambda n, vargs: f"String({vargs[0]})" if vargs else '""',
+    "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
+    "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}

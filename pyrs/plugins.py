@@ -144,6 +144,11 @@ class RustTranspilerPlugins:
 
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
+        if not vargs:
+            if cast_to == "i32":
+                return "0"
+            elif cast_to == "f64":
+                return "0.0"
         return f"{vargs[0]} as {cast_to}"
 
     @staticmethod
@@ -153,12 +158,12 @@ class RustTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"&{vargs[0]}.to_string()",
+    "str": lambda n, vargs: f"&{vargs[0]}.to_string()" if vargs else '""',
     "len": lambda n, vargs: f"{vargs[0]}.len()",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
     "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
     "int": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i32"),
-    "bool": lambda n, vargs: f"({vargs[0]} != 0)",
+    "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "float": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="f64"),
     # as usize below is a hack to pass comb_sort.rs. Need a better solution
     "floor": lambda n, vargs: f"{vargs[0]}.floor() as usize",

@@ -124,11 +124,11 @@ class CppTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "int": lambda n, vargs: f"pycpp::to_int({vargs[0]})",
+    "int": lambda n, vargs: f"pycpp::to_int({vargs[0]})" if vargs else "0",
     # Is pycpp::to_int() necessary?
     # "int": functools.partial(visit_cast, cast_to="i32"),
-    "str": lambda n, vargs: f"std::to_string({vargs[0]})",
-    "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})",
+    "str": lambda n, vargs: f"std::to_string({vargs[0]})" if vargs else '""',
+    "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})" if vargs else "false",
     "len": lambda n, vargs: f"{vargs[0]}.size()",
     "float": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="float"),
     "floor": CppTranspilerPlugins.visit_floor,

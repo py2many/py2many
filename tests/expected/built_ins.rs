@@ -26,6 +26,15 @@ extern crate anyhow;
 use anyhow::Result;
 use std::cmp;
 
+pub fn default_builtins() {
+    let a: &str = "";
+    let b: bool = false;
+    let c: i32 = 0;
+    assert!(a == "");
+    assert!(b == false);
+    assert!(c == 0);
+}
+
 pub fn main() -> Result<()> {
     let a: i32 = cmp::max(1, 2);
     println!("{}", a);

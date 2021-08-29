@@ -105,6 +105,8 @@ class JuiliaTranspilerPlugins:
         return f'println(join([{args}], " "))'
 
     def visit_cast_int(self, node, vargs) -> str:
+        if not vargs:
+            return "0"
         arg_type = self._typename_from_annotation(node.args[0])
         if arg_type is not None and arg_type.startswith("Float"):
             return f"Int64(floor({vargs[0]}))"
@@ -117,11 +119,11 @@ class JuiliaTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"string({vargs[0]})",
+    "str": lambda n, vargs: f"string({vargs[0]})" if vargs else '""',
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
     "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
-    "bool": lambda n, vargs: f"Bool({vargs[0]})",
+    "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else "false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
 }
