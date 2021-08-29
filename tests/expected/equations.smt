@@ -5,4 +5,4 @@
 (assert (< y 10))
 (assert (= (+ x (* 2 y)) 7))
 (check-sat)
-(get-model)
+(get-value (x y))

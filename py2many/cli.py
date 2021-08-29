@@ -678,7 +678,7 @@ def main(args=None, env=os.environ):
             outdir = Path(args.outdir)
 
         if source.is_file() or source.name == STDIN:
-            print(f"Writing to: {outdir}")
+            print(f"Writing to: {outdir}", file=sys.stderr)
             try:
                 rv = _process_one(settings, source, outdir, args, env)
             except Exception as e:
@@ -686,9 +686,12 @@ def main(args=None, env=os.environ):
 
                 formatted_lines = traceback.format_exc().splitlines()
                 if isinstance(e, AstErrorBase):
-                    print(f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                    print(
+                        f"{source}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}",
+                        file=sys.stderr,
+                    )
                 else:
-                    print(f"{source}: {formatted_lines[-1]}")
+                    print(f"{source}: {formatted_lines[-1]}", file=sys.stderr)
                 rv = False
         else:
             if args.outdir is None:

@@ -392,7 +392,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_List(self, node):
         elements = [self.visit(e) for e in node.elts]
-        elements = ", ".join(elements)
+        elements = " ".join(elements)
         return f"@[{elements}]"
 
     def visit_Set(self, node):
@@ -434,7 +434,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
-        elts = ", ".join(elts)
+        elts = " ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
         return "({0})".format(elts)
