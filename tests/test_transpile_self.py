@@ -59,7 +59,7 @@ class SelfTranspileTests(unittest.TestCase):
         transpiler_module = ROOT_DIR / "pyrs"
         assert_only_reformat_failures(
             *_process_dir(
-                settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+                settings, transpiler_module, OUT_DIR, False, _suppress_exceptions=False
             )
         )
 
@@ -68,7 +68,7 @@ class SelfTranspileTests(unittest.TestCase):
 
         assert_only_reformat_failures(
             *_process_dir(
-                settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=False
+                settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False
             ),
         )
 
@@ -78,13 +78,13 @@ class SelfTranspileTests(unittest.TestCase):
         transpiler_module = ROOT_DIR / "pydart"
         assert_only_reformat_failures(
             *_process_dir(
-                settings, transpiler_module, OUT_DIR, _suppress_exceptions=False
+                settings, transpiler_module, OUT_DIR, False, _suppress_exceptions=False
             ),
         )
 
         assert_only_reformat_failures(
             *_process_dir(
-                settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=False
+                settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False
             ),
         )
 
@@ -102,12 +102,17 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 transpiler_module,
                 OUT_DIR,
+                False,
                 _suppress_exceptions=suppress_exceptions,
             )
         )
 
         successful, format_errors, failures = _process_dir(
-            settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
+            settings,
+            PY2MANY_MODULE,
+            OUT_DIR,
+            False,
+            _suppress_exceptions=suppress_exceptions,
         )
         if suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")
@@ -128,6 +133,7 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 transpiler_module,
                 OUT_DIR,
+                False,
                 _suppress_exceptions=suppress_exceptions,
             ),
             expected_success=set(["transpiler.py"]),
@@ -138,6 +144,7 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 PY2MANY_MODULE,
                 OUT_DIR,
+                False,
                 _suppress_exceptions=suppress_exceptions,
             ),
             expected_success={
@@ -172,6 +179,7 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 transpiler_module,
                 OUT_DIR,
+                False,
                 _suppress_exceptions=False,
             )
         )
@@ -180,6 +188,7 @@ class SelfTranspileTests(unittest.TestCase):
                 settings,
                 PY2MANY_MODULE,
                 OUT_DIR,
+                False,
                 _suppress_exceptions=False,
             ),
         )
@@ -192,12 +201,13 @@ class SelfTranspileTests(unittest.TestCase):
             settings,
             transpiler_module,
             OUT_DIR,
+            False,
             _suppress_exceptions=False,
         )
         assert len(successful) >= 11
 
         successful, format_errors, failures = _process_dir(
-            settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=False
+            settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False
         )
         assert len(successful) >= 15
 
@@ -215,13 +225,18 @@ class SelfTranspileTests(unittest.TestCase):
             settings,
             transpiler_module,
             OUT_DIR,
+            False,
             _suppress_exceptions=suppress_exceptions,
         )
         if FileNotFoundError not in suppress_exceptions:
             assert_only_reformat_failures(successful, format_errors, failures)
 
         successful, format_errors, failures = _process_dir(
-            settings, PY2MANY_MODULE, OUT_DIR, _suppress_exceptions=suppress_exceptions
+            settings,
+            PY2MANY_MODULE,
+            OUT_DIR,
+            False,
+            _suppress_exceptions=suppress_exceptions,
         )
         if FileNotFoundError in suppress_exceptions:
             raise unittest.SkipTest(f"{settings.formatter[0]} not available")

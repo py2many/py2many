@@ -100,6 +100,7 @@ class RustTranspiler(CLikeTranspiler):
         self._func_usings_map = FUNC_USINGS_MAP
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._allows = set()
+        self._rust_mods = set()
 
     def usings(self):
         if self._extension:
@@ -110,6 +111,7 @@ class RustTranspiler(CLikeTranspiler):
             set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
         )
         externs = [f"extern crate {dep};" for dep in deps]
+        externs += [f"mod {dep};" for dep in self._rust_mods]
         deps_str = "\n//! ".join([f'{dep} = "*"' for dep in deps])
         externs = "\n".join(externs)
         uses = "\n".join(
@@ -641,10 +643,13 @@ class RustTranspiler(CLikeTranspiler):
             self._usings.add(name)
         return ""
 
-    def _import_from(self, module_name: str, names: List[str]) -> str:
+    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         if module_name in self._rust_ignored_module_set:
             return ""
-        self._usings.add(module_name)
+        if level > 0:
+            self._rust_mods.add(module_name)
+        else:
+            self._usings.add(module_name)
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]

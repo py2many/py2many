@@ -176,7 +176,7 @@ class VTranspiler(CLikeTranspiler):
         # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
         return ""
 
-    def _import_from(self, module_name: str, names: List[str]) -> str:
+    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
         return ""  # f"import {module_name} {{{' '.join(names)}}}"
 

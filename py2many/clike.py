@@ -329,7 +329,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _import(self, name: str) -> str:
         ...
 
-    def _import_from(self, module_name: str, names: List[str]) -> str:
+    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         ...
 
     def visit_Import(self, node) -> str:
@@ -371,7 +371,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             else:
                 self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
-        return self._import_from(imported_name, names)
+        return self._import_from(imported_name, names, node.level)
 
     def visit_Name(self, node) -> str:
         if node.id in self.builtin_constants:

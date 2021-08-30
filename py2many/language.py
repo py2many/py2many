@@ -17,6 +17,10 @@ class LanguageSettings:
     transformers: List[Callable] = field(default_factory=list)
     post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
     linter: Optional[List[str]] = None
+    # Create a language specific project structure
+    create_project: Optional[List[str]] = None
+    # Rust likes source files to live in {project}/src for example
+    project_subdir: Optional[str] = None
 
     def __hash__(self):
         f = tuple(self.formatter) if self.formatter is not None else ()

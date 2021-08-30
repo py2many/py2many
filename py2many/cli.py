@@ -265,9 +265,11 @@ def rust_settings(args, env=os.environ):
         "Rust",
         ["rustfmt", "--edition=2018"],
         None,
-        [RustNoneCompareRewriter()],
-        [functools.partial(infer_rust_types, extension=args.extension)],
-        [RustLoopIndexRewriter(), RustStringJoinRewriter()],
+        rewriters=[RustNoneCompareRewriter()],
+        transformers=[functools.partial(infer_rust_types, extension=args.extension)],
+        post_rewriters=[RustLoopIndexRewriter(), RustStringJoinRewriter()],
+        create_project=["cargo", "new", "--bin"],
+        project_subdir="src",
     )
 
 
@@ -546,8 +548,21 @@ def _process_many(
     return (successful, format_errors)
 
 
-def _process_dir(settings, source, outdir, env=None, _suppress_exceptions=Exception):
+def _process_dir(
+    settings, source, outdir, project, env=None, _suppress_exceptions=Exception
+):
     print(f"Transpiling whole directory to {outdir}:")
+
+    if settings.create_project is not None and project:
+        cmd = settings.create_project + [f"{outdir}"]
+        proc = run(cmd, env=env, capture_output=True)
+        if proc.returncode:
+            cmd_str = " ".join(cmd)
+            print(f"Error: running {cmd_str}: {proc.stderr}")
+            return (set(), set(), set())
+        if settings.project_subdir is not None:
+            outdir = outdir / settings.project_subdir
+
     successful = []
     failures = []
     input_paths = []
@@ -630,6 +645,11 @@ def main(args=None, env=os.environ):
         default=False,
         help="Use typpete for inference",
     )
+    parser.add_argument(
+        "--project",
+        default=True,
+        help="Create a project when using directory mode",
+    )
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args
@@ -698,7 +718,11 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings, source, outdir, env=env
+                settings,
+                source,
+                outdir,
+                args.project,
+                env=env,
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1

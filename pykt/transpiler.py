@@ -379,7 +379,7 @@ class KotlinTranspiler(CLikeTranspiler):
     def _import(self, name: str) -> str:
         return f"import {name};"
 
-    def _import_from(self, module_name: str, names: List[str]) -> str:
+    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]

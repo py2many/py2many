@@ -461,6 +461,7 @@ class CodeGeneratorTests(unittest.TestCase):
         args = [
             f"--{lang}=1",
             str(case_dirname),
+            "--project=0",
             "--outdir",
             str(output_dir),
         ]
