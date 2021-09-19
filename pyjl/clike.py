@@ -61,7 +61,7 @@ julia_keywords = frozenset(
     ]
 )
 
-jl_symbols = {ast.BitXor: "⊻"}
+jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
 
 def jl_symbol(node):
@@ -88,7 +88,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
-            return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
+            return "{0}^{1}".format(self.visit(node.left), self.visit(node.right))
 
         # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
         # To visually communicate this we omit spaces when multiplying and dividing.

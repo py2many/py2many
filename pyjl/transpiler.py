@@ -64,7 +64,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return uses
 
     def comment(self, text):
-        return f"# {text}"
+        return f"#= {text} \n=#"
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
@@ -100,11 +100,17 @@ class JuliaTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            # if typename == "T":
+            #     typename = "T{0}".format(index)
+            #     typedecls.append(typename)
+            #     index += 1
+            # args_list.append("{0}::{1}".format(arg, typename))
+
+            # Allow Julia to infer the types
             if typename == "T":
-                typename = "T{0}".format(index)
-                typedecls.append(typename)
-                index += 1
-            args_list.append("{0}::{1}".format(arg, typename))
+                args_list.append(arg)
+            else:
+                args_list.append("{0}::{1}".format(arg, typename))
 
         return_type = ""
         if not is_void_function(node):
@@ -112,8 +118,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 typename = self._typename_from_annotation(node, attr="returns")
                 return_type = f"::{typename}"
             else:
-                return_type = "::RT"
-                typedecls.append("RT")
+                # return_type = "::RT"
+                # typedecls.append("RT")
+                return_type = ""
 
         template = ""
         if len(typedecls) > 0:
@@ -169,7 +176,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
             return f"(0:{vargs[0]} - 1)"
-        elif len(node.args) == 2:
+        elif (len(node.args) == 2) or ((len(node.args) == 3) and (vargs[2] == "1")):
             return f"({vargs[0]}:{vargs[1]} - 1)"
         elif len(node.args) == 3:
             return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
@@ -201,7 +208,7 @@ class JuliaTranspiler(CLikeTranspiler):
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
                 declared_type = self._typename_from_annotation(fnarg)
-                if actual_type != declared_type and actual_type != self._default_type:
+                if declared_type != None and declared_type != "" and actual_type != declared_type and actual_type != self._default_type:
                     converted.append(f"convert({declared_type}, {varg})")
                 else:
                     converted.append(varg)
@@ -241,9 +248,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 right = f"keys({right})"
 
         if isinstance(node.ops[0], ast.In):
-            return "{0} in {1}".format(left, right)
+            return "{0} in {1}".format(left, right) #  not recognized: \u2208
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0} not in {1}".format(left, right)
+            return "{0} not in {1}".format(left, right) # ∉ not recognized: \u2209
 
         return super().visit_Compare(node)
 
@@ -309,6 +316,8 @@ class JuliaTranspiler(CLikeTranspiler):
             return "std::vector ({0},{1})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
+        elif isinstance(node.op, ast.MatMult):
+            return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
         else:
             return super().visit_BinOp(node)
 
@@ -337,34 +346,50 @@ class JuliaTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append(f"{declaration}::{typename}")
+            fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
-        fields = "\n".join(fields)
-        struct_def = f"struct {node.name}\n{fields}\nend\n"
+        fields = "" if fields == [] else "\n".join(fields) + "\n"
+        struct_def = f"struct {node.name}\n{fields}end\n"
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
         body = "\n".join([self.visit(b) for b in node.body])
         return f"{struct_def}\n{body}"
-
+ 
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
-        self._usings.add("SuperEnum")
-        fields_list = []
+        # self._usings.add("SuperEnum")
+        # fields_list = []
 
-        sep = "=>" if typename == "String" else "="
-        for field, value in fields:
-            fields_list += [
-                f"""\
-                {field} {sep} {value}
-            """
-            ]
-        fields_str = "".join(fields_list)
-        return textwrap.dedent(
-            f"""\
-            @se {node.name} begin\n{fields_str}
-            end
-            """
-        )
+        # sep = "=>" if typename == "String" else "="
+        # for field, value in fields:
+        #     fields_list += [
+        #         f"""\
+        #         {field} {sep} {value}
+        #     """
+        #     ]
+        # fields_str = "".join(fields_list)
+        # return textwrap.dedent(
+        #     f"""\
+        #     @se {node.name} begin\n{fields_str}
+        #     end
+        #     """
+        # )
+
+        # sep = "="
+        field_str = ""
+        # TODO: Find a simpler way (maybe eval and see if it is subtype of Integer)
+        if(typename == "Int64" or typename == "Int32" or typename == "Integer"):
+            for field, value in fields:
+                field_str += f"\t{field} = {value}\n"
+            return textwrap.dedent(
+                f"@enum {node.name}::{typename} begin\n{field_str}end"
+            )
+        else:
+            for field, value in fields:
+                field_str += f"\t{field}\n"
+            return textwrap.dedent(
+                f"@enum {node.name} begin\n{field_str}end"
+            )
 
     def visit_StrEnum(self, node) -> str:
         fields = []
@@ -396,16 +421,16 @@ class JuliaTranspiler(CLikeTranspiler):
     def _import(self, name: str) -> str:
         return f"import {name}"
 
-    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+    def _import_from(self, module_name: str, names: List[str]) -> str:
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
-                jl_module_name = jl_module_name.replace(".", "::")
+                #jl_module_name = jl_module_name.replace(".", "::")
                 return f"using {jl_module_name}: {jl_name}"
-        module_name = module_name.replace(".", "::")
+        #module_name = module_name.replace(".", "::")
         names = ", ".join(names)
         return f"using {module_name}: {names}"
 
@@ -428,6 +453,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
         index = self.visit(node.slice)
+        if index == None:
+            return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
             if value in self.CONTAINER_TYPE_MAP:
                 value = self.CONTAINER_TYPE_MAP[value]
@@ -441,17 +468,16 @@ class JuliaTranspiler(CLikeTranspiler):
             if value_type is not None and value_type[0] == "List":
                 # Julia array indices start at 1
                 return "{0}[{1} + 1]".format(value, index)
-
         return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
 
     def visit_Slice(self, node) -> str:
-        lower = ""
+        lower = "begin"
         if node.lower:
             lower = self.visit(node.lower)
-        upper = ""
+        upper = "end"
         if node.upper:
             upper = self.visit(node.upper)
 
@@ -465,24 +491,34 @@ class JuliaTranspiler(CLikeTranspiler):
         return "({0})".format(elts)
 
     def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
+        buf = []
+        buf.append("try")
+        buf.extend([self.visit(child) for child in node.body])
+        if len(node.handlers) > 0:
+            buf.append("catch exn")
+            for handler in node.handlers:
+                buf.append(self.visit(handler))
+        if node.finalbody:
+            buf.append("finally")
+            buf.extend([self.visit(child) for child in node.finalbody])
+        buf.append("end")
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
-        exception_type = ""
+        buf = []
+        name = "exn"
+        if node.name:
+            buf.append(f" let {node.name} = {name}")
+            name = node.name
         if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
+            type_str = self.visit(node.type)
+            buf.append(f"if {name} isa {type_str}")
+        buf.extend([self.visit(child) for child in node.body])
+        if node.type:
+            buf.append("end")
+        if node.name:
+            buf.append("end")
+        return "\n".join(buf)
 
     def visit_Assert(self, node) -> str:
         return "@assert({0})".format(self.visit(node.test))
@@ -525,7 +561,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target_str = self.visit(target)
             value = self.visit(node.value)
-            return f"{target_str} = {value};"
+            return f"{target_str} = {value}" # There was a semicolon at the end
         else:
             target = self.visit(target)
             value = self.visit(node.value)
@@ -537,10 +573,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "raise!({0}) # unsupported".format(self.visit(node.exc))
+            return "throw({0})".format(self.visit(node.exc))
         # This handles the case where `raise` is used without
         # specifying the exception.
-        return "raise!() # unsupported"
+        return "error()"
 
     def visit_Await(self, node) -> str:
         return "await!({0})".format(self.visit(node.value))
@@ -564,24 +600,31 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(generator.target)
         iter = self.visit(generator.iter)
 
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
+        map_str = "{0} for {1} in {2}".format(elt, target, iter)
         filter_str = ""
         if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+            filter_str = " if {0}".format(self.visit(generator.ifs[0]))
+        return "{0}{1}".format(map_str, filter_str)
 
     def visit_ListComp(self, node) -> str:
-        return self.visit_GeneratorExp(node)  # right now they are the same
+        return "[" + self.visit_GeneratorExp(node) + "]"
 
+    def visit_DictComp(self, node) -> str:
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+        generator = node.generators[0]
+        target = self.visit(generator.target)
+        iter = self.visit(generator.iter)
+
+        map_str = "{0}=>{1} for ({0}, {1}) in {2}".format(key, value, iter)
+        filter_str = ""
+        if generator.ifs:
+            filter_str = " if {0}".format(self.visit(generator.ifs[0]))
+        return "Dict({0}{1})".format(map_str, filter_str)
+    
     def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
+        # return "//global {0}".format(", ".join(node.names)) # Why "//" --> similar to Rust
+        return "global {0}".format(", ".join(node.names))
 
     def visit_Starred(self, node) -> str:
         return "starred!({0})/*unsupported*/".format(self.visit(node.value))
