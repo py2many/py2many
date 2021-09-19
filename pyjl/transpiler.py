@@ -309,6 +309,8 @@ class JuliaTranspiler(CLikeTranspiler):
             return "std::vector ({0},{1})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
+        elif isinstance(node.op, ast.MatMult):
+            return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
         else:
             return super().visit_BinOp(node)
 
