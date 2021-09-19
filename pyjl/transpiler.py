@@ -465,24 +465,34 @@ class JuliaTranspiler(CLikeTranspiler):
         return "({0})".format(elts)
 
     def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
+        buf = []
+        buf.append("try")
+        buf.extend([self.visit(child) for child in node.body])
+        if len(node.handlers) > 0:
+            buf.append("catch exn")
+            for handler in node.handlers:
+                buf.append(self.visit(handler))
+        if node.finalbody:
+            buf.append("finally")
+            buf.extend([self.visit(child) for child in node.finalbody])
+        buf.append("end")
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
-        exception_type = ""
+        buf = []
+        name = "exn"
+        if node.name:
+            buf.append(f" let {node.name} = {name}")
+            name = node.name
         if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
+            type_str = self.visit(node.type)
+            buf.append(f"if {name} isa {type_str}")
+        buf.extend([self.visit(child) for child in node.body])
+        if node.type:
+            buf.append("end")
+        if node.name:
+            buf.append("end")
+        return "\n".join(buf)
 
     def visit_Assert(self, node) -> str:
         return "@assert({0})".format(self.visit(node.test))
