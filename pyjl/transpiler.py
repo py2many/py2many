@@ -308,15 +308,15 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
-        if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
-        ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        elif isinstance(node.op, ast.MatMult):
+        # if (
+        #     isinstance(node.left, ast.List)
+        #     and isinstance(node.op, ast.Mult)
+        #     and isinstance(node.right, ast.Num)
+        # ):
+        #     return "std::vector ({0},{1})".format(
+        #         self.visit(node.right), self.visit(node.left.elts[0])
+        #     )
+        if isinstance(node.op, ast.MatMult):
             return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
         else:
             return super().visit_BinOp(node)
@@ -357,38 +357,21 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{struct_def}\n{body}"
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
-        # self._usings.add("SuperEnum")
-        # fields_list = []
-
-        # sep = "=>" if typename == "String" else "="
-        # for field, value in fields:
-        #     fields_list += [
-        #         f"""\
-        #         {field} {sep} {value}
-        #     """
-        #     ]
-        # fields_str = "".join(fields_list)
-        # return textwrap.dedent(
-        #     f"""\
-        #     @se {node.name} begin\n{fields_str}
-        #     end
-        #     """
-        # )
-
-        # sep = "="
         field_str = ""
-        # TODO: Find a simpler way (maybe eval and see if it is subtype of Integer)
-        if(typename == "Int64" or typename == "Int32" or typename == "Integer"):
+        # TODO: Find a simpler way
+        integerTypes = ["Int64", "Int32", "UInt128", "Uint64", "Uint32", "Uint16", "UInt8", "Integer"]
+        if(typename in integerTypes):
             for field, value in fields:
                 field_str += f"\t{field} = {value}\n"
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
         else:
+            self._usings.add("PyEnum")
             for field, value in fields:
                 field_str += f"\t{field}\n"
             return textwrap.dedent(
-                f"@enum {node.name} begin\n{field_str}end"
+                f"@pyenum {node.name} begin\n{field_str}end"
             )
 
     def visit_StrEnum(self, node) -> str:
@@ -421,18 +404,31 @@ class JuliaTranspiler(CLikeTranspiler):
     def _import(self, name: str) -> str:
         return f"import {name}"
 
+    # def _import_from(self, module_name: str, names: List[str]) -> str:
+    #     if len(names) == 1:
+    #         # TODO: make this more generic so it works for len(names) > 1
+    #         name = names[0]
+    #         lookup = f"{module_name}.{name}"
+    #         if lookup in MODULE_DISPATCH_TABLE:
+    #             jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
+    #             #jl_module_name = jl_module_name.replace(".", "::")
+    #             return f"using {jl_module_name}: {jl_name}"
+    #     #module_name = module_name.replace(".", "::")
+    #     names = ", ".join(names)
+    #     return f"using {module_name}: {names}"
+
     def _import_from(self, module_name: str, names: List[str]) -> str:
-        if len(names) == 1:
-            # TODO: make this more generic so it works for len(names) > 1
-            name = names[0]
+        jl_module_name = module_name
+        imports = []
+        for name in names:
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
-                #jl_module_name = jl_module_name.replace(".", "::")
-                return f"using {jl_module_name}: {jl_name}"
-        #module_name = module_name.replace(".", "::")
-        names = ", ".join(names)
-        return f"using {module_name}: {names}"
+                imports.append(jl_name)
+            else:
+                imports.append(name)
+        str_imports = ", ".join(imports)
+        return f"using {jl_module_name}: {str_imports}"
 
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
@@ -558,14 +554,13 @@ class JuliaTranspiler(CLikeTranspiler):
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
             definition = node.scopes.find(get_id(target))
+
+        target_str = self.visit(target)
+        value = self.visit(node.value)
+        expr = f"{target_str} = {value}"
         if isinstance(target, ast.Name) and defined_before(definition, node):
-            target_str = self.visit(target)
-            value = self.visit(node.value)
-            return f"{target_str} = {value}" # There was a semicolon at the end
-        else:
-            target = self.visit(target)
-            value = self.visit(node.value)
-            return f"{target} = {value}"
+            f"{expr};"
+        return expr
 
     def visit_Delete(self, node) -> str:
         target = node.targets[0]

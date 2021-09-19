@@ -154,6 +154,7 @@ def _transpile(
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
                 raise
             outputs[filename] = "FAILED"
+            # outputs[filename] = str(e) 
     # return output in the same order as input
     output_list = [outputs[f] for f in filenames]
     return output_list, successful

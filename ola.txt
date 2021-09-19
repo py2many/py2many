@@ -1,0 +1,4 @@
+tests\new_tests\bin_op_test.py ... tests\new_tests\bin_op_test.jl
+tests\new_tests\bin_op_test.py:8:11: py2many.exceptions.AstUnrecognisedBinOp: int <class 'ast.Mult'> None
+Error: Could not format: tests\new_tests\bin_op_test.jl
+Due to: FileNotFoundError [WinError 2] The system cannot find the file specified
