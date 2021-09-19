@@ -547,10 +547,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "raise!({0}) # unsupported".format(self.visit(node.exc))
+            return "throw({0})".format(self.visit(node.exc))
         # This handles the case where `raise` is used without
         # specifying the exception.
-        return "raise!() # unsupported"
+        return "error()"
 
     def visit_Await(self, node) -> str:
         return "await!({0})".format(self.visit(node.value))

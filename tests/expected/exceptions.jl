@@ -1,6 +1,6 @@
 function show()
     try
-        raise!(Exception("foo")) # unsupported
+        throw(Exception("foo"))
     catch exn
         let e = exn
             if e isa Exception
@@ -11,7 +11,7 @@ function show()
         println(join(["Finally"], " "))
     end
     try
-        raise!(Exception("foo")) # unsupported
+        throw(Exception("foo"))
     catch exn
         println(join(["Got it"], " "))
     end
