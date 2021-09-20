@@ -1,9 +1,109 @@
 import ast
 
-from py2many.exceptions import AstUnrecognisedBinOp
+from dataclasses import dataclass
+from typing import cast, Set, Optional
+
+from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
+from py2many.ast_helpers import create_ast_node, unparse
+from py2many.astx import LifeTime
+from py2many.clike import CLikeTranspiler, class_for_typename
+from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
+from py2many.tracer import is_enum
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
+JULIA_TYPE_MAP = {
+    bool: "Bool",
+    int: "Int64",
+    float: "Float64",
+    bytes: "Array{UInt8}",
+    str: "String",
+    c_int8: "Int8",
+    c_int16: "Int16",
+    c_int32: "Int32",
+    c_int64: "Int64",
+    c_uint8: "UInt8",
+    c_uint16: "UInt16",
+    c_uint32: "UInt32",
+    c_uint64: "UInt64",
+}
+
+INTEGER_TYPES = (
+    [
+        "Int64", 
+        "Int32", 
+        "UInt128", 
+        "Uint64", 
+        "Uint32", 
+        "Uint16", 
+        "UInt8", 
+        "Integer"
+    ]
+)
+
+NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
 class InferJuliaTypesTransformer(ast.NodeTransformer):
+    """
+    Implements Julia type inference logic
+    """
+
+    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
+    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
+    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
+
+    def visit_Return(self, node):
+        self.generic_visit(node)
+        new_type_str = (
+            get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
+        )
+        if new_type_str is None:
+            return node
+        for scope in node.scopes:
+            type_str = None
+            if isinstance(scope, ast.FunctionDef):
+                type_str = get_id(scope.returns)
+                if type_str is not None:
+                    if new_type_str != type_str:
+                        type_str = f"Union[{type_str},{new_type_str}]"
+                        scope.returns.id = type_str
+                else:
+                    # Do not overwrite source annotation with inferred
+                    if scope.returns is None:
+                        scope.returns = ast.Name(id=new_type_str)
+                        lifetime = getattr(node.value.annotation, "lifetime", None)
+                        if lifetime is not None:
+                            scope.returns.lifetime = lifetime
+        return node
+
+    def _handle_overflow(self, op, left_id, right_id):
+        widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
+        left_class = class_for_typename(left_id, None)
+        right_class = class_for_typename(right_id, None)
+        left_idx = (
+            self.FIXED_WIDTH_INTS_LIST.index(left_class)
+            if left_class in self.FIXED_WIDTH_INTS
+            else -1
+        )
+        right_idx = (
+            self.FIXED_WIDTH_INTS_LIST.index(right_class)
+            if right_class in self.FIXED_WIDTH_INTS
+            else -1
+        )
+        max_idx = max(left_idx, right_idx)
+        cint64_idx = self.FIXED_WIDTH_INTS_LIST.index(c_int64)
+        if widening_op:
+            if max_idx not in {-1, cint64_idx, len(self.FIXED_WIDTH_INTS_LIST) - 1}:
+                # i8 + i8 => i16 for example
+                return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx + 1]
+        if left_id == "float" or right_id == "float":
+            return "float"
+        return left_id if left_idx > right_idx else right_id
+
+    ######################################################
+    ###################### Modified ######################
+    ######################################################
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -92,10 +192,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id=left_id)
             return node
 
-        LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add), ("int", ast.Add)}
+        # LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add), ("int", ast.Add)}
 
         # if left_id is not None and (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
         #     raise AstUnrecognisedBinOp(left_id, right_id, node)
 
         return node
 
+def infer_julia_types(node, extension=False):
+    visitor = InferJuliaTypesTransformer()
+    visitor.visit(node)

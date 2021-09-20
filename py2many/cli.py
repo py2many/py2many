@@ -2,6 +2,7 @@ import argparse
 import ast
 import functools
 import os
+from pyjl.inference import infer_julia_types
 import sys
 import tempfile
 
@@ -281,14 +282,14 @@ def julia_settings(args, env=os.environ):
     else:
         format_jl = ["format.jl", "-v"]
     return LanguageSettings(
-        JuliaTranspiler(),
-        ".jl",
-        "Julia",
-        format_jl,
-        None,
-        [],
-        [],
-        [JuliaMethodCallRewriter()],
+        transpiler=JuliaTranspiler(),
+        ext=".jl",
+        display_name="Julia",
+        formatter=format_jl,
+        indent=None,
+        rewriters=[],
+        transformers=[infer_julia_types],
+        post_rewriters=[JuliaMethodCallRewriter()],
     )
 
 

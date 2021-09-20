@@ -1,4 +1,9 @@
 import ast
+from py2many.exceptions import AstIncompatibleAssign
+from .inference import (
+    NUM_TYPES,
+    INTEGER_TYPES
+)
 import textwrap
 
 from .clike import CLikeTranspiler
@@ -17,7 +22,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import List, Tuple
+from typing import Collection, List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -46,6 +51,9 @@ class JuliaTranspiler(CLikeTranspiler):
         "Set": "Set",
         "Optional": "Nothing",
     }
+
+    # TODO: See if there is a way to do it better
+    VARIABLE_TYPES = {}
 
     def __init__(self):
         super().__init__()
@@ -308,16 +316,26 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
-        # if (
-        #     isinstance(node.left, ast.List)
-        #     and isinstance(node.op, ast.Mult)
-        #     and isinstance(node.right, ast.Num)
-        # ):
-        #     return "std::vector ({0},{1})".format(
-        #         self.visit(node.right), self.visit(node.left.elts[0])
-        #     )
+        if isinstance(node.op, ast.Mult):
+            if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
+                (isinstance(node.right, ast.Num) and self.VARIABLE_TYPES[node.left.id] in NUM_TYPES) or
+                (isinstance(node.left, ast.Num) and self.VARIABLE_TYPES[node.right.id] in NUM_TYPES)):
+                return "{0}*{1}".format(
+                    self.visit(node.left), self.visit(node.right)
+                )
+            elif(isinstance(node.right, ast.Num)):
+                left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
+                return "repeat({0},{1})".format(
+                    left, self.visit(node.right)
+                )
+            elif(isinstance(node.left, ast.Num)):
+                right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
+                return "repeat({0},{1})".format(
+                    right, self.visit(node.left)
+                )
         if isinstance(node.op, ast.MatMult):
-            return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
+            if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
+                return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
         else:
             return super().visit_BinOp(node)
 
@@ -359,8 +377,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
         field_str = ""
         # TODO: Find a simpler way
-        integerTypes = ["Int64", "Int32", "UInt128", "Uint64", "Uint32", "Uint16", "UInt8", "Integer"]
-        if(typename in integerTypes):
+        if(typename in INTEGER_TYPES):
             for field, value in fields:
                 field_str += f"\t{field} = {value}\n"
             return textwrap.dedent(
@@ -521,6 +538,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
+        # TODO: See if this is best method
+        if(target in self.VARIABLE_TYPES and self.VARIABLE_TYPES[target] != type_str):
+            raise AstIncompatibleAssign(f"{type_str} incompatible with {self.VARIABLE_TYPES[target]}", node)
+        self.VARIABLE_TYPES[target] = type_str
         if type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"
