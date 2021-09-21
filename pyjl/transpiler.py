@@ -316,6 +316,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
+        # print(node.value.julia_annotation)
         if isinstance(node.op, ast.Mult):
             if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
                 (isinstance(node.right, ast.Num) and self.VARIABLE_TYPES[node.left.id] in NUM_TYPES) or
@@ -434,6 +435,7 @@ class JuliaTranspiler(CLikeTranspiler):
     #     names = ", ".join(names)
     #     return f"using {module_name}: {names}"
 
+    # New more generic import function
     def _import_from(self, module_name: str, names: List[str]) -> str:
         jl_module_name = module_name
         imports = []

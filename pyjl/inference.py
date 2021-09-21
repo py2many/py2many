@@ -122,11 +122,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
         if left is None and right is not None:
-            node.annotation = right # TODO: See if types need translation
+            # node.annotation = right
+            node.julia_annotation = map_type(get_id(right))
             return node
 
         if right is None and left is not None:
-            node.annotation = left # TODO: See if types need translation
+            # node.annotation = left
+            node.julia_annotation = map_type(get_id(left))
             return node
 
         if right is None and left is None:
@@ -140,9 +142,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
             ):
-                node.annotation = left
+                # node.annotation = left
+                node.julia_annotation = map_type(get_id(left))
             else:
-                node.annotation = ast.Name(id="float")
+                # node.annotation = ast.Name(id="float")
+                node.julia_annotation = map_type("float")
             return node
 
         if left_id == "int":
@@ -155,43 +159,48 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.annotation = ast.Name(id=ret)
+            # node.annotation = ast.Name(id=ret)
+            node.julia_annotation = ret
             return node
-        if left_id == right_id: # Check this. In rust it was removed
+        if left_id == right_id:
             # Exceptions: division operator
-            if isinstance(node.op, ast.Div):
-                if left_id == "int":
-                    node.annotation = ast.Name(id="float")
-                    return node
-            node.annotation = left
+            # if isinstance(node.op, ast.Div):
+            #     if left_id == "int":
+            #         node.annotation = ast.Name(id="float")
+            #         return node
+            # node.annotation = left
+            node.julia_annotation = map_type("float")
             return node
-
-        if left_id in self.FIXED_WIDTH_INTS_NAME:
-            left_id = "int"
-        if right_id in self.FIXED_WIDTH_INTS_NAME:
-            right_id = "int"
-        if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-            node.annotation = ast.Name(id="float")
-            return node
-        if (left_id, right_id) in {
-            ("int", "complex"),
-            ("complex", "int"),
-            ("float", "complex"),
-            ("complex", "float"),
-        }:
-            node.annotation = ast.Name(id="complex")
-            return node
+        else:
+            if left_id in self.FIXED_WIDTH_INTS_NAME:
+                left_id = "int"
+            if right_id in self.FIXED_WIDTH_INTS_NAME:
+                right_id = "int"
+            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
+                # node.annotation = ast.Name(id="float")
+                node.julia_annotation = map_type("float")
+                return node
+            # TODO: review complex
+            if (left_id, right_id) in { 
+                ("int", "complex"),
+                ("complex", "int"),
+                ("float", "complex"),
+                ("complex", "float"),
+            }:
+                node.annotation = ast.Name(id="complex")
+                return node
 
         # Container multiplication
-        if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
-            {"bytes", "int"},
-            {"str", "int"},
-            {"tuple", "int"},
-            {"List", "int"},
-        ]:
-            node.annotation = ast.Name(id=left_id)
-            return node
+        # if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
+        #     {"bytes", "int"},
+        #     {"str", "int"},
+        #     {"tuple", "int"},
+        #     {"List", "int"},
+        # ]:
+        #     node.annotation = ast.Name(id=left_id)
+        #     return node
 
+        # TODO: Check for legal combinations in Julia
         # LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add), ("int", ast.Add)}
 
         # if left_id is not None and (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
@@ -202,3 +211,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
+
+def map_type(typename) :
+    typeclass = class_for_typename(typename, "Any")
+    if typeclass in JULIA_TYPE_MAP:
+        return JULIA_TYPE_MAP[typeclass]
+    return typename
