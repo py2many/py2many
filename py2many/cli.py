@@ -276,11 +276,13 @@ def rust_settings(args, env=os.environ):
 
 
 def julia_settings(args, env=os.environ):
-    format_jl = spawn.find_executable("format.jl")
+    # format_jl = spawn.find_executable("format.jl")
+    # print(os.path.exists("pyjl/formatter"))
+    format_jl = spawn.find_executable("Format.jl", path="pyjl/formatter")
     if format_jl:
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
-    else:
-        format_jl = ["format.jl", "-v"]
+    # else:
+    #     format_jl = ["Format.jl", "-v"]
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
         ext=".jl",
@@ -467,7 +469,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     return True
 
 
-def _format_one(settings, output_path, env=None):
+def _format_one(settings: LanguageSettings, output_path, env=None):
     try:
         restore_cwd = False
         if settings.ext == ".kt" and output_path.parts[0] == "..":

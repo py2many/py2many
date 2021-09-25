@@ -69,16 +69,26 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return node.id + "_"
-        elif node_id in self._import_aliases:
-            return self._import_aliases[node_id]
-        node_id_elems = node_id.split(".")
-        if(len(node_id_elems) > 1 and node_id_elems[0] in self._import_aliases):
-            # TODO: Not being able to remove + Function declarations still missing
-            node_id_elems.remove(node_id_elems[0])
-            node_elems = ".".join(node_id_elems)
-            new_import = f"{self._import_aliases[node_id_elems[0]]}.{node_elems}"
-            return new_import
+        julia_typename = self.visit_alias_import_typename(node_id)
+        if(julia_typename != None):
+            return julia_typename
         return super().visit_Name(node)
+
+    # Custom made function to visit type names originated from imports
+    def visit_alias_import_typename(self, typename) -> str:
+        if typename in self._import_aliases:
+            return self._import_aliases[typename]
+        typename_elems = typename.split(".")
+        first_elem = typename_elems[0]
+        if(first_elem in self._import_aliases):
+            if(len(typename_elems) == 1):
+                return self._import_aliases[first_elem]
+
+            node_elems = ""
+            for i in range(1, len(typename_elems)):
+                node_elems += "." + typename_elems[i]
+            return f"{self._import_aliases[first_elem]}{node_elems}"
+        return None
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):

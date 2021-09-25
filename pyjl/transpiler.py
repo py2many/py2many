@@ -108,17 +108,17 @@ class JuliaTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            # if typename == "T":
-            #     typename = "T{0}".format(index)
-            #     typedecls.append(typename)
-            #     index += 1
-            # args_list.append("{0}::{1}".format(arg, typename))
+            # Resolve alias imports
+            resolved_import = super().visit_alias_import_typename(typename)
+            if(resolved_import != None):
+                typename = resolved_import
+            elif typename == "T": 
+                # Allow the user to know that type is generic
+                typename = "T{0}".format(index)
+                typedecls.append(typename)
+                index += 1
 
-            # Allow Julia to infer the types
-            if typename == "T":
-                args_list.append(arg)
-            else:
-                args_list.append("{0}::{1}".format(arg, typename))
+            args_list.append("{0}::{1}".format(arg, typename))
 
         return_type = ""
         if not is_void_function(node):
@@ -126,8 +126,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 typename = self._typename_from_annotation(node, attr="returns")
                 return_type = f"::{typename}"
             else:
-                # return_type = "::RT"
-                # typedecls.append("RT")
+                # Allow Julia to infer types
                 return_type = ""
 
         template = ""
