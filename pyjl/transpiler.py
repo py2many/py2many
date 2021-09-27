@@ -376,12 +376,14 @@ class JuliaTranspiler(CLikeTranspiler):
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
         field_str = ""
+        # TODO: Cover enum.unique
         # TODO: Find a simpler way
-        if(typename in INTEGER_TYPES):
+        if(typename in INTEGER_TYPES): # and not unique
+            self._usings.add("CEnum")
             for field, value in fields:
                 field_str += f"\t{field} = {value}\n"
             return textwrap.dedent(
-                f"@enum {node.name}::{typename} begin\n{field_str}end"
+                f"@cenum {node.name}::{typename} begin\n{field_str}end"
             )
         else:
             self._usings.add("PyEnum")
