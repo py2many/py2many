@@ -1,6 +1,6 @@
 import ast
 
-code ="""
+code = """
 def show_res():
     a: List[int] = []
     for i in range(0, 10):
@@ -9,7 +9,7 @@ def show_res():
     return 2*a #type=List
 """
 
-code2= """
+code2 = """
 from adt import sealed
 from dataclasses import dataclass
 
@@ -35,8 +35,17 @@ if __name__ == "__main__":
     print("OK")
 """
 
+code3 = """
+def show_res():
+    # value = " ".join(str(x) for x in range(10) if x > 4 if x < 8)
+    value = "\n".join((str(x)+" " +str(y)) for x in range(10) if x > 4 for y in range(8))
+    print(value)
+"""
+
 if __name__ == "__main__":
     tree = ast.parse(code)
     tree2 = ast.parse(code2)
-    print(ast.dump(tree, indent=4))
+    tree3 = ast.parse(code3)
+    # print(ast.dump(tree, indent=4))
     # print(ast.dump(tree2, indent=4))
+    print(ast.dump(tree3, indent=4))

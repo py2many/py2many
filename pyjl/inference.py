@@ -46,6 +46,44 @@ NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
 VARIABLE_TYPES = {}
 
+#########################################################
+
+def infer_julia_types(node, extension=False):
+    visitor = InferJuliaTypesTransformer()
+    visitor.visit(node)
+
+def map_type(typename) :
+    typeclass = class_for_typename(typename, "Any")
+    if typeclass in JULIA_TYPE_MAP:
+        return JULIA_TYPE_MAP[typeclass]
+    return typename
+
+def get_inferred_julia_type(node):
+    if hasattr(node, "julia_annotation"):
+        return node.julia_annotation
+    if isinstance(node, ast.Name):
+        if not hasattr(node, "scopes"):
+            return None
+        definition = node.scopes.find(get_id(node))
+        # Prevent infinite recursion
+        if definition and definition != node:
+            return get_inferred_julia_type(definition)
+    python_type = get_inferred_type(node)
+    ret = map_type(get_id(python_type))
+    node.julia_annotation = ret
+    return ret
+
+def add_julia_annotation(node, left_default, right_default) :
+    node.left.julia_annotation = left_default
+    node.right.julia_annotation = right_default
+    if(get_id(node.left) in VARIABLE_TYPES):
+        node.left.julia_annotation = VARIABLE_TYPES[get_id(node.left)]
+    if(get_id(node.right) in VARIABLE_TYPES):
+        node.right.julia_annotation = VARIABLE_TYPES[get_id(node.right)]
+
+
+#########################################################
+
 class InferJuliaTypesTransformer(ast.NodeTransformer):
     """
     Implements Julia type inference logic
@@ -120,7 +158,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             self.has_fixed_width_ints = True
 
         # if target (a.k.a node name) is not mapped, map it with corresponding value type
-        annotation = get_inferred_julia_type(node.value)
+        annotation = get_inferred_julia_type(node)
         target_id = get_id(target)
         if(target_id in VARIABLE_TYPES and VARIABLE_TYPES[target_id] != annotation):
             raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[target]}", node)
@@ -155,16 +193,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
         if left is None and right is not None:
-            # node.annotation = right
             node.julia_annotation = map_type(get_id(right))
+            add_julia_annotation(node, None, map_type(get_id(right)))
             return node
 
         if right is None and left is not None:
-            # node.annotation = left
             node.julia_annotation = map_type(get_id(left))
+            add_julia_annotation(node, map_type(get_id(left)), None)
             return node
 
         if right is None and left is None:
+            # See if types can be found in VARIABLE_TYPES
+            add_julia_annotation(node, None, None)
             return node
 
         # Both operands are annotated. Now we have interesting cases
@@ -174,10 +214,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
             ):
-                # node.annotation = left
                 node.julia_annotation = map_type(get_id(left))
             else:
-                # node.annotation = ast.Name(id="float")
                 node.julia_annotation = map_type("float")
             return node
 
@@ -191,7 +229,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            # node.annotation = ast.Name(id=ret)
             node.julia_annotation = ret
             return node
         if left_id == right_id:
@@ -211,7 +248,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if right_id in self.FIXED_WIDTH_INTS_NAME:
                 right_id = "int"
             if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                # node.annotation = ast.Name(id="float")
                 node.julia_annotation = map_type("float")
             # TODO: review complex
             elif (left_id, right_id) in { 
@@ -224,12 +260,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 return node
 
         # By default, the types are left_id and right_id respectively
-        node.left.julia_annotation = left_id
-        node.right.julia_annotation = right_id
-        if(get_id(node.left) in VARIABLE_TYPES):
-            node.left.julia_annotation = VARIABLE_TYPES[get_id(node.left)]
-        if(get_id(node.right) in VARIABLE_TYPES):
-            node.right.julia_annotation = VARIABLE_TYPES[get_id(node.right)]
+        add_julia_annotation(node, left_id, right_id)
         
         # Container multiplication
         # if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
@@ -241,34 +272,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         #     node.annotation = ast.Name(id=left_id)
         #     return node
 
-        LEGAL_COMBINATIONS = {(ast.Num, ast.List, ast.Mult), (ast.List, ast.Num, ast.Mult), (ast.Num, ast.Num, ast.Mult),
-            (ast.Num, ast.Num, ast.Add), (ast.Num, ast.Num, ast.Div), (ast.List, ast.List, ast.Add)}
+        LEGAL_COMBINATIONS = {("str", "str", ast.Add), ("int", "list", ast.Mult), ("list", "int", ast.Mult), ("int", "int", ast.Mult),
+            ("int", "int", ast.Add), ("int", "int", ast.Div), ("list", "list", ast.Add)}
 
-        if left_id is not None and right_id is not None and (node.left, node.right, type(node.op)) not in LEGAL_COMBINATIONS:
+        if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) not in LEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-def infer_julia_types(node, extension=False):
-    visitor = InferJuliaTypesTransformer()
-    visitor.visit(node)
 
-def map_type(typename) :
-    typeclass = class_for_typename(typename, "Any")
-    if typeclass in JULIA_TYPE_MAP:
-        return JULIA_TYPE_MAP[typeclass]
-    return typename
-
-def get_inferred_julia_type(node):
-    if hasattr(node, "julia_annotation"):
-        return node.julia_annotation
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition and definition != node:
-            return get_inferred_julia_type(definition)
-    python_type = get_inferred_type(node)
-    ret = map_type(get_id(python_type))
-    node.julia_annotation = ret
-    return ret

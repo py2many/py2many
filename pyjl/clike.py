@@ -1,10 +1,14 @@
 import ast
-from typing import Any, Dict
+from py2many.astx import LifeTime
+from typing import Any, Dict, Union
 from py2many.ast_helpers import get_id
+import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from .inference import JULIA_TYPE_MAP
 import importlib
+
+logger = logging.Logger("pyjl")
 
 # allowed as names in Python but treated as keywords in Julia
 julia_keywords = frozenset(
@@ -47,11 +51,30 @@ julia_keywords = frozenset(
 
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
+#########################################################
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
     symbol_type = type(node)
     return jl_symbols[symbol_type]
+
+# TODO
+def class_for_typename(typename, default_type, locals=None) -> Union[str, object]:
+    if typename is None:
+        return None
+    if typename == "super" or typename.startswith("super()"):
+        # Cant eval super; causes RuntimeError
+        return None
+    try:
+        # TODO: take into account any imports happening in the file being parsed
+        # and pass them into eval
+        typeclass = eval(typename, globals(), locals)
+        return typeclass
+    except (NameError, SyntaxError, AttributeError, TypeError):
+        logger.info(f"could not evaluate {typename}")
+        return default_type
+
+#########################################################
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
@@ -157,3 +180,25 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             self._import_aliases[asname] = name # Added
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
+
+    # TODO
+    ################################################
+    ######### Supporting super class calls #########
+    ################################################
+    def _func_for_lookup(self, fname) -> Union[str, object]:
+        func = class_for_typename(fname, None, self._imported_names)
+        if func is None:
+            return None
+        try:
+            hash(func)
+        except TypeError:
+            # Ignore unhashable, probably instance
+            logger.debug(f"{func} is not hashable")
+            return None
+        return func
+
+    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
+        typeclass = class_for_typename(typename, self._default_type)
+        return self._type_map.get(typeclass, typename)

@@ -8,14 +8,14 @@ from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
 
 try:
-    from argparse_dataclass import dataclass as ap_dataclass
-    from argparse_dataclass import ArgumentParser
+    from dataclasses import dataclass as ap_dataclass
+    from dataclasses import ArgumentParser
 except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
 
-class JuiliaTranspilerPlugins:
+class JuliaTranspilerPlugins:
     def visit_argparse_dataclass(self, node):
         fields = []
         for (
@@ -30,21 +30,20 @@ class JuiliaTranspilerPlugins:
                 default_value = f', default_value = "{default_value}"'
             else:
                 default_value = ""
-            fields.append(
-                f"#[structopt(short, long{default_value})]\npub {declaration}: {typename},"
-            )
+            fields.append(f"{declaration}: {typename}")
         fields = "\n".join(fields)
-        self._usings.add("structopt::StructOpt")
         clsdef = "\n" + textwrap.dedent(
             f"""\
-        #[derive(Debug, StructOpt)]
-        #[structopt(name = "{self._module}", about = "Placeholder")]
-        struct {node.name} {{
+        struct {node.name}
             {fields}
-        }}
+        end
         """
         )
         return clsdef
+
+    #################################################
+    ################# TODO from here ################
+    #################################################
 
     def visit_open(self, node, vargs):
         self._usings.add("std::fs::File")
@@ -102,7 +101,8 @@ class JuiliaTranspilerPlugins:
 
     def visit_print(self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)
-        return f'println(join([{args}], " "))'
+        # return f'println(join([{args}], " "))'
+        return f"println({args})"
 
     def visit_cast_int(self, node, vargs) -> str:
         arg_type = self._typename_from_annotation(node.args[0])
@@ -131,17 +131,17 @@ SMALL_USINGS_MAP = {
 }
 
 DISPATCH_MAP = {
-    "range": JuiliaTranspilerPlugins.visit_range,
-    "xrange": JuiliaTranspilerPlugins.visit_range,
-    "print": JuiliaTranspilerPlugins.visit_print,
-    "int": JuiliaTranspilerPlugins.visit_cast_int,
+    "range": JuliaTranspilerPlugins.visit_range,
+    "xrange": JuliaTranspilerPlugins.visit_range,
+    "print": JuliaTranspilerPlugins.visit_print,
+    "int": JuliaTranspilerPlugins.visit_cast_int,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_ap_dataclass}
+DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_ap_dataclass}
 
-CLASS_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_argparse_dataclass}
+CLASS_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass}
 
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
@@ -157,10 +157,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
-    open: (JuiliaTranspilerPlugins.visit_open, True),
-    NamedTemporaryFile: (JuiliaTranspilerPlugins.visit_named_temp_file, True),
-    io.TextIOWrapper.read: (JuiliaTranspilerPlugins.visit_textio_read, True),
-    io.TextIOWrapper.read: (JuiliaTranspilerPlugins.visit_textio_write, True),
+    open: (JuliaTranspilerPlugins.visit_open, True),
+    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
+    io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
 }
