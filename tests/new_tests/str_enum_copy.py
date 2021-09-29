@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from enum import Enum
+from enum import Enum, unique
 
+@unique
 class Colors(str, Enum):
     RED = "red"
     GREEN = "green"

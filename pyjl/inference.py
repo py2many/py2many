@@ -106,6 +106,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ######################################################
 
     def visit_BinOp(self, node):
+        print("ola")
         self.generic_visit(node)
 
         if isinstance(node.left, ast.Name):

@@ -1,6 +1,5 @@
-using PyEnum
 
-@pyenum Colors begin
+@enum Colors::String begin
 	RED
 	GREEN
 	BLUE
