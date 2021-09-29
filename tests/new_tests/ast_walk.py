@@ -38,5 +38,5 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     tree = ast.parse(code)
     tree2 = ast.parse(code2)
-    # print(ast.dump(tree, indent=4))
-    print(ast.dump(tree2, indent=4))
+    print(ast.dump(tree, indent=4))
+    # print(ast.dump(tree2, indent=4))

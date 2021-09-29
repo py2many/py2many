@@ -52,9 +52,6 @@ class JuliaTranspiler(CLikeTranspiler):
         "Optional": "Nothing",
     }
 
-    # TODO: See if there is a way to do it better
-    VARIABLE_TYPES = {}
-
     def __init__(self):
         super().__init__()
         self._headers = set([])
@@ -315,11 +312,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
-        # print(node.value.julia_annotation)
         if isinstance(node.op, ast.Mult):
             if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
-                (isinstance(node.right, ast.Num) and self.VARIABLE_TYPES[node.left.id] in NUM_TYPES) or
-                (isinstance(node.left, ast.Num) and self.VARIABLE_TYPES[node.right.id] in NUM_TYPES)):
+                (isinstance(node.right, ast.Num) and node.left.julia_annotation in NUM_TYPES) or
+                (isinstance(node.left, ast.Num) and node.right.julia_annotation in NUM_TYPES)):
                 return "{0}*{1}".format(
                     self.visit(node.left), self.visit(node.right)
                 )
@@ -333,6 +329,17 @@ class JuliaTranspiler(CLikeTranspiler):
                 return "repeat({0},{1})".format(
                     right, self.visit(node.left)
                 )
+
+        # Cover Python list addition
+        if isinstance(node.op, ast.Add) :
+            if isinstance(node.right, ast.List) and isinstance(node.left, ast.List):
+                return f"[{self.visit_List(node.left)};{self.visit_List(node.right)}]"
+
+            right_is_list = node.right.julia_annotation and node.right.julia_annotation == "List"
+            left_is_list = node.left.julia_annotation and node.left.julia_annotation == "List"
+            if isinstance(node.right, ast.Name) and right_is_list and isinstance(node.left, ast.Name) and left_is_list:
+                return f"[{self.visit(node.left)};{self.visit(node.right)}]"
+
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
                 return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
@@ -542,9 +549,9 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
         # TODO: See if this is best method
-        if(target in self.VARIABLE_TYPES and self.VARIABLE_TYPES[target] != type_str):
-            raise AstIncompatibleAssign(f"{type_str} incompatible with {self.VARIABLE_TYPES[target]}", node)
-        self.VARIABLE_TYPES[target] = type_str
+        # if(target in self.VARIABLE_TYPES and self.VARIABLE_TYPES[target] != type_str):
+        #     raise AstIncompatibleAssign(f"{type_str} incompatible with {self.VARIABLE_TYPES[target]}", node)
+        # self.VARIABLE_TYPES[target] = type_str
         if type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"

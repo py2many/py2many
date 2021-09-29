@@ -44,6 +44,8 @@ INTEGER_TYPES = (
 
 NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
+VARIABLE_TYPES = {}
+
 class InferJuliaTypesTransformer(ast.NodeTransformer):
     """
     Implements Julia type inference logic
@@ -52,6 +54,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
     FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
     FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
+
+    def __init__(self):
+        self._clike = CLikeTranspiler()
 
     def visit_Return(self, node):
         self.generic_visit(node)
@@ -105,8 +110,35 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
+        self.generic_visit(node)
+
+        node.target.annotation = node.annotation
+        target = node.target
+        target_typename = self._clike._typename_from_annotation(target)
+        if target_typename in self.FIXED_WIDTH_INTS_NAME:
+            self.has_fixed_width_ints = True
+
+        # if target (a.k.a node name) is not mapped, map it with corresponding value type
+        annotation = get_inferred_julia_type(node.value)
+        target_id = get_id(target)
+        if(target_id in VARIABLE_TYPES and VARIABLE_TYPES[target_id] != annotation):
+            raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[target]}", node)
+        VARIABLE_TYPES[target_id] = annotation
+
+        value_typename = self._clike._generic_typename_from_type_node(annotation)
+        target_class = class_for_typename(target_typename, None)
+        value_class = class_for_typename(value_typename, None)
+        if (
+            not is_compatible(target_class, value_class, target, node.value)
+            and target_class != None
+        ):
+            raise AstIncompatibleAssign(
+                f"{target_class} incompatible with {value_class}", node
+            )
+        return node
+
     def visit_BinOp(self, node):
-        print("ola")
         self.generic_visit(node)
 
         if isinstance(node.left, ast.Name):
@@ -138,7 +170,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
         right_id = get_id(right)
-
         if left_id == right_id and left_id == "int":
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
@@ -170,8 +201,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             #         node.annotation = ast.Name(id="float")
             #         return node
             # node.annotation = left
-            node.julia_annotation = map_type("float")
-            return node
+            if isinstance(node.op, ast.Div):
+                if left_id == "int":
+                    node.julia_annotation = map_type("float")
+                return node
         else:
             if left_id in self.FIXED_WIDTH_INTS_NAME:
                 left_id = "int"
@@ -180,17 +213,24 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if (left_id, right_id) in {("int", "float"), ("float", "int")}:
                 # node.annotation = ast.Name(id="float")
                 node.julia_annotation = map_type("float")
-                return node
             # TODO: review complex
-            if (left_id, right_id) in { 
+            elif (left_id, right_id) in { 
                 ("int", "complex"),
                 ("complex", "int"),
                 ("float", "complex"),
                 ("complex", "float"),
             }:
-                node.annotation = ast.Name(id="complex")
+                node.julia_annotation = ast.Name(id="complex")
                 return node
 
+        # By default, the types are left_id and right_id respectively
+        node.left.julia_annotation = left_id
+        node.right.julia_annotation = right_id
+        if(get_id(node.left) in VARIABLE_TYPES):
+            node.left.julia_annotation = VARIABLE_TYPES[get_id(node.left)]
+        if(get_id(node.right) in VARIABLE_TYPES):
+            node.right.julia_annotation = VARIABLE_TYPES[get_id(node.right)]
+        
         # Container multiplication
         # if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
         #     {"bytes", "int"},
@@ -201,12 +241,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         #     node.annotation = ast.Name(id=left_id)
         #     return node
 
-        # TODO: Check for legal combinations in Julia
-        # LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add), ("int", ast.Add)}
+        LEGAL_COMBINATIONS = {(ast.Num, ast.List, ast.Mult), (ast.List, ast.Num, ast.Mult), (ast.Num, ast.Num, ast.Mult),
+            (ast.Num, ast.Num, ast.Add), (ast.Num, ast.Num, ast.Div), (ast.List, ast.List, ast.Add)}
 
-        # if left_id is not None and (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
-        #     raise AstUnrecognisedBinOp(left_id, right_id, node)
-
+        if left_id is not None and right_id is not None and (node.left, node.right, type(node.op)) not in LEGAL_COMBINATIONS:
+            raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
 def infer_julia_types(node, extension=False):
@@ -218,3 +257,18 @@ def map_type(typename) :
     if typeclass in JULIA_TYPE_MAP:
         return JULIA_TYPE_MAP[typeclass]
     return typename
+
+def get_inferred_julia_type(node):
+    if hasattr(node, "julia_annotation"):
+        return node.julia_annotation
+    if isinstance(node, ast.Name):
+        if not hasattr(node, "scopes"):
+            return None
+        definition = node.scopes.find(get_id(node))
+        # Prevent infinite recursion
+        if definition and definition != node:
+            return get_inferred_julia_type(definition)
+    python_type = get_inferred_type(node)
+    ret = map_type(get_id(python_type))
+    node.julia_annotation = ret
+    return ret
