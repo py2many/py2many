@@ -316,6 +316,11 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
+        # print("Num Left " + str(isinstance(node.right, ast.Num)))
+        # print("Num Right " + str(isinstance(node.left, ast.Num)))
+        # print("List Left " + str(isinstance(node.right, ast.Name)))
+        # print("List Right " + str(isinstance(node.left, ast.Name)))
+
         if isinstance(node.op, ast.Mult):
             if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
                 (isinstance(node.right, ast.Num) and node.left.julia_annotation in NUM_TYPES) or
@@ -323,12 +328,13 @@ class JuliaTranspiler(CLikeTranspiler):
                 return "{0}*{1}".format(
                     self.visit(node.left), self.visit(node.right)
                 )
-            elif(isinstance(node.right, ast.Num)):
+            elif(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.List) or node.left.julia_annotation == "List")):
+                print(node.scopes[-1].name)
                 left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
                 return "repeat({0},{1})".format(
                     left, self.visit(node.right)
                 )
-            elif(isinstance(node.left, ast.Num)):
+            elif(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.List) or node.right.julia_annotation == "List")):
                 right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
                 return "repeat({0},{1})".format(
                     right, self.visit(node.left)
@@ -581,6 +587,8 @@ class JuliaTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1}".format(", ".join(elts), value)
 
+        # print(node.scopes[-1].name)
+        # print(ast.dump(node.scopes[-1], indent=4))
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)

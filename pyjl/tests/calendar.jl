@@ -1,7 +1,7 @@
 import datetime
 function calendar_test()
 now = isoformat(datetime.datetime.utcnow())
-println(join([now], " "));
+println(now);
 end
 
 function main()

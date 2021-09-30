@@ -74,13 +74,25 @@ def get_inferred_julia_type(node):
     return ret
 
 def add_julia_annotation(node, left_default, right_default) :
+    scope = node.scopes[-1].name
     node.left.julia_annotation = left_default
     node.right.julia_annotation = right_default
-    if(get_id(node.left) in VARIABLE_TYPES):
-        node.left.julia_annotation = VARIABLE_TYPES[get_id(node.left)]
-    if(get_id(node.right) in VARIABLE_TYPES):
-        node.right.julia_annotation = VARIABLE_TYPES[get_id(node.right)]
+    key_right = (get_id(node.right), scope)
+    key_left = (get_id(node.left), scope)
+    if(key_left in VARIABLE_TYPES):
+        node.left.julia_annotation = VARIABLE_TYPES[key_left]
+    if(key_right in VARIABLE_TYPES):
+        node.right.julia_annotation = VARIABLE_TYPES[key_right]
 
+def add_julia_variable_type(node, target, annotation):
+    # if target (a.k.a node name) is not mapped, map it with corresponding value type
+    # print(get_id(target))
+    scope = node.scopes[-1].name
+    target_id = get_id(target)
+    key = (target_id, scope)
+    if(key in VARIABLE_TYPES and VARIABLE_TYPES[key] != annotation):
+        raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[key]}", node)
+    VARIABLE_TYPES[key] = annotation
 
 #########################################################
 
@@ -148,21 +160,45 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
+    def visit_Assign(self, node: ast.Assign) -> ast.AST:
+        self.generic_visit(node)
+        self.visit(node.value)
+
+        annotation = getattr(node.value, "annotation", None)
+        if annotation is None:
+            return node
+
+        for target in node.targets:
+            target_has_annotation = hasattr(target, "annotation")
+            inferred = (
+                getattr(target.annotation, "inferred", False)
+                if target_has_annotation
+                else False
+            )
+            if not target_has_annotation or inferred:
+                # print(annotation)
+                # print(ast.dump(annotation, indent=4))
+                # print(get_id(annotation))
+                add_julia_variable_type(node, target, map_type(get_id(annotation)))
+                target.annotation = annotation
+                target.annotation.inferred = True
+        # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
+        return node
+
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
 
+        annotation = getattr(node.value, "annotation", None)
+        node.annotation = annotation
         node.target.annotation = node.annotation
         target = node.target
         target_typename = self._clike._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
 
-        # if target (a.k.a node name) is not mapped, map it with corresponding value type
-        annotation = get_inferred_julia_type(node)
-        target_id = get_id(target)
-        if(target_id in VARIABLE_TYPES and VARIABLE_TYPES[target_id] != annotation):
-            raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[target]}", node)
-        VARIABLE_TYPES[target_id] = annotation
+        # annotation = get_inferred_julia_type(map_type(get_id(node.annotation))) # Does not appear to work
+        # print(map_type(get_id(annotation)))
+        add_julia_variable_type(node, target, annotation)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
@@ -189,9 +225,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         else:
             rvar = node.right
 
-        left = lvar.julia_annotation if lvar and hasattr(lvar, "julia_annotation") else None
-        right = rvar.julia_annotation if rvar and hasattr(rvar, "julia_annotation") else None
-        add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
+        left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
+        right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
+        # See if types can be found in VARIABLE_TYPES
+        # add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
+        add_julia_annotation(node, left, right)
+        # print(VARIABLE_TYPES)
 
         if left is None and right is not None:
             node.julia_annotation = map_type(get_id(right))
@@ -202,9 +241,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             return node
 
         if right is None and left is None:
-            # See if types can be found in VARIABLE_TYPES
             return node
-        print("ola")
 
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
