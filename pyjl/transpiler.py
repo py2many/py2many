@@ -329,30 +329,27 @@ class JuliaTranspiler(CLikeTranspiler):
                     self.visit(node.left), self.visit(node.right)
                 )
             elif(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.List) or node.left.julia_annotation == "List")):
-                print(node.scopes[-1].name)
                 left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
-                return "repeat({0},{1})".format(
-                    left, self.visit(node.right)
-                )
+                return f"repeat({left},{self.visit(node.right)})"
             elif(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.List) or node.right.julia_annotation == "List")):
                 right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
-                return "repeat({0},{1})".format(
-                    right, self.visit(node.left)
-                )
+                return f"repeat({right},{self.visit(node.left)})"
 
         # Cover Python list addition
         if isinstance(node.op, ast.Add) :
             right_is_list = node.right.julia_annotation and node.right.julia_annotation == "List"
             left_is_list = node.left.julia_annotation and node.left.julia_annotation == "List"
+            left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
+            right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List)) 
                     or (isinstance(node.right, ast.Name) and right_is_list and isinstance(node.left, ast.Name) and left_is_list)):
-                return f"[{self.visit_List(node.left)};{self.visit_List(node.right)}]"
+                return f"[{left};{right}]"
             
             right_is_string = node.right.julia_annotation and node.right.julia_annotation == "str"
             left_is_string = node.left.julia_annotation and node.left.julia_annotation == "str"
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str)) 
                     or (isinstance(node.right, ast.Name) and right_is_string and isinstance(node.left, ast.Name) and left_is_string)):
-                return f"{self.visit_List(node.left)}*{self.visit_List(node.right)}"
+                return f"{left}*{right}"
 
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):

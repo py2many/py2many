@@ -68,6 +68,7 @@ def get_inferred_julia_type(node):
         # Prevent infinite recursion
         if definition and definition != node:
             return get_inferred_julia_type(definition)
+    
     python_type = get_inferred_type(node)
     ret = map_type(get_id(python_type))
     node.julia_annotation = ret
@@ -176,10 +177,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if not target_has_annotation or inferred:
-                # print(annotation)
-                # print(ast.dump(annotation, indent=4))
-                # print(get_id(annotation))
-                add_julia_variable_type(node, target, map_type(get_id(annotation)))
+                julia_annotation = get_inferred_julia_type(annotation)
+                type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
+                add_julia_variable_type(node, target, type)
                 target.annotation = annotation
                 target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
@@ -197,8 +197,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             self.has_fixed_width_ints = True
 
         # annotation = get_inferred_julia_type(map_type(get_id(node.annotation))) # Does not appear to work
-        # print(map_type(get_id(annotation)))
-        add_julia_variable_type(node, target, annotation)
+        julia_annotation = get_inferred_julia_type(node)
+        type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
+        add_julia_variable_type(node, target, type)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
@@ -227,20 +228,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
-        # See if types can be found in VARIABLE_TYPES
-        # add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
-        add_julia_annotation(node, left, right)
-        # print(VARIABLE_TYPES)
 
-        if left is None and right is not None:
-            node.julia_annotation = map_type(get_id(right))
-            return node
-
-        if right is None and left is not None:
-            node.julia_annotation = map_type(get_id(left))
-            return node
-
-        if right is None and left is None:
+        if ((left is None and right is not None) 
+                or (right is None and left is not None)
+                or (right is None and left is None)):
+            add_julia_annotation(node, get_id(left), get_id(right))
             return node
 
         # Both operands are annotated. Now we have interesting cases
@@ -250,9 +242,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
             ):
-                node.julia_annotation = map_type(get_id(left))
+                add_julia_annotation(node, get_id(left), get_id(left))
             else:
-                node.julia_annotation = map_type("float")
+                add_julia_annotation(node, "float", "float")
             return node
 
         if left_id == "int":
@@ -280,14 +272,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     return node
                 node.julia_annotation = left
         else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.julia_annotation = map_type("float")
+            # TODO: Not sure if all these conditions are necessary
+            # if left_id in self.FIXED_WIDTH_INTS_NAME:
+            #     left_id = "int"
+            # if right_id in self.FIXED_WIDTH_INTS_NAME:
+            #     right_id = "int"
+            # if (left_id, right_id) == {("int", "float"), ("float", "int")}:
+            #     node.julia_annotation = map_type("float")
             # TODO: review complex
-            elif (left_id, right_id) in { 
+            if (left_id, right_id) in { 
                 ("int", "complex"),
                 ("complex", "int"),
                 ("float", "complex"),

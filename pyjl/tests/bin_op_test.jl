@@ -9,22 +9,22 @@ a = 2.0
 return a*2
 end
 
-function mult_list_and_int()::List
-a::List = []
+function mult_list_and_int()
+a = []
 for i in (0:10 - 1)
 push!(a, i);
 end
-return (a*2)
+return repeat(a,2)
 end
 
-function add_two_lists()::List
-a::List = []
-b::List = []
+function add_two_lists()
+a = []
+b = []
 for i in (0:10 - 1)
 push!(a, i);
 push!(b, i);
 end
-return (a + b)
+return [a;b]
 end
 
 function main()

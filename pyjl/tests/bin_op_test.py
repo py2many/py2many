@@ -13,7 +13,7 @@ def mult_list_and_int():
     for i in range(0, 10):
         a.append(i)
 
-    # a: int = 2
+    # a: int = 2 # Should fail if uncommented
     return a*2
 
 def add_two_lists():
