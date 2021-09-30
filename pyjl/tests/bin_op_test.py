@@ -1,6 +1,14 @@
 from typing import List
 
-def show_res():
+def mult_int_and_int():
+    a = 2
+    return a*2
+
+def mult_float_and_int():
+    a = 2.0
+    return a*2
+
+def mult_list_and_int():
     a: List[int] = []
     for i in range(0, 10):
         a.append(i)
@@ -8,7 +16,7 @@ def show_res():
     # a: int = 2
     return a*2
 
-def show_res_add_two_lists():
+def add_two_lists():
     a: List[int] = []
     b: List[int] = []
     for i in range(0, 10):
@@ -18,5 +26,7 @@ def show_res_add_two_lists():
     return a+b
 
 if __name__ == "__main__":
-    print(show_res())
-    print(show_res_add_two_lists())
+    print(mult_int_and_int())
+    print(mult_float_and_int())
+    print(mult_list_and_int())
+    print(add_two_lists())

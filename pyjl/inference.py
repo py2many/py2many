@@ -189,23 +189,22 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         else:
             rvar = node.right
 
-        left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
-        right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
+        left = lvar.julia_annotation if lvar and hasattr(lvar, "julia_annotation") else None
+        right = rvar.julia_annotation if rvar and hasattr(rvar, "julia_annotation") else None
+        add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
 
         if left is None and right is not None:
             node.julia_annotation = map_type(get_id(right))
-            add_julia_annotation(node, None, map_type(get_id(right)))
             return node
 
         if right is None and left is not None:
             node.julia_annotation = map_type(get_id(left))
-            add_julia_annotation(node, map_type(get_id(left)), None)
             return node
 
         if right is None and left is None:
             # See if types can be found in VARIABLE_TYPES
-            add_julia_annotation(node, None, None)
             return node
+        print("ola")
 
         # Both operands are annotated. Now we have interesting cases
         left_id = get_id(left)
@@ -241,7 +240,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if isinstance(node.op, ast.Div):
                 if left_id == "int":
                     node.julia_annotation = map_type("float")
-                return node
+                    return node
+                node.julia_annotation = left
         else:
             if left_id in self.FIXED_WIDTH_INTS_NAME:
                 left_id = "int"
@@ -272,10 +272,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         #     node.annotation = ast.Name(id=left_id)
         #     return node
 
-        LEGAL_COMBINATIONS = {("str", "str", ast.Add), ("int", "list", ast.Mult), ("list", "int", ast.Mult), ("int", "int", ast.Mult),
-            ("int", "int", ast.Add), ("int", "int", ast.Div), ("list", "list", ast.Add)}
+        ILLEGAL_COMBINATIONS = {}
 
-        if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) not in LEGAL_COMBINATIONS:
+        if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
