@@ -1,7 +1,7 @@
 import ast
 
 from dataclasses import dataclass
-from typing import cast, Set, Optional
+from typing import List, cast, Set, Optional
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
@@ -27,6 +27,10 @@ JULIA_TYPE_MAP = {
     c_uint16: "UInt16",
     c_uint32: "UInt32",
     c_uint64: "UInt64",
+}
+
+JULIA_CONTAINER_MAP = {
+    List: "Array"
 }
 
 INTEGER_TYPES = (
@@ -56,6 +60,8 @@ def map_type(typename) :
     typeclass = class_for_typename(typename, "Any")
     if typeclass in JULIA_TYPE_MAP:
         return JULIA_TYPE_MAP[typeclass]
+    if typeclass in JULIA_CONTAINER_MAP:
+        return JULIA_CONTAINER_MAP[typeclass]
     return typename
 
 def get_inferred_julia_type(node):
@@ -81,9 +87,9 @@ def add_julia_annotation(node, left_default, right_default) :
     key_right = (get_id(node.right), scope)
     key_left = (get_id(node.left), scope)
     if(key_left in VARIABLE_TYPES):
-        node.left.julia_annotation = VARIABLE_TYPES[key_left]
+        node.left.julia_annotation = map_type(VARIABLE_TYPES[key_left])
     if(key_right in VARIABLE_TYPES):
-        node.right.julia_annotation = VARIABLE_TYPES[key_right]
+        node.right.julia_annotation = map_type(VARIABLE_TYPES[key_right])
 
 def add_julia_variable_type(node, target, annotation):
     # if target (a.k.a node name) is not mapped, map it with corresponding value type
@@ -119,7 +125,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         for scope in node.scopes:
             type_str = None
             if isinstance(scope, ast.FunctionDef):
-                type_str = get_id(scope.returns)
+                type_str = map_type(get_id(scope.returns)) # Added map_type
                 if type_str is not None:
                     if new_type_str != type_str:
                         type_str = f"Union[{type_str},{new_type_str}]"
@@ -232,7 +238,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
-            add_julia_annotation(node, get_id(left), get_id(right))
+            add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
             return node
 
         # Both operands are annotated. Now we have interesting cases
@@ -242,9 +248,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
             ):
-                add_julia_annotation(node, get_id(left), get_id(left))
+                add_julia_annotation(node, map_type(left_id), map_type(left_id))
             else:
-                add_julia_annotation(node, "float", "float")
+                add_julia_annotation(node, map_type("float"), map_type("float"))
             return node
 
         if left_id == "int":
@@ -270,7 +276,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if left_id == "int":
                     node.julia_annotation = map_type("float")
                     return node
-                node.julia_annotation = left
+                node.julia_annotation = map_type(left_id)
         else:
             # TODO: Not sure if all these conditions are necessary
             # if left_id in self.FIXED_WIDTH_INTS_NAME:
@@ -286,7 +292,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 ("float", "complex"),
                 ("complex", "float"),
             }:
-                node.julia_annotation = ast.Name(id="complex")
+                node.julia_annotation = map_type("complex")
                 return node
 
         # By default, the types are left_id and right_id respectively
@@ -307,5 +313,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
+
+    # def visit_FunctionDef(self, node) -> str:
+    #     attr = "annotation"
+    #     if hasattr(node, attr):  
+    #         type_node = getattr(node, attr)
+    #         node.julia_annotation = map_type(CLikeTranspiler._typename_from_type_node(type_node)) # Wrong use of CLikeTranspiler
+    #     return node
 
 

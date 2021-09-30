@@ -105,25 +105,29 @@ class JuliaTranspiler(CLikeTranspiler):
             typenames[0] = node.self_type
 
         for i in range(len(args)):
-            typename = typenames[i]
+            arg_typename = typenames[i]
             arg = args[i]
             # Resolve alias imports
-            resolved_import = super().visit_alias_import_typename(typename)
+            resolved_import = super().visit_alias_import_typename(arg_typename)
             if(resolved_import != None):
-                typename = resolved_import
-            elif typename == "T": 
+                # If there is a Julia annotation, get that instead of the default Python annotation
+                arg_typename = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else resolved_import
+            elif arg_typename == "T": 
                 # Allow the user to know that type is generic
-                typename = "T{0}".format(index)
-                typedecls.append(typename)
+                arg_typename = "T{0}".format(index)
+                typedecls.append(arg_typename)
                 index += 1
 
-            args_list.append("{0}::{1}".format(arg, typename))
+            args_list.append("{0}::{1}".format(arg, arg_typename))
 
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f"::{typename}"
+                # No Julia typename found
+                # func_typename = (node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") 
+                #     else self._typename_from_annotation(node, attr="returns"))
+                func_typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f"::{func_typename}"
             else:
                 # Allow Julia to infer types
                 return_type = ""
@@ -316,11 +320,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
-        # print("Num Left " + str(isinstance(node.right, ast.Num)))
-        # print("Num Right " + str(isinstance(node.left, ast.Num)))
-        # print("List Left " + str(isinstance(node.right, ast.Name)))
-        # print("List Right " + str(isinstance(node.left, ast.Name)))
-
         if isinstance(node.op, ast.Mult):
             if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
                 (isinstance(node.right, ast.Num) and node.left.julia_annotation in NUM_TYPES) or
@@ -328,17 +327,17 @@ class JuliaTranspiler(CLikeTranspiler):
                 return "{0}*{1}".format(
                     self.visit(node.left), self.visit(node.right)
                 )
-            elif(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.List) or node.left.julia_annotation == "List")):
+            elif(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.List) or node.left.julia_annotation == "Array")):
                 left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
                 return f"repeat({left},{self.visit(node.right)})"
-            elif(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.List) or node.right.julia_annotation == "List")):
+            elif(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.List) or node.right.julia_annotation == "Array")):
                 right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
                 return f"repeat({right},{self.visit(node.left)})"
 
         # Cover Python list addition
         if isinstance(node.op, ast.Add) :
-            right_is_list = node.right.julia_annotation and node.right.julia_annotation == "List"
-            left_is_list = node.left.julia_annotation and node.left.julia_annotation == "List"
+            right_is_list = node.right.julia_annotation and node.right.julia_annotation == "Array"
+            left_is_list = node.left.julia_annotation and node.left.julia_annotation == "Array"
             left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
             right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List)) 
@@ -568,6 +567,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
+        # If there is a Julia annotation, get that instead of the default Python annotation
+        type_str = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else type_str
         if type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"
