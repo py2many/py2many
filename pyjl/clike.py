@@ -114,6 +114,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         return None
 
     def visit_BinOp(self, node) -> str:
+        if isinstance(node.op, ast.Mult):
+            return "{0}*{1}".format(self.visit(node.left), self.visit(node.right))
         if isinstance(node.op, ast.Pow):
             return "{0}^{1}".format(self.visit(node.left), self.visit(node.right))
 

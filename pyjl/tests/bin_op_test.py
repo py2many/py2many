@@ -8,6 +8,15 @@ def mult_float_and_int():
     a = 2.0
     return a*2
 
+def mult_string_and_int():
+    a = "test"
+    return a*2
+
+# Failing --> Return type is Int64
+def mult_int_and_string():
+    a: int = 2
+    return a*"test"
+
 def mult_list_and_int():
     a: List[int] = []
     for i in range(0, 10):
@@ -28,5 +37,7 @@ def add_two_lists():
 if __name__ == "__main__":
     print(mult_int_and_int())
     print(mult_float_and_int())
+    print(mult_string_and_int())
+    print(mult_int_and_string())
     print(mult_list_and_int())
     print(add_two_lists())

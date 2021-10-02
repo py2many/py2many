@@ -87,9 +87,14 @@ def add_julia_annotation(node, left_default, right_default) :
     key_right = (get_id(node.right), scope)
     key_left = (get_id(node.left), scope)
     if(key_left in VARIABLE_TYPES):
-        node.left.julia_annotation = map_type(VARIABLE_TYPES[key_left])
+        node.left.julia_annotation = VARIABLE_TYPES[key_left]
     if(key_right in VARIABLE_TYPES):
-        node.right.julia_annotation = map_type(VARIABLE_TYPES[key_right])
+        node.right.julia_annotation = VARIABLE_TYPES[key_right]
+
+def add_julia_type(node, annotation, target):
+    julia_annotation = get_inferred_julia_type(node)
+    type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
+    add_julia_variable_type(node, target, type)
 
 def add_julia_variable_type(node, target, annotation):
     # if target (a.k.a node name) is not mapped, map it with corresponding value type
@@ -99,7 +104,7 @@ def add_julia_variable_type(node, target, annotation):
     key = (target_id, scope)
     if(key in VARIABLE_TYPES and VARIABLE_TYPES[key] != annotation):
         raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[key]}", node)
-    VARIABLE_TYPES[key] = annotation
+    VARIABLE_TYPES[key] = map_type(annotation)
 
 #########################################################
 
@@ -114,30 +119,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         self._clike = CLikeTranspiler()
-
-    def visit_Return(self, node):
-        self.generic_visit(node)
-        new_type_str = (
-            get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
-        )
-        if new_type_str is None:
-            return node
-        for scope in node.scopes:
-            type_str = None
-            if isinstance(scope, ast.FunctionDef):
-                type_str = map_type(get_id(scope.returns)) # Added map_type
-                if type_str is not None:
-                    if new_type_str != type_str:
-                        type_str = f"Union[{type_str},{new_type_str}]"
-                        scope.returns.id = type_str
-                else:
-                    # Do not overwrite source annotation with inferred
-                    if scope.returns is None:
-                        scope.returns = ast.Name(id=new_type_str)
-                        lifetime = getattr(node.value.annotation, "lifetime", None)
-                        if lifetime is not None:
-                            scope.returns.lifetime = lifetime
-        return node
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -167,6 +148,31 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
+    # Added map_type to return Julia type
+    def visit_Return(self, node):
+        self.generic_visit(node)
+        new_type_str = (
+            map_type(get_id(node.value.annotation) if hasattr(node.value, "annotation") else None) 
+        )
+        if new_type_str is None:
+            return node
+        for scope in node.scopes:
+            type_str = None
+            if isinstance(scope, ast.FunctionDef):
+                type_str = map_type(get_id(scope.returns))
+                if type_str is not None:
+                    if new_type_str != type_str:
+                        type_str = f"Union{'{'}{type_str},{new_type_str}{'}'}"
+                        scope.returns.id = type_str
+                else:
+                    # Do not overwrite source annotation with inferred
+                    if scope.returns is None:
+                        scope.returns = ast.Name(id=new_type_str)
+                        lifetime = getattr(node.value.annotation, "lifetime", None)
+                        if lifetime is not None:
+                            scope.returns.lifetime = lifetime
+        return node
+
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
         self.visit(node.value)
@@ -183,9 +189,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if not target_has_annotation or inferred:
-                julia_annotation = get_inferred_julia_type(annotation)
-                type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
-                add_julia_variable_type(node, target, type)
+                add_julia_type(node, annotation, target)
                 target.annotation = annotation
                 target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
@@ -203,9 +207,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             self.has_fixed_width_ints = True
 
         # annotation = get_inferred_julia_type(map_type(get_id(node.annotation))) # Does not appear to work
-        julia_annotation = get_inferred_julia_type(node)
-        type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
-        add_julia_variable_type(node, target, type)
+        add_julia_type(node, annotation, target)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)

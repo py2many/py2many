@@ -145,7 +145,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return "return {0}".format(self.visit(node.value))
+            return "return {0}".format(self.visit(node.value)) 
         return "return"
 
     def visit_arg(self, node):
@@ -320,41 +320,49 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
-        if isinstance(node.op, ast.Mult):
-            if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
-                (isinstance(node.right, ast.Num) and node.left.julia_annotation in NUM_TYPES) or
-                (isinstance(node.left, ast.Num) and node.right.julia_annotation in NUM_TYPES)):
-                return "{0}*{1}".format(
-                    self.visit(node.left), self.visit(node.right)
-                )
-            elif(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.List) or node.left.julia_annotation == "Array")):
-                left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
-                return f"repeat({left},{self.visit(node.right)})"
-            elif(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.List) or node.right.julia_annotation == "Array")):
-                right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
-                return f"repeat({right},{self.visit(node.left)})"
+        left_jl_ann = node.left.julia_annotation
+        right_jl_ann = node.right.julia_annotation
+        if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
+             (isinstance(node.right, ast.Num) and left_jl_ann in NUM_TYPES) or
+             (isinstance(node.left, ast.Num) and right_jl_ann in NUM_TYPES)):
+            return super().visit_BinOp(node)
 
-        # Cover Python list addition
+        # Visit left and right
+        left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
+        right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
+
+        if isinstance(node.op, ast.Mult):
+            # Cover multiplication between List and Number 
+            if(isinstance(node.right, ast.Num or (right_jl_ann in NUM_TYPES)) and 
+                    ((isinstance(node.left, ast.List) or left_jl_ann == "Array") or 
+                    (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
+                return f"repeat({left},{right})"
+
+            if(isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES) and 
+                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array") or
+                    (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
+                return f"repeat({right},{left})"
+
+            # # Cover Python String and Int multiplication
+            # if(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.Str) or left_jl_ann == "String")):
+            #     return f"{left}*string({right})"
+            # if(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.Sr) or right_jl_ann == "String")):
+            #     return f"string({left})*{right}"
+
         if isinstance(node.op, ast.Add) :
-            right_is_list = node.right.julia_annotation and node.right.julia_annotation == "Array"
-            left_is_list = node.left.julia_annotation and node.left.julia_annotation == "Array"
-            left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
-            right = self.visit_List(node.right) if isinstance(node.right, ast.List) else self.visit(node.right)
+            # Cover Python list addition
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List)) 
-                    or (isinstance(node.right, ast.Name) and right_is_list and isinstance(node.left, ast.Name) and left_is_list)):
+                    or (isinstance(node.right, ast.Name) and right_jl_ann == "Array" 
+                        and isinstance(node.left, ast.Name) and left_jl_ann == "Array")):
                 return f"[{left};{right}]"
-            
-            right_is_string = node.right.julia_annotation and node.right.julia_annotation == "str"
-            left_is_string = node.left.julia_annotation and node.left.julia_annotation == "str"
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str)) 
-                    or (isinstance(node.right, ast.Name) and right_is_string and isinstance(node.left, ast.Name) and left_is_string)):
+                    or (isinstance(node.right, ast.Name) and right_jl_ann == "str"
+                        and isinstance(node.left, ast.Name) and left_jl_ann == "str")):
                 return f"{left}*{right}"
 
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
-                return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
-        else:
-            return super().visit_BinOp(node)
+                return "({0}*{1})".format(left, right)
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(JuliaTranspiler())
