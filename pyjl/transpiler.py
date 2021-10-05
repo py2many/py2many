@@ -378,22 +378,26 @@ class JuliaTranspiler(CLikeTranspiler):
         #     class_for_typename(t, None, self._imported_names) for t in decorators_origin
         # ]
 
-        annotation: str = ""
-        annotation_field: str = ""
-        annotation_body: str = ""
+        annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
         for decorator in node.decorator_list:
             d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
             if d_id in CLASS_DISPATCH_TABLE:
                 ret = CLASS_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
-                    annotation, annotation_field, annotation_body = ret
+                    ret_val = ret
+                    annotation += ret_val[0]
+                    annotation_field += ret_val[1]
+                    annotation_modifiers += ret_val[2]
+                    annotation_body += ret_val[3]
+                    # annotation, annotation_field, annotation_modifiers, annotation_body = ret
 
         fields = []
         for declaration, typename in declarations.items():
             fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
         fields = "" if fields == [] else "\n".join(fields) + "\n" + annotation_field
-        struct_def = f"struct {node.name}\n{fields}end\n"
+        struct_def = (f"{annotation_modifiers} struct {node.name}\n{fields}end\n" if annotation_modifiers != "" 
+            else f"struct {node.name}\n{fields}end\n")
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):

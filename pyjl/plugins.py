@@ -6,7 +6,7 @@ import sys
 import textwrap
 
 from tempfile import NamedTemporaryFile
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from py2many.declaration_extractor import DeclarationExtractor
@@ -21,38 +21,53 @@ except ImportError:
     ap_dataclass = "ap_dataclass"
 
 
+@dataclass
+class keyword:
+    arg: str
+    value: bool
+
 class JuliaTranspilerPlugins:
     def visit_argparse_dataclass(self, node, decorator):
-        fields = []
-        create_jl_annotation:bool = True
-        for kw in decorator.keywords:
-            arg = kw.arg
-            value = kw.value
+        fields = {}
+        keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
+           'unsafe_hash': False, 'frozen': False, 'create_jl_annotation': True}
+        field_repr = []
+
+        # Parse received keywords if needed
+        if isinstance(decorator, ast.Call):
+            received_keywords = decorator.keywords
+            for x in received_keywords:
+                if x.arg in keywords:
+                    keywords[x.arg] = x.value.value
+
+        for kw in keywords:
+            arg = kw
+            value = keywords[arg]
             if value == None:
                 return None
-            if arg == "create_jl_annotation":
-                create_jl_annotation = value.value
-            else:
-                fields.append(f"_{arg}={KEYWORD_MAP[value.value]}")
-        field = ""
-        annotation = ""
-        body = ""
-        if create_jl_annotation:
+            fields[arg] = value
+            field_repr.append(f"_{arg}={KEYWORD_MAP[value]}")
+
+        fields_str, annotation, body, modifiers = "", "", "", ""
+        if fields["init"]:
+            modifiers = "mutable"
+        if keywords['create_jl_annotation']:
             annotation = "@dataclass\n"
-            field = "_initvars = [" + ", ".join(fields) + "]\n"
+            fields_str = "_initvars = [" + ", ".join(field_repr) + "]\n"
         else:
-            body = self._generate_dataclass_methods(node, fields)       
-        return annotation, field, body
+            body = JuliaTranspilerPlugins._generate_dataclass_methods(self, node, fields)
+        return annotation, fields_str, modifiers, body 
 
     def _generate_dataclass_methods(self, node, annotation_fields) -> str:
         structname = get_id(node)
 
         # Get struct fields
-        print(node)
         struct_fields = []
-        for declaration, typename in declarations.items():
-            struct_fields.append(declaration if typename == "" else f"{declaration}::{typename}")
+        for declaration in node.declarations:
+            (struct_fields.append(declaration if node.declarations[declaration] == "" 
+                else f"{declaration}::{node.declarations[declaration]}"))
 
+        
         # get struct variables using getfield
         get_variables = []
         for field_name in struct_fields:
@@ -60,31 +75,30 @@ class JuliaTranspilerPlugins:
         get_variables = ", ".join(get_variables)
         
         body = ""
-        if annotation_fields["_init"]:
+        if annotation_fields["init"]:
             str_struct_fields = ", ".join(struct_fields)
             assign_variables_init = ""
-            for field_name in struct_fields:
-                assign_variables_init += f"setfield!(self::{structname}, {field_name}, {field_name})\n"
+            for field in struct_fields:
+                field_name = field.split("::")
+                assign_variables_init += f"setfield!(self::{structname}, :{field_name[0]}, {field})\n"
 
             body += f"""
                 function __init__(self::{structname}, {str_struct_fields})
                     {assign_variables_init}
                 end\n
             """
-        if annotation_fields["_repr"]:
-            body += f"""
-                function __repr__(self::{structname})::String
-                    return {structname}({get_variables})
-                end\n
-            """
-        if annotation_fields["_eq"]:
-            body += f"""
+        if annotation_fields["repr"]:
+            body += f"""function __repr__(self::{structname})::String
+                return {structname}({get_variables})
+            end\n"""
+        if annotation_fields["eq"]:
+            body += f"""\
                 function __eq__(self::{structname}, other::{structname})::Bool
                     return __key(self) == __key(other)
                 end\n
             """
-        if annotation_fields["_order"]:
-            body += f"""
+        if annotation_fields["order"]:
+            body += f"""\
                 function __lt__(self::{structname}, other::{structname})::Bool
                     return __key(self) < __key(other)
                 end\n
@@ -98,15 +112,15 @@ class JuliaTranspilerPlugins:
                     return __key(self) >= __key(other)
                 end\n
             """
-        if annotation_fields["_unsafe_hash"]:
+        if annotation_fields["unsafe_hash"]:
             if annotation_fields["_eq"]: # && ismutable
-                body += f"""
+                body += f"""\
                 function __hash__(self::{structname})
                     return __key(self)
                 end\n
                 """
 
-        body += f"""
+        body += f"""\
                 function __key(self::{structname})
                     ({get_variables})
                 end\n
