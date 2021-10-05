@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from pyjl.plugins import JULIA_IMPORT_MAP
 from .inference import JULIA_TYPE_MAP
 import importlib
 
@@ -50,14 +51,7 @@ julia_keywords = frozenset(
     ]
 )
 
-KEYWORD_MAP = {
-    True: "true",
-    False: "false",
-}
-
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
-
-#########################################################
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
@@ -82,7 +76,6 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
         logger.info(f"could not evaluate {typename}")
         return default_type
 
-#########################################################
 
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
@@ -151,10 +144,11 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
         imports = [
-            self._import(name)
+            (self._import(JULIA_IMPORT_MAP[name]) if name in JULIA_IMPORT_MAP else self._import(name))
             for name, alias in names
             if name not in self._ignored_module_set
         ]
+
         for name, asname in names:
             if asname is not None:
                 try:
@@ -169,7 +163,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if node.module in self._ignored_module_set:
             return ""
 
-        imported_name = node.module
+        imported_name = JULIA_IMPORT_MAP[node.module] if node.module in JULIA_IMPORT_MAP else node.module
         imported_module = None
         if node.module:
             try:

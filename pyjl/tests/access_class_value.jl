@@ -1,14 +1,17 @@
+using DataClass
 
-# @dataclass
-struct Packet
+@dataclass
+mutable struct Packet
 val::Float64
+_initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
 end
 
 
-# @dataclass
-struct Register
+@dataclass
+mutable struct Register
 PACKET::Packet
 VALUE::Int64
+_initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
 end
 
 

@@ -1,6 +1,7 @@
 import ast
 from subprocess import call
-from py2many.exceptions import AstIncompatibleAssign
+
+from pyjl.tracer import is_class
 from .inference import (
     NUM_TYPES,
     INTEGER_TYPES
@@ -25,7 +26,7 @@ from py2many.clike import _AUTO_INVOKED
 from pyjl.clike import class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Callable, Collection, List, Tuple
+from typing import List, Tuple
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -40,7 +41,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             else:
                 node0 = fname.value
 
-            node.args = [node0] + node.args
+            node.args = [node0] + node.args if not is_class(get_id(node0), node.scopes) else node.args
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
@@ -373,7 +374,7 @@ class JuliaTranspiler(CLikeTranspiler):
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
-        decorators_origin = [(d.func if isinstance(d, ast.Call) else d) for d in node.decorator_list]
+        # decorators_origin = [(d.func if isinstance(d, ast.Call) else d) for d in node.decorator_list]
         # decorators = [
         #     class_for_typename(t, None, self._imported_names) for t in decorators_origin
         # ]
@@ -452,7 +453,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "Int64", fields)
 
     def _import(self, name: str) -> str:
-        return f"import {name}"
+        return f"import {name}" # import or using?
 
     # def _import_from(self, module_name: str, names: List[str]) -> str:
     #     if len(names) == 1:

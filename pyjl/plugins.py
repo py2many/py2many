@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from py2many.declaration_extractor import DeclarationExtractor
-from pyjl.clike import KEYWORD_MAP
 from pyjl.inference import JULIA_TYPE_MAP
 
 try:
@@ -28,6 +27,7 @@ class keyword:
 
 class JuliaTranspilerPlugins:
     def visit_argparse_dataclass(self, node, decorator):
+        self._usings.add("DataClass")
         fields = {}
         keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
            'unsafe_hash': False, 'frozen': False, 'create_jl_annotation': True}
@@ -45,10 +45,12 @@ class JuliaTranspilerPlugins:
             value = keywords[arg]
             if value == None:
                 return None
-            fields[arg] = value
-            field_repr.append(f"_{arg}={KEYWORD_MAP[value]}")
+            if arg != "create_jl_annotation":
+                fields[arg] = value
+                field_repr.append(f"_{arg}={JULIA_KEYWORD_MAP[value]}")
 
         fields_str, annotation, body, modifiers = "", "", "", ""
+        # if it defines init it needs to be mutable
         if fields["init"]:
             modifiers = "mutable"
         if keywords['create_jl_annotation']:
@@ -201,6 +203,11 @@ class JuliaTranspilerPlugins:
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
+
+JULIA_KEYWORD_MAP = {
+    True: "true",
+    False: "false",
+}
 
 JULIA_IMPORT_MAP = {
     "dataclass": "DataClass"
