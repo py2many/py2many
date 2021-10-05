@@ -3,6 +3,7 @@ from py2many.astx import LifeTime
 from typing import Any, Dict, Union
 from py2many.ast_helpers import get_id
 import logging
+from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from .inference import JULIA_TYPE_MAP
@@ -49,6 +50,11 @@ julia_keywords = frozenset(
     ]
 )
 
+KEYWORD_MAP = {
+    True: "true",
+    False: "false",
+}
+
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
 #########################################################
@@ -65,6 +71,8 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
     if typename == "super" or typename.startswith("super()"):
         # Cant eval super; causes RuntimeError
         return None
+    if typename == "dataclass":
+        eval(typename)
     try:
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval

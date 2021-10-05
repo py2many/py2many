@@ -1,4 +1,5 @@
 import ast
+from subprocess import call
 from py2many.exceptions import AstIncompatibleAssign
 from .inference import (
     NUM_TYPES,
@@ -20,11 +21,11 @@ from .plugins import (
 
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.clike import _AUTO_INVOKED, class_for_typename
+from py2many.clike import _AUTO_INVOKED
+from pyjl.clike import class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Collection, List, Tuple
-
+from typing import Callable, Collection, List, Tuple
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -372,43 +373,35 @@ class JuliaTranspiler(CLikeTranspiler):
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
+        decorators_origin = [(d.func if isinstance(d, ast.Call) else d) for d in node.decorator_list]
+        # decorators = [
+        #     class_for_typename(t, None, self._imported_names) for t in decorators_origin
+        # ]
 
-        decorators_origin = [get_id(d) for d in node.decorator_list]
-        decorators = [
-            class_for_typename(t, None, self._imported_names) for t in decorators_origin
-        ]
-        for d in decorators:
-            if d in CLASS_DISPATCH_TABLE:
-                ret = CLASS_DISPATCH_TABLE[d](self, node)
+        annotation: str = ""
+        annotation_field: str = ""
+        annotation_body: str = ""
+        for decorator in node.decorator_list:
+            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+            if d_id in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
-                    return ret
-
-        decorator_str = ""
-        for d in decorators_origin:
-            decorator_str = f"# @{d}\n"
-        
-        if "dataclass" in decorators_origin:
-            print(JuliaTranspilerPlugins.visit_argparse_dataclass(self, node))
+                    annotation, annotation_field, annotation_body = ret
 
         fields = []
-        index = 0
         for declaration, typename in declarations.items():
-            # Allow Julia to infer the types
-            # if typename == None:
-            #     typename = "ST{0}".format(index)
-            #     index += 1
             fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
-        fields = "" if fields == [] else "\n".join(fields) + "\n"
-        struct_def = ""
-        if decorator_str and decorator_str != "\n":
-            struct_def += decorator_str
-        struct_def += f"struct {node.name}\n{fields}end\n"
+        fields = "" if fields == [] else "\n".join(fields) + "\n" + annotation_field
+        struct_def = f"struct {node.name}\n{fields}end\n"
+        body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
-        body = "\n".join([self.visit(b) for b in node.body])
-        return f"{struct_def}\n{body}"
+                body.append(b)
+        body = "\n".join([self.visit(b) for b in body])
+        body += "\n" + annotation_body
+        return f"{annotation}{struct_def}{body}"
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
         decorators = [get_id(d) for d in node.decorator_list]

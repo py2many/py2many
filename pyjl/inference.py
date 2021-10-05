@@ -48,7 +48,7 @@ INTEGER_TYPES = (
 
 NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
-VARIABLE_TYPES = {}
+VARIABLE_TYPES = {}   
 
 #########################################################
 
@@ -98,7 +98,6 @@ def add_julia_type(node, annotation, target):
 
 def add_julia_variable_type(node, target, annotation):
     # if target (a.k.a node name) is not mapped, map it with corresponding value type
-    # print(get_id(target))
     scope = node.scopes[-1].name
     target_id = get_id(target)
     key = (target_id, scope)
@@ -177,7 +176,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         self.visit(node.value)
 
-        annotation = getattr(node.value, "annotation", None)
+        # TODO: Investigate this better
+        ann = getattr(node.value, "annotation", None)
+        annotation = ann if ann else getattr(node, "annotation", None)
         if annotation is None:
             return node
 
@@ -198,14 +199,17 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
 
-        annotation = getattr(node.value, "annotation", None)
+        # annotation = getattr(node.value, "annotation", None) # why was it node.value?
+        # TODO: Investigate this better
+        ann = getattr(node.value, "annotation", None)
+        annotation = ann if ann else getattr(node, "annotation", None)
         node.annotation = annotation
         node.target.annotation = node.annotation
+
         target = node.target
         target_typename = self._clike._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
-
         # annotation = get_inferred_julia_type(map_type(get_id(node.annotation))) # Does not appear to work
         add_julia_type(node, annotation, target)
 

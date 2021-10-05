@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import io
 import os
 import ast
@@ -6,6 +7,11 @@ import textwrap
 
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
+
+from py2many.ast_helpers import get_id
+from py2many.declaration_extractor import DeclarationExtractor
+from pyjl.clike import KEYWORD_MAP
+from pyjl.inference import JULIA_TYPE_MAP
 
 try:
     from dataclasses import dataclass as ap_dataclass
@@ -16,30 +22,97 @@ except ImportError:
 
 
 class JuliaTranspilerPlugins:
-    def visit_argparse_dataclass(self, node):
+    def visit_argparse_dataclass(self, node, decorator):
         fields = []
-        for (
-            declaration,
-            typename_with_default,
-        ) in node.declarations_with_defaults.items():
-            typename, default_value = typename_with_default
-            if typename == None:
+        create_jl_annotation:bool = True
+        for kw in decorator.keywords:
+            arg = kw.arg
+            value = kw.value
+            if value == None:
                 return None
-            if default_value is not None and typename != "bool":
-                default_value = self.visit(default_value)
-                default_value = f', default_value = "{default_value}"'
+            if arg == "create_jl_annotation":
+                create_jl_annotation = value.value
             else:
-                default_value = ""
-            fields.append(f"{declaration}: {typename}")
-        fields = "\n".join(fields)
-        clsdef = "\n" + textwrap.dedent(
-            f"""\
-        struct {node.name}
-            {fields}
-        end
-        """
-        )
-        return clsdef
+                fields.append(f"_{arg}={KEYWORD_MAP[value.value]}")
+        field = ""
+        annotation = ""
+        body = ""
+        if create_jl_annotation:
+            annotation = "@dataclass\n"
+            field = "_initvars = [" + ", ".join(fields) + "]\n"
+        else:
+            body = self._generate_dataclass_methods(node, fields)       
+        return annotation, field, body
+
+    def _generate_dataclass_methods(self, node, annotation_fields) -> str:
+        structname = get_id(node)
+
+        # Get struct fields
+        print(node)
+        struct_fields = []
+        for declaration, typename in declarations.items():
+            struct_fields.append(declaration if typename == "" else f"{declaration}::{typename}")
+
+        # get struct variables using getfield
+        get_variables = []
+        for field_name in struct_fields:
+            get_variables.append(f"getfield!(self::{structname}, {field_name})")
+        get_variables = ", ".join(get_variables)
+        
+        body = ""
+        if annotation_fields["_init"]:
+            str_struct_fields = ", ".join(struct_fields)
+            assign_variables_init = ""
+            for field_name in struct_fields:
+                assign_variables_init += f"setfield!(self::{structname}, {field_name}, {field_name})\n"
+
+            body += f"""
+                function __init__(self::{structname}, {str_struct_fields})
+                    {assign_variables_init}
+                end\n
+            """
+        if annotation_fields["_repr"]:
+            body += f"""
+                function __repr__(self::{structname})::String
+                    return {structname}({get_variables})
+                end\n
+            """
+        if annotation_fields["_eq"]:
+            body += f"""
+                function __eq__(self::{structname}, other::{structname})::Bool
+                    return __key(self) == __key(other)
+                end\n
+            """
+        if annotation_fields["_order"]:
+            body += f"""
+                function __lt__(self::{structname}, other::{structname})::Bool
+                    return __key(self) < __key(other)
+                end\n
+                function __le__(self::{structname}, other::{structname})::Bool
+                    return __key(self) <= __key(other)
+                end\n
+                function __gt__(self::{structname}, other::{structname})::Bool
+                    return __key(self) > __key(other)
+                end\n
+                function __ge__(self::{structname}, other::{structname})::Bool
+                    return __key(self) >= __key(other)
+                end\n
+            """
+        if annotation_fields["_unsafe_hash"]:
+            if annotation_fields["_eq"]: # && ismutable
+                body += f"""
+                function __hash__(self::{structname})
+                    return __key(self)
+                end\n
+                """
+
+        body += f"""
+                function __key(self::{structname})
+                    ({get_variables})
+                end\n
+                """
+
+        return body
 
     #################################################
     ################# TODO from here ################
@@ -83,9 +156,10 @@ class JuliaTranspilerPlugins:
         # TODO
         return None
 
-    def visit_ap_dataclass(self, cls):
-        # Do whatever transformation the decorator does to cls here
-        return cls
+    # def visit_ap_dataclass(self, cls):
+    #     # Do whatever transformation the decorator does to cls here
+    #     # print("ola")
+    #     return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
@@ -114,6 +188,9 @@ class JuliaTranspilerPlugins:
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
 
+JULIA_IMPORT_MAP = {
+    "dataclass": "DataClass"
+}
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -139,9 +216,21 @@ DISPATCH_MAP = {
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_ap_dataclass}
+# DECORATOR_DISPATCH_TABLE = {
+#     ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass,
+# }
 
-CLASS_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass}
+DECORATOR_DISPATCH_TABLE = {
+    "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+}
+
+# CLASS_DISPATCH_TABLE = {
+#     ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass,
+# }
+
+CLASS_DISPATCH_TABLE = {
+    "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+}
 
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",

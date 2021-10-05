@@ -12,7 +12,6 @@ class Register:
     PACKET: Packet
     VALUE: int
 
-
 if __name__ == "__main__":
     a = Register.VALUE(10)
     assert a.is_value()
