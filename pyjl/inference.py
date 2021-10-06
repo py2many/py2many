@@ -35,12 +35,14 @@ JULIA_CONTAINER_MAP = {
 
 INTEGER_TYPES = (
     [
-        "Int64", 
-        "Int32", 
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
         "UInt128", 
-        "Uint64", 
-        "Uint32", 
-        "Uint16", 
+        "UInt64", 
+        "UInt32", 
+        "UInt16", 
         "UInt8", 
         "Integer"
     ]
@@ -82,8 +84,8 @@ def get_inferred_julia_type(node):
 
 def add_julia_annotation(node, left_default, right_default) :
     scope = node.scopes[-1].name
-    node.left.julia_annotation = left_default
-    node.right.julia_annotation = right_default
+    node.left.julia_annotation = map_type(left_default)
+    node.right.julia_annotation = map_type(right_default)
     key_right = (get_id(node.right), scope)
     key_left = (get_id(node.left), scope)
     if(key_left in VARIABLE_TYPES):
@@ -113,7 +115,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     """
 
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
+    FIXED_WIDTH_INTS_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_LIST
+    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
     FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
     def __init__(self):
@@ -244,7 +247,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
-            add_julia_annotation(node, map_type(get_id(left)), map_type(get_id(right)))
+            add_julia_annotation(node, get_id(left), get_id(right))
             return node
 
         # Both operands are annotated. Now we have interesting cases
@@ -254,9 +257,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if not isinstance(node.op, ast.Div) or getattr(
                 node, "use_integer_div", False
             ):
-                add_julia_annotation(node, map_type(left_id), map_type(left_id))
+                add_julia_annotation(node, left_id, left_id)
             else:
-                add_julia_annotation(node, map_type("float"), map_type("float"))
+                add_julia_annotation(node, "float", "float")
             return node
 
         if left_id == "int":
@@ -269,20 +272,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             and right_id in self.FIXED_WIDTH_INTS_NAME
         ):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            node.julia_annotation = ret
+            add_julia_annotation(node, ret, ret)
             return node
         if left_id == right_id:
             # Exceptions: division operator
-            # if isinstance(node.op, ast.Div):
-            #     if left_id == "int":
-            #         node.annotation = ast.Name(id="float")
-            #         return node
-            # node.annotation = left
             if isinstance(node.op, ast.Div):
                 if left_id == "int":
-                    node.julia_annotation = map_type("float")
+                    add_julia_annotation(node, "float", "float")
                     return node
-                node.julia_annotation = map_type(left_id)
+                add_julia_annotation(node, left_id, left_id)
         else:
             # TODO: Not sure if all these conditions are necessary
             # if left_id in self.FIXED_WIDTH_INTS_NAME:
@@ -298,7 +296,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 ("float", "complex"),
                 ("complex", "float"),
             }:
-                node.julia_annotation = map_type("complex")
+                add_julia_annotation(node, "complex", "complex")
                 return node
 
         # By default, the types are left_id and right_id respectively

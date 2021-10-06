@@ -4,7 +4,8 @@ from subprocess import call
 from pyjl.tracer import is_class
 from .inference import (
     NUM_TYPES,
-    INTEGER_TYPES
+    INTEGER_TYPES,
+    map_type
 )
 import textwrap
 
@@ -114,6 +115,8 @@ class JuliaTranspiler(CLikeTranspiler):
             if(resolved_import != None):
                 # If there is a Julia annotation, get that instead of the default Python annotation
                 arg_typename = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else resolved_import
+            elif arg_typename != None and arg_typename != "T":
+                arg_typename = map_type(arg_typename)
             elif arg_typename == "T": 
                 # Allow the user to know that type is generic
                 arg_typename = "T{0}".format(index)
@@ -128,7 +131,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 # No Julia typename found
                 # func_typename = (node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") 
                 #     else self._typename_from_annotation(node, attr="returns"))
-                func_typename = self._typename_from_annotation(node, attr="returns")
+                func_typename = map_type(self._typename_from_annotation(node, attr="returns"))
                 return_type = f"::{func_typename}"
             else:
                 # Allow Julia to infer types
@@ -326,7 +329,8 @@ class JuliaTranspiler(CLikeTranspiler):
         right_jl_ann = node.right.julia_annotation
         if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
              (isinstance(node.right, ast.Num) and left_jl_ann in NUM_TYPES) or
-             (isinstance(node.left, ast.Num) and right_jl_ann in NUM_TYPES)):
+             (isinstance(node.left, ast.Num) and right_jl_ann in NUM_TYPES) or
+             (left_jl_ann in NUM_TYPES and right_jl_ann in NUM_TYPES)):
             return super().visit_BinOp(node)
 
         # Visit left and right
