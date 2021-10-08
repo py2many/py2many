@@ -9,8 +9,8 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
-from py2many.declaration_extractor import DeclarationExtractor
-from pyjl.inference import JULIA_TYPE_MAP
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 try:
     from dataclasses import dataclass as ap_dataclass
@@ -211,6 +211,46 @@ JULIA_KEYWORD_MAP = {
 
 JULIA_IMPORT_MAP = {
     "dataclass": "DataClass"
+}
+
+JULIA_TYPE_MAP = {
+    bool: "Bool",
+    int: "Int64",
+    float: "Float64",
+    bytes: "Array{UInt8}",
+    str: "String",
+    c_int8: "Int8",
+    c_int16: "Int16",
+    c_int32: "Int32",
+    c_int64: "Int64",
+    c_uint8: "UInt8",
+    c_uint16: "UInt16",
+    c_uint32: "UInt32",
+    c_uint64: "UInt64",
+}
+
+INTEGER_TYPES = (
+    [
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
+        "UInt128", 
+        "UInt64", 
+        "UInt32", 
+        "UInt16", 
+        "UInt8", 
+        "Integer"
+    ]
+)
+
+NUM_TYPES = INTEGER_TYPES + ["Float64"]
+
+CONTAINER_TYPE_MAP = {
+    "List": "Array",
+    "Dict": "Dict",
+    "Set": "Set",
+    "Optional": "Nothing",
 }
 
 # small one liners are inlined here as lambdas

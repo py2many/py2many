@@ -3,8 +3,6 @@ from subprocess import call
 
 from pyjl.tracer import is_class
 from .inference import (
-    NUM_TYPES,
-    INTEGER_TYPES,
     map_type
 )
 import textwrap
@@ -13,9 +11,12 @@ from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
+    CONTAINER_TYPE_MAP,
     FUNC_DISPATCH_TABLE,
+    INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
+    NUM_TYPES,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
     JuliaTranspilerPlugins,
@@ -50,18 +51,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "Array",
-        "Dict": "Dict",
-        "Set": "Set",
-        "Optional": "Nothing",
-    }
-
     def __init__(self):
         super().__init__()
         self._headers = set([])
         self._default_type = ""
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -129,9 +122,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 # No Julia typename found
-                # func_typename = (node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") 
-                #     else self._typename_from_annotation(node, attr="returns"))
-                func_typename = map_type(self._typename_from_annotation(node, attr="returns"))
+                func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
+                    else map_type(self._typename_from_annotation(node, attr="returns")))
                 return_type = f"::{func_typename}"
             else:
                 # Allow Julia to infer types
@@ -349,11 +341,11 @@ class JuliaTranspiler(CLikeTranspiler):
                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 
-            # # Cover Python String and Int multiplication
-            # if(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.Str) or left_jl_ann == "String")):
-            #     return f"{left}*string({right})"
-            # if(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.Sr) or right_jl_ann == "String")):
-            #     return f"string({left})*{right}"
+            # Cover Python Int and Boolean multiplication (also supported in Julia)
+            if(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")):
+                return f"{left}*{right}"
+            if(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool")):
+                return f"{left}*{right}"
 
         if isinstance(node.op, ast.Add) :
             # Cover Python list addition
@@ -508,8 +500,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if index == None:
             return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
+            if value in CONTAINER_TYPE_MAP:
+                value = CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)

@@ -6,8 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from pyjl.plugins import JULIA_IMPORT_MAP
-from .inference import JULIA_TYPE_MAP
+from pyjl.plugins import JULIA_IMPORT_MAP, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")

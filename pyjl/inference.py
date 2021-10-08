@@ -1,4 +1,5 @@
 import ast
+from ctypes import c_int64
 
 from dataclasses import dataclass
 from typing import List, cast, Set, Optional
@@ -10,45 +11,7 @@ from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import is_enum
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
-
-JULIA_TYPE_MAP = {
-    bool: "Bool",
-    int: "Int64",
-    float: "Float64",
-    bytes: "Array{UInt8}",
-    str: "String",
-    c_int8: "Int8",
-    c_int16: "Int16",
-    c_int32: "Int32",
-    c_int64: "Int64",
-    c_uint8: "UInt8",
-    c_uint16: "UInt16",
-    c_uint32: "UInt32",
-    c_uint64: "UInt64",
-}
-
-JULIA_CONTAINER_MAP = {
-    List: "Array"
-}
-
-INTEGER_TYPES = (
-    [
-        "Int8",
-        "Int16",
-        "Int32",
-        "Int64",
-        "UInt128", 
-        "UInt64", 
-        "UInt32", 
-        "UInt16", 
-        "UInt8", 
-        "Integer"
-    ]
-)
-
-NUM_TYPES = INTEGER_TYPES + ["Float64"]
+from pyjl.plugins import CONTAINER_TYPE_MAP, INTEGER_TYPES, JULIA_TYPE_MAP, NUM_TYPES
 
 VARIABLE_TYPES = {}   
 
@@ -62,8 +25,8 @@ def map_type(typename) :
     typeclass = class_for_typename(typename, "Any")
     if typeclass in JULIA_TYPE_MAP:
         return JULIA_TYPE_MAP[typeclass]
-    if typeclass in JULIA_CONTAINER_MAP:
-        return JULIA_CONTAINER_MAP[typeclass]
+    if typename in CONTAINER_TYPE_MAP:
+        return CONTAINER_TYPE_MAP[typename]
     return typename
 
 def get_inferred_julia_type(node):
@@ -244,52 +207,49 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
+        # If one or more nodes are None, skip other conditions
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
             add_julia_annotation(node, get_id(left), get_id(right))
             return node
 
-        # Both operands are annotated. Now we have interesting cases
+        # Both operands are annotated
         left_id = get_id(left)
         right_id = get_id(right)
-        if left_id == right_id and left_id == "int":
-            if not isinstance(node.op, ast.Div) or getattr(
-                node, "use_integer_div", False
-            ):
-                add_julia_annotation(node, left_id, left_id)
-            else:
-                add_julia_annotation(node, "float", "float")
-            return node
 
         if left_id == "int":
             left_id = "c_int32"
         if right_id == "int":
             right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
+        if (left_id in self.FIXED_WIDTH_INTS_NAME
+                and right_id in self.FIXED_WIDTH_INTS_NAME):
             ret = self._handle_overflow(node.op, left_id, right_id)
             add_julia_annotation(node, ret, ret)
             return node
+
         if left_id == right_id:
-            # Exceptions: division operator
-            if isinstance(node.op, ast.Div):
-                if left_id == "int":
+            # Cover division with ints
+            left_annotation = (node.left.julia_annotation 
+                if hasattr(node.left, "julia_annotation") else map_type(left_id))
+            right_annotation = (node.right.julia_annotation 
+                if hasattr(node.right, "julia_annotation") else map_type(right_id))
+            if ((isinstance(node.left, ast.Num) or left_annotation in NUM_TYPES) and 
+                    (isinstance(node.right, ast.Num) or right_annotation in NUM_TYPES)) :
+                if (not isinstance(node.op, ast.Div) or 
+                        getattr(node, "use_integer_div", False)):
+                    node.annotation = left_id
+                    add_julia_annotation(node, left_id, left_id)
+                else:
+                    node.annotation = "float"
                     add_julia_annotation(node, "float", "float")
-                    return node
-                add_julia_annotation(node, left_id, left_id)
+                return node
         else:
-            # TODO: Not sure if all these conditions are necessary
-            # if left_id in self.FIXED_WIDTH_INTS_NAME:
-            #     left_id = "int"
-            # if right_id in self.FIXED_WIDTH_INTS_NAME:
-            #     right_id = "int"
-            # if (left_id, right_id) == {("int", "float"), ("float", "int")}:
-            #     node.julia_annotation = map_type("float")
-            # TODO: review complex
+            if ((left in INTEGER_TYPES and right == "float") or 
+                    (right in INTEGER_TYPES and left == "float")):
+                add_julia_annotation(node, "float", "float")
+                return node
             if (left_id, right_id) in { 
                 ("int", "complex"),
                 ("complex", "int"),
@@ -299,18 +259,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 add_julia_annotation(node, "complex", "complex")
                 return node
 
-        # By default, the types are left_id and right_id respectively
+        # By default (if no translation possible), the types are left_id and right_id respectively
         add_julia_annotation(node, left_id, right_id)
-        
-        # Container multiplication
-        # if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
-        #     {"bytes", "int"},
-        #     {"str", "int"},
-        #     {"tuple", "int"},
-        #     {"List", "int"},
-        # ]:
-        #     node.annotation = ast.Name(id=left_id)
-        #     return node
 
         ILLEGAL_COMBINATIONS = {}
 
