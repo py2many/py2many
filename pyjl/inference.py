@@ -2,6 +2,7 @@ import ast
 from ctypes import c_int64
 
 from dataclasses import dataclass
+from logging import NullHandler
 from typing import List, cast, Set, Optional
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
@@ -113,7 +114,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
-    # Added map_type to return Julia type
     def visit_Return(self, node):
         self.generic_visit(node)
         new_type_str = (
@@ -126,9 +126,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if isinstance(scope, ast.FunctionDef):
                 type_str = map_type(get_id(scope.returns))
                 if type_str is not None:
-                    if new_type_str != type_str:
+                    left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
+                    right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
+                    if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
+                            and right_jl_annotation == "String") 
+                            or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
+                            and left_jl_annotation == "String") ):
+                        print("visit_Return - PyJl")
+                        type_str = "String"
+                    elif new_type_str != type_str:
                         type_str = f"Union{'{'}{type_str},{new_type_str}{'}'}"
-                        scope.returns.id = type_str
+                    scope.returns.id = type_str
+                    print(ast.dump(node.scopes[1], indent=4))
                 else:
                     # Do not overwrite source annotation with inferred
                     if scope.returns is None:
@@ -259,6 +268,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 add_julia_annotation(node, "complex", "complex")
                 return node
 
+        mapped_left = map_type(left_id)
+        mapped_right = map_type(right_id)
+        if ((mapped_left in NUM_TYPES and mapped_right == "String") 
+            or (mapped_right in NUM_TYPES and mapped_left == "String")):
+            node.annotation = ast.Name(id="str")
         # By default (if no translation possible), the types are left_id and right_id respectively
         add_julia_annotation(node, left_id, right_id)
 
