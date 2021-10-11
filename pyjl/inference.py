@@ -84,6 +84,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
 
     def __init__(self):
+        super().__init__()
         self._clike = CLikeTranspiler()
 
     def _handle_overflow(self, op, left_id, right_id):
