@@ -136,6 +136,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         right = self.visit(node.comparators[0])
         return f"{left} in {right}"
 
+    def visit_NamedExpr(self, node) -> str:
+        return f"({self.visit(node.target)} = {self.visit(node.value)})"
+
     ################################################
     ########### Supporting Julia imports ###########
     ################################################

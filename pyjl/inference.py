@@ -118,27 +118,30 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     def visit_Return(self, node):
         self.generic_visit(node)
         new_type_str = (
-            map_type(get_id(node.value.annotation) if hasattr(node.value, "annotation") else None) 
+            get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
         )
+
         if new_type_str is None:
             return node
         for scope in node.scopes:
             type_str = None
             if isinstance(scope, ast.FunctionDef):
-                type_str = map_type(get_id(scope.returns))
+                type_str = get_id(scope.returns)
                 if type_str is not None:
+                    # specific case of ast.Mult with an int and a string
                     left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
                     right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
                     if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
                             and right_jl_annotation == "String") 
                             or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
-                            and left_jl_annotation == "String") ):
-                        print("visit_Return - PyJl")
-                        type_str = "String"
+                            and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
+                        type_str = "str"
                     elif new_type_str != type_str:
-                        type_str = f"Union{'{'}{type_str},{new_type_str}{'}'}"
-                    scope.returns.id = type_str
-                    print(ast.dump(node.scopes[1], indent=4))
+                        type_str = f"Union{'{'}{map_type(type_str)},{map_type(new_type_str)}{'}'}"
+
+                    # Add julia_annotation value
+                    scope.julia_annotation = map_type(type_str)
+                    setattr(scope.returns, "id", type_str)
                 else:
                     # Do not overwrite source annotation with inferred
                     if scope.returns is None:
@@ -146,6 +149,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         lifetime = getattr(node.value.annotation, "lifetime", None)
                         if lifetime is not None:
                             scope.returns.lifetime = lifetime
+
+        # print(ast.dump(node.scopes[1], indent=4))
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
@@ -271,9 +276,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         mapped_left = map_type(left_id)
         mapped_right = map_type(right_id)
-        if ((mapped_left in NUM_TYPES and mapped_right == "String") 
-            or (mapped_right in NUM_TYPES and mapped_left == "String")):
+        if (((mapped_left in NUM_TYPES and mapped_right == "String") 
+            or (mapped_right in NUM_TYPES and mapped_left == "String")) 
+            and node.op == ast.Mult):
             node.annotation = ast.Name(id="str")
+
         # By default (if no translation possible), the types are left_id and right_id respectively
         add_julia_annotation(node, left_id, right_id)
 
@@ -284,10 +291,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         return node
 
     # def visit_FunctionDef(self, node) -> str:
-    #     attr = "annotation"
-    #     if hasattr(node, attr):  
-    #         type_node = getattr(node, attr)
-    #         node.julia_annotation = map_type(CLikeTranspiler._typename_from_type_node(type_node)) # Wrong use of CLikeTranspiler
-    #     return node
+        # attr = "annotation"
+        # print(get_id(node.scopes[-1].returns))
+        # return node
+        # if hasattr(node, attr):  
+        #     type_node = getattr(node, attr)
+        #     node.julia_annotation = map_type(CLikeTranspiler._typename_from_type_node(type_node)) # Wrong use of CLikeTranspiler
+        # return node
 
 

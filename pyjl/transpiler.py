@@ -286,6 +286,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
         buf = []
         cond = self.visit(node.test)
+        # print(ast.dump(node, indent=4))
+        # print(self.visit_NamedExpr(node.test.left))
         buf.append(f"if {cond}")
         buf.extend([self.visit(child) for child in node.body])
 

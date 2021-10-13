@@ -335,7 +335,6 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_Return(self, node):
-        print("visit_Return - py2many")
         self.generic_visit(node)
         new_type_str = (
             get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
