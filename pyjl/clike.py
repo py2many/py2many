@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from pyjl.plugins import JULIA_IMPORT_MAP, JULIA_TYPE_MAP
+from pyjl.plugins import MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -92,26 +92,26 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return node.id + "_"
-        julia_typename = self.visit_alias_import_typename(node_id)
-        if(julia_typename != None):
-            return julia_typename
+        # julia_typename = self.visit_alias_import_typename(node_id)
+        # if(julia_typename != None):
+        #     return julia_typename
         return super().visit_Name(node)
 
     # Custom made function to visit type names originated from imports
-    def visit_alias_import_typename(self, typename) -> str:
-        if typename in self._import_aliases:
-            return self._import_aliases[typename]
-        typename_elems = typename.split(".")
-        first_elem = typename_elems[0]
-        if(first_elem in self._import_aliases):
-            if(len(typename_elems) == 1):
-                return self._import_aliases[first_elem]
+    # def visit_alias_import_typename(self, typename) -> str:
+    #     if typename in self._import_aliases:
+    #         return self._import_aliases[typename]
+    #     typename_elems = typename.split(".")
+    #     first_elem = typename_elems[0]
+    #     if(first_elem in self._import_aliases):
+    #         if(len(typename_elems) == 1):
+    #             return self._import_aliases[first_elem]
 
-            node_elems = ""
-            for i in range(1, len(typename_elems)):
-                node_elems += "." + typename_elems[i]
-            return f"{self._import_aliases[first_elem]}{node_elems}"
-        return None
+    #         node_elems = ""
+    #         for i in range(1, len(typename_elems)):
+    #             node_elems += "." + typename_elems[i]
+    #         return f"{self._import_aliases[first_elem]}{node_elems}"
+    #     return None
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Mult):
@@ -146,7 +146,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
         imports = [
-            (self._import(JULIA_IMPORT_MAP[name]) if name in JULIA_IMPORT_MAP else self._import(name))
+            f"{(self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name))} as {alias}"
             for name, alias in names
             if name not in self._ignored_module_set
         ]
@@ -165,7 +165,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if node.module in self._ignored_module_set:
             return ""
 
-        imported_name = JULIA_IMPORT_MAP[node.module] if node.module in JULIA_IMPORT_MAP else node.module
+        imported_name = MODULE_DISPATCH_TABLE[node.module] if node.module in MODULE_DISPATCH_TABLE else node.module
         imported_module = None
         if node.module:
             try:

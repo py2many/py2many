@@ -209,10 +209,6 @@ JULIA_KEYWORD_MAP = {
     False: "false",
 }
 
-JULIA_IMPORT_MAP = {
-    "dataclass": "DataClass"
-}
-
 JULIA_TYPE_MAP = {
     bool: "Bool",
     int: "Int64",
@@ -275,7 +271,11 @@ DISPATCH_MAP = {
     "int": JuliaTranspilerPlugins.visit_cast_int,
 }
 
-MODULE_DISPATCH_TABLE: Dict[str, str] = {}
+MODULE_DISPATCH_TABLE: Dict[str, str] = {
+    "dataclass": "DataClass",
+    "json": "JSON",
+    "datetime": "DateTime"
+}
 
 # DECORATOR_DISPATCH_TABLE = {
 #     ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass,
