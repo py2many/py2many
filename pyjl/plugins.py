@@ -274,7 +274,7 @@ DISPATCH_MAP = {
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "dataclass": "DataClass",
     "json": "JSON",
-    "datetime": "Dates"
+    "datetime": "DateTime"
 }
 
 # DECORATOR_DISPATCH_TABLE = {
