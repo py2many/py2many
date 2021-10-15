@@ -1,6 +1,6 @@
-import datetime
+import Dates as dt
 function calendar_test()
-now = isoformat(datetime.datetime.utcnow())
+now = isoformat(dt.datetime.utcnow())
 println(now);
 end
 

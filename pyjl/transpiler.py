@@ -103,12 +103,7 @@ class JuliaTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             arg_typename = typenames[i]
             arg = args[i]
-            # Resolve alias imports
-            resolved_import = super().visit_alias_import_typename(arg_typename)
-            if(resolved_import != None):
-                # If there is a Julia annotation, get that instead of the default Python annotation
-                arg_typename = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else resolved_import
-            elif arg_typename != None and arg_typename != "T":
+            if arg_typename != None and arg_typename != "T":
                 arg_typename = map_type(arg_typename)
             elif arg_typename == "T": 
                 # Allow the user to know that type is generic

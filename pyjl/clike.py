@@ -80,7 +80,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
-        self._import_aliases: Dict[str, Any] = {}
+        # self._import_aliases: Dict[str, Any] = {}
 
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
@@ -145,8 +145,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
+        
         imports = [
-            f"{(self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name))} as {alias}"
+            self._import_str(name, alias) # Does Python inline this?
             for name, alias in names
             if name not in self._ignored_module_set
         ]
@@ -157,9 +158,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     imported_name = importlib.import_module(name)
                 except ImportError:
                     imported_name = name
-                self._import_aliases[asname] = name # Added
+                # self._import_aliases[asname] = name # Added
                 self._imported_names[asname] = imported_name
         return "\n".join(imports)
+
+    def _import_str(self, name, alias):
+        import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
+        return import_str + f" as {alias}" if alias else import_str
 
     def visit_ImportFrom(self, node) -> str:
         if node.module in self._ignored_module_set:
@@ -183,7 +188,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                 self._imported_names[asname] = getattr(imported_module, name, None)
             else:
                 self._imported_names[asname] = (imported_name, name)
-            self._import_aliases[asname] = name # Added
+            # self._import_aliases[asname] = name # Added
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 
