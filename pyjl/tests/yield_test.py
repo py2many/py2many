@@ -1,3 +1,4 @@
+@use_continuables
 def generator_func():
     num = 1
     yield num
@@ -7,4 +8,5 @@ def generator_func():
     yield num
 
 if __name__ == "__main__":
-    generator_func()
+    for i in generator_func():
+        print(i)

@@ -28,7 +28,7 @@ from py2many.clike import _AUTO_INVOKED
 from pyjl.clike import class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -60,6 +60,7 @@ class JuliaTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._yields_map = {} # Dict<str, int>
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -88,7 +89,16 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_Constant(node)
 
     def visit_FunctionDef(self, node) -> str:
-        body = "\n".join([self.visit(n) for n in node.body])
+        body = ""
+        node_body = "\n".join([self.visit(n) for n in node.body])
+
+        # Add yield support
+        yield_res = self._yield_func_support(node)
+        annotation = yield_res[0]
+        body += yield_res[1]
+
+        body += node_body
+
         typenames, args = self.visit(node.args)
 
         args_list = []
@@ -129,11 +139,28 @@ class JuliaTranspiler(CLikeTranspiler):
             template = "{{{0}}}".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
-        funcdef = f"function {node.name}{template}({args}){return_type}"
+        funcdef = f"{annotation} function {node.name}{template}({args}){return_type}"
         maybe_main = ""
         if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
+
+    def _yield_func_support(self, node):
+        channel_str = ""
+        decorators = []
+        for decorator in node.decorator_list:
+            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+            decorators.append(d_id)
+
+        annotation = ""
+        if "use_continuables" not in decorators:
+            # Build a channel with the necessary size (number of yields in a function)
+            if node.name in self._yields_map:
+                channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
+        else:
+            annotation = "@cont"
+        
+        return annotation, channel_str
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -629,7 +656,25 @@ class JuliaTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node) -> str:
-        return "//yield is unimplemented"
+        name = ""
+        decorators = []
+        if isinstance(node.scopes[1], ast.FunctionDef):
+            func_node = node.scopes[1]
+            name = func_node.name
+            # TODO: Optimize -> getting decorator_list each time we call yield
+            for decorator in func_node.decorator_list:
+                d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+                decorators.append(d_id)
+        if name:
+            if name in self._yields_map:
+                self._yields_map[name] += 1 
+            else:
+                self._yields_map[name] = 1
+        
+        if "use_continuables" in decorators:
+            return f"cont({self.visit(node.value)})"
+        else:
+            return f"put!(channel_{name}, {self.visit(node.value)})"
 
     def visit_Print(self, node) -> str:
         buf = []
