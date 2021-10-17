@@ -54,7 +54,7 @@ class JuliaTranspilerPlugins:
         if fields["init"]:
             modifiers = "mutable"
         if keywords['create_jl_annotation']:
-            annotation = "@dataclass\n"
+            annotation = "@dataclass "
             fields_str = "_initvars = [" + ", ".join(field_repr) + "]\n"
         else:
             body = JuliaTranspilerPlugins._generate_dataclass_methods(self, node, fields)

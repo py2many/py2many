@@ -92,12 +92,17 @@ class JuliaTranspiler(CLikeTranspiler):
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
-        # Add yield support
+        # Add yield support (if needed)
         yield_res = self._yield_func_support(node)
         annotation = yield_res[0]
         body += yield_res[1]
 
+        # Adding the body of the node
         body += node_body
+
+        # Closing the channel and returning it (if needed)
+        if yield_res[2] and yield_res[3]:
+            body += f"\n{yield_res[2]}\n{yield_res[3]}"
 
         typenames, args = self.visit(node.args)
 
@@ -139,7 +144,7 @@ class JuliaTranspiler(CLikeTranspiler):
             template = "{{{0}}}".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
-        funcdef = f"{annotation} function {node.name}{template}({args}){return_type}"
+        funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
         maybe_main = ""
         if is_python_main:
             maybe_main = "\nmain()"
@@ -152,15 +157,19 @@ class JuliaTranspiler(CLikeTranspiler):
             d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
             decorators.append(d_id)
 
+        return_str = ""
+        body_str = ""
         annotation = ""
         if "use_continuables" not in decorators:
             # Build a channel with the necessary size (number of yields in a function)
             if node.name in self._yields_map:
                 channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
+                body_str = f"close(channel_{node.name})"
+                return_str = f"channel_{node.name}"
         else:
-            annotation = "@cont"
+            annotation = "@cont "
         
-        return annotation, channel_str
+        return annotation, channel_str, body_str, return_str
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -343,11 +352,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_BinOp(self, node) -> str:
         left_jl_ann = node.left.julia_annotation
         right_jl_ann = node.right.julia_annotation
-        if((isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)) or
-             (isinstance(node.right, ast.Num) and left_jl_ann in NUM_TYPES) or
-             (isinstance(node.left, ast.Num) and right_jl_ann in NUM_TYPES) or
-             (left_jl_ann in NUM_TYPES and right_jl_ann in NUM_TYPES)):
-            return super().visit_BinOp(node)
 
         # Visit left and right
         left = self.visit_List(node.left) if isinstance(node.left, ast.List) else self.visit(node.left)
@@ -377,6 +381,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     or (isinstance(node.right, ast.Name) and right_jl_ann == "Array" 
                         and isinstance(node.left, ast.Name) and left_jl_ann == "Array")):
                 return f"[{left};{right}]"
+            
+            # Cover Python String concatenation 
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str)) 
                     or (isinstance(node.right, ast.Name) and right_jl_ann == "str"
                         and isinstance(node.left, ast.Name) and left_jl_ann == "str")):
@@ -385,6 +391,9 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
                 return "({0}*{1})".format(left, right)
+
+        # By default, call super
+        return super().visit_BinOp(node)
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(JuliaTranspiler())
@@ -399,6 +408,7 @@ class JuliaTranspiler(CLikeTranspiler):
         #     class_for_typename(t, None, self._imported_names) for t in decorators_origin
         # ]
 
+        # Allow support for decorator chaining
         annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
         for decorator in node.decorator_list:
             d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
@@ -659,14 +669,17 @@ class JuliaTranspiler(CLikeTranspiler):
         name = ""
         decorators = []
         if isinstance(node.scopes[1], ast.FunctionDef):
-            func_node = node.scopes[1]
+            func_node = self._find_function_scope(node)
+            range_from_for_loop = self._find_range_from_for_loop(node)
             name = func_node.name
             # TODO: Optimize -> getting decorator_list each time we call yield
             for decorator in func_node.decorator_list:
                 d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
                 decorators.append(d_id)
         if name:
-            if name in self._yields_map:
+            if range_from_for_loop != 0:
+                self._yields_map[name] = range_from_for_loop
+            elif name in self._yields_map:
                 self._yields_map[name] += 1 
             else:
                 self._yields_map[name] = 1
@@ -675,6 +688,24 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"cont({self.visit(node.value)})"
         else:
             return f"put!(channel_{name}, {self.visit(node.value)})"
+        
+    # TODO: See if there are Problems when using things other than "range"
+    def _find_range_from_for_loop(self, node):
+        iter = 0
+        for sc in node.scopes:
+            if isinstance(sc, ast.For):
+                if hasattr(sc, "iter"):
+                    iter = int(self.visit(sc.iter.args[1])) - int(self.visit(sc.iter.args[0]))
+                    break
+        return iter
+
+    def _find_function_scope(self, node):
+        scope = None
+        for sc in node.scopes:
+            if isinstance(sc, ast.FunctionDef):
+                scope = sc
+                break
+        return scope
 
     def visit_Print(self, node) -> str:
         buf = []

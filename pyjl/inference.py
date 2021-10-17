@@ -47,7 +47,8 @@ def get_inferred_julia_type(node):
     return ret
 
 def add_julia_annotation(node, left_default, right_default) :
-    scope = node.scopes[-1].name
+    scope = find_scope(node)
+    # print(type(node.right))
     node.left.julia_annotation = map_type(left_default)
     node.right.julia_annotation = map_type(right_default)
     key_right = (get_id(node.right), scope)
@@ -56,6 +57,20 @@ def add_julia_annotation(node, left_default, right_default) :
         node.left.julia_annotation = VARIABLE_TYPES[key_left]
     if(key_right in VARIABLE_TYPES):
         node.right.julia_annotation = VARIABLE_TYPES[key_right]
+
+# TODO: See what use cases there are, for now scope is function name
+def find_scope(node):
+    # print(ast.dump(node.scopes[len(node.scopes) - 1], indent=4))
+    # print(ast.dump(node.scopes[0], indent=4))
+    scope = None
+    for sc in node.scopes:
+        if isinstance(sc, ast.FunctionDef):
+            scope = sc
+        # if isinstance(sc, ast.For):
+        #     print(ast.dump(sc, indent=4))
+        #     print(node in sc.body)
+    scope = scope.name if scope is not None else None
+    return scope
 
 def add_julia_type(node, annotation, target):
     julia_annotation = get_inferred_julia_type(node)
