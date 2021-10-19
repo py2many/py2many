@@ -370,9 +370,11 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"repeat({right},{left})"
 
             # Cover Python Int and Boolean multiplication (also supported in Julia)
-            if(isinstance(node.right, ast.Num) and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")):
+            if((isinstance(node.right, ast.Num) or right_jl_ann in NUM_TYPES )
+                    and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")):
                 return f"{left}*{right}"
-            if(isinstance(node.left, ast.Num) and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool")):
+            if((isinstance(node.left, ast.Num) or left_jl_ann in NUM_TYPES)
+                    and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool")):
                 return f"{left}*{right}"
 
         if isinstance(node.op, ast.Add) :
@@ -665,6 +667,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_AsyncFunctionDef(self, node) -> str:
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
+    # TODO see if there are problems when there are functions with the same name
     def visit_Yield(self, node) -> str:
         name = ""
         decorators = []
