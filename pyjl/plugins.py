@@ -249,6 +249,9 @@ CONTAINER_TYPE_MAP = {
     "Optional": "Nothing",
 }
 
+# Set during AST parsing. It maps function names to their respective decorators
+DECORATOR_MAP = {}
+
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"string({vargs[0]})",

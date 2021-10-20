@@ -36,7 +36,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
+from pyjl.transpiler import JuliaAnnotationParser, JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
@@ -111,6 +111,7 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
+    visitors = settings.visitors
     tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source)
@@ -140,7 +141,7 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, visitors, args
             )
             successful.append(filename)
             outputs[filename] = output
@@ -162,7 +163,7 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, visitors, args 
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -181,6 +182,11 @@ def _transpile_one(
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
     out = []
+
+    # Custom visitors
+    for visitor in visitors:
+        tree = visitor.visit(tree)
+
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
     features = transpiler.features()
@@ -289,6 +295,7 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
+        visitors=[JuliaAnnotationParser()],
         rewriters=[],
         transformers=[infer_julia_types],
         post_rewriters=[JuliaMethodCallRewriter()],

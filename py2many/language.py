@@ -12,6 +12,7 @@ class LanguageSettings:
     ext: str
     display_name: str
     formatter: Optional[List[str]] = None
+    visitors: List[ast.NodeVisitor] = field(default_factory=list)
     indent: Optional[int] = None
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
     transformers: List[Callable] = field(default_factory=list)

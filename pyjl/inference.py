@@ -305,13 +305,3 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-    # def visit_FunctionDef(self, node) -> str:
-        # attr = "annotation"
-        # print(get_id(node.scopes[-1].returns))
-        # return node
-        # if hasattr(node, attr):  
-        #     type_node = getattr(node, attr)
-        #     node.julia_annotation = map_type(CLikeTranspiler._typename_from_type_node(type_node)) # Wrong use of CLikeTranspiler
-        # return node
-
-

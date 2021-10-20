@@ -1,13 +1,11 @@
-function generator_func()
-channel_generator_func = Channel(3)
+using Continuables
+@cont function generator_func()
 num = 1
-put!(channel_generator_func, num);
+cont(num);
 num = 5
-put!(channel_generator_func, num);
+cont(num);
 num = 10
-put!(channel_generator_func, num);
-close(channel_generator_func)
-channel_generator_func
+cont(num);
 end
 
 function generator_func_loop()
@@ -21,7 +19,7 @@ channel_generator_func_loop
 end
 
 function main()
-for i in generator_func()
+for i in collect(generator_func())
 println(i);
 end
 println("-----------------------");

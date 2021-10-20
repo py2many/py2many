@@ -12,6 +12,7 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
     CONTAINER_TYPE_MAP,
+    DECORATOR_MAP,
     FUNC_DISPATCH_TABLE,
     INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
@@ -19,16 +20,14 @@ from .plugins import (
     NUM_TYPES,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
-    JuliaTranspilerPlugins,
 )
 
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from pyjl.clike import class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -47,6 +46,17 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
+# Why does it have to be NodeTransformer
+class JuliaAnnotationParser(ast.NodeTransformer):
+    def visit_FunctionDef(self, node):
+        self._set_decorators(node)
+        return node
+
+    def _set_decorators(self, node) -> None:
+        DECORATOR_MAP[node.name] = []
+        for decorator in node.decorator_list:
+            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+            DECORATOR_MAP[node.name].append(d_id)
 
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
@@ -88,11 +98,12 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_FunctionDef(self, node) -> str:
+    def visit_FunctionDef(self, node) -> str:    
+        # visit function body
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
-        # Add yield support (if needed)
+        # Support yield
         yield_res = self._yield_func_support(node)
         annotation = yield_res[0]
         body += yield_res[1]
@@ -120,7 +131,7 @@ class JuliaTranspiler(CLikeTranspiler):
             arg = args[i]
             if arg_typename != None and arg_typename != "T":
                 arg_typename = map_type(arg_typename)
-            elif arg_typename == "T": 
+            elif arg_typename == "T":
                 # Allow the user to know that type is generic
                 arg_typename = "T{0}".format(index)
                 typedecls.append(arg_typename)
@@ -152,21 +163,18 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _yield_func_support(self, node):
         channel_str = ""
-        decorators = []
-        for decorator in node.decorator_list:
-            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
-            decorators.append(d_id)
 
         return_str = ""
         body_str = ""
         annotation = ""
-        if "use_continuables" not in decorators:
+        if node.name in DECORATOR_MAP and "use_continuables" not in DECORATOR_MAP[node.name]:
             # Build a channel with the necessary size (number of yields in a function)
             if node.name in self._yields_map:
                 channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
                 body_str = f"close(channel_{node.name})"
                 return_str = f"channel_{node.name}"
         else:
+            self._usings.add("Continuables")
             annotation = "@cont "
         
         return annotation, channel_str, body_str, return_str
@@ -262,6 +270,10 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
+        # Remove function args
+        func_name = it.split("(")[0]
+        if func_name in DECORATOR_MAP and "use_continuables" in DECORATOR_MAP[func_name]:
+            it = f"collect({it})"
         buf.append("for {0} in {1}".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
@@ -670,15 +682,10 @@ class JuliaTranspiler(CLikeTranspiler):
     # TODO see if there are problems when there are functions with the same name
     def visit_Yield(self, node) -> str:
         name = ""
-        decorators = []
         if isinstance(node.scopes[1], ast.FunctionDef):
             func_node = self._find_function_scope(node)
             range_from_for_loop = self._find_range_from_for_loop(node)
             name = func_node.name
-            # TODO: Optimize -> getting decorator_list each time we call yield
-            for decorator in func_node.decorator_list:
-                d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
-                decorators.append(d_id)
         if name:
             if range_from_for_loop != 0:
                 self._yields_map[name] = range_from_for_loop
@@ -687,7 +694,7 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 self._yields_map[name] = 1
         
-        if "use_continuables" in decorators:
+        if name in DECORATOR_MAP and "use_continuables" in DECORATOR_MAP[name]:
             return f"cont({self.visit(node.value)})"
         else:
             return f"put!(channel_{name}, {self.visit(node.value)})"
@@ -704,7 +711,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _find_function_scope(self, node):
         scope = None
-        for sc in node.scopes:
+        for i in range(len(node.scopes) - 1, 0, -1):
+            sc = node.scopes[i]
             if isinstance(sc, ast.FunctionDef):
                 scope = sc
                 break
