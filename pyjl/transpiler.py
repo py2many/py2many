@@ -679,15 +679,14 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_AsyncFunctionDef(self, node) -> str:
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
-    # TODO see if there are problems when there are functions with the same name
     def visit_Yield(self, node) -> str:
         name = ""
-        if isinstance(node.scopes[1], ast.FunctionDef):
-            func_node = self._find_function_scope(node)
-            range_from_for_loop = self._find_range_from_for_loop(node)
-            name = func_node.name
+        func_node = self._find_function_scope(node)
+        range_from_for_loop = self._find_range_from_for_loop(node)
+        name = func_node.name
+
         if name:
-            if range_from_for_loop != 0:
+            if range_from_for_loop != -1:
                 self._yields_map[name] = range_from_for_loop
             elif name in self._yields_map:
                 self._yields_map[name] += 1 
@@ -699,13 +698,24 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return f"put!(channel_{name}, {self.visit(node.value)})"
         
-    # TODO: See if there are Problems when using things other than "range"
+    # TODO: More range problems need testing
     def _find_range_from_for_loop(self, node):
-        iter = 0
-        for sc in node.scopes:
+        iter = -1
+        for i in range(len(node.scopes) - 1, 0, -1):
+            sc = node.scopes[i]
             if isinstance(sc, ast.For):
                 if hasattr(sc, "iter"):
-                    iter = int(self.visit(sc.iter.args[1])) - int(self.visit(sc.iter.args[0]))
+                    end_val = sc.iter.args[1]
+                    start_val = sc.iter.args[0]
+                    if not (isinstance(end_val, ast.Num) and isinstance(start_val, ast.Num)):
+                        if isinstance(end_val, ast.Name):
+                            end_val = self._find_assignment_value_from_name(node, end_val)
+                        if isinstance(start_val, ast.Name):
+                            start_val = self._find_assignment_value_from_name(node, start_val)
+                        iter = 0
+                    iter = int(self.visit(end_val)) - int(self.visit(start_val))
+                    if(iter < 0):
+                        iter *= -1
                     break
         return iter
 
@@ -717,6 +727,24 @@ class JuliaTranspiler(CLikeTranspiler):
                 scope = sc
                 break
         return scope
+
+    # TODO: Still needs further testing
+    def _find_assignment_value_from_name(self, node, nameNode):
+        value = None
+        for i in range(len(node.scopes) - 1, 0, -1):
+            sc = node.scopes[i]
+            if isinstance(sc, ast.FunctionDef):
+                body = sc.body
+                # Get last Assign from body
+                for j in range(len(body) - 1, 0, -1):
+                    a = body[j]
+                    if isinstance(a, ast.Assign):
+                        print(ast.dump(a, indent=4))
+                        print(a.targets)
+                        if get_id(a.targets[0]) == get_id(nameNode):
+                            value = a.value
+                            break
+        return value
 
     def visit_Print(self, node) -> str:
         buf = []
