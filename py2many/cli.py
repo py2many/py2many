@@ -2,6 +2,7 @@ import argparse
 import ast
 import functools
 import os
+from pycpp.tests.test_analysis import parse
 from pyjl.inference import infer_julia_types
 import sys
 import tempfile
@@ -36,7 +37,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaAnnotationParser, JuliaTranspiler, JuliaMethodCallRewriter
+from pyjl.transpiler import JuliaAnnotationRewriter, JuliaTranspiler, JuliaMethodCallRewriter
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
@@ -73,6 +74,8 @@ from py2many.rewriters import (
     IgnoredAssignRewriter,
     UnpackScopeRewriter,
 )
+
+from .json_parser import parse_json
 
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
@@ -111,7 +114,6 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
-    visitors = settings.visitors
     tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source)
@@ -141,7 +143,7 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, visitors, args
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, args
             )
             successful.append(filename)
             outputs[filename] = output
@@ -163,7 +165,7 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, visitors, args 
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, args 
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -182,10 +184,6 @@ def _transpile_one(
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
     out = []
-
-    # Custom visitors
-    for visitor in visitors:
-        tree = visitor.visit(tree)
 
     code = transpiler.visit(tree) + "\n"
     headers = transpiler.headers(infer_meta)
@@ -295,10 +293,9 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        visitors=[JuliaAnnotationParser()],
         rewriters=[],
         transformers=[infer_julia_types],
-        post_rewriters=[JuliaMethodCallRewriter()],
+        post_rewriters=[JuliaMethodCallRewriter(), JuliaAnnotationRewriter(input_config=args.input_config)],
     )
 
 
@@ -661,11 +658,22 @@ def main(args=None, env=os.environ):
         default=True,
         help="Create a project when using directory mode",
     )
+
+    # Added input file for additional JSON info (currently in use by JuliaTranspiler)
+    parser.add_argument(
+        "--input-config",
+        default=None,
+        help="Input JSON file containing additional transpile information (currently only supported in Julia)",
+    )
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args
     if args.extension and not args.rust:
         print("extension supported only with rust via pyo3")
+        return -1
+
+    if args.input_config and not args.julia:
+        print("Extension supported only with Julia")
         return -1
 
     if args.comment_unsupported:
@@ -677,6 +685,11 @@ def main(args=None, env=os.environ):
         args.outdir = STDOUT
 
     for filename in rest:
+        if args.input_config is not None:
+            args.input_config = parse_json(args.input_config)
+
+        # print(args.input_config)
+
         settings = cpp_settings(args, env=env)
         if args.cpp:
             pass

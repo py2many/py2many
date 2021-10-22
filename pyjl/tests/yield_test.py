@@ -12,7 +12,6 @@ def generator_func_loop():
     for n in range(1, 10):
         yield num + n
 
-# Fails because of end
 def generator_func_loop_using_var():
     num = 0
     end = 12

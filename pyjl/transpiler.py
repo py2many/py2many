@@ -1,5 +1,6 @@
 import ast
 from subprocess import call
+from unittest.mock import Mock
 
 from pyjl.tracer import is_class
 from .inference import (
@@ -12,8 +13,8 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
     CONTAINER_TYPE_MAP,
-    DECORATOR_MAP,
     FUNC_DISPATCH_TABLE,
+    DECORATOR_MAP,
     INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
@@ -28,6 +29,13 @@ from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Any, Dict, List, Tuple
+
+def get_decorator_id(decorator):
+    id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+    # TODO: Check if this is the correct implementation
+    if isinstance(id, list): 
+        id = id[0]
+    return id
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -46,17 +54,36 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
-# Why does it have to be NodeTransformer
-class JuliaAnnotationParser(ast.NodeTransformer):
+class JuliaAnnotationRewriter(ast.NodeTransformer):
+
+    def __init__(self, input_config: Dict) -> None:
+        super().__init__()
+        self._annotation_map = {}
+        if input_config is not None and not isinstance(input_config, Mock):
+            if "annotations" in input_config:
+                self._annotation_map = input_config["annotations"]
+
     def visit_FunctionDef(self, node):
-        self._set_decorators(node)
+        self._add_decorators_to_node(node)
+        self._populate_decorator_map(node)
         return node
 
-    def _set_decorators(self, node) -> None:
+    def visit_ClassDef(self, node):
+        self._add_decorators_to_node(node)
+        self._populate_decorator_map(node)
+        return node
+
+    def _add_decorators_to_node(self, node):
+        node_name = node.name
+        if self._annotation_map and node_name in self._annotation_map:
+            node.decorator_list.append(ast.Name(id=self._annotation_map[node_name]))
+
+    # Decorator map is required by other functions to know which annotations are in use
+    def _populate_decorator_map(self, node) -> None:
         DECORATOR_MAP[node.name] = []
         for decorator in node.decorator_list:
-            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
-            DECORATOR_MAP[node.name].append(d_id)
+            DECORATOR_MAP[node.name].append(get_decorator_id(decorator))
+
 
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
@@ -98,7 +125,7 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_FunctionDef(self, node) -> str:    
+    def visit_FunctionDef(self, node) -> str:
         # visit function body
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
@@ -167,7 +194,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return_str = ""
         body_str = ""
         annotation = ""
-        if node.name in DECORATOR_MAP and "use_continuables" not in DECORATOR_MAP[node.name]:
+        decorators = []
+        decorators = map(get_decorator_id, node.decorator_list)
+        if "use_continuables" not in decorators:
             # Build a channel with the necessary size (number of yields in a function)
             if node.name in self._yields_map:
                 channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
@@ -236,6 +265,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return f'println({args})'
 
     def visit_Call(self, node) -> str:
+        # Test Print
+        print(ast.dump(node, indent=4))
+
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
         vargs = []
@@ -264,6 +296,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if fname == "join":
             converted.reverse()
         args = ", ".join(converted)
+        print(f"{fname}({args})")
         return f"{fname}({args})"
 
     def visit_For(self, node) -> str:
@@ -425,7 +458,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # Allow support for decorator chaining
         annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
         for decorator in node.decorator_list:
-            d_id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
+            d_id = get_decorator_id(decorator)
             if d_id in CLASS_DISPATCH_TABLE:
                 ret = CLASS_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
@@ -453,7 +486,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{annotation}{struct_def}{body}"
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
-        decorators = [get_id(d) for d in node.decorator_list]
+        decorators = [get_decorator_id(d) for d in node.decorator_list]
         field_str = ""
         for field, value in fields:
                 field_str += f"\t{field}\n"
@@ -693,7 +726,8 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 self._yields_map[name] = 1
         
-        if name in DECORATOR_MAP and "use_continuables" in DECORATOR_MAP[name]:
+        decorators = map(get_decorator_id, func_node.decorator_list)
+        if "use_continuables" in decorators:
             return f"cont({self.visit(node.value)})"
         else:
             return f"put!(channel_{name}, {self.visit(node.value)})"
@@ -739,8 +773,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 for j in range(len(body) - 1, 0, -1):
                     a = body[j]
                     if isinstance(a, ast.Assign):
-                        print(ast.dump(a, indent=4))
-                        print(a.targets)
+                        # print(ast.dump(a, indent=4))
+                        # print(a.targets)
                         if get_id(a.targets[0]) == get_id(nameNode):
                             value = a.value
                             break
