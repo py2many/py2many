@@ -13,7 +13,7 @@ def mult_string_and_int():
     a = "test"
     return a*2
 
-# Failing --> Return type is Int64
+# Failing --> Return type is Int64 (Works!)
 def mult_int_and_string():
     a: int = 2
     return a*"test"
@@ -59,12 +59,6 @@ def arithmetic_shift_left_int_and_int():
     a: int = 2
     return a<<1
 
-# Unsupported in ast
-# def bitwise_not_int():
-#     a: int = 2
-#     return ~a
-
-
 if __name__ == "__main__":
     assert mult_int_and_int() == 4
     assert mult_float_and_int() == 4.0
@@ -78,5 +72,4 @@ if __name__ == "__main__":
     assert or_op_int_and_int() == 3
     assert arithmetic_shift_right_int_and_int() == 1
     assert arithmetic_shift_left_int_and_int() == 4
-    # assert bitwise_not_int() == -3 # --> Currently unsupported
     print("Ok")

@@ -54,14 +54,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
-class JuliaAnnotationRewriter(ast.NodeTransformer):
+class JuliaDecoratorRewriter(ast.NodeTransformer):
 
     def __init__(self, input_config: Dict) -> None:
         super().__init__()
         self._annotation_map = {}
         if input_config is not None and not isinstance(input_config, Mock):
-            if "annotations" in input_config:
-                self._annotation_map = input_config["annotations"]
+            if "decorators" in input_config:
+                self._annotation_map = input_config["decorators"]
 
     def visit_FunctionDef(self, node):
         self._add_decorators_to_node(node)
@@ -78,7 +78,7 @@ class JuliaAnnotationRewriter(ast.NodeTransformer):
         if self._annotation_map and node_name in self._annotation_map:
             node.decorator_list.append(ast.Name(id=self._annotation_map[node_name]))
 
-    # Decorator map is required by other functions to know which annotations are in use
+    # Decorator map is required by some functions to know which annotations are in use
     def _populate_decorator_map(self, node) -> None:
         DECORATOR_MAP[node.name] = []
         for decorator in node.decorator_list:
@@ -266,7 +266,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node) -> str:
         # Test Print
-        print(ast.dump(node, indent=4))
+        # print(ast.dump(node, indent=4))
 
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
@@ -296,7 +296,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if fname == "join":
             converted.reverse()
         args = ", ".join(converted)
-        print(f"{fname}({args})")
+        # print(f"{fname}({args})")
         return f"{fname}({args})"
 
     def visit_For(self, node) -> str:
@@ -385,12 +385,15 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_UnaryOp(self, node) -> str:
+        # print(ast.dump(node, indent=4))
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
                 return "-{0}".format(self.visit(node.operand))
             else:
                 return "-({0})".format(self.visit(node.operand))
+        elif isinstance(node.op, ast.Invert):
+            return f"~{self.visit(node.operand)}"
         else:
             return super().visit_UnaryOp(node)
 

@@ -6,7 +6,7 @@ from logging import NullHandler
 from typing import List, cast, Set, Optional
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
-from py2many.analysis import get_id
+from py2many.analysis import get_id, is_ellipsis
 from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
@@ -143,14 +143,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if isinstance(scope, ast.FunctionDef):
                 type_str = get_id(scope.returns)
                 if type_str is not None:
-                    # specific case of ast.Mult with an int and a string
-                    left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
-                    right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
-                    if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
-                            and right_jl_annotation == "String") 
-                            or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
-                            and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
-                        type_str = "str"
+                    if isinstance(node.value.op, ast.Mult) and not isinstance(node.value, ast.UnaryOp):
+                        # specific case of ast.Mult with an int and a string
+                        left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
+                        right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
+                        if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
+                                and right_jl_annotation == "String") 
+                                or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
+                                and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
+                            type_str = "str"
                     elif new_type_str != type_str:
                         type_str = f"Union{'{'}{map_type(type_str)},{map_type(new_type_str)}{'}'}"
 
@@ -193,6 +194,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
+        
         self.generic_visit(node)
 
         # annotation = getattr(node.value, "annotation", None) # why was it node.value?

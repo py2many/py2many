@@ -1,5 +1,5 @@
 {
-    "annotations":
+    "decorators":
     {
         "generator_func": ["use_continuables"]
     }
