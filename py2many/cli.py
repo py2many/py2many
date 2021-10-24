@@ -12,7 +12,7 @@ from distutils import spawn
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
-from typing import List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 
@@ -143,8 +143,9 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, args, filename
             )
+
             successful.append(filename)
             outputs[filename] = output
         except Exception as e:
@@ -165,7 +166,7 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, args 
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, args, filename
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -181,6 +182,18 @@ def _transpile_one(
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
+
+    if isinstance(transpiler, JuliaTranspiler):
+        file_name = str(filename).split(os.sep)[-1]
+        class_config = {}
+        if "files" in args.input_config and file_name in args.input_config["files"]:
+            class_config = args.input_config["files"][file_name]
+        # Cover any general annotations that need to be applied to all files
+        non_files = dict(args.input_config)
+        non_files.pop("files")
+        class_config |= non_files
+        JuliaDecoratorRewriter(class_config).visit(tree)
+
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
     out = []
@@ -295,7 +308,8 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[],
         transformers=[infer_julia_types],
-        post_rewriters=[JuliaMethodCallRewriter(), JuliaDecoratorRewriter(input_config=args.input_config)],
+        # , JuliaDecoratorRewriter(input_config=args.input_config)
+        post_rewriters=[JuliaMethodCallRewriter()],
     )
 
 
@@ -685,6 +699,8 @@ def main(args=None, env=os.environ):
         args.outdir = STDOUT
 
     for filename in rest:
+        source = Path(filename)
+
         if args.input_config is not None:
             args.input_config = parse_json(args.input_config)
 
@@ -715,7 +731,7 @@ def main(args=None, env=os.environ):
         if args.comment_unsupported:
             settings.transpiler._throw_on_unimplemented = False
 
-        source = Path(filename)
+        
         if args.outdir is None:
             outdir = source.parent
         else:

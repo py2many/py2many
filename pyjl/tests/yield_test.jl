@@ -1,11 +1,14 @@
 using Continuables
-@cont function generator_func()
+function generator_func()
+channel_generator_func = Channel(6)
 num = 1
-cont(num);
+put!(channel_generator_func, num);
 num = 5
-cont(num);
+put!(channel_generator_func, num);
 num = 10
-cont(num);
+put!(channel_generator_func, num);
+close(channel_generator_func)
+channel_generator_func
 end
 
 function generator_func_loop()
@@ -30,6 +33,18 @@ close(channel_generator_func_loop_using_var)
 channel_generator_func_loop_using_var
 end
 
+struct TestClass
+end
+@cont function generator_func(self::TestClass)
+num = 1
+cont(num);
+num = 5
+cont(num);
+num = 10
+cont(num);
+end
+
+
 function main()
 for i in collect(generator_func())
 println(i);
@@ -40,6 +55,10 @@ println(i);
 end
 println("-----------------------");
 for i in generator_func_loop_using_var()
+println(i);
+end
+println("-----------------------");
+for i in collect(generator_func())
 println(i);
 end
 end

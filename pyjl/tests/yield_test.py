@@ -19,6 +19,15 @@ def generator_func_loop_using_var():
     for n in range(1, end):
         yield num + n
 
+class TestClass:
+    def generator_func(self):
+        num = 1
+        yield num
+        num = 5
+        yield num
+        num = 10
+        yield num
+
 if __name__ == "__main__":
     for i in generator_func():
         print(i)
@@ -27,4 +36,7 @@ if __name__ == "__main__":
         print(i)
     print("-----------------------")
     for i in generator_func_loop_using_var():
+        print(i)
+    print("-----------------------")
+    for i in TestClass.generator_func():
         print(i)

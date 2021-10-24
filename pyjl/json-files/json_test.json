@@ -1,6 +1,20 @@
 {
-    "decorators":
+    "files":
     {
-        "generator_func": ["use_continuables"]
+        "yield_test.py":
+        {
+            
+            "classes": 
+            {
+                "TestClass":
+                {
+                    "decorators":
+                    {
+                        "generator_func": "use_continuables"
+                    }
+                }
+            }
+        }
     }
+    
 }

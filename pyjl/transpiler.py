@@ -58,25 +58,47 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
     def __init__(self, input_config: Dict) -> None:
         super().__init__()
-        self._annotation_map = {}
+        self._decorator_map = {}
         if input_config is not None and not isinstance(input_config, Mock):
+            # print(input_config)
             if "decorators" in input_config:
-                self._annotation_map = input_config["decorators"]
+                self._decorator_map |= input_config["decorators"]
+            print(input_config["classes"])
+            if "classes" in input_config:
+                self._decorator_map |= {"classes": input_config["classes"]}
 
     def visit_FunctionDef(self, node):
+        # print(node.name)            
         self._add_decorators_to_node(node)
         self._populate_decorator_map(node)
         return node
 
     def visit_ClassDef(self, node):
+        # print(node.name)
+        # print(ast.dump(node, indent=4))
+        self.generic_visit(node)
         self._add_decorators_to_node(node)
         self._populate_decorator_map(node)
         return node
 
     def _add_decorators_to_node(self, node):
         node_name = node.name
-        if self._annotation_map and node_name in self._annotation_map:
-            node.decorator_list.append(ast.Name(id=self._annotation_map[node_name]))
+        if self._decorator_map and node_name in self._decorator_map:
+            node.decorator_list.append(ast.Name(id=self._decorator_map[node_name]))
+
+        # TODO: Simplify
+        if len(node.scopes) > 2:
+            node_class = node.scopes[len(node.scopes) - 2]
+            # print(len(node.scopes) > 2 and isinstance(node_class, ast.ClassDef)  and "classes" in self._decorator_map
+            #     and get_id(node_class) in self._decorator_map["classes"])
+            node_class_name = get_id(node_class)
+            if(isinstance(node_class, ast.ClassDef)
+                    and "classes" in self._decorator_map
+                    and node_class_name in self._decorator_map["classes"]
+                    and "decorators" in self._decorator_map["classes"][node_class_name]
+                    and node.name in self._decorator_map["classes"][node_class_name]["decorators"]):
+                # print(ast.dump(ast.Name(id=self._decorator_map["classes"][node_class_name]["decorators"][node.name])))
+                node.decorator_list.append(ast.Name(self._decorator_map["classes"][node_class_name]["decorators"][node.name]))
 
     # Decorator map is required by some functions to know which annotations are in use
     def _populate_decorator_map(self, node) -> None:
@@ -385,7 +407,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_UnaryOp(self, node) -> str:
-        # print(ast.dump(node, indent=4))
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
