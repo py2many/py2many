@@ -1,16 +1,28 @@
 {
-    "files":
+    "modules":
     {
         "yield_test.py":
         {
-            
+            "functions":
+            {
+                "generator_func":
+                {
+                    "decorators": ["use_continuables"],
+                    "argument_types":[]
+                }
+            },
             "classes": 
             {
                 "TestClass":
                 {
-                    "decorators":
+                    "decorators": ["use_continuables"],
+                    "functions":
                     {
-                        "generator_func": "use_continuables"
+                        "generator_func":
+                        {
+                            "decorators": ["use_continuables"],
+                            "argument_types":[]
+                        }
                     }
                 }
             }

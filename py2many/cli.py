@@ -1,6 +1,7 @@
 import argparse
 import ast
 import functools
+import json
 import os
 from pycpp.tests.test_analysis import parse
 from pyjl.inference import infer_julia_types
@@ -186,13 +187,13 @@ def _transpile_one(
     if isinstance(transpiler, JuliaTranspiler):
         file_name = str(filename).split(os.sep)[-1]
         class_config = {}
-        if "files" in args.input_config and file_name in args.input_config["files"]:
-            class_config = args.input_config["files"][file_name]
+        if "modules" in args.input_config and file_name in args.input_config["modules"]:
+            class_config = args.input_config["modules"][file_name]
         # Cover any general annotations that need to be applied to all files
-        non_files = dict(args.input_config)
-        non_files.pop("files")
-        class_config |= non_files
-        JuliaDecoratorRewriter(class_config).visit(tree)
+        non_modules = dict(args.input_config)
+        non_modules.pop("modules")
+        class_config |= non_modules
+        tree = JuliaDecoratorRewriter(class_config).visit(tree)
 
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
