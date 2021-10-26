@@ -1,4 +1,12 @@
 {
+    "functions":
+    {
+        "generator_func":
+        {
+            "decorators": ["use_continuables"],
+            "argument_types":[]
+        }
+    },
     "modules":
     {
         "yield_test.py":
@@ -15,13 +23,13 @@
             {
                 "TestClass":
                 {
-                    "decorators": ["use_continuables"],
+                    "decorators": ["dataclass"],
                     "functions":
                     {
                         "generator_func":
                         {
                             "decorators": ["use_continuables"],
-                            "argument_types":[]
+                            "argument_types":["self", "int"]
                         }
                     }
                 }

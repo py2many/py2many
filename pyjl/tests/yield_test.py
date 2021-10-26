@@ -20,7 +20,7 @@ def generator_func_loop_using_var():
         yield num + n
 
 class TestClass:
-    def generator_func(self):
+    def generator_func(self, ola: int):
         num = 1
         yield num
         num = 5
@@ -38,5 +38,7 @@ if __name__ == "__main__":
     for i in generator_func_loop_using_var():
         print(i)
     print("-----------------------")
-    for i in TestClass.generator_func():
+    testClass = TestClass()
+    generator_func(testClass, 123) # Does not work
+    for i in generator_func(testClass, 123):
         print(i)

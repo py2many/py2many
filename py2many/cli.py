@@ -184,7 +184,7 @@ def _transpile_one(
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
 
-    if isinstance(transpiler, JuliaTranspiler):
+    if isinstance(transpiler, JuliaTranspiler) and args.input_config is not None:
         file_name = str(filename).split(os.sep)[-1]
         class_config = {}
         if "modules" in args.input_config and file_name in args.input_config["modules"]:

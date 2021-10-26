@@ -1,6 +1,7 @@
 import ast
 from subprocess import call
 from unittest.mock import Mock
+from build.lib.py2many.exceptions import AstEmptyNodeFound
 
 from pyjl.tracer import is_class
 from .inference import (
@@ -61,32 +62,43 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         self._input_config_map = input_config
 
     def visit_FunctionDef(self, node):
+        # print(ast.dump(node, indent=4))
         node_name = get_id(node)
-        # print(ast.dump(node.args, indent=4))  
+        typenames = []
+        for typename in node.args.args:
+            if get_id(typename) == "self" and hasattr(typename, "annotation"):
+                typenames.append("self")
+            else:
+                if hasattr(typename, "annotation"):
+                    typenames.append(get_id(getattr(typename, "annotation")))
         # print(typenames)
-        typenames = self.visit(node.args)
         if self._input_config_map:
             node_field_map = {}
             if ("functions" in self._input_config_map 
                     and node_name in (general_funcs := self._input_config_map["functions"])
                     and (node_fields := general_funcs[node_name])["argument_types"] == typenames):
-                node_field_map += node_fields
+                node_field_map |= node_fields
             if len(node.scopes) > 2:
                 node_class = node.scopes[len(node.scopes) - 2]
                 node_class_name = get_id(node_class)
-                if (isinstance(node_class, ast.FunctionDef) 
+                if (isinstance(node_class, ast.ClassDef) 
                         and "classes" in self._input_config_map 
                         and node_class_name in self._input_config_map["classes"]
                         and "functions" in self._input_config_map["classes"][node_class_name]
                         and node_name in (class_funcs := self._input_config_map["classes"][node_class_name]["functions"])
-                        and (node_fields := class_funcs[node_name]) == typenames):
-                    node_field_map += node_fields
+                        and (node_fields := class_funcs[node_name])["argument_types"] == typenames):
+                    node_field_map |= node_fields
             if "decorators" in node_field_map:
                 node.decorator_list += node_field_map["decorators"]
                 # Remove duplicates
                 node.decorator_list = list(set(node.decorator_list))
+                # Transform in Name nodes
+                node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        self._populate_decorator_map(node)
+        # Remove self from argument typenames
+        if len(typenames):
+            typenames.pop(0)
+        self._populate_decorator_map(node, typenames)
         return node
 
     def visit_ClassDef(self, node):
@@ -96,20 +108,22 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
             node_field_map = {}   
             if ("classes" in self._input_config_map 
                     and class_name in self._input_config_map["classes"]):
-                node_field_map += self._input_config_map["classes"][class_name]
+                node_field_map |= self._input_config_map["classes"][class_name]
             if "decorators" in node_field_map:
                 node.decorator_list += node_field_map["decorators"]
                 # Remove duplicates
                 node.decorator_list = list(set(node.decorator_list))
+                # Transform in Name nodes
+                node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        self._populate_decorator_map(node)
+        self._populate_decorator_map(node, None)
         return node
 
     # Decorator map is required by some functions to know which annotations are in use
-    def _populate_decorator_map(self, node) -> None:
+    def _populate_decorator_map(self, node, arg_typenames) -> None:
         DECORATOR_MAP[node.name] = []
-        print(type(node))
-        node_dict = {"type": type(node), "decorators": []}
+        # print(type(node))
+        node_dict = {"type": type(node), "decorators": [], "arg_typenames": arg_typenames}
         for decorator in node.decorator_list:
             node_dict["decorators"].append(get_decorator_id(decorator))
         DECORATOR_MAP[node.name] = node_dict
@@ -224,8 +238,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return_str = ""
         body_str = ""
         annotation = ""
-        decorators = []
-        decorators = map(get_decorator_id, node.decorator_list)
+        decorators = list(map(get_decorator_id, node.decorator_list))
         if "use_continuables" not in decorators:
             # Build a channel with the necessary size (number of yields in a function)
             if node.name in self._yields_map:
@@ -333,11 +346,17 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        # Remove function args
-        func_name = it.split("(")[0]
+
+        # Separate name and args
+        split_func = it.split("(")
+        func_name = split_func[0]
+        args = split_func[1].split(",")
+        # and DECORATOR_MAP[func_name]["arg_typenames"] == args --> Does not work
+        # Error --> We need to somehow identify the functions
+
         if (func_name in DECORATOR_MAP 
                 and "type" in DECORATOR_MAP[func_name] 
-                and isinstance(DECORATOR_MAP[func_name]["type"], ast.FunctionDef)
+                and DECORATOR_MAP[func_name]["type"] == ast.FunctionDef
                 and "use_continuables" in DECORATOR_MAP[func_name]["decorators"]):
             it = f"collect({it})"
         buf.append("for {0} in {1}".format(target, it))
