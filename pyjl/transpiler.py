@@ -27,7 +27,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
+from py2many.tracer import find_function_scope, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Any, Dict, List, Tuple
 
@@ -285,7 +285,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"
 
-        if is_class_or_module(value_id, node.scopes):
+        if is_class_or_module(value_id, node.scopes) or is_class_type(value_id, node.scopes):
             return f"{value_id}::{attr}"
 
         return f"{value_id}.{attr}"
@@ -307,20 +307,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return f'println({args})'
 
     def visit_Call(self, node) -> str:
-        # Test Print
-        # print(ast.dump(node, indent=4))
-
         fname = self.visit(node.func)
-        # if node.args and len(node.args) > 0:
-        #     # try to get self
-        #     fndef = self._find_function_from_scope(node.args[0], fname)
-        #     # node.scopes.find(node.args[0])
-        #     # print(ast.dump(node.scopes.find(get_id(node.args[0])), indent=4))
-        #     # print(node.scopes.find(get_id(node.args[0])))
-        # else:
-        fndef = node.scopes.find(fname)
         vargs = []
-
         if node.args:
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
@@ -329,6 +317,18 @@ class JuliaTranspiler(CLikeTranspiler):
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
             return ret
+
+        # Added: Checks if first arg is of class type. 
+        # If it is, it performs the search for the function in the class scope
+        # (Is this truly necessary?)
+        fndef = node.scopes.find(fname)
+        if vargs and (is_class_or_module(vargs[0], node.scopes) or is_class_type(vargs[0], node.scopes)):
+            class_scope = get_class_scope(vargs[0], node.scopes)
+            if class_scope is not None:
+                for fn in class_scope.body:
+                    if isinstance(fn, ast.FunctionDef) and get_id(fn) == fname:
+                        fndef = fn
+                        break
 
         if fndef and hasattr(fndef, "args"):
             converted = []
@@ -344,57 +344,33 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if fname == "join":
             converted.reverse()
+
+        # Added: Deals with functions that belong to classes
+        if isinstance(node.func, ast.Attribute):
+            if "::" in fname:
+                list = fname.split("::")
+                # is the if needed?
+                if is_class_or_module(list[0], node.scopes) or is_class_type(list[0], node.scopes):
+                    fname = list[1]
+                    converted.append(list[0])
         args = ", ".join(converted)
-        # print(f"{fname}({args})")
         return f"{fname}({args})"
 
-    def _find_function_from_scope(self, node, fname):
-        res_type = None
-        for scope in node.scopes:
-            print(isinstance(scope, ast.AnnAssign))
-            if isinstance(scope, ast.AnnAssign) and scope.target == fname:
-                print(get_id(scope.target))
-                if hasattr(scope, "annotation"):
-                    res_type = get_id(scope.annotation)
-                    break
-                else:
-                    if isinstance(scope.value, ast.Call):
-                        res_type = get_id(scope.value.func)
-                        break
-        
-        if res_type == None:
-            return node.scopes.find(fname)
-        scope_type = node.scopes.find(res_type)
-        if isinstance(scope_type, ast.ClassDef):
-            return scope_type.body.find(fname)
-        return scope_type
-
-
     def visit_For(self, node) -> str:
-        # print(ast.dump(node, indent=4))
         target = self.visit(node.target)
         it = self.visit(node.iter)
-        # print(ast.dump(node.iter, indent=4))
-        # if node.iter.args:
-            # print(ast.dump(node.iter, indent=4))
-            # Somewhat like this to include scope information
-            # print(node.iter.args[0].julia_annotation == "ClassName")
-            # DECORATOR_MAP must have more specific key (maybe include arg types)
         buf = []
 
         # Separate name and args
         split_func = it.split("(")
         func_name = split_func[0]
-        func = node.scopes.find(func_name)
-        print(func)
-        # and DECORATOR_MAP[func_name]["arg_typenames"] == args --> Does not work
-        # Error --> We need to somehow identify the functions
-
-        if (func_name in DECORATOR_MAP 
-                and "type" in DECORATOR_MAP[func_name] 
-                and DECORATOR_MAP[func_name]["type"] == ast.FunctionDef
-                and "use_continuables" in DECORATOR_MAP[func_name]["decorators"]):
-            it = f"collect({it})"
+        # TODO: Fix DECORATOR_MAP to include scope
+        if func_name:
+            if (func_name in DECORATOR_MAP 
+                    and "type" in DECORATOR_MAP[func_name] 
+                    and DECORATOR_MAP[func_name]["type"] == ast.FunctionDef
+                    and "use_continuables" in DECORATOR_MAP[func_name]["decorators"]):
+                it = f"collect({it})"
         buf.append("for {0} in {1}".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
@@ -741,10 +717,14 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node) -> str:
-        # print(ast.dump(node, indent=4))
         target, type_str, val = super().visit_AnnAssign(node)
-        # If there is a Julia annotation, get that instead of the default Python annotation
-        type_str = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else type_str
+        # If there is a Julia annotation, get that instead of the 
+        # default Python annotation
+        type_str = (
+            node.julia_annotation 
+            if (node.julia_annotation and node.julia_annotation != "None") 
+            else type_str
+        )
         if type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"
@@ -761,8 +741,6 @@ class JuliaTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return "{0} = {1}".format(", ".join(elts), value)
 
-        # print(node.scopes[-1].name)
-        # print(ast.dump(node.scopes[-1], indent=4))
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
@@ -807,8 +785,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Yield(self, node) -> str:
         name = ""
-        func_node = self._find_function_scope(node)
-        range_from_for_loop = self._find_range_from_for_loop(node)
+        func_node = find_function_scope(node)
+        range_from_for_loop = find_range_from_for_loop(self, node)
         name = func_node.name
 
         if name:
@@ -824,56 +802,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"cont({self.visit(node.value)})"
         else:
             return f"put!(channel_{name}, {self.visit(node.value)})"
-        
-    # TODO: More range problems need testing
-    def _find_range_from_for_loop(self, node):
-        iter = -1
-        for i in range(len(node.scopes) - 1, 0, -1):
-            sc = node.scopes[i]
-            if isinstance(sc, ast.For):
-                if hasattr(sc, "iter"):
-                    end_val = sc.iter.args[1]
-                    start_val = sc.iter.args[0]
-                    if not (isinstance(end_val, ast.Num) and isinstance(start_val, ast.Num)):
-                        if isinstance(end_val, ast.Name):
-                            end_val = self._find_assignment_value_from_name(node, end_val)
-                        if isinstance(start_val, ast.Name):
-                            start_val = self._find_assignment_value_from_name(node, start_val)
-                        iter = 0
-                    iter = int(self.visit(end_val)) - int(self.visit(start_val))
-                    if(iter < 0):
-                        iter *= -1
-                    break
-        return iter
-
-    # Searches for the first function it finds from the 
-    # scope of the given node (search in reverse order)
-    def _find_function_scope(self, node):
-        scope = None
-        for i in range(len(node.scopes) - 1, 0, -1):
-            sc = node.scopes[i]
-            if isinstance(sc, ast.FunctionDef):
-                scope = sc
-                break
-        return scope
-
-    # TODO: Still needs further testing
-    def _find_assignment_value_from_name(self, node, nameNode):
-        value = None
-        for i in range(len(node.scopes) - 1, 0, -1):
-            sc = node.scopes[i]
-            if isinstance(sc, ast.FunctionDef):
-                body = sc.body
-                # Get last Assign from body
-                for j in range(len(body) - 1, 0, -1):
-                    a = body[j]
-                    if isinstance(a, ast.Assign):
-                        # print(ast.dump(a, indent=4))
-                        # print(a.targets)
-                        if get_id(a.targets[0]) == get_id(nameNode):
-                            value = a.value
-                            break
-        return value
 
     def visit_Print(self, node) -> str:
         buf = []

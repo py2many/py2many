@@ -47,7 +47,7 @@ end
 
 function main()
 testClass::TestClass = TestClass()
-funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass.generator_func]
+funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass::generator_func]
 for func in funcs
 for i in func()
 println(i);

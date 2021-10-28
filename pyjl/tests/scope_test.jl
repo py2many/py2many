@@ -12,7 +12,7 @@ end
 function main()
 println(func());
 testClass = TestClass()
-println(testClass.func());
+println(func(testClass));
 end
 
 main()

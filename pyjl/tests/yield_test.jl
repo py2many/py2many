@@ -61,7 +61,7 @@ println(i);
 end
 println("-----------------------");
 testClass::TestClass = TestClass()
-for i in generator_func()
+for i in generator_func(testClass)
 println(i);
 end
 end
