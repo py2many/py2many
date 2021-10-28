@@ -1,4 +1,4 @@
-# @use_continuables
+@use_continuables
 def generator_func():
     num = 1
     yield num
@@ -29,15 +29,8 @@ class TestClass:
         yield num
 
 if __name__ == "__main__":
-    for i in generator_func():
-        print(i)
-    print("-----------------------")
-    for i in generator_func_loop():
-        print(i)
-    print("-----------------------")
-    for i in generator_func_loop_using_var():
-        print(i)
-    print("-----------------------")
     testClass: TestClass = TestClass()
-    for i in testClass.generator_func():
-        print(i)
+    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass.generator_func]
+    for func in funcs:
+        for i in func():
+            print(i)

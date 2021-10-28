@@ -1,13 +1,11 @@
-function generator_func()
-channel_generator_func = Channel(6)
+using Continuables
+@cont function generator_func()
 num = 1
-put!(channel_generator_func, num);
+cont(num);
 num = 5
-put!(channel_generator_func, num);
+cont(num);
 num = 10
-put!(channel_generator_func, num);
-close(channel_generator_func)
-channel_generator_func
+cont(num);
 end
 
 function generator_func_loop()
@@ -48,21 +46,12 @@ end
 
 
 function main()
-for i in generator_func()
-println(i);
-end
-println("-----------------------");
-for i in generator_func_loop()
-println(i);
-end
-println("-----------------------");
-for i in generator_func_loop_using_var()
-println(i);
-end
-println("-----------------------");
 testClass::TestClass = TestClass()
-for i in generator_func()
+funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass.generator_func]
+for func in funcs
+for i in func()
 println(i);
+end
 end
 end
 

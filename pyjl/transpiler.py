@@ -64,6 +64,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         # print(ast.dump(node, indent=4))
         node_name = get_id(node)
+        node_class_name = None
         typenames = []
         for typename in node.args.args:
             if get_id(typename) == "self" and hasattr(typename, "annotation"):
@@ -71,7 +72,6 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
             else:
                 if hasattr(typename, "annotation"):
                     typenames.append(get_id(getattr(typename, "annotation")))
-        # print(typenames)
         if self._input_config_map:
             node_field_map = {}
             if ("functions" in self._input_config_map 
@@ -81,8 +81,8 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
             if len(node.scopes) > 2:
                 node_class = node.scopes[len(node.scopes) - 2]
                 node_class_name = get_id(node_class)
-                if (isinstance(node_class, ast.ClassDef) 
-                        and "classes" in self._input_config_map 
+                if (isinstance(node_class, ast.ClassDef)
+                        and"classes" in self._input_config_map 
                         and node_class_name in self._input_config_map["classes"]
                         and "functions" in self._input_config_map["classes"][node_class_name]
                         and node_name in (class_funcs := self._input_config_map["classes"][node_class_name]["functions"])
@@ -96,9 +96,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
                 node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
         # Remove self from argument typenames
-        if len(typenames):
-            typenames.pop(0)
-        self._populate_decorator_map(node, typenames)
+        self._populate_decorator_map(node, typenames, node_class_name)
         return node
 
     def visit_ClassDef(self, node):
@@ -116,14 +114,15 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
                 # Transform in Name nodes
                 node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        self._populate_decorator_map(node, None)
+        self._populate_decorator_map(node, None, None)
         return node
 
     # Decorator map is required by some functions to know which annotations are in use
-    def _populate_decorator_map(self, node, arg_typenames) -> None:
+    def _populate_decorator_map(self, node, arg_typenames, node_class_name) -> None:
         DECORATOR_MAP[node.name] = []
         # print(type(node))
-        node_dict = {"type": type(node), "decorators": [], "arg_typenames": arg_typenames}
+        node_dict = {"type": type(node), "decorators": [], "arg_typenames": arg_typenames, 
+            "node_class_name": node_class_name}
         for decorator in node.decorator_list:
             node_dict["decorators"].append(get_decorator_id(decorator))
         DECORATOR_MAP[node.name] = node_dict
@@ -312,6 +311,13 @@ class JuliaTranspiler(CLikeTranspiler):
         # print(ast.dump(node, indent=4))
 
         fname = self.visit(node.func)
+        # if node.args and len(node.args) > 0:
+        #     # try to get self
+        #     fndef = self._find_function_from_scope(node.args[0], fname)
+        #     # node.scopes.find(node.args[0])
+        #     # print(ast.dump(node.scopes.find(get_id(node.args[0])), indent=4))
+        #     # print(node.scopes.find(get_id(node.args[0])))
+        # else:
         fndef = node.scopes.find(fname)
         vargs = []
 
@@ -342,15 +348,45 @@ class JuliaTranspiler(CLikeTranspiler):
         # print(f"{fname}({args})")
         return f"{fname}({args})"
 
+    def _find_function_from_scope(self, node, fname):
+        res_type = None
+        for scope in node.scopes:
+            print(isinstance(scope, ast.AnnAssign))
+            if isinstance(scope, ast.AnnAssign) and scope.target == fname:
+                print(get_id(scope.target))
+                if hasattr(scope, "annotation"):
+                    res_type = get_id(scope.annotation)
+                    break
+                else:
+                    if isinstance(scope.value, ast.Call):
+                        res_type = get_id(scope.value.func)
+                        break
+        
+        if res_type == None:
+            return node.scopes.find(fname)
+        scope_type = node.scopes.find(res_type)
+        if isinstance(scope_type, ast.ClassDef):
+            return scope_type.body.find(fname)
+        return scope_type
+
+
     def visit_For(self, node) -> str:
+        # print(ast.dump(node, indent=4))
         target = self.visit(node.target)
         it = self.visit(node.iter)
+        # print(ast.dump(node.iter, indent=4))
+        # if node.iter.args:
+            # print(ast.dump(node.iter, indent=4))
+            # Somewhat like this to include scope information
+            # print(node.iter.args[0].julia_annotation == "ClassName")
+            # DECORATOR_MAP must have more specific key (maybe include arg types)
         buf = []
 
         # Separate name and args
         split_func = it.split("(")
         func_name = split_func[0]
-        args = split_func[1].split(",")
+        func = node.scopes.find(func_name)
+        print(func)
         # and DECORATOR_MAP[func_name]["arg_typenames"] == args --> Does not work
         # Error --> We need to somehow identify the functions
 
@@ -437,16 +473,18 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_UnaryOp(self, node) -> str:
-        if isinstance(node.op, ast.USub):
-            if isinstance(node.operand, (ast.Call, ast.Num)):
-                # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+        if hasattr(node, "op"):
+            if isinstance(node.op, ast.USub):
+                if isinstance(node.operand, (ast.Call, ast.Num)):
+                    # Shortcut if parenthesis are not needed
+                    return "-{0}".format(self.visit(node.operand))
+                else:
+                    return "-({0})".format(self.visit(node.operand))
+            elif isinstance(node.op, ast.Invert):
+                return f"~{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
-        elif isinstance(node.op, ast.Invert):
-            return f"~{self.visit(node.operand)}"
-        else:
-            return super().visit_UnaryOp(node)
+                return super().visit_UnaryOp(node)
+        return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
         left_jl_ann = node.left.julia_annotation
@@ -703,6 +741,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node) -> str:
+        # print(ast.dump(node, indent=4))
         target, type_str, val = super().visit_AnnAssign(node)
         # If there is a Julia annotation, get that instead of the default Python annotation
         type_str = node.julia_annotation if (node.julia_annotation and node.julia_annotation != "None") else type_str
@@ -807,6 +846,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     break
         return iter
 
+    # Searches for the first function it finds from the 
+    # scope of the given node (search in reverse order)
     def _find_function_scope(self, node):
         scope = None
         for i in range(len(node.scopes) - 1, 0, -1):

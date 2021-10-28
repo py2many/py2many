@@ -143,7 +143,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if isinstance(scope, ast.FunctionDef):
                 type_str = get_id(scope.returns)
                 if type_str is not None:
-                    if isinstance(node.value.op, ast.Mult) and not isinstance(node.value, ast.UnaryOp):
+                    if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Mult) :
                         # specific case of ast.Mult with an int and a string
                         left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
                         right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
