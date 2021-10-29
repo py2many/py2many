@@ -1,13 +1,12 @@
-function generator_func()
-channel_generator_func = Channel(6)
+using Continuables
+using DataClass
+@cont function generator_func()
 num = 1
-put!(channel_generator_func, num);
+cont(num);
 num = 5
-put!(channel_generator_func, num);
+cont(num);
 num = 10
-put!(channel_generator_func, num);
-close(channel_generator_func)
-channel_generator_func
+cont(num);
 end
 
 function generator_func_loop()
@@ -32,23 +31,20 @@ close(channel_generator_func_loop_using_var)
 channel_generator_func_loop_using_var
 end
 
-struct TestClass
+@dataclass mutable struct TestClass
 end
-function generator_func(self::TestClass)
-channel_generator_func = Channel(3)
+@cont function generator_func(self::TestClass)
 num = 123
-put!(channel_generator_func, num);
+cont(num);
 num = 5
-put!(channel_generator_func, num);
+cont(num);
 num = 10
-put!(channel_generator_func, num);
-close(channel_generator_func)
-channel_generator_func
+cont(num);
 end
 
 
 function main()
-for i in generator_func()
+for i in collect(generator_func())
 println(i);
 end
 println("-----------------------");
@@ -61,8 +57,15 @@ println(i);
 end
 println("-----------------------");
 testClass::TestClass = TestClass()
-for i in generator_func(testClass)
+for i in collect(generator_func(testClass))
 println(i);
+end
+testClass::TestClass = TestClass()
+funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass::generator_func]
+for func in funcs
+for i in func()
+println(i);
+end
 end
 end
 

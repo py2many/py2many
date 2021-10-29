@@ -29,6 +29,7 @@ class TestClass:
         yield num
 
 if __name__ == "__main__":
+    # Calling functions normally (Supported)
     for i in generator_func():
         print(i)
     print("-----------------------")
@@ -41,3 +42,10 @@ if __name__ == "__main__":
     testClass: TestClass = TestClass()
     for i in testClass.generator_func():
         print(i)
+    
+    # Calling functions using loop (currently not supported)
+    testClass: TestClass = TestClass()
+    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass.generator_func]
+    for func in funcs:
+        for i in func():
+            print(i)

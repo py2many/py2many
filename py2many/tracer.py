@@ -59,16 +59,17 @@ def get_class_scope(name, scopes):
         entry = _lookup_class_or_module(get_id(entry), scopes)
     return entry
 
-# Searches for the first function it finds from the 
-# scope of the given node (search in reverse order)
-def find_function_scope(node):
-    scope = None
-    for i in range(len(node.scopes) - 1, 0, -1):
-        sc = node.scopes[i]
-        if isinstance(sc, ast.FunctionDef):
-            scope = sc
+# Searches for the first node of type node_type using
+# the given scope (search in reverse order)
+def find_closest_in_scope(node_type, scopes):
+    node = None
+    for i in range(len(scopes) - 1, 0, -1):
+        sc = scopes[i]
+        if isinstance(sc, node_type):
+            node = sc
             break
-    return scope
+    return node
+
 
 # TODO: More range problems need testing
 def find_range_from_for_loop(visitor: ast.NodeVisitor, node):
