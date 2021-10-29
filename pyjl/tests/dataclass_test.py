@@ -12,4 +12,3 @@ if __name__ == "__main__":
     print(a)
     ValueHolder.__init__(a, 2, "10")
     print(a)
-    array.ArrayType

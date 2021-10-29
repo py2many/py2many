@@ -1,6 +1,5 @@
-using DataClass
+using Dataclass
 
-import array
 @dataclass mutable struct ValueHolder
 val::Int64
 strVal::String
@@ -13,7 +12,6 @@ a = ValueHolder(10, "1")
 println(a);
 __init__(a, 2, "10");
 println(a);
-array.ArrayType;
 end
 
 main()
