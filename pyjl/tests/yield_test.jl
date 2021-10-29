@@ -1,12 +1,15 @@
 using Continuables
 using DataClass
-@cont function generator_func()
+function generator_func()
+channel_generator_func = Channel(6)
 num = 1
-cont(num);
+put!(channel_generator_func, num);
 num = 5
-cont(num);
+put!(channel_generator_func, num);
 num = 10
-cont(num);
+put!(channel_generator_func, num);
+close(channel_generator_func)
+channel_generator_func
 end
 
 function generator_func_loop()
@@ -44,7 +47,7 @@ end
 
 
 function main()
-for i in collect(generator_func())
+for i in generator_func()
 println(i);
 end
 println("-----------------------");
