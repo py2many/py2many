@@ -7,7 +7,7 @@ function test_channel()
     put!(channel, 1);
     put!(channel, 2);
     # put!(channel, 2);
-    channel
+    return channel
 end
 
 function run_test()

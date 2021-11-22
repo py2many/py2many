@@ -2,6 +2,7 @@ import ast
 from subprocess import call
 from unittest.mock import Mock
 from build.lib.py2many.exceptions import AstEmptyNodeFound
+from py2many.input_configuration import ParseFileStructure
 
 from pyjl.tracer import is_class
 from .inference import (
@@ -31,6 +32,9 @@ from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_closest_in_scope, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Any, Dict, List, Tuple
+
+def julia_decorator_rewriter(tree, input_config):
+    JuliaDecoratorRewriter(input_config).visit(tree)
 
 def get_decorator_id(decorator):
     id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
@@ -64,37 +68,20 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         node_name = get_id(node)
         node_scope_name = None
-        # typenames = []
-        # for typename in node.args.args:
-        #     if get_id(typename) == "self" and hasattr(typename, "annotation"):
-        #         typenames.append("self")
-        #     else:
-        #         if hasattr(typename, "annotation"):
-        #             typenames.append(get_id(getattr(typename, "annotation")))
-        if self._input_config_map:
-            node_field_map = {}
-            if ("functions" in self._input_config_map 
-                    and node_name in (general_funcs := self._input_config_map["functions"])):
-                    # and (node_fields := general_funcs[node_name])["argument_types"] == typenames):
-                node_field_map |= general_funcs[node_name]
-            if len(node.scopes) > 2:
-                node_class = find_closest_in_scope(ast.ClassDef, node.scopes)
-                node_scope_name = get_id(node_class)
-                if (isinstance(node_class, ast.ClassDef)
-                        and"classes" in self._input_config_map 
-                        and node_scope_name in self._input_config_map["classes"]
-                        and "functions" in self._input_config_map["classes"][node_scope_name]
-                        and node_name in (class_funcs := self._input_config_map["classes"][node_scope_name]["functions"])):
-                        # and (node_fields := class_funcs[node_name])["argument_types"] == typenames):
-                    node_field_map |= class_funcs[node_name]
-            if "decorators" in node_field_map:
-                node.decorator_list += node_field_map["decorators"]
-                # Remove duplicates
-                node.decorator_list = list(set(node.decorator_list))
-                # Transform in Name nodes
-                node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
+        if len(node.scopes) > 2:
+            node_class = find_closest_in_scope(ast.ClassDef, node.scopes)
+            node_scope_name = get_id(node_class) if node_class else None
+        
+        node_field_map = ParseFileStructure.get_function_attributes(node_name, 
+            node_scope_name, self._input_config_map)
+        
+        if "decorators" in node_field_map:
+            node.decorator_list += node_field_map["decorators"]
+            # Remove duplicates
+            node.decorator_list = list(set(node.decorator_list))
+            # Transform in Name nodes
+            node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        # Remove self from argument typenames
         self._populate_decorator_map(node, node_scope_name)
         return node
 
@@ -102,10 +89,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         class_name = get_id(node)
         if self._input_config_map:
-            node_field_map = {}   
-            if ("classes" in self._input_config_map 
-                    and class_name in self._input_config_map["classes"]):
-                node_field_map |= self._input_config_map["classes"][class_name]
+            node_field_map = ParseFileStructure.get_class_attributes(class_name, self._input_config_map)
             if "decorators" in node_field_map:
                 node.decorator_list += node_field_map["decorators"]
                 # Remove duplicates
