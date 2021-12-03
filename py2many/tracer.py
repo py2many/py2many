@@ -72,14 +72,12 @@ def find_closest_in_scope(node_type, scopes):
 
 # Searches for the closest scope using
 # the given scope (search in reverse order)
+# TODO: Still a lot to consider
 def find_closest_scope_name(scopes):
     scope_name: str = None
     for i in range(len(scopes) - 1, 0, -1):
         sc = scopes[i]
         if isinstance(sc, ast.FunctionDef):
-            scope_name = sc.name
-            break
-        if isinstance(sc, ast.ClassDef):
             scope_name = sc.name
             break
 
@@ -126,6 +124,33 @@ def find_assignment_value_from_name(scopes, nameNode):
                         value = a.value
                         break
     return value
+
+def find_assignment_scope(scopes, var_name):
+    if var_name is None:
+        return None
+
+    scope = None
+    for i in range(len(scopes) - 1, 0, -1):
+        sc = scopes[i]
+        if isinstance(sc, ast.FunctionDef):
+            body = sc.body
+            # Get last Assign from body
+            for j in range(len(body) - 1, 0, -1):
+                a = body[j]
+                if isinstance(a, ast.Assign) or isinstance(a, ast.AugAssign):
+                    if get_id(a.targets[0]) == var_name:
+                        scope = sc
+                        break
+                elif isinstance(a, ast.AnnAssign):
+                    print("Target: " + get_id(a.target))
+                    if var_name is not None:
+                        print("Varname: " + var_name)
+                    if get_id(a.target) == var_name:
+                        scope = sc
+                        break
+    if scope is None:
+        scope = "module"
+    return scope
 
 ###############
 

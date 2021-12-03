@@ -9,7 +9,7 @@ from py2many.inference import InferTypesTransformer, get_inferred_type, is_compa
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_closest_scope_name
+from py2many.tracer import find_assignment_scope, find_closest_scope_name
 from pyjl.plugins import CONTAINER_TYPE_MAP, INTEGER_TYPES, JULIA_TYPE_MAP, NUM_TYPES
 
 VARIABLE_TYPES = {}   
@@ -44,35 +44,39 @@ def get_inferred_julia_type(node):
     node.julia_annotation = ret
     return ret
 
-def add_julia_annotation(node, left_default, right_default) :
-    scope = find_scope(node)
-    # print(type(node.right))
-    node.left.julia_annotation = map_type(left_default)
-    node.right.julia_annotation = map_type(right_default)
-    key_right = (get_id(node.right), scope)
-    key_left = (get_id(node.left), scope)
-    if(key_left in VARIABLE_TYPES):
-        node.left.julia_annotation = VARIABLE_TYPES[key_left]
-    if(key_right in VARIABLE_TYPES):
-        node.right.julia_annotation = VARIABLE_TYPES[key_right]
+def add_julia_annotation(node, *defaults) :
+    if isinstance(node, ast.BinOp):
+        # Not enough, since it does not consider var assignment 
+        # (it only considers current scope)
+        # scope = find_closest_scope_name(node.scopes
+        print(ast.dump(node))
 
-# TODO: See what use cases there are, for now scope is function name
-def find_scope(node):
-    # print(ast.dump(node.scopes[len(node.scopes) - 1], indent=4))
-    # print(ast.dump(node.scopes[0], indent=4))
-    scope = None
-    for sc in node.scopes:
-        if isinstance(sc, ast.FunctionDef):
-            scope = sc
-        # if isinstance(sc, ast.For):
-        #     print(ast.dump(sc, indent=4))
-        #     print(node in sc.body)
-    scope = scope.name if scope is not None else None
-    return scope
+        # Finds closest scope for assignment variable
+        right_scope = find_assignment_scope(node.scopes, get_id(node.right))
+        left_scope = find_assignment_scope(node.scopes, get_id(node.left))
+
+        if node.left is not None and get_id(node.left) is not None:
+            print("ID: " + get_id(node.left) + "\nScope: " + left_scope + "\n")
+
+        key_right = (get_id(node.right), right_scope)
+        key_left = (get_id(node.left), left_scope)
+
+        # Assign left and right annotations
+        node.left.julia_annotation = (VARIABLE_TYPES[key_left] 
+            if key_left in VARIABLE_TYPES 
+            else map_type(defaults[0])
+        )
+        node.right.julia_annotation = (VARIABLE_TYPES[key_right] 
+            if key_right in VARIABLE_TYPES 
+            else map_type(defaults[1])
+        )
 
 def add_julia_type(node, annotation, target):
     julia_annotation = get_inferred_julia_type(node)
-    type = map_type(get_id(annotation)) if julia_annotation == None else julia_annotation
+    type = (map_type(get_id(annotation)) 
+        if julia_annotation == None 
+        else julia_annotation
+    )
     add_julia_variable_type(node, target, type)
 
 def add_julia_variable_type(node, target, annotation):
