@@ -42,10 +42,25 @@ def show_res():
     print(value)
 """
 
+code4 = """
+def bisect_right(data: List[int], item: int) -> int:
+    low = 0
+    high: int = int(len(data))
+    while low < high:
+        middle = int((low + high) / 2)
+        if item < data[middle]:
+            high = middle
+        else:
+            low = middle + 1
+    return low
+"""
+
 if __name__ == "__main__":
     tree = ast.parse(code)
     tree2 = ast.parse(code2)
-    tree3 = ast.parse(code3)
+    # tree3 = ast.parse(code3)
+    tree4 = ast.parse(code4)
     # print(ast.dump(tree, indent=4))
     # print(ast.dump(tree2, indent=4))
-    print(ast.dump(tree3, indent=4))
+    # print(ast.dump(tree3, indent=4))
+    print(ast.dump(tree4, indent=4))

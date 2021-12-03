@@ -1,4 +1,5 @@
 import ast
+from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
 from typing import Any, Dict, Union
 from py2many.ast_helpers import get_id
@@ -138,6 +139,23 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
+
+    # TODO: Fix this to include container types
+    def _typename_from_annotation(self, node, attr="annotation") -> str:
+        default_type = self._default_type
+        typename = default_type
+        if hasattr(node, attr):
+            type_node = getattr(node, attr)
+            typename = self._typename_from_type_node(type_node)
+            if isinstance(type_node, ast.Subscript):
+                node.container_type = type_node.container_type
+                try:
+                    return self._visit_container_type(type_node.container_type)
+                except TypeNotSupported as e:
+                    raise AstTypeNotSupported(str(e), node)
+            if typename is None:
+                raise AstCouldNotInfer(type_node, node)
+        return typename
 
     ################################################
     ########### Supporting Julia imports ###########

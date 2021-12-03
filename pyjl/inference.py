@@ -6,12 +6,10 @@ from logging import NullHandler
 from typing import List, cast, Set, Optional
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
-from py2many.analysis import get_id, is_ellipsis
-from py2many.ast_helpers import create_ast_node, unparse
-from py2many.astx import LifeTime
+from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import is_enum
+from py2many.tracer import find_closest_scope_name
 from pyjl.plugins import CONTAINER_TYPE_MAP, INTEGER_TYPES, JULIA_TYPE_MAP, NUM_TYPES
 
 VARIABLE_TYPES = {}   
@@ -79,7 +77,7 @@ def add_julia_type(node, annotation, target):
 
 def add_julia_variable_type(node, target, annotation):
     # if target (a.k.a node name) is not mapped, map it with corresponding value type
-    scope = node.scopes[-1].name
+    scope = find_closest_scope_name(node.scopes)
     target_id = get_id(target)
     key = (target_id, scope)
     if(key in VARIABLE_TYPES and VARIABLE_TYPES[key] != annotation):

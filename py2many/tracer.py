@@ -70,6 +70,24 @@ def find_closest_in_scope(node_type, scopes):
             break
     return node
 
+# Searches for the closest scope using
+# the given scope (search in reverse order)
+def find_closest_scope_name(scopes):
+    scope_name: str = None
+    for i in range(len(scopes) - 1, 0, -1):
+        sc = scopes[i]
+        if isinstance(sc, ast.FunctionDef):
+            scope_name = sc.name
+            break
+        if isinstance(sc, ast.ClassDef):
+            scope_name = sc.name
+            break
+
+    # If no scope found, default is module scope
+    if scope_name == None:
+        scope_name = "module"
+
+    return scope_name
 
 # TODO: More range problems need testing
 def find_range_from_for_loop(visitor: ast.NodeVisitor, node):

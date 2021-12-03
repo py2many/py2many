@@ -167,6 +167,7 @@ class JuliaTranspiler(CLikeTranspiler):
             body += f"\n{yield_res[2]}\n{yield_res[3]}"
 
         typenames, args = self.visit(node.args)
+        print(typenames)
 
         args_list = []
         typedecls = []
@@ -187,7 +188,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 arg_typename = "T{0}".format(index)
                 typedecls.append(arg_typename)
                 index += 1
-
             args_list.append("{0}::{1}".format(arg, arg_typename))
 
         return_type = ""
@@ -243,6 +243,7 @@ class JuliaTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
+        print("Typename: " + typename + "\n" + "Id: " + id)
         return (typename, id)
 
     def visit_Lambda(self, node) -> str:
@@ -413,12 +414,20 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
-        if orelse:
-            buf.append("else\n")
-            buf.extend(orelse)
-            buf.append("end")
-        else:
-            buf.append("end")
+        
+        for i in range(len(orelse)):
+            or_cond = orelse[i]
+            print(type(or_cond))
+            
+            if i != len(orelse) - 1:
+                buf.append("elseif\n")
+                buf.append(or_cond)
+                buf.append("\n")
+            else:
+                buf.append("else\n")
+                buf.append(or_cond)
+                buf.append("\n")
+        buf.append("end")
 
         return "\n".join(buf)
 
