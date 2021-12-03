@@ -185,9 +185,10 @@ def _transpile_one(
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
 
-    for conf in config_rewriter:
-        class_config = ParseFileStructure.retrieve_structure(filename, args.input_config)
-        conf(tree, class_config)
+    if args and args.input_config is not None:
+        for conf in config_rewriter:
+            class_config = ParseFileStructure.retrieve_structure(filename, args.input_config)
+            conf(tree, class_config)
 
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
@@ -681,7 +682,7 @@ def main(args=None, env=os.environ):
         print("extension supported only with rust via pyo3")
         return -1
 
-    if args.input_config and not args.julia:
+    if args.input_config is not None and not args.julia:
         print("Extension supported only with Julia")
         return -1
 
