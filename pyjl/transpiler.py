@@ -809,8 +809,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 for i in range(0, len(generator.ifs)):
                     gen_if = generator.ifs[i]
                     filter_str += f"{self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)}"
-            
-        return f"({map_str} if {filter_str})"
+
+        return f"({map_str} if {filter_str})" if filter_str else f"({map_str})"
 
     def visit_ListComp(self, node) -> str:
         return "[" + self.visit_GeneratorExp(node) + "]"

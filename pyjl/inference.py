@@ -8,82 +8,11 @@ from py2many.tracer import find_assignment_scope_name, find_closest_scope_name
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
-VARIABLE_TYPES = {}
-
 #########################################################
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
-
-def get_inferred_julia_type(node):
-    if hasattr(node, "julia_annotation"):
-        return node.julia_annotation
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition and definition != node:
-            return get_inferred_julia_type(definition)
-    
-    python_type = get_inferred_type(node)
-    ret = CLikeTranspiler()._map_type(get_id(python_type))
-    node.julia_annotation = ret
-    return ret
-
-def add_julia_annotation(node, *defaults) :
-    if isinstance(node, ast.BinOp):
-        # Get default values
-        left_default = defaults[0]
-        right_default = defaults[1]
-        
-        # DEBUG
-        # print(ast.dump(node))
-        # if(get_id(node.right)) is not None:
-        #     print("ID_RIGHT: " + get_id(node.right))
-        # if(get_id(node.left)) is not None:
-        #     print("ID_LEFT: " + get_id(node.left) + "\n")
-
-        # Basic solution: Finds closest scope for assignment variable 
-        # TODO: Further optimization needed
-        right_scope_name = find_assignment_scope_name(node.scopes, get_id(node.right))
-        left_scope_name = find_assignment_scope_name(node.scopes, get_id(node.left))
-
-        # DEBUG
-        # print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
-        # print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
-        # print("-------FIN-------\n")
-
-        key_right = (get_id(node.right), right_scope_name)
-        key_left = (get_id(node.left), left_scope_name)
-
-        # Assign left and right annotations
-        node.left.julia_annotation = (VARIABLE_TYPES[key_left] 
-            if key_left in VARIABLE_TYPES 
-            else CLikeTranspiler()._map_type(left_default)
-        )
-        node.right.julia_annotation = (VARIABLE_TYPES[key_right] 
-            if key_right in VARIABLE_TYPES 
-            else CLikeTranspiler()._map_type(right_default)
-        )
-
-def add_julia_type(node, annotation, target):
-    julia_annotation = get_inferred_julia_type(node)
-    type = (CLikeTranspiler()._map_type(get_id(annotation)) 
-        if julia_annotation == None 
-        else julia_annotation
-    )
-    add_julia_variable_type(node, target, type)
-
-def add_julia_variable_type(node, target, annotation):
-    # if target (a.k.a node name) is not mapped, map it with corresponding value type
-    scope = find_closest_scope_name(node.scopes)
-    target_id = get_id(target)
-    key = (target_id, scope)
-    if(key in VARIABLE_TYPES and VARIABLE_TYPES[key] != annotation):
-        raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[key]}", node)
-    VARIABLE_TYPES[key] = CLikeTranspiler()._map_type(annotation)
 
 #########################################################
 
@@ -99,6 +28,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
+        self._variable_types = {}
         self._clike = CLikeTranspiler()
 
     def _handle_overflow(self, op, left_id, right_id):
@@ -186,7 +116,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if not target_has_annotation or inferred:
-                add_julia_type(node, annotation, target)
+                self._add_julia_type(node, annotation, target)
                 target.annotation = annotation
                 target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
@@ -206,8 +136,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         target_typename = self._clike._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
-        # annotation = get_inferred_julia_type(self._clike._map_type(get_id(node.annotation))) # Does not appear to work
-        add_julia_type(node, annotation, target)
+        # annotation = self._get_inferred_julia_type(self._clike._map_type(get_id(node.annotation))) # Does not appear to work
+        self._add_julia_type(node, annotation, target)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
@@ -241,7 +171,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
-            add_julia_annotation(node, get_id(left), get_id(right))
+            self._add_julia_annotation(node, get_id(left), get_id(right))
             return node
 
         # Both operands are annotated
@@ -256,7 +186,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
             ret = self._handle_overflow(node.op, left_id, right_id)
-            add_julia_annotation(node, ret, ret)
+            self._add_julia_annotation(node, ret, ret)
             return node
 
         if left_id == right_id:
@@ -270,17 +200,17 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if (not isinstance(node.op, ast.Div) or 
                         getattr(node, "use_integer_div", False)):
                     node.annotation = ast.Name(id=left_id)
-                    add_julia_annotation(node, left_id, left_id)
+                    self._add_julia_annotation(node, left_id, left_id)
                 else:
                     node.annotation = ast.Name(id="float")
-                    add_julia_annotation(node, "float", "float")
+                    self._add_julia_annotation(node, "float", "float")
                 return node
             # By default, assign left
             node.annotation = left
         else:
             if ((left in INTEGER_TYPES and right == "float") or 
                     (right in INTEGER_TYPES and left == "float")):
-                add_julia_annotation(node, "float", "float")
+                self._add_julia_annotation(node, "float", "float")
                 node.annotation = ast.Name(id="float")
                 return node
             if (left_id, right_id) in { 
@@ -289,7 +219,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 ("float", "complex"),
                 ("complex", "float"),
             }:
-                add_julia_annotation(node, "complex", "complex")
+                self._add_julia_annotation(node, "complex", "complex")
                 node.annotation = ast.Name(id="complex")
                 return node
             if isinstance(node.op, ast.Mult):
@@ -311,11 +241,84 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id="str")
 
         # By default (if no translation possible), the types are left_id and right_id respectively
-        add_julia_annotation(node, left_id, right_id)
+        self._add_julia_annotation(node, left_id, right_id)
 
         ILLEGAL_COMBINATIONS = {}
 
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
+
+    ######################################################
+    ################# Inference Methods ##################
+    ######################################################
+
+    def _get_inferred_julia_type(self, node):
+        if hasattr(node, "julia_annotation"):
+            return node.julia_annotation
+        if isinstance(node, ast.Name):
+            if not hasattr(node, "scopes"):
+                return None
+            definition = node.scopes.find(get_id(node))
+            # Prevent infinite recursion
+            if definition and definition != node:
+                return self._get_inferred_julia_type(definition)
+        
+        python_type = get_inferred_type(node)
+        ret = CLikeTranspiler()._map_type(get_id(python_type))
+        node.julia_annotation = ret
+        return ret
+
+    def _add_julia_annotation(self, node, *defaults) :
+        if isinstance(node, ast.BinOp):
+            # Get default values
+            left_default = defaults[0]
+            right_default = defaults[1]
+            
+            # DEBUG
+            # print(ast.dump(node))
+            # if(get_id(node.right)) is not None:
+            #     print("ID_RIGHT: " + get_id(node.right))
+            # if(get_id(node.left)) is not None:
+            #     print("ID_LEFT: " + get_id(node.left) + "\n")
+
+            # Basic solution: Finds closest scope for assignment variable 
+            # TODO: Further optimization needed
+            right_scope_name = find_assignment_scope_name(node.scopes, get_id(node.right))
+            left_scope_name = find_assignment_scope_name(node.scopes, get_id(node.left))
+
+            # DEBUG
+            # print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
+            # print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
+            # print("-------FIN-------\n")
+
+            key_right = (get_id(node.right), right_scope_name)
+            key_left = (get_id(node.left), left_scope_name)
+
+            # Assign left and right annotations
+            node.left.julia_annotation = (self._variable_types[key_left] 
+                if key_left in self._variable_types 
+                else CLikeTranspiler()._map_type(left_default)
+            )
+            node.right.julia_annotation = (self._variable_types[key_right] 
+                if key_right in self._variable_types 
+                else CLikeTranspiler()._map_type(right_default)
+            )
+
+    def _add_julia_type(self, node, annotation, target):
+        julia_annotation = self._get_inferred_julia_type(node)
+        type = (CLikeTranspiler()._map_type(get_id(annotation)) 
+            if julia_annotation == None 
+            else julia_annotation
+        )
+        self._add_julia_variable_type(node, target, type)
+
+    def _add_julia_variable_type(self, node, target, annotation):
+        # if target (a.k.a node name) is not mapped, map it with corresponding value type
+        scope = find_closest_scope_name(node.scopes)
+        target_id = get_id(target)
+        key = (target_id, scope)
+        if(key in self._variable_types and self._variable_types[key] != annotation):
+            raise AstIncompatibleAssign(f"{annotation} incompatible with {self._variable_types[key]}", node)
+        self._variable_types[key] = CLikeTranspiler()._map_type(annotation)
 
