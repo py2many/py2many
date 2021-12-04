@@ -1,13 +1,13 @@
 import ast
 from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from pyjl.plugins import MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -51,6 +51,8 @@ julia_keywords = frozenset(
     ]
 )
 
+_DEFAULT = "ANY"
+
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
 def jl_symbol(node):
@@ -81,6 +83,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
+        self._default_type = _DEFAULT
         # self._import_aliases: Dict[str, Any] = {}
 
     def visit(self, node) -> str:
@@ -140,7 +143,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
-    # TODO: Fix this to include container types
+    # From py2many.clike
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         default_type = self._default_type
         typename = default_type
@@ -148,6 +151,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             type_node = getattr(node, attr)
             typename = self._typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
+                # print(ast.dump(type_node))
+                # print(type_node.container_type)
                 node.container_type = type_node.container_type
                 try:
                     return self._visit_container_type(type_node.container_type)
@@ -155,7 +160,42 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     raise AstTypeNotSupported(str(e), node)
             if typename is None:
                 raise AstCouldNotInfer(type_node, node)
+        # print(typename)
         return typename
+    
+    def _typename_from_type_node(self, node) -> Union[List, str, None]:
+        if not isinstance(node, ast.Subscript):
+            return self._map_type(
+                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
+            )
+        if isinstance(node, ast.Subscript):
+            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
+            # in node.container_type
+            # And return a target specific type
+            slice_value = self._slice_value(node) # Check later, for now works
+            
+            (value_type, index_type) = tuple(
+                map(self._typename_from_type_node, (node.value, slice_value))
+            )
+            if cont_map := self._map_container_type(value_type):
+                value_type = cont_map
+            node.container_type = (self._map_type(value_type), index_type)
+            return self._combine_value_index(value_type, index_type)
+        # If necessary, call super
+        super()._typename_from_type_node(node)
+
+    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        typeclass = class_for_typename(typename, self._default_type)
+        if typeclass in JULIA_TYPE_MAP:
+            return JULIA_TYPE_MAP[typeclass]
+        if typename in CONTAINER_TYPE_MAP:
+            return CONTAINER_TYPE_MAP[typename]
+        return typename
+
+    # def _visit_container_type(self, typename: Tuple) -> str:
+    #     # print(typename)
+    #     # Last resort, call super
+    #     super()._visit_container_type(typename)
 
     ################################################
     ########### Supporting Julia imports ###########
@@ -225,9 +265,3 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             logger.debug(f"{func} is not hashable")
             return None
         return func
-
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
-        if isinstance(typename, list):
-            raise NotImplementedError(f"{typename} not supported in this context")
-        typeclass = class_for_typename(typename, self._default_type)
-        return self._type_map.get(typeclass, typename)

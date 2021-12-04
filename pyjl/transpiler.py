@@ -1,13 +1,9 @@
 import ast
-from subprocess import call
 from unittest.mock import Mock
 from build.lib.py2many.exceptions import AstEmptyNodeFound
 from py2many.input_configuration import ParseFileStructure
 
 from pyjl.tracer import is_class
-from .inference import (
-    map_type
-)
 import textwrap
 import re
 
@@ -167,7 +163,6 @@ class JuliaTranspiler(CLikeTranspiler):
             body += f"\n{yield_res[2]}\n{yield_res[3]}"
 
         typenames, args = self.visit(node.args)
-        print(typenames)
 
         args_list = []
         typedecls = []
@@ -182,7 +177,7 @@ class JuliaTranspiler(CLikeTranspiler):
             arg_typename = typenames[i]
             arg = args[i]
             if arg_typename != None and arg_typename != "T":
-                arg_typename = map_type(arg_typename)
+                arg_typename = super()._map_type(arg_typename)
             elif arg_typename == "T":
                 # Allow the user to know that type is generic
                 arg_typename = "T{0}".format(index)
@@ -195,7 +190,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if node.returns:
                 # No Julia typename found
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
-                    else map_type(self._typename_from_annotation(node, attr="returns")))
+                    else super()._map_type(self._typename_from_annotation(node, attr="returns")))
                 return_type = f"::{func_typename}"
             else:
                 # Allow Julia to infer types
@@ -243,7 +238,6 @@ class JuliaTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             typename = self._typename_from_annotation(node)
-        print("Typename: " + typename + "\n" + "Id: " + id)
         return (typename, id)
 
     def visit_Lambda(self, node) -> str:
@@ -417,7 +411,6 @@ class JuliaTranspiler(CLikeTranspiler):
         
         for i in range(len(orelse)):
             or_cond = orelse[i]
-            print(type(or_cond))
             
             if i != len(orelse) - 1:
                 buf.append("elseif\n")

@@ -3,10 +3,10 @@ from ctypes import c_int64
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
-from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import find_assignment_scope_name, find_closest_scope_name
-from pyjl.plugins import CONTAINER_TYPE_MAP, INTEGER_TYPES, JULIA_TYPE_MAP, NUM_TYPES
+from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
+from pyjl.clike import CLikeTranspiler, class_for_typename
 
 VARIABLE_TYPES = {}   
 
@@ -15,14 +15,6 @@ VARIABLE_TYPES = {}
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
-
-def map_type(typename) :
-    typeclass = class_for_typename(typename, "Any")
-    if typeclass in JULIA_TYPE_MAP:
-        return JULIA_TYPE_MAP[typeclass]
-    if typename in CONTAINER_TYPE_MAP:
-        return CONTAINER_TYPE_MAP[typename]
-    return typename
 
 def get_inferred_julia_type(node):
     if hasattr(node, "julia_annotation"):
@@ -36,7 +28,7 @@ def get_inferred_julia_type(node):
             return get_inferred_julia_type(definition)
     
     python_type = get_inferred_type(node)
-    ret = map_type(get_id(python_type))
+    ret = CLikeTranspiler()._map_type(get_id(python_type))
     node.julia_annotation = ret
     return ret
 
@@ -69,16 +61,16 @@ def add_julia_annotation(node, *defaults) :
         # Assign left and right annotations
         node.left.julia_annotation = (VARIABLE_TYPES[key_left] 
             if key_left in VARIABLE_TYPES 
-            else map_type(left_default)
+            else CLikeTranspiler()._map_type(left_default)
         )
         node.right.julia_annotation = (VARIABLE_TYPES[key_right] 
             if key_right in VARIABLE_TYPES 
-            else map_type(right_default)
+            else CLikeTranspiler()._map_type(right_default)
         )
 
 def add_julia_type(node, annotation, target):
     julia_annotation = get_inferred_julia_type(node)
-    type = (map_type(get_id(annotation)) 
+    type = (CLikeTranspiler()._map_type(get_id(annotation)) 
         if julia_annotation == None 
         else julia_annotation
     )
@@ -91,7 +83,7 @@ def add_julia_variable_type(node, target, annotation):
     key = (target_id, scope)
     if(key in VARIABLE_TYPES and VARIABLE_TYPES[key] != annotation):
         raise AstIncompatibleAssign(f"{annotation} incompatible with {VARIABLE_TYPES[key]}", node)
-    VARIABLE_TYPES[key] = map_type(annotation)
+    VARIABLE_TYPES[key] = CLikeTranspiler()._map_type(annotation)
 
 #########################################################
 
@@ -160,10 +152,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                                 and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
                             type_str = "str"
                     elif new_type_str != type_str:
-                        type_str = f"Union{'{'}{map_type(type_str)},{map_type(new_type_str)}{'}'}"
+                        type_str = f"Union{'{'}{self._clike._map_type(type_str)},{self._clike._map_type(new_type_str)}{'}'}"
 
                     # Add julia_annotation value
-                    scope.julia_annotation = map_type(type_str)
+                    scope.julia_annotation = self._clike._map_type(type_str)
                     setattr(scope.returns, "id", type_str)
                 else:
                     # Do not overwrite source annotation with inferred
@@ -214,7 +206,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         target_typename = self._clike._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
-        # annotation = get_inferred_julia_type(map_type(get_id(node.annotation))) # Does not appear to work
+        # annotation = get_inferred_julia_type(self._clike._map_type(get_id(node.annotation))) # Does not appear to work
         add_julia_type(node, annotation, target)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
@@ -270,9 +262,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if left_id == right_id:
             # Cover division with ints
             left_annotation = (node.left.julia_annotation 
-                if hasattr(node.left, "julia_annotation") else map_type(left_id))
+                if hasattr(node.left, "julia_annotation") else self._clike._map_type(left_id))
             right_annotation = (node.right.julia_annotation 
-                if hasattr(node.right, "julia_annotation") else map_type(right_id))
+                if hasattr(node.right, "julia_annotation") else self._clike._map_type(right_id))
             if ((isinstance(node.left, ast.Num) or left_annotation in NUM_TYPES) and 
                     (isinstance(node.right, ast.Num) or right_annotation in NUM_TYPES)) :
                 if (not isinstance(node.op, ast.Div) or 
@@ -311,8 +303,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="int")
 
-        mapped_left = map_type(left_id)
-        mapped_right = map_type(right_id)
+        mapped_left = self._clike._map_type(left_id)
+        mapped_right = self._clike._map_type(right_id)
         if (((mapped_left in NUM_TYPES and mapped_right == "String") 
             or (mapped_right in NUM_TYPES and mapped_left == "String")) 
             and node.op == ast.Mult):

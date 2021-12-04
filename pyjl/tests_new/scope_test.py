@@ -6,12 +6,17 @@ class TestClass:
         return "ssss"
 
 def test():
-    var:int = 0
-    def innerTest():
-        var = 2
-        print(var)
+    num:int = 2
+    teststr:str = "ola"
+    def inner_test():
+        print(num*teststr)
     
-    innerTest()
+    def inner_test_2():
+        num: int = 4
+        print(num*teststr)
+    
+    inner_test()
+    inner_test_2()
 
 if __name__ == "__main__":
     print(func())
