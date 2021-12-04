@@ -473,11 +473,10 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"repeat({right},{left})"
 
             # Cover Python Int and Boolean multiplication (also supported in Julia)
-            if((isinstance(node.right, ast.Num) or right_jl_ann in NUM_TYPES )
-                    and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")):
-                return f"{left}*{right}"
-            if((isinstance(node.left, ast.Num) or left_jl_ann in NUM_TYPES)
-                    and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool")):
+            if (((isinstance(node.right, ast.Num) or right_jl_ann in NUM_TYPES )
+                    and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")) or
+                    ((isinstance(node.left, ast.Num) or left_jl_ann in NUM_TYPES)
+                    and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool"))):
                 return f"{left}*{right}"
 
         if isinstance(node.op, ast.Add) :

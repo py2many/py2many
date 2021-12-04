@@ -201,7 +201,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
-        
         self.generic_visit(node)
 
         # annotation = getattr(node.value, "annotation", None) # why was it node.value?
@@ -278,16 +277,19 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     (isinstance(node.right, ast.Num) or right_annotation in NUM_TYPES)) :
                 if (not isinstance(node.op, ast.Div) or 
                         getattr(node, "use_integer_div", False)):
-                    node.annotation = left_id
+                    node.annotation = ast.Name(id=left_id)
                     add_julia_annotation(node, left_id, left_id)
                 else:
-                    node.annotation = "float"
+                    node.annotation = ast.Name(id="float")
                     add_julia_annotation(node, "float", "float")
                 return node
+            
+            node.annotation = left
         else:
             if ((left in INTEGER_TYPES and right == "float") or 
                     (right in INTEGER_TYPES and left == "float")):
                 add_julia_annotation(node, "float", "float")
+                node.annotation = ast.Name(id="float")
                 return node
             if (left_id, right_id) in { 
                 ("int", "complex"),
@@ -296,6 +298,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 ("complex", "float"),
             }:
                 add_julia_annotation(node, "complex", "complex")
+                node.annotation = ast.Name(id="complex")
                 return node
 
         mapped_left = map_type(left_id)
@@ -304,6 +307,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             or (mapped_right in NUM_TYPES and mapped_left == "String")) 
             and node.op == ast.Mult):
             node.annotation = ast.Name(id="str")
+
+        # Cover Nested operations
+        if isinstance(node.op, ast.Mult):
+            if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Num)) or 
+                    (isinstance(node.right, ast.List) and isinstance(node.left, ast.Num))):
+                node.annotation = ast.Name(id="List")
+            if ((isinstance(node.left, ast.Str) and isinstance(node.right, ast.Num)) or 
+                    (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))):
+                node.annotation = ast.Name(id="str")
+            if ((isinstance(node.left, ast.BoolOp) and isinstance(node.right, ast.Num)) or
+                    (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
+                node.annotation = ast.Name(id="int")
 
         # By default (if no translation possible), the types are left_id and right_id respectively
         add_julia_annotation(node, left_id, right_id)
