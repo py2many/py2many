@@ -125,33 +125,38 @@ def find_assignment_value_from_name(scopes, nameNode):
                         break
     return value
 
-def find_assignment_scope(scopes, var_name):
+def find_assignment_scope_name(scopes, var_name):
     if var_name is None:
         return None
 
-    scope = None
-    for i in range(len(scopes) - 1, 0, -1):
+    scope_name = None
+    for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef):
-            body = sc.body
-            # Get last Assign from body
-            for j in range(len(body) - 1, 0, -1):
-                a = body[j]
-                if isinstance(a, ast.Assign) or isinstance(a, ast.AugAssign):
-                    if get_id(a.targets[0]) == var_name:
-                        scope = sc
-                        break
-                elif isinstance(a, ast.AnnAssign):
-                    print("Target: " + get_id(a.target))
-                    if var_name is not None:
-                        print("Varname: " + var_name)
-                    if get_id(a.target) == var_name:
-                        scope = sc
-                        break
-    if scope is None:
-        scope = "module"
-    return scope
+        for a in sc.body:
+            # DEBUG
+            print(type(a))
+            if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
+                print("VarName: " + var_name)
+                print("Target_id: " + get_id(a.targets[0]))
+            if(isinstance(a, ast.AnnAssign)):
+                print("VarName: " + var_name)
+                print("Target_id: " + get_id(a.target))
 
+            if is_assign_name(a, var_name):
+                print("CORRECT")
+                scope_name = (get_id(sc) if isinstance(sc, ast.FunctionDef)
+                    else "module")
+                break
+        if scope_name is not None:
+            print("STOP")
+            break
+    return scope_name
+
+def is_assign_name(a, var_name):
+    return (((isinstance(a, ast.Assign) or isinstance(a, ast.AugAssign)) 
+                and get_id(a.targets[0]) == var_name) or 
+             (isinstance(a, ast.AnnAssign) 
+                and get_id(a.target) == var_name))
 ###############
 
 def is_enum(name, scopes):

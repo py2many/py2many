@@ -1,15 +1,11 @@
 import ast
 from ctypes import c_int64
 
-from dataclasses import dataclass
-from logging import NullHandler
-from typing import List, cast, Set, Optional
-
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_assignment_scope, find_closest_scope_name
+from py2many.tracer import find_assignment_scope_name, find_closest_scope_name
 from pyjl.plugins import CONTAINER_TYPE_MAP, INTEGER_TYPES, JULIA_TYPE_MAP, NUM_TYPES
 
 VARIABLE_TYPES = {}   
@@ -46,29 +42,38 @@ def get_inferred_julia_type(node):
 
 def add_julia_annotation(node, *defaults) :
     if isinstance(node, ast.BinOp):
-        # Not enough, since it does not consider var assignment 
-        # (it only considers current scope)
-        # scope = find_closest_scope_name(node.scopes
+        # Get default values
+        left_default = defaults[0]
+        right_default = defaults[1]
+        
+        # DEBUG
         print(ast.dump(node))
+        if(get_id(node.right)) is not None:
+            print("ID_RIGHT: " + get_id(node.right))
+        if(get_id(node.left)) is not None:
+            print("ID_LEFT: " + get_id(node.left) + "\n")
 
-        # Finds closest scope for assignment variable
-        right_scope = find_assignment_scope(node.scopes, get_id(node.right))
-        left_scope = find_assignment_scope(node.scopes, get_id(node.left))
+        # Basic solution: Finds closest scope for assignment variable 
+        # TODO: Further optimization needed
+        right_scope_name = find_assignment_scope_name(node.scopes, get_id(node.right))
+        left_scope_name = find_assignment_scope_name(node.scopes, get_id(node.left))
 
-        if node.left is not None and get_id(node.left) is not None:
-            print("ID: " + get_id(node.left) + "\nScope: " + left_scope + "\n")
+        # DEBUG
+        print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
+        print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
+        print("-------FIN-------\n")
 
-        key_right = (get_id(node.right), right_scope)
-        key_left = (get_id(node.left), left_scope)
+        key_right = (get_id(node.right), right_scope_name)
+        key_left = (get_id(node.left), left_scope_name)
 
         # Assign left and right annotations
         node.left.julia_annotation = (VARIABLE_TYPES[key_left] 
             if key_left in VARIABLE_TYPES 
-            else map_type(defaults[0])
+            else map_type(left_default)
         )
         node.right.julia_annotation = (VARIABLE_TYPES[key_right] 
             if key_right in VARIABLE_TYPES 
-            else map_type(defaults[1])
+            else map_type(right_default)
         )
 
 def add_julia_type(node, annotation, target):
