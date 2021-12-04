@@ -191,6 +191,11 @@ class JuliaTranspiler(CLikeTranspiler):
                 # No Julia typename found
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
                     else super()._map_type(self._typename_from_annotation(node, attr="returns")))
+                
+                # DEBUG
+                # if hasattr(node, "julia_annotation"):
+                #     print(node.julia_annotation)
+
                 return_type = f"::{func_typename}"
             else:
                 # Allow Julia to infer types

@@ -1,5 +1,3 @@
-using Continuables
-using DataClass
 function generator_func()
 channel_generator_func = Channel(6)
 num = 1
@@ -34,15 +32,18 @@ close(channel_generator_func_loop_using_var)
 channel_generator_func_loop_using_var
 end
 
-@dataclass mutable struct TestClass
+struct TestClass
 end
-@cont function generator_func(self::TestClass)
+function generator_func(self::TestClass)
+channel_generator_func = Channel(3)
 num = 123
-cont(num);
+put!(channel_generator_func, num);
 num = 5
-cont(num);
+put!(channel_generator_func, num);
 num = 10
-cont(num);
+put!(channel_generator_func, num);
+close(channel_generator_func)
+channel_generator_func
 end
 
 
@@ -60,7 +61,7 @@ println(i);
 end
 println("-----------------------");
 testClass::TestClass = TestClass()
-for i in collect(generator_func(testClass))
+for i in generator_func(testClass)
 println(i);
 end
 testClass::TestClass = TestClass()

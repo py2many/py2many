@@ -65,7 +65,7 @@ return (x + y)
 end
 
 function show()
-@assert(fadd1(convert(c_int8, 6), 6.0) == 12)
+@assert(fadd1(convert(Int8, 6), 6.0) == 12)
 println("OK");
 end
 

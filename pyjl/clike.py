@@ -1,4 +1,5 @@
 import ast
+from ctypes import c_int64
 from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
 from typing import Any, Dict, List, Tuple, Union
@@ -7,7 +8,7 @@ import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -61,7 +62,7 @@ def jl_symbol(node):
     return jl_symbols[symbol_type]
 
 # TODO
-def class_for_typename(typename, default_type, locals=None) -> Union[str, object]:
+def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
     if typename is None:
         return None
     if typename == "super" or typename.startswith("super()"):
@@ -70,8 +71,8 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
     if typename == "dataclass":
         eval(typename)
     try:
-        # TODO: take into account any imports happening in the file being parsed
-        # and pass them into eval
+        # TODO: Consider Imports for locals (if needed)
+        locals |= VARIABLE_MAP
         typeclass = eval(typename, globals(), locals)
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):
@@ -185,13 +186,15 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             )
             if cont_map := self._map_container_type(value_type):
                 value_type = cont_map
-            node.container_type = (self._map_type(value_type), index_type)
+            node.container_type = (self._map_type(value_type), self._map_type(index_type))
             return self._combine_value_index(value_type, index_type)
         # If necessary, call super
         super()._typename_from_type_node(node)
 
     def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = class_for_typename(typename, self._default_type)
+        # print(typeclass)
+        # print(typename)
         if typeclass in JULIA_TYPE_MAP:
             return JULIA_TYPE_MAP[typeclass]
         if typename in CONTAINER_TYPE_MAP:

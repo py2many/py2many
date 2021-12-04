@@ -225,6 +225,17 @@ JULIA_TYPE_MAP = {
     c_uint64: "UInt64",
 }
 
+VARIABLE_MAP = {
+    "c_int8": c_int8,
+    "c_int16": c_int16,
+    "c_int32": c_int32,
+    "c_int64": c_int64,
+    "c_uint8": c_uint8,
+    "c_uint16": c_uint16,
+    "c_uint32": c_uint32,
+    "c_uint64": c_uint64,
+}
+
 INTEGER_TYPES = (
     [
         "Int8",
