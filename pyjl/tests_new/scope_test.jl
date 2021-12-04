@@ -17,7 +17,7 @@ println(repeat(teststr,num));
 end
 
 function inner_test_2()
-num = 4
+num::Int64 = 4
 println(repeat(teststr,num));
 end
 

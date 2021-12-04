@@ -8,7 +8,7 @@ from py2many.tracer import find_assignment_scope_name, find_closest_scope_name
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
-VARIABLE_TYPES = {}   
+VARIABLE_TYPES = {}
 
 #########################################################
 

@@ -51,7 +51,7 @@ julia_keywords = frozenset(
     ]
 )
 
-_DEFAULT = "ANY"
+_DEFAULT = "Any"
 
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
@@ -145,8 +145,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     # From py2many.clike
     def _typename_from_annotation(self, node, attr="annotation") -> str:
-        default_type = self._default_type
-        typename = default_type
+        typename = self._default_type
         if hasattr(node, attr):
             type_node = getattr(node, attr)
             typename = self._typename_from_type_node(type_node)
@@ -158,13 +157,20 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     return self._visit_container_type(type_node.container_type)
                 except TypeNotSupported as e:
                     raise AstTypeNotSupported(str(e), node)
-            if typename is None:
+            if not self.not_inferable(node, type_node) and typename is None:
                 raise AstCouldNotInfer(type_node, node)
         # print(typename)
         return typename
+
+    def not_inferable(self, node, type_node):
+        return (
+            node is None or
+            (isinstance(node, ast.arg) and node.arg == "self") 
+            or isinstance(type_node, ast.Constant)
+        )
     
     def _typename_from_type_node(self, node) -> Union[List, str, None]:
-        if not isinstance(node, ast.Subscript):
+        if isinstance(node, ast.Name):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )

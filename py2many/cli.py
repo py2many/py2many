@@ -552,7 +552,7 @@ def _process_many(
         _get_output_path(filename, settings.ext, outdir) for filename in filenames
     ]
     for filename, output, output_path in zip(filenames, outputs, output_paths):
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(output)
 
     successful = set(successful)

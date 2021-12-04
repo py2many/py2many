@@ -12,7 +12,7 @@ def test():
         print(num*teststr)
     
     def inner_test_2():
-        num: int = 4
+        num: int = 4 # with annotation it fails
         print(num*teststr)
     
     inner_test()

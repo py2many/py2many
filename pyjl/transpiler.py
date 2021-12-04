@@ -310,7 +310,7 @@ class JuliaTranspiler(CLikeTranspiler):
             converted = []
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
-                declared_type = self._typename_from_annotation(fnarg)
+                declared_type = self._typename_from_annotation(fnarg) # if fnarg.arg != "self" else None
                 if declared_type != None and declared_type != "" and actual_type != declared_type and actual_type != self._default_type:
                     converted.append(f"convert({declared_type}, {varg})")
                 else:
@@ -596,7 +596,7 @@ class JuliaTranspiler(CLikeTranspiler):
     #     return f"using {module_name}: {names}"
 
     # New more generic import function
-    def _import_from(self, module_name: str, names: List[str]) -> str:
+    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         jl_module_name = module_name
         imports = []
         for name in names:
