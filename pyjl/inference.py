@@ -47,11 +47,11 @@ def add_julia_annotation(node, *defaults) :
         right_default = defaults[1]
         
         # DEBUG
-        print(ast.dump(node))
-        if(get_id(node.right)) is not None:
-            print("ID_RIGHT: " + get_id(node.right))
-        if(get_id(node.left)) is not None:
-            print("ID_LEFT: " + get_id(node.left) + "\n")
+        # print(ast.dump(node))
+        # if(get_id(node.right)) is not None:
+        #     print("ID_RIGHT: " + get_id(node.right))
+        # if(get_id(node.left)) is not None:
+        #     print("ID_LEFT: " + get_id(node.left) + "\n")
 
         # Basic solution: Finds closest scope for assignment variable 
         # TODO: Further optimization needed
@@ -59,9 +59,9 @@ def add_julia_annotation(node, *defaults) :
         left_scope_name = find_assignment_scope_name(node.scopes, get_id(node.left))
 
         # DEBUG
-        print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
-        print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
-        print("-------FIN-------\n")
+        # print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
+        # print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
+        # print("-------FIN-------\n")
 
         key_right = (get_id(node.right), right_scope_name)
         key_left = (get_id(node.left), left_scope_name)
@@ -283,7 +283,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     node.annotation = ast.Name(id="float")
                     add_julia_annotation(node, "float", "float")
                 return node
-            
+            # By default, assign left
             node.annotation = left
         else:
             if ((left in INTEGER_TYPES and right == "float") or 
@@ -300,6 +300,16 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 add_julia_annotation(node, "complex", "complex")
                 node.annotation = ast.Name(id="complex")
                 return node
+            if isinstance(node.op, ast.Mult):
+                if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Num)) or 
+                        (isinstance(node.right, ast.List) and isinstance(node.left, ast.Num))):
+                    node.annotation = ast.Name(id="List")
+                if ((isinstance(node.left, ast.Str) and isinstance(node.right, ast.Num)) or 
+                        (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))):
+                    node.annotation = ast.Name(id="str")
+                if ((isinstance(node.left, ast.BoolOp) and isinstance(node.right, ast.Num)) or
+                        (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
+                    node.annotation = ast.Name(id="int")
 
         mapped_left = map_type(left_id)
         mapped_right = map_type(right_id)
@@ -307,18 +317,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             or (mapped_right in NUM_TYPES and mapped_left == "String")) 
             and node.op == ast.Mult):
             node.annotation = ast.Name(id="str")
-
-        # Cover Nested operations
-        if isinstance(node.op, ast.Mult):
-            if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Num)) or 
-                    (isinstance(node.right, ast.List) and isinstance(node.left, ast.Num))):
-                node.annotation = ast.Name(id="List")
-            if ((isinstance(node.left, ast.Str) and isinstance(node.right, ast.Num)) or 
-                    (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))):
-                node.annotation = ast.Name(id="str")
-            if ((isinstance(node.left, ast.BoolOp) and isinstance(node.right, ast.Num)) or
-                    (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
-                node.annotation = ast.Name(id="int")
 
         # By default (if no translation possible), the types are left_id and right_id respectively
         add_julia_annotation(node, left_id, right_id)

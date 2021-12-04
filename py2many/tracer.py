@@ -134,21 +134,21 @@ def find_assignment_scope_name(scopes, var_name):
         sc = scopes[i]
         for a in sc.body:
             # DEBUG
-            print(type(a))
-            if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
-                print("VarName: " + var_name)
-                print("Target_id: " + get_id(a.targets[0]))
-            if(isinstance(a, ast.AnnAssign)):
-                print("VarName: " + var_name)
-                print("Target_id: " + get_id(a.target))
+            # print(type(a))
+            # if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
+            #     print("VarName: " + var_name)
+            #     print("Target_id: " + get_id(a.targets[0]))
+            # if(isinstance(a, ast.AnnAssign)):
+            #     print("VarName: " + var_name)
+            #     print("Target_id: " + get_id(a.target))
 
             if is_assign_name(a, var_name):
-                print("CORRECT")
+                # DEBUG
+                # print("CORRECT")
                 scope_name = (get_id(sc) if isinstance(sc, ast.FunctionDef)
                     else "module")
                 break
         if scope_name is not None:
-            print("STOP")
             break
     return scope_name
 
