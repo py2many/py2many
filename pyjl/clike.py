@@ -61,7 +61,7 @@ def jl_symbol(node):
     symbol_type = type(node)
     return jl_symbols[symbol_type]
 
-# TODO
+# TODO: Deal with classes in Julia
 def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
     if typename is None:
         return None
@@ -71,7 +71,6 @@ def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
     if typename == "dataclass":
         eval(typename)
     try:
-        # TODO: Consider Imports for locals (if needed)
         locals |= VARIABLE_MAP
         typeclass = eval(typename, globals(), locals)
         return typeclass

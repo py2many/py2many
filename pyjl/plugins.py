@@ -1,29 +1,21 @@
-from dataclasses import dataclass
 import io
 import os
 import ast
 import sys
-import textwrap
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 try:
-    from dataclasses import dataclass as ap_dataclass
-    from dataclasses import ArgumentParser
+    from dataclasses import dataclass
 except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
-
-@dataclass
-class keyword:
-    arg: str
-    value: bool
 
 class JuliaTranspilerPlugins:
     def visit_argparse_dataclass(self, node, decorator):
@@ -172,10 +164,9 @@ class JuliaTranspilerPlugins:
         # TODO
         return None
 
-    # def visit_ap_dataclass(self, cls):
-    #     # Do whatever transformation the decorator does to cls here
-    #     # print("ola")
-    #     return cls
+    def visit_ap_dataclass(self, cls):
+        # Do whatever transformation the decorator does to cls here
+        return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:

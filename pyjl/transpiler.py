@@ -59,7 +59,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 node0 = fname.value
 
             if new_func_name == "join":
-                # Join with empty string
+                # Join with empty string if no content is present
                 if not node0:
                     node0 = f"\"\""
                 args = node.args + [node0]
@@ -382,6 +382,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
+        # Allow line break translation
+        node.value = node.value.replace("\n", "\\n")
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:

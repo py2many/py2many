@@ -73,7 +73,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 type_str = get_id(scope.returns)
                 if type_str is not None:
                     if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Mult) :
-                        # specific case of ast.Mult with an int and a string
+                        # specific case of ast.Mult with with int and string as arguments
                         left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
                         right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
                         if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
@@ -95,7 +95,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         if lifetime is not None:
                             scope.returns.lifetime = lifetime
 
-        # print(ast.dump(node.scopes[1], indent=4))
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
