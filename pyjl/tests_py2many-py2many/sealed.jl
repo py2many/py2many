@@ -14,10 +14,10 @@ end
 
 
 function main()
-a = VALUE(10)
+a = VALUE(Register, 10)
 @assert(is_value(a))
 value(a);
-b = PACKET(Packet(1.3))
+b = PACKET(Register, Packet(1.3))
 @assert(is_packet(b))
 packet(b);
 println("OK");

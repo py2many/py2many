@@ -11,7 +11,7 @@ end
 function main()
 a = ValueHolder(10, "1")
 println(a);
-__init__(a, 2, "10");
+__init__(ValueHolder, a, 2, "10");
 println(a);
 end
 

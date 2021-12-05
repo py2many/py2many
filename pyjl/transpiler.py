@@ -53,10 +53,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             else:
                 new_func_name = fname.attr
 
-            # if isinstance(fname.value, ast.Constant):
-            #     node0 = fname.value.value
             if get_id(fname.value):
-                node0 = get_id(fname.value)
+                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
             else:
                 node0 = fname.value
 
@@ -67,7 +65,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 args = node.args + [node0]
             else:
                 args = [node0] + node.args
-                
+            
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
         if isinstance(fname, ast.Name):
