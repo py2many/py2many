@@ -59,6 +59,10 @@ def arithmetic_shift_left_int_and_int():
     a: int = 2
     return a<<1
 
+def nested_bin_op():
+    a: int = 10
+    return a*(2+4*(80))
+
 if __name__ == "__main__":
     assert mult_int_and_int() == 4
     assert mult_float_and_int() == 4.0
@@ -72,4 +76,5 @@ if __name__ == "__main__":
     assert or_op_int_and_int() == 3
     assert arithmetic_shift_right_int_and_int() == 1
     assert arithmetic_shift_left_int_and_int() == 4
+    assert nested_bin_op() == 3220
     print("Ok")

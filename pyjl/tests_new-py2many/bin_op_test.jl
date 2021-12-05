@@ -68,6 +68,11 @@ a::Int64 = 2
 return (a << 1)
 end
 
+function nested_bin_op()::Int64
+a::Int64 = 10
+return a*(2 + 4*80)
+end
+
 function main()
 @assert(mult_int_and_int() == 4)
 @assert(mult_float_and_int() == 4.0)
@@ -81,6 +86,7 @@ function main()
 @assert(or_op_int_and_int() == 3)
 @assert(arithmetic_shift_right_int_and_int() == 1)
 @assert(arithmetic_shift_left_int_and_int() == 4)
+@assert(nested_bin_op() == 3220)
 println("Ok");
 end
 

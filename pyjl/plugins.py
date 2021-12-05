@@ -254,6 +254,7 @@ INTEGER_TYPES = (
 NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
 CONTAINER_TYPE_MAP = {
+    "Array": "Array",
     "List": "Array",
     "Dict": "Dict",
     "Set": "Set",
@@ -288,7 +289,7 @@ DISPATCH_MAP = {
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "dataclass": "DataClass",
     "json": "JSON",
-    "datetime": "DateTime"
+    "datetime": "Dates"
 }
 
 # DECORATOR_DISPATCH_TABLE = {

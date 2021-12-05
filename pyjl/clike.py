@@ -151,6 +151,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             type_node = getattr(node, attr)
             typename = self._typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
+                # DEBUG
                 # print(ast.dump(type_node))
                 # print(type_node.container_type)
                 node.container_type = type_node.container_type
@@ -160,13 +161,15 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     raise AstTypeNotSupported(str(e), node)
             if not self.not_inferable(node, type_node) and typename is None:
                 raise AstCouldNotInfer(type_node, node)
+        # DEBUG
         # print(typename)
         return typename
 
     def not_inferable(self, node, type_node):
         return (
             node is None or
-            (isinstance(node, ast.arg) and node.arg == "self") 
+            (isinstance(node, ast.arg))
+            # (isinstance(node, ast.arg) and node.arg == "self") 
             or isinstance(type_node, ast.Constant)
         )
     
@@ -184,7 +187,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             (value_type, index_type) = tuple(
                 map(self._typename_from_type_node, (node.value, slice_value))
             )
-            if cont_map := self._map_container_type(value_type):
+            if cont_map := self._map_type(value_type):
                 value_type = cont_map
             node.container_type = (self._map_type(value_type), self._map_type(index_type))
             return self._combine_value_index(value_type, index_type)
@@ -193,18 +196,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = class_for_typename(typename, self._default_type)
-        # print(typeclass)
-        # print(typename)
         if typeclass in JULIA_TYPE_MAP:
             return JULIA_TYPE_MAP[typeclass]
         if typename in CONTAINER_TYPE_MAP:
             return CONTAINER_TYPE_MAP[typename]
+        if typename in MODULE_DISPATCH_TABLE:
+            return MODULE_DISPATCH_TABLE[typename]
         return typename
-
-    # def _visit_container_type(self, typename: Tuple) -> str:
-    #     # print(typename)
-    #     # Last resort, call super
-    #     super()._visit_container_type(typename)
 
     ################################################
     ########### Supporting Julia imports ###########

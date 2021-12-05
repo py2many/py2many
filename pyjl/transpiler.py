@@ -26,7 +26,9 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
+
+_DEFAULT = "Any"
 
 def julia_decorator_rewriter(tree, input_config):
     JuliaDecoratorRewriter(input_config).visit(tree)
@@ -40,20 +42,40 @@ def get_decorator_id(decorator):
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
+        args = []
+        if node.args:
+            args += [self.visit(a) for a in node.args]
+
         fname = node.func
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
                 new_func_name = "push!"
             else:
                 new_func_name = fname.attr
+
+            # if isinstance(fname.value, ast.Constant):
+            #     node0 = fname.value.value
             if get_id(fname.value):
-                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
+                node0 = get_id(fname.value)
             else:
                 node0 = fname.value
 
-            node.args = [node0] + node.args if not is_class_or_module(get_id(node0), node.scopes) else node.args
+            if new_func_name == "join":
+                # Join with empty string
+                if not node0:
+                    node0 = f"\"\""
+                args = node.args + [node0]
+            else:
+                args = [node0] + node.args
+                
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+
+        if isinstance(fname, ast.Name):
+            if get_id(node.func) == "join" and hasattr(node, "args"):
+                args.reverse()
+        node.args = args
         return node
+
 
 class JuliaDecoratorRewriter(ast.NodeTransformer):
     def __init__(self, input_config: Dict) -> None:
@@ -110,7 +132,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._headers = set([])
-        self._default_type = ""
+        self._default_type = _DEFAULT
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -182,6 +204,10 @@ class JuliaTranspiler(CLikeTranspiler):
                 arg_typename = "T{0}".format(index)
                 typedecls.append(arg_typename)
                 index += 1
+            
+            # if arg_typename == None or arg_typename == self._default_type:
+            #     args_list.append(arg)
+            # else:
             args_list.append("{0}::{1}".format(arg, arg_typename))
 
         return_type = ""
@@ -322,17 +348,16 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             converted = vargs
 
-        if fname == "join":
-            converted.reverse()
-
         # Added: Deals with functions that belong to classes
         if isinstance(node.func, ast.Attribute):
+            attr_node = node.func
             if "::" in fname:
                 list = fname.split("::")
                 # is the if needed?
                 if is_class_or_module(list[0], node.scopes) or is_class_type(list[0], node.scopes):
                     fname = list[1]
                     converted.append(list[0])
+
         args = ", ".join(converted)
         return f"{fname}({args})"
 
@@ -459,12 +484,12 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number 
-            if(isinstance(node.right, ast.Num or (right_jl_ann in NUM_TYPES)) and 
+            if((isinstance(node.right, ast.Num) or (right_jl_ann in NUM_TYPES)) and 
                     ((isinstance(node.left, ast.List) or left_jl_ann == "Array") or 
                     (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
                 return f"repeat({left},{right})"
 
-            if(isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES) and 
+            if((isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES)) and 
                     ((isinstance(node.right, ast.List) or right_jl_ann == "Array") or
                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
@@ -626,8 +651,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Dict(self, node) -> str:
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k} => {v}" for k, v in zip(keys, values)])
-        return f"Dict({kv_pairs})"
+        kv_pairs = ", ".join([f"({k}, {v})" for k, v in zip(keys, values)])
+        return f"Dict([{kv_pairs}])"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
@@ -711,7 +736,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if (node.julia_annotation and node.julia_annotation != "None") 
             else type_str
         )
-        if type_str == self._default_type:
+        if not type_str or type_str == self._default_type:
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"
 

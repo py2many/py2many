@@ -51,7 +51,7 @@ a5 = [1, 2, 3]
 println(length(a5));
 a9::Array{String} = ["a", "b", "c", "d"]
 println(length(a9));
-a7 = Dict("a" => 1, "b" => 2)
+a7 = Dict([("a", 1), ("b", 2)])
 println(length(a7));
 a8 = true
 if a8
