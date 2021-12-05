@@ -8,11 +8,9 @@ from py2many.exceptions import AstNotImplementedError
 
 from typing import Optional
 
-
 def decltype(node):
     """Create C++ decltype statement"""
     pass
-
 
 # is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
@@ -30,134 +28,6 @@ def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
 def is_class_or_module(name, scopes):
     entry = _lookup_class_or_module(name, scopes) 
     return entry is not None
-
-###############
-# Added
-def _lookup_value_type_name(name, scopes) -> Optional[ast.ClassDef]:
-    for scope in scopes:
-        for entry in scope.body:
-            if isinstance(entry, ast.Assign):
-                if (name in list(map(get_id, entry.targets))  and hasattr(entry, "value")
-                        and isinstance(entry.value, ast.Call) and hasattr(entry.value, "func")):
-                    return entry.value.func
-            if isinstance(entry, ast.AnnAssign):
-                if name == get_id(entry.target) and hasattr(entry.value, "func"):
-                    return entry.value.func
-    return None
-
-def is_class_type(name, scopes):
-    entry = _lookup_value_type_name(name, scopes)
-    entry = _lookup_class_or_module(get_id(entry), scopes)
-    return entry is not None
-
-def get_class_scope(name, scopes):
-    entry = _lookup_value_type_name(name, scopes)
-    if entry is None:
-        # Try looking for class module with given name
-        entry = _lookup_class_or_module(name, scopes)
-    else:
-        entry = _lookup_class_or_module(get_id(entry), scopes)
-    return entry
-
-# Searches for the first node of type node_type using
-# the given scope (search in reverse order)
-def find_closest_in_scope(node_type, scopes):
-    node = None
-    for i in range(len(scopes) - 1, 0, -1):
-        sc = scopes[i]
-        if isinstance(sc, node_type):
-            node = sc
-            break
-    return node
-
-# Searches for the closest scope using
-# the given scope (search in reverse order)
-# TODO: Still a lot to consider
-def find_closest_scope_name(scopes):
-    scope_name: str = None
-    for i in range(len(scopes) - 1, 0, -1):
-        sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef):
-            scope_name = sc.name
-            break
-
-    # If no scope found, default is module scope
-    if scope_name == None:
-        scope_name = "module"
-
-    return scope_name
-
-# TODO: More range problems need testing
-def find_range_from_for_loop(visitor: ast.NodeVisitor, node):
-    iter = -1
-    for i in range(len(node.scopes) - 1, 0, -1):
-        sc = node.scopes[i]
-        if isinstance(sc, ast.For):
-            if hasattr(sc, "iter"):
-                end_val = sc.iter.args[1]
-                start_val = sc.iter.args[0]
-                if not (isinstance(end_val, ast.Num) and isinstance(start_val, ast.Num)):
-                    if isinstance(end_val, ast.Name):
-                        end_val = find_assignment_value_from_name(node.scopes, end_val)
-                    if isinstance(start_val, ast.Name):
-                        start_val = find_assignment_value_from_name(node.scopes, start_val)
-                    iter = 0
-                iter = int(visitor.visit(end_val)) - int(visitor.visit(start_val))
-                if(iter < 0):
-                    iter *= -1
-                break
-    return iter
-
-# TODO: Still needs further testing
-# Currently not in use
-def find_assignment_value_from_name(scopes, nameNode):
-    value = None
-    for i in range(len(scopes) - 1, 0, -1):
-        sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef):
-            body = sc.body
-            # Get last Assign from body
-            for j in range(len(body) - 1, 0, -1):
-                a = body[j]
-                if isinstance(a, ast.Assign):
-                    if get_id(a.targets[0]) == get_id(nameNode):
-                        value = a.value
-                        break
-    return value
-
-def find_assignment_scope_name(scopes, var_name):
-    if var_name is None:
-        return None
-
-    scope_name = None
-    for i in range(len(scopes) - 1, -1, -1):
-        sc = scopes[i]
-        for a in sc.body:
-            # DEBUG
-            # print(type(a))
-            # if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
-            #     print("VarName: " + var_name)
-            #     print("Target_id: " + get_id(a.targets[0]))
-            # if(isinstance(a, ast.AnnAssign)):
-            #     print("VarName: " + var_name)
-            #     print("Target_id: " + get_id(a.target))
-
-            if is_assign_name(a, var_name):
-                # DEBUG
-                # print("CORRECT")
-                scope_name = (get_id(sc) if isinstance(sc, ast.FunctionDef)
-                    else "module")
-                break
-        if scope_name is not None:
-            break
-    return scope_name
-
-def is_assign_name(a, var_name):
-    return (((isinstance(a, ast.Assign) or isinstance(a, ast.AugAssign)) 
-                and get_id(a.targets[0]) == var_name) or 
-             (isinstance(a, ast.AnnAssign) 
-                and get_id(a.target) == var_name))
-###############
 
 def is_enum(name, scopes):
     entry = _lookup_class_or_module(name, scopes)
@@ -196,6 +66,143 @@ def is_list(node):
     else:
         return False
 
+############################################
+# Added
+
+# Searches if a given name is associated to a class
+# object given a scope
+def is_class_type(name, scopes):
+    entry = _lookup_value_type_name(name, scopes)
+    entry = _lookup_class_or_module(get_id(entry), scopes)
+    return entry is not None
+
+# Gets the class scope given a name
+def get_class_scope(name, scopes):
+    entry = _lookup_value_type_name(name, scopes)
+    if entry is None:
+        # Try looking for class module with given name
+        entry = _lookup_class_or_module(name, scopes)
+    else:
+        entry = _lookup_class_or_module(get_id(entry), scopes)
+    return entry
+
+# Searches for the first node of type node_type using
+# the given scope (search in reverse order)
+def find_node_matching_type(node_type, scopes):
+    node = None
+    for i in range(len(scopes) - 1, 0, -1):
+        sc = scopes[i]
+        if isinstance(sc, node_type):
+            node = sc
+            break
+
+    return node
+
+# Searches for the closest scope using
+# the given scope (search in reverse order)
+def find_closest_scope_name(scopes):
+    scope_name: str = (
+        get_id(find_node_matching_type(
+            (ast.FunctionDef, ast.ClassDef), 
+        scopes))
+    )
+    # If no scope found, default is module scope
+    if scope_name == None:
+        scope_name = "module"
+
+    return scope_name
+
+# Finds a node by its name
+def find_node_by_name(name, scopes):
+    if name is None:
+        return None
+
+    scope_name = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        for node in sc.body:
+            # DEBUG
+            # print(type(a))
+            # if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
+            #     print("VarName: " + name)
+            #     print("Target_id: " + get_id(a.targets[0]))
+            # if(isinstance(a, ast.AnnAssign)):
+            #     print("VarName: " + name)
+            #     print("Target_id: " + get_id(a.target))
+
+            if matches_name(node, name):
+                # DEBUG
+                # print("NAME MATCHES")
+                scope_name = (get_id(sc) 
+                    if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
+                    else "module")
+                break
+        if scope_name is not None:
+            break
+    return scope_name
+
+# Checks if a given node's name matches 
+# the supplied name
+def matches_name(node, name):
+    return (((isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign)) 
+                and get_id(node.targets[0]) == name) or 
+             (isinstance(node, ast.AnnAssign) 
+                and get_id(node.target) == name) or
+             (get_id(node) == name))
+
+# Finds the range from a given for-loop
+# Receives a visitor to evaluate the loop values
+# and the scopes
+# TODO: More range problems need testing
+def find_range_from_for_loop(visitor: ast.NodeVisitor, scopes):
+    iter = -1
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if isinstance(sc, ast.For):
+            if hasattr(sc, "iter"):
+                end_val = sc.iter.args[1]
+                start_val = sc.iter.args[0]
+                if not (isinstance(end_val, ast.Num) and isinstance(start_val, ast.Num)):
+                    if isinstance(end_val, ast.Name):
+                        end_val = _find_assignment_value_from_name(scopes, end_val)
+                    if isinstance(start_val, ast.Name):
+                        start_val = _find_assignment_value_from_name(scopes, start_val)
+                    iter = 0
+                iter = int(visitor.visit(end_val)) - int(visitor.visit(start_val))
+                if(iter < 0):
+                    iter *= -1
+                break
+    return iter
+
+# TODO: Still needs further testing
+def _find_assignment_value_from_name(scopes, nameNode):
+    value = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if isinstance(sc, ast.FunctionDef):
+            body = sc.body
+            # Get last Assign from body
+            for j in range(len(body) - 1, -1, -1):
+                a = body[j]
+                if isinstance(a, ast.Assign):
+                    if get_id(a.targets[0]) == get_id(nameNode):
+                        value = a.value
+                        break
+    return value
+
+def _lookup_value_type_name(name, scopes) -> Optional[ast.ClassDef]:
+    for scope in scopes:
+        for entry in scope.body:
+            if isinstance(entry, ast.Assign):
+                if (name in list(map(get_id, entry.targets))  and hasattr(entry, "value")
+                        and isinstance(entry.value, ast.Call) and hasattr(entry.value, "func")):
+                    return entry.value.func
+            if isinstance(entry, ast.AnnAssign):
+                if name == get_id(entry.target) and hasattr(entry.value, "func"):
+                    return entry.value.func
+    return None
+
+#####################################
 
 def value_expr(node):
     """

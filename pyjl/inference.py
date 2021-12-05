@@ -4,7 +4,7 @@ from ctypes import c_int64
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_assignment_scope_name, find_closest_scope_name
+from py2many.tracer import find_node_by_name, find_closest_scope_name
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
@@ -292,8 +292,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
             # Basic solution: Finds closest scope for assignment variable 
             # TODO: Further optimization needed
-            right_scope_name = find_assignment_scope_name(node.scopes, get_id(node.right))
-            left_scope_name = find_assignment_scope_name(node.scopes, get_id(node.left))
+            right_scope_name = find_node_by_name(get_id(node.right), node.scopes)
+            left_scope_name = find_node_by_name(get_id(node.left), node.scopes)
 
             # DEBUG
             # print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))

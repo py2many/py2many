@@ -3,7 +3,6 @@ from unittest.mock import Mock
 from build.lib.py2many.exceptions import AstEmptyNodeFound
 from py2many.input_configuration import ParseFileStructure
 
-from pyjl.tracer import is_class
 import textwrap
 import re
 
@@ -25,7 +24,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_in_scope, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
+from py2many.tracer import find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Any, Dict, List, Tuple
 
@@ -52,7 +51,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             else:
                 node0 = fname.value
 
-            node.args = [node0] + node.args if not is_class(get_id(node0), node.scopes) else node.args
+            node.args = [node0] + node.args if not is_class_or_module(get_id(node0), node.scopes) else node.args
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
@@ -65,7 +64,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         node_name = get_id(node)
         node_scope_name = None
         if len(node.scopes) > 2:
-            node_class = find_closest_in_scope(ast.ClassDef, node.scopes)
+            node_class = find_node_matching_type(ast.ClassDef, node.scopes)
             node_scope_name = get_id(node_class) if node_class else None
         
         node_field_map = ParseFileStructure.get_function_attributes(node_name, 
@@ -772,9 +771,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Yield(self, node) -> str:
         name = ""
-        func_node = find_closest_in_scope(ast.FunctionDef, node.scopes)
-        range_from_for_loop = find_range_from_for_loop(self, node)
-        name = func_node.name
+        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        range_from_for_loop = find_range_from_for_loop(self, node.scopes)
+        name = get_id(func_node)
 
         if name:
             if range_from_for_loop != -1:
