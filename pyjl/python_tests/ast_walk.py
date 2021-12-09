@@ -43,12 +43,20 @@ def show_res():
 """
 
 code4 = """
-class Foo:
-    def bar(self):
-        return self.baz()
+from dataclasses import dataclass
 
-    def baz(self) -> int:
-        return 10
+@dataclass
+class Packet:
+    val: float
+
+@dataclass
+class Register:
+    PACKET: Packet
+    VALUE: int
+
+if __name__ == "__main__":
+    a = List()
+    print("OK")
 """
 
 
