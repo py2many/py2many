@@ -43,21 +43,13 @@ def show_res():
 """
 
 code4 = """
-from dataclasses import dataclass
-
-@dataclass
-class Packet:
-    val: float
-
-@dataclass
-class Register:
-    PACKET: Packet
-    VALUE: int
-
-if __name__ == "__main__":
-    a = List()
-    print("OK")
+def main(n, ref='sun'):
+    offset_momentum(BODIES[ref])
+    report_energy()
+    advance(0.01, n)
+    report_energy()
 """
+
 
 
 

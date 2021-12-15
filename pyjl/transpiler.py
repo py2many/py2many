@@ -169,6 +169,7 @@ class JuliaTranspiler(CLikeTranspiler):
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
+        # TODO: More generic methodology
         # Support yield
         yield_res = self._yield_func_support(node)
         annotation = yield_res[0]
@@ -192,7 +193,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
             typenames[0] = node.self_type
 
-        for i in range(len(args)):
+        defaults = node.args.defaults
+        len_defaults = len(defaults)
+        len_args = len(args) 
+        for i in range(len_args):
             arg_typename = typenames[i]
             arg = args[i]
             if arg_typename != None and arg_typename != "T":
@@ -202,11 +206,25 @@ class JuliaTranspiler(CLikeTranspiler):
                 arg_typename = "T{0}".format(index)
                 typedecls.append(arg_typename)
                 index += 1
-            
             # if arg_typename == None or arg_typename == self._default_type:
             #     args_list.append(arg)
             # else:
-            args_list.append("{0}::{1}".format(arg, arg_typename))
+
+            # Get default parameter values
+            default = None
+            if defaults:
+                if len_defaults != len_args:
+                    diff_len = len_args - len_defaults
+                    default = defaults[i - diff_len] if i >= diff_len else None
+                else:
+                    default = defaults[i]
+
+            if get_id(default):
+                default = get_id(default)
+            elif isinstance(default, ast.Constant):
+                default = default.value
+            arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
+            args_list.append(arg_signature)
 
         return_type = ""
         if not is_void_function(node):

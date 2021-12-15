@@ -144,9 +144,9 @@ def find_node_by_name(name, scopes):
 # Checks if a given node's name matches 
 # the supplied name
 def matches_name(node, name):
-    return (((isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign)) 
+    return ((isinstance(node, ast.Assign)
                 and get_id(node.targets[0]) == name) or 
-             (isinstance(node, ast.AnnAssign) 
+             ((isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign))
                 and get_id(node.target) == name) or
              (get_id(node) == name))
 
