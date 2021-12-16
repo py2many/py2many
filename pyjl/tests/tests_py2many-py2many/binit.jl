@@ -1,5 +1,5 @@
 
-function bisect_right(data::Array{Int64}, item::Int64)::Int64
+function bisect_right(data::Vector{Int64}, item::Int64)::Int64
 low = 0
 high::Int64 = Int64(length(data))
 while low < high
@@ -16,7 +16,7 @@ end
 return low
 end
 
-function bin_it(limits::Array{Int64}, data::Array{Int64})::Array{Int64}
+function bin_it(limits::Vector{Int64}, data::Vector{Int64})::Vector{Int64}
 bins = [0]
 for _x in limits
 push!(bins, 0);

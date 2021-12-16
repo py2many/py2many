@@ -1,8 +1,8 @@
 
 function main_func()
-ands::Array = []
-ors::Array = []
-xors::Array = []
+ands::Vector = []
+ors::Vector = []
+xors::Vector = []
 for a in [false, true]
 for b in [false, true]
 push!(ands, (a & b));

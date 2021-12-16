@@ -169,6 +169,8 @@ class JuliaTranspiler(CLikeTranspiler):
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
+        annotation = ""
+        annotation_body = ""
         for decorator in node.decorator_list:
             d_id = get_decorator_id(decorator)
             if d_id in DECORATOR_DISPATCH_TABLE:
@@ -506,12 +508,12 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number 
             if((isinstance(node.right, ast.Num) or (right_jl_ann in NUM_TYPES)) and 
-                    ((isinstance(node.left, ast.List) or left_jl_ann == "Array") or 
+                    ((isinstance(node.left, ast.List) or left_jl_ann == "Array" or left_jl_ann == "Vector") or 
                     (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
                 return f"repeat({left},{right})"
 
             if((isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES)) and 
-                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array") or
+                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array" or left_jl_ann == "Vector") or
                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 
@@ -525,8 +527,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Add) :
             # Cover Python list addition
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List)) 
-                    or (isinstance(node.right, ast.Name) and right_jl_ann == "Array" 
-                        and isinstance(node.left, ast.Name) and left_jl_ann == "Array")):
+                    or (isinstance(node.right, ast.Name) and (right_jl_ann == "Array" or right_jl_ann == "Vector") 
+                        and isinstance(node.left, ast.Name) and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
                 return f"[{left};{right}]"
             
             # Cover Python String concatenation 

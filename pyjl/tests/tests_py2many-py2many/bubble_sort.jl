@@ -1,5 +1,5 @@
 
-function bubble_sort(seq::Array{Int64})::Array{Int64}
+function bubble_sort(seq::Vector{Int64})::Vector{Int64}
 L = length(seq)
 for _ in (0:L - 1)
 for n in (1:L - 1)

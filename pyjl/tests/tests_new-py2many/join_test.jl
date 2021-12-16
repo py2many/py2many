@@ -4,7 +4,6 @@ function test(self::Hello)::String
 return "ola"
 end
 
-
 function main()
 a = "a"
 b = "ab"

@@ -8,7 +8,6 @@ function baz(self::Foo)::Int64
 return 10
 end
 
-
 function main()
 f = Foo()
 b = bar(f)

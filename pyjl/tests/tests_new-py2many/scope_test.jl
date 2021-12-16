@@ -8,7 +8,6 @@ function func(self::TestClass)::String
 return "ssss"
 end
 
-
 function test()
 num::Int64 = 2
 teststr::String = "ola"

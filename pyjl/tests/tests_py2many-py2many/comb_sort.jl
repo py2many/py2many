@@ -1,6 +1,6 @@
 
 
-function comb_sort(seq::Array{Int64})::Array{Int64}
+function comb_sort(seq::Vector{Int64})::Vector{Int64}
 gap = length(seq)
 swap = true
 while gap > 1 || swap

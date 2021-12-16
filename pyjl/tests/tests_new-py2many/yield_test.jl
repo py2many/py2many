@@ -46,7 +46,6 @@ close(channel_generator_func)
 channel_generator_func
 end
 
-
 function main()
 for i in generator_func()
 println(i);

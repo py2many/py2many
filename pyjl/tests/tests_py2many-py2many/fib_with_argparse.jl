@@ -6,7 +6,6 @@ n::Int64
 _initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
 end
 
-
 function fib(i::Int64)::Int64
 if i == 0 || i == 1
 return 1

@@ -20,17 +20,17 @@ a::Int64 = 2
 return repeat("test",a)
 end
 
-function mult_list_and_int()::Array
-a::Array = []
+function mult_list_and_int()::Vector
+a::Vector = []
 for i in (0:10 - 1)
 push!(a, i);
 end
 return repeat(a,2)
 end
 
-function add_two_lists()::Array
-a::Array = []
-b::Array = []
+function add_two_lists()::Vector
+a::Vector = []
+b::Vector = []
 for i in (0:10 - 1)
 push!(a, i);
 push!(b, i);

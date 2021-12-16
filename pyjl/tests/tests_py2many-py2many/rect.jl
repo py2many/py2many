@@ -11,7 +11,6 @@ function is_square(self::Rectangle)::Bool
 return self.height == self.length
 end
 
-
 function show()
 r = Rectangle(1, 1)
 @assert(is_square(r))
