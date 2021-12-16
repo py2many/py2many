@@ -122,6 +122,16 @@ class JuliaTranspilerPlugins:
 
         return body
 
+
+
+    ############ 
+    # Continuables support
+    def visit_continuables_ann(self, node, decorator):
+        annotation, body = "", ""
+        self._usings.add("Continuables")
+        annotation = "@cont "
+        return annotation, body
+
     #################################################
     ################# TODO from here ################
     #################################################
@@ -246,7 +256,7 @@ NUM_TYPES = INTEGER_TYPES + ["Float64"]
 
 CONTAINER_TYPE_MAP = {
     "Array": "Array",
-    "List": "Array",
+    "List": "Vector",
     "Dict": "Dict",
     "Set": "Set",
     "Optional": "Nothing",
@@ -289,6 +299,7 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 
 DECORATOR_DISPATCH_TABLE = {
     "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+    "use_continuables": JuliaTranspilerPlugins.visit_continuables_ann
 }
 
 # CLASS_DISPATCH_TABLE = {
@@ -296,7 +307,7 @@ DECORATOR_DISPATCH_TABLE = {
 # }
 
 CLASS_DISPATCH_TABLE = {
-    "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+    # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
 }
 
 ATTR_DISPATCH_TABLE = {
@@ -319,4 +330,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
+    list: (lambda self, node, vargs: f"collect({vargs[0]})", True),
+    
 }

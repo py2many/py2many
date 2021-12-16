@@ -43,15 +43,10 @@ def show_res():
 """
 
 code4 = """
-def main(n, ref='sun'):
-    offset_momentum(BODIES[ref])
-    report_energy()
-    advance(0.01, n)
-    report_energy()
+for (([x1, y1, z1], v1, m1),
+             ([x2, y2, z2], v2, m2)) in pairs:
+    print(x1)
 """
-
-
-
 
 if __name__ == "__main__":
     tree = ast.parse(code)

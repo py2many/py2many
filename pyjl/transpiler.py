@@ -9,7 +9,7 @@ import re
 from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
-    CLASS_DISPATCH_TABLE,
+    DECORATOR_DISPATCH_TABLE,
     CONTAINER_TYPE_MAP,
     FUNC_DISPATCH_TABLE,
     DECORATOR_MAP,
@@ -169,18 +169,26 @@ class JuliaTranspiler(CLikeTranspiler):
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
-        # TODO: More generic methodology
+        for decorator in node.decorator_list:
+            d_id = get_decorator_id(decorator)
+            if d_id in DECORATOR_DISPATCH_TABLE:
+                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
+                if ret is not None:
+                    [annotation, annotation_body] = ret
+
+        # TODO: More generic
         # Support yield
         yield_res = self._yield_func_support(node)
-        annotation = yield_res[0]
-        body += yield_res[1]
+        body += yield_res[0]
 
         # Adding the body of the node
         body += node_body
+        if annotation_body:
+            body += "\n" + annotation_body
 
         # Closing the channel and returning it (if needed)
-        if yield_res[2] and yield_res[3]:
-            body += f"\n{yield_res[2]}\n{yield_res[3]}"
+        if yield_res[1] and yield_res[2]:
+            body += f"\n{yield_res[1]}\n{yield_res[2]}"
 
         typenames, args = self.visit(node.args)
 
@@ -255,22 +263,17 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _yield_func_support(self, node):
         channel_str = ""
-
         return_str = ""
         body_str = ""
-        annotation = ""
         decorators = list(map(get_decorator_id, node.decorator_list))
         if "use_continuables" not in decorators:
             # Build a channel with the necessary size (number of yields in a function)
             if node.name in self._yields_map:
                 channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
                 body_str = f"close(channel_{node.name})"
-                return_str = f"channel_{node.name}"
-        else:
-            self._usings.add("Continuables")
-            annotation = "@cont "
+                return_str = f"channel_{node.name}"            
         
-        return annotation, channel_str, body_str, return_str
+        return channel_str, body_str, return_str
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -556,8 +559,8 @@ class JuliaTranspiler(CLikeTranspiler):
         annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
         for decorator in node.decorator_list:
             d_id = get_decorator_id(decorator)
-            if d_id in CLASS_DISPATCH_TABLE:
-                ret = CLASS_DISPATCH_TABLE[d_id](self, node, decorator)
+            if d_id in DECORATOR_DISPATCH_TABLE:
+                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
                     ret_val = ret
                     annotation += ret_val[0]
@@ -579,7 +582,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 b.self_type = node.name
                 body.append(b)
         body = "\n".join([self.visit(b) for b in body])
-        body += "\n" + annotation_body
+        annotation_body
         return f"{annotation}{struct_def}{body}"
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
@@ -669,8 +672,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Dict(self, node) -> str:
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"({k}, {v})" for k, v in zip(keys, values)])
-        return f"Dict([{kv_pairs}])"
+        kv_pairs = ", ".join([f"{k} => {v}" for k, v in zip(keys, values)])
+        return f"Dict({kv_pairs})"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
@@ -783,6 +786,10 @@ class JuliaTranspiler(CLikeTranspiler):
             if value == None:
                 value = "Nothing"
             return "{0} = {1}".format(target, value)
+
+        # TODO
+        if hasattr(node, "target") and hasattr(node.target, "lhs"):
+            print(node.target.lhs)
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
