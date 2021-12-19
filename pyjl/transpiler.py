@@ -399,7 +399,11 @@ class JuliaTranspiler(CLikeTranspiler):
                     and DECORATOR_MAP[key]["type"] == ast.FunctionDef
                     and "use_continuables" in DECORATOR_MAP[key]["decorators"]):
                 it = f"collect({it})"
-        buf.append("for {0} in {1}".format(target, it))
+
+        # Replace square brackets for normal brackets in lhs
+        target = target.replace("[", "(").replace("]", ")")
+
+        buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
         return "\n".join(buf)
@@ -664,7 +668,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
-        return f"[{elements_str}]"
+        return (
+            f"({elements_str})" 
+            if hasattr(node, "lhs") and node.lhs 
+            else f"[{elements_str}]"
+        )
 
     def visit_Set(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]

@@ -19,7 +19,7 @@ SYSTEM = collect(values(BODIES))
 PAIRS = combinations(SYSTEM)
 function advance{T0, T1, T2, T3}(dt::T0, n::T1, bodies::T2 = SYSTEM, pairs::T3 = PAIRS)
 for i in (0:n - 1)
-for (([x1, y1, z1], v1, m1), ([x2, y2, z2], v2, m2)) in pairs
+for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
 dx = (x1 - x2)
 dy = (y1 - y2)
 dz = (z1 - z2)
@@ -33,7 +33,7 @@ v2[0] += dx*b1m
 v2[1] += dy*b1m
 v2[2] += dz*b1m
 end
-for (r, [vx, vy, vz], m) in bodies
+for (r, (vx, vy, vz), m) in bodies
 r[0] += dt*vx
 r[1] += dt*vy
 r[2] += dt*vz
@@ -48,14 +48,14 @@ dy = (y1 - y2)
 dz = (z1 - z2)
 e -= (m1*m2/((dx*dx + dy*dy) + dz*dz)^0.5)
 end
-for (r, [vx, vy, vz], m) in bodies
+for (r, (vx, vy, vz), m) in bodies
 e += (m*((vx*vx + vy*vy) + vz*vz)/2.0)
 end
 println(("%.9f" % e));
 end
 
 function offset_momentum{T0, T1, T2, T3, T4}(ref::T0, bodies::T1 = SYSTEM, px::T2 = 0.0, py::T3 = 0.0, pz::T4 = 0.0)
-for (r, [vx, vy, vz], m) in bodies
+for (r, (vx, vy, vz), m) in bodies
 px -= vx*m
 py -= vy*m
 pz -= vz*m
