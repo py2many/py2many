@@ -1,5 +1,5 @@
 function for_with_break()
-for i in (0:4 - 1)
+for i in (1:4 - 1)
 if i == 2
 break;
 end
@@ -8,7 +8,7 @@ end
 end
 
 function for_with_continue()
-for i in (0:4 - 1)
+for i in (1:4 - 1)
 if i == 2
 continue;
 end
@@ -17,7 +17,7 @@ end
 end
 
 function for_with_else()
-for i in (0:4 - 1)
+for i in (1:4 - 1)
 println(i);
 end
 end

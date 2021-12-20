@@ -2,6 +2,8 @@ import ast
 from unittest.mock import Mock
 from build.lib.py2many.exceptions import AstEmptyNodeFound
 from py2many.input_configuration import ParseFileStructure
+from numbers import Number
+
 
 import textwrap
 import re
@@ -678,6 +680,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)
 
+        # Julia array indices start at 1; Change "-1" for "end"
+        if (isinstance(index, ast.Num) or (isinstance(index, str) and index.lstrip("-").isnumeric())
+                or isinstance(index, int) or  isinstance(index, float)):
+            return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
+        
+        # TODO: Fix 
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
@@ -685,9 +693,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 # Julia array indices start at 1
                 return f"{value}[{index} + 1]"
 
-        # Julia array indices start at 1
-        if isinstance(index, ast.Num) or (isinstance(index, str) and index.isnumeric()):
-            return f"{value}[{int(index)+1}]"
         return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
@@ -703,11 +708,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Julia array indices start at 1
         if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
-            lower += 1
+            lower = (lower + 1) if lower != -1 else "end" 
         else:
             lower = f"({lower} + 1)"
 
-        return "{0}:{1}".format(lower, upper)
+        return f"{lower}:{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]

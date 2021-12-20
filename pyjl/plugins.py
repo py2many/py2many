@@ -181,7 +181,7 @@ class JuliaTranspilerPlugins:
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"(1:{vargs[0]} - 1)"
+            return f"(0:{vargs[0]} - 1)"
         elif len(node.args) == 2:
             return f"({vargs[0]}:{vargs[1]} - 1)"
         elif len(node.args) == 3:
