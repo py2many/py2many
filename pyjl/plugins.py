@@ -180,20 +180,19 @@ class JuliaTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(1:{vargs[0]})"
-
-        start = vargs[0]
-        if ((isinstance(start, str) and start.lstrip("-").isnumeric())
-                or isinstance(start, int) or  isinstance(start, float)):
-            start = int(start) + 1
+        end = vargs[0] if len(vargs) == 1 else vargs[1]
+        if ((isinstance(end, str) and end.lstrip("-").isnumeric())
+                or isinstance(end, int) or  isinstance(end, float)):
+            end = int(end) - 1
         else:
-            start += " + 1"
-        
-        if len(node.args) == 2:
-            return f"({start}:{vargs[1]})"
+            end += " - 1"
+
+        if len(node.args) == 1:
+            return f"(0:{end})"
+        elif len(node.args) == 2:
+            return f"({vargs[0]}:{end})"
         elif len(node.args) == 3:
-            return f"({start}:{vargs[2]}:{vargs[1]})"
+            return f"({vargs[0]}:{vargs[2]}:{end})"
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)

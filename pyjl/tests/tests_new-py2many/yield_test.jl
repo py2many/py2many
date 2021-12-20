@@ -13,7 +13,7 @@ end
 function generator_func_loop()
 channel_generator_func_loop = Channel(9)
 num = 0
-for n in (1:10 - 1)
+for n in (1:9)
 put!(channel_generator_func_loop, (num + n));
 end
 close(channel_generator_func_loop)
@@ -59,12 +59,12 @@ for i in generator_func_loop_using_var()
 println(i);
 end
 println("-----------------------");
-testClass::TestClass = TestClass()
-for i in generator_func(testClass)
+testClass1::TestClass = TestClass()
+for i in generator_func(testClass1)
 println(i);
 end
-testClass::TestClass = TestClass()
-funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass::generator_func]
+testClass2::TestClass = TestClass()
+funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2::generator_func]
 for func in funcs
 for i in func()
 println(i);

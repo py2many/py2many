@@ -291,7 +291,7 @@ def rust_settings(args, env=os.environ):
 def julia_settings(args, env=os.environ):
     # format_jl = spawn.find_executable("format.jl")
     # print(os.path.exists("pyjl/formatter"))
-    format_jl = spawn.find_executable("Format.jl", path="pyjl/formatter")
+    format_jl = spawn.find_executable("format_files.jl", path="pyjl/formatter")
     if format_jl:
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
     # else:

@@ -1,8 +1,8 @@
 function main()
-for i in (1:10 - 1)
+for i in (1:9)
 println(i);
 end
-num = (1:12 - 1)
+num = (1:11)
 for i in num
 println(i);
 end

@@ -1,13 +1,12 @@
-struct Foo
-end
+struct Foo end
 function bar(self::Foo)::String
-return "a"
+    return "a"
 end
 
 function main()
-f = Foo()
-b = bar(f)
-println(b);
+    f = Foo()
+    b = bar(f)
+    println(b)
 end
 
 main()

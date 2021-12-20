@@ -39,13 +39,13 @@ if __name__ == "__main__":
     for i in generator_func_loop_using_var():
         print(i)
     print("-----------------------")
-    testClass: TestClass = TestClass()
-    for i in testClass.generator_func():
+    testClass1: TestClass = TestClass()
+    for i in testClass1.generator_func():
         print(i)
     
     # Calling functions using loop (currently not supported)
-    testClass: TestClass = TestClass()
-    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass.generator_func]
+    testClass2: TestClass = TestClass()
+    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func]
     for func in funcs:
         for i in func():
             print(i)

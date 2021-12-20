@@ -28,7 +28,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_node_assign_by_name, find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 _DEFAULT = "Any"
 
@@ -140,8 +140,8 @@ class JuliaTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
         # Added
-        self._yields_map = {} # Dict<str, int>
-        self._scope_stack_vars = {"loop": []}
+        self._yields_map: Dict[str, int] = {}
+        self._scope_stack_vars: Dict[str, list] = {"loop": []}
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -392,6 +392,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # Add variables to current scope vars
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
         self._scope_stack_vars["loop"].extend(target_vars)
+        
 
         buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
@@ -698,14 +699,18 @@ class JuliaTranspiler(CLikeTranspiler):
                 or isinstance(index, int) or  isinstance(index, float)):
             return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
         
-        # TODO: Fix 
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
-            if (value_type is not None and value_type[0] == "List"
-                    and (index not in self._scope_stack_vars["loop"])):
+            if value_type is not None and value_type[0] == "List":
                 # Julia array indices start at 1
                 return f"{value}[{index} + 1]"
+
+        # Increment index's that use for loop variables
+        split_index = set(filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
+        intsct = split_index.intersection(self._scope_stack_vars["loop"])
+        if intsct and "end" not in split_index:
+            return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
 
