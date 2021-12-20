@@ -138,7 +138,10 @@ class JuliaTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+
+        # Added
         self._yields_map = {} # Dict<str, int>
+        self._scope_stack_vars = {"loop": []}
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -386,9 +389,19 @@ class JuliaTranspiler(CLikeTranspiler):
         # Replace square brackets for normal brackets in lhs
         target = target.replace("[", "(").replace("]", ")")
 
+        # Add variables to current scope vars
+        target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
+        self._scope_stack_vars["loop"].extend(target_vars)
+
         buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
+
+        # Remove all items when leaving the scope
+        start = len(self._scope_stack_vars["loop"]) - len(target_vars)
+        end = len(self._scope_stack_vars["loop"])
+        del self._scope_stack_vars["loop"][len(target_vars) - start:end]
+
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
@@ -681,7 +694,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0}{{{1}}}".format(value, index)
 
         # Julia array indices start at 1; Change "-1" for "end"
-        if (isinstance(index, ast.Num) or (isinstance(index, str) and index.lstrip("-").isnumeric())
+        if ((isinstance(index, str) and index.lstrip("-").isnumeric())
                 or isinstance(index, int) or  isinstance(index, float)):
             return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
         
@@ -689,7 +702,8 @@ class JuliaTranspiler(CLikeTranspiler):
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
-            if value_type is not None and value_type[0] == "List":
+            if (value_type is not None and value_type[0] == "List"
+                    and (index not in self._scope_stack_vars["loop"])):
                 # Julia array indices start at 1
                 return f"{value}[{index} + 1]"
 

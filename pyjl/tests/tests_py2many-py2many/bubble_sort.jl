@@ -1,7 +1,7 @@
 
 function bubble_sort(seq::Vector{Int64})::Vector{Int64}
 L = length(seq)
-for _ in (1:L - 1)
+for _ in (0:L - 1)
 for n in (1:L - 1)
 if seq[n + 1] < seq[(n - 1) + 1]
 seq[(n - 1) + 1], seq[n + 1] = (seq[n + 1], seq[(n - 1) + 1])

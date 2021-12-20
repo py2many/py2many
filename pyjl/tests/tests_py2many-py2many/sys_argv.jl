@@ -2,7 +2,7 @@
 
 function main()
 a::Vector{String} = append!([PROGRAM_FILE], ARGS)
-cmd::String = a[0 + 1]
+cmd::String = a[1]
 if cmd == "dart"
 #= pass 
 =#
@@ -13,7 +13,7 @@ else
 
 end
 if length(a) > 1
-println(a[1 + 1]);
+println(a[2]);
 else
 
 println("OK");
