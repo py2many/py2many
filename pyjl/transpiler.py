@@ -1,6 +1,8 @@
 import ast
 import textwrap
 
+from typing import List, Tuple
+
 from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -16,8 +18,6 @@ from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
-
-from typing import List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -434,7 +434,12 @@ class JuliaTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)
-        # TODO: optimize this. We need to compute value_type once per definition
+
+        # Julia array indices start at 1; Change "-1" for "end"
+        if (isinstance(index, ast.Num) or (isinstance(index, str) and index.lstrip("-").isnumeric())
+                or isinstance(index, int) or  isinstance(index, float)):
+            return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
+
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
@@ -448,12 +453,18 @@ class JuliaTranspiler(CLikeTranspiler):
         return self.visit(node.value)
 
     def visit_Slice(self, node) -> str:
-        lower = ""
+        lower = "begin"
         if node.lower:
             lower = self.visit(node.lower)
-        upper = ""
+        upper = "end"
         if node.upper:
             upper = self.visit(node.upper)
+
+        # Julia array indices start at 1
+        if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
+            lower = (lower + 1) if lower != -1 else "end"
+        else:
+            lower = f"({lower} + 1)"
 
         return "{0}..{1}".format(lower, upper)
 

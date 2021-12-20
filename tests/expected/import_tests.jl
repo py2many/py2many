@@ -1,7 +1,7 @@
 
 function test()::Int64
     a::Array{Int64} = [1, 2, 3]
-    return a[1+1]
+    return a[2]
 end
 
 function main()

@@ -2,7 +2,7 @@
 
 function main()
     a::Array{String} = append!([PROGRAM_FILE], ARGS)
-    cmd::String = a[0+1]
+    cmd::String = a[1]
     if cmd == "dart"
         # pass
     else
@@ -10,7 +10,7 @@ function main()
         @assert(findfirst("sys_argv", cmd) != Nothing)
     end
     if length(a) > 1
-        println(join([a[1+1]], " "))
+        println(join([a[2]], " "))
     else
 
         println(join(["OK"], " "))

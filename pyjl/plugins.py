@@ -91,10 +91,18 @@ class JuiliaTranspilerPlugins:
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
             return f"(0:{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}:{vargs[1]} - 1)"
+
+        start = vargs[0]
+        if ((isinstance(start, str) and start.lstrip("-").isnumeric())
+                or isinstance(start, int) or  isinstance(start, float)):
+            start = int(start) + 1
+        else:
+            start += " + 1"
+
+        if len(node.args) == 2:
+            return f"({start}:{vargs[1]})"
         elif len(node.args) == 3:
-            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
+            return f"({start}:{vargs[2]}:{vargs[1]})"
 
         raise Exception(
             "encountered range() call with unknown parameters: range({})".format(vargs)
