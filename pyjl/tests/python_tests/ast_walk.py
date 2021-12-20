@@ -43,9 +43,10 @@ def show_res():
 """
 
 code4 = """
-for (([x1, y1, z1], v1, m1),
-             ([x2, y2, z2], v2, m2)) in pairs:
-    print(x1)
+l = []
+x = 0
+l[x]
+
 """
 
 if __name__ == "__main__":

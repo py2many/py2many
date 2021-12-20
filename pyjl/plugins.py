@@ -1,6 +1,7 @@
 import io
 import os
 import ast
+import re
 import sys
 
 from tempfile import NamedTemporaryFile
@@ -180,7 +181,7 @@ class JuliaTranspilerPlugins:
 
     def visit_range(self, node, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"(0:{vargs[0]} - 1)"
+            return f"(1:{vargs[0]} - 1)"
         elif len(node.args) == 2:
             return f"({vargs[0]}:{vargs[1]} - 1)"
         elif len(node.args) == 3:
@@ -192,7 +193,12 @@ class JuliaTranspilerPlugins:
 
     def visit_print(self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)
-        # return f'println(join([{args}], " "))'
+        if "%" in args:
+            # TODO: Further rules are necessary
+            res = re.split(r"\s\%\s", args) 
+            args = ", ".join(res)
+            self._usings.add("Printf")
+            return f"@printf{args}"
         return f"println({args})"
 
     def visit_cast_int(self, node, vargs) -> str:

@@ -113,10 +113,11 @@ def find_closest_scope_name(scopes):
     return scope_name
 
 # Finds a node by its name
-def find_node_by_name(name, scopes):
+def find_node_assign_by_name(name, scopes):
     if name is None:
-        return None
+        return None, None
 
+    c_node = None
     scope_name = None
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
@@ -133,13 +134,14 @@ def find_node_by_name(name, scopes):
             if matches_name(node, name):
                 # DEBUG
                 # print("NAME MATCHES")
+                c_node = node
                 scope_name = (get_id(sc) 
                     if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
                     else "module")
                 break
         if scope_name is not None:
             break
-    return scope_name
+    return c_node, scope_name
 
 # Checks if a given node's name matches 
 # the supplied name

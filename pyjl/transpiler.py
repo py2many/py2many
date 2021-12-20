@@ -24,7 +24,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
+from py2many.tracer import find_node_assign_by_name, find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
 
 from typing import Dict, List, Tuple
 
@@ -196,7 +196,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
         args_list = []
         typedecls = []
-        index = 0
 
         is_python_main = getattr(node, "python_main", False)
 
@@ -211,14 +210,13 @@ class JuliaTranspiler(CLikeTranspiler):
             arg = args[i]
             if arg_typename != None and arg_typename != "T":
                 arg_typename = super()._map_type(arg_typename)
-            elif arg_typename == "T":
-                # Allow the user to know that type is generic
-                arg_typename = "T{0}".format(index)
-                typedecls.append(arg_typename)
-                index += 1
-            # if arg_typename == None or arg_typename == self._default_type:
-            #     args_list.append(arg)
-            # else:
+            
+            # TODO: Check if this is necessary
+            # elif arg_typename == "T":
+            #     # Allow the user to know that type is generic
+            #     arg_typename = "T{0}".format(index)
+            #     typedecls.append(arg_typename)
+            #     index += 1
 
             # Get default parameter values
             default = None
@@ -233,24 +231,22 @@ class JuliaTranspiler(CLikeTranspiler):
                 default = get_id(default)
             elif isinstance(default, ast.Constant):
                 default = default.value
-            arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
+                if isinstance(default, str):
+                    default = f"\"{default}\""
+
+            arg_signature = ""
+            if arg_typename:
+                arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
+            else:
+                arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
             args_list.append(arg_signature)
 
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                # No Julia typename found
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
                     else super()._map_type(self._typename_from_annotation(node, attr="returns")))
-                
-                # DEBUG
-                # if hasattr(node, "julia_annotation"):
-                #     print(node.julia_annotation)
-
                 return_type = f"::{func_typename}"
-            else:
-                # Allow Julia to infer types
-                return_type = ""
 
         template = ""
         if len(typedecls) > 0:
@@ -286,7 +282,8 @@ class JuliaTranspiler(CLikeTranspiler):
         id = get_id(node)
         if id == "self":
             return (None, "self")
-        typename = "T"
+        # typename = "T"
+        typename = ""
         if node.annotation:
             typename = self._typename_from_annotation(node)
         return (typename, id)
@@ -316,22 +313,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{value_id}::{attr}"
 
         return f"{value_id}.{attr}"
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0:{vargs[0]} - 1)"
-        elif (len(node.args) == 2) or ((len(node.args) == 3) and (vargs[2] == "1")):
-            return f"({vargs[0]}:{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def _visit_print(self, node, vargs: List[str]) -> str:
-        args = ", ".join(vargs)
-        return f'println({args})'
 
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
@@ -696,14 +677,18 @@ class JuliaTranspiler(CLikeTranspiler):
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)
-        # TODO: optimize this. We need to compute value_type once per definition
+
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
             if value_type is not None and value_type[0] == "List":
                 # Julia array indices start at 1
-                return "{0}[{1} + 1]".format(value, index)
-        return "{0}[{1}]".format(value, index)
+                return f"{value}[{index} + 1]"
+
+        # Julia array indices start at 1
+        if isinstance(index, ast.Num) or (isinstance(index, str) and index.isnumeric()):
+            return f"{value}[{int(index)+1}]"
+        return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -716,7 +701,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        # Julia array indices start at 1
+        if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
+            lower += 1
+        else:
+            lower = f"({lower} + 1)"
+
+        return "{0}:{1}".format(lower, upper)
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]

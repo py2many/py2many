@@ -165,7 +165,6 @@ class LHSAnnotationTransformer(ast.NodeTransformer):
 
     def visit(self, node):
         if self._lhs:
-            # print(ast.dump(node))
             node.lhs = self._lhs
         return super().visit(node)
 

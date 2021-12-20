@@ -1,6 +1,6 @@
 import Dates as dt
 import JSON
-function date_to_json(objDate::None)::JSON
+function date_to_json(objDate)::JSON
 return Dict("__type__" => "datetime", "year" => objDate.year, "month" => objDate.month, "day" => objDate.day, "hour" => objDate.hour, "minute" => objDate.minute, "second" => objDate.second, "microsecond" => objDate.microsecond, "tz" => (tzname(objDate.tzinfo, objDate), total_seconds(objDate.utcoffset())))
 end
 

@@ -1,4 +1,4 @@
-function plus_test{T0, T1}(x::T0, y::T1)
+function plus_test(x, y)
 return (x + y)
 end
 
