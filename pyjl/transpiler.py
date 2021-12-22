@@ -301,7 +301,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return "({0}) -> {1}".format(args_string, body)
 
     def visit_Attribute(self, node) -> str:
-        print(ast.dump(node))
         attr = node.attr
 
         value_id = self.visit(node.value)
@@ -316,7 +315,6 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"
 
-        print(is_class_type(value_id, node.scopes))
         if is_class_type(value_id, node.scopes):
             # return f"{value_id}::{attr}"
             if find_node_matching_name_and_type(attr, ast.FunctionDef, node.scopes):
@@ -517,15 +515,14 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Add) :
             # Cover Python list addition
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List)) 
-                    or (isinstance(node.right, ast.Name) and (right_jl_ann == "Array" or right_jl_ann == "Vector") 
-                        and isinstance(node.left, ast.Name) and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
+                    or ((right_jl_ann == "Array" or right_jl_ann == "Vector") 
+                        and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
                 return f"[{left};{right}]"
             
-            # Cover Python String concatenation 
+            # Cover Python String concatenation
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str)) 
-                    or (isinstance(node.right, ast.Name) and right_jl_ann == "str"
-                        and isinstance(node.left, ast.Name) and left_jl_ann == "str")):
-                return f"{left}*{right}"
+                    or (right_jl_ann == "String" and left_jl_ann == "String")):
+                return f"{left} * {right}"
 
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
@@ -863,22 +860,23 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_GeneratorExp(self, node) -> str:
         elt = self.visit(node.elt)
         generators = node.generators
-        map_str = ""
-        filter_str = ""
+        gen_expr = ""
 
         for i in range(len(generators)):
             generator = generators[i]
             target = self.visit(generator.target)
             iter = self.visit(generator.iter)
-            map_str += f"{elt} for {target} in {iter}" if i == 0 else f", {target} in {iter}"
+            gen_expr += f"for {target} in {iter}"
+            filter_str = ""
             if(len(generator.ifs) == 1):
-                filter_str += f"{self.visit(generator.ifs[0])}"
+                filter_str += f" if {self.visit(generator.ifs[0])} "
             else:
                 for i in range(0, len(generator.ifs)):
                     gen_if = generator.ifs[i]
-                    filter_str += f"{self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)}"
+                    filter_str += f" if {self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)} "
+            gen_expr += filter_str 
 
-        return f"({map_str} if {filter_str})" if filter_str else f"({map_str})"
+        return f"({elt} {gen_expr})"
 
     def visit_ListComp(self, node) -> str:
         return "[" + self.visit_GeneratorExp(node) + "]"

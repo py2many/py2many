@@ -3,7 +3,7 @@ return (x + y)
 end
 
 function plus_test(x::String, y::String)::String
-return (x + y)
+return x * y
 end
 
 function main()
