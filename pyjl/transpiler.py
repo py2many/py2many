@@ -336,16 +336,11 @@ class JuliaTranspiler(CLikeTranspiler):
         if ret is not None:
             return ret
 
-        # Added: Checks if first arg is of class type. 
-        # If it is, it performs the search for the function in the class scope
-        # (Is this truly necessary?)
+        # Check if first arg is of class type. 
+        # If it is, search for the function in the class scope
         fndef = node.scopes.find(fname)
         if vargs and (class_scope := get_class_scope(vargs[0], node.scopes)):
-            if class_scope is not None:
-                for fn in class_scope.body:
-                    if isinstance(fn, ast.FunctionDef) and get_id(fn) == fname:
-                        fndef = fn
-                        break
+            fndef = class_scope.scopes.find(fname)
 
         if fndef and hasattr(fndef, "args"):
             converted = []
@@ -358,16 +353,6 @@ class JuliaTranspiler(CLikeTranspiler):
                     converted.append(varg)
         else:
             converted = vargs
-
-        # Added: Deals with functions that belong to classes
-        if isinstance(node.func, ast.Attribute):
-            attr_node = node.func
-            if "::" in fname:
-                list = fname.split("::")
-                # is the if needed?
-                if is_class_type(list[0], node.scopes):
-                    fname = list[1]
-                    converted.append(list[0])
 
         args = ", ".join(converted)
         return f"{fname}({args})"

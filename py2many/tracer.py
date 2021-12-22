@@ -77,7 +77,7 @@ def is_class_type(name, scopes):
 # Gets the class scope given a name
 def get_class_scope(name, scopes):
     entry = _lookup_value_type_name(name, scopes)
-    if entry is None or not isinstance(entry, ast.ClassDef):
+    if entry is None:
         # Try looking for class module with given name
         entry = _lookup_class_or_module(name, scopes)
     else:
