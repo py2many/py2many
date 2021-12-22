@@ -11,7 +11,11 @@ def default_builtins():
 
 
 if __name__ == "__main__":
+    default_builtins()
+
     a = max(1, 2)
-    print(a)
+    assert a == 2
     b = min(1, 2)
-    print(b)
+    assert b == 1
+
+    print("OK")

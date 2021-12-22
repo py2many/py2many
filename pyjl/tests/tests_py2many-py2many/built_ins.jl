@@ -1,17 +1,19 @@
 function default_builtins()
-a = str()
-b = bool()
-c = int()
+a = string()
+b = false
+c = zero(Int)
 @assert(a == "")
 @assert(b == false)
 @assert(c == 0)
 end
 
 function main()
+default_builtins();
 a = max(1, 2)
-println(a);
+@assert(a == 2)
 b = min(1, 2)
-println(b);
+@assert(b == 1)
+println("OK");
 end
 
 main()

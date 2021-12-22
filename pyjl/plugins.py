@@ -209,10 +209,13 @@ class JuliaTranspilerPlugins:
         return f"println({args})"
 
     def visit_cast_int(self, node, vargs) -> str:
-        arg_type = self._typename_from_annotation(node.args[0])
-        if arg_type is not None and arg_type.startswith("Float"):
-            return f"Int64(floor({vargs[0]}))"
-        return f"Int64({vargs[0]})"
+        if node.args:
+            arg_type = self._typename_from_annotation(node.args[0])
+            if arg_type is not None and arg_type.startswith("Float"):
+                return f"Int64(floor({vargs[0]}))"
+        if vargs:
+            return f"Int64({vargs[0]})"
+        return f"zero(Int)" # Default int value
 
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
@@ -281,11 +284,11 @@ DECORATOR_MAP = {}
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"string({vargs[0]})",
+    "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
     "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
-    "bool": lambda n, vargs: f"Bool({vargs[0]})",
+    "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
 }
@@ -330,6 +333,7 @@ ATTR_DISPATCH_TABLE = {
 
 FuncType = Union[Callable, str]
 
+# Functions have string-based fallback
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Uncomment after upstream uploads a new version
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
@@ -338,7 +342,14 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
-    "append": (lambda self, node, vargs: f"push!({vargs[0]})", True),
+    # Array Support
+    "append": (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
+    "clear": (lambda self, node, vargs: f"empty!({vargs[0]})", True),
+    "remove": (lambda self, node, vargs: f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
+    "extend": (lambda self, node, vargs: f"{vargs[0]} = append!({vargs[0]}, {vargs[1]})", True),
+    "count": (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
+    "index": (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
+    #
     open: (JuliaTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),

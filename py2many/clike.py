@@ -655,6 +655,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             try:
                 return self._small_dispatch_map[fname](node, vargs)
             except IndexError:
+                print(fname)
                 return None
 
         func = self._func_for_lookup(fname)
