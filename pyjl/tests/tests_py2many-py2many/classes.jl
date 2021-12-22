@@ -11,8 +11,8 @@ end
 function main()
 f = Foo()
 b = bar(f)
-println(b);
 @assert(b == 10)
+println("OK");
 end
 
 main()

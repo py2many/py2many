@@ -7,7 +7,8 @@ end
 function main()
 f = Foo()
 b = bar(f)
-println(b);
+@assert(b == "a")
+println("OK");
 end
 
 main()

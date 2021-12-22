@@ -1,7 +1,10 @@
 
 function demorgan(a::Bool, b::Bool)::Bool
-a && b == !(!(a) || !(b));
+return (a && b) == !(!(a) || !(b))
 end
 
-@assert(!(demorgan))
-check_sat();
+@assert(demorgan(true, true))
+@assert(demorgan(true, false))
+@assert(demorgan(false, true))
+@assert(demorgan(false, false))
+println("OK");

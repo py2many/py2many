@@ -43,10 +43,8 @@ def show_res():
 """
 
 code4 = """
-l = []
-x = 0
-l[x]
-
+a: int = 10
+return a*(2+4*(80))
 """
 
 if __name__ == "__main__":

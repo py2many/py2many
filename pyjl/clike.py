@@ -78,7 +78,6 @@ def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
         logger.info(f"could not evaluate {typename}")
         return default_type
 
-
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
@@ -96,9 +95,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return node.id + "_"
-        if node_id in CONTAINER_TYPE_MAP and not hasattr(node, "lhs"):
-            return CONTAINER_TYPE_MAP[node_id]
-
         # julia_typename = self.visit_alias_import_typename(node_id)
         # if(julia_typename != None):
         #     return julia_typename
@@ -137,6 +133,15 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return "({0} {1} {2})".format(
                 self.visit(node.left), self.visit(node.op), self.visit(node.right)
             )
+        
+        # left = self.visit(node.left)
+        # right = self.visit(node.right)
+        # if isinstance(node.left, ast.BinOp) or isinstance(node.left, ast.BoolOp):
+        #     left = f"({left})"
+        # if isinstance(node.right, ast.BinOp) or isinstance(node.right, ast.BoolOp):
+        #     right = f"({right})"
+        # return f"{left} {self.visit(node.op)} {right}"
+
 
     def visit_In(self, node) -> str:
         left = self.visit(node.left)

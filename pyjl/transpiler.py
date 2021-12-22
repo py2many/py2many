@@ -379,7 +379,6 @@ class JuliaTranspiler(CLikeTranspiler):
         # Add variables to current scope vars
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
         self._scope_stack_vars["loop"].extend(target_vars)
-        
 
         buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
@@ -403,23 +402,42 @@ class JuliaTranspiler(CLikeTranspiler):
         return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 
     def visit_Compare(self, node) -> str:
+        # print(ast.dump(node, indent=4))
         left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
+        comparators = node.comparators
+        ops = node.ops
 
-        if hasattr(node.comparators[0], "annotation"):
-            self._generic_typename_from_annotation(node.comparators[0])
-            value_type = getattr(
-                node.comparators[0].annotation, "generic_container_type", None
-            )
-            if value_type and value_type[0] == "Dict":
-                right = f"keys({right})"
+        comp_exp = ""
+        for i in range(len(node.comparators)):
+            comparator = comparators[i]
+            op = ops[i]
+            comp_str = self.visit(comparator)
+            op_str = self.visit(op)
 
-        if isinstance(node.ops[0], ast.In):
-            return "{0} in {1}".format(left, right) #  not recognized: \u2208
-        elif isinstance(node.ops[0], ast.NotIn):
-            return "{0} not in {1}".format(left, right) # ∉ not recognized: \u2209
+            if hasattr(comparator, "annotation"):
+                self._generic_typename_from_annotation(node.comparators[0])
+                value_type = getattr(
+                    comparator.annotation, "generic_container_type", None
+                )
+                if value_type and value_type[0] == "Dict":
+                    comp_str = f"keys({comp_str})"
 
-        return super().visit_Compare(node)
+            if isinstance(op, ast.In):
+                op_str = "in"
+            elif isinstance(op, ast.NotIn):
+                op_str = "not in"
+
+            # Isolate composite operations
+            if isinstance(comparator, ast.BinOp) or isinstance(comparator, ast.BoolOp):
+                comp_str = f"({comp_str})"
+            
+            comp_exp += f" {op_str} {comp_str}"
+
+        # Isolate composite operations
+        if isinstance(node.left, ast.BinOp) or isinstance(node.left, ast.BoolOp):
+            left = f"({left})"
+
+        return f"{left}{comp_exp}"
 
     def visit_Name(self, node) -> str:
         if get_id(node) == "None":
@@ -860,22 +878,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_GeneratorExp(self, node) -> str:
         elt = self.visit(node.elt)
         generators = node.generators
-        gen_expr = ""
-
-        for i in range(len(generators)):
-            generator = generators[i]
-            target = self.visit(generator.target)
-            iter = self.visit(generator.iter)
-            gen_expr += f"for {target} in {iter}"
-            filter_str = ""
-            if(len(generator.ifs) == 1):
-                filter_str += f" if {self.visit(generator.ifs[0])} "
-            else:
-                for i in range(0, len(generator.ifs)):
-                    gen_if = generator.ifs[i]
-                    filter_str += f" if {self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)} "
-            gen_expr += filter_str 
-
+        gen_expr = self._visit_generators(generators)
         return f"({elt} {gen_expr})"
 
     def visit_ListComp(self, node) -> str:
@@ -884,15 +887,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_DictComp(self, node) -> str:
         key = self.visit(node.key)
         value = self.visit(node.value)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
+        generators = node.generators
+        dict_comp = (f"{key} => {value} " + 
+            self._visit_generators(generators))
 
-        map_str = "{0}=>{1} for ({0}, {1}) in {2}".format(key, value, iter)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = " if {0}".format(self.visit(generator.ifs[0]))
-        return "Dict({0}{1})".format(map_str, filter_str)
+        return f"Dict({dict_comp})"
     
     def visit_Global(self, node) -> str:
         return "global {0}".format(", ".join(node.names))
@@ -905,3 +904,21 @@ class JuliaTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"{test} ? ({body}) : ({orelse})"
+
+    def _visit_generators(self, generators):
+        gen_exp = ""
+        for i in range(len(generators)):
+            generator = generators[i]
+            target = self.visit(generator.target)
+            iter = self.visit(generator.iter)
+            gen_exp += f"for {target} in {iter}"
+            filter_str = ""
+            if(len(generator.ifs) == 1):
+                filter_str += f" if {self.visit(generator.ifs[0])} "
+            else:
+                for i in range(0, len(generator.ifs)):
+                    gen_if = generator.ifs[i]
+                    filter_str += f" if {self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)} "
+            gen_exp += filter_str 
+
+        return gen_exp

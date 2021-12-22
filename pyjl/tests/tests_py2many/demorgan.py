@@ -2,10 +2,13 @@
 
 from py2many.smt import check_sat
 
-
 def demorgan(a: bool, b: bool) -> bool:
-    (a and b) == (not ((not a) or (not b)))
+    return (a and b) == (not ((not a) or (not b)))
 
-
-assert not demorgan
-check_sat()
+assert demorgan(True, True)
+assert demorgan(True, False)
+assert demorgan(False, True)
+assert demorgan(False, False)
+print("OK")
+# assert not demorgan
+# check_sat()
