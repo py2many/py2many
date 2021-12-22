@@ -270,6 +270,7 @@ NUM_TYPES = INTEGER_TYPES + ["Float64"]
 CONTAINER_TYPE_MAP = {
     "Array": "Array",
     "List": "Vector",
+    "list": "Vector",
     "Dict": "Dict",
     "Set": "Set",
     "Optional": "Nothing",
@@ -337,6 +338,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
+    "append": (lambda self, node, vargs: f"push!({vargs[0]})", True),
     open: (JuliaTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),

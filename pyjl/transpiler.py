@@ -809,8 +809,8 @@ class JuliaTranspiler(CLikeTranspiler):
         target_str = self.visit(target)
         value = self.visit(node.value)
         expr = f"{target_str} = {value}"
-        if isinstance(target, ast.Name) and defined_before(definition, node):
-            f"{expr};"
+        # if isinstance(target, ast.Name) and defined_before(definition, node):
+        #     f"{expr};"
         return expr
 
     def visit_Delete(self, node) -> str:

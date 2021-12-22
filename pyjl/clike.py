@@ -96,6 +96,11 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return node.id + "_"
+        # mapped_id = self._map_type(node_id)
+        if node_id in CONTAINER_TYPE_MAP and not hasattr(node, "lhs"):
+            return CONTAINER_TYPE_MAP[node_id]
+
+
         # julia_typename = self.visit_alias_import_typename(node_id)
         # if(julia_typename != None):
         #     return julia_typename
