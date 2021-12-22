@@ -1,11 +1,11 @@
 
 function show()
-    myfunc = (x, y) -> (x + y)
-    println(myfunc(1, 2))
+myfunc = (x, y) -> (x + y)
+println(myfunc(1, 2));
 end
 
 function main()
-    show()
+show();
 end
 
 main()

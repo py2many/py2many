@@ -26,7 +26,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_node_assign_by_name, find_node_matching_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_class_or_module, is_enum
+from py2many.tracer import find_node_matching_type, find_node_matching_name_and_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_enum
 
 from typing import Dict, List, Tuple, Union
 
@@ -73,6 +73,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Name):
             if get_id(node.func) == "join" and hasattr(node, "args"):
                 args.reverse()
+
         node.args = args
         return node
 
@@ -300,6 +301,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "({0}) -> {1}".format(args_string, body)
 
     def visit_Attribute(self, node) -> str:
+        print(ast.dump(node))
         attr = node.attr
 
         value_id = self.visit(node.value)
@@ -314,8 +316,11 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"
 
-        if is_class_or_module(value_id, node.scopes) or is_class_type(value_id, node.scopes):
-            return f"{value_id}::{attr}"
+        print(is_class_type(value_id, node.scopes))
+        if is_class_type(value_id, node.scopes):
+            # return f"{value_id}::{attr}"
+            if find_node_matching_name_and_type(attr, ast.FunctionDef, node.scopes):
+                return f"{attr}({value_id})"
 
         return f"{value_id}.{attr}"
 
@@ -335,8 +340,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # If it is, it performs the search for the function in the class scope
         # (Is this truly necessary?)
         fndef = node.scopes.find(fname)
-        if vargs and (is_class_or_module(vargs[0], node.scopes) or is_class_type(vargs[0], node.scopes)):
-            class_scope = get_class_scope(vargs[0], node.scopes)
+        if vargs and (class_scope := get_class_scope(vargs[0], node.scopes)):
             if class_scope is not None:
                 for fn in class_scope.body:
                     if isinstance(fn, ast.FunctionDef) and get_id(fn) == fname:
@@ -361,7 +365,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if "::" in fname:
                 list = fname.split("::")
                 # is the if needed?
-                if is_class_or_module(list[0], node.scopes) or is_class_type(list[0], node.scopes):
+                if is_class_type(list[0], node.scopes):
                     fname = list[1]
                     converted.append(list[0])
 
@@ -378,7 +382,7 @@ class JuliaTranspiler(CLikeTranspiler):
         func_name = split_func[0]
         if func_name:
             class_scope = None
-            if len(split_func) > 1 and (is_class_or_module(split_func[1], node.scopes) or is_class_type(split_func[1], node.scopes)):
+            if len(split_func) > 1:
                 class_scope = get_class_scope(split_func[1], node.scopes)
             key = (func_name, get_id(class_scope))
             if (key in DECORATOR_MAP

@@ -70,33 +70,19 @@ def is_list(node):
 # Added
 
 # Searches if a given name is associated to a class
-# object given a scope
+# object given a scope.
 def is_class_type(name, scopes):
-    entry = _lookup_value_type_name(name, scopes)
-    entry = _lookup_class_or_module(get_id(entry), scopes)
-    return entry is not None
+    return get_class_scope(name, scopes) is not None
 
 # Gets the class scope given a name
 def get_class_scope(name, scopes):
     entry = _lookup_value_type_name(name, scopes)
-    if entry is None:
+    if entry is None or not isinstance(entry, ast.ClassDef):
         # Try looking for class module with given name
         entry = _lookup_class_or_module(name, scopes)
     else:
         entry = _lookup_class_or_module(get_id(entry), scopes)
     return entry
-
-# Searches for the first node of type node_type using
-# the given scope (search in reverse order)
-def find_node_matching_type(node_type, scopes):
-    node = None
-    for i in range(len(scopes) - 1, 0, -1):
-        sc = scopes[i]
-        if isinstance(sc, node_type):
-            node = sc
-            break
-
-    return node
 
 # Searches for the closest scope using
 # the given scope (search in reverse order)
@@ -112,8 +98,24 @@ def find_closest_scope_name(scopes):
 
     return scope_name
 
-# Finds a node by its name
-def find_node_assign_by_name(name, scopes):
+# Searches for the first node of type node_type using
+# the given scope (search in reverse order)
+def find_node_matching_type(node_type, scopes):
+    c_node = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if isinstance(sc, node_type):
+            c_node = sc
+            break
+        for node in sc.body:
+            if isinstance(node, node_type):
+                c_node = node
+                break
+
+    return c_node
+
+# Finds a node by its name and type
+def find_node_matching_name_and_type(name, node_type, scopes):
     if name is None:
         return None, None
 
@@ -122,18 +124,7 @@ def find_node_assign_by_name(name, scopes):
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
         for node in sc.body:
-            # DEBUG
-            # print(type(a))
-            # if (isinstance(a, ast.AugAssign) or isinstance(a, ast.Assign)):
-            #     print("VarName: " + name)
-            #     print("Target_id: " + get_id(a.targets[0]))
-            # if(isinstance(a, ast.AnnAssign)):
-            #     print("VarName: " + name)
-            #     print("Target_id: " + get_id(a.target))
-
-            if matches_name(node, name):
-                # DEBUG
-                # print("NAME MATCHES")
+            if matches_name(node, name) and isinstance(node, node_type):
                 c_node = node
                 scope_name = (get_id(sc) 
                     if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
@@ -170,10 +161,12 @@ def find_range_from_for_loop(visitor: ast.NodeVisitor, scopes):
                     if isinstance(start_val, ast.Name):
                         start_val = _find_assignment_value_from_name(scopes, start_val)
                     iter = 0
-                iter = int(visitor.visit(end_val)) - int(visitor.visit(start_val))
+                iter += int(visitor.visit(end_val)) - int(visitor.visit(start_val))
                 if(iter < 0):
                     iter *= -1
-                break
+                # break
+    if iter != -1:
+        iter += 1
     return iter
 
 # TODO: Still needs further testing
@@ -192,14 +185,14 @@ def _find_assignment_value_from_name(scopes, nameNode):
                         break
     return value
 
-def _lookup_value_type_name(name, scopes) -> Optional[ast.ClassDef]:
+def _lookup_value_type_name(name, scopes):
     for scope in scopes:
         for entry in scope.body:
             if isinstance(entry, ast.Assign):
                 if (name in list(map(get_id, entry.targets))  and hasattr(entry, "value")
                         and isinstance(entry.value, ast.Call) and hasattr(entry.value, "func")):
                     return entry.value.func
-            if isinstance(entry, ast.AnnAssign):
+            if isinstance(entry, ast.AnnAssign) or isinstance(entry, ast.AugAssign):
                 if name == get_id(entry.target) and hasattr(entry.value, "func"):
                     return entry.value.func
     return None

@@ -30,3 +30,5 @@ if __name__ == "__main__":
     
     x = 1
     assert seq[x] == 2
+
+    print("OK")

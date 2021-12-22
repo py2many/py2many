@@ -11,9 +11,9 @@ channel_generator_func
 end
 
 function generator_func_loop()
-channel_generator_func_loop = Channel(9)
+channel_generator_func_loop = Channel(3)
 num = 0
-for n in (1:9)
+for n in (0:2)
 put!(channel_generator_func_loop, (num + n));
 end
 close(channel_generator_func_loop)
@@ -21,15 +21,26 @@ channel_generator_func_loop
 end
 
 function generator_func_loop_using_var()
-channel_generator_func_loop_using_var = Channel(15)
+channel_generator_func_loop_using_var = Channel(4)
 num = 0
-end_ = 12
-end_ = 16
-for n in (1:end_ - 1)
+end_ = 2
+end_ = 3
+for n in (0:end_ - 1)
 put!(channel_generator_func_loop_using_var, (num + n));
 end
 close(channel_generator_func_loop_using_var)
 channel_generator_func_loop_using_var
+end
+
+function generator_func_nested_loop()
+channel_generator_func_nested_loop = Channel(4)
+for n in (0:1)
+for i in (0:1)
+put!(channel_generator_func_nested_loop, (n, i));
+end
+end
+close(channel_generator_func_nested_loop)
+channel_generator_func_nested_loop
 end
 
 struct TestClass
@@ -47,29 +58,41 @@ channel_generator_func
 end
 
 function main()
+arr1 = []
 for i in generator_func()
-println(i);
+push!(arr1, i);
 end
-println("-----------------------");
+@assert(arr1 == [1, 5, 10])
+arr2 = []
 for i in generator_func_loop()
-println(i);
+push!(arr2, i);
 end
-println("-----------------------");
+@assert(arr2 == [0, 1, 2])
+arr3 = []
 for i in generator_func_loop_using_var()
-println(i);
+push!(arr3, i);
 end
-println("-----------------------");
+@assert(arr3 == [0, 1, 2])
+arr4 = []
 testClass1::TestClass = TestClass()
 for i in generator_func(testClass1)
-println(i);
+push!(arr4, i);
 end
+@assert(arr4 == [123, 5, 10])
+arr5 = []
+for i in generator_func_nested_loop()
+push!(arr5, i);
+end
+@assert(arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)])
 testClass2::TestClass = TestClass()
-funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2::generator_func]
+funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, generator_func(testClass2), generator_func_nested_loop]
+arrL = []
 for func in funcs
 for i in func()
-println(i);
+push!(arrL, i);
 end
 end
+@assert(arrL == [1, 5, 10, 0, 1, 2, 0, 1, 2, 123, 5, 10, (0, 0), (0, 1), (1, 0), (1, 1)])
 end
 
 main()

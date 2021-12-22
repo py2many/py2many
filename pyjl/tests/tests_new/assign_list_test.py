@@ -18,3 +18,5 @@ if  __name__ == "__main__":
         assert v2 == 10
         assert m2 == 11
     
+    print("OK")
+    

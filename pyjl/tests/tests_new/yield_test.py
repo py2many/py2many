@@ -9,15 +9,20 @@ def generator_func():
 
 def generator_func_loop():
     num = 0
-    for n in range(1, 10):
+    for n in range(0, 3):
         yield num + n
 
 def generator_func_loop_using_var():
     num = 0
-    end = 12
-    end = 16
-    for n in range(1, end):
+    end = 2
+    end = 3 # should get last variable assignment
+    for n in range(0, end):
         yield num + n
+
+def generator_func_nested_loop():
+    for n in range(0, 2):
+        for i in range(0, 2):
+            yield (n,i)
 
 class TestClass:
     def generator_func(self):
@@ -30,22 +35,46 @@ class TestClass:
 
 if __name__ == "__main__":
     # Calling functions normally (Supported)
+    arr1 = []
     for i in generator_func():
-        print(i)
-    print("-----------------------")
+        arr1.append(i)
+    assert arr1 == [1, 5, 10]
+
+    # -----------------------
+    arr2 = []
     for i in generator_func_loop():
-        print(i)
-    print("-----------------------")
+        arr2.append(i)
+    assert arr2 == [0, 1, 2]
+
+    # -----------------------
+    arr3 = []
     for i in generator_func_loop_using_var():
-        print(i)
-    print("-----------------------")
+        arr3.append(i)
+    assert arr3 == [0, 1, 2]
+
+    # -----------------------
+    # Testing with class scope
+    arr4 = []
     testClass1: TestClass = TestClass()
     for i in testClass1.generator_func():
-        print(i)
+        arr4.append(i)
+    assert arr4 == [123, 5, 10]
+
+    # -----------------------
+    # Testing nested loop
+    arr5 = []
+    for i in generator_func_nested_loop():
+        arr5.append(i)
+    assert arr5 == [(0,0), (0,1), (1,0), (1,1)]
     
-    # Calling functions using loop (currently not supported)
+    # -----------------------------------
+    # Calling functions using loop (unsupported)
     testClass2: TestClass = TestClass()
-    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func]
+    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func,
+        generator_func_nested_loop]
+    arrL = []
     for func in funcs:
         for i in func():
-            print(i)
+            arrL.append(i)
+
+    assert arrL == [1, 5, 10, 0, 1, 2, 0, 1, 2, 123, 5, 10, (0,0), (0,1), (1,0), (1,1)]
