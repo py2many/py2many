@@ -178,7 +178,6 @@ def _transpile_one(
         tree = rewriter.visit(tree)
     # Language independent core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
-    print("----------Core transformers finished----------")
     # Language specific transformers
     for tx in transformers:
         tx(tree)

@@ -69,12 +69,12 @@ if __name__ == "__main__":
     
     # -----------------------------------
     # Calling functions using loop (unsupported)
-    testClass2: TestClass = TestClass()
-    funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func,
-        generator_func_nested_loop]
-    arrL = []
-    for func in funcs:
-        for i in func():
-            arrL.append(i)
+    # testClass2: TestClass = TestClass()
+    # funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func,
+    #     generator_func_nested_loop]
+    # arrL = []
+    # for func in funcs:
+    #     for i in func():
+    #         arrL.append(i)
 
-    assert arrL == [1, 5, 10, 0, 1, 2, 0, 1, 2, 123, 5, 10, (0,0), (0,1), (1,0), (1,1)]
+    # assert arrL == [1, 5, 10, 0, 1, 2, 0, 1, 2, 123, 5, 10, (0,0), (0,1), (1,0), (1,1)]

@@ -9,13 +9,11 @@ from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
-#########################################################
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
 
-#########################################################
 
 class InferJuliaTypesTransformer(ast.NodeTransformer):
     """
@@ -152,6 +150,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
+
+        # Detect nesting in binary operations
+        if isinstance(node.left, ast.BinOp):
+            node.left.isnested = True
+        if isinstance(node.right, ast.BinOp):
+            node.right.isnested = True
 
         if isinstance(node.left, ast.Name):
             lvar = node.scopes.find(get_id(node.left))

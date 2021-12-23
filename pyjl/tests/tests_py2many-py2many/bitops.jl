@@ -5,9 +5,9 @@ ors::Vector = []
 xors::Vector = []
 for a in [false, true]
 for b in [false, true]
-push!(ands, (a & b));
-push!(ors, (a | b));
-push!(xors, (a  ⊻  b));
+push!(ands, a & b);
+push!(ors, a | b);
+push!(xors, a  ⊻  b);
 end
 end
 @assert(ands == [false, false, false, true])

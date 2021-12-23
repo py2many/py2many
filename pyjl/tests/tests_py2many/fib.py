@@ -8,4 +8,8 @@ def fib(i: int) -> int:
 
 
 if __name__ == "__main__":
-    print(fib(5))
+    assert fib(0) == 1
+    assert fib(1) == 1
+    assert fib(5) == 8
+    assert fib(30) == 1346269
+    print("OK")

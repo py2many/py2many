@@ -689,18 +689,20 @@ class JuliaTranspiler(CLikeTranspiler):
         elif isinstance(index, int) or isinstance(index, float):
             return f"{value}[{index + 1}]"
         
+        
+        
         # TODO: Optimize; value_type is computed once per definition
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
-            if value_type is not None and value_type[0] == "List":
+            if value_type is not None and value_type[0] == "List" and "end" != index[-3:]:
                 # Julia array indices start at 1
                 return f"{value}[{index} + 1]"
 
-        # Increment index's that use for loop variables
+        # Increment index's that use for loop variables  
         split_index = set(filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
         intsct = split_index.intersection(self._scope_stack_vars["loop"])
-        if intsct and "end" not in split_index:
+        if intsct and "end" != index[-3:]:
             return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"

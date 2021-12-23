@@ -14,7 +14,7 @@ function generator_func_loop()
 channel_generator_func_loop = Channel(3)
 num = 0
 for n in (0:2)
-put!(channel_generator_func_loop, (num + n));
+put!(channel_generator_func_loop, num + n);
 end
 close(channel_generator_func_loop)
 channel_generator_func_loop
@@ -26,7 +26,7 @@ num = 0
 end_ = 2
 end_ = 3
 for n in (0:end_ - 1)
-put!(channel_generator_func_loop_using_var, (num + n));
+put!(channel_generator_func_loop_using_var, num + n);
 end
 close(channel_generator_func_loop_using_var)
 channel_generator_func_loop_using_var
@@ -84,15 +84,6 @@ for i in generator_func_nested_loop()
 push!(arr5, i);
 end
 @assert(arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)])
-testClass2::TestClass = TestClass()
-funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, generator_func(testClass2), generator_func_nested_loop]
-arrL = []
-for func in funcs
-for i in func()
-push!(arrL, i);
-end
-end
-@assert(arrL == [1, 5, 10, 0, 1, 2, 0, 1, 2, 123, 5, 10, (0, 0), (0, 1), (1, 0), (1, 1)])
 end
 
 main()

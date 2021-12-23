@@ -41,7 +41,7 @@ for i in (0:2:9)
 println(i);
 end
 a3 = -(a1)
-a4 = (a3 + a1)
+a4 = a3 + a1
 println(a4);
 t1 = a1 > 5 ? (10) : (5)
 @assert(t1 == 10)

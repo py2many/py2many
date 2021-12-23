@@ -50,27 +50,27 @@ end
 
 function and_op_int_and_int()::Int64
 a::Int64 = 2
-return (a & 2)
+return a & 2
 end
 
 function or_op_int_and_int()::Int64
 a::Int64 = 2
-return (a | 1)
+return a | 1
 end
 
 function arithmetic_shift_right_int_and_int()::Int64
 a::Int64 = 2
-return (a >> 1)
+return a >> 1
 end
 
 function arithmetic_shift_left_int_and_int()::Int64
 a::Int64 = 2
-return (a << 1)
+return a << 1
 end
 
 function nested_bin_op()::Int64
 a::Int64 = 10
-return a*(2 + 4*80)
+return a*(10 + 20) + a*(2 + (4 + 8*(6 + 3))*80)
 end
 
 function main()
@@ -86,7 +86,7 @@ function main()
 @assert(or_op_int_and_int() == 3)
 @assert(arithmetic_shift_right_int_and_int() == 1)
 @assert(arithmetic_shift_left_int_and_int() == 4)
-@assert(nested_bin_op() == 3220)
+@assert(nested_bin_op() == 61120)
 println("Ok");
 end
 

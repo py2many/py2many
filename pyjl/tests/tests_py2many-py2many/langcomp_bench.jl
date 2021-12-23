@@ -7,7 +7,7 @@ array::Vector{Int64} = [i for i in (0:array_length - 1)]
 while iteration < iterations
 innerloop = 0
 while innerloop < 100
-total += array[((iteration + innerloop) % array_length) + 1]
+total += array[(iteration + innerloop) % array_length + 1]
 innerloop += 1
 end
 iteration += 1

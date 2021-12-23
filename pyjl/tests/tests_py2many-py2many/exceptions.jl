@@ -11,7 +11,7 @@ finally
 println("Finally");
 end
 try
-(3/0);
+3 / 0;
 catch exn
 if exn isa ZeroDivisionError
 println("OK");

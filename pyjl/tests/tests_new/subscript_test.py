@@ -9,3 +9,5 @@ if __name__ == "__main__":
 
     assert ll == [2,3]
     assert lb == ["c"]
+
+    print("OK")
