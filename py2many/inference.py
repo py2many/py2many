@@ -356,41 +356,6 @@ class InferTypesTransformer(ast.NodeTransformer):
                 lifetime = getattr(node.value.annotation, "lifetime", None)
                 if lifetime is not None:
                     func_node.returns.lifetime = lifetime
-        
-        # DEBUG
-        # print("-------Start-------")
-        
-        # for scope in node.scopes:
-        #     type_str = None
-        #     if isinstance(scope, ast.FunctionDef):
-        #         type_str = get_id(scope.returns)
-        
-        #         # DEBUG
-        #         # print("--Before--")
-        #         # print("FUNC_NAME: " + get_id(scope))
-        #         # print("SCOPE_RETURNS: " + str(type_str))
-        #         # print("NEW_TYPE_STR: " + new_type_str)
-        #         # print("NODE_VALUE: " + ast.dump(node.value))
-        #         # print("MY_FUNC: " + get_id(find_node_matching_type(ast.FunctionDef, node.scopes)))
-
-        #         if type_str is not None:
-        #             if new_type_str != type_str:
-        #                 type_str = f"Union[{type_str},{new_type_str}]"
-        #                 scope.returns.id = type_str
-        #         else:
-        #             # Do not overwrite source annotation with inferred
-        #             if scope.returns is None:
-        #                 scope.returns = ast.Name(id=new_type_str)
-        #                 lifetime = getattr(node.value.annotation, "lifetime", None)
-        #                 if lifetime is not None:
-        #                     scope.returns.lifetime = lifetime
-        #         # DEBUG
-        #         # print("--After--")
-        #         # print("FUNC_NAME: " + get_id(scope))
-        #         # print("SCOPE_RETURNS: " + str(type_str))
-
-        # # DEBUG
-        # print("-------End-------")
 
         return node
 
