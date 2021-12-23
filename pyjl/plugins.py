@@ -310,18 +310,10 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "datetime": "Dates"
 }
 
-# DECORATOR_DISPATCH_TABLE = {
-#     ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass,
-# }
-
 DECORATOR_DISPATCH_TABLE = {
     "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
     "use_continuables": JuliaTranspilerPlugins.visit_continuables_ann
 }
-
-# CLASS_DISPATCH_TABLE = {
-#     ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass,
-# }
 
 CLASS_DISPATCH_TABLE = {
     # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
@@ -356,5 +348,5 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-    list: (lambda self, node, vargs: f"collect({vargs[0]})", True),
+    list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
 }

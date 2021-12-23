@@ -179,10 +179,9 @@ def _find_assignment_value_from_name(scopes, nameNode):
             # Get last Assign from body
             for j in range(len(body) - 1, -1, -1):
                 a = body[j]
-                if isinstance(a, ast.Assign):
-                    if get_id(a.targets[0]) == get_id(nameNode):
-                        value = a.value
-                        break
+                if matches_name(a, get_id(nameNode)):
+                    value = a.value
+                    break
     return value
 
 def _lookup_value_type_name(name, scopes):

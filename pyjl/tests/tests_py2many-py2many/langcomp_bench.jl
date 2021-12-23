@@ -3,8 +3,7 @@ function test_python(iterations::Int64)
 iteration = 0
 total = float(0.0)
 array_length = 1000
-array::Vector{Int64} = [(i for i in (0:array_length - 1))]
-println("iterations", iterations);
+array::Vector{Int64} = [i for i in (0:array_length - 1)]
 while iteration < iterations
 innerloop = 0
 while innerloop < 100
@@ -13,10 +12,9 @@ innerloop += 1
 end
 iteration += 1
 end
-if total == 15150
+@assert(total == 15150)
 println("OK");
-end
-array.drop()
+empty!(array)
 end
 
 function main()

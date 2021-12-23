@@ -1,9 +1,6 @@
 import ast
-from unittest.mock import Mock
-from build.lib.py2many.exceptions import AstEmptyNodeFound
+from build.lib.py2many.exceptions import AstTypeNotSupported, AstUnrecognisedBinOp
 from py2many.input_configuration import ParseFileStructure
-from numbers import Number
-
 
 import textwrap
 import re
@@ -26,7 +23,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_node_matching_type, find_node_matching_name_and_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_enum
+from py2many.tracer import _find_assignment_value_from_name, find_node_matching_type, find_node_matching_name_and_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_enum
 
 from typing import Dict, List, Tuple, Union
 
@@ -639,20 +636,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def _import(self, name: str) -> str:
         return f"import {name}" # import or using?
 
-    # def _import_from(self, module_name: str, names: List[str]) -> str:
-    #     if len(names) == 1:
-    #         # TODO: make this more generic so it works for len(names) > 1
-    #         name = names[0]
-    #         lookup = f"{module_name}.{name}"
-    #         if lookup in MODULE_DISPATCH_TABLE:
-    #             jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
-    #             #jl_module_name = jl_module_name.replace(".", "::")
-    #             return f"using {jl_module_name}: {jl_name}"
-    #     #module_name = module_name.replace(".", "::")
-    #     names = ", ".join(names)
-    #     return f"using {module_name}: {names}"
-
-    # New more generic import function
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         jl_module_name = module_name
         imports = []
@@ -699,9 +682,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0}{{{1}}}".format(value, index)
 
         # Julia array indices start at 1; Change "-1" for "end"
-        if ((isinstance(index, str) and index.lstrip("-").isnumeric())
-                or isinstance(index, int) or  isinstance(index, float)):
+        if ((isinstance(index, str) and index.lstrip("-").isnumeric())):
             return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
+        elif isinstance(index, int) or isinstance(index, float):
+            return f"{value}[{index}]"
         
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
@@ -833,7 +817,20 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Delete(self, node) -> str:
         target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
+        target_name = self.visit(target)
+        node_assign = (
+            find_node_matching_name_and_type(target_name, 
+                (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0] 
+            if not hasattr(target, "annotation") else target
+        )
+        if node_assign and hasattr(node_assign, "annotation"):
+            type_ann = super()._map_type(self._typename_from_annotation(node_assign))
+            if isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann):
+                return f"empty!({target_name})"
+         
+        raise AstTypeNotSupported(
+            f"{target_name} does not support del"
+        )
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
@@ -882,7 +879,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"({elt} {gen_expr})"
 
     def visit_ListComp(self, node) -> str:
-        return "[" + self.visit_GeneratorExp(node) + "]"
+        elt = self.visit(node.elt)
+        generators = node.generators
+        list_comp = self._visit_generators(generators)
+        return f"[{elt} {list_comp}]"
 
     def visit_DictComp(self, node) -> str:
         key = self.visit(node.key)
