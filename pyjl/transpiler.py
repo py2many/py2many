@@ -249,6 +249,8 @@ class JuliaTranspiler(CLikeTranspiler):
             if node.returns:
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
                     else super()._map_type(self._typename_from_annotation(node, attr="returns")))
+                # print(get_id(node))
+                # print(self._typename_from_annotation(node, attr="returns"))
                 return_type = f"::{func_typename}"
 
         template = ""
@@ -682,11 +684,12 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0}{{{1}}}".format(value, index)
 
         # Julia array indices start at 1; Change "-1" for "end"
-        if ((isinstance(index, str) and index.lstrip("-").isnumeric())):
+        if isinstance(index, str) and index.lstrip("-").isnumeric():
             return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
         elif isinstance(index, int) or isinstance(index, float):
-            return f"{value}[{index}]"
+            return f"{value}[{index + 1}]"
         
+        # TODO: Optimize; value_type is computed once per definition
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
@@ -840,7 +843,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "error()"
 
     def visit_Await(self, node) -> str:
-        return "await!({0})".format(self.visit(node.value))
+        return f"wait({self.visit(node.value)})"
 
     def visit_AsyncFunctionDef(self, node) -> str:
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))

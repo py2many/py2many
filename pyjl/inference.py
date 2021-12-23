@@ -5,7 +5,7 @@ from typing import Union
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name
+from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name, find_node_matching_type
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
@@ -61,40 +61,39 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ######################################################
 
     def visit_Return(self, node):
-        self.generic_visit(node)
+        self.generic_visit(node)        
         new_type_str = (
             get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
         )
 
         if new_type_str is None:
             return node
-        for scope in node.scopes:
-            type_str = None
-            if isinstance(scope, ast.FunctionDef):
-                type_str = get_id(scope.returns)
-                if type_str is not None:
-                    if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Mult) :
-                        # specific case of ast.Mult with with int and string as arguments
-                        left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
-                        right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
-                        if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
-                                and right_jl_annotation == "String") 
-                                or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
-                                and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
-                            type_str = "str"
-                    elif new_type_str != type_str:
-                        type_str = f"Union{'{'}{self._clike._map_type(type_str)},{self._clike._map_type(new_type_str)}{'}'}"
 
-                    # Add julia_annotation value
-                    scope.julia_annotation = self._clike._map_type(type_str)
-                    setattr(scope.returns, "id", type_str)
-                else:
-                    # Do not overwrite source annotation with inferred
-                    if scope.returns is None:
-                        scope.returns = ast.Name(id=new_type_str)
-                        lifetime = getattr(node.value.annotation, "lifetime", None)
-                        if lifetime is not None:
-                            scope.returns.lifetime = lifetime
+        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        type_str = get_id(func_node.returns) if func_node else None
+        if type_str is not None:
+            if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Mult) :
+                # specific case of ast.Mult with with int and string as arguments
+                left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
+                right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
+                if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
+                        and right_jl_annotation == "String") 
+                        or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
+                        and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
+                    type_str = "str"
+            elif new_type_str != type_str:
+                type_str = f"Union{'{'}{self._clike._map_type(type_str)},{self._clike._map_type(new_type_str)}{'}'}"
+
+            # Add julia_annotation value
+            func_node.julia_annotation = self._clike._map_type(type_str)
+            setattr(func_node.returns, "id", type_str)
+        else:
+            # Do not overwrite source annotation with inferred
+            if func_node.returns is None:
+                func_node.returns = ast.Name(id=new_type_str)
+                lifetime = getattr(node.value.annotation, "lifetime", None)
+                if lifetime is not None:
+                    func_node.returns.lifetime = lifetime
 
         return node
 
@@ -291,7 +290,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             #     print("ID_LEFT: " + get_id(node.left) + "\n")
 
             # Basic solution: Finds closest scope for assignment variable 
-            # TODO: Further optimization needed
+            # TODO: Further optimization needed when developing type inference
             right_scope_name = find_node_matching_name_and_type(get_id(node.right), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[1]
             left_scope_name = find_node_matching_name_and_type(get_id(node.left), 

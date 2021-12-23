@@ -1,27 +1,29 @@
 def func():
-    return "aaaa"
+    return "test"
 
 class TestClass:
     def func(self):
-        return "ssss"
+        return "test2"
 
 def test():
     num:int = 2
-    teststr:str = "ola"
+    teststr:str = "test"
     def inner_test():
-        print(num*teststr)
+        return num*teststr
     
     def inner_test_2():
-        num: int = 4 # with annotation it fails
-        print(num*teststr)
+        num = 4
+        # num: int = 4 # fails with annotation
+        return num*teststr
     
-    inner_test()
-    inner_test_2()
+    assert inner_test() == "testtest"
+    assert inner_test_2() == "testtesttesttest"
 
 if __name__ == "__main__":
-    print(func())
+    assert func() == "test"
     testClass = TestClass()
-    print(testClass.func())
+
+    assert testClass.func() == "test2"
 
     # Function scopes
     test()

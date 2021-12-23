@@ -6,6 +6,6 @@ def bitwise_not_int():
 
 
 if __name__ == "__main__":
-    assert bitwise_not_int() == -3 # --> Currently unsupported
+    assert bitwise_not_int() == -3
     -1 # unary op test
 

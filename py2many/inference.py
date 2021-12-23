@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import is_enum
+from py2many.tracer import find_node_matching_type, is_enum
 
 
 try:
@@ -341,21 +341,57 @@ class InferTypesTransformer(ast.NodeTransformer):
         )
         if new_type_str is None:
             return node
-        for scope in node.scopes:
-            type_str = None
-            if isinstance(scope, ast.FunctionDef):
-                type_str = get_id(scope.returns)
-                if type_str is not None:
-                    if new_type_str != type_str:
-                        type_str = f"Union[{type_str},{new_type_str}]"
-                        scope.returns.id = type_str
-                else:
-                    # Do not overwrite source annotation with inferred
-                    if scope.returns is None:
-                        scope.returns = ast.Name(id=new_type_str)
-                        lifetime = getattr(node.value.annotation, "lifetime", None)
-                        if lifetime is not None:
-                            scope.returns.lifetime = lifetime
+        
+        # Finds the closest node that is a function definition
+        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        type_str = get_id(func_node.returns) if func_node else None
+        if type_str is not None:
+            if new_type_str != type_str:
+                type_str = f"Union[{type_str},{new_type_str}]"
+                func_node.returns.id = type_str
+        else:
+            # Do not overwrite source annotation with inferred
+            if func_node.returns is None:
+                func_node.returns = ast.Name(id=new_type_str)
+                lifetime = getattr(node.value.annotation, "lifetime", None)
+                if lifetime is not None:
+                    func_node.returns.lifetime = lifetime
+        
+        # DEBUG
+        # print("-------Start-------")
+        
+        # for scope in node.scopes:
+        #     type_str = None
+        #     if isinstance(scope, ast.FunctionDef):
+        #         type_str = get_id(scope.returns)
+        
+        #         # DEBUG
+        #         # print("--Before--")
+        #         # print("FUNC_NAME: " + get_id(scope))
+        #         # print("SCOPE_RETURNS: " + str(type_str))
+        #         # print("NEW_TYPE_STR: " + new_type_str)
+        #         # print("NODE_VALUE: " + ast.dump(node.value))
+        #         # print("MY_FUNC: " + get_id(find_node_matching_type(ast.FunctionDef, node.scopes)))
+
+        #         if type_str is not None:
+        #             if new_type_str != type_str:
+        #                 type_str = f"Union[{type_str},{new_type_str}]"
+        #                 scope.returns.id = type_str
+        #         else:
+        #             # Do not overwrite source annotation with inferred
+        #             if scope.returns is None:
+        #                 scope.returns = ast.Name(id=new_type_str)
+        #                 lifetime = getattr(node.value.annotation, "lifetime", None)
+        #                 if lifetime is not None:
+        #                     scope.returns.lifetime = lifetime
+        #         # DEBUG
+        #         # print("--After--")
+        #         # print("FUNC_NAME: " + get_id(scope))
+        #         # print("SCOPE_RETURNS: " + str(type_str))
+
+        # # DEBUG
+        # print("-------End-------")
+
         return node
 
     def visit_UnaryOp(self, node):

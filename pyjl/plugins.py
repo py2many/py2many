@@ -133,6 +133,10 @@ class JuliaTranspilerPlugins:
         annotation = "@cont "
         return annotation, body
 
+
+    def visit_async_ann(self, node, decorator):
+        return ""
+
     #################################################
     ################# TODO from here ################
     #################################################

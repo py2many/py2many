@@ -1,33 +1,33 @@
 function func()::String
-return "aaaa"
+return "test"
 end
 
 struct TestClass
 end
 function func(self::TestClass)::String
-return "ssss"
+return "test2"
 end
 
 function test()
 num::Int64 = 2
-teststr::String = "ola"
-function inner_test()
-println(repeat(teststr,num));
+teststr::String = "test"
+function inner_test()::String
+return repeat(teststr,num)
 end
 
-function inner_test_2()
-num::Int64 = 4
-println(repeat(teststr,num));
+function inner_test_2()::String
+num = 4
+return repeat(teststr,num)
 end
 
-inner_test();
-inner_test_2();
+@assert(inner_test() == "testtest")
+@assert(inner_test_2() == "testtesttesttest")
 end
 
 function main()
-println(func());
+@assert(func() == "test")
 testClass = TestClass()
-println(func(testClass));
+@assert(func(testClass) == "test2")
 test();
 end
 

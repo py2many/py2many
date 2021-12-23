@@ -6,11 +6,11 @@ end
 
 #[async]
 function async_main()
-@assert(await!(nested()) == 42)
+@assert(wait(nested()) == 42)
 println("OK");
 end
 
-function main()
+function main()::Int64
 run(asyncio, async_main());
 end
 
