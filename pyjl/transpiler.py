@@ -42,7 +42,7 @@ def get_decorator_id(decorator):
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
         args = []
-        if node.args:
+        if hasattr(node, "args"):
             args += [self.visit(a) for a in node.args]
 
         fname = node.func
@@ -324,7 +324,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
         vargs = []
-        if node.args:
+        if hasattr(node, "args"):
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
@@ -855,7 +855,6 @@ class JuliaTranspiler(CLikeTranspiler):
         func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
         range_from_for_loop = find_range_from_for_loop(self, node.scopes)
         name = get_id(func_node)
-
         if name:
             if range_from_for_loop != -1:
                 self._yields_map[name] = range_from_for_loop
@@ -868,7 +867,9 @@ class JuliaTranspiler(CLikeTranspiler):
         if "use_continuables" in decorators:
             return f"cont({self.visit(node.value)})"
         else:
-            return f"put!(channel_{name}, {self.visit(node.value)})"
+            if node.value:
+                return f"put!(channel_{name}, {self.visit(node.value)})"
+            return ""
 
     def visit_Print(self, node) -> str:
         buf = []

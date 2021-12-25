@@ -213,7 +213,7 @@ class JuliaTranspilerPlugins:
         return f"println({args})"
 
     def visit_cast_int(self, node, vargs) -> str:
-        if node.args:
+        if hasattr(node, "args"):
             arg_type = self._typename_from_annotation(node.args[0])
             if arg_type is not None and arg_type.startswith("Float"):
                 return f"Int64(floor({vargs[0]}))"
