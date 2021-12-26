@@ -1,5 +1,5 @@
 # @use_continuables
-def generator_func_2():
+def generator_func():
     num = 1
     yield num
     num = 5
@@ -36,7 +36,7 @@ class TestClass:
 if __name__ == "__main__":
     # Calling functions normally (Supported)
     arr1 = []
-    for i in generator_func_2():
+    for i in generator_func():
         arr1.append(i)
     assert arr1 == [1, 5, 10]
 

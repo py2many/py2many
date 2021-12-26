@@ -1,9 +1,12 @@
 import ast
-from build.lib.py2many.exceptions import AstTypeNotSupported, AstUnrecognisedBinOp
+from build.lib.py2many.exceptions import AstTypeNotSupported
 from py2many.input_configuration import ParseFileStructure
+from pathlib import Path
 
 import textwrap
 import re
+
+from pyjl.helpers import get_range_from_for_loop
 
 from .clike import CLikeTranspiler
 from .plugins import (
@@ -23,9 +26,9 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import _find_assignment_value_from_name, find_node_matching_type, find_node_matching_name_and_type, find_range_from_for_loop, get_class_scope, is_class_type, is_list, defined_before, is_enum
+from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, get_class_scope, is_class_type, is_list, is_enum
 
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, OrderedDict, Tuple, Union
 
 _DEFAULT = "Any"
 
@@ -124,6 +127,146 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         DECORATOR_MAP[(node.name, node_scope_name)] = node_dict
 
 
+
+class JuliaYieldRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+        # loop -> contains loop variables
+        # func -> contains function specific fields: (func_name, yield_cnt, decorator_list)
+        self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
+        self._func_map: Dict[str, Dict] = {}
+    
+    def visit_Module(self, node) -> str:
+        for b in node.body:
+            if not isinstance(b, ast.FunctionDef):
+                self.visit(b)
+
+        # Second pass to handle functiondefs whose body
+        # may refer to other members of node.body
+        visit_after = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                # Some funtions might have precedence over others
+                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.Yield)))
+                if v_node:
+                    visit_after.append(b)
+                else:
+                    self.visit(b)
+
+        for b in visit_after:
+            self.visit(b)
+        return node
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        decorator_list_str = list(map(get_decorator_id, node.decorator_list))
+
+        # Fill scope variables
+        self._scope_stack["func"].append({"func_name": get_id(node), 
+            "yield_cnt": 0, "decorator_list": decorator_list_str, 
+            "for_loop_range": 0})
+
+        # visit nodes in body
+        for n in node.body:
+            self.visit(n)
+
+        # Add to func_map
+        self._func_map[get_id(node)] = {"yield_cnt": self._scope_stack["func"][-1]["yield_cnt"], 
+            "decorator_list": decorator_list_str}
+
+        if "use_continuables" not in decorator_list_str:
+            # Build a channel with the necessary size (number of yields in a function)
+            func_data = self._scope_stack["func"][-1]
+            if func_data["yield_cnt"] > 0:
+                func_name, size = get_id(node), func_data["yield_cnt"]
+                channel = ast.Assign(targets = [ast.Name(id = f"channel_{func_name}")], 
+                    value = ast.Name(id = f"Channel({size})"))
+                channel_close = ast.Call(func = ast.Name(id = f"close", lineno=node.lineno), args = [ast.Name(id = f"(channel_{func_name})")],
+                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
+                return_val = ast.Return(value = ast.Name(f"channel_{func_name}"), lineno=node.lineno, col_offset = node.col_offset)
+
+                # Append to the function body
+                node.body = [channel] + node.body
+                node.body.extend([channel_close, return_val])
+        
+        self._scope_stack["func"].pop()
+        return node
+
+    def visit_Yield(self, node: ast.Yield) -> Any:
+        func_node = self._scope_stack["func"][-1]
+        decorators = []
+        if func_node:
+            if func_node["for_loop_range"] != 0:
+                func_node["yield_cnt"] = func_node["for_loop_range"]
+            else:
+                func_node["yield_cnt"] += 1
+            decorators = func_node["decorator_list"]
+
+        if "use_continuables" in decorators:
+            node = ast.Call(func = ast.Name(id = "cont"), args = [ast.Name(id = f"{self.visit(node.value)}")], 
+                keywords = [], lineno=node.lineno, col_offset = node.col_offset)
+        else:
+            if node.value:
+                func_name = func_node["func_name"]
+                node = ast.Call (func = ast.Name(id = "put!"), args = [
+                    ast.Name(id = f"channel_{func_name}" if func_node else "channel_module"),
+                    node.value], keywords = [], lineno = node.lineno,
+                    col_offset = node.col_offset)
+            else:
+                node = ast.Name(id = "")
+
+        return node
+
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
+        # get current function
+        func_node = self._scope_stack["func"][-1]
+        func_name = func_node["func_name"]
+        decorators = func_node["decorator_list"] if func_node else []
+
+        range = 0
+        if isinstance(node.value, ast.Call) and hasattr(node.value, "func"):
+            # get function being called
+            yield_func_call = get_id(node.value.func)
+            if yield_func_call in self._func_map:
+                # Add yield_cnt to current function
+                range = self._func_map[yield_func_call]["yield_cnt"]
+                print(range)
+                func_node["yield_cnt"] += range
+
+        if "use_continuables" in decorators:
+            node = ast.For(
+                        target = ast.Name(id=f"value_{func_name}"),
+                        iter = node.value,
+                        body = [ast.Call(func = ast.Name(id = "cont"), args = [
+                                    ast.Name(id =f"value_{func_name}")],
+                                keywords = [], lineno = node.lineno)])
+        else:
+            node = ast.For(
+                    target = ast.Name(id = f"value_{func_name}"),
+                    iter = node.value,
+                    body = [ast.Call(func = ast.Name(id = "put!"), 
+                            args = [ast.Name(id = f"channel_{func_name}"), 
+                                ast.Name(id = f"value_{func_name}")],
+                            keywords = [], lineno = node.lineno)])
+        return node
+
+    def visit_For(self, node: ast.For) -> Any:
+        # Get current function
+        curr_func = self._scope_stack["func"][-1]
+
+        # Get for loop range (if possible)
+        iter = get_range_from_for_loop(node)
+        curr_func["for_loop_range"] += iter
+
+        # visit nodes in body
+        for n in node.body:
+            self.visit(n)
+
+        # Set count to 0 as scope changes
+        curr_func["for_loop_range"] = 0
+        
+        return node
+
+
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
@@ -138,8 +281,7 @@ class JuliaTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
         # Added
-        self._yields_map: Dict[str, int] = {}
-        self._scope_stack_vars: Dict[str, list] = {"loop": []}
+        self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -172,6 +314,7 @@ class JuliaTranspiler(CLikeTranspiler):
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
 
+        # Check for function annotations
         annotation = ""
         annotation_body = ""
         for decorator in node.decorator_list:
@@ -179,21 +322,10 @@ class JuliaTranspiler(CLikeTranspiler):
             if d_id in DECORATOR_DISPATCH_TABLE:
                 ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
-                    [annotation, annotation_body] = ret
-
-        # TODO: More generic
-        # Support yield
-        yield_res = self._yield_func_support(node)
-        body += yield_res[0]
+                    [annotation, annotation_body] = ret[0], ret[1]       
 
         # Adding the body of the node
-        body += node_body
-        if annotation_body:
-            body += "\n" + annotation_body
-
-        # Closing the channel and returning it (if needed)
-        if yield_res[1] and yield_res[2]:
-            body += f"\n{yield_res[1]}\n{yield_res[2]}"
+        body += node_body + annotation_body
 
         typenames, args = self.visit(node.args)
 
@@ -249,8 +381,6 @@ class JuliaTranspiler(CLikeTranspiler):
             if node.returns:
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
                     else super()._map_type(self._typename_from_annotation(node, attr="returns")))
-                # print(get_id(node))
-                # print(self._typename_from_annotation(node, attr="returns"))
                 return_type = f"::{func_typename}"
 
         template = ""
@@ -263,20 +393,6 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
-
-    def _yield_func_support(self, node):
-        channel_str = ""
-        return_str = ""
-        body_str = ""
-        decorators = list(map(get_decorator_id, node.decorator_list))
-        if "use_continuables" not in decorators:
-            # Build a channel with the necessary size (number of yields in a function)
-            if node.name in self._yields_map:
-                channel_str += f"channel_{node.name} = Channel({self._yields_map[node.name]})\n"
-                body_str = f"close(channel_{node.name})"
-                return_str = f"channel_{node.name}"            
-        
-        return channel_str, body_str, return_str
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -351,7 +467,6 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             converted = vargs
 
-
         args = ", ".join(converted)
         return f"{fname}({args})"
 
@@ -378,16 +493,16 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Add variables to current scope vars
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
-        self._scope_stack_vars["loop"].extend(target_vars)
+        self._scope_stack["loop"].extend(target_vars)
 
         buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
 
         # Remove all items when leaving the scope
-        start = len(self._scope_stack_vars["loop"]) - len(target_vars)
-        end = len(self._scope_stack_vars["loop"])
-        del self._scope_stack_vars["loop"][len(target_vars) - start:end]
+        start = len(self._scope_stack["loop"]) - len(target_vars)
+        end = len(self._scope_stack["loop"])
+        del self._scope_stack["loop"][len(target_vars) - start:end]
 
         return "\n".join(buf)
 
@@ -557,24 +672,15 @@ class JuliaTranspiler(CLikeTranspiler):
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
-        # decorators_origin = [(d.func if isinstance(d, ast.Call) else d) for d in node.decorator_list]
-        # decorators = [
-        #     class_for_typename(t, None, self._imported_names) for t in decorators_origin
-        # ]
 
         # Allow support for decorator chaining
         annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
         for decorator in node.decorator_list:
             d_id = get_decorator_id(decorator)
-            if d_id in DECORATOR_DISPATCH_TABLE:
-                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
-                if ret is not None:
-                    ret_val = ret
-                    annotation += ret_val[0]
-                    annotation_field += ret_val[1]
-                    annotation_modifiers += ret_val[2]
-                    annotation_body += ret_val[3]
-                    # annotation, annotation_field, annotation_modifiers, annotation_body = ret
+            if (d_id in DECORATOR_DISPATCH_TABLE 
+                    and (dec_ret := DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)) 
+                        is not None):
+                annotation, annotation_field, annotation_modifiers, annotation_body = dec_ret
 
         fields = []
         for declaration, typename in declarations.items():
@@ -702,7 +808,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Increment index's that use for loop variables  
         split_index = set(filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
-        intsct = split_index.intersection(self._scope_stack_vars["loop"])
+        intsct = split_index.intersection(self._scope_stack["loop"])
         if intsct and "end" != index[-3:]:
             return f"{value}[{index} + 1]"
 
@@ -806,10 +912,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 value = "Nothing"
             return "{0} = {1}".format(target, value)
 
-        # TODO
-        if hasattr(node, "target") and hasattr(node.target, "lhs"):
-            print(node.target.lhs)
-
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
             definition = node.scopes.find(get_id(target))
@@ -851,51 +953,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_AsyncFunctionDef(self, node) -> str:
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
-    def visit_Yield(self, node) -> str:
-        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
-        range_from_for_loop = find_range_from_for_loop(self, node.scopes)
-        func_name = get_id(func_node)
-        if func_name:
-            if range_from_for_loop != -1:
-                self._yields_map[func_name] = range_from_for_loop
-            elif func_name in self._yields_map:
-                self._yields_map[func_name] += 1 
-            else:
-                self._yields_map[func_name] = 1
-        
-        decorators = map(get_decorator_id, func_node.decorator_list)
-        if "use_continuables" in decorators:
-            return f"cont({self.visit(node.value)})"
-        else:
-            if node.value:
-                return f"put!(channel_{func_name}, {self.visit(node.value)})"
-            return ""
+    def visit_Yield(self, node: ast.Yield) -> str:
+        return f"{self.visit(node.value)}"
 
-    def visit_YieldFrom(self, node) -> str:
-        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
-        func_name = get_id(func_node)
-
-        range = ""
-        if isinstance(node.value, ast.Call) and hasattr(node.value, "func"):
-            yield_func_call = get_id(node.value.func)
-            if yield_func_call in self._yields_map:
-                range = self._yields_map[yield_func_call]
-                if func_name in self._yields_map:
-                    self._yields_map[func_name] += range
-                else:
-                    self._yields_map[func_name] = range
-
-        decorators = map(get_decorator_id, func_node.decorator_list)
-        if "use_continuables" in decorators:
-            return f"""for value_{func_name} in {self.visit(node.value)}\n
-                    cont(value_{func_name})
-                end"""
-        else:
-            if node.value:
-                return f"""for value_{func_name} in {self.visit(node.value)}\n
-                        put!(channel_{func_name}, value_{func_name})
-                    end"""
-            return ""
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
+        return f"{self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:
         buf = []

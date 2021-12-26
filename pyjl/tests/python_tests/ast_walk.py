@@ -43,8 +43,19 @@ def show_res():
 """
 
 code4 = """
-a: int = 10
-return a*(2+4*(80))
+@dataclass
+class Packet:
+    val: float
+
+@dataclass
+class Register:
+    PACKET: Packet
+    VALUE: int
+
+if __name__ == "__main__":
+    a = Register(Packet(1.3), 10)
+    print("OK")
+
 """
 
 if __name__ == "__main__":

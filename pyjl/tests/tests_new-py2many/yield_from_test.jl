@@ -3,22 +3,20 @@ channel_generator1 = Channel(3)
 for i in (0:2)
 put!(channel_generator1, i);
 end
-close(channel_generator1)
-channel_generator1
+close((channel_generator1))
+return channel_generator1
 end
 
 function generator()
-channel_generator = Channel(5)
+channel_generator = Channel(3)
 for value_generator in generator1()
-
-                        put!(channel_generator, value_generator)
-                    end;
+put!(channel_generator, value_generator)
+end;
 for value_generator in generator2()
-
-                        put!(channel_generator, value_generator)
-                    end;
-close(channel_generator)
-channel_generator
+put!(channel_generator, value_generator)
+end;
+close((channel_generator))
+return channel_generator
 end
 
 function generator2()
@@ -26,8 +24,8 @@ channel_generator2 = Channel(2)
 for j in (3:4)
 put!(channel_generator2, j);
 end
-close(channel_generator2)
-channel_generator2
+close((channel_generator2))
+return channel_generator2
 end
 
 function main()

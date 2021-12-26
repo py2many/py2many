@@ -107,7 +107,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 # Some funtions might have precedence over others
-                v_node = find_in_body(ast.YieldFrom, b.body)
+                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.Yield)))
                 if v_node:
                     visit_after.append(b)
                 else:

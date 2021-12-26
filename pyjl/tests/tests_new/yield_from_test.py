@@ -11,7 +11,6 @@ def generator2():
     for j in range(3, 5):
         yield j
 
-
 if __name__=="__main__":
     arr = []
     for i in generator():

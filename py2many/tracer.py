@@ -107,21 +107,10 @@ def find_node_matching_type(node_type, scopes):
         if isinstance(sc, node_type):
             c_node = sc
             break
-        c_node = find_in_body(node_type, sc.body)
+        c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type)))
         if c_node:
             break
     return c_node
-
-def find_in_body(node_type, body):
-    for node in body:
-        if isinstance(node, node_type):
-            return node
-        if isinstance(node, ast.Expr):
-            if isinstance(node.value, node_type):
-                return node.value
-        if hasattr(node, "body"):
-            find_in_body(node_type, node.body)
-    return None
 
 
 # Finds a node by its name and type
@@ -133,16 +122,29 @@ def find_node_matching_name_and_type(name, node_type, scopes):
     scope_name = None
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
-        for node in sc.body:
-            if matches_name(node, name) and isinstance(node, node_type):
-                c_node = node
-                scope_name = (get_id(sc) 
-                    if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
-                    else "module")
-                break
-        if scope_name is not None:
+        if isinstance(sc, node_type):
+            c_node = sc
+            break
+        c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type) 
+            and matches_name(x, name)))
+        if c_node:
+            scope_name = (get_id(sc) 
+                if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
+                else "module")
             break
     return c_node, scope_name
+
+def find_in_body(body, fn):
+    for i in range(len(body) - 1, -1, -1):
+        node = body[i]
+        if fn(node):
+            return node
+        if isinstance(node, ast.Expr) and hasattr(node, "value"):
+            if fn(node.value):
+                return node.value
+        if hasattr(node, "body"):
+            find_in_body(node.body, fn)
+    return None
 
 # Checks if a given node's name matches 
 # the supplied name
@@ -153,62 +155,6 @@ def matches_name(node, name):
                 and get_id(node.target) == name) or
              (get_id(node) == name))
 
-# Finds the range from a given for-loop
-# Receives a visitor to evaluate the loop values
-# and the scopes
-# TODO: More range problems need testing
-def find_range_from_for_loop(visitor: ast.NodeVisitor, scopes):
-    iter = -1
-    for i in range(len(scopes) - 1, -1, -1):
-        sc = scopes[i]
-
-        if isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef):
-            break
-
-        if isinstance(sc, ast.For):
-            if hasattr(sc.iter, "args"):
-                iter = 0
-                if len(sc.iter.args) > 1:
-                    start_val = sc.iter.args[0]
-                    end_val = sc.iter.args[1]
-                else:
-                    start_val = 0
-                    end_val = sc.iter.args[0]
-
-                # If they are name nodes, search for their values
-                if isinstance(end_val, ast.Name):
-                    end_val = _find_assignment_value_from_name(scopes, end_val)
-                if isinstance(start_val, ast.Name):
-                    start_val = _find_assignment_value_from_name(scopes, start_val)
-                
-                # Calculate iter value
-                if not isinstance(start_val, int): 
-                    start_val = int(visitor.visit(start_val))
-                if not isinstance(end_val, int):
-                    end_val = int(visitor.visit(end_val))
-                iter += end_val - start_val
-
-                if(iter < 0):
-                    iter *= -1
-
-    # if iter != -1:
-    #     iter += 1
-    return iter
-
-# TODO: Still needs further testing
-def _find_assignment_value_from_name(scopes, nameNode):
-    value = None
-    for i in range(len(scopes) - 1, -1, -1):
-        sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef):
-            body = sc.body
-            # Get last Assign from body
-            for j in range(len(body) - 1, -1, -1):
-                a = body[j]
-                if matches_name(a, get_id(nameNode)):
-                    value = a.value
-                    break
-    return value
 
 def _lookup_value_type_name(name, scopes):
     for scope in scopes:
