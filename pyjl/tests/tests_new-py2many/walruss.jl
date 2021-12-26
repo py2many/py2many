@@ -1,6 +1,6 @@
 function test()
 if (i = 2) < 3
-println("Correct");
+@assert(i == 2)
 end
 end
 

@@ -1,13 +1,13 @@
-function generator_func()
-channel_generator_func = Channel(6)
+function generator_func_2()
+channel_generator_func_2 = Channel(3)
 num = 1
-put!(channel_generator_func, num);
+put!(channel_generator_func_2, num);
 num = 5
-put!(channel_generator_func, num);
+put!(channel_generator_func_2, num);
 num = 10
-put!(channel_generator_func, num);
-close(channel_generator_func)
-channel_generator_func
+put!(channel_generator_func_2, num);
+close(channel_generator_func_2)
+channel_generator_func_2
 end
 
 function generator_func_loop()
@@ -21,7 +21,7 @@ channel_generator_func_loop
 end
 
 function generator_func_loop_using_var()
-channel_generator_func_loop_using_var = Channel(4)
+channel_generator_func_loop_using_var = Channel(3)
 num = 0
 end_ = 2
 end_ = 3
@@ -33,7 +33,7 @@ channel_generator_func_loop_using_var
 end
 
 function generator_func_nested_loop()
-channel_generator_func_nested_loop = Channel(4)
+channel_generator_func_nested_loop = Channel(2)
 for n in (0:1)
 for i in (0:1)
 put!(channel_generator_func_nested_loop, (n, i));
@@ -59,7 +59,7 @@ end
 
 function main()
 arr1 = []
-for i in generator_func()
+for i in generator_func_2()
 push!(arr1, i);
 end
 @assert(arr1 == [1, 5, 10])

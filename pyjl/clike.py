@@ -1,13 +1,15 @@
 import ast
 from ctypes import c_int64
+from pathlib import Path
 from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, OrderedDict, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.tracer import find_in_body, find_node_matching_type
 from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
 import importlib
 
@@ -84,6 +86,38 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         self._type_map = JULIA_TYPE_MAP
         self._default_type = _DEFAULT
         # self._import_aliases: Dict[str, Any] = {}
+
+    def visit_Module(self, node) -> str:
+        docstring = getattr(node, "docstring_comment", None)
+        buf = [self.comment(docstring.value)] if docstring is not None else []
+        filename = getattr(node, "__file__", None)
+        if filename is not None:
+            self._module = Path(filename).stem
+        # TODO: generalize this to reset all state that needs to be reset
+        self._imported_names = {}
+        self._usings.clear()
+        body_dict: Dict[ast.AST, str] = OrderedDict()
+        for b in node.body:
+            if not isinstance(b, ast.FunctionDef):
+                body_dict[b] = self.visit(b)
+
+        # Second pass to handle functiondefs whose body
+        # may refer to other members of node.body
+        visit_after = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                # Some funtions might have precedence over others
+                v_node = find_in_body(ast.YieldFrom, b.body)
+                if v_node:
+                    visit_after.append(b)
+                else:
+                    body_dict[b] = self.visit(b)
+
+        for b in visit_after:
+            body_dict[b] = self.visit(b)
+
+        buf += [body_dict[b] for b in node.body]
+        return "\n".join(buf)
 
     def visit(self, node) -> str:
         if type(node) in jl_symbols:

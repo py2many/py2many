@@ -107,12 +107,22 @@ def find_node_matching_type(node_type, scopes):
         if isinstance(sc, node_type):
             c_node = sc
             break
-        for node in sc.body:
-            if isinstance(node, node_type):
-                c_node = node
-                break
-
+        c_node = find_in_body(node_type, sc.body)
+        if c_node:
+            break
     return c_node
+
+def find_in_body(node_type, body):
+    for node in body:
+        if isinstance(node, node_type):
+            return node
+        if isinstance(node, ast.Expr):
+            if isinstance(node.value, node_type):
+                return node.value
+        if hasattr(node, "body"):
+            find_in_body(node_type, node.body)
+    return None
+
 
 # Finds a node by its name and type
 def find_node_matching_name_and_type(name, node_type, scopes):
@@ -151,22 +161,38 @@ def find_range_from_for_loop(visitor: ast.NodeVisitor, scopes):
     iter = -1
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
+
+        if isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef):
+            break
+
         if isinstance(sc, ast.For):
-            if hasattr(sc, "iter"):
-                end_val = sc.iter.args[1]
-                start_val = sc.iter.args[0]
-                if not (isinstance(end_val, ast.Num) and isinstance(start_val, ast.Num)):
-                    if isinstance(end_val, ast.Name):
-                        end_val = _find_assignment_value_from_name(scopes, end_val)
-                    if isinstance(start_val, ast.Name):
-                        start_val = _find_assignment_value_from_name(scopes, start_val)
-                    iter = 0
-                iter += int(visitor.visit(end_val)) - int(visitor.visit(start_val))
+            if hasattr(sc.iter, "args"):
+                iter = 0
+                if len(sc.iter.args) > 1:
+                    start_val = sc.iter.args[0]
+                    end_val = sc.iter.args[1]
+                else:
+                    start_val = 0
+                    end_val = sc.iter.args[0]
+
+                # If they are name nodes, search for their values
+                if isinstance(end_val, ast.Name):
+                    end_val = _find_assignment_value_from_name(scopes, end_val)
+                if isinstance(start_val, ast.Name):
+                    start_val = _find_assignment_value_from_name(scopes, start_val)
+                
+                # Calculate iter value
+                if not isinstance(start_val, int): 
+                    start_val = int(visitor.visit(start_val))
+                if not isinstance(end_val, int):
+                    end_val = int(visitor.visit(end_val))
+                iter += end_val - start_val
+
                 if(iter < 0):
                     iter *= -1
-                # break
-    if iter != -1:
-        iter += 1
+
+    # if iter != -1:
+    #     iter += 1
     return iter
 
 # TODO: Still needs further testing

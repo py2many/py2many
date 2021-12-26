@@ -351,6 +351,7 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             converted = vargs
 
+
         args = ", ".join(converted)
         return f"{fname}({args})"
 
@@ -851,24 +852,49 @@ class JuliaTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node) -> str:
-        name = ""
         func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
         range_from_for_loop = find_range_from_for_loop(self, node.scopes)
-        name = get_id(func_node)
-        if name:
+        func_name = get_id(func_node)
+        if func_name:
             if range_from_for_loop != -1:
-                self._yields_map[name] = range_from_for_loop
-            elif name in self._yields_map:
-                self._yields_map[name] += 1 
+                self._yields_map[func_name] = range_from_for_loop
+            elif func_name in self._yields_map:
+                self._yields_map[func_name] += 1 
             else:
-                self._yields_map[name] = 1
+                self._yields_map[func_name] = 1
         
         decorators = map(get_decorator_id, func_node.decorator_list)
         if "use_continuables" in decorators:
             return f"cont({self.visit(node.value)})"
         else:
             if node.value:
-                return f"put!(channel_{name}, {self.visit(node.value)})"
+                return f"put!(channel_{func_name}, {self.visit(node.value)})"
+            return ""
+
+    def visit_YieldFrom(self, node) -> str:
+        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        func_name = get_id(func_node)
+
+        range = ""
+        if isinstance(node.value, ast.Call) and hasattr(node.value, "func"):
+            yield_func_call = get_id(node.value.func)
+            if yield_func_call in self._yields_map:
+                range = self._yields_map[yield_func_call]
+                if func_name in self._yields_map:
+                    self._yields_map[func_name] += range
+                else:
+                    self._yields_map[func_name] = range
+
+        decorators = map(get_decorator_id, func_node.decorator_list)
+        if "use_continuables" in decorators:
+            return f"""for value_{func_name} in {self.visit(node.value)}\n
+                    cont(value_{func_name})
+                end"""
+        else:
+            if node.value:
+                return f"""for value_{func_name} in {self.visit(node.value)}\n
+                        put!(channel_{func_name}, value_{func_name})
+                    end"""
             return ""
 
     def visit_Print(self, node) -> str:
