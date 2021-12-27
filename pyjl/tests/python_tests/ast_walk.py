@@ -43,18 +43,7 @@ def show_res():
 """
 
 code4 = """
-@dataclass
-class Packet:
-    val: float
-
-@dataclass
-class Register:
-    PACKET: Packet
-    VALUE: int
-
-if __name__ == "__main__":
-    a = Register(Packet(1.3), 10)
-    print("OK")
+isinstance(values, bytearray)
 
 """
 

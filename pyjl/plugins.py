@@ -345,7 +345,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "extend": (lambda self, node, vargs: f"{vargs[0]} = append!({vargs[0]}, {vargs[1]})", True),
     "count": (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
     "index": (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
-    #
+    # 
+    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     open: (JuliaTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
@@ -353,4 +354,5 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
+    bytearray: (lambda self, node, vargs: f"Vector{{Int8}}()", True),
 }
