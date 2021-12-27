@@ -281,6 +281,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Added
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
+        self._nested_if_cnt = 0
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -569,33 +570,32 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
-    def visit_If(self, node) -> str:
+    def visit_If(self, node: ast.If) -> str:
         body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
         orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
         node.common_vars = body_vars.intersection(orelse_vars)
 
         buf = []
-        cond = self.visit(node.test)
-        buf.append(f"if {cond}")
+        cond = "if" if self._nested_if_cnt == 0 else "elseif"
+        buf.append(f"{cond} {self.visit(node.test)}")
         buf.extend([self.visit(child) for child in node.body])
 
-        orelse = [self.visit(child) for child in node.orelse]
+        orelse = node.orelse
 
-        # DEBUG
-        print(len(orelse))
+        if len(orelse) == 1 and isinstance(orelse[0], ast.If):
+            self._nested_if_cnt += 1
+            buf.append(self.visit(orelse[0]))
+        else:
+            if len(orelse) >= 1:
+                buf.append("else")
+                orelse = [self.visit(child) for child in node.orelse]
+                orelse = "\n".join(orelse)
+                buf.append(orelse)
+            if self._nested_if_cnt > 0:
+                self._nested_if_cnt -= 1
         
-        for i in range(len(orelse)):
-            or_cond = orelse[i]
-
-            if i != len(orelse) - 1:
-                buf.append("elseif\n")
-                buf.append(or_cond)
-                buf.append("\n")
-            else:
-                buf.append("else\n")
-                buf.append(or_cond)
-                buf.append("\n")
-        buf.append("end")
+        if self._nested_if_cnt == 0:
+            buf.append("end")
 
         return "\n".join(buf)
 
@@ -991,7 +991,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "global {0}".format(", ".join(node.names))
 
     def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
+        return f"{self.visit(node.value)}..."
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)

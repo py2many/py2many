@@ -23,10 +23,14 @@ channel_lock_pair = Channel(1)
 pre, post = locks ? (locks) : ((pre_lock, post_lock))
 if pre
 acquire(pre);
+else
+
 end
 
 if post
 release(post);
+else
+
 end
 close((channel_lock_pair))
 return channel_lock_pair
@@ -44,27 +48,25 @@ end
 if table
 write(translate(output, table));
 else
-
 write(output);
-
-
 end
 end
+else
+
 end
 output = bytearray()
 if i < (n - width)
 for i in (i:width:n - width - 1)
 output += sequence[(i + 1):i + width + 1] + newline
 end
+else
+
 end
 output += sequence[(i + 1):n + 1] + newline
 if table
 write(translate(output, table));
 else
-
 write(output);
-
-
 end
 flush(stdout.buffer);
 end
@@ -84,6 +86,8 @@ if true
 __tmp1 = lock_pair()
 write(header);
 write_lines(sequence, n, width);
+else
+
 end
 end
 
@@ -118,6 +122,8 @@ prng = closing(lcg(seed, im, ia, ic))
 for value_lcg_lookup_slow in lookup(probabilities, prng)
 put!(channel_lcg_lookup_slow, value_lcg_lookup_slow)
 end;
+else
+
 end
 close((channel_lcg_lookup_slow))
 return channel_lcg_lookup_slow
@@ -141,23 +147,20 @@ end
 function lookup_and_write(header, probabilities, table, values, start, stop, width, locks)
 if isinstance(values, bytearray)
 output = values
-elseif
-
-output = bytearray()
-
-
 else
-
+output = bytearray()
 output[(begin + 1):stop - start] = lookup(probabilities, values)
-
-
 end
 if true
 __tmp2 = lock_pair()
 if start == 0
 write(header);
+else
+
 end
 write_lines(output, length(output), width);
+else
+
 end
 end
 
@@ -170,35 +173,16 @@ if !(locks)
 if true
 prng = closing(lcg_lookup_fast(probabilities, seed, im, ia, ic))
 output = bytearray(islice(prng, n))
+else
+
 end
 lookup_and_write(header, probabilities, table, output, 0, n, width);
-elseif
-
+else
 pre_seed, post_seed, pre_write, post_write = locks
-
-
-elseif
-
 m = n > (width*15) ? (cpu_count()*3) : (1)
-
-
-elseif
-
 partitions = [(n / width*m)*width*i for i in (1:m - 1)]
-
-
-elseif
-
 processes = []
-
-
-elseif
-
 pre = pre_write
-
-
-elseif
-
 if true
 __tmp3 = lock_pair()
 if true
@@ -209,17 +193,15 @@ post = stop < n ? (acquired_lock()) : (post_write)
 push!(processes, started_process(lookup_and_write, (header, probabilities, table, values, start, stop, width, (pre, post))));
 pre = post
 end
-end
-end
-
-
 else
 
+end
+else
+
+end
 for p in processes
 join(p);
 end
-
-
 end
 end
 
@@ -235,40 +217,17 @@ tasks = [(copy_from_sequence, [b">ONE Homo sapiens alu
 ", homosapiens, n*5, width, seed])]
 if cpu_count() < 2
 for (func, args) in tasks
-func(starred!(args)/*unsupported*/);
+func(args...);
 end
-elseif
-
-written_1 = acquired_lock()
-
-
-elseif
-
-seeded_2 = acquired_lock()
-
-
-elseif
-
-written_2 = acquired_lock()
-
-
-elseif
-
-locks_sets = [(nothing, written_1), (nothing, seeded_2, written_1, written_2), (seeded_2, nothing, written_2, nothing)]
-
-
-elseif
-
-processes = [started_process(target, args + [locks_sets[i]]) for (i, (target, args)) in tasks.iter().enumerate()]
-
-
 else
-
+written_1 = acquired_lock()
+seeded_2 = acquired_lock()
+written_2 = acquired_lock()
+locks_sets = [(nothing, written_1), (nothing, seeded_2, written_1, written_2), (seeded_2, nothing, written_2, nothing)]
+processes = [started_process(target, args + [locks_sets[i]]) for (i, (target, args)) in tasks.iter().enumerate()]
 for p in processes
 join(p);
 end
-
-
 end
 end
 

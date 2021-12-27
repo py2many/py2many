@@ -5,24 +5,15 @@ end
 function lookup_and_write(values, start, stop)
 if isinstance(values, bytearray)
 output = values
+elseif 1 == 2
+println("Never reach");
+elseif 2 == 1
+println("Never reach");
+elseif 3 == 1
+println("Never reach");
 else
-
-if 1 == 2
-println("ola");
-elseif
-
 output = bytearray()
-
-
-else
-
 output[(begin + 1):stop - start] = something()
-
-
-end
-
-
-end
 end
 
 function main()

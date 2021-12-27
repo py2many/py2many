@@ -5,7 +5,11 @@ def lookup_and_write(values, start, stop):
     if isinstance(values, bytearray):
         output = values
     elif 1 == 2:
-        print("ola")
+        print("Never reach")
+    elif 2 == 1:
+        print("Never reach")
+    elif 3 == 1:
+        print("Never reach")
     else:
         output = bytearray()
         output[:stop - start] = something()
