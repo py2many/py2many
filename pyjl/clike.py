@@ -85,39 +85,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
         self._default_type = _DEFAULT
-        # self._import_aliases: Dict[str, Any] = {}
-
-    def visit_Module(self, node) -> str:
-        docstring = getattr(node, "docstring_comment", None)
-        buf = [self.comment(docstring.value)] if docstring is not None else []
-        filename = getattr(node, "__file__", None)
-        if filename is not None:
-            self._module = Path(filename).stem
-        # TODO: generalize this to reset all state that needs to be reset
-        self._imported_names = {}
-        self._usings.clear()
-        body_dict: Dict[ast.AST, str] = OrderedDict()
-        for b in node.body:
-            if not isinstance(b, ast.FunctionDef):
-                body_dict[b] = self.visit(b)
-
-        # Second pass to handle functiondefs whose body
-        # may refer to other members of node.body
-        visit_after = []
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                # Some funtions might have precedence over others
-                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.Yield)))
-                if v_node:
-                    visit_after.append(b)
-                else:
-                    body_dict[b] = self.visit(b)
-
-        for b in visit_after:
-            body_dict[b] = self.visit(b)
-
-        buf += [body_dict[b] for b in node.body]
-        return "\n".join(buf)
 
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
@@ -256,7 +223,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     imported_name = importlib.import_module(name)
                 except ImportError:
                     imported_name = name
-                # self._import_aliases[asname] = name # Added
                 self._imported_names[asname] = imported_name
         return "\n".join(imports)
 

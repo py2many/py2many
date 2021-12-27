@@ -58,30 +58,20 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
-    def visit_Return(self, node):
-        self.generic_visit(node)        
+    def visit_Return(self, node: ast.Return):
+        self.generic_visit(node)
         new_type_str = (
             get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
         )
 
-        if new_type_str is None:
-            return node
-
         func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
         type_str = get_id(func_node.returns) if func_node else None
+        if new_type_str is None:
+            return node
+        
+        # Setting type_str to infered type
         if type_str is not None:
-            if isinstance(node.value, ast.BinOp) and isinstance(node.value.op, ast.Mult) :
-                # specific case of ast.Mult with with int and string as arguments
-                left_jl_annotation = node.value.left.julia_annotation if hasattr(node.value.left, "julia_annotation") else None
-                right_jl_annotation = node.value.right.julia_annotation if hasattr(node.value.right, "julia_annotation") else None
-                if(((isinstance(node.value.left, ast.Num) or left_jl_annotation in NUM_TYPES) 
-                        and right_jl_annotation == "String") 
-                        or ((isinstance(node.value.right, ast.Num) or right_jl_annotation in NUM_TYPES) 
-                        and left_jl_annotation == "String") and isinstance(node.value.op, ast.Mult)):
-                    type_str = "str"
-            elif new_type_str != type_str:
-                type_str = f"Union{'{'}{self._clike._map_type(type_str)},{self._clike._map_type(new_type_str)}{'}'}"
-
+            type_str = new_type_str
             # Add julia_annotation value
             func_node.julia_annotation = self._clike._map_type(type_str)
             setattr(func_node.returns, "id", type_str)
@@ -92,7 +82,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 lifetime = getattr(node.value.annotation, "lifetime", None)
                 if lifetime is not None:
                     func_node.returns.lifetime = lifetime
-
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
@@ -181,10 +170,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
+        # if left_id == "int":
+        #     left_id = "c_int32"
+        # if right_id == "int":
+        #     right_id = "c_int32"
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
@@ -226,12 +215,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id="complex")
                 return node
             if isinstance(node.op, ast.Mult):
+                # print(ast.dump(node))
+                # print("left: " + left_id)
+                # print("right: " + right_id)
+                # print("Cond: " + str(left_id == "int" and right_id == "str"))
                 if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Num)) or 
                         (isinstance(node.right, ast.List) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="List")
                 if ((isinstance(node.left, ast.Str) and isinstance(node.right, ast.Num)) or 
-                        (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))):
+                        (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))
+                        or (left_id == "str" and right_id == "int") or (left_id == "int" and right_id == "str")):
                     node.annotation = ast.Name(id="str")
+                    # print(ast.dump(node.annotation))
                 if ((isinstance(node.left, ast.BoolOp) and isinstance(node.right, ast.Num)) or
                         (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="int")

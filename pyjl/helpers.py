@@ -23,7 +23,7 @@ def get_range_from_for_loop(node):
         if isinstance(start_val, ast.Name):
             start_val = find_node_matching_name_and_type(get_id(start_val), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0]
-            if start_val is not None: start_val = end_val.value
+            if start_val is not None: start_val = start_val.value
 
         # Iter value cannot be calculated
         if (not isinstance(start_val, (ast.Constant, int, str)) or 

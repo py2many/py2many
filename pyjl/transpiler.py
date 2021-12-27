@@ -395,7 +395,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return "return {0}".format(self.visit(node.value)) 
+            return f"return {self.visit(node.value)}" 
         return "return"
 
     def visit_arg(self, node):
@@ -580,10 +580,13 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = [self.visit(child) for child in node.orelse]
+
+        # DEBUG
+        print(len(orelse))
         
         for i in range(len(orelse)):
             or_cond = orelse[i]
-            
+
             if i != len(orelse) - 1:
                 buf.append("elseif\n")
                 buf.append(or_cond)
@@ -794,8 +797,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
         elif isinstance(index, int) or isinstance(index, float):
             return f"{value}[{index + 1}]"
-        
-        
         
         # TODO: Optimize; value_type is computed once per definition
         self._generic_typename_from_annotation(node.value)
