@@ -1,6 +1,7 @@
 function test()
-elseif (i = 2) < 3
+if (i = 2) < 3
 @assert(i == 2)
+end
 end
 
 function main()

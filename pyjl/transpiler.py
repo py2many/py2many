@@ -283,6 +283,10 @@ class JuliaTranspiler(CLikeTranspiler):
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
 
+    def visit_Module(self, node) -> str:
+        self._nested_if_cnt = 0
+        return super().visit_Module(node)
+
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"using {mod}" for mod in usings)
