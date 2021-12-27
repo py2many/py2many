@@ -45,7 +45,7 @@ def get_decorator_id(decorator):
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
         args = []
-        if hasattr(node, "args"):
+        if node.args:
             args += [self.visit(a) for a in node.args]
 
         fname = node.func
@@ -71,7 +71,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
         if isinstance(fname, ast.Name):
-            if get_id(node.func) == "join" and hasattr(node, "args"):
+            if get_id(node.func) == "join" and node.args:
                 args.reverse()
 
         node.args = args
@@ -147,7 +147,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 # Some funtions might have precedence over others
-                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.Yield)))
+                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.YieldFrom)))
                 if v_node:
                     visit_after.append(b)
                 else:
@@ -207,12 +207,12 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         else:
             if node.value:
                 func_name = func_node["func_name"]
-                node = ast.Call (func = ast.Name(id = "put!"), args = [
+                node = ast.Yield(value = ast.Call (func = ast.Name(id = "put!"), args = [
                     ast.Name(id = f"channel_{func_name}" if func_node else "channel_module"),
                     node.value], keywords = [], lineno = node.lineno,
-                    col_offset = node.col_offset)
+                    col_offset = node.col_offset))
             else:
-                node = ast.Name(id = "")
+                node = ast.Yield(value = ast.Name(id = ""))
 
         return node
 
@@ -229,24 +229,23 @@ class JuliaYieldRewriter(ast.NodeTransformer):
             if yield_func_call in self._func_map:
                 # Add yield_cnt to current function
                 range = self._func_map[yield_func_call]["yield_cnt"]
-                print(range)
                 func_node["yield_cnt"] += range
 
         if "use_continuables" in decorators:
-            node = ast.For(
+            node = ast.YieldFrom(value = ast.For(
                         target = ast.Name(id=f"value_{func_name}"),
                         iter = node.value,
                         body = [ast.Call(func = ast.Name(id = "cont"), args = [
                                     ast.Name(id =f"value_{func_name}")],
-                                keywords = [], lineno = node.lineno)])
+                                keywords = [], lineno = node.lineno)]))
         else:
-            node = ast.For(
+            node = ast.YieldFrom(value = ast.For(
                     target = ast.Name(id = f"value_{func_name}"),
                     iter = node.value,
                     body = [ast.Call(func = ast.Name(id = "put!"), 
                             args = [ast.Name(id = f"channel_{func_name}"), 
                                 ast.Name(id = f"value_{func_name}")],
-                            keywords = [], lineno = node.lineno)])
+                            keywords = [], lineno = node.lineno)]))
         return node
 
     def visit_For(self, node: ast.For) -> Any:
@@ -440,7 +439,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
         vargs = []
-        if hasattr(node, "args"):
+        if node.args:
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]

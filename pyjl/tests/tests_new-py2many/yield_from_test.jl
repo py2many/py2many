@@ -8,7 +8,7 @@ return channel_generator1
 end
 
 function generator()
-channel_generator = Channel(3)
+channel_generator = Channel(5)
 for value_generator in generator1()
 put!(channel_generator, value_generator)
 end;

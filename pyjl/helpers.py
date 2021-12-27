@@ -37,7 +37,7 @@ def get_range_from_for_loop(node):
             start_val = int(start_val)
         if not isinstance(end_val, int):
             end_val = int(end_val)
-        
+
         iter += end_val - start_val
 
         if(iter < 0):
