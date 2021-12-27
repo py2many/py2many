@@ -283,10 +283,6 @@ class JuliaTranspiler(CLikeTranspiler):
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
 
-    def visit_Module(self, node) -> str:
-        self._nested_if_cnt = 0
-        return super().visit_Module(node)
-
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"using {mod}" for mod in usings)
@@ -589,14 +585,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(orelse) == 1 and isinstance(orelse[0], ast.If):
             self._nested_if_cnt += 1
             buf.append(self.visit(orelse[0]))
+            self._nested_if_cnt -= 1
         else:
             if len(orelse) >= 1:
                 buf.append("else")
                 orelse = [self.visit(child) for child in node.orelse]
                 orelse = "\n".join(orelse)
                 buf.append(orelse)
-            if self._nested_if_cnt > 0:
-                self._nested_if_cnt -= 1
         
         if self._nested_if_cnt == 0:
             buf.append("end")
