@@ -5,8 +5,6 @@ from py2many.input_configuration import ParseFileStructure
 import textwrap
 import re
 
-from pyjl.helpers import get_range_from_for_loop
-
 from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -126,14 +124,13 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         DECORATOR_MAP[(node.name, node_scope_name)] = node_dict
 
 
-
 class JuliaYieldRewriter(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         # loop -> contains loop variables
         # func -> contains function specific fields: (func_name, yield_cnt, decorator_list)
-        self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
-        self._func_map: Dict[str, Dict] = {}
+        self._func_stack = []
+        self._loop_nesting = 0
     
     def visit_Module(self, node) -> str:
         for b in node.body:
@@ -160,109 +157,127 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         decorator_list_str = list(map(get_decorator_id, node.decorator_list))
 
         # Fill scope variables
-        self._scope_stack["func"].append({"func_name": get_id(node), 
-            "yield_cnt": 0, "decorator_list": decorator_list_str, 
-            "for_loop_range": 0})
+        self._func_stack.append({"func_name": get_id(node), 
+            "yield_cnt": 0, "yield_from_cnt": 0, "decorator_list": decorator_list_str, 
+            "is_yield_loop": False})
 
         # visit nodes in body
         for n in node.body:
             self.visit(n)
 
-        # Add to func_map
-        self._func_map[get_id(node)] = {"yield_cnt": self._scope_stack["func"][-1]["yield_cnt"], 
-            "decorator_list": decorator_list_str}
-
         if "use_continuables" not in decorator_list_str:
             # Build a channel with the necessary size (number of yields in a function)
-            func_data = self._scope_stack["func"][-1]
-            if func_data["yield_cnt"] > 0:
-                func_name, size = get_id(node), func_data["yield_cnt"]
-                channel = ast.Assign(targets = [ast.Name(id = f"channel_{func_name}")], 
-                    value = ast.Name(id = f"Channel({size})"))
-                channel_close = ast.Call(func = ast.Name(id = f"close", lineno=node.lineno), args = [ast.Name(id = f"(channel_{func_name})")],
-                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
-                return_val = ast.Return(value = ast.Name(f"channel_{func_name}"), lineno=node.lineno, col_offset = node.col_offset)
+            func_data = self._func_stack[-1]
 
-                # Append to the function body
-                node.body = [channel] + node.body
+            func_name, size = get_id(node), func_data["yield_cnt"]
+            ch_name = f"c_{func_name}"
+            channel = None
+            if func_data["is_yield_loop"] or func_data["yield_from_cnt"] > 0:
+                channel = ast.Assign(targets = [ast.Name(id = ch_name)], 
+                    value = ast.Name(id = f"Channel(1)"))
+                bind = ast.Call(func = ast.Name(id = f"bind"), args = 
+                    [ast.Name(id = ch_name), ast.Name(id = f"t_{func_name}")], 
+                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
+                node.body.append(bind)
+            elif(func_data["yield_cnt"] > 0):
+                channel = ast.Assign(targets = [ast.Name(id = ch_name)], 
+                    value = ast.Name(id = f"Channel({size})")) 
+                channel_close = ast.Call(func = ast.Name(id = f"close"), args = 
+                    [ast.Name(id = ch_name)], keywords = [], lineno=node.lineno, 
+                    col_offset = node.col_offset)
+                return_val = ast.Return(value = ast.Name(id = ch_name), lineno=node.lineno, 
+                    col_offset = node.col_offset)
                 node.body.extend([channel_close, return_val])
+            
+            # Append to the function body~
+            if channel is not None:
+                node.body = [channel] + node.body
         
-        self._scope_stack["func"].pop()
+        self._func_stack.pop()
         return node
 
     def visit_Yield(self, node: ast.Yield) -> Any:
-        func_node = self._scope_stack["func"][-1]
+        func_node = self._func_stack[-1]
         decorators = []
         if func_node:
-            if func_node["for_loop_range"] != 0:
-                func_node["yield_cnt"] = func_node["for_loop_range"]
-            else:
-                func_node["yield_cnt"] += 1
+            func_node["yield_cnt"] += 1
             decorators = func_node["decorator_list"]
 
-        if "use_continuables" in decorators:
-            node = ast.Call(func = ast.Name(id = "cont"), args = [self.visit(node.value)], 
-                keywords = [], lineno=node.lineno, col_offset = node.col_offset)
-        else:
-            if node.value:
-                func_name = func_node["func_name"]
-                node = ast.Yield(value = ast.Call (func = ast.Name(id = "put!"), args = [
-                    ast.Name(id = f"channel_{func_name}" if func_node else "channel_module"),
-                    node.value], keywords = [], lineno = node.lineno,
-                    col_offset = node.col_offset))
+            if "use_continuables" in decorators:
+                node = ast.Call(func = ast.Name(id = "cont"), args = [self.visit(node.value)], 
+                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
             else:
-                node = ast.Yield(value = ast.Name(id = ""))
+                if node.value:
+                    func_name = func_node["func_name"]
+                    node = ast.Yield(value = ast.Call (func = ast.Name(id = "put!"), args = [
+                        ast.Name(id = f"c_{func_name}"), node.value], keywords = [], 
+                        lineno = node.lineno, col_offset = node.col_offset))
+                else:
+                    node = ast.Yield(value = ast.Name(id = ""))
 
         return node
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
         # get current function
-        func_node = self._scope_stack["func"][-1]
-        func_name = func_node["func_name"]
-        decorators = func_node["decorator_list"] if func_node else []
+        func_node = self._func_stack[-1]
+        decorators =  []
 
-        range = 0
-        if isinstance(node.value, ast.Call) and hasattr(node.value, "func"):
-            # get function being called
-            yield_func_call = get_id(node.value.func)
-            if yield_func_call in self._func_map:
-                # Add yield_cnt to current function
-                range = self._func_map[yield_func_call]["yield_cnt"]
-                func_node["yield_cnt"] += range
+        if func_node:
+            func_name = func_node["func_name"]
+            func_node["yield_from_cnt"] += 1
+            decorators = func_node["decorator_list"]
 
-        if "use_continuables" in decorators:
-            node = ast.YieldFrom(value = ast.For(
-                        target = ast.Name(id=f"value_{func_name}"),
+            if "use_continuables" in decorators:
+                node = ast.YieldFrom(value = ast.For(
+                            target = ast.Name(id=f"v_{func_name}"),
+                            iter = node.value,
+                            body = [ast.Call(func = ast.Name(id = "cont"), args = [
+                                        ast.Name(id =f"v_{func_name}")],
+                                    keywords = [], lineno = node.lineno)],
+                                    lineno = node.lineno, col_offset = node.col_offset, 
+                                        is_yield_loop = False, sc_func_name = func_name),
+                                    lineno = node.lineno, col_offset = node.col_offset)
+            else:
+                node = ast.YieldFrom(value = ast.For(
+                        target = ast.Name(id = f"v_{func_name}"),
                         iter = node.value,
-                        body = [ast.Call(func = ast.Name(id = "cont"), args = [
-                                    ast.Name(id =f"value_{func_name}")],
-                                keywords = [], lineno = node.lineno)]))
-        else:
-            node = ast.YieldFrom(value = ast.For(
-                    target = ast.Name(id = f"value_{func_name}"),
-                    iter = node.value,
-                    body = [ast.Call(func = ast.Name(id = "put!"), 
-                            args = [ast.Name(id = f"channel_{func_name}"), 
-                                ast.Name(id = f"value_{func_name}")],
-                            keywords = [], lineno = node.lineno)]))
+                        body = [ast.Call(func = ast.Name(id = "put!"), 
+                                args = [ast.Name(id = f"c_{func_name}"), 
+                                    ast.Name(id = f"v_{func_name}")],
+                                keywords = [], lineno = node.lineno)], 
+                                lineno = node.lineno,  col_offset = node.col_offset,
+                                    is_yield_loop = True, sc_func_name = func_name), 
+                                lineno = node.lineno, col_offset = node.col_offset)
+
         return node
 
     def visit_For(self, node: ast.For) -> Any:
+        self._generic_loop_visit(node)
+
+        return node
+
+    def visit_While(self, node: ast.While) -> Any:
+        self._generic_loop_visit(node)
+
+        return node
+
+    def _generic_loop_visit(self, node):
         # Get current function
-        curr_func = self._scope_stack["func"][-1]
-
-        # Get for loop range (if possible)
-        iter = get_range_from_for_loop(node)
-        curr_func["for_loop_range"] += iter
-
+        curr_func = self._func_stack[-1]
+        self._loop_nesting += 1
         # visit nodes in body
         for n in node.body:
             self.visit(n)
+        self._loop_nesting -=1
 
-        # Set count to 0 as scope changes
-        curr_func["for_loop_range"] = 0
-        
-        return node
+        if curr_func["yield_cnt"] > 0:
+            curr_func["is_yield_loop"] = True
+            node.is_yield_loop = True if self._loop_nesting == 0 else False
+        else:
+            node.is_yield_loop = False
+
+        node.sc_func_name = curr_func["func_name"]
+
 
 
 class JuliaTranspiler(CLikeTranspiler):
@@ -498,7 +513,8 @@ class JuliaTranspiler(CLikeTranspiler):
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
         self._scope_stack["loop"].extend(target_vars)
 
-        buf.append(f"for {target} in {it}")
+        for_start = f"t_{node.sc_func_name} = @async for" if node.is_yield_loop else "for"
+        buf.append(f"{for_start} {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
 
@@ -609,7 +625,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        buf.append("while {0}".format(self.visit(node.test)))
+        while_start = f"t_{node.sc_func_name} = @async while" if node.is_yield_loop else "while"
+        buf.append(f"{while_start} {self.visit(node.test)}")
         buf.extend([self.visit(n) for n in node.body])
         buf.append("end")
         return "\n".join(buf)

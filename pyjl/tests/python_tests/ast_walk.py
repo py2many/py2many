@@ -43,8 +43,9 @@ def show_res():
 """
 
 code4 = """
-write = stdout.buffer.write
-write("P4")
+task_trange = async for i in range(n)
+    put!(c, i+1)
+bind(c, task_trange)
 
 """
 

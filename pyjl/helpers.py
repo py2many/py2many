@@ -4,7 +4,7 @@ from py2many.ast_helpers import get_id
 
 from py2many.tracer import find_node_matching_name_and_type
 
-
+# TODO: Delete if not necessary
 def get_range_from_for_loop(node):
     iter = 0
     if hasattr(node.iter, "args") and node.iter.args:

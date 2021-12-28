@@ -1,60 +1,57 @@
 function generator_func()
-channel_generator_func = Channel(3)
+c_generator_func = Channel(3)
 num = 1
-put!(channel_generator_func, num);
+put!(c_generator_func, num);
 num = 5
-put!(channel_generator_func, num);
+put!(c_generator_func, num);
 num = 10
-put!(channel_generator_func, num);
-close((channel_generator_func))
-return channel_generator_func
+put!(c_generator_func, num);
+close(c_generator_func)
+return c_generator_func
 end
 
 function generator_func_loop()
-channel_generator_func_loop = Channel(3)
+c_generator_func_loop = Channel(1)
 num = 0
-for n in (0:2)
-put!(channel_generator_func_loop, num + n);
+t_generator_func_loop = @async for n in (0:2)
+put!(c_generator_func_loop, num + n);
 end
-close((channel_generator_func_loop))
-return channel_generator_func_loop
+bind(c_generator_func_loop, t_generator_func_loop)
 end
 
 function generator_func_loop_using_var()
-channel_generator_func_loop_using_var = Channel(3)
+c_generator_func_loop_using_var = Channel(1)
 num = 0
 end_ = 2
 end_ = 3
-for n in (0:end_ - 1)
-put!(channel_generator_func_loop_using_var, num + n);
+t_generator_func_loop_using_var = @async for n in (0:end_ - 1)
+put!(c_generator_func_loop_using_var, num + n);
 end
-close((channel_generator_func_loop_using_var))
-return channel_generator_func_loop_using_var
+bind(c_generator_func_loop_using_var, t_generator_func_loop_using_var)
 end
 
 function generator_func_nested_loop()
-channel_generator_func_nested_loop = Channel(4)
-for n in (0:1)
+c_generator_func_nested_loop = Channel(1)
+t_generator_func_nested_loop = @async for n in (0:1)
 for i in (0:1)
-put!(channel_generator_func_nested_loop, (n, i));
+put!(c_generator_func_nested_loop, (n, i));
 end
 end
-close((channel_generator_func_nested_loop))
-return channel_generator_func_nested_loop
+bind(c_generator_func_nested_loop, t_generator_func_nested_loop)
 end
 
 struct TestClass
 end
 function generator_func(self::TestClass)
-channel_generator_func = Channel(3)
+c_generator_func = Channel(3)
 num = 123
-put!(channel_generator_func, num);
+put!(c_generator_func, num);
 num = 5
-put!(channel_generator_func, num);
+put!(c_generator_func, num);
 num = 10
-put!(channel_generator_func, num);
-close((channel_generator_func))
-return channel_generator_func
+put!(c_generator_func, num);
+close(c_generator_func)
+return c_generator_func
 end
 
 function main()

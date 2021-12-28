@@ -8,7 +8,6 @@ from itertools import islice
 from os import cpu_count
 from sys import argv, stdout
 
-@use_continuables
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))

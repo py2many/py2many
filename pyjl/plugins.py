@@ -356,7 +356,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
     bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" if len(vargs) == 0 else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
     itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
-    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True), # Not working
-    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
     # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True), # For later
+    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    str.format: (lambda self, node, vargs: f"test", True), # Does not work
 }

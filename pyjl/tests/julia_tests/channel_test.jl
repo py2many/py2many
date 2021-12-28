@@ -12,10 +12,23 @@ end
 
 function trange(n::Int)
     c = Channel{Int}(1)
-    task = @async for i ∈ 1:n
+    task_trange = @async for i ∈ 1:n
       put!(c, i)
     end
-    bind(c, task)
+    task_trange = @async for i ∈ 1:n
+        put!(c, i+1)
+    end
+    bind(c, task_trange)
+end
+
+function trange_while()
+    c = Channel{Int}(1)
+    i = 0
+    task_trange = @async while i < 2
+        put!(c, i+1)
+        i+=1
+    end
+    bind(c, task_trange)
 end
 
 function run_test()
@@ -24,9 +37,13 @@ function run_test()
     # for i in channel
         
     # end
-    a = trange(1000)
-    print(take!(a))
-    print(take!(a))
+    a = trange(1)
+    println(take!(a))
+    println(take!(a))
+
+    b = trange_while()
+    println(take!(b))
+    println(take!(b))
 end
 
 run_test()

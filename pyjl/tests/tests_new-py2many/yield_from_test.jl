@@ -1,31 +1,28 @@
 function generator1()
-channel_generator1 = Channel(3)
-for i in (0:2)
-put!(channel_generator1, i);
+c_generator1 = Channel(1)
+t_generator1 = @async for i in (0:2)
+put!(c_generator1, i);
 end
-close((channel_generator1))
-return channel_generator1
+bind(c_generator1, t_generator1)
 end
 
 function generator()
-channel_generator = Channel(5)
-for value_generator in generator1()
-put!(channel_generator, value_generator)
+c_generator = Channel(1)
+t_generator = @async for v_generator in generator1()
+put!(c_generator, v_generator)
 end;
-for value_generator in generator2()
-put!(channel_generator, value_generator)
+t_generator = @async for v_generator in generator2()
+put!(c_generator, v_generator)
 end;
-close((channel_generator))
-return channel_generator
+bind(c_generator, t_generator)
 end
 
 function generator2()
-channel_generator2 = Channel(2)
-for j in (3:4)
-put!(channel_generator2, j);
+c_generator2 = Channel(1)
+t_generator2 = @async for j in (3:4)
+put!(c_generator2, j);
 end
-close((channel_generator2))
-return channel_generator2
+bind(c_generator2, t_generator2)
 end
 
 function main()
