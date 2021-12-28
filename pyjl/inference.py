@@ -1,6 +1,6 @@
 import ast
 from ctypes import c_int64
-from typing import Union
+from typing import Any, Dict
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
@@ -27,8 +27,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
-        self._variable_types = {}
         self._clike = CLikeTranspiler()
+        self._stack_var_map = {}
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -57,6 +57,20 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ######################################################
     ###################### Modified ######################
     ######################################################
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        curr_state = dict(self._stack_var_map)
+
+        for n in node.body:
+            self.visit(n)
+
+        # Assign variables to field in function node
+        node.var_assignments = self._stack_var_map
+        
+        # Returns to state before visiting the function body
+        # This accounts for nested functions
+        self._stack_var_map = curr_state
+        return node
 
     def visit_Return(self, node: ast.Return):
         self.generic_visit(node)
@@ -111,8 +125,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
 
-        # annotation = getattr(node.value, "annotation", None) # why was it node.value?
-        # TODO: Investigate this better
         ann = getattr(node.value, "annotation", None)
         annotation = ann if ann else getattr(node, "annotation", None)
         node.annotation = annotation
@@ -269,23 +281,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             left_default = defaults[0]
             right_default = defaults[1]
 
-            # Basic solution: Finds closest scope for assignment variable 
-            # TODO: Further optimization needed when developing type inference
-            right_scope_name = find_node_matching_name_and_type(get_id(node.right), 
-                (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[1]
-            left_scope_name = find_node_matching_name_and_type(get_id(node.left), 
-                (ast.Assign, ast.AnnAssign, ast.AugAssign) , node.scopes)[1]
-
-            key_right = (get_id(node.right), right_scope_name)
-            key_left = (get_id(node.left), left_scope_name)
-
             # Assign left and right annotations
-            node.left.julia_annotation = (self._variable_types[key_left] 
-                if key_left in self._variable_types 
+            node.left.julia_annotation = (self._stack_var_map[get_id(node.left)] 
+                if get_id(node.left) in self._stack_var_map
                 else self._clike._map_type(left_default)
             )
-            node.right.julia_annotation = (self._variable_types[key_right] 
-                if key_right in self._variable_types 
+            node.right.julia_annotation = (self._stack_var_map[get_id(node.right)] 
+                if get_id(node.right) in self._stack_var_map
                 else self._clike._map_type(right_default)
             )
 
@@ -295,14 +297,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if julia_annotation == None 
             else julia_annotation
         )
-        self._add_julia_variable_type(node, target, type)
-
-    def _add_julia_variable_type(self, node, target, annotation):
-        # if target (a.k.a node name) is not mapped, map it with corresponding value type
-        scope = find_closest_scope_name(node.scopes)
-        target_id = get_id(target)
-        key = (target_id, scope)
-        if(key in self._variable_types and self._variable_types[key] != annotation):
-            raise AstIncompatibleAssign(f"{annotation} incompatible with {self._variable_types[key]}", node)
-        self._variable_types[key] = self._clike._map_type(annotation)
+        var_name = get_id(target)
+        if(var_name in self._stack_var_map and self._stack_var_map[var_name] != type):
+            raise AstIncompatibleAssign(f"{type} incompatible with {self._stack_var_map[var_name]}", node)
+        self._stack_var_map[var_name] = type
 
