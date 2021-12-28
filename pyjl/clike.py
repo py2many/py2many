@@ -3,7 +3,7 @@ from ctypes import c_int64
 from pathlib import Path
 from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import Any, Dict, List, OrderedDict, Tuple, Union
+from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 from dataclasses import dataclass
@@ -223,6 +223,47 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             # self._import_aliases[asname] = name # Added
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
+
+    # TODO
+    ################################################
+    ######### For Type Inference Mechanism #########
+    ################################################
+    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        if fname in self._dispatch_map:
+            try:
+                return self._dispatch_map[fname](self, node, vargs)
+            except IndexError:
+                return None
+            
+
+        if fname in self._small_dispatch_map:
+            if fname in self._small_usings_map:
+                self._usings.add(self._small_usings_map[fname])
+            try:
+                return self._small_dispatch_map[fname](node, vargs)
+            except IndexError:
+                return None
+
+        func = self._func_for_lookup(fname)
+        if func is not None and func in self._func_dispatch_table:
+            if func in self._func_usings_map:
+                self._usings.add(self._func_usings_map[func])
+            ret, node.result_type = self._func_dispatch_table[func]
+            try:
+                return ret(self, node, vargs)
+            except IndexError:
+                return None
+
+        # string based fallback (TODO: account for JuliaMethodCallRewriter)
+        fname_stem, fname_leaf = self._func_name_split(fname)
+        if fname_leaf in self._func_dispatch_table:
+            ret, node.result_type = self._func_dispatch_table[fname_leaf]
+            try:
+                return fname_stem + ret(self, node, vargs)
+            except IndexError:
+                return None
+        return None
+
 
     # TODO
     ################################################

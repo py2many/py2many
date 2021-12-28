@@ -1,8 +1,10 @@
 import io
+import itertools
 import os
 import ast
 import re
-import sys
+import sys 
+# from sys import stdout
 
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
@@ -302,8 +304,6 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
-    True: lambda self, node, vargs: f"true",
-    False: lambda self, node, vargs: f"false"
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
@@ -319,7 +319,7 @@ DECORATOR_DISPATCH_TABLE = {
 }
 
 CLASS_DISPATCH_TABLE = {
-    "bytearray": (lambda self, node, vargs: f"Vector{{Int8}}()", True)
+    "bytearray": (lambda self, node, vargs: f"Vector{{Int8}}()", True),
     # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
 }
 
@@ -338,7 +338,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
-    # Array Support
+    # Array Support (Change later when doing type inference mechanism)
     "append": (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     "clear": (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     "remove": (lambda self, node, vargs: f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
@@ -354,5 +354,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
-    bytearray: (lambda self, node, vargs: f"Vector{{Int8}}()", True),
+    # bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" if len(vargs) == 0 else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
+    bytearray: (lambda self, node, vargs: f"{vargs[0]}", True),
+    itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
+    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True), # Not working
+    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True), # For later
 }

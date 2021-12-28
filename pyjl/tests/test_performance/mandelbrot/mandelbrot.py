@@ -57,18 +57,24 @@ def compute_rows(n, f):
     if cpu_count() < 2:
         yield from map(f, row_jobs)
     else:
-        from multiprocessing import Pool
-        with Pool() as pool:
-            unordered_rows = pool.imap_unordered(f, row_jobs)
-            yield from ordered_rows(unordered_rows, n)
+        # from multiprocessing import Pool
+        # with Pool() as pool:
+        #     unordered_rows = pool.imap_unordered(f, row_jobs)
+        #     yield from ordered_rows(row_jobs, n)
+        yield from ordered_rows(map(f, row_jobs), n)
 
 def mandelbrot(n):
-    write = stdout.buffer.write
-
-    with closing(compute_rows(n, compute_row)) as rows:
-        write("P4\n{0} {0}\n".format(n).encode())
-        for row in rows:
-            write(row[1])
+    # write = stdout.buffer.write
+    # with closing(compute_rows(n, compute_row)) as rows:
+    #     write("P4\n{0} {0}\n".format(n).encode())
+    #     for row in rows:
+    #         write(row[1])
+    
+    # Simple replacement
+    rows = compute_rows(n, compute_row)
+    print("P4\n{0} {0}\n".format(n).encode())
+    for row in rows:
+        print(row[1])
 
 if __name__ == '__main__':
     num: int = 16000

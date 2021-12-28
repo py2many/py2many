@@ -43,7 +43,8 @@ def show_res():
 """
 
 code4 = """
-[b'>ONE Homo sapiens alu\\n', alu, n * 2, width]
+write = stdout.buffer.write
+write("P4")
 
 """
 

@@ -170,6 +170,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
+        # TODO: is this necessary?
         # if left_id == "int":
         #     left_id = "c_int32"
         # if right_id == "int":
@@ -215,10 +216,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id="complex")
                 return node
             if isinstance(node.op, ast.Mult):
-                # print(ast.dump(node))
-                # print("left: " + left_id)
-                # print("right: " + right_id)
-                # print("Cond: " + str(left_id == "int" and right_id == "str"))
                 if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Num)) or 
                         (isinstance(node.right, ast.List) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="List")
@@ -226,7 +223,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         (isinstance(node.right, ast.Str) and isinstance(node.left, ast.Num))
                         or (left_id == "str" and right_id == "int") or (left_id == "int" and right_id == "str")):
                     node.annotation = ast.Name(id="str")
-                    # print(ast.dump(node.annotation))
                 if ((isinstance(node.left, ast.BoolOp) and isinstance(node.right, ast.Num)) or
                         (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="int")
@@ -240,10 +236,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         # By default (if no translation possible), the types are left_id and right_id respectively
         self._add_julia_annotation(node, left_id, right_id)
-
-        # DEBUG
-        # print(node.left.julia_annotation)
-        # print(node.right.julia_annotation)
 
         ILLEGAL_COMBINATIONS = {}
 
@@ -277,28 +269,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             left_default = defaults[0]
             right_default = defaults[1]
 
-            # DEBUG
-            # print(self._clike._map_type(left_default))
-            # print(self._clike._map_type(right_default))
-            
-            # DEBUG
-            # print(ast.dump(node))
-            # if(get_id(node.right)) is not None:
-            #     print("ID_RIGHT: " + get_id(node.right))
-            # if(get_id(node.left)) is not None:
-            #     print("ID_LEFT: " + get_id(node.left) + "\n")
-
             # Basic solution: Finds closest scope for assignment variable 
             # TODO: Further optimization needed when developing type inference
             right_scope_name = find_node_matching_name_and_type(get_id(node.right), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[1]
             left_scope_name = find_node_matching_name_and_type(get_id(node.left), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign) , node.scopes)[1]
-
-            # DEBUG
-            # print("\nRIGHT_SCOPE_NAME: " + (right_scope_name if right_scope_name is not None else "NONE"))
-            # print("LEFT_SCOPE_NAME: " + (left_scope_name if left_scope_name is not None else "NONE"))
-            # print("-------FIN-------\n")
 
             key_right = (get_id(node.right), right_scope_name)
             key_left = (get_id(node.left), left_scope_name)
