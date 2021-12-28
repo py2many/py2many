@@ -11,10 +11,7 @@ a = Colors.GREEN
 if a == Colors.GREEN
 println("green");
 else
-
 println("Not green");
-
-
 end
 println(length(color_map));
 end

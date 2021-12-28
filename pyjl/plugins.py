@@ -209,7 +209,7 @@ class JuliaTranspilerPlugins:
             res = re.split(r"\s\%\s", args) 
             args = ", ".join(res)
             self._usings.add("Printf")
-            return f"@printf{args}"
+            return f"@printf({args})"
         return f"println({args})"
 
     def visit_cast_int(self, node, vargs) -> str:

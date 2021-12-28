@@ -16,19 +16,13 @@ a = Colors.GREEN
 if a == Colors.GREEN
 println("green");
 else
-
 println("Not green");
-
-
 end
 b = Permissions.R
 if b == Permissions.R
 println("R");
 else
-
 println("Not R");
-
-
 end
 @assert(length(color_map) != 0)
 end

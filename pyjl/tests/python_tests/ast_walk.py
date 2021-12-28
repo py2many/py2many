@@ -43,7 +43,7 @@ def show_res():
 """
 
 code4 = """
-isinstance(values, bytearray)
+lookup_and_write_without_else([]) == nothing
 
 """
 

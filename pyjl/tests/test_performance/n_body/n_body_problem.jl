@@ -1,8 +1,8 @@
 using Printf
 function combinations(l)::Vector
 result = []
-for x in (0:(length(l) - 1) - 1)
-ls = l[((x + 1) + 1):end]
+for x in (0:length(l) - 1 - 1)
+ls = l[(x + 1 + 1):end]
 for y in ls
 push!(result, (l[x + 1], y));
 end
@@ -19,9 +19,9 @@ PAIRS = combinations(SYSTEM)
 function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
 for i in (0:n - 1)
 for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
-dx = (x1 - x2)
-dy = (y1 - y2)
-dz = (z1 - z2)
+dx = x1 - x2
+dy = y1 - y2
+dz = z1 - z2
 mag = dt*((dx*dx + dy*dy) + dz*dz)^-1.5
 b1m = m1*mag
 b2m = m2*mag
@@ -42,13 +42,13 @@ end
 
 function report_energy(bodies = SYSTEM, pairs = PAIRS, e = 0.0)
 for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
-dx = (x1 - x2)
-dy = (y1 - y2)
-dz = (z1 - z2)
-e -= (m1*m2/((dx*dx + dy*dy) + dz*dz)^0.5)
+dx = x1 - x2
+dy = y1 - y2
+dz = z1 - z2
+e -= m1*m2 / ((dx*dx + dy*dy) + dz*dz)^0.5
 end
 for (r, (vx, vy, vz), m) in bodies
-e += (m*((vx*vx + vy*vy) + vz*vz)/2.0)
+e += m*((vx*vx + vy*vy) + vz*vz) / 2.0
 end
 @printf("%.9f", e);
 end
@@ -60,9 +60,9 @@ py -= vy*m
 pz -= vz*m
 end
 r, v, m = ref
-v[1] = (px/m)
-v[2] = (py/m)
-v[3] = (pz/m)
+v[1] = px / m
+v[2] = py / m
+v[3] = pz / m
 end
 
 function main_func(n, ref = "sun")

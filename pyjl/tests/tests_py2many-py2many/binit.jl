@@ -7,10 +7,7 @@ middle = Int64(floor((low + high) / 2))
 if item < data[middle + 1]
 high = middle
 else
-
 low = middle + 1
-
-
 end
 end
 return low

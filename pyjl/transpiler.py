@@ -23,7 +23,7 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
-from py2many.analysis import get_id, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, get_class_scope, is_class_type, is_list, is_enum
@@ -517,7 +517,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 
     def visit_Compare(self, node) -> str:
-        # print(ast.dump(node, indent=4))
         left = self.visit(node.left)
         comparators = node.comparators
         ops = node.ops
@@ -541,6 +540,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 op_str = "in"
             elif isinstance(op, ast.NotIn):
                 op_str = "not in"
+            elif (isinstance(op, ast.Eq) 
+                    and (is_mutable(node.scopes, comp_str) or comp_str == "nothing")):
+                op_str = "==="
 
             # Isolate composite operations
             if isinstance(comparator, ast.BinOp) or isinstance(comparator, ast.BoolOp):
@@ -801,14 +803,15 @@ class JuliaTranspiler(CLikeTranspiler):
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
-            if value_type is not None and value_type[0] == "List" and "end" != index[-3:]:
+            if (value_type is not None and value_type[0] == "List" 
+                    and not isinstance(node.slice, ast.Slice)):
                 # Julia array indices start at 1
                 return f"{value}[{index} + 1]"
 
         # Increment index's that use for loop variables  
         split_index = set(filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
         intsct = split_index.intersection(self._scope_stack["loop"])
-        if intsct and "end" != index[-3:]:
+        if intsct and not isinstance(node.slice, ast.Slice):
             return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
@@ -825,9 +828,12 @@ class JuliaTranspiler(CLikeTranspiler):
             upper = self.visit(node.upper)
 
         # Julia array indices start at 1
-        if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
-            lower = (lower + 1) if lower != -1 else "end" 
-        else:
+        if lower == -1 or lower.startswith("-"):
+            lower = "end"
+            return f"{lower}:{lower}"
+        elif isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
+            lower = f"{(int(lower) + 1)}"
+        elif lower != "begin":
             lower = f"({lower} + 1)"
 
         return f"{lower}:{upper}"

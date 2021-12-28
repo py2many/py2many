@@ -56,21 +56,13 @@ println(length(a7));
 a8 = true
 if a8
 println("true");
-else
-
-if a4 > 0
+elseif a4 > 0
 println("never get here");
-end
-
-
 end
 if a1 == 11
 println("false");
 else
-
 println("true");
-
-
 end
 if 1 != nothing
 println("World is sane");

@@ -1,24 +1,45 @@
-function something()
-println("Something");
+function something()::String
+return "test"
 end
 
-function lookup_and_write(values, start, stop)
-if isa(values, bytearray)
-output = values
-elseif 1 == 2
-println("Never reach");
-elseif 2 == 1
-println("Never reach");
-elseif 3 == 1
-println("Never reach");
+function lookup_and_write(values)
+output = nothing
+if length(values) == 1
+output = values[1]
+elseif length(values) == 2
+output = values[2]
+elseif length(values) == 3
+output = values[3]
 else
-output = Vector{Int8}()
-output[(begin + 1):stop - start] = something()
+output = values
 end
+return output
+end
+
+function lookup_and_write_without_else(values)
+output = nothing
+if length(values) == 1
+output = values[1]
+elseif length(values) == 2
+output = values[2]
+elseif length(values) == 3
+output = values[3]
+end
+return output
 end
 
 function main()
-lookup_and_write([1, 2], 0, 1);
+@assert(lookup_and_write([]) == [])
+@assert(lookup_and_write([1]) == 1)
+@assert(lookup_and_write([1, 2]) == 2)
+@assert(lookup_and_write([1, 2, 3]) == 3)
+@assert(lookup_and_write([1, 2, 3, 4]) == [1, 2, 3, 4])
+@assert(lookup_and_write_without_else([]) === nothing)
+@assert(lookup_and_write_without_else([1]) == 1)
+@assert(lookup_and_write_without_else([1, 2]) == 2)
+@assert(lookup_and_write_without_else([1, 2, 3]) == 3)
+@assert(lookup_and_write_without_else([1, 2, 3, 4]) === nothing)
+println("OK");
 end
 
 main()
