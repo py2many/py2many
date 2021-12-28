@@ -43,7 +43,8 @@ def show_res():
 """
 
 code4 = """
-lookup_and_write_without_else([]) == nothing
+keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
+           'unsafe_hash': False, 'frozen': False, 'create_jl_annotation': True}
 
 """
 

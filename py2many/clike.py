@@ -648,6 +648,7 @@ class CLikeTranspiler(ast.NodeVisitor):
                 return self._dispatch_map[fname](self, node, vargs)
             except IndexError:
                 return None
+            
 
         if fname in self._small_dispatch_map:
             if fname in self._small_usings_map:

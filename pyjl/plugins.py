@@ -33,6 +33,7 @@ class JuliaTranspilerPlugins:
                 if x.arg in keywords:
                     keywords[x.arg] = x.value.value
 
+        key_map = {False: "false", True: "true"}
         for kw in keywords:
             arg = kw
             value = keywords[arg]
@@ -40,7 +41,7 @@ class JuliaTranspilerPlugins:
                 return None
             if arg != "create_jl_annotation":
                 fields[arg] = value
-                field_repr.append(f"_{arg}={JULIA_KEYWORD_MAP[value]}")
+                field_repr.append(f"_{arg}={key_map[value]}")
 
         fields_str, annotation, body, modifiers = "", "", "", ""
         # if it defines init it needs to be mutable
@@ -225,11 +226,6 @@ class JuliaTranspilerPlugins:
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
 
-JULIA_KEYWORD_MAP = {
-    True: "true",
-    False: "false",
-}
-
 JULIA_TYPE_MAP = {
     bool: "Bool",
     int: "Int64",
@@ -281,6 +277,7 @@ CONTAINER_TYPE_MAP = {
     "Dict": "Dict",
     "Set": "Set",
     "Optional": "Nothing",
+    "bytearray": f"Vector{{Int8}}"
 }
 
 # Set during AST parsing. It maps function names to their respective decorators
@@ -306,6 +303,8 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
+    True: lambda self, node, vargs: f"true",
+    False: lambda self, node, vargs: f"false"
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
@@ -320,6 +319,7 @@ DECORATOR_DISPATCH_TABLE = {
 }
 
 CLASS_DISPATCH_TABLE = {
+    "bytearray": (lambda self, node, vargs: f"Vector{{Int8}}()", True)
     # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
 }
 

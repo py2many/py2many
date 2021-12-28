@@ -1,7 +1,6 @@
 import ast
 from build.lib.py2many.exceptions import AstTypeNotSupported
 from py2many.input_configuration import ParseFileStructure
-from pathlib import Path
 
 import textwrap
 import re

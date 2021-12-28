@@ -1,6 +1,6 @@
 function main()
 values = Vector{Int8}()
-@assert(isa(values, bytearray) == true)
+@assert(isa(values, Vector{Int8}) == true)
 end
 
 main()
