@@ -300,6 +300,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return "false"
         elif node.value is None:
             return "nothing"
+        elif isinstance(node.value, str):
+            return self.visit_Str(node)
+        elif isinstance(node.value, bytes):
+            return self.visit_Bytes(node)
         elif isinstance(node.value, complex):
             str_value = str(node.value)
             return (
@@ -506,13 +510,17 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
+        node_str = node.value
+        # Allow quote translation
+        node_str = node_str.replace('"', '\\"')
         # Allow line break translation
-        node.value = node.value.replace("\n", "\\n")
-        return "" + super().visit_Str(node) + ""
+        node_str = node_str.replace("\n", f"\\n")
+        return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
         bytes_str = node.s
         bytes_str = bytes_str.replace(b'"', b'\\"')
+        bytes_str = bytes_str.replace(b'\n', b'\\n')
         return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 
     def visit_Compare(self, node) -> str:
@@ -1020,3 +1028,5 @@ class JuliaTranspiler(CLikeTranspiler):
             gen_exp += filter_str 
 
         return gen_exp
+
+

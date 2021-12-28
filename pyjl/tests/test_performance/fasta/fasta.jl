@@ -1,4 +1,4 @@
-using bisect: bisect
+using BisectPy: bisect
 using contextlib: closing, contextmanager
 using itertools: accumulate, chain, islice, zip_longest
 using multiprocessing: Lock, RawValue, Process
@@ -37,9 +37,9 @@ i = 0
 blocks = ((n - width) / width) / lines_per_block
 if blocks
 for _ in (0:blocks - 1)
-output = bytearray()
+output = Vector{Int8}()
 for i in (i:width:i + width*lines_per_block - 1)
-output += sequence[(i + 1):i + width + 1] + newline
+output += sequence[(i + 1):i + width] + newline
 end
 if table
 write(translate(output, table));
@@ -48,13 +48,13 @@ write(output);
 end
 end
 end
-output = bytearray()
+output = Vector{Int8}()
 if i < (n - width)
 for i in (i:width:n - width - 1)
-output += sequence[(i + 1):i + width + 1] + newline
+output += sequence[(i + 1):i + width] + newline
 end
 end
-output += sequence[(i + 1):n + 1] + newline
+output += sequence[(i + 1):n] + newline
 if table
 write(translate(output, table));
 else
@@ -65,12 +65,12 @@ end
 
 function cumulative_probabilities(alphabet, factor = 1.0)
 probabilities = tuple(accumulate((p*factor for (_, p) in alphabet)))
-table = maketrans(bytearray, bytes(chain((0:length(alphabet) - 1), [255])), bytes(chain((ord(c) for (c, _) in alphabet), [10])))
+table = maketrans(Vector{Int8}, bytes(chain((0:length(alphabet) - 1), [255])), bytes(chain((ord(c) for (c, _) in alphabet), [10])))
 return (probabilities, table)
 end
 
 function copy_from_sequence(header, sequence, n, width, locks)
-sequence = bytearray(sequence, "utf8")
+sequence = Vector{Int8}(sequence, "utf8")
 while length(sequence) < n
 sequence = append!(sequence, sequence);
 end
@@ -133,11 +133,11 @@ return channel_lcg_lookup_fast
 end
 
 function lookup_and_write(header, probabilities, table, values, start, stop, width, locks)
-if isa(values, bytearray)
+if isa(values, Vector{Int8})
 output = values
 else
-output = bytearray()
-output[(begin + 1):stop - start] = lookup(probabilities, values)
+output = Vector{Int8}()
+output[begin:stop - start] = lookup(probabilities, values)
 end
 if true
 __tmp2 = lock_pair()
@@ -156,7 +156,7 @@ probabilities, table = cumulative_probabilities(alphabet, im)
 if !(locks)
 if true
 prng = closing(lcg_lookup_fast(probabilities, seed, im, ia, ic))
-output = bytearray(islice(prng, n))
+output = Vector{Int8}(islice(prng, n))
 end
 lookup_and_write(header, probabilities, table, output, 0, n, width);
 else
@@ -189,10 +189,7 @@ iub = collect(zip_longest("acgtBDHKMNRSVWY", (0.27, 0.12, 0.12, 0.27), 0.02))
 homosapiens = collect(zip("acgt", (0.302954942668, 0.1979883004921, 0.1975473066391, 0.3015094502008)))
 seed = RawValue("f", 42)
 width = 60
-tasks = [(copy_from_sequence, [b">ONE Homo sapiens alu
-", alu, n*2, width]), (random_selection, [b">TWO IUB ambiguity codes
-", iub, n*3, width, seed]), (random_selection, [b">THREE Homo sapiens frequency
-", homosapiens, n*5, width, seed])]
+tasks = [(copy_from_sequence, [b">ONE Homo sapiens alu\n", alu, n*2, width]), (random_selection, [b">TWO IUB ambiguity codes\n", iub, n*3, width, seed]), (random_selection, [b">THREE Homo sapiens frequency\n", homosapiens, n*5, width, seed])]
 if cpu_count() < 2
 for (func, args) in tasks
 func(args...);

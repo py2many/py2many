@@ -43,8 +43,7 @@ def show_res():
 """
 
 code4 = """
-keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
-           'unsafe_hash': False, 'frozen': False, 'create_jl_annotation': True}
+[b'>ONE Homo sapiens alu\\n', alu, n * 2, width]
 
 """
 
