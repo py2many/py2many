@@ -98,26 +98,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return node.id + "_"
         elif get_id(node) in CONTAINER_TYPE_MAP:
             return CONTAINER_TYPE_MAP[get_id(node)]
-        # julia_typename = self.visit_alias_import_typename(node_id)
-        # if(julia_typename != None):
-        #     return julia_typename
         return super().visit_Name(node)
-
-    # Custom made function to visit type names originated from imports
-    # def visit_alias_import_typename(self, typename) -> str:
-    #     if typename in self._import_aliases:
-    #         return self._import_aliases[typename]
-    #     typename_elems = typename.split(".")
-    #     first_elem = typename_elems[0]
-    #     if(first_elem in self._import_aliases):
-    #         if(len(typename_elems) == 1):
-    #             return self._import_aliases[first_elem]
-
-    #         node_elems = ""
-    #         for i in range(1, len(typename_elems)):
-    #             node_elems += "." + typename_elems[i]
-    #         return f"{self._import_aliases[first_elem]}{node_elems}"
-    #     return None
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Mult):
@@ -125,18 +106,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return "{0}^{1}".format(self.visit(node.left), self.visit(node.right))
 
-        # Multiplication and division binds tighter (has higher precedence) than addition and subtraction.
-        # To visually communicate this we omit spaces when multiplying and dividing.
-        # if isinstance(node.op, (ast.Mult, ast.Div)):
-        #     return f"({self.visit(node.left)}{self.visit(node.op)}{self.visit(node.right)})"
-        # else:
-        #     return f"({self.visit(node.left)} {self.visit(node.op)} {self.visit(node.right)})"
-
-        # Improves code readability
         bin_op = f"{self.visit(node.left)} {self.visit(node.op)} {self.visit(node.right)}"
         is_nested = getattr(node, "isnested", None)
         return bin_op if not is_nested else f"({bin_op})"
-
 
     def visit_In(self, node) -> str:
         left = self.visit(node.left)
@@ -146,16 +118,12 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
-    # From py2many.clike
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if hasattr(node, attr):
             type_node = getattr(node, attr)
             typename = self._typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
-                # DEBUG
-                # print(ast.dump(type_node))
-                # print(type_node.container_type)
                 node.container_type = type_node.container_type
                 try:
                     return self._visit_container_type(type_node.container_type)
@@ -163,8 +131,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     raise AstTypeNotSupported(str(e), node)
             if not self.not_inferable(node, type_node) and typename is None:
                 raise AstCouldNotInfer(type_node, node)
-        # DEBUG
-        # print(typename)
         return typename
 
     def not_inferable(self, node, type_node):
