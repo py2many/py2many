@@ -10,12 +10,23 @@ function test_channel()
     return channel
 end
 
+function trange(n::Int)
+    c = Channel{Int}(1)
+    task = @async for i ∈ 1:n
+      put!(c, i)
+    end
+    bind(c, task)
+end
+
 function run_test()
     channel = test_channel()
     take!(channel)
     # for i in channel
         
     # end
+    a = trange(1000)
+    print(take!(a))
+    print(take!(a))
 end
 
 run_test()

@@ -96,8 +96,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return node.id + "_"
-        elif get_id(node) in CONTAINER_TYPE_MAP:
-            return CONTAINER_TYPE_MAP[get_id(node)]
+        # elif get_id(node) in CONTAINER_TYPE_MAP:
+        #     return CONTAINER_TYPE_MAP[get_id(node)]
         return super().visit_Name(node)
 
     def visit_BinOp(self, node) -> str:
@@ -229,40 +229,25 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     ######### For Type Inference Mechanism #########
     ################################################
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        if fname in self._dispatch_map:
-            try:
-                return self._dispatch_map[fname](self, node, vargs)
-            except IndexError:
-                return None
-            
+        # Account for JuliaMethodCallRewriter 
+        if isinstance(node, ast.Call) and len(node.args) > 0:
+            var = get_id(node.args[0])
+            # Find either function or module
+            func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+            if not func_node:
+                return super()._dispatch(node, fname, vargs)
+            var_map = func_node.var_map
+            annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
+            if annotation:
+                try:
+                    py_type = eval(f"{annotation}.{fname}")
+                    ret, node.result_type = (self._func_dispatch_table[py_type] 
+                        if py_type in self._func_dispatch_table else None)
+                    return ret(self, node, vargs)
+                except (IndexError, Exception):
+                    return super()._dispatch(node, fname, vargs)
 
-        if fname in self._small_dispatch_map:
-            if fname in self._small_usings_map:
-                self._usings.add(self._small_usings_map[fname])
-            try:
-                return self._small_dispatch_map[fname](node, vargs)
-            except IndexError:
-                return None
-
-        func = self._func_for_lookup(fname)
-        if func is not None and func in self._func_dispatch_table:
-            if func in self._func_usings_map:
-                self._usings.add(self._func_usings_map[func])
-            ret, node.result_type = self._func_dispatch_table[func]
-            try:
-                return ret(self, node, vargs)
-            except IndexError:
-                return None
-
-        # string based fallback (TODO: account for JuliaMethodCallRewriter)
-        fname_stem, fname_leaf = self._func_name_split(fname)
-        if fname_leaf in self._func_dispatch_table:
-            ret, node.result_type = self._func_dispatch_table[fname_leaf]
-            try:
-                return fname_stem + ret(self, node, vargs)
-            except IndexError:
-                return None
-        return None
+        return super()._dispatch(node, fname, vargs)
 
 
     # TODO

@@ -1,11 +1,11 @@
-using contextlib: closing
-using itertools: islice
+using Continuables
+# using contextlib: closing
+# using itertools: islice
 
 
-function pixels(y, n, abs)
-channel_pixels = Channel(1)
-range7 = Vector{Int8}((0:6))
-pixel_bits = Vector{Int8}((128 >> pos for pos in (0:7)))
+@cont function pixels(y, n, abs)
+range7 = Vector{UInt8}(join((0:6), ""))
+pixel_bits = Vector{UInt8}(join((128 >> pos for pos in (0:7)), ""))
 c1 = 2.0 / float(n)
 c0 = (-1.5 + 1im*y*c1) - 1im
 x = 0
@@ -24,16 +24,14 @@ end
 end
 c += c1
 end
-put!(channel_pixels, pixel);
+cont(pixel);
 x += 8
 end
-close((channel_pixels))
-return channel_pixels
 end
 
 function compute_row(p)
 y, n = p
-result = Vector{Int8}(split(pixels(y, n, abs))[(n + 7) / 8])
+result = Vector{UInt8}(join(split(pixels(y, n, abs))[(n + 7) / 8], ""))
 result[end] &= 255 << (8 - (n % 8))
 return (y, result)
 end

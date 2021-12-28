@@ -201,7 +201,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
             decorators = func_node["decorator_list"]
 
         if "use_continuables" in decorators:
-            node = ast.Call(func = ast.Name(id = "cont"), args = [ast.Name(id = f"{self.visit(node.value)}")], 
+            node = ast.Call(func = ast.Name(id = "cont"), args = [self.visit(node.value)], 
                 keywords = [], lineno=node.lineno, col_offset = node.col_offset)
         else:
             if node.value:

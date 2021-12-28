@@ -1,11 +1,12 @@
 import ast
 from ctypes import c_int64
 from typing import Any, Dict
+import inspect
 
-from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
+from py2many.inference import InferTypesTransformer, get_inferred_type, infer_types, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name, find_node_matching_type
+from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name, find_node_matching_type, is_class_type
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
@@ -65,12 +66,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             self.visit(n)
 
         # Assign variables to field in function node
-        node.var_assignments = self._stack_var_map
+        node.var_map = self._stack_var_map
         
         # Returns to state before visiting the function body
         # This accounts for nested functions
         self._stack_var_map = curr_state
-        return node
+        return node        
 
     def visit_Return(self, node: ast.Return):
         self.generic_visit(node)
@@ -102,10 +103,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         self.visit(node.value)
 
-        # TODO: Investigate this better
         ann = getattr(node.value, "annotation", None)
         annotation = ann if ann else getattr(node, "annotation", None)
         if annotation is None:
+            # Attempt to get type
+            if isinstance(node.value, ast.Call):
+                node_id = get_id(node.value.func)
+                try:
+                    id_type = eval(node_id, None) if id else None
+                    if id_type is not Any and id_type is not None and inspect.isclass(id_type):
+                        self._add_annotation(node, ast.Name(id=node_id), node.targets[0])
+                except Exception:
+                    return node
             return node
 
         for target in node.targets:
@@ -116,9 +125,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if not target_has_annotation or inferred:
-                self._add_julia_type(node, annotation, target)
-                target.annotation = annotation
-                target.annotation.inferred = True
+                self._add_annotation(node, annotation, target)
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
 
@@ -134,7 +141,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         target_typename = self._clike._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
-        # annotation = self._get_inferred_julia_type(self._clike._map_type(get_id(node.annotation))) # Does not appear to work
         self._add_julia_type(node, annotation, target)
 
         value_typename = self._clike._generic_typename_from_type_node(annotation)
@@ -282,23 +288,28 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             right_default = defaults[1]
 
             # Assign left and right annotations
-            node.left.julia_annotation = (self._stack_var_map[get_id(node.left)] 
+            node.left.julia_annotation = (self._stack_var_map[get_id(node.left)][0]
                 if get_id(node.left) in self._stack_var_map
                 else self._clike._map_type(left_default)
             )
-            node.right.julia_annotation = (self._stack_var_map[get_id(node.right)] 
+            node.right.julia_annotation = (self._stack_var_map[get_id(node.right)][0]
                 if get_id(node.right) in self._stack_var_map
                 else self._clike._map_type(right_default)
             )
 
     def _add_julia_type(self, node, annotation, target):
         julia_annotation = self._get_inferred_julia_type(node)
-        type = (self._clike._map_type(get_id(annotation)) 
+        julia_type = (self._clike._map_type(get_id(annotation)) 
             if julia_annotation == None 
             else julia_annotation
         )
         var_name = get_id(target)
-        if(var_name in self._stack_var_map and self._stack_var_map[var_name] != type):
-            raise AstIncompatibleAssign(f"{type} incompatible with {self._stack_var_map[var_name]}", node)
-        self._stack_var_map[var_name] = type
+        if(var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
+            raise AstIncompatibleAssign(f"{type} incompatible with {self._stack_var_map[var_name][0]}", node)
+        self._stack_var_map[var_name] = (julia_type, get_id(annotation))
+
+    def _add_annotation(self, node, annotation, target):
+        self._add_julia_type(node, annotation, target)
+        target.annotation = annotation
+        target.annotation.inferred = True
 
