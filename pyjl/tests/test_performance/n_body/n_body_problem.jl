@@ -1,14 +1,28 @@
 using Printf
-function combinations(l)::Vector
-result = []
-for x in (0:length(l) - 1 - 1)
-ls = l[(x + 1 + 1):end]
-for y in ls
-push!(result, (l[x + 1], y));
-end
-end
-return result
-end
+
+function combinations(l)
+    result = []
+    for x in (0:length(l) - 1 - 1)
+        ls = l[(x + 1 + 1):end]
+        for y in ls
+            push!(result, (l[x + 1], y));
+        end
+    end
+    # return [e for e in result]
+    return typeof(result[1])[result...]
+    # return result
+end 
+
+# function combinations(l)::Vector{Tuple{Tuple{Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}, Vector{Float64}, Float64}}}
+#     result = Tuple{Tuple{Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}, Vector{Float64}, Float64}}[]
+#     for x in (0:length(l) - 1 - 1)
+#     ls = l[(x + 1 + 1):end]
+#     for y in ls
+#     push!(result, (l[x + 1], y));
+#     end
+#     end
+#     return result
+# end
 
 PI = 3.141592653589793
 SOLAR_MASS = 4*PI*PI
@@ -17,27 +31,27 @@ BODIES = Dict("sun" => ([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], SOLAR_MASS), "jupiter"
 SYSTEM = collect(values(BODIES))
 PAIRS = combinations(SYSTEM)
 function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
-for i in (0:n - 1)
-for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
-dx = x1 - x2
-dy = y1 - y2
-dz = z1 - z2
-mag = dt*((dx*dx + dy*dy) + dz*dz)^-1.5
-b1m = m1*mag
-b2m = m2*mag
-v1[1] -= dx*b2m
-v1[2] -= dy*b2m
-v1[3] -= dz*b2m
-v2[1] += dx*b1m
-v2[2] += dy*b1m
-v2[3] += dz*b1m
-end
-for (r, (vx, vy, vz), m) in bodies
-r[1] += dt*vx
-r[2] += dt*vy
-r[3] += dt*vz
-end
-end
+    for i in (0:n - 1)
+        for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
+            dx = x1 - x2
+            dy = y1 - y2
+            dz = z1 - z2
+            mag = dt*((dx*dx + dy*dy) + dz*dz)^-1.5
+            b1m = m1*mag
+            b2m = m2*mag
+            v1[1] -= dx*b2m
+            v1[2] -= dy*b2m
+            v1[3] -= dz*b2m
+            v2[1] += dx*b1m
+            v2[2] += dy*b1m
+            v2[3] += dz*b1m
+        end
+        for (r, (vx, vy, vz), m) in bodies
+            r[1] += dt*vx
+            r[2] += dt*vy
+            r[3] += dt*vz
+        end
+    end
 end
 
 function report_energy(bodies = SYSTEM, pairs = PAIRS, e = 0.0)
@@ -54,27 +68,28 @@ end
 end
 
 function offset_momentum(ref, bodies = SYSTEM, px = 0.0, py = 0.0, pz = 0.0)
-for (r, (vx, vy, vz), m) in bodies
-px -= vx*m
-py -= vy*m
-pz -= vz*m
-end
-r, v, m = ref
-v[1] = px / m
-v[2] = py / m
-v[3] = pz / m
+    for (r, (vx, vy, vz), m) in bodies
+    px -= vx*m
+    py -= vy*m
+    pz -= vz*m
+    end
+    r, v, m = ref
+    v[1] = px / m
+    v[2] = py / m
+    v[3] = pz / m
 end
 
 function main_func(n, ref = "sun")
-offset_momentum(BODIES[ref]);
-report_energy();
-advance(0.01, n);
-report_energy();
+    offset_momentum(BODIES[ref]);
+    report_energy();
+    advance(0.01, n);
+    report_energy();
 end
 
 function main()
 test_num::Int64 = 500000
 main_func(Int64(test_num));
+print("\n")
 end
 
-main()
+# main()

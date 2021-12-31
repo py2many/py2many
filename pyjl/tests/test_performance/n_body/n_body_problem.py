@@ -118,5 +118,6 @@ if __name__ == '__main__':
     test_num: int = 500000
     # start = time.perf_counter()
     main(int(test_num))
+    print(len(PAIRS))
     # diff = time.perf_counter() - start
     # print(f"Completed in: {diff}")

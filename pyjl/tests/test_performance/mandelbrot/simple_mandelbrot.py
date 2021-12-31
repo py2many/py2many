@@ -14,3 +14,4 @@ if __name__ == "__main__":
         for b in range(-10, 10, 5):
             c = complex(a / 10, b / 10)
             map.append((c, mandelbrot(c)))
+
