@@ -3,7 +3,7 @@
 from adt import adt as sealed
 from dataclasses import dataclass
 
-
+@jl_dataclass # Remove when testing
 @dataclass
 class IntListNonEmpty:
     first: int

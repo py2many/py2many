@@ -1,3 +1,4 @@
+import argparse
 import io
 import itertools
 import os
@@ -21,42 +22,27 @@ except ImportError:
 
 
 class JuliaTranspilerPlugins:
-    def visit_argparse_dataclass(self, node, decorator):
-        self._usings.add("DataClass")
-        fields = {}
-        keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
-           'unsafe_hash': False, 'frozen': False, 'create_jl_annotation': True}
-        field_repr = []
+    def visit_jl_dataclass(transpiler_mod, node, decorator):
+        transpiler_mod._usings.add("DataClass")
 
-        # Parse received keywords if needed
-        if isinstance(decorator, ast.Call):
-            received_keywords = decorator.keywords
-            for x in received_keywords:
-                if x.arg in keywords:
-                    keywords[x.arg] = x.value.value
-
-        key_map = {False: "false", True: "true"}
-        for kw in keywords:
-            arg = kw
-            value = keywords[arg]
-            if value == None:
-                return None
-            if arg != "create_jl_annotation":
-                fields[arg] = value
-                field_repr.append(f"_{arg}={key_map[value]}")
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
+        fields, field_repr = dataclass_data[0], dataclass_data[1]
 
         fields_str, annotation, body, modifiers = "", "", "", ""
         # if it defines init it needs to be mutable
         if fields["init"]:
             modifiers = "mutable"
-        if keywords['create_jl_annotation']:
-            annotation = "@dataclass "
-            fields_str = "_initvars = [" + ", ".join(field_repr) + "]\n"
-        else:
-            body = JuliaTranspilerPlugins._generate_dataclass_methods(self, node, fields)
+        annotation = "@dataclass "
+        fields_str = "_initvars = [" + ", ".join(field_repr) + "]\n"
         return annotation, fields_str, modifiers, body 
 
-    def _generate_dataclass_methods(self, node, annotation_fields) -> str:
+
+    def visit_py_dataclass(transpiler_mod, node, decorator) -> str:
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
+        [fields, _] = dataclass_data[0], dataclass_data[1]
+
+        fields_str, annotation, body, modifiers = "", "", "", ""
+
         structname = get_id(node)
 
         # Get struct fields
@@ -71,9 +57,9 @@ class JuliaTranspilerPlugins:
         for field_name in struct_fields:
             get_variables.append(f"getfield!(self::{structname}, {field_name})")
         get_variables = ", ".join(get_variables)
-        
-        body = ""
-        if annotation_fields["init"]:
+
+        if fields["init"]:
+            modifiers = "mutable"
             str_struct_fields = ", ".join(struct_fields)
             assign_variables_init = ""
             for field in struct_fields:
@@ -85,17 +71,17 @@ class JuliaTranspilerPlugins:
                     {assign_variables_init}
                 end\n
             """
-        if annotation_fields["repr"]:
+        if fields["repr"]:
             body += f"""function __repr__(self::{structname})::String
                 return {structname}({get_variables})
             end\n"""
-        if annotation_fields["eq"]:
+        if fields["eq"]:
             body += f"""\
                 function __eq__(self::{structname}, other::{structname})::Bool
                     return __key(self) == __key(other)
                 end\n
             """
-        if annotation_fields["order"]:
+        if fields["order"]:
             body += f"""\
                 function __lt__(self::{structname}, other::{structname})::Bool
                     return __key(self) < __key(other)
@@ -110,8 +96,8 @@ class JuliaTranspilerPlugins:
                     return __key(self) >= __key(other)
                 end\n
             """
-        if annotation_fields["unsafe_hash"]:
-            if annotation_fields["_eq"]: # && ismutable
+        if fields["unsafe_hash"]:
+            if fields["_eq"]: # && ismutable
                 body += f"""\
                 function __hash__(self::{structname})
                     return __key(self)
@@ -124,7 +110,31 @@ class JuliaTranspilerPlugins:
                 end\n
                 """
 
-        return body
+        return annotation, fields_str, modifiers, body 
+
+    def _generic_dataclass_visit(decorator):
+        fields = {}
+        field_repr = []
+        keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
+            'unsafe_hash': False, 'frozen': False}
+
+        # Parse received keywords if needed
+        if isinstance(decorator, ast.Call):
+            received_keywords = decorator.keywords
+            for x in received_keywords:
+                if x.arg in keywords:
+                    keywords[x.arg] = x.value.value
+
+        key_map = {False: "false", True: "true"}
+        for kw in keywords:
+            arg = kw
+            value = keywords[arg]
+            if value == None:
+                return None
+            fields[arg] = value
+            field_repr.append(f"_{arg}={key_map[value]}")
+
+        return fields, field_repr
 
 
 
@@ -281,8 +291,6 @@ CONTAINER_TYPE_MAP = {
     "bytearray": f"Vector{{Int8}}"
 }
 
-# Set during AST parsing. It maps function names to their respective decorators
-DECORATOR_MAP = {}
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -314,7 +322,8 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 }
 
 DECORATOR_DISPATCH_TABLE = {
-    "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+    "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
+    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
     "use_continuables": JuliaTranspilerPlugins.visit_continuables_ann
 }
 
@@ -329,12 +338,13 @@ ATTR_DISPATCH_TABLE = {
 
 FuncType = Union[Callable, str]
 
+
 # Functions have string-based fallback
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Uncomment after upstream uploads a new version
     # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
     # HACKs: remove all string based dispatch here, once we replace them with type based
-    "parse_args": (lambda self, node, vargs: "::from_args()", False),
+    argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),

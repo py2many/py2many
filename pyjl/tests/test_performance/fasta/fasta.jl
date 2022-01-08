@@ -19,7 +19,7 @@ return process
 end
 
 function lock_pair(pre_lock, post_lock, locks)
-channel_lock_pair = Channel(1)
+c_lock_pair = Channel(1)
 pre, post = locks ? (locks) : ((pre_lock, post_lock))
 if pre
 acquire(pre);
@@ -28,8 +28,8 @@ end
 if post
 release(post);
 end
-close((channel_lock_pair))
-return channel_lock_pair
+close(c_lock_pair)
+return c_lock_pair
 end
 
 function write_lines(sequence, n, width, lines_per_block = 10000, newline = b'\n', table)
@@ -37,7 +37,7 @@ i = 0
 blocks = ((n - width) / width) / lines_per_block
 if blocks
 for _ in (0:blocks - 1)
-output = Vector{Int8}()
+output = Vector{UInt8}()
 for i in (i:width:i + width*lines_per_block - 1)
 output += sequence[(i + 1):i + width] + newline
 end
@@ -48,7 +48,7 @@ write(output);
 end
 end
 end
-output = Vector{Int8}()
+output = Vector{UInt8}()
 if i < (n - width)
 for i in (i:width:n - width - 1)
 output += sequence[(i + 1):i + width] + newline
@@ -65,14 +65,14 @@ end
 
 function cumulative_probabilities(alphabet, factor = 1.0)
 probabilities = tuple(accumulate((p*factor for (_, p) in alphabet)))
-table = maketrans(Vector{Int8}, bytes(chain((0:length(alphabet) - 1), [255])), bytes(chain((ord(c) for (c, _) in alphabet), [10])))
+table = maketrans(bytearray, bytes(chain((0:length(alphabet) - 1), [255])), bytes(chain((ord(c) for (c, _) in alphabet), [10])))
 return (probabilities, table)
 end
 
 function copy_from_sequence(header, sequence, n, width, locks)
-sequence = Vector{Int8}(sequence, "utf8")
+sequence = Vector{UInt8}(join(sequence, ""))
 while length(sequence) < n
-sequence = append!(sequence, sequence);
+extend(sequence, sequence);
 end
 if true
 __tmp1 = lock_pair()
@@ -82,61 +82,57 @@ end
 end
 
 function lcg(seed, im, ia, ic)
-channel_lcg = Channel(1)
+c_lcg = Channel(1)
 local_seed = seed.value
 try
-while true
+t_lcg = @async while true
 local_seed = (local_seed*ia + ic) % im
-put!(channel_lcg, local_seed);
+put!(c_lcg, local_seed);
 end
 finally
 seed.value = local_seed
 end
-close((channel_lcg))
-return channel_lcg
+bind(c_lcg, t_lcg)
 end
 
 function lookup(probabilities, values)
-channel_lookup = Channel(1)
-for value in values
-put!(channel_lookup, bisect(probabilities, value));
+c_lookup = Channel(1)
+t_lookup = @async for value in values
+put!(c_lookup, bisect(probabilities, value));
 end
-close((channel_lookup))
-return channel_lookup
+bind(c_lookup, t_lookup)
 end
 
 function lcg_lookup_slow(probabilities, seed, im, ia, ic)
-channel_lcg_lookup_slow = Channel(1)
+c_lcg_lookup_slow = Channel(1)
 if true
 prng = closing(lcg(seed, im, ia, ic))
-for value_lcg_lookup_slow in lookup(probabilities, prng)
-put!(channel_lcg_lookup_slow, value_lcg_lookup_slow)
+t_lcg_lookup_slow = @async for v_lcg_lookup_slow in lookup(probabilities, prng)
+put!(c_lcg_lookup_slow, v_lcg_lookup_slow)
 end;
 end
-close((channel_lcg_lookup_slow))
-return channel_lcg_lookup_slow
+bind(c_lcg_lookup_slow, t_lcg_lookup_slow)
 end
 
 function lcg_lookup_fast(probabilities, seed, im, ia, ic)
-channel_lcg_lookup_fast = Channel(1)
+c_lcg_lookup_fast = Channel(1)
 local_seed = seed.value
 try
-while true
+t_lcg_lookup_fast = @async while true
 local_seed = (local_seed*ia + ic) % im
-put!(channel_lcg_lookup_fast, bisect(probabilities, local_seed));
+put!(c_lcg_lookup_fast, bisect(probabilities, local_seed));
 end
 finally
 seed.value = local_seed
 end
-close((channel_lcg_lookup_fast))
-return channel_lcg_lookup_fast
+bind(c_lcg_lookup_fast, t_lcg_lookup_fast)
 end
 
 function lookup_and_write(header, probabilities, table, values, start, stop, width, locks)
-if isa(values, Vector{Int8})
+if isa(values, bytearray)
 output = values
 else
-output = Vector{Int8}()
+output = Vector{UInt8}()
 output[begin:stop - start] = lookup(probabilities, values)
 end
 if true
@@ -156,12 +152,12 @@ probabilities, table = cumulative_probabilities(alphabet, im)
 if !(locks)
 if true
 prng = closing(lcg_lookup_fast(probabilities, seed, im, ia, ic))
-output = Vector{Int8}(islice(prng, n))
+output = Vector{UInt8}(join(split(prng)[n], ""))
 end
 lookup_and_write(header, probabilities, table, output, 0, n, width);
 else
 pre_seed, post_seed, pre_write, post_write = locks
-m = n > (width*15) ? (cpu_count()*3) : (1)
+m = n > (width*15) ? (length(Sys.cpu_info())*3) : (1)
 partitions = [(n / width*m)*width*i for i in (1:m - 1)]
 processes = []
 pre = pre_write
@@ -170,7 +166,7 @@ __tmp3 = lock_pair()
 if true
 prng = closing(lcg(seed, im, ia, ic))
 for (start, stop) in zip([0] + partitions, partitions + [n])
-values = collect(islice(prng, stop - start))
+values = collect(split(prng)[stop - start])
 post = stop < n ? (acquired_lock()) : (post_write)
 push!(processes, started_process(lookup_and_write, (header, probabilities, table, values, start, stop, width, (pre, post))));
 pre = post
@@ -190,7 +186,7 @@ homosapiens = collect(zip("acgt", (0.302954942668, 0.1979883004921, 0.1975473066
 seed = RawValue("f", 42)
 width = 60
 tasks = [(copy_from_sequence, [b">ONE Homo sapiens alu\n", alu, n*2, width]), (random_selection, [b">TWO IUB ambiguity codes\n", iub, n*3, width, seed]), (random_selection, [b">THREE Homo sapiens frequency\n", homosapiens, n*5, width, seed])]
-if cpu_count() < 2
+if length(Sys.cpu_info()) < 2
 for (func, args) in tasks
 func(args...);
 end

@@ -14,7 +14,7 @@ return fib(i - 1) + fib(i - 2)
 end
 
 function main()
-args = ::from_args()
+args = parse_args(Options)
 if args.n == 0
 args.n = 5
 end

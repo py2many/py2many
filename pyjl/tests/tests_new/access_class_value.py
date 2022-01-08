@@ -1,10 +1,12 @@
 # On hold until @sealed is solved
 from dataclasses import dataclass
 
+@jl_dataclass # Remove when testing
 @dataclass
 class Packet:
     val: float
 
+@jl_dataclass # Remove when testing
 @dataclass
 class Register:
     PACKET: Packet

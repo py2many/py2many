@@ -1,5 +1,5 @@
-# using contextlib: closing
-# using itertools: islice
+using contextlib: closing
+using itertools: islice
 
 
 function pixels(y, n, abs)
@@ -74,7 +74,7 @@ end
 
 function mandelbrot(n)
 rows = compute_rows(n, compute_row)
-println("P4\n" * string(n) * " " * string(n) * "\n");
+println(encode("P4\n{0} {0}\n".format(n)));
 for row in rows
 println(row[2]);
 end

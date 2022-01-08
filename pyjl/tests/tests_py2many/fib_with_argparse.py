@@ -2,7 +2,7 @@
 
 from argparse_dataclass import dataclass
 
-
+@jl_dataclass # Remove when testing
 @dataclass
 class Options:
     v: bool = False

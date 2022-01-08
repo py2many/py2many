@@ -185,10 +185,10 @@ def _transpile_one(
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
 
-    if args and args.input_config is not None:
+    # Language specific configuration file rewriters
+    if hasattr(args, "input_config") and args.input_config is not None:
         for conf in config_rewriter:
-            class_config = ParseFileStructure.retrieve_structure(filename, args.input_config)
-            conf(tree, class_config)
+            conf(tree, args.input_config, filename)
 
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)

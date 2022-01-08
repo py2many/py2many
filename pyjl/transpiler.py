@@ -11,7 +11,6 @@ from .plugins import (
     DECORATOR_DISPATCH_TABLE,
     CONTAINER_TYPE_MAP,
     FUNC_DISPATCH_TABLE,
-    DECORATOR_MAP,
     INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
@@ -25,19 +24,19 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, get_class_scope, is_class_type, is_list, is_enum
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 _DEFAULT = "Any"
 
-def julia_decorator_rewriter(tree, input_config):
-    JuliaDecoratorRewriter(input_config).visit(tree)
+def julia_decorator_rewriter(tree, input_config, filename):
+    JuliaDecoratorRewriter(input_config, filename).visit(tree)
 
 def get_decorator_id(decorator):
     id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
     # TODO: Check if this is the correct implementation
     if isinstance(id, list): 
         id = id[0]
-    return id
+    return id if id is not None else decorator
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -76,28 +75,30 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
 
 class JuliaDecoratorRewriter(ast.NodeTransformer):
-    def __init__(self, input_config: Dict) -> None:
+    def __init__(self, input_config: Dict, filename: str) -> None:
         super().__init__()
-        self._input_config_map = input_config
+        self._input_config_map = (ParseFileStructure.retrieve_structure(filename, input_config) 
+            if input_config else None)
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node: ast.FunctionDef):
+        self.generic_visit(node)
         node_name = get_id(node)
         node_scope_name = None
-        if len(node.scopes) > 2:
-            node_class = find_node_matching_type(ast.ClassDef, node.scopes)
-            node_scope_name = get_id(node_class) if node_class else None
-        
-        node_field_map = ParseFileStructure.get_function_attributes(node_name, 
-            node_scope_name, self._input_config_map)
-        
-        if "decorators" in node_field_map:
-            node.decorator_list += node_field_map["decorators"]
-            # Remove duplicates
-            node.decorator_list = list(set(node.decorator_list))
-            # Transform in Name nodes
-            node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
+        if self._input_config_map:
+            if len(node.scopes) > 2:
+                node_class = find_node_matching_type(ast.ClassDef, node.scopes)
+                node_scope_name = get_id(node_class) if node_class else None
+            
+            node_field_map = ParseFileStructure.get_function_attributes(node_name, 
+                node_scope_name, self._input_config_map)
+            
+            if "decorators" in node_field_map:
+                node.decorator_list += node_field_map["decorators"]
+                # Remove duplicates
+                node.decorator_list = list(set(node.decorator_list))
+                # Transform in Name nodes
+                node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        self._populate_decorator_map(node, node_scope_name)
         return node
 
     def visit_ClassDef(self, node):
@@ -112,16 +113,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
                 # Transform in Name nodes
                 node.decorator_list = list(map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
-        self._populate_decorator_map(node, None)
         return node
-
-    # Decorator map is required by some functions to know which annotations are in use
-    def _populate_decorator_map(self, node, node_scope_name) -> None:
-        DECORATOR_MAP[node.name] = []
-        node_dict = {"type": type(node), "decorators": []}
-        for decorator in node.decorator_list:
-            node_dict["decorators"].append(get_decorator_id(decorator))
-        DECORATOR_MAP[(node.name, node_scope_name)] = node_dict
 
 
 class JuliaYieldRewriter(ast.NodeTransformer):
@@ -327,7 +319,7 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_FunctionDef(self, node) -> str:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         # visit function body
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
@@ -335,12 +327,16 @@ class JuliaTranspiler(CLikeTranspiler):
         # Check for function annotations
         annotation = ""
         annotation_body = ""
-        for decorator in node.decorator_list:
+        
+        decorator_list = self._parse_annotations(node.decorator_list)
+
+        for decorator in decorator_list:
             d_id = get_decorator_id(decorator)
             if d_id in DECORATOR_DISPATCH_TABLE:
                 ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
-                    [annotation, annotation_body] = ret[0], ret[1]       
+                    annotation += ret[0]
+                    annotation_body += ret[1]       
 
         # Adding the body of the node
         body += node_body + annotation_body
@@ -500,12 +496,11 @@ class JuliaTranspiler(CLikeTranspiler):
             class_scope = None
             if len(split_func) > 1:
                 class_scope = get_class_scope(split_func[1], node.scopes)
-            key = (func_name, get_id(class_scope))
-            if (key in DECORATOR_MAP
-                    and DECORATOR_MAP[key]["type"] == ast.FunctionDef
-                    and "use_continuables" in DECORATOR_MAP[key]["decorators"]):
-                it = f"collect({it})"
-
+                func = (find_in_body(class_scope.body, (lambda x: isinstance(x, ast.FunctionDef))) 
+                    if class_scope else None)
+                if func is not None and "use_continuables" in func.decorator_list:
+                    it = f"collect({it})"
+                
         # Replace square brackets for normal brackets in lhs
         target = target.replace("[", "(").replace("]", ")")
 
@@ -691,7 +686,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # By default, call super
         return super().visit_BinOp(node)
 
-    def visit_ClassDef(self, node) -> str:
+    def visit_ClassDef(self, node: ast.ClassDef) -> str:
         extractor = DeclarationExtractor(JuliaTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
@@ -702,12 +697,16 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Allow support for decorator chaining
         annotation, annotation_field, annotation_body, annotation_modifiers = "", "", "", ""
-        for decorator in node.decorator_list:
+        decorator_list = self._parse_annotations(node.decorator_list)
+        for decorator in decorator_list:
             d_id = get_decorator_id(decorator)
             if (d_id in DECORATOR_DISPATCH_TABLE 
                     and (dec_ret := DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)) 
                         is not None):
-                annotation, annotation_field, annotation_modifiers, annotation_body = dec_ret
+                annotation += dec_ret[0]
+                annotation_field += dec_ret[1]
+                annotation_modifiers += dec_ret[2]
+                annotation_body += dec_ret[3]
 
         fields = []
         for declaration, typename in declarations.items():
@@ -722,7 +721,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 b.self_type = node.name
                 body.append(b)
         body = "\n".join([self.visit(b) for b in body])
-        annotation_body
+        body += annotation_body
         return f"{annotation}{struct_def}{body}"
  
     def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
@@ -1046,4 +1045,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return gen_exp
 
+    def _parse_annotations(self, node_decorator_list: list):
+        decorator_list_cpy = node_decorator_list.copy()
+        decorator_list = list(map(get_decorator_id, decorator_list_cpy))
 
+        if "dataclass" in decorator_list and "jl_dataclass" in decorator_list:
+            decorator_list_cpy = filter(lambda e: get_decorator_id(e) != "dataclass", decorator_list_cpy)
+
+        return decorator_list_cpy

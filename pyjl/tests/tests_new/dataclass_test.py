@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-import array
 
-# (init=True, repr=True, eq=True, order=True, unsafe_hash=False, frozen=False, create_jl_annotation=False)
-@dataclass(init=True, eq=True, order=True, unsafe_hash=False, frozen=False, create_jl_annotation=True)
+@jl_dataclass # Remove when testing
+@dataclass(init=True, eq=True, order=True, unsafe_hash=False, frozen=False)
 class ValueHolder:
     val: int
     strVal: str
@@ -10,5 +9,5 @@ class ValueHolder:
 if __name__ == "__main__":
     a = ValueHolder(10, "1")
     print(a)
-    ValueHolder.__init__(a, 2, "10")
+    a.__init__(2, "10")
     print(a)

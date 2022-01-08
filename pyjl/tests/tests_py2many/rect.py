@@ -4,7 +4,7 @@
 
 from dataclasses import dataclass
 
-
+@jl_dataclass # Remove when testing
 @dataclass
 class Rectangle:
     """Rectangle as a dataclass"""
