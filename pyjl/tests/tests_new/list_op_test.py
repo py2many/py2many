@@ -1,3 +1,10 @@
+
+def multiply_list(elems):
+    new_elems = []
+    for e in elems:
+        new_elems.append(e*2)
+    return new_elems
+
 if __name__ == "__main__":
     a = list()
 
@@ -36,6 +43,13 @@ if __name__ == "__main__":
     a.extend(b)
     assert a == ["test1", "test"]
     a.clear() # reset list
+
+    # Limitation
+    elems = ["1", "2", "3"]
+    new_elems = multiply_list(elems)
+    assert new_elems == ["11", "22", "33"]
+
+    print("OK")
 
     # Index
     # a.append("test")

@@ -6,9 +6,8 @@
 # modified by Maciej Fijalkowski
 # 2to3
 
-# import sys 
-# import time
-
+import sys 
+from time import perf_counter # Benchmarks
 
 def combinations(l):
     result = []
@@ -108,16 +107,15 @@ def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     v[1] = py / m
     v[2] = pz / m
 
-def main(n, ref="sun"):
+def main(n, ref='sun'):
     offset_momentum(BODIES[ref])
     report_energy()
     advance(0.01, n)
     report_energy()
 
 if __name__ == '__main__':
-    test_num: int = 500000
-    # start = time.perf_counter()
-    main(int(test_num))
-    print(len(PAIRS))
-    # diff = time.perf_counter() - start
-    # print(f"Completed in: {diff}")
+    start = perf_counter()
+    # main(int(sys.argv[1]))
+    main(500000)
+    end = perf_counter()
+    print(end - start)

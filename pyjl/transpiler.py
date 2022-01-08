@@ -656,7 +656,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"repeat({left},{right})"
 
             if((isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES)) and 
-                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array" or left_jl_ann == "Vector") or
+                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array" or right_jl_ann == "Vector") or
                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 

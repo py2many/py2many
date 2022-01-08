@@ -6,6 +6,13 @@ class ValueHolder:
     val: int
     strVal: str
 
+@jl_dataclass # Remove when testing
+@dataclass
+class Item:
+    id: str
+    price_per_unit: float
+    quantity: int = 0
+
 if __name__ == "__main__":
     a = ValueHolder(10, "1")
     print(a)

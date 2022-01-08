@@ -231,7 +231,7 @@ class JuliaTranspilerPlugins:
             if arg_type is not None and arg_type.startswith("Float"):
                 return f"Int64(floor({vargs[0]}))"
         if vargs:
-            return f"Int64({vargs[0]})"
+            return f"parse(Int64, {vargs[0]})"
         return f"zero(Int)" # Default int value
 
     @staticmethod

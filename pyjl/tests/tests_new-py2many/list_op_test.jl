@@ -1,3 +1,11 @@
+function multiply_list(elems)::Vector
+new_elems = []
+for e in elems
+push!(new_elems, e*2);
+end
+return new_elems
+end
+
 function main()
 a = Vector()
 push!(a, "test");
@@ -24,6 +32,10 @@ push!(a, "test1");
 a = append!(a, b);
 @assert(a == ["test1", "test"])
 empty!(a);
+elems = ["1", "2", "3"]
+new_elems = multiply_list(elems)
+@assert(new_elems == ["11", "22", "33"])
+println("OK");
 end
 
 main()

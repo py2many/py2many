@@ -13,7 +13,6 @@ def mult_string_and_int():
     a = "test"
     return a*2
 
-# Failing --> Return type is Int64 (Works!)
 def mult_int_and_string():
     a: int = 2
     return a*"test"
