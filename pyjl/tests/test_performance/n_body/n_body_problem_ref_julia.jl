@@ -152,9 +152,9 @@ if !isinteractive()
     # accounting for 10% of the total program runtime. Base.Ryu.writefixed(::Float64, ::Int)
     # should already be compiled into the default system image.
     println(Base.Ryu.writefixed(energy(bodies), 9))
-    nbody!(bodies, parse(Int, ARGS[1]))
+    # nbody!(bodies, parse(Int, ARGS[1]))
     # Benchmark
-    # @time nbody!(bodies, parse(Int, ARGS[1]))
+    @time nbody!(bodies, parse(Int, ARGS[1]))
     println(Base.Ryu.writefixed(energy(bodies), 9))
 
 end
