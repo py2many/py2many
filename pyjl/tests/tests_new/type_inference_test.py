@@ -24,8 +24,8 @@ def combinations(array):
     return result
 
 
-def mul_recvd_list(a):
-    for i in range(0, 5):
+def mul_recvd_list(a, len):
+    for i in range(0, len(a)):
         a.append(i)
     return 2*a 
 

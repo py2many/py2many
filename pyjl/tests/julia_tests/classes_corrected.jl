@@ -15,8 +15,7 @@ mutable struct Student <: AbstractStudent
 end
 
 function get_name(self::Student)
-    return join([string(self.student_number), " - ", 
-    string(self.name)], "")
+    return "$(self.student_number) - $(self.name)"
 end
 
 function main()

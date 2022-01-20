@@ -2,8 +2,6 @@ using Classes
 
 @class mutable Person begin
     name::String
-
-    Person(name) = new(name)
 end
 
 function get_name(self::AbstractPerson)
@@ -12,12 +10,10 @@ end
 
 @class mutable Student <: Person begin
     student_number::Int64
-
-    Student(name, student_number) = new(name, student_number)
 end
 
 function get_name(self::AbstractStudent)
-    return join([string(self.student_number), " - ", string(self.name)], "")
+    return "$(self.student_number) - $(self.name)"
 end
 
 function main()

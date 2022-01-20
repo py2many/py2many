@@ -9,8 +9,8 @@ function combinations(l)::Vector
             push!(result, (l[x+1], y))
         end
     end
-    # return result
-    return typeof(result[1])[result...]
+    return result
+    # return typeof(result[1])[result...]
 end
 
 PI = 3.141592653589793

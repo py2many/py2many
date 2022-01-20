@@ -27,8 +27,8 @@ end
 return result
 end
 
-function mul_recvd_list(a)::Int64
-for i in (0:4)
+function mul_recvd_list(a, len)::Int64
+for i in (0:length(a) - 1)
 append(a, i);
 end
 return 2*a
