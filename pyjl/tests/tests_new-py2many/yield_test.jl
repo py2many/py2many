@@ -40,6 +40,14 @@ end
 bind(c_generator_func_nested_loop, t_generator_func_nested_loop)
 end
 
+function file_reader(file_name::String)
+c_file_reader = Channel(1)
+t_file_reader = @async for file_row in readline(file_name)
+put!(c_file_reader, file_row);
+end
+bind(c_file_reader, t_file_reader)
+end
+
 struct TestClass
 end
 function generator_func(self::TestClass)
@@ -81,6 +89,11 @@ for i in generator_func_nested_loop()
 push!(arr5, i);
 end
 @assert(arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)])
+arr6 = []
+for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt")
+push!(arr6, res);
+end
+@assert(arr6 == ["test\n", "test\n", "test"])
 end
 
 main()

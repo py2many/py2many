@@ -122,7 +122,7 @@ def find_node_matching_name_and_type(name, node_type, scopes):
     scope_name = None
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
-        if isinstance(sc, node_type):
+        if isinstance(sc, node_type) and matches_name(sc, name):
             c_node = sc
             break
         c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type) 

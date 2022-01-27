@@ -151,7 +151,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         # Fill scope variables
         self._func_stack.append({"func_name": get_id(node), 
             "yield_cnt": 0, "yield_from_cnt": 0, "decorator_list": decorator_list_str, 
-            "is_yield_loop": False})
+            "yield_loop": False})
 
         # visit nodes in body
         for n in node.body:
@@ -164,7 +164,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
             func_name, size = get_id(node), func_data["yield_cnt"]
             ch_name = f"c_{func_name}"
             channel = None
-            if func_data["is_yield_loop"] or func_data["yield_from_cnt"] > 0:
+            if func_data["yield_loop"] or func_data["yield_from_cnt"] > 0:
                 channel = ast.Assign(targets = [ast.Name(id = ch_name)], 
                     value = ast.Name(id = f"Channel(1)"))
                 bind = ast.Call(func = ast.Name(id = f"bind"), args = 
@@ -227,7 +227,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
                                         ast.Name(id =f"v_{func_name}")],
                                     keywords = [], lineno = node.lineno)],
                                     lineno = node.lineno, col_offset = node.col_offset, 
-                                        is_yield_loop = False, sc_func_name = func_name),
+                                        continuables_loop = True, yield_loop = True, sc_func_name = func_name),
                                     lineno = node.lineno, col_offset = node.col_offset)
             else:
                 node = ast.YieldFrom(value = ast.For(
@@ -238,7 +238,7 @@ class JuliaYieldRewriter(ast.NodeTransformer):
                                     ast.Name(id = f"v_{func_name}")],
                                 keywords = [], lineno = node.lineno)], 
                                 lineno = node.lineno,  col_offset = node.col_offset,
-                                    is_yield_loop = True, sc_func_name = func_name), 
+                                    continuables_loop = False, yield_loop = True, sc_func_name = func_name), 
                                 lineno = node.lineno, col_offset = node.col_offset)
 
         return node
@@ -254,6 +254,10 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         return node
 
     def _generic_loop_visit(self, node):
+        # get decorators
+        func_node = self._func_stack[-1]
+        decorators = func_node["decorator_list"]
+
         # Get current function
         curr_func = self._func_stack[-1]
         self._loop_nesting += 1
@@ -263,13 +267,17 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         self._loop_nesting -=1
 
         if curr_func["yield_cnt"] > 0:
-            curr_func["is_yield_loop"] = True
-            node.is_yield_loop = True if self._loop_nesting == 0 else False
+            curr_func["yield_loop"] = True
+            node.yield_loop = True if self._loop_nesting == 0 else False 
         else:
-            node.is_yield_loop = False
+            node.yield_loop = False
+
+        if "use_continuables" not in decorators:
+            node.continuables_loop = False
+        else:
+            node.continuables_loop = True
 
         node.sc_func_name = curr_func["func_name"]
-
 
 
 class JuliaTranspiler(CLikeTranspiler):
@@ -493,13 +501,9 @@ class JuliaTranspiler(CLikeTranspiler):
         split_func = re.split(r"[\W']+", it)
         func_name = split_func[0]
         if func_name:
-            class_scope = None
-            if len(split_func) > 1:
-                class_scope = get_class_scope(split_func[1], node.scopes)
-                func = (find_in_body(class_scope.body, (lambda x: isinstance(x, ast.FunctionDef))) 
-                    if class_scope else None)
-                if func is not None and "use_continuables" in func.decorator_list:
-                    it = f"collect({it})"
+            func = find_node_matching_name_and_type(func_name, ast.FunctionDef, node.scopes)[0]
+            if func is not None and "use_continuables" in list(map(get_id, func.decorator_list)):
+                it = f"collect({it})"
                 
         # Replace square brackets for normal brackets in lhs
         target = target.replace("[", "(").replace("]", ")")
@@ -508,7 +512,11 @@ class JuliaTranspiler(CLikeTranspiler):
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
         self._scope_stack["loop"].extend(target_vars)
 
-        for_start = f"t_{node.sc_func_name} = @async for" if node.is_yield_loop else "for"
+        for_start = (f"t_{node.sc_func_name} = @async for" 
+            if node.yield_loop and not node.continuables_loop 
+            else "for"
+        )
+
         buf.append(f"{for_start} {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
@@ -620,7 +628,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        while_start = f"t_{node.sc_func_name} = @async while" if node.is_yield_loop else "while"
+        while_start = (f"t_{node.sc_func_name} = @async while" 
+            if node.yield_loop and node.continuables_loop
+            else "while"
+        )
         buf.append(f"{while_start} {self.visit(node.test)}")
         buf.extend([self.visit(n) for n in node.body])
         buf.append("end")

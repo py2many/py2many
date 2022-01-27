@@ -24,6 +24,11 @@ def generator_func_nested_loop():
         for i in range(0, 2):
             yield (n,i)
 
+# @use_continuables
+def file_reader(file_name:str):
+    for file_row in open(file_name, "r"):
+        yield file_row
+
 class TestClass:
     def generator_func(self):
         num = 123
@@ -66,6 +71,13 @@ if __name__ == "__main__":
     for i in generator_func_nested_loop():
         arr5.append(i)
     assert arr5 == [(0,0), (0,1), (1,0), (1,1)]
+
+    arr6 = []
+    # Create file before executing
+    for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt"):
+        arr6.append(res)
+    assert arr6 == ['test\n', 'test\n', 'test']
+
     
     # -----------------------------------
     # Calling functions using loop (unsupported)

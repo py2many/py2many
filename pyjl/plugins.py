@@ -1,6 +1,7 @@
 import argparse
 import io
 import itertools
+from msilib.schema import File
 import os
 import ast
 import re
@@ -13,6 +14,8 @@ from typing import Callable, Dict, List, Tuple, Union
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
+from py2many.tracer import find_node_matching_type
 
 try:
     from dataclasses import dataclass
@@ -155,29 +158,12 @@ class JuliaTranspilerPlugins:
     #################################################
 
     def visit_open(self, node, vargs):
-        self._usings.add("std::fs::File")
-        if len(vargs) > 1:
-            self._usings.add("std::fs::OpenOptions")
-            mode = vargs[1]
-            opts = "OpenOptions::new()"
-            is_binary = "b" in mode
-            for c in mode:
-                if c == "w":
-                    if not is_binary:
-                        self._usings.add("pylib::FileWriteString")
-                    opts += ".write(true)"
-                if c == "r":
-                    if not is_binary:
-                        self._usings.add("pylib::FileReadString")
-                    opts += ".read(true)"
-                if c == "a":
-                    opts += ".append(true)"
-                if c == "+":
-                    opts += ".read(true).write(true)"
-            node.result_type = True
-            return f"{opts}.open({vargs[0]})"
-        node.result_type = True
-        return f"File::open({vargs[0]})"
+        for_node = find_node_matching_type(ast.For, node.scopes)
+        # Check if this is always like this
+        if for_node is not None:
+            return f"readline({vargs[0]})"
+
+        return f"open({vargs[0]}, {vargs[1]})"
 
     def visit_named_temp_file(self, node, vargs):
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
@@ -348,6 +334,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
+    open: (JuliaTranspilerPlugins.visit_open, True),
     # Array Support
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
@@ -357,7 +344,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
     # 
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
-    open: (JuliaTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
