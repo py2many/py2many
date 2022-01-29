@@ -1,44 +1,72 @@
-function file_reader_channel(file_name::String)
-    channel = Channel(1)
-    task = @async for file_row in readlines(file_name)
-        put!(channel, file_row);
+using ResumableFunctions
+using Continuables
+
+function testgen()
+    Channel() do ch
+        println("first")
+        put!(ch, 1)
+        println("second")
+        put!(ch, 2)
+        println("third")
     end
-    bind(channel, task)
 end
 
-function file_reader_channel_alternative(file_name::String)
-    Channel(1) do ch
-        for file_row in readlines(file_name)
-            put!(ch, file_row);
+@resumable function testgen_res()
+    println("first")
+    @yield 1
+    println("second")
+    @yield 2
+    println("third")
+end
+
+function fib_channels(n::Int)
+    Channel() do ch
+        a = 0
+        b = 1
+        for i in 1:n
+            put!(ch, a)
+            a, b = b, a+b
         end
     end
 end
 
-@cont function file_reader_cont(file_name::String)
-    for file_row in readlines(file_name)
-        cont(file_row)
+@cont function fib_continuables(n::Int)
+    a = 0
+    b = 1
+    for i in 1:n
+      cont(a)
+      a, b = b, a+b
+    end
+end
+
+@resumable function fib_resumable(n::Int) :: Int
+    a = 0
+    b = 1
+    for i in 1:n
+      @yield a
+      a, b = b, a+b
     end
 end
  
 function main()
     # Test if all solutions produce the same results
     arr1 = []
-    for res in file_reader_channel("C:/Users/Miguel Marcelino/Desktop/test.txt")
+    for res in fib_channels(6)
         push!(arr1, res);
     end
-    @assert(arr1 == ["test", "test", "test"])
+    @assert(arr1 == [0,1,1,2,3,5])
 
     arr2 = []
-    for res in file_reader_channel_alternative("C:/Users/Miguel Marcelino/Desktop/test.txt")
+    for res in collect(fib_continuables(6))
         push!(arr2, res);
     end
-    @assert(arr2 == ["test", "test", "test"])
+    @assert(arr2 == [0,1,1,2,3,5])
 
     arr3 = []
-    for res in collect(file_reader_cont("C:/Users/Miguel Marcelino/Desktop/test.txt"))
+    for res in fib_resumable(6)
         push!(arr3, res);
     end
-    @assert(arr3 == ["test", "test", "test"])
+    @assert(arr3 == [0,1,1,2,3,5])
 end
 
 main()

@@ -24,10 +24,17 @@ def generator_func_nested_loop():
         for i in range(0, 2):
             yield (n,i)
 
-# @use_continuables
+@use_continuables
 def file_reader(file_name:str):
     for file_row in open(file_name, "r"):
         yield file_row
+
+@use_continuables
+def testgen():
+    print("first")
+    yield 1
+    print("second")
+    yield 2
 
 class TestClass:
     def generator_func(self):
@@ -77,6 +84,10 @@ if __name__ == "__main__":
     for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt"):
         arr6.append(res)
     assert arr6 == ['test\n', 'test\n', 'test']
+
+
+    for i in testgen():
+        print(i)
 
     
     # -----------------------------------

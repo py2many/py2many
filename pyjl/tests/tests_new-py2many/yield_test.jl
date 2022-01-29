@@ -1,3 +1,4 @@
+using Continuables
 function generator_func()
 c_generator_func = Channel(3)
 num = 1
@@ -40,12 +41,21 @@ end
 bind(c_generator_func_nested_loop, t_generator_func_nested_loop)
 end
 
-function file_reader(file_name::String)
-c_file_reader = Channel(1)
-t_file_reader = @async for file_row in readline(file_name)
-put!(c_file_reader, file_row);
+@cont function file_reader(file_name::String)
+for file_row in readline(file_name)
+cont(file_row);
 end
-bind(c_file_reader, t_file_reader)
+end
+
+function testgen()
+    Channel(1) do ch
+        println("first")
+        for i in 1:2
+            put!(ch, 1)
+        end
+        println("second")
+        put!(ch, 2)
+    end
 end
 
 struct TestClass
@@ -90,10 +100,13 @@ push!(arr5, i);
 end
 @assert(arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)])
 arr6 = []
-for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt")
+for res in collect(file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt"))
 push!(arr6, res);
 end
 @assert(arr6 == ["test\n", "test\n", "test"])
+for i in collect(testgen())
+println(i);
+end
 end
 
 main()

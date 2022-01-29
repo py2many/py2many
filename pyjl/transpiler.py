@@ -124,26 +124,35 @@ class JuliaYieldRewriter(ast.NodeTransformer):
         self._func_stack = []
         self._loop_nesting = 0
     
-    def visit_Module(self, node) -> str:
-        for b in node.body:
-            if not isinstance(b, ast.FunctionDef):
-                self.visit(b)
+    # def visit_Module(self, node) -> str:
+    #     for b in node.body:
+    #         if not isinstance(b, ast.FunctionDef):
+    #             self.visit(b)
 
-        # Second pass to handle functiondefs whose body
-        # may refer to other members of node.body
-        visit_after = []
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                # Some funtions might have precedence over others
-                v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.YieldFrom)))
-                if v_node:
-                    visit_after.append(b)
-                else:
-                    self.visit(b)
+    #     # Second pass to handle functiondefs whose body
+    #     # may refer to other members of node.body
+    #     visit_after = []
+    #     for b in node.body:
+    #         if isinstance(b, ast.FunctionDef):
+    #             # Some funtions might have precedence over others
+    #             v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.YieldFrom)))
+    #             if v_node:
+    #                 visit_after.append(b)
+    #             else:
+    #                 self.visit(b)
 
-        for b in visit_after:
-            self.visit(b)
-        return node
+    #     for b in visit_after:
+    #         self.visit(b)
+    #     return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        decorator_list_str = list(map(get_decorator_id, node.decorator_list))
+
+        # for n in node.body:
+        #     self.visit(n)
+        if "use_continuables" not in decorator_list_str:
+            channel = None
+
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         decorator_list_str = list(map(get_decorator_id, node.decorator_list))
