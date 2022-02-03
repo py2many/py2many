@@ -1,35 +1,35 @@
 module main
 
 fn implicit_keys() bool {
-	CODES := map{
+	CODES := {
 		'KEY': 1
 	}
 	return 'KEY' in CODES
 }
 
 fn explicit_keys() bool {
-	CODES := map{
+	CODES := {
 		'KEY': 1
 	}
 	return 'KEY' in CODES.keys()
 }
 
 fn dict_values() bool {
-	CODES := map{
+	CODES := {
 		'KEY': 1
 	}
 	return 1 in CODES.keys().map(CODES[it])
 }
 
 fn return_dict_index_str(key string) int {
-	CODES := map{
+	CODES := {
 		'KEY': 1
 	}
 	return CODES[key]
 }
 
 fn return_dict_index_int(key int) string {
-	CODES := map{
+	CODES := {
 		1: 'one'
 	}
 	return CODES[key]

@@ -18,51 +18,51 @@ fn foo() {
 }
 
 fn add1(x i8, y i8) i16 {
-	return (x + y)
+	return x + y
 }
 
 fn add2(x i16, y i16) int {
-	return (x + y)
+	return x + y
 }
 
 fn add3(x int, y int) i64 {
-	return (x + y)
+	return x + y
 }
 
 fn add4(x i64, y i64) i64 {
-	return (x + y)
+	return x + y
 }
 
 fn add5(x byte, y byte) u16 {
-	return (x + y)
+	return x + y
 }
 
 fn add6(x u16, y u16) u32 {
-	return (x + y)
+	return x + y
 }
 
 fn add7(x u32, y u32) u64 {
-	return (x + y)
+	return x + y
 }
 
 fn add8(x u64, y u64) u64 {
-	return (x + y)
+	return x + y
 }
 
 fn add9(x i8, y u16) u32 {
-	return (u16(x) + y)
+	return u16(x) + y
 }
 
 fn sub(x i8, y i8) i8 {
-	return (x - y)
+	return x - y
 }
 
 fn mul(x i8, y i8) i16 {
-	return (x * y)
+	return x * y
 }
 
 fn fadd1(x i8, y f32) f32 {
-	return (f32(x) + y)
+	return f32(x) + y
 }
 
 fn show() {

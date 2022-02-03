@@ -58,9 +58,9 @@ class VTranspilerPlugins:
         # multiple integers while V only allows containers, the latter case
         # is turned to a container when passing it to the V side.
         if len(vargs) == 1:
-            return f"arrays.{func}({vargs[0]})"
+            return f"arrays.{func}({vargs[0]}) or {{ panic('!') }}"
         else:
-            return f"arrays.{func}([{', '.join(vargs)}])"
+            return f"arrays.{func}([{', '.join(vargs)}]) or {{ panic('!') }}"
 
 
 SMALL_DISPATCH_MAP: Dict[str, Callable] = {
