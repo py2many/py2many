@@ -4,6 +4,8 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.tracer import is_list, defined_before
 from py2many.exceptions import AstNotImplementedError
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.clike import class_for_typename
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.ast_helpers import create_ast_node
 
@@ -11,6 +13,7 @@ from .clike import CLikeTranspiler
 from .inference import V_WIDTH_RANK
 from .plugins import (
     ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
     DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
@@ -193,19 +196,29 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
-        if node.scopes[-1] is ast.ClassDef:
-            raise AstNotImplementedError("Class methods are not supported yet.", node)
-        signature.append(node.name)
+        is_class_method: bool = False
+        if (
+            node.scopes is not None
+            and len(node.scopes) > 1
+            and isinstance(node.scopes[-2], ast.ClassDef)
+        ):
+            is_class_method = True
 
         generics: Set[str] = set()
         args: List[Tuple[str, str]] = []
+        receiver: str = ""
         for arg in node.args.args:
             typename, id = self.visit(arg)
-            if typename is None:  # receiver
-                typename = "<struct name>"  # TODO: fetch struct name from node.scopes
+            if typename is None and is_class_method:  # receiver
+                receiver = id
+                continue
             elif len(typename) == 1 and typename.isupper():
                 generics.add(typename)
             args.append((typename, id))
+
+        if is_class_method:
+            signature.append(f"({receiver} {get_id(node.scopes[-2])})")
+        signature.append(node.name)
 
         str_args: List[str] = []
         for typename, id in args:
@@ -269,7 +282,7 @@ class VTranspiler(CLikeTranspiler):
                 value: str = self.visit(kw.value)
                 vargs += [f"{kw.arg}: {value}"]
         args: str = ", ".join(vargs)
-        return f"{fname}({args})"
+        return f"{fname}{{{args}}}"
 
     def visit_Call(self, node: ast.Call) -> str:
         fname: str = self.visit(node.func)
@@ -378,8 +391,47 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> str:
-        raise AstNotImplementedError("Classes are not supported yet.", node)
+    def visit_ClassDef(self, node) -> str:
+        extractor = DeclarationExtractor(VTranspiler())
+        extractor.visit(node)
+        node.declarations = declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        node.class_assignments = extractor.class_assignments
+        ret = super().visit_ClassDef(node)
+        if ret is not None:
+            return ret
+
+        decorators = [get_id(d) for d in node.decorator_list]
+
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
+        for d in decorators:
+            if d in CLASS_DISPATCH_TABLE:
+                ret = CLASS_DISPATCH_TABLE[d](self, node)
+                if ret is not None:
+                    return ret
+
+        fields = []
+        if declarations:
+            fields.append("pub mut:")
+        index = 0
+        for declaration, typename in declarations.items():
+            if typename == None:
+                typename = "ST{0}".format(index)
+                index += 1
+            fields.append(f"{declaration} {typename}")
+
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+
+        struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
+            node.name, "\n".join(fields)
+        )
+        buf = [self.visit(b) for b in node.body]
+        buf_str = "\n".join(buf)
+        return f"{struct_def}{buf_str}"
 
     def visit_IntEnum(self, node: ast.ClassDef) -> str:
         raise AstNotImplementedError("Enums are not supported yet.", node)
