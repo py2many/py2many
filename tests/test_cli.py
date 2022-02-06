@@ -46,7 +46,7 @@ COMPILERS = {
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "script", "--build-only", "--debug"],
-    "vlang": ["v", "-translated"],
+    "vlang": ["v"],
     "smt": ["z3", "-smt2"],
 }
 INVOKER = {
@@ -56,7 +56,7 @@ INVOKER = {
     "kotlin": ["kscript"],
     "python": [sys.executable],
     "rust": ["cargo", "script"],
-    "vlang": ["v", "-translated", "run"],
+    "vlang": ["v", "run"],
 }
 
 TEST_CASES = [

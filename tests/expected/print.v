@@ -1,3 +1,4 @@
+[translated]
 module main
 
 fn show() {
