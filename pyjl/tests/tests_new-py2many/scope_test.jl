@@ -1,8 +1,9 @@
+abstract type AbstractTestClass end
 function func()::String
 return "test"
 end
 
-struct TestClass
+struct TestClass::AbstractTestClass 
 end
 function func(self::TestClass)::String
 return "test2"

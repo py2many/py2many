@@ -1,12 +1,14 @@
 using DataClass
+abstract type AbstractValueHolder end
+abstract type AbstractItem end
 
-@dataclass mutable struct ValueHolder
+@dataclass mutable struct ValueHolder::AbstractValueHolder 
 val::Int64
 strVal::String
 _initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
 end
 
-@dataclass mutable struct Item
+@dataclass mutable struct Item::AbstractItem 
 id::String
 price_per_unit::Float64
 quantity::Int64

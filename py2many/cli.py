@@ -38,7 +38,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaDecoratorRewriter, JuliaTranspiler, JuliaMethodCallRewriter, julia_decorator_rewriter
+from pyjl.transpiler import JuliaClassRewriter, JuliaDecoratorRewriter, JuliaTranspiler, JuliaMethodCallRewriter, julia_decorator_rewriter
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
@@ -304,7 +304,7 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[],
         transformers=[infer_julia_types],
-        post_rewriters=[JuliaMethodCallRewriter()],
+        post_rewriters=[JuliaMethodCallRewriter(), JuliaClassRewriter()],
         config_rewriters=[julia_decorator_rewriter]
     )
 

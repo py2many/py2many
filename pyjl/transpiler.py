@@ -1,9 +1,14 @@
 import ast
+from fileinput import lineno
+from pydoc import classname
 from build.lib.py2many.exceptions import AstTypeNotSupported
 from py2many.input_configuration import ParseFileStructure
 
 import textwrap
 import re
+
+import pyjl.juliaAst as juliaAst
+from pyjl.juliaAst import JuliaNodeVisitor
 
 from .clike import CLikeTranspiler
 from .plugins import (
@@ -115,8 +120,45 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
         return node
 
+class JuliaClassRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.class_names = []
 
-class JuliaTranspiler(CLikeTranspiler):
+    def visit_Module(self, node: ast.Module) -> Any:
+        node.lineno = 0
+        node.col_offset = 0
+
+        ## visit nodes recursively
+        for n in node.body:
+            self.visit(n)
+
+        # TODO: Fix lineno and col_offset
+        # Create abstract types
+        abstract_types = []
+        for name in self.class_names:
+            nameVal = ast.Name(id=name)
+            abstract_types.append(
+                juliaAst.AbstractType(value=nameVal, ctx=ast.Load, lineno=0, col_offset = 0,))
+
+        node.body = abstract_types + node.body
+
+        self.class_names = []
+
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        class_name = get_id(node)
+        self.class_names.append(class_name)
+        node.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load))
+
+        for n in node.body:
+            self.visit(n)
+
+        return node
+
+
+class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
     NAME = "julia"
 
     def __init__(self):
@@ -547,9 +589,18 @@ class JuliaTranspiler(CLikeTranspiler):
         for declaration, typename in declarations.items():
             fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
+        # Struct definition
         fields = "" if fields == [] else "\n".join(fields) + "\n" + annotation_field
-        struct_def = (f"{annotation_modifiers} struct {node.name}\n{fields}end\n" if annotation_modifiers != "" 
-            else f"struct {node.name}\n{fields}end\n")
+        bases = []
+        for base in node.bases:
+            bases.append(self.visit(base))
+        struct_def = f"struct {node.name}"
+        if bases:
+            struct_def += f"::{', '.join(bases)}"
+        if annotation_modifiers != "":
+            struct_def = f"{annotation_modifiers} {struct_def}"
+        struct_def = f"{struct_def} \n{fields}end\n"
+
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):

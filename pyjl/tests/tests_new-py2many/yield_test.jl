@@ -1,4 +1,5 @@
 using ResumableFunctions
+abstract type AbstractTestClass end
  @resumable function generator_func()
 num = 1
 @yield num;
@@ -54,7 +55,7 @@ a, b = (b, a + b)
 end
 end
 
-struct TestClass
+struct TestClass::AbstractTestClass 
 end
  @resumable function generator_func(self::TestClass)
 num = 123

@@ -1,4 +1,5 @@
-struct ScopeTest
+abstract type AbstractScopeTest end
+struct ScopeTest::AbstractScopeTest 
 end
 function test(self::ScopeTest)::String
 return "test"

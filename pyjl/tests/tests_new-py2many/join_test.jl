@@ -1,4 +1,5 @@
-struct Hello
+abstract type AbstractHello end
+struct Hello::AbstractHello 
 end
 function test(self::Hello)::String
 return "ola"
