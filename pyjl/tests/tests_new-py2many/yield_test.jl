@@ -1,86 +1,68 @@
-function generator_func()
-c_generator_func = Channel(3)
+using ResumableFunctions
+ @resumable function generator_func()
 num = 1
-put!(c_generator_func, num);
+@yield num;
 num = 5
-put!(c_generator_func, num);
+@yield num;
 num = 10
-put!(c_generator_func, num);
-close(c_generator_func)
-return c_generator_func
+@yield num;
 end
 
-function generator_func_loop()
-c_generator_func_loop = Channel(1)
+ @resumable function generator_func_loop()
 num = 0
-t_generator_func_loop = @async for n in (0:2)
-put!(c_generator_func_loop, num + n);
+for n in (0:2)
+@yield num + n;
 end
-bind(c_generator_func_loop, t_generator_func_loop)
 end
 
-function generator_func_loop_using_var()
-c_generator_func_loop_using_var = Channel(1)
+ @resumable function generator_func_loop_using_var()
 num = 0
 end_ = 2
 end_ = 3
-t_generator_func_loop_using_var = @async for n in (0:end_ - 1)
-put!(c_generator_func_loop_using_var, num + n);
+for n in (0:end_ - 1)
+@yield num + n;
 end
-bind(c_generator_func_loop_using_var, t_generator_func_loop_using_var)
 end
 
-function generator_func_nested_loop()
-c_generator_func_nested_loop = Channel(1)
-t_generator_func_nested_loop = @async for n in (0:1)
+ @resumable function generator_func_nested_loop()
+for n in (0:1)
 for i in (0:1)
-put!(c_generator_func_nested_loop, (n, i));
+@yield (n, i);
 end
 end
-bind(c_generator_func_nested_loop, t_generator_func_nested_loop)
-end
-
-function file_reader(file_name::String)
-c_file_reader = Channel(1)
-t_file_reader = @async for file_row in readline(file_name)
-put!(c_file_reader, file_row);
-end
-bind(c_file_reader, t_file_reader)
 end
 
-function testgen()
-c_testgen = Channel(2)
+ @resumable function file_reader(file_name::String)
+for file_row in readline(file_name)
+@yield file_row;
+end
+end
+
+ @resumable function testgen()
 println("first");
-put!(c_testgen, 1);
+@yield 1;
 println("second");
-put!(c_testgen, 2);
-close(c_testgen)
-return c_testgen
+@yield 2;
 end
 
-function fib()
-c_fib = Channel(1)
+ @resumable function fib()
 a = 0
 b = 1
 while true
-put!(c_fib, a);
+@yield a;
 a, b = (b, a + b)
 end
-bind(c_fib, t_fib)
 end
 
 struct TestClass
 end
-function generator_func(self::TestClass)
-c_generator_func = Channel(3)
+ @resumable function generator_func(self::TestClass)
 num = 123
-put!(c_generator_func, num);
+@yield num;
 num = 5
-put!(c_generator_func, num);
+@yield num;
 num = 10
-put!(c_generator_func, num);
-close(c_generator_func)
-return c_generator_func
+@yield num;
 end
 
 function main()

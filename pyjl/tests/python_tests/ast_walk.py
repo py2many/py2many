@@ -44,7 +44,10 @@ def show_res():
 """
 
 code4 = """
-d1 = 4.84143144246472090e+00
+def generator_func_loop():
+    num = 0
+    for n in range(0, 3):
+        yield num + n
 
 """
 
@@ -53,9 +56,7 @@ if __name__ == "__main__":
     tree2 = ast.parse(code2)
     # tree3 = ast.parse(code3)
     tree4 = ast.parse(code4)
+    print(ast.dump(tree4, indent=4))
     # print(ast.dump(tree, indent=4))
     # print(ast.dump(tree2, indent=4))
     # print(ast.dump(tree3, indent=4))
-    getcontext().prec = 17
-    print(Decimal(4.84143144246472090e+00))
-    print(ast.dump(tree4, indent=4))

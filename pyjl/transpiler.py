@@ -116,179 +116,6 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         return node
 
 
-class JuliaYieldRewriter(ast.NodeTransformer):
-    def __init__(self):
-        super().__init__()
-        # loop -> contains loop variables
-        # func -> contains function specific fields: (func_name, yield_cnt, decorator_list)
-        self._func_stack = []
-        self._loop_nesting = 0
-    
-    # def visit_Module(self, node) -> str:
-    #     for b in node.body:
-    #         if not isinstance(b, ast.FunctionDef):
-    #             self.visit(b)
-
-    #     # Second pass to handle functiondefs whose body
-    #     # may refer to other members of node.body
-    #     visit_after = []
-    #     for b in node.body:
-    #         if isinstance(b, ast.FunctionDef):
-    #             # Some funtions might have precedence over others
-    #             v_node = find_in_body(b.body, (lambda x: isinstance(x, ast.YieldFrom)))
-    #             if v_node:
-    #                 visit_after.append(b)
-    #             else:
-    #                 self.visit(b)
-
-    #     for b in visit_after:
-    #         self.visit(b)
-    #     return node
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        decorator_list_str = list(map(get_decorator_id, node.decorator_list))
-
-        # for n in node.body:
-        #     self.visit(n)
-        if "use_continuables" not in decorator_list_str:
-            channel = None
-
-    
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        decorator_list_str = list(map(get_decorator_id, node.decorator_list))
-
-        # Fill scope variables
-        self._func_stack.append({"func_name": get_id(node), 
-            "yield_cnt": 0, "yield_from_cnt": 0, "decorator_list": decorator_list_str, 
-            "yield_loop": False})
-
-        # visit nodes in body
-        for n in node.body:
-            self.visit(n)
-
-        if "use_continuables" not in decorator_list_str:
-            # Build a channel with the necessary size (number of yields in a function)
-            func_data = self._func_stack[-1]
-
-            func_name, size = get_id(node), func_data["yield_cnt"]
-            ch_name = f"c_{func_name}"
-            channel = None
-            if func_data["yield_loop"] or func_data["yield_from_cnt"] > 0:
-                channel = ast.Assign(targets = [ast.Name(id = ch_name)], 
-                    value = ast.Name(id = f"Channel(1)"))
-                bind = ast.Call(func = ast.Name(id = f"bind"), args = 
-                    [ast.Name(id = ch_name), ast.Name(id = f"t_{func_name}")], 
-                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
-                node.body.append(bind)
-            elif(func_data["yield_cnt"] > 0):
-                channel = ast.Assign(targets = [ast.Name(id = ch_name)], 
-                    value = ast.Name(id = f"Channel({size})")) 
-                channel_close = ast.Call(func = ast.Name(id = f"close"), args = 
-                    [ast.Name(id = ch_name)], keywords = [], lineno=node.lineno, 
-                    col_offset = node.col_offset)
-                return_val = ast.Return(value = ast.Name(id = ch_name), lineno=node.lineno, 
-                    col_offset = node.col_offset)
-                node.body.extend([channel_close, return_val])
-            
-            # Append to the function body~
-            if channel is not None:
-                node.body = [channel] + node.body
-        
-        self._func_stack.pop()
-        return node
-
-    def visit_Yield(self, node: ast.Yield) -> Any:
-        func_node = self._func_stack[-1]
-        decorators = []
-        if func_node:
-            func_node["yield_cnt"] += 1
-            decorators = func_node["decorator_list"]
-
-            if "use_continuables" in decorators:
-                node = ast.Call(func = ast.Name(id = "cont"), args = [self.visit(node.value)], 
-                    keywords = [], lineno=node.lineno, col_offset = node.col_offset)
-            else:
-                if node.value:
-                    func_name = func_node["func_name"]
-                    node = ast.Yield(value = ast.Call (func = ast.Name(id = "put!"), args = [
-                        ast.Name(id = f"c_{func_name}"), node.value], keywords = [], 
-                        lineno = node.lineno, col_offset = node.col_offset))
-                else:
-                    node = ast.Yield(value = ast.Name(id = ""))
-
-        return node
-
-    def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
-        # get current function
-        func_node = self._func_stack[-1]
-        decorators =  []
-
-        if func_node:
-            func_name = func_node["func_name"]
-            func_node["yield_from_cnt"] += 1
-            decorators = func_node["decorator_list"]
-
-            if "use_continuables" in decorators:
-                node = ast.YieldFrom(value = ast.For(
-                            target = ast.Name(id=f"v_{func_name}"),
-                            iter = node.value,
-                            body = [ast.Call(func = ast.Name(id = "cont"), args = [
-                                        ast.Name(id =f"v_{func_name}")],
-                                    keywords = [], lineno = node.lineno)],
-                                    lineno = node.lineno, col_offset = node.col_offset, 
-                                        continuables_loop = True, yield_loop = True, sc_func_name = func_name),
-                                    lineno = node.lineno, col_offset = node.col_offset)
-            else:
-                node = ast.YieldFrom(value = ast.For(
-                        target = ast.Name(id = f"v_{func_name}"),
-                        iter = node.value,
-                        body = [ast.Call(func = ast.Name(id = "put!"), 
-                                args = [ast.Name(id = f"c_{func_name}"), 
-                                    ast.Name(id = f"v_{func_name}")],
-                                keywords = [], lineno = node.lineno)], 
-                                lineno = node.lineno,  col_offset = node.col_offset,
-                                    continuables_loop = False, yield_loop = True, sc_func_name = func_name), 
-                                lineno = node.lineno, col_offset = node.col_offset)
-
-        return node
-
-    def visit_For(self, node: ast.For) -> Any:
-        self._generic_loop_visit(node)
-
-        return node
-
-    def visit_While(self, node: ast.While) -> Any:
-        self._generic_loop_visit(node)
-
-        return node
-
-    def _generic_loop_visit(self, node):
-        # get decorators
-        func_node = self._func_stack[-1]
-        decorators = func_node["decorator_list"]
-
-        # Get current function
-        curr_func = self._func_stack[-1]
-        self._loop_nesting += 1
-        # visit nodes in body
-        for n in node.body:
-            self.visit(n)
-        self._loop_nesting -=1
-
-        if curr_func["yield_cnt"] > 0:
-            curr_func["yield_loop"] = True
-            node.yield_loop = True if self._loop_nesting == 0 else False 
-        else:
-            node.yield_loop = False
-
-        if "use_continuables" not in decorators:
-            node.continuables_loop = False
-        else:
-            node.continuables_loop = True
-
-        node.sc_func_name = curr_func["func_name"]
-
-
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
@@ -418,6 +245,11 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "{{{0}}}".format(", ".join(typedecls))
 
+        # Check if current function is a generator function
+        py_yield = find_node_matching_type(ast.Yield, [node.scopes[-1]])
+        if py_yield is not None:
+            annotation += " @resumable "
+
         args = ", ".join(args_list)
         funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
         maybe_main = ""
@@ -505,14 +337,6 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-
-        # Separate name and args
-        split_func = re.split(r"[\W']+", it)
-        func_name = split_func[0]
-        if func_name:
-            func = find_node_matching_name_and_type(func_name, ast.FunctionDef, node.scopes)[0]
-            if func is not None and "use_continuables" in list(map(get_id, func.decorator_list)):
-                it = f"collect({it})"
                 
         # Replace square brackets for normal brackets in lhs
         target = target.replace("[", "(").replace("]", ")")
@@ -521,12 +345,7 @@ class JuliaTranspiler(CLikeTranspiler):
         target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
         self._scope_stack["loop"].extend(target_vars)
 
-        for_start = (f"t_{node.sc_func_name} = @async for" 
-            if node.yield_loop and not node.continuables_loop 
-            else "for"
-        )
-
-        buf.append(f"{for_start} {target} in {it}")
+        buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
 
@@ -637,11 +456,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        while_start = (f"t_{node.sc_func_name} = @async while" 
-            if node.yield_loop and node.continuables_loop
-            else "while"
-        )
-        buf.append(f"{while_start} {self.visit(node.test)}")
+        buf.append(f"while {self.visit(node.test)}")
         buf.extend([self.visit(n) for n in node.body])
         buf.append("end")
         return "\n".join(buf)
@@ -750,7 +565,6 @@ class JuliaTranspiler(CLikeTranspiler):
         for field, value in fields:
                 field_str += f"\t{field}\n"
         if("unique" in decorators and typename not in INTEGER_TYPES):
-            # self._usings.add("Enum")
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
@@ -1002,9 +816,12 @@ class JuliaTranspiler(CLikeTranspiler):
         return "#[async]\n{0}".format(self.visit_FunctionDef(node))
 
     def visit_Yield(self, node: ast.Yield) -> str:
-        return f"{self.visit(node.value)}"
+        if "ResumableFunctions" not in self._usings:
+            self._usings.add("ResumableFunctions")
+        return f"@yield {self.visit(node.value)}"
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
+        # Currently not supported
         return f"{self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:

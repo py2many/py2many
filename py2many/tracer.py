@@ -108,7 +108,7 @@ def find_node_matching_type(node_type, scopes):
             c_node = sc
             break
         c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type)))
-        if c_node:
+        if c_node is not None:
             break
     return c_node
 
@@ -139,11 +139,12 @@ def find_in_body(body, fn):
         node = body[i]
         if fn(node):
             return node
-        if isinstance(node, ast.Expr) and hasattr(node, "value"):
-            if fn(node.value):
-                return node.value
-        if hasattr(node, "body"):
-            find_in_body(node.body, fn)
+        elif (isinstance(node, ast.Expr) and hasattr(node, "value") 
+                and fn(node.value)):
+            return node.value
+        elif hasattr(node, "body"):
+            return find_in_body(node.body, fn)
+
     return None
 
 # Checks if a given node's name matches 
