@@ -7,7 +7,7 @@
 # 2to3
 
 import sys 
-from time import perf_counter # Benchmarks
+# from time import perf_counter # Benchmarks
 
 def combinations(l):
     result = []
@@ -114,8 +114,11 @@ def main(n, ref='sun'):
     report_energy()
 
 if __name__ == '__main__':
-    start = perf_counter()
-    # main(int(sys.argv[1]))
-    main(500000)
-    end = perf_counter()
-    print(end - start)
+    main(int(sys.argv[1]))
+
+# if __name__ == '__main__':
+#     start = perf_counter()
+#     # main(int(sys.argv[1]))
+#     main(500000)
+#     end = perf_counter()
+#     print(end - start)

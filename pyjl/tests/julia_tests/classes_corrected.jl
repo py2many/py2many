@@ -4,17 +4,15 @@ abstract type AbstractStudent <: AbstractPerson end
 mutable struct Person <: AbstractPerson
     name::String
 end
-
-function get_name(self::Person)
+function get_name(self::AbstractPerson)
     return self.name
 end
 
 mutable struct Student <: AbstractStudent
     name::String
-    student_number::Int64
+    student_number::Int
 end
-
-function get_name(self::Student)
+function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
 end
 

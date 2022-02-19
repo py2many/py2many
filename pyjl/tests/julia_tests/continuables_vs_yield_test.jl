@@ -1,13 +1,21 @@
 using ResumableFunctions
 using Continuables
 
-function testgen()
+function gen()
     Channel() do ch
-        println("first")
+        println("before")
         put!(ch, 1)
-        println("second")
+        println("after")
         put!(ch, 2)
-        println("third")
+    end
+end
+
+function gen_2()
+    Channel(1) do ch
+        println("before")
+        put!(ch, 1)
+        println("after")
+        put!(ch, 2)
     end
 end
 
@@ -19,54 +27,74 @@ end
     println("third")
 end
 
-function fib_channels(n::Int)
+###########################
+# Fibonacci Implementations
+
+function fib_channels()
     Channel() do ch
         a = 0
         b = 1
-        for i in 1:n
+        println("Side-effect")
+        while true
             put!(ch, a)
             a, b = b, a+b
         end
     end
 end
 
-@cont function fib_continuables(n::Int)
+@cont function fib_continuables()
     a = 0
     b = 1
-    for i in 1:n
-      cont(a)
-      a, b = b, a+b
+    println("Side-effect")
+    while true
+        cont(a)
+        a, b = b, a+b
     end
 end
 
-@resumable function fib_resumable(n::Int) :: Int
+@resumable function fib_resumable() :: Int
     a = 0
     b = 1
-    for i in 1:n
-      @yield a
-      a, b = b, a+b
+    println("Side-effect")
+    while true
+        @yield a
+        a, b = b, a+b
     end
 end
  
 function main()
     # Test if all solutions produce the same results
     arr1 = []
-    for res in fib_channels(6)
-        push!(arr1, res);
+    res = fib_channels()
+    for i in 1:6
+        push!(arr1, take!(res));
     end
     @assert(arr1 == [0,1,1,2,3,5])
 
-    arr2 = []
-    for res in collect(fib_continuables(6))
-        push!(arr2, res);
-    end
+    arr2 = collect(take(6, fib_continuables()))
     @assert(arr2 == [0,1,1,2,3,5])
 
     arr3 = []
-    for res in fib_resumable(6)
-        push!(arr3, res);
+    f = fib_resumable()
+    for i in 1:6
+        push!(arr3, f());
     end
     @assert(arr3 == [0,1,1,2,3,5])
+
+    for x in gen()
+        println(x)
+    end
+    for x in gen_2()
+        println(x)
+    end
+
+    println("-----------------------")
+    let it = gen()
+        println(0)
+        for x in it
+            println(x)
+        end
+    end
 end
 
 main()

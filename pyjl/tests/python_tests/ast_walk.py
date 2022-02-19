@@ -1,4 +1,5 @@
 import ast
+from decimal import *
 
 code = """
 def show_res():
@@ -43,9 +44,7 @@ def show_res():
 """
 
 code4 = """
-task_trange = async for i in range(n)
-    put!(c, i+1)
-bind(c, task_trange)
+d1 = 4.84143144246472090e+00
 
 """
 
@@ -57,4 +56,6 @@ if __name__ == "__main__":
     # print(ast.dump(tree, indent=4))
     # print(ast.dump(tree2, indent=4))
     # print(ast.dump(tree3, indent=4))
+    getcontext().prec = 17
+    print(Decimal(4.84143144246472090e+00))
     print(ast.dump(tree4, indent=4))

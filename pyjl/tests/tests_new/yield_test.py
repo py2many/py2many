@@ -24,17 +24,22 @@ def generator_func_nested_loop():
         for i in range(0, 2):
             yield (n,i)
 
-@use_continuables
 def file_reader(file_name:str):
     for file_row in open(file_name, "r"):
         yield file_row
 
-@use_continuables
 def testgen():
     print("first")
     yield 1
     print("second")
     yield 2
+
+def fib():
+    a = 0
+    b = 1
+    while True:
+        yield a
+        a, b = b, a+b
 
 class TestClass:
     def generator_func(self):
@@ -79,13 +84,21 @@ if __name__ == "__main__":
         arr5.append(i)
     assert arr5 == [(0,0), (0,1), (1,0), (1,1)]
 
+    # -----------------------
     arr6 = []
     # Create file before executing
     for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt"):
         arr6.append(res)
     assert arr6 == ['test\n', 'test\n', 'test']
 
+    # -----------------------
+    arr7 = []
+    res = fib()
+    for i in range(0,6):
+        arr7.append(res.__next__())
+    assert arr7 == [0,1,1,2,3,5]
 
+    # -----------------------
     for i in testgen():
         print(i)
 

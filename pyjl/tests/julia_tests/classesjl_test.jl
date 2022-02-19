@@ -9,7 +9,7 @@ function get_name(self::AbstractPerson)
 end
 
 @class mutable Student <: Person begin
-    student_number::Int64
+    student_number::Int
 end
 
 function get_name(self::AbstractStudent)
