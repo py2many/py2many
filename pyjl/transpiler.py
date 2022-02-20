@@ -1,7 +1,9 @@
+from __future__ import annotations
 import ast
 from fileinput import lineno
 from pydoc import classname
 from build.lib.py2many.exceptions import AstTypeNotSupported
+from build.lib.py2many.tracer import find_closest_scope_name
 from py2many.input_configuration import ParseFileStructure
 
 import textwrap
@@ -123,47 +125,83 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self.class_names_mod = []
-        self.class_names = []
+        self.hierarchy_map_mod = {} # for the module
+        self.hierarchy_map_global = {} # spans multiple modules
 
     def visit_Module(self, node: ast.Module) -> Any:
         node.lineno = 0
         node.col_offset = 0
 
-        ## visit nodes recursively
+        # visit nodes recursively
         for n in node.body:
             self.visit(n)
+
+        # Add to global module map
+        self.hierarchy_map_global |= self.hierarchy_map_mod
 
         # TODO: Fix lineno and col_offset
         # Create abstract types
         abstract_types = []
-        for name in self.class_names_mod:
-            nameVal = ast.Name(id=name)
-            abstract_types.append(
-                juliaAst.AbstractType(value=nameVal, ctx=ast.Load, lineno=0, col_offset = 0))
+        for value in self.hierarchy_map_mod.items():
+            class_name, extends_lst = value
+            if len(extends_lst) <= 1:
+                nameVal = ast.Name(id=class_name)
+                extends = (ast.Name(id=f"Abstract{extends_lst[0]}") 
+                    if (len(extends_lst) == 1 and extends_lst[0] in self.hierarchy_map_global) 
+                    else None)
+                abstract_types.append(
+                    juliaAst.AbstractType(value=nameVal, extends=extends, 
+                        ctx=ast.Load, lineno=0, col_offset = 0))
+            else:
+                # TODO: Investigate Julia traits
+                pass
 
         node.body = abstract_types + node.body
 
-        self.class_names_mod = []
+        self.hierarchy_map_mod = {}
 
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        class_name = get_id(node)
-        self.class_names_mod.append(class_name)
-        self.class_names.append(class_name)
-        node.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load))
+        class_name: str = get_id(node)
 
         # Change extends to Abstract type
-        for base in node.bases:
+        if len(node.bases) == 1:
+            base = node.bases[0]
             name = get_id(base)
-            if name in self.class_names:
-                setattr(base, "id", f"Abstract{name}")
+            self.hierarchy_map_mod[class_name] = [name]
+        else:
+            # TODO: Investigate Julia traits
+            extends_lst = []
+            for base in node.bases:
+                name = get_id(base)
+                extends_lst.append(name)
+            self.hierarchy_map_mod[class_name] = extends_lst
+        
+        if len(node.bases) <= 1:
+            node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
-        for n in node.body:
-            self.visit(n)
+        # Recursive visit
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = ast.Name(id=node.name) # Add self information
+            self.visit(b)
 
         return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        # print(ast.dump(node.args))
+        args = node.args
+
+        for arg in args.args:
+            if ((annotation := getattr(arg, "annotation", None)) and 
+                    (name := getattr(annotation, "id", None)) and 
+                    name in self.hierarchy_map_mod):
+                setattr(name, "id", f"Abstract{name}")                    
+
+        if (hasattr(node, "self_type") and 
+                (self_type := get_id(node.self_type)) in self.hierarchy_map_mod):
+            setattr(node.self_type, "id", f"Abstract{self_type}")
 
 
 class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
@@ -243,7 +281,7 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         is_python_main = getattr(node, "python_main", False)
 
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
+            typenames[0] = get_id(node.self_type)
 
         defaults = node.args.defaults
         len_defaults = len(defaults)
@@ -612,7 +650,6 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
                 body.append(b)
         body = "\n".join([self.visit(b) for b in body])
         body += annotation_body
@@ -902,7 +939,7 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         list_comp = self._visit_generators(generators)
         return f"[{elt} {list_comp}]"
 
-    def visit_DictComp(self, node) -> str:
+    def visit_DictComp(self, node: ast.DictComp) -> str:
         key = self.visit(node.key)
         value = self.visit(node.value)
         generators = node.generators
@@ -949,3 +986,15 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
             decorator_list_cpy = filter(lambda e: get_decorator_id(e) != "dataclass", decorator_list_cpy)
 
         return decorator_list_cpy
+
+    ######################################################
+    #################### Julia Nodes #####################
+    ######################################################
+    def visit_AbstractType(self, node: juliaAst.AbstractType) -> Any:
+        name = self.visit(node.value)
+        extends = None
+        if node.extends is not None:
+            extends = self.visit(node.extends)
+        return (f"abstract type Abstract{name} end" 
+            if extends is None 
+            else f"abstract type Abstract{name} <: {extends} end")

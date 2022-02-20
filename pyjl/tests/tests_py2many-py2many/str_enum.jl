@@ -1,8 +1,10 @@
-abstract type AbstractColors end
+using PyEnum
 
-struct Colors::str, Enum, AbstractColors 
+@pyenum Colors::String begin
+	RED
+	GREEN
+	BLUE
 end
-
 function show()
 color_map = Dict(Colors.RED => "1", Colors.GREEN => "2", Colors.BLUE => "3")
 a = Colors.GREEN

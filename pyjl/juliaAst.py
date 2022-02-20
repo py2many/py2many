@@ -17,6 +17,7 @@ _identifier = str
 
 class AbstractType(stmt):
     value: expr
+    extends: expr | None
     ctx: expr_context
 
 
@@ -27,7 +28,9 @@ class AbstractType(stmt):
 class JuliaNodeVisitor(NodeVisitor):
 
     def visit_AbstractType(self, node: AbstractType) -> Any:
-        name = self.visit(node.value)
-        return f"abstract type Abstract{name} end"
+        """Visit abstract type node."""
+        method = 'visit_' + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        return visitor(node)
 
     

@@ -47,9 +47,12 @@ code4 = """
 class something:
     id: str
 
-class hello(something):
+class Hello(something):
     def __init__():
         pass
+
+    def test(self):
+        print("ola")
 
 """
 

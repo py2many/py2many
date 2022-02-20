@@ -1,36 +1,36 @@
 abstract type AbstractFoo end
 abstract type AbstractPerson end
-abstract type AbstractStudent end
+abstract type AbstractStudent <: AbstractPerson end
 struct Foo::AbstractFoo 
 end
-function bar(self::Foo)::Int64
+function bar(self::AbstractFoo)::Int64
 return baz(self)
 end
 
-function baz(self::Foo)::Int64
+function baz(self::AbstractFoo)::Int64
 return 10
 end
 
 struct Person::AbstractPerson 
 name::String
 end
-function __init__(self::Person, name::String)
+function __init__(self::AbstractPerson, name::String)
 self.name = name
 end
 
-function get_name(self::Person)
+function get_name(self::AbstractPerson)
 return self.name
 end
 
-struct Student::AbstractPerson, AbstractStudent 
+struct Student::AbstractStudent 
 student_number::Int64
 end
-function __init__(self::Student, name::String, student_number::Int64)
+function __init__(self::AbstractStudent, name::String, student_number::Int64)
 __init__(super(), name);
 self.student_number = student_number
 end
 
-function get_name(self::Student)
+function get_name(self::AbstractStudent)
 return join([string(self.student_number), " - ", string(self.name)], "")
 end
 

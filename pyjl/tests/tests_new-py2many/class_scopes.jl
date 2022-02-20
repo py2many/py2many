@@ -1,7 +1,7 @@
 abstract type AbstractScopeTest end
 struct ScopeTest::AbstractScopeTest 
 end
-function test(self::ScopeTest)::String
+function test(self::AbstractScopeTest)::String
 return "test"
 end
 

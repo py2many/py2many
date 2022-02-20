@@ -8,7 +8,7 @@ height::Int64
 length::Int64
 _initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
 end
-function is_square(self::Rectangle)::Bool
+function is_square(self::AbstractRectangle)::Bool
 return self.height == self.length
 end
 

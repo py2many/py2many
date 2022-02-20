@@ -5,7 +5,7 @@ end
 
 struct TestClass::AbstractTestClass 
 end
-function func(self::TestClass)::String
+function func(self::AbstractTestClass)::String
 return "test2"
 end
 

@@ -1,7 +1,7 @@
 abstract type AbstractFoo end
 struct Foo::AbstractFoo 
 end
-function bar(self::Foo)::String
+function bar(self::AbstractFoo)::String
 return "a"
 end
 
