@@ -190,7 +190,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        # print(ast.dump(node.args))
         args = node.args
 
         for arg in args.args:
@@ -642,7 +641,11 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
             bases.append(self.visit(base))
         struct_def = f"struct {node.name}"
         if bases:
-            struct_def += f"::{', '.join(bases)}"
+            if len(bases) == 1:
+                struct_def += f"::{bases[0]}"
+            else:
+                # TODO: Investigate Julia traits
+                pass
         if annotation_modifiers != "":
             struct_def = f"{annotation_modifiers} {struct_def}"
         struct_def = f"{struct_def} \n{fields}end\n"
