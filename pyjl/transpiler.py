@@ -129,6 +129,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self.hierarchy_map_global = {} # spans multiple modules
 
     def visit_Module(self, node: ast.Module) -> Any:
+        print(ast.dump(node, indent=4))
         node.lineno = 0
         node.col_offset = 0
 
