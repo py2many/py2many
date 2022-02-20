@@ -1,10 +1,10 @@
-abstract type AbstractColors end
-abstract type AbstractPermissions end
 
-struct Colors::AbstractColors 
+abstract type AbstractColors <: AbstractIntEnum end
+abstract type AbstractPermissions <: AbstractIntFlag end
+struct Colors <: AbstractColors 
 end
 
-struct Permissions::AbstractPermissions 
+struct Permissions <: AbstractPermissions 
 end
 
 function show()

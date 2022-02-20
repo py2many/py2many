@@ -1,15 +1,13 @@
 import ast
-from ctypes import c_int64
-from pathlib import Path
 from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union
+from typing import List, Optional, Union
 from py2many.ast_helpers import get_id
 import logging
-from dataclasses import dataclass
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from py2many.tracer import find_in_body, find_node_matching_type
+from py2many.tracer import find_node_matching_type
+from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
 import importlib
 
@@ -80,12 +78,12 @@ def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
         logger.info(f"could not evaluate {typename}")
         return default_type
 
-class CLikeTranspiler(CommonCLikeTranspiler):
+class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
         self._default_type = _DEFAULT
-
+        
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
             return jl_symbol(node)

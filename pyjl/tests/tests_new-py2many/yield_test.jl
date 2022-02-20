@@ -55,7 +55,7 @@ a, b = (b, a + b)
 end
 end
 
-struct TestClass::AbstractTestClass 
+struct TestClass <: AbstractTestClass 
 end
  @resumable function generator_func(self::AbstractTestClass)
 num = 123

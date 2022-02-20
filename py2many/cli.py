@@ -120,6 +120,7 @@ def _transpile(
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source)
         tree.__file__ = filename
+        tree.__files__ = filenames # information of all files (for import distiction)
         tree_list.append(tree)
     trees = toposort(tree_list)
     topo_filenames = [t.__file__ for t in trees]

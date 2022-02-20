@@ -1,5 +1,5 @@
 abstract type AbstractFoo end
-struct Foo::AbstractFoo 
+struct Foo <: AbstractFoo 
 end
 function bar(self::AbstractFoo)::String
 return "a"

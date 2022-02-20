@@ -1,3 +1,4 @@
+# Testing imports
 import datetime as dt
 import json as js
 
@@ -5,10 +6,15 @@ import json as js
 from class_scopes import ScopeTest
 
 class ScopeExtension(ScopeTest):
-    id: str
+    def __init__(self, id: str) -> None:
+        self.id: str = id
+
+    def test2(self):
+        return "test2"
 
 if __name__ == "__main__":
-    sc_ext = ScopeExtension(1)
-    sc_ext.test()
+    sc_ext = ScopeExtension("1")
+    assert sc_ext.test() == "test"
+    assert sc_ext.test2() == "test2"
 
 

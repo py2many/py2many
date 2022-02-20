@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 from fileinput import lineno
+from pathlib import WindowsPath
 from pydoc import classname
 from build.lib.py2many.exceptions import AstTypeNotSupported
 from build.lib.py2many.tracer import find_closest_scope_name
@@ -125,11 +126,11 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self.hierarchy_map_mod = {} # for the module
-        self.hierarchy_map_global = {} # spans multiple modules
+        self._hierarchy_map_mod = {} # for the module
+        self._import_list = []
+        self._import_cnt = 0
 
     def visit_Module(self, node: ast.Module) -> Any:
-        print(ast.dump(node, indent=4))
         node.lineno = 0
         node.col_offset = 0
 
@@ -137,29 +138,32 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for n in node.body:
             self.visit(n)
 
-        # Add to global module map
-        self.hierarchy_map_global |= self.hierarchy_map_mod
-
-        # TODO: Fix lineno and col_offset
         # Create abstract types
         abstract_types = []
-        for value in self.hierarchy_map_mod.items():
+        l_no = len(self._import_list)
+        for value in self._hierarchy_map_mod.items():
             class_name, extends_lst = value
             if len(extends_lst) <= 1:
                 nameVal = ast.Name(id=class_name)
                 extends = (ast.Name(id=f"Abstract{extends_lst[0]}") 
-                    if (len(extends_lst) == 1 and extends_lst[0] in self.hierarchy_map_global) 
+                    if (len(extends_lst) == 1) 
                     else None)
                 abstract_types.append(
                     juliaAst.AbstractType(value=nameVal, extends=extends, 
-                        ctx=ast.Load, lineno=0, col_offset = 0))
+                        ctx=ast.Load, lineno=l_no, col_offset = 0))
             else:
                 # TODO: Investigate Julia traits
                 pass
 
-        node.body = abstract_types + node.body
+            # increment linenumber
+            l_no += 1
 
-        self.hierarchy_map_mod = {}
+        if abstract_types:
+            node.body = node.body[:self._import_cnt] + abstract_types + node.body[self._import_cnt:]
+
+        self._hierarchy_map_mod = {}
+        self._import_list = []
+        self._import_cnt = 0
 
         return node
 
@@ -170,14 +174,14 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
-            self.hierarchy_map_mod[class_name] = [name]
+            self._hierarchy_map_mod[class_name] = [name]
         else:
             # TODO: Investigate Julia traits
             extends_lst = []
             for base in node.bases:
                 name = get_id(base)
                 extends_lst.append(name)
-            self.hierarchy_map_mod[class_name] = extends_lst
+            self._hierarchy_map_mod[class_name] = extends_lst
         
         if len(node.bases) <= 1:
             node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
@@ -196,15 +200,31 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for arg in args.args:
             if ((annotation := getattr(arg, "annotation", None)) and 
                     (name := getattr(annotation, "id", None)) and 
-                    name in self.hierarchy_map_mod):
+                    name in self._hierarchy_map_mod):
                 setattr(name, "id", f"Abstract{name}")                    
 
         if (hasattr(node, "self_type") and 
-                (self_type := get_id(node.self_type)) in self.hierarchy_map_mod):
+                (self_type := get_id(node.self_type)) in self._hierarchy_map_mod):
             setattr(node.self_type, "id", f"Abstract{self_type}")
 
+    def visit_Import(self, node: ast.Import) -> Any:
+        self._generic_import_visit(node)
+        return node
 
-class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+        self._generic_import_visit(node)
+        return node
+    
+    def _generic_import_visit(self, node):
+        self._import_cnt += 1
+        for alias in node.names:
+            if asname := getattr(alias, "asname", None):
+                self._import_list.append(asname)
+            elif name := getattr(alias, "name", None):
+                self._import_list.append(name) 
+
+
+class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
     def __init__(self):
@@ -220,6 +240,11 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         # Added
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
+        self._modules = []
+
+    def visit_Module(self, node) -> str:
+        self._modules = list(path.name.split(".")[0] for path in node.__files__)
+        return super().visit_Module(node)
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -633,6 +658,9 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
 
         fields = []
         for declaration, typename in declarations.items():
+            dec = declaration.split(".")
+            if dec[0] == "self":
+                declaration = dec[1]
             fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
         # Struct definition
@@ -643,7 +671,7 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         struct_def = f"struct {node.name}"
         if bases:
             if len(bases) == 1:
-                struct_def += f"::{bases[0]}"
+                struct_def += f" <: {bases[0]}"
             else:
                 # TODO: Investigate Julia traits
                 pass
@@ -706,6 +734,9 @@ class JuliaTranspiler(CLikeTranspiler, JuliaNodeVisitor):
         return f"import {name}" # import or using?
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+        if module_name in self._modules:
+            return f"include(\"{module_name}.jl\")"
+        
         jl_module_name = module_name
         imports = []
         for name in names:

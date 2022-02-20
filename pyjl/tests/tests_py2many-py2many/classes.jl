@@ -1,7 +1,7 @@
 abstract type AbstractFoo end
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
-struct Foo::AbstractFoo 
+struct Foo <: AbstractFoo 
 end
 function bar(self::AbstractFoo)::Int64
 return baz(self)
@@ -11,7 +11,7 @@ function baz(self::AbstractFoo)::Int64
 return 10
 end
 
-struct Person::AbstractPerson 
+struct Person <: AbstractPerson 
 name::String
 end
 function __init__(self::AbstractPerson, name::String)
@@ -22,7 +22,7 @@ function get_name(self::AbstractPerson)
 return self.name
 end
 
-struct Student::AbstractStudent 
+struct Student <: AbstractStudent 
 student_number::Int64
 end
 function __init__(self::AbstractStudent, name::String, student_number::Int64)

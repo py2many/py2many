@@ -3,7 +3,7 @@ function func()::String
 return "test"
 end
 
-struct TestClass::AbstractTestClass 
+struct TestClass <: AbstractTestClass 
 end
 function func(self::AbstractTestClass)::String
 return "test2"

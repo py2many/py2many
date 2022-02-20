@@ -1,7 +1,7 @@
 using DataClass
-abstract type AbstractOptions end
 using argparse_dataclass: dataclass
-@dataclass mutable struct Options::AbstractOptions 
+abstract type AbstractOptions end
+@dataclass mutable struct Options <: AbstractOptions 
 v::Bool
 n::Int64
 _initvars = [_init=true, _repr=true, _eq=true, _order=false, _unsafe_hash=false, _frozen=false]
