@@ -44,6 +44,9 @@ def show_res():
 """
 
 code4 = """
+class something:
+    id: str
+
 class hello(something):
     def __init__():
         pass

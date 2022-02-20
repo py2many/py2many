@@ -123,6 +123,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self.class_names_mod = []
         self.class_names = []
 
     def visit_Module(self, node: ast.Module) -> Any:
@@ -136,21 +137,28 @@ class JuliaClassRewriter(ast.NodeTransformer):
         # TODO: Fix lineno and col_offset
         # Create abstract types
         abstract_types = []
-        for name in self.class_names:
+        for name in self.class_names_mod:
             nameVal = ast.Name(id=name)
             abstract_types.append(
-                juliaAst.AbstractType(value=nameVal, ctx=ast.Load, lineno=0, col_offset = 0,))
+                juliaAst.AbstractType(value=nameVal, ctx=ast.Load, lineno=0, col_offset = 0))
 
         node.body = abstract_types + node.body
 
-        self.class_names = []
+        self.class_names_mod = []
 
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name = get_id(node)
+        self.class_names_mod.append(class_name)
         self.class_names.append(class_name)
         node.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load))
+
+        # Change extends to Abstract type
+        for base in node.bases:
+            name = get_id(base)
+            if name in self.class_names:
+                setattr(base, "id", f"Abstract{name}")
 
         for n in node.body:
             self.visit(n)
