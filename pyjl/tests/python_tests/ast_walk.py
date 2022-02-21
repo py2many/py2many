@@ -44,10 +44,15 @@ def show_res():
 """
 
 code4 = """
-def generator_func_loop():
-    num = 0
-    for n in range(0, 3):
-        yield num + n
+class something:
+    id: str
+
+class Hello(something):
+    def __init__():
+        pass
+
+    def test(self):
+        print("ola")
 
 """
 
