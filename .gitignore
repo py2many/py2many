@@ -10,18 +10,10 @@
 build
 .DS_Store
 tests/build
-tests/cases/binit
-tests/cases/fib
-tests/cases/infer
-tests/cases/infer_ops
-tests/cases/int_enum
-tests/cases/print
-tests/cases/rect
-tests/cases/str_enum
-tests/cases/*.dart
-tests/cases/*.go
-tests/cases/*.jl
-tests/cases/*.rs
-tests/cases/*.cpp
-tests/cases/*.kt
-tests/cases/*.nim
+# tests/cases/*.dart
+# tests/cases/*.go
+# tests/cases/*.jl
+# tests/cases/*.rs
+# tests/cases/*.cpp
+# tests/cases/*.kt
+# tests/cases/*.nim
