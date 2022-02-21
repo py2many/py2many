@@ -15,6 +15,9 @@ end
 function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
 end
+function get_name(self::AbstractSomeone)
+    return "$(self.student_number) - $(self.name)"
+end
 
 function main()
     p = Person("Michael Carmichael")

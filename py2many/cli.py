@@ -37,7 +37,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaDecoratorRewriter, JuliaTranspiler, JuliaMethodCallRewriter, julia_decorator_rewriter
+from pyjl.transpiler import JuliaClassRewriter, JuliaDecoratorRewriter, JuliaTranspiler, JuliaMethodCallRewriter, julia_decorator_rewriter
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
@@ -119,6 +119,7 @@ def _transpile(
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source)
         tree.__file__ = filename
+        tree.__files__ = filenames # information of all files (for import distiction)
         tree_list.append(tree)
     trees = toposort(tree_list)
     topo_filenames = [t.__file__ for t in trees]
@@ -300,7 +301,7 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[],
         transformers=[infer_julia_types],
-        post_rewriters=[JuliaMethodCallRewriter()],
+        post_rewriters=[JuliaMethodCallRewriter(), JuliaClassRewriter()],
         config_rewriters=[julia_decorator_rewriter]
     )
 

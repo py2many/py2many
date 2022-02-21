@@ -1,6 +1,3 @@
-# Tim Holy's idea of traits
-# ALternative: https://github.com/mauro3/SimpleTraits.jl
-
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
 abstract type AbstractSomething end
