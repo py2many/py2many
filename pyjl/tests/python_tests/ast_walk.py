@@ -51,12 +51,28 @@ def generator_func_loop():
 
 """
 
+code5 = """
+def rock_paper_scissors(playerA: Player, playerB: Player):
+    match[playerA.move(), playerB.move()]:
+        case [Rock, Scissors]: 
+            return "Player A wins"
+        case [Paper, Rock]:
+            return "Player A wins"
+        case [Scissors, Paper]:
+            return "Player A wins"
+        case [Rock, Paper]:
+            return "Player B wins"
+        case [Paper, Scissors]:
+            return "Player B wins"
+        case [Scissors, Rock]: 
+            return "Player B wins"
+        case _: "Draw"
+"""
+
 if __name__ == "__main__":
-    tree = ast.parse(code)
-    tree2 = ast.parse(code2)
+    # tree = ast.parse(code)
+    # tree2 = ast.parse(code2)
     # tree3 = ast.parse(code3)
-    tree4 = ast.parse(code4)
-    print(ast.dump(tree4, indent=4))
-    # print(ast.dump(tree, indent=4))
-    # print(ast.dump(tree2, indent=4))
-    # print(ast.dump(tree3, indent=4))
+    # tree4 = ast.parse(code4)
+    tree5 = ast.parse(code5)
+    print(ast.dump(tree5, indent=4))
