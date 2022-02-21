@@ -2,23 +2,26 @@
 
 
 def show():
+    s = []
     try:
         raise Exception("foo")
     except Exception as e:
-        print("caught")
+        s.append("foo")
     finally:
-        print("Finally")
+        s.append("Finally")
 
     try:
         3 / 0
     except ZeroDivisionError:
-        print("OK")
+        s.append("ZeroDivisionError")
 
     try:
         raise Exception("foo")
     except:
-        print("Got it")
+        s.append("foo_2")
+
+    return s
 
 
 if __name__ == "__main__":
-    show()
+    assert show() == ["foo", "Finally", "ZeroDivisionError", "foo_2"]
