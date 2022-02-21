@@ -18,4 +18,4 @@ tests/cases/*.cpp
 tests/cases/*.kt
 tests/cases/*.nim
 # Removing generated tests
-tests/cases-py2many
+# tests/cases-py2many

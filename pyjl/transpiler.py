@@ -127,7 +127,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map_mod = {} # for the module
-        self._import_list = []
+        self._import_list = [] # TODO: Currently not in use
         self._import_cnt = 0
 
     def visit_Module(self, node: ast.Module) -> Any:
