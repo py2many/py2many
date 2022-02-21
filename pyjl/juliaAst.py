@@ -6,10 +6,7 @@
 """
 
 from ast import NodeVisitor, expr, expr_context, stmt
-import ast
 from typing import Any
-
-_identifier = str
 
 ######################################
 ############### Types ################
@@ -19,7 +16,6 @@ class AbstractType(stmt):
     value: expr
     extends: expr | None
     ctx: expr_context
-
 
 ######################################
 ############### Parser ###############
