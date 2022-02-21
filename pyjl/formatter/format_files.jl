@@ -1,4 +1,5 @@
-using Pkg; Pkg.add("JuliaFormatter")
+# using Pkg;
+# Pkg.add("JuliaFormatter");
 using JuliaFormatter
 
 function format_files(dir)
@@ -6,7 +7,9 @@ function format_files(dir)
     JuliaFormatter.format(dir)
 end
 
-format_files("C:/Users/Miguel Marcelino/Desktop/Tese/Repositories/py2many/pyjl/tests/tests_py2many-py2many")
+function receive_files()
+    file_name = append!([PROGRAM_FILE], ARGS)[2]
+    format_files(file_name)
+end
 
-# Failing
-# format_files("C:/Users/Miguel Marcelino/Desktop/Tese/Repositories/py2many/pyjl/tests/tests_new-py2many")
+receive_files()

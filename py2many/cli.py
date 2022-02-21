@@ -1,7 +1,6 @@
 import argparse
 import ast
 import functools
-import json
 import os
 from pycpp.tests.test_analysis import parse
 from pyjl.inference import infer_julia_types
@@ -289,13 +288,10 @@ def rust_settings(args, env=os.environ):
 
 
 def julia_settings(args, env=os.environ):
-    # format_jl = spawn.find_executable("format.jl")
-    # print(os.path.exists("pyjl/formatter"))
-    format_jl = spawn.find_executable("format_files.jl", path="pyjl/formatter")
-    if format_jl:
-        format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
-    # else:
-    #     format_jl = ["Format.jl", "-v"]
+    format_jl = None
+    julia_path = "C:/Users/Miguel Marcelino/AppData/Local/Programs/Julia-1.7.1/bin/julia.exe"
+    if os.path.exists("pyjl/formatter"):
+        format_jl = [julia_path, "-O0", "--compile=min", "--startup=no", "pyjl/formatter/format_files.jl"]
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
         ext=".jl",
@@ -482,7 +478,6 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
 
     return True
 
-
 def _format_one(settings: LanguageSettings, output_path, env=None):
     try:
         restore_cwd = False
@@ -558,10 +553,14 @@ def _process_many(
     successful = set(successful)
     format_errors = set()
     if settings.formatter:
-        # TODO: Optimize to a single invocation
-        for filename, output_path in zip(filenames, output_paths):
-            if filename in successful and not _format_one(settings, output_path, env):
-                format_errors.add(Path(filename))
+        if settings.ext == ".jl":
+            # Format.jl can receive multiple files
+            _format_one(settings, outdir, env)
+        else:
+            # TODO: Optimize to a single invocation
+            for filename, output_path in zip(filenames, output_paths):
+                if filename in successful and not _format_one(settings, output_path, env):
+                    format_errors.add(Path(filename))
 
     return (successful, format_errors)
 
