@@ -1044,6 +1044,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{value}"
 
+    ######################################################
+    ################## Private Methods ###################
+    ######################################################
+
     def _visit_generators(self, generators):
         gen_exp = ""
         for i in range(len(generators)):
@@ -1074,6 +1078,7 @@ class JuliaTranspiler(CLikeTranspiler):
     ######################################################
     #################### Julia Nodes #####################
     ######################################################
+
     def visit_AbstractType(self, node: juliaAst.AbstractType) -> Any:
         name = self.visit(node.value)
         extends = None
