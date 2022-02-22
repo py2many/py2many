@@ -20,13 +20,14 @@ def string_literals():
     # double quotes
     t = "literal"
 
+# Supporting type comments to convert literals (PyJL)
 def integer_literals():
     # Byte Literals
-    l1 = 0b10110
+    l1 = 0b10110 # type: BLiteral
     assert l1 == 22
     
     # Octal Literal
-    l2 = 0o333
+    l2 = 0o333 # type: OLiteral
     assert l2 == 219
 
     # Decimal Literal
@@ -34,12 +35,23 @@ def integer_literals():
     assert l3 == 50 # should be trivial
     
     # Hexadecimal Literal
-    l4 = 0x14c
+    l4 = 0x14c # type: HLiteral
     assert l4 == 332
 
 def floating_point_literals():
     l1 = 25.99999
     l2 = 26.11111
+    l3 = .001
+    l4 = 10.
+    l5 = 1e10
+    l6 = 3.14e-10
+    l7 = 3.14_15_93
+
+    assert l3 == 0.001
+    assert l4 == 10
+    assert l5 == 10000000000
+    assert l6 == 0.000000000314
+    assert l7 == 3.141593
 
 def imaginary():    
     l1 = 5j

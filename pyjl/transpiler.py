@@ -1,17 +1,12 @@
 from __future__ import annotations
 import ast
-from fileinput import lineno
-from pathlib import WindowsPath
-from pydoc import classname
 from build.lib.py2many.exceptions import AstTypeNotSupported
-from build.lib.py2many.tracer import find_closest_scope_name
 from py2many.input_configuration import ParseFileStructure
 
 import textwrap
 import re
 
 import pyjl.juliaAst as juliaAst
-from pyjl.juliaAst import JuliaNodeVisitor
 
 from .clike import CLikeTranspiler
 from .plugins import (
@@ -30,7 +25,8 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, get_class_scope, is_class_type, is_list, is_enum
+from py2many.tracer import find_node_matching_type, find_node_matching_name_and_type, \
+    get_class_scope, is_class_type, is_list, is_enum
 
 from typing import Any, Dict, List, Tuple, Union
 
@@ -41,7 +37,7 @@ def julia_decorator_rewriter(tree, input_config, filename):
 
 def get_decorator_id(decorator):
     id = get_id(decorator.func) if isinstance(decorator, ast.Call) else get_id(decorator)
-    # TODO: Check if this is the correct implementation
+    # TODO: Probably not correct
     if isinstance(id, list): 
         id = id[0]
     return id if id is not None else decorator
@@ -257,7 +253,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
-    def visit_Constant(self, node) -> str:
+    def visit_Constant(self, node: ast.Constant) -> str:
         if node.value is True:
             return "true"
         elif node.value is False:
@@ -469,12 +465,18 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return "\n".join(buf)
 
-    def visit_Str(self, node) -> str:
+    def visit_Str(self, node: ast.Str) -> str:
         node_str = node.value
         # Allow quote translation
         node_str = node_str.replace('"', '\\"')
-        # Allow line break translation
+        # Escape string literals
+        node_str = node_str.replace("\a", f"\\a")
+        node_str = node_str.replace("\b", f"\\b")
+        node_str = node_str.replace("\f", f"\\f")
         node_str = node_str.replace("\n", f"\\n")
+        node_str = node_str.replace("\r", f"\\r")
+        node_str = node_str.replace("\v", f"\\v")
+        node_str = node_str.replace("\t", f"\\t")
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
@@ -908,12 +910,26 @@ class JuliaTranspiler(CLikeTranspiler):
                 value = "Nothing"
             return "{0} = {1}".format(target, value)
 
-        definition = node.scopes.parent_scopes.find(get_id(target))
-        if definition is None:
-            definition = node.scopes.find(get_id(target))
+        # TODO: Check this
+        # definition = node.scopes.parent_scopes.find(get_id(target))
+        # if definition is None:
+        #     definition = node.scopes.find(get_id(target))
 
+        # Visit target and value
         target_str = self.visit(target)
         value = self.visit(node.value)
+
+        # Custom type comments to preserve literal values
+        if value.isdigit():
+            value = int(value)
+            if type_c := getattr(node, "type_comment", None):
+                if type_c == "BLiteral":
+                    value = bin(value)
+                if type_c == "OLiteral":
+                    value = oct(value)
+                if type_c == "HLiteral":
+                    value = hex(value)
+
         expr = f"{target_str} = {value}"
         # if isinstance(target, ast.Name) and defined_before(definition, node):
         #     f"{expr};"

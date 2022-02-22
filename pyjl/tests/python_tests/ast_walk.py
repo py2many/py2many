@@ -1,5 +1,6 @@
 import ast
 from decimal import *
+from statistics import mode
 
 code = """
 def show_res():
@@ -52,26 +53,14 @@ class Hello(something):
         pass
 
     def test(self):
-        print("ola")
+        print("test")
 
 """
 
 code5 = """
-def rock_paper_scissors(playerA: Player, playerB: Player):
-    match[playerA.move(), playerB.move()]:
-        case [Rock, Scissors]: 
-            return "Player A wins"
-        case [Paper, Rock]:
-            return "Player A wins"
-        case [Scissors, Paper]:
-            return "Player A wins"
-        case [Rock, Paper]:
-            return "Player B wins"
-        case [Paper, Scissors]:
-            return "Player B wins"
-        case [Scissors, Rock]: 
-            return "Player B wins"
-        case _: "Draw"
+def string_literals():
+    l1 = 0b10110 # type: OLiteral
+    l1 = "111\\n" 
 """
 
 if __name__ == "__main__":
@@ -79,5 +68,5 @@ if __name__ == "__main__":
     # tree2 = ast.parse(code2)
     # tree3 = ast.parse(code3)
     # tree4 = ast.parse(code4)
-    tree5 = ast.parse(code5)
+    tree5 = ast.parse(code5, type_comments=True)
     print(ast.dump(tree5, indent=4))

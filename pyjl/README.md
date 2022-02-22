@@ -82,19 +82,19 @@ The following section describes the currently supported features of PyJL
     - [ ] format_spec
     - [ ] literal_char
   - Integer literals
-    - [ ] integer
-    - [ ] decinteger
-    - [ ] bininteger
-    - [ ] octinteger
-    - [ ] hexinteger
-    - [ ] nonzerodigit
-    - [ ] digit
-    - [ ] bindigit
-    - [ ] octdigit
-    - [ ] hexdigit
+    - [x] integer 
+    - [x] decinteger 
+    - [x] bininteger &rarr; use #type: BLiteral 
+    - [x] octinteger &rarr; use #type: OLiteral 
+    - [x] hexinteger &rarr; use #type: HLiteral 
+    - [x] nonzerodigit
+    - [x] digit
+    - [x] bindigit
+    - [x] octdigit
+    - [x] hexdigit
   - Floating Point literals
-    - [ ] floatnumber
-    - [ ] pointfloat
+    - [x] floatnumber
+    - [x] pointfloat
     - [ ] exponentfloat
     - [ ] digitpart
     - [ ] fraction
@@ -252,6 +252,8 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
 - Test expression lists
   - Create new `tests/cases/expressions.py`
 - Add `visit_LShift` and `visit_RShift` to transpiler
+- Translate match-case to Julia. 
+  - Add to `tests/cases/match_case.py`
 
 #
 ## Keywords

@@ -117,7 +117,7 @@ def _transpile(
     config_rewriters = settings.config_rewriters
     tree_list = []
     for filename, source in zip(filenames, sources):
-        tree = ast.parse(source)
+        tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
         tree.__files__ = filenames # information of all files (for import distiction)
         tree_list.append(tree)
