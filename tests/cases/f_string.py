@@ -16,6 +16,11 @@ if __name__ == "__main__":
 
     a = 10
     assert f"hello {a+1} world" == "hello 11 world"
-    assert f"test {a+1} test {a+20} test {a+30}" == "test 11 test 30 test 40" 
+    assert f"test {a+1} test {a+20} test {a+30}" == "test 11 test 30 test 40"
+
+    # Rounding test (More complex rounding fails in PyJL)
+    a = 1
+    str4 = f"hello {a+1} world {0.44444:.3}" 
+    assert str4 == "hello 2 world 0.444"
     
     print("OK")

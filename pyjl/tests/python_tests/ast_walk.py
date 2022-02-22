@@ -1,4 +1,5 @@
 import ast
+from cmath import sin
 from decimal import *
 from statistics import mode
 
@@ -58,9 +59,13 @@ class Hello(something):
 """
 
 code5 = """
-def string_literals():
-    l1 = 0b10110 # type: OLiteral
-    l1 = "111\\n" 
+a = 10
+b = "test"
+c = 2 + 4
+
+str1 = f"hello {a+1} world {sin(a):.3}"
+assert str1 == "hello 11 world"
+
 """
 
 if __name__ == "__main__":
@@ -68,5 +73,7 @@ if __name__ == "__main__":
     # tree2 = ast.parse(code2)
     # tree3 = ast.parse(code3)
     # tree4 = ast.parse(code4)
+    a = 1
+    print(f"hello {a+1} world {sin(a):.3}")
     tree5 = ast.parse(code5, type_comments=True)
     print(ast.dump(tree5, indent=4))

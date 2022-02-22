@@ -17,7 +17,7 @@ The current mechanism included in PyJL only uses Python's type hints to correctl
 
 #
 ## PyJL Status
-The following section describes the currently supported features of PyJL
+The following section describes the currently supported features of PyJL. All marked boxes are features that are supported by PyJL. All unmarked boxes are either unsupported or don't have tests verifying them.
 
 ### <ins>Lexical Translation</ins>
 - Line Structure (PLR 2.1)
@@ -75,7 +75,7 @@ The following section describes the currently supported features of PyJL
     - [ ] longbytes
     - [ ] bytesescapeseq
   - Formatted String literals
-    - [x] f_string
+    - [x] f_string &rarr; using string interpolation
     - [ ] replacement_field
     - [ ] f_expression
     - [ ] conversion
@@ -95,10 +95,10 @@ The following section describes the currently supported features of PyJL
   - Floating Point literals
     - [x] floatnumber
     - [x] pointfloat
-    - [ ] exponentfloat
-    - [ ] digitpart
-    - [ ] fraction
-    - [ ] exponent
+    - [x] exponentfloat
+    - [x] digitpart
+    - [x] fraction
+    - [x] exponent
   - Imaginary literals
     - [x] imagnumber
 - Operators (PLR 2.5)
@@ -228,7 +228,7 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - ~~Create new `tests/cases/literals_bytes.py`~~
   - ~~Create new `tests/cases/literals_integer.py`~~
   - ~~Create new `tests/cases/literals_ floating_point.py`~~
-  - Change f_string to use new `"$var"` Julia syntax in `tests/cases/f_string.py` (PLR 2.4.3)
+  - ~~Change f_string to use new `"$var"` Julia syntax in `tests/cases/f_string.py` (PLR 2.4.3)~~
   - Create new `tests/cases/f_expression.py` (PLR 2.4.3)
 - Check if all Operator overloading cases are included
   - Check `tests/cases/bin_op.py`

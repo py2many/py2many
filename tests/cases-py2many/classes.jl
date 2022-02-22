@@ -26,15 +26,16 @@ function get_name(self::AbstractPerson)
 end
 
 struct Student <: AbstractStudent
+    name::String
     student_number::Int64
 end
 function __init__(self::AbstractStudent, name::String, student_number::Int64)
-    __init__(super(), name)
+    self.name = name
     self.student_number = student_number
 end
 
 function get_name(self::AbstractStudent)
-    return join([string(self.student_number), " - ", string(self.name)], "")
+    return "$(self.student_number) - $(self.name)"
 end
 
 function main()

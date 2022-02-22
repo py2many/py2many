@@ -50,6 +50,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
+            # TODO: Remove
             if is_list(node.func.value) and fname.attr == "append":
                 new_func_name = "push!"
             else:
@@ -409,7 +410,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{value_id}.{attr}"
 
-    def visit_Call(self, node) -> str:
+    def visit_Call(self, node: ast.Call) -> str:
         fname = self.visit(node.func)
         vargs = []
         if node.args:
@@ -890,7 +891,7 @@ class JuliaTranspiler(CLikeTranspiler):
         val = self.visit(node.value)
         return "{0} {1}= {2}".format(target, op, val)
 
-    def _visit_AssignOne(self, node, target) -> str:
+    def _visit_AssignOne(self, node: ast.Assign, target) -> str:
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
@@ -920,7 +921,7 @@ class JuliaTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
 
         # Custom type comments to preserve literal values
-        if value.isdigit():
+        if value is not None and value.isdigit():
             value = int(value)
             if type_c := getattr(node, "type_comment", None):
                 if type_c == "BLiteral":
@@ -1013,6 +1014,35 @@ class JuliaTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"{test} ? ({body}) : ({orelse})"
+
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> Any:
+        str_repr = ""
+        for value in node.values:
+            if isinstance(value, ast.FormattedValue):
+                str_repr += f"$({self.visit(value)})"
+            else:
+                tmp_val: str = self.visit(value).replace("\"", "")
+                str_repr += tmp_val
+        return f"\"{str_repr}\""
+
+    def visit_FormattedValue(self, node: ast.FormattedValue) -> Any:
+        value = self.visit(node.value)
+        conversion = node.conversion
+        if conversion == 115:
+            value = str(value)
+        elif conversion == 114:
+            value = repr(value)
+        elif conversion == 94:
+            value = ascii(value)
+
+        if f_spec_val := getattr(node, "format_spec", None):
+            f_spec_val: str = self.visit(f_spec_val)
+            # Supporting rounding
+            if re.match(r".[\d]*", f_spec_val):
+                f_spec_parsed = f_spec_val.split(".")[1].replace("\"", "")
+                return f"round({value}, digits={f_spec_parsed})"
+
+        return f"{value}"
 
     def _visit_generators(self, generators):
         gen_exp = ""
