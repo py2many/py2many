@@ -54,6 +54,7 @@ julia_keywords = frozenset(
 
 _DEFAULT = "Any"
 
+# TODO: Check ast.Is, ast.Not
 jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
 
 def jl_symbol(node):

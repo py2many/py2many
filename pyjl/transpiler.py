@@ -576,12 +576,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_UnaryOp(self, node) -> str:
         if hasattr(node, "op"):
-            if isinstance(node.op, ast.USub):
-                if isinstance(node.operand, (ast.Call, ast.Num)):
-                    # Shortcut if parenthesis are not needed
-                    return "-{0}".format(self.visit(node.operand))
-                else:
-                    return "-({0})".format(self.visit(node.operand))
+            if isinstance(node.op, ast.UAdd):
+                return f"+{self.visit(node.operand)}"
+            elif isinstance(node.op, ast.USub):
+                return f"-{self.visit(node.operand)}"
             elif isinstance(node.op, ast.Invert):
                 return f"~{self.visit(node.operand)}"
             else:
@@ -630,6 +628,11 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.MatMult):
             if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
                 return "({0}*{1})".format(left, right)
+
+        if isinstance(node.op, ast.Pow):
+            if isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num) \
+                    and right_jl_ann == "Int64" and left_jl_ann == "Int64":
+                return "({0}^{1})".format(left, right)
 
         # By default, call super
         return super().visit_BinOp(node)

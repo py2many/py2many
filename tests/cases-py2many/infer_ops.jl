@@ -6,14 +6,14 @@ function foo()
     _c2 = a - b
     _c3 = a * b
     _c4 = a / b
-    _c5 = -(a)
+    _c5 = -a
     d = 2.0
     _e1 = a + d
     _e2 = a - d
     _e3 = a * d
     _e4 = a / d
     _f = -3.0
-    _g = -(a)
+    _g = -a
 end
 
 function add1(x::Int8, y::Int8)::Int16
