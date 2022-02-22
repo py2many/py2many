@@ -228,7 +228,7 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - ~~Create new `tests/cases/literals_bytes.py`~~
   - ~~Create new `tests/cases/literals_integer.py`~~
   - ~~Create new `tests/cases/literals_ floating_point.py`~~
-  - ~~Change f_string to use new `"$var"` Julia syntax in `tests/cases/f_string.py` (PLR 2.4.3)~~
+  - ~~Change f_string to use string interpolation syntax in `tests/cases/f_string.py` (PLR 2.4.3)~~
   - Create new `tests/cases/f_expression.py` (PLR 2.4.3)
 - Check if all Operator overloading cases are included
   - Check `tests/cases/bin_op.py`
