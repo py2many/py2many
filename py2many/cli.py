@@ -629,7 +629,11 @@ def main(args=None, env=os.environ):
             default=False,
             help=f"Generate {settings.display_name} code",
         )
-    parser.add_argument("--outdir", default=None, help="Output directory")
+    parser.add_argument(
+        "--outdir", 
+        default=None, 
+        help="Output directory"
+    )
     parser.add_argument(
         "-i",
         "--indent",

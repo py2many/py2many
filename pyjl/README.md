@@ -14,6 +14,43 @@ PyJL's future iterations should also include a code annotation mechanism. The cu
 ## Inference Mechanism
 The current mechanism included in PyJL only uses Python's type hints to correctly map operations and expressions to Julia. Operator overloading is currently one of the focuses of the translation. To solve these problems, a type inference mechanism could be integrated into PyJL. Current options include [MyPy](http://mypy-lang.org/) or a [MaxSMT based approach](https://link.springer.com/chapter/10.1007/978-3-319-96142-2_2) to infer types.
 
+## Running PyJL
+To run PyJL, first execute the commands mentioned in the README file found in the Py2Many directory to setup
+Local installation:
+
+**Windows**
+```
+setup.py install --user  # installs to $HOME/.local
+```
+
+OR
+
+**Linux**
+```
+sudo ./setup.py install  # installs systemwide
+```
+
+To run Py2Many, you can use the following command
+```
+py2many.py --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>]
+```
+- __lang__: The language we want to use. In the case of PyJL, this parameter is set to `julia`
+- __path__: Is either a path to a Python module or a folder containing Python modules.
+- __outdir__: Where to output the transpiled results. If this is not specified when transpiling a folder, py2many will create a new folder with the name of the original folder and the suffix `-py2many`. The default is `None`
+- __indent__: Indentation to use in languages that care. The default is `None`
+- __comment-unsupported__: Place unsupported constructs in comments. The default is `False`
+- __extension__: Build a python extension. The default is `False`
+- __suffix__: Alternate suffix to use instead of the default one for the language. The default is `None`
+- __force__: When output and input are the same file, force overwriting. The default is `False`
+- __typpete__: Use typpete for inference. The default is `False`
+- __project__: Create a project when using directory mode. The default is `True`
+
+## Requirements:
+- Python 3.9 or above
+- Julia 1.6 (tested version, others may also work)
+- Some features require the following Julia Packages:
+  - [ResumableFunctions.jl](https://github.com/BenLauwens/ResumableFunctions.jl) - for yield mapping
+  - [DataClass.jl](https://github.com/MiguelMarcelino/Dataclass.jl") - uses a macro to map Python's dataclass decorator
 
 #
 ## PyJL Status
