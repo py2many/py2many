@@ -3,6 +3,11 @@ using Profile
 
 function combinations(l)::Vector
     result = []
+    # Also worked
+    # result = Tuple{Tuple{Vector{Float64}, 
+    #                    Vector{Float64}, Float64},
+    #              Tuple{Vector{Float64},
+    #                    Vector{Float64}, Float64}}[]
     for x in (0:length(l)-1-1)
         ls = l[(x+1+1):end]
         for y in ls
@@ -113,6 +118,7 @@ end
 
 function main()
     main_func(parse(Int64, append!([PROGRAM_FILE], ARGS)[2]))
+    # @time main_func(parse(Int64, append!([PROGRAM_FILE], ARGS)[2]))
 
     # Benchmarking
     # @benchmark main_func(500000)
