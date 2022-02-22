@@ -1,7 +1,4 @@
----
-title: PyJL Status
-keywords: PLR
----
+
 <h1 align="center"><b>PyJL</b></h1>
 
 <div align="center">
