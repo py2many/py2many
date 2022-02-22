@@ -75,27 +75,39 @@ https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
 
 
 ## Trying it out
+### Local installation
 
-Requirements:
-- python 3
-- clang
-- rustc
-
-Local installation:
-
+**Windows**
 ```
-./setup.py install --user  # installs to $HOME/.local
+setup.py install --user  # installs to $HOME/.local
 ```
 
 OR
 
+**Linux**
 ```
 sudo ./setup.py install  # installs systemwide
 ```
 
-Add the py2many script to your $PATH and run:
+### Transpiling
+To run Py2Many, you can use the following command
+```
+py2many.py --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>]
+```
+- __lang__: The language we want to use (See examples in section below)
+- __path__: Is either a path to a Python module or a folder containing Python modules.
+- __outdir__: Where to output the transpiled results. If this is not specified when __path__ is a folder, py2many will create a new folder with the name of the original folder and add the suffix `-py2many`. The default is `None`
+- __indent__: Indentation to use in languages that care. The default is `None`
+- __comment-unsupported__: Place unsupported constructs in comments. The default is `False`
+- __extension__: Build a python extension. The default is `False`
+- __suffix__: Alternate suffix to use instead of the default one for the language. The default is `None`
+- __force__: When output and input are the same file, force overwriting. The default is `False`
+- __typpete__: Use typpete for inference. The default is `False`
+- __project__: Create a project when using directory mode. The default is `True`
 
-Transpiling:
+
+### Example
+Add the py2many script to your $PATH and run:
 
 ```
 py2many --cpp=1 /tmp/fib.py
@@ -114,4 +126,11 @@ clang fib.cpp
 rustc fib.rs
 ...
 ```
+
+## Requirements:
+- python 3
+- clang
+- rustc
+
+
 
