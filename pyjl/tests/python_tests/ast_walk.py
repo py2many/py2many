@@ -59,13 +59,8 @@ class Hello(something):
 """
 
 code5 = """
-a = 10
-b = "test"
-c = 2 + 4
-
-str1 = f"hello {a+1} world {sin(a):.3}"
-assert str1 == "hello 11 world"
-
+while count[i] >= i:
+    count[i] = 0
 """
 
 if __name__ == "__main__":

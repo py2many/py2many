@@ -14,7 +14,8 @@ function combinations(l)::Vector
             push!(result, (l[x+1], y))
         end
     end
-    return result
+    # return result
+    # return eltype(result) # Does not work
     # return [e for e in result]
     # return typeof(result[1])[result...]
     # return convert(Vector{typeof(result[1])}, result)

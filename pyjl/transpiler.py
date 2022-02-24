@@ -969,7 +969,10 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Yield(self, node: ast.Yield) -> str:
         if "ResumableFunctions" not in self._usings:
             self._usings.add("ResumableFunctions")
-        return f"@yield {self.visit(node.value)}"
+        if node.value:
+            return f"@yield {self.visit(node.value)}"
+        else:
+            return "@yield"
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported
@@ -1049,12 +1052,15 @@ class JuliaTranspiler(CLikeTranspiler):
     ######################################################
 
     def _visit_generators(self, generators):
-        gen_exp = ""
+        gen_exp = []
         for i in range(len(generators)):
             generator = generators[i]
             target = self.visit(generator.target)
             iter = self.visit(generator.iter)
-            gen_exp += f"for {target} in {iter}"
+            exp = f"for {target} in {iter}"
+            gen_exp.append(exp) \
+                if i == 0 \
+                else gen_exp.append(f" {exp}")
             filter_str = ""
             if(len(generator.ifs) == 1):
                 filter_str += f" if {self.visit(generator.ifs[0])} "
@@ -1062,9 +1068,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 for i in range(0, len(generator.ifs)):
                     gen_if = generator.ifs[i]
                     filter_str += f" if {self.visit(gen_if)}" if i==0 else f" && {self.visit(gen_if)} "
-            gen_exp += filter_str 
+            gen_exp.append(filter_str)
 
-        return gen_exp
+        return "".join(gen_exp)
 
     def _parse_annotations(self, node_decorator_list: list):
         decorator_list_cpy = node_decorator_list.copy()
