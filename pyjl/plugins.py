@@ -1,4 +1,6 @@
 import argparse
+from array import array
+import builtins
 import io
 import itertools
 from msilib.schema import File
@@ -9,7 +11,7 @@ import sys
 # from sys import stdout
 
 from tempfile import NamedTemporaryFile
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, MutableSequence, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
@@ -336,6 +338,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.close": (lambda self, node, vargs: "drop(f)", False),
     open: (JuliaTranspilerPlugins.visit_open, True),
     # List Support
+    list: (lambda self, node, vargs: print(node), True),
+    list[MutableSequence[int]]: (lambda self, node, vargs: print(node), True),
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     list.remove: (lambda self, node, vargs: f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),

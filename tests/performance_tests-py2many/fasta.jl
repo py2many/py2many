@@ -19,7 +19,7 @@ function started_process(target, args)
     return process
 end
 
-function lock_pair(pre_lock, post_lock, locks)
+function lock_pair(pre_lock = nothing, post_lock = nothing, locks = nothing)
     pre, post = locks ? (locks) : ((pre_lock, post_lock))
     if pre
         acquire(pre)
@@ -30,7 +30,14 @@ function lock_pair(pre_lock, post_lock, locks)
     end
 end
 
-function write_lines(sequence, n, width, lines_per_block = 10000, newline = b' \ n', table)
+function write_lines(
+    sequence,
+    n,
+    width,
+    lines_per_block = 10000,
+    newline = b"\n",
+    table = nothing,
+)
     i = 0
     blocks = ((n - width) / width) / lines_per_block
     if blocks
@@ -71,7 +78,7 @@ function cumulative_probabilities(alphabet, factor = 1.0)
     return (probabilities, table)
 end
 
-function copy_from_sequence(header, sequence, n, width, locks)
+function copy_from_sequence(header, sequence, n, width, locks = nothing)
     sequence = Vector{UInt8}(join(sequence, ""))
     while length(sequence) < n
         extend(sequence, sequence)
@@ -120,7 +127,16 @@ end
     end
 end
 
-function lookup_and_write(header, probabilities, table, values, start, stop, width, locks)
+function lookup_and_write(
+    header,
+    probabilities,
+    table,
+    values,
+    start,
+    stop,
+    width,
+    locks = nothing,
+)
     if isa(values, bytearray)
         output = values
     else
@@ -136,7 +152,7 @@ function lookup_and_write(header, probabilities, table, values, start, stop, wid
     end
 end
 
-function random_selection(header, alphabet, n, width, seed, locks)
+function random_selection(header, alphabet, n, width, seed, locks = nothing)
     im = 139968.0
     ia = 3877.0
     ic = 29573.0

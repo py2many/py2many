@@ -117,6 +117,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
+    # TODO: Investigate method better
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if hasattr(node, attr):
@@ -128,8 +129,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                     return self._visit_container_type(type_node.container_type)
                 except TypeNotSupported as e:
                     raise AstTypeNotSupported(str(e), node)
-            if not self.not_inferable(node, type_node) and typename is None:
-                raise AstCouldNotInfer(type_node, node)
+            if self.not_inferable(node, type_node) and typename is None:
+                # raise AstCouldNotInfer(type_node, node)
+                return None
         return typename
 
     def not_inferable(self, node, type_node):
@@ -240,6 +242,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if annotation:
                 try:
                     py_type = eval(f"{annotation}.{fname}")
+                    
                     ret, node.result_type = (self._func_dispatch_table[py_type] 
                         if py_type in self._func_dispatch_table else None)
                     return ret(self, node, vargs)

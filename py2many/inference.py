@@ -292,7 +292,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-            if not target_has_annotation or inferred:
+            if (not target_has_annotation or inferred):
                 target.annotation = annotation
                 target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict

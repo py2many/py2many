@@ -4,17 +4,18 @@ using Profile
 function combinations(l)::Vector
     result = []
     # Also worked
-    # result = Tuple{Tuple{Vector{Float64}, 
-    #                    Vector{Float64}, Float64},
-    #              Tuple{Vector{Float64},
-    #                    Vector{Float64}, Float64}}[]
+    # result::Vector{Tuple{Tuple{Vector{Float64}, 
+    #         Vector{Float64}, Float64},
+    #     Tuple{Vector{Float64},
+    #         Vector{Float64}, Float64}}} = []
+    result = []
     for x in (0:length(l)-1-1)
         ls = l[(x+1+1):end]
         for y in ls
             push!(result, (l[x+1], y))
         end
     end
-    # return result
+    return result
     # return eltype(result) # Does not work
     # return [e for e in result]
     # return typeof(result[1])[result...]
@@ -118,7 +119,7 @@ function main_func(n, ref = "sun")
 end
 
 function main()
-    main_func(parse(Int64, append!([PROGRAM_FILE], ARGS)[2]))
+    @time main_func(parse(Int64, append!([PROGRAM_FILE], ARGS)[2]))
     # @time main_func(parse(Int64, append!([PROGRAM_FILE], ARGS)[2]))
 
     # Benchmarking
@@ -131,4 +132,4 @@ function main()
     # close(f)
 end
 
-main()
+# main()

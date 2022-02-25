@@ -104,6 +104,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.visit(node.value)
 
         ann = getattr(node.value, "annotation", None)
+        
         annotation = ann if ann else getattr(node, "annotation", None)
         if annotation is None:
             # Attempt to get type
@@ -117,6 +118,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     return node
             return node
 
+
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
             inferred = (
@@ -124,7 +126,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-            if not target_has_annotation or inferred:
+            # We cannot infer if it is subscript, as they are used in Dicts, Lists, etc.
+            if (not target_has_annotation or inferred) and not isinstance(target, ast.Subscript):
                 self._add_annotation(node, annotation, target)
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
@@ -298,15 +301,17 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             )
 
     def _add_julia_type(self, node, annotation, target):
-        julia_annotation = self._get_inferred_julia_type(node)
+        julia_annotation = self._get_inferred_julia_type(node)        
         julia_type = (self._clike._map_type(get_id(annotation)) 
             if julia_annotation == None 
             else julia_annotation
         )
         var_name = get_id(target)
         if(var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
-            raise AstIncompatibleAssign(f"{type} incompatible with {self._stack_var_map[var_name][0]}", node)
-        self._stack_var_map[var_name] = (julia_type, get_id(annotation))
+            raise AstIncompatibleAssign(f"{julia_type} incompatible with {self._stack_var_map[var_name][0]}", node)
+        self._stack_var_map[var_name] = (julia_type, get_id(annotation.value)) \
+            if isinstance(annotation, ast.Subscript) \
+            else (julia_type, get_id(annotation))
 
     def _add_annotation(self, node, annotation, target):
         self._add_julia_type(node, annotation, target)

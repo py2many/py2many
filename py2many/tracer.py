@@ -112,6 +112,18 @@ def find_node_matching_type(node_type, scopes):
             break
     return c_node
 
+def find_node_matching_name(name, scopes):
+    if name is None:
+        return None
+
+    c_node = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if matches_name(sc, name):
+            c_node = sc
+            break
+        c_node = find_in_body(sc.body, (lambda x: matches_name(x, name)))
+    return c_node
 
 # Finds a node by its name and type
 def find_node_matching_name_and_type(name, node_type, scopes):

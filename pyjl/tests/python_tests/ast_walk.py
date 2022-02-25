@@ -69,6 +69,5 @@ if __name__ == "__main__":
     # tree3 = ast.parse(code3)
     # tree4 = ast.parse(code4)
     a = 1
-    print(f"hello {a+1} world {sin(a):.3}")
     tree5 = ast.parse(code5, type_comments=True)
     print(ast.dump(tree5, indent=4))

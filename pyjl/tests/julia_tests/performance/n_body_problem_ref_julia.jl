@@ -10,7 +10,6 @@
 # unroll them. To convince llvm to do so, this script should be run
 # with the evironment variable:
 # JULIA_LLVM_ARGS='-unroll-threshold=500'.
-
 using Base.Cartesian
 
 const SOLAR_MASS = 4 * pi * pi

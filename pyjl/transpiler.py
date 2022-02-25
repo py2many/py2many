@@ -50,11 +50,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            # TODO: Remove
-            if is_list(node.func.value) and fname.attr == "append":
-                new_func_name = "push!"
-            else:
-                new_func_name = fname.attr
+            new_func_name = fname.attr
 
             if get_id(fname.value):
                 node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
@@ -330,12 +326,15 @@ class JuliaTranspiler(CLikeTranspiler):
                 else:
                     default = defaults[i]
 
-            if get_id(default):
-                default = get_id(default)
-            elif isinstance(default, ast.Constant):
-                default = default.value
-                if isinstance(default, str):
-                    default = f"\"{default}\""
+            if default is not None:
+                default = self.visit(default)
+            # if get_id(default):
+            #     default = get_id(default)
+            # elif isinstance(default, ast.Constant):
+            #     print(type(default.value))
+            #     default = self.visit(default.value)
+            #     # if isinstance(default, str):
+            #     #     default = f"\"{default}\""
 
             arg_signature = ""
             if arg_typename:
@@ -366,6 +365,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
+
+    
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -468,23 +469,19 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node: ast.Str) -> str:
         node_str = node.value
-        # Allow quote translation
-        node_str = node_str.replace('"', '\\"')
-        # Escape string literals
-        node_str = node_str.replace("\a", f"\\a")
-        node_str = node_str.replace("\b", f"\\b")
-        node_str = node_str.replace("\f", f"\\f")
-        node_str = node_str.replace("\n", f"\\n")
-        node_str = node_str.replace("\r", f"\\r")
-        node_str = node_str.replace("\v", f"\\v")
-        node_str = node_str.replace("\t", f"\\t")
+        # Escape special characters
+        node_str = node_str.translate(str.maketrans({"\a": "\\a", "\b": "\\b", 
+            "\f": "\\f", "\n": "\\n", "\r": "\\r", "\v": "\\v", "\t": "\\t", 
+            '"': '\\"'}))
         return f'"{node_str}"'
 
-    def visit_Bytes(self, node) -> str:
-        bytes_str = node.s
-        bytes_str = bytes_str.replace(b'"', b'\\"')
-        bytes_str = bytes_str.replace(b'\n', b'\\n')
-        return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
+    def visit_Bytes(self, node: ast.Bytes) -> str:
+        bytes_str: str = str(node.s)
+        # Replace ['] by ["]
+        bytes_str = f"{bytes_str[0]}\"{bytes_str[2:-1]}\""
+        # Decoding does not give representative value
+        # return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
+        return f"{bytes_str}"
 
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
