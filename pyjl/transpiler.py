@@ -347,7 +347,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
-                    else super()._map_type(self._typename_from_annotation(node, attr="returns")))
+                    else self._typename_from_annotation(node, attr="returns"))
                 return_type = f"::{func_typename}"
 
         template = ""
@@ -942,7 +942,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if not hasattr(target, "annotation") else target
         )
         if node_assign and hasattr(node_assign, "annotation"):
-            type_ann = super()._map_type(self._typename_from_annotation(node_assign))
+            type_ann = self._typename_from_annotation(node_assign)
             if isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann):
                 return f"empty!({target_name})"
          

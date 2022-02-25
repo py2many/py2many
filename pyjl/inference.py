@@ -29,6 +29,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         self._clike = CLikeTranspiler()
+        # Holds Tuple(julia_type, python_type) with id as variable name
         self._stack_var_map = {}
 
     def _handle_overflow(self, op, left_id, right_id):
@@ -71,7 +72,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         # Returns to state before visiting the function body
         # This accounts for nested functions
         self._stack_var_map = curr_state
-        return node        
+        return node
 
     def visit_Return(self, node: ast.Return):
         self.generic_visit(node)
@@ -118,7 +119,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     return node
             return node
 
-
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
             inferred = (
@@ -126,7 +126,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-            # We cannot infer if it is subscript, as they are used in Dicts, Lists, etc.
+            # TODO: We cannot infer if it is subscript, as they are used in Dicts, Lists, etc.
             if (not target_has_annotation or inferred) and not isinstance(target, ast.Subscript):
                 self._add_annotation(node, annotation, target)
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
@@ -136,16 +136,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         ann = getattr(node.value, "annotation", None)
+        target = node.target
         annotation = ann if ann else getattr(node, "annotation", None)
         node.annotation = annotation
-        node.target.annotation = node.annotation
+        self.append_to_type_map(node, annotation, target)
 
-        target = node.target
         target_typename = self._clike._typename_from_annotation(target)
-        if target_typename in self.FIXED_WIDTH_INTS_NAME:
-            self.has_fixed_width_ints = True
-        self._add_julia_type(node, annotation, target)
-
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
         value_class = class_for_typename(value_typename, None)
@@ -190,12 +186,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         # Both operands are annotated
         left_id = get_id(left)
         right_id = get_id(right)
-
-        # TODO: is this necessary?
-        # if left_id == "int":
-        #     left_id = "c_int32"
-        # if right_id == "int":
-        #     right_id = "c_int32"
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
@@ -300,7 +290,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else self._clike._map_type(right_default)
             )
 
-    def _add_julia_type(self, node, annotation, target):
+    def append_to_type_map(self, node, annotation, target):
         julia_annotation = self._get_inferred_julia_type(node)        
         julia_type = (self._clike._map_type(get_id(annotation)) 
             if julia_annotation == None 
@@ -314,7 +304,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             else (julia_type, get_id(annotation))
 
     def _add_annotation(self, node, annotation, target):
-        self._add_julia_type(node, annotation, target)
+        self.append_to_type_map(node, annotation, target)
         target.annotation = annotation
         target.annotation.inferred = True
 
