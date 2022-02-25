@@ -338,8 +338,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.close": (lambda self, node, vargs: "drop(f)", False),
     open: (JuliaTranspilerPlugins.visit_open, True),
     # List Support
-    list: (lambda self, node, vargs: print(node), True),
-    list[MutableSequence[int]]: (lambda self, node, vargs: print(node), True),
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     list.remove: (lambda self, node, vargs: f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
