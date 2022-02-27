@@ -1,8 +1,8 @@
 import argparse
 import ast
 import functools
+from getpass import getpass
 import os
-from pycpp.tests.test_analysis import parse
 from pyjl.inference import infer_julia_types
 import sys
 import tempfile
@@ -294,7 +294,11 @@ def rust_settings(args, env=os.environ):
 
 def julia_settings(args, env=os.environ):
     format_jl = None
-    julia_path = "C:/Users/Miguel Marcelino/AppData/Local/Programs/Julia-1.7.1/bin/julia.exe"
+    if sys.platform == "win32":
+        user = getpass.getuser()
+        julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-1.7.1/bin/julia.exe"
+    else:
+        julia_path = "julia"
     if os.path.exists("pyjl/formatter"):
         format_jl = [julia_path, "-O0", "--compile=min", "--startup=no", "pyjl/formatter/format_files.jl"]
     return LanguageSettings(

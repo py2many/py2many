@@ -1,9 +1,6 @@
 import argparse
-from array import array
-import builtins
 import io
 import itertools
-from msilib.schema import File
 import os
 import ast
 import re

@@ -1,5 +1,5 @@
 import ast
-from build.lib.py2many.exceptions import AstCouldNotInfer, AstTypeNotSupported, TypeNotSupported
+from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
 from typing import List, Optional, Union
 from py2many.ast_helpers import get_id

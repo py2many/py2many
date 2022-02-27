@@ -14,7 +14,7 @@ from typing import Any
 
 class AbstractType(stmt):
     value: expr
-    extends: expr | None
+    extends: expr
     ctx: expr_context
 
 ######################################

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import ast
-from build.lib.py2many.exceptions import AstTypeNotSupported
+from py2many.exceptions import AstTypeNotSupported
 from py2many.input_configuration import ParseFileStructure
 
 import textwrap

@@ -35,4 +35,3 @@ struct IntList <: AbstractIntList
     NONE::None
     REST::IntListNonEmpty
 end
-
