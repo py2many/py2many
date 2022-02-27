@@ -1,12 +1,14 @@
 import ast
+import re
+import typing
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
-from py2many.tracer import find_node_matching_type
+from py2many.tracer import find_node_matching_type, is_list
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
 import importlib
@@ -71,6 +73,9 @@ def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
         return None
     if typename == "dataclass":
         eval(typename)
+
+    # Break composite types
+    typename = typename.translate(str.maketrans({"{": "[", "}": "]"}))
     try:
         locals |= VARIABLE_MAP
         typeclass = eval(typename, globals(), locals)
@@ -163,15 +168,39 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         # If necessary, call super
         super()._typename_from_type_node(node)
 
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+    def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
+        # typeclass = class_for_typename(typename, self._default_type)
+        if typename is not None and "{" in typename: # Current hack
+            # Recursive Container Types
+            chr = re.split(r"\{|\}", typename)
+            new_typename = []
+            parens = 0
+            for i in range(len(chr)):
+                s = chr[i]
+                if s == "":
+                    continue
+                if i != 0:
+                    parens += 1
+                    new_typename.append("{")
+                new_typename.append(self._get_julia_type(s))
+
+            for _ in range(parens):
+                new_typename.append("}")
+            return "".join(new_typename) if len(new_typename) > 1 else typename
+
+        return self._get_julia_type(typename)
+
+    def _get_julia_type(self, typename):
         typeclass = class_for_typename(typename, self._default_type)
         if typeclass in JULIA_TYPE_MAP:
             return JULIA_TYPE_MAP[typeclass]
-        if typename in CONTAINER_TYPE_MAP:
+        elif typename in CONTAINER_TYPE_MAP:
             return CONTAINER_TYPE_MAP[typename]
-        if typename in MODULE_DISPATCH_TABLE:
+        elif typename in MODULE_DISPATCH_TABLE:
             return MODULE_DISPATCH_TABLE[typename]
-        return typename
+        else:
+            # Default if no type is found
+            return typename
 
     ################################################
     ########### Supporting Julia imports ###########

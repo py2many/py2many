@@ -264,3 +264,21 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
 #
 ## Keywords
 - PLR - Python Language Reference (Based on version 3.9.7)
+
+#
+## Extra
+### Running pytype
+Example with N-Body
+
+```
+pytype tests/performance_tests/n_body_problem.py -o tests/performance_tests/annotations/
+
+merge-pyi -i tests/performance_tests/n_body_problem.py tests/performance_tests/annotations/pyi/n_body_problem.pyi
+```
+
+Then run py2many
+```
+sudo ./setup.py install
+
+py2many --julia=1 tests/performance_tests
+```

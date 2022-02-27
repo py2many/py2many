@@ -1,6 +1,7 @@
 import argparse
 import io
 import itertools
+from multiprocessing.dummy import Array
 import os
 import ast
 import re
@@ -237,6 +238,8 @@ JULIA_TYPE_MAP = {
     c_uint16: "UInt16",
     c_uint32: "UInt32",
     c_uint64: "UInt64",
+    None: "Nothing",
+    Any: "Any"
 }
 
 VARIABLE_MAP = {
@@ -286,6 +289,7 @@ SMALL_DISPATCH_MAP = {
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
+    "None": lambda n, vargs: f"Nothing",
 }
 
 SMALL_USINGS_MAP = {

@@ -348,7 +348,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if node.returns:
                 func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
                     else self._typename_from_annotation(node, attr="returns"))
-                return_type = f"::{func_typename}"
+                return_type = f"::{super()._map_type(func_typename)}"
 
         template = ""
         if len(typedecls) > 0:
@@ -875,7 +875,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # default Python annotation
         type_str = (
             node.julia_annotation 
-            if (node.julia_annotation and node.julia_annotation != "None") 
+            if (node.julia_annotation and node.julia_annotation != "Nothing") 
             else type_str
         )
         if not type_str or type_str == self._default_type:
