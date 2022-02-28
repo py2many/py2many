@@ -238,7 +238,7 @@ JULIA_TYPE_MAP = {
     c_uint16: "UInt16",
     c_uint32: "UInt32",
     c_uint64: "UInt64",
-    None: "Nothing",
+    None: "nothing",
     Any: "Any"
 }
 
@@ -275,7 +275,7 @@ CONTAINER_TYPE_MAP = {
     "List": "Vector",
     "Dict": "Dict",
     "Set": "Set",
-    "Optional": "Nothing",
+    "Optional": "nothing",
     "bytearray": f"Vector{{Int8}}"
 }
 
@@ -289,7 +289,7 @@ SMALL_DISPATCH_MAP = {
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
-    "None": lambda n, vargs: f"Nothing",
+    "None": lambda n, vargs: f"nothing",
 }
 
 SMALL_USINGS_MAP = {

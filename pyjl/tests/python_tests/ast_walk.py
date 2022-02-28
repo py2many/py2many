@@ -59,8 +59,7 @@ class Hello(something):
 """
 
 code5 = """
-while count[i] >= i:
-    count[i] = 0
+def advance(dt, n, bodies = ..., pairs = ...) -> None: ...
 """
 
 if __name__ == "__main__":

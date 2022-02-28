@@ -273,6 +273,8 @@ class JuliaTranspiler(CLikeTranspiler):
         # visit function body
         body = ""
         node_body = "\n".join([self.visit(n) for n in node.body])
+        if node_body == "...":
+            node_body = ""
 
         # Check for function annotations
         annotation = ""
@@ -525,7 +527,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Name(self, node) -> str:
         if get_id(node) == "None":
-            return "Nothing"
+            return "nothing"
         else:
             return super().visit_Name(node)
 
@@ -535,7 +537,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return "Nothing"
+            return "nothing"
         else:
             return super().visit_NameConstant(node)
 
@@ -829,6 +831,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{lower}:{upper}"
 
+    def visit_Ellipsis(self, node: ast.Ellipsis) -> str:
+        return "..."
+
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
@@ -875,7 +880,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # default Python annotation
         type_str = (
             node.julia_annotation 
-            if (node.julia_annotation and node.julia_annotation != "Nothing") 
+            if (node.julia_annotation and node.julia_annotation != "nothing") 
             else type_str
         )
         if not type_str or type_str == self._default_type:
@@ -905,7 +910,7 @@ class JuliaTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
-                value = "Nothing"
+                value = "nothing"
             return "{0} = {1}".format(target, value)
 
         # TODO: Check this

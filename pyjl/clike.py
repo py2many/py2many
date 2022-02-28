@@ -65,7 +65,7 @@ def jl_symbol(node):
     return jl_symbols[symbol_type]
 
 # TODO: Deal with classes in Julia
-def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
+def class_for_typename(typename: str, default_type, locals={}) -> Union[str, object]:
     if typename is None:
         return None
     if typename == "super" or typename.startswith("super()"):
@@ -74,8 +74,6 @@ def class_for_typename(typename, default_type, locals={}) -> Union[str, object]:
     if typename == "dataclass":
         eval(typename)
 
-    # Break composite types
-    typename = typename.translate(str.maketrans({"{": "[", "}": "]"}))
     try:
         locals |= VARIABLE_MAP
         typeclass = eval(typename, globals(), locals)
@@ -152,41 +150,62 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
-        if isinstance(node, ast.Subscript):
-            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
-            # in node.container_type
-            # And return a target specific type
-            slice_value = self._slice_value(node) # Check later, for now works
-            
+        elif isinstance(node, ast.Constant) and node.value is not None:
+            return node.value
+        elif isinstance(node, ast.ClassDef):
+            return get_id(node)
+        elif isinstance(node, ast.Tuple):
+            return [self._map_type(self._typename_from_type_node(e)) for e in node.elts]
+        elif isinstance(node, ast.Attribute):
+            node_id = get_id(node)
+            if node_id.startswith("typing."):
+                node_id = node_id.split(".")[1]
+            return self._map_type(node_id)
+        elif isinstance(node, ast.Subscript):
+            # Obtains container type
             (value_type, index_type) = tuple(
-                map(self._typename_from_type_node, (node.value, slice_value))
+                map(self._typename_from_type_node, (node.value, node.slice))
             )
-            if cont_map := self._map_type(value_type):
-                value_type = cont_map
-            node.container_type = (self._map_type(value_type), self._map_type(index_type))
-            return self._combine_value_index(value_type, index_type)
-        # If necessary, call super
-        super()._typename_from_type_node(node)
+            node.container_type = (value_type, index_type)
+            return self._visit_container_type((value_type, index_type)) \
+                if isinstance(index_type, List) \
+                else self._combine_value_index(value_type, index_type)
+        return self._default_type
+
+    def visit_AnnAssign(self, node):
+        target, type_str, val = super().visit_AnnAssign(node)
+        return (target, type_str, self._map_type(val))
+
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}{{{index_type}}}"
+
+    def _visit_container_type(self, typename: Tuple) -> str:
+        value_type, index_type = typename
+        if isinstance(index_type, List):
+            index_type = ", ".join(index_type)
+        return self._combine_value_index(value_type, index_type)
 
     def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
         # typeclass = class_for_typename(typename, self._default_type)
-        if typename is not None and "{" in typename: # Current hack
-            # Recursive Container Types
-            chr = re.split(r"\{|\}", typename)
-            new_typename = []
-            parens = 0
-            for i in range(len(chr)):
-                s = chr[i]
-                if s == "":
-                    continue
-                if i != 0:
-                    parens += 1
-                    new_typename.append("{")
-                new_typename.append(self._get_julia_type(s))
+        # if typename is not None and "{" in typename: # Current hack
+        #     # Recursive Container Types
+        #     chr = re.split(r"\{|\}", typename)
+        #     new_typename = []
+        #     parens = 0
+        #     for i in range(len(chr)):
+        #         s = chr[i]
+        #         if s == "":
+        #             continue
+        #         if i != 0:
+        #             parens += 1
+        #             new_typename.append("{")
+        #         new_typename.append(self._get_julia_type(s))
 
-            for _ in range(parens):
-                new_typename.append("}")
-            return "".join(new_typename) if len(new_typename) > 1 else typename
+        #     for _ in range(parens):
+        #         new_typename.append("}")
+        #     return "".join(new_typename) if len(new_typename) > 1 else typename
 
         return self._get_julia_type(typename)
 
