@@ -188,25 +188,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
         if isinstance(typename, list):
             raise NotImplementedError(f"{typename} not supported in this context")
-        # typeclass = class_for_typename(typename, self._default_type)
-        # if typename is not None and "{" in typename: # Current hack
-        #     # Recursive Container Types
-        #     chr = re.split(r"\{|\}", typename)
-        #     new_typename = []
-        #     parens = 0
-        #     for i in range(len(chr)):
-        #         s = chr[i]
-        #         if s == "":
-        #             continue
-        #         if i != 0:
-        #             parens += 1
-        #             new_typename.append("{")
-        #         new_typename.append(self._get_julia_type(s))
-
-        #     for _ in range(parens):
-        #         new_typename.append("}")
-        #     return "".join(new_typename) if len(new_typename) > 1 else typename
-
         return self._get_julia_type(typename)
 
     def _get_julia_type(self, typename):
