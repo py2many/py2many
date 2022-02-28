@@ -885,10 +885,11 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
-        # target, type_str, val = super().visit_AnnAssign(node)
         target = self.visit(node.target)
         type_str = self.visit(node.annotation)
-        val = self.visit(node.value)
+        val = None
+        if node.value is not None:
+            val = self.visit(node.value)
         # If there is a Julia annotation, get that instead of the 
         # default Python annotation
         type_str = (
@@ -896,11 +897,17 @@ class JuliaTranspiler(CLikeTranspiler):
             if (node.julia_annotation and node.julia_annotation != "nothing") 
             else type_str
         )
-        if not type_str or type_str == self._default_type:
-            return f"{target} = {val}"
-        return f"{target}::{type_str} = {val}"
 
-    def visit_AugAssign(self, node) -> str:
+        if val:
+            if not type_str or type_str == self._default_type:
+                return f"{target} = {val}"
+            return f"{target}::{type_str} = {val}"
+        else: 
+            if not type_str or type_str == self._default_type:
+                return f"{target}"
+            return f"{target}::{type_str}"
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> str:
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)

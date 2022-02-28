@@ -59,7 +59,9 @@ class Hello(something):
 """
 
 code5 = """
-def advance(dt, n, bodies = ..., pairs = ...) -> None: ...
+from py2many.smt import check_sat, get_model
+
+x: int
 """
 
 if __name__ == "__main__":
