@@ -319,7 +319,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         value_class = class_for_typename(value_typename, None)
         if (
             not is_compatible(target_class, value_class, target, node.value)
-            and target_class != None
+            and target_class is not None
         ):
             raise AstIncompatibleAssign(
                 f"{target_class} incompatible with {value_class}", node

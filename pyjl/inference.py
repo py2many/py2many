@@ -10,6 +10,7 @@ from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_
 from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
+JULIA_NONE_TYPE = "nothing"
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
@@ -31,6 +32,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self._clike = CLikeTranspiler()
         # Holds Tuple(julia_type, python_type) with id as variable name
         self._stack_var_map = {}
+        self._none_type = JULIA_NONE_TYPE
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -147,7 +149,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         value_class = class_for_typename(value_typename, None)
         if (
             not is_compatible(target_class, value_class, target, node.value)
-            and target_class != None
+            and target_class is not None
         ):
             raise AstIncompatibleAssign(
                 f"{target_class} incompatible with {value_class}", node
@@ -297,7 +299,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             else julia_annotation
         )
         var_name = get_id(target)
-        if(var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
+        if(julia_type != self._none_type and var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
             raise AstIncompatibleAssign(f"{julia_type} incompatible with {self._stack_var_map[var_name][0]}", node)
         self._stack_var_map[var_name] = (julia_type, get_id(annotation.value)) \
             if isinstance(annotation, ast.Subscript) \
