@@ -4,34 +4,27 @@ abstract type AbstractIntListNonEmpty end
 abstract type AbstractIntList end
 mutable struct IntListNonEmpty <: AbstractIntListNonEmpty
     first::Int64
-    rest::IntList
+    rest::AbstractIntList
 end
 
-function __init__(self::IntListNonEmpty, first::Int64, rest::IntList)
-    setfield!(self::IntListNonEmpty, :first, first::Int64)
-    setfield!(self::IntListNonEmpty, :rest, rest::IntList)
-
+function __init__(self::AbstractIntListNonEmpty, first::Int64, rest::AbstractIntList)
+    setfield!(self::AbstractIntListNonEmpty, :first, first::Int64),
+    setfield!(self::AbstractIntListNonEmpty, :rest, rest::IntList)
 end
 
-function __repr__(self::IntListNonEmpty)::String
-    return IntListNonEmpty(
-        getfield!(self::IntListNonEmpty, first::Int64),
-        getfield!(self::IntListNonEmpty, rest::IntList),
-    )
+function __repr__(self::AbstractIntListNonEmpty)::String
+    return AbstractIntListNonEmpty(self.first, self.rest)
 end
-function __eq__(self::IntListNonEmpty, other::IntListNonEmpty)::Bool
+function __eq__(self::AbstractIntListNonEmpty, other::AbstractIntListNonEmpty)::Bool
     return __key(self) == __key(other)
 end
 
-function __key(self::IntListNonEmpty)
-    (
-        getfield!(self::IntListNonEmpty, first::Int64),
-        getfield!(self::IntListNonEmpty, rest::IntList),
-    )
+function __key(self::AbstractIntListNonEmpty)
+    (__key(self.first), self.rest)
 end
 
 
 struct IntList <: AbstractIntList
     NONE::Any
-    REST::IntListNonEmpty
+    REST::AbstractIntListNonEmpty
 end

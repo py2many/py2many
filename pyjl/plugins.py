@@ -44,7 +44,7 @@ class JuliaTranspilerPlugins:
         dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
         [fields, _] = dataclass_data[0], dataclass_data[1]
 
-        fields_str, annotation, body, modifiers = "", "", "", ""
+        annotation, fields_str, modifiers, body = "", "", "", ""
 
         structname = get_id(node)
 
@@ -54,20 +54,32 @@ class JuliaTranspilerPlugins:
             (struct_fields.append(declaration if node.declarations[declaration] == "" 
                 else f"{declaration}::{node.declarations[declaration]}"))
 
+        # Abstract type
+        structname = "".join(["Abstract", structname])
         
         # get struct variables using getfield
-        get_variables = []
-        for field_name in struct_fields:
-            get_variables.append(f"getfield!(self::{structname}, {field_name})")
-        get_variables = ", ".join(get_variables)
+        attr_vars = []
+        key_vars = []
+        assign_variables_init = []
+        str_struct_fields = []
+        for field in struct_fields:
+            field_name, field_type = field.split("::")
+            attr_vars.append(f"self.{field_name}")
+            key_vars.append(f"self.{field_name}"
+                if (field_type in transpiler_mod._class_names) else f"__key(self.{field_name})")
+            assign_variables_init.append(f"setfield!(self::{structname}, :{field_name}, {field})")
+            str_struct_fields.append(f"{field_name}::{field_type}"
+                if field_type not in transpiler_mod._class_names 
+                else f"{field_name}::Abstract{field_type}")
+
+        # Convert into string
+        key_vars = ", ".join(key_vars)
+        attr_vars = ", ".join(attr_vars)
+        assign_variables_init = ", ".join(assign_variables_init)
+        str_struct_fields = ", ".join(str_struct_fields)
 
         if fields["init"]:
             modifiers = "mutable"
-            str_struct_fields = ", ".join(struct_fields)
-            assign_variables_init = ""
-            for field in struct_fields:
-                field_name = field.split("::")
-                assign_variables_init += f"setfield!(self::{structname}, :{field_name[0]}, {field})\n"
 
             body += f"""
                 function __init__(self::{structname}, {str_struct_fields})
@@ -76,7 +88,7 @@ class JuliaTranspilerPlugins:
             """
         if fields["repr"]:
             body += f"""function __repr__(self::{structname})::String
-                return {structname}({get_variables})
+                return {structname}({attr_vars})
             end\n"""
         if fields["eq"]:
             body += f"""\
@@ -109,7 +121,7 @@ class JuliaTranspilerPlugins:
 
         body += f"""\
                 function __key(self::{structname})
-                    ({get_variables})
+                    ({key_vars})
                 end\n
                 """
 
@@ -253,7 +265,7 @@ VARIABLE_MAP = {
     "c_uint64": c_uint64,
 }
 
-INTEGER_TYPES = (
+INTEGER_TYPES = \
     [
         "Int8",
         "Int16",
@@ -266,9 +278,9 @@ INTEGER_TYPES = (
         "UInt8", 
         "Integer"
     ]
-)
 
-NUM_TYPES = INTEGER_TYPES + ["Float64"]
+
+NUM_TYPES = INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
 CONTAINER_TYPE_MAP = {
     "Array": "Array",

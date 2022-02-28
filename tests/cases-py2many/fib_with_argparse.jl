@@ -5,21 +5,20 @@ mutable struct Options <: AbstractOptions
     n::Int64
 end
 
-function __init__(self::Options, v::Bool, n::Int64)
-    setfield!(self::Options, :v, v::Bool)
-    setfield!(self::Options, :n, n::Int64)
-
+function __init__(self::AbstractOptions, v::Bool, n::Int64)
+    setfield!(self::AbstractOptions, :v, v::Bool),
+    setfield!(self::AbstractOptions, :n, n::Int64)
 end
 
-function __repr__(self::Options)::String
-    return Options(getfield!(self::Options, v::Bool), getfield!(self::Options, n::Int64))
+function __repr__(self::AbstractOptions)::String
+    return AbstractOptions(self.v, self.n)
 end
-function __eq__(self::Options, other::Options)::Bool
+function __eq__(self::AbstractOptions, other::AbstractOptions)::Bool
     return __key(self) == __key(other)
 end
 
-function __key(self::Options)
-    (getfield!(self::Options, v::Bool), getfield!(self::Options, n::Int64))
+function __key(self::AbstractOptions)
+    (__key(self.v), __key(self.n))
 end
 
 

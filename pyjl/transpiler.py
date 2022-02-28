@@ -132,10 +132,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
             self.visit(n)
 
         # Create abstract types
+        class_names = []
         abstract_types = []
         l_no = len(self._import_list)
         for value in self._hierarchy_map_mod.items():
             class_name, extends_lst = value
+            class_names.append(class_name)
             if len(extends_lst) <= 1:
                 nameVal = ast.Name(id=class_name)
                 extends = (ast.Name(id=f"Abstract{extends_lst[0]}") 
@@ -157,6 +159,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._hierarchy_map_mod = {}
         self._import_list = []
         self._import_cnt = 0
+
+        node.class_names = class_names
 
         return node
 
@@ -234,9 +238,11 @@ class JuliaTranspiler(CLikeTranspiler):
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
         self._modules = []
+        self._class_names = []
 
     def visit_Module(self, node) -> str:
         self._modules = list(path.name.split(".")[0] for path in node.__files__)
+        self._class_names = getattr(node, "class_names", [])
         return super().visit_Module(node)
 
     def usings(self):
@@ -662,11 +668,14 @@ class JuliaTranspiler(CLikeTranspiler):
                 annotation_modifiers += dec_ret[2]
                 annotation_body += dec_ret[3]
 
+        # Visit class fields
         fields = []
         for declaration, typename in declarations.items():
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
+            if self._class_names is not None and typename in self._class_names:
+                typename = f"Abstract{typename}"
             fields.append(declaration if typename == "" else f"{declaration}::{typename}")
 
         # Struct definition

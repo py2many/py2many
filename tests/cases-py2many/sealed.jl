@@ -6,25 +6,24 @@ mutable struct Packet <: AbstractPacket
     val::Float64
 end
 
-function __init__(self::Packet, val::Float64)
-    setfield!(self::Packet, :val, val::Float64)
-
+function __init__(self::AbstractPacket, val::Float64)
+    setfield!(self::AbstractPacket, :val, val::Float64)
 end
 
-function __repr__(self::Packet)::String
-    return Packet(getfield!(self::Packet, val::Float64))
+function __repr__(self::AbstractPacket)::String
+    return AbstractPacket(self.val)
 end
-function __eq__(self::Packet, other::Packet)::Bool
+function __eq__(self::AbstractPacket, other::AbstractPacket)::Bool
     return __key(self) == __key(other)
 end
 
-function __key(self::Packet)
-    (getfield!(self::Packet, val::Float64))
+function __key(self::AbstractPacket)
+    (__key(self.val))
 end
 
 
 struct Register <: AbstractRegister
-    PACKET::Packet
+    PACKET::AbstractPacket
     VALUE::Int64
 end
 
