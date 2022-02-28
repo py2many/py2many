@@ -62,18 +62,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ###################### Modified ######################
     ######################################################
 
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self._generic_scope_visit(node)
+        return node
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        curr_state = dict(self._stack_var_map)
-
-        for n in node.body:
-            self.visit(n)
-
-        # Assign variables to field in function node
-        node.var_map = self._stack_var_map
-        
-        # Returns to state before visiting the function body
-        # This accounts for nested functions
-        self._stack_var_map = curr_state
+        self._generic_scope_visit(node)
         return node
 
     def visit_Return(self, node: ast.Return):
@@ -259,6 +253,19 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ######################################################
     ################# Inference Methods ##################
     ######################################################
+
+    def _generic_scope_visit(self, node):
+        curr_state = dict(self._stack_var_map)
+
+        for n in node.body:
+            self.visit(n)
+
+        # Assign variables to field in function node
+        node.var_map = self._stack_var_map
+        
+        # Returns to state before visiting the function body
+        # This accounts for nested functions
+        self._stack_var_map = curr_state
 
     def _get_inferred_julia_type(self, node):
         if hasattr(node, "julia_annotation"):
