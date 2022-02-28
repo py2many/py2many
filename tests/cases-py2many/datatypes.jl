@@ -32,6 +32,6 @@ end
 
 
 struct IntList <: AbstractIntList
-    NONE::None
+    NONE::Any
     REST::IntListNonEmpty
 end

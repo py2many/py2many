@@ -10,65 +10,65 @@ function mult_float_and_int()::Float64
 end
 
 function mult_string_and_int()::String
-    a::String = "test"
-    return repeat(a, 2)
+    a = "test"
+    return a * 2
 end
 
 function mult_int_and_string()::String
-    a::Int64 = 2
-    return repeat("test", a)
+    a = 2
+    return a * "test"
 end
 
 function mult_list_and_int()::Vector
-    a::Vector = []
+    a = []
     for i in (0:9)
         push!(a, i)
     end
-    return repeat(a, 2)
+    return a * 2
 end
 
 function add_two_lists()::Vector
-    a::Vector = []
-    b::Vector = []
+    a = []
+    b = []
     for i in (0:9)
         push!(a, i)
         push!(b, i)
     end
-    return [a; b]
+    return a + b
 end
 
 function mult_int_and_bool()::Int64
-    a::Bool = false
+    a = false
     return a * 1
 end
 
 function mult_bool_and_string()::Int64
-    a::Int64 = 1
+    a = 1
     return a * false
 end
 
 function and_op_int_and_int()::Int64
-    a::Int64 = 2
+    a = 2
     return a & 2
 end
 
 function or_op_int_and_int()::Int64
-    a::Int64 = 2
+    a = 2
     return a | 1
 end
 
 function arithmetic_shift_right_int_and_int()::Int64
-    a::Int64 = 2
+    a = 2
     return a >> 1
 end
 
 function arithmetic_shift_left_int_and_int()::Int64
-    a::Int64 = 2
+    a = 2
     return a << 1
 end
 
 function nested_bin_op()::Int64
-    a::Int64 = 10
+    a = 10
     return a * (10 + 20) + a * (2 + (4 + 8 * (6 + 3)) * 80)
 end
 

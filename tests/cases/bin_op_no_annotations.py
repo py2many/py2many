@@ -9,15 +9,15 @@ def mult_float_and_int():
     return a*2
 
 def mult_string_and_int():
-    a: str = "test"
+    a = "test"
     return a*2
 
 def mult_int_and_string():
-    a: int = 2
+    a = 2
     return a*"test"
 
 def mult_list_and_int():
-    a: List[int] = []
+    a = []
     for i in range(0, 10):
         a.append(i)
 
@@ -25,8 +25,8 @@ def mult_list_and_int():
     return a*2
 
 def add_two_lists():
-    a: List[int] = []
-    b: List[int] = []
+    a = []
+    b = []
     for i in range(0, 10):
         a.append(i)
         b.append(i)
@@ -34,31 +34,31 @@ def add_two_lists():
     return a+b
 
 def mult_int_and_bool():
-    a: bool = False
+    a = False
     return a*1
 
 def mult_bool_and_string():
-    a: int = 1
+    a = 1
     return a*False
 
 def and_op_int_and_int():
-    a: int = 2
+    a = 2
     return a&2
 
 def or_op_int_and_int():
-    a: int = 2
+    a = 2
     return a|1
 
 def arithmetic_shift_right_int_and_int():
-    a: int = 2
+    a = 2
     return a>>1
 
 def arithmetic_shift_left_int_and_int():
-    a: int = 2
+    a = 2
     return a<<1
 
 def nested_bin_op():
-    a: int = 10
+    a = 10
     return a*(10+20) + a*(2+(4+(8*(6+3)))*(80))
 
 if __name__ == "__main__":

@@ -436,7 +436,8 @@ class JuliaTranspiler(CLikeTranspiler):
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
                 declared_type = self._typename_from_annotation(fnarg) # if fnarg.arg != "self" else None
-                if declared_type != None and declared_type != "" and actual_type != declared_type and actual_type != self._default_type:
+                if declared_type != None and declared_type != self._default_type \
+                        and actual_type != self._default_type and actual_type != declared_type:
                     converted.append(f"convert({declared_type}, {varg})")
                 else:
                     converted.append(varg)
@@ -874,8 +875,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Assert(self, node) -> str:
         return "@assert({0})".format(self.visit(node.test))
 
-    def visit_AnnAssign(self, node) -> str:
-        target, type_str, val = super().visit_AnnAssign(node)
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
+        # target, type_str, val = super().visit_AnnAssign(node)
+        target = self.visit(node.target)
+        type_str = self.visit(node.annotation)
+        val = self.visit(node.value)
         # If there is a Julia annotation, get that instead of the 
         # default Python annotation
         type_str = (

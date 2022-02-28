@@ -12,9 +12,10 @@ from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import find_node_matching_type, is_enum
 
-
 try:
-    from typpete.inference_runner import infer_types_ast
+    from typpete.inference_runner import infer as infer_types_ast
+    from typpete.src.context import Context
+    from typpete.src.z3_types import TypesSolver
 except ModuleNotFoundError:
 
     def infer_types_ast(node):
@@ -33,7 +34,13 @@ def infer_types(node) -> InferMeta:
 
 
 def infer_types_typpete(node) -> InferMeta:
-    infer_types_ast(node)
+    solver = TypesSolver(node)
+    context = Context(node, node.body, solver)
+    for stmt in node.body:
+        infer_types_ast(stmt, context, solver)
+
+    solver.push()
+    
     return InferMeta(True)
 
 

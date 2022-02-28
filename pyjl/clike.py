@@ -172,10 +172,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 else self._combine_value_index(value_type, index_type)
         return self._default_type
 
-    def visit_AnnAssign(self, node):
-        target, type_str, val = super().visit_AnnAssign(node)
-        return (target, type_str, self._map_type(val))
-
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 

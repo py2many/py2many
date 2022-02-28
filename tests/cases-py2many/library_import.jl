@@ -3,7 +3,7 @@ import re
 import Dates as dt
 import JSON as js
 function typing_test()::Int64
-    a::Vector{Int64} = [1, 2, 3]
+    a::List[int] = [1, 2, 3]
     return a[2]
 end
 
@@ -11,7 +11,7 @@ function calendar_test()
     return isoformat(dt.datetime.utcnow())
 end
 
-function date_to_json(objDate)::js
+function date_to_json(objDate::dt.datetime)::js
     return Dict(
         "__type__" => "datetime",
         "year" => objDate.year,
