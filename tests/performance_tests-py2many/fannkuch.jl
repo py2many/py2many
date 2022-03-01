@@ -74,7 +74,7 @@ end
 
 function task(n, start, size)
     alternating_flips = alternating_flips_generator(n, start, size)
-    return (split(alternating_flips)[size].iter().sum(), next(alternating_flips))
+    return (sum(split(alternating_flips)[size]), next(alternating_flips))
 end
 
 function fannkuch(n)
@@ -101,7 +101,7 @@ function fannkuch(n)
         else
             checksums, maximums = zip(starmap(task, task_args)...)
         end
-        checksum, maximum = (checksums.iter().sum(), max(maximums))
+        checksum, maximum = (sum(checksums), max(maximums))
         println(format("{0}\nPfannkuchen({1}) = {2}", checksum, n, maximum))
     end
 end

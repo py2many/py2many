@@ -249,29 +249,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     ################################################
     ######### For Type Inference Mechanism #########
     ################################################
-    # if isinstance(node, ast.Call):
-    #     str_type = None
-    #     var = get_id(node.args[0]) if len(node.args) > 0 else None
-    #     if var is not None:
-    #         # Find either function or module
-    #         func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
-    #         if func_node:
-    #             var_map = func_node.var_map
-    #             annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
-    #             str_type = f"{annotation}.{fname}" if annotation else None
-
-    #     if str_type:
-    #         try:
-    #             py_type = self._func_for_lookup(str_type)
-    #             if py_type in self._func_dispatch_table:
-    #                 ret, node.result_type = self._func_dispatch_table[py_type]
-    #                 return ret(self, node, vargs)
-    #         except (Exception):
-    #             pass
-
     def _func_for_lookup(self, fname) -> Union[str, object]:
-        # TODO: Is there a better way to do this?
-        # self._imported_names |= IMPORTS_DISPATCH_TABLE
         func = class_for_typename(fname, self._default_type, self._imported_names)
         if func is None:
             return None
