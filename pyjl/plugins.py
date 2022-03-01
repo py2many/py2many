@@ -295,8 +295,6 @@ SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
-    # "round": lambda node, vargs: f"round({vargs[0]}, digits = {vargs[1]})",
-    # "sum": lambda node, vargs: f"sum({', '.join(vargs)})",
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",

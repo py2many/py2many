@@ -218,38 +218,6 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [ ] starred_list
   - [ ] starred_expression
   - [ ] starred_item
-  
-
-#
-## Known Errors
-- `ZeroDivisionException` does not happen in Julia. Julia instead returns `Inf`.
-  - Example: Raising 0.0 to a negative number results in `ZeroDivisionException` in Python but returns Inf in Julia.
-
-#
-## Missing Tests (Converting to Issues on github)
-- ~~Test `raise` keyword~~
-  - ~~Add to: `tests/cases/exceptions.py`~~
-- Test Literal translation (escape sequences PLR 2.4.1)
-  - ~~Create new `tests/cases/literals_string.py`~~
-  - ~~Create new `tests/cases/literals_bytes.py`~~
-  - ~~Create new `tests/cases/literals_integer.py`~~
-  - ~~Create new `tests/cases/literals_ floating_point.py`~~
-  - ~~Change f_string to use string interpolation syntax in `tests/cases/f_string.py` (PLR 2.4.3)~~
-  - Create new `tests/cases/f_expression.py` (PLR 2.4.3)
-- Check if all Operator overloading cases are included
-  - Check `tests/cases/bin_op.py`
-- Check bytearray translation
-  - Create new `tests/cases/bytearray.py`
-- Check set translation
-  - Create new `tests/cases/set.py`
-- Check callable types translation
-  - Create new `tests/cases/classes_callable.py`
-- Check coroutine functions `async def` and expressions `await`, `async with` and `async for`
-  - Create new `tests/cases/coroutine_functions.py`
-
-#
-## Keywords
-- PLR - Python Language Reference (Based on version 3.9.7)
 
 #
 ## Inference
@@ -275,3 +243,7 @@ Currently, typete returns an error:
 ```
 ast.Name has no attribue value
 ```
+
+#
+## Keywords
+- PLR - Python Language Reference (Based on version 3.9.7)
