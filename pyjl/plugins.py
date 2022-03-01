@@ -1,18 +1,16 @@
 import argparse
-from bisect import bisect
-from datetime import datetime
 import io
 import itertools
-import json
-from multiprocessing.dummy import Array
+import math
+import time
 import os
 import ast
+import random
 import re
-import sys 
-# from sys import stdout
+import sys
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, MutableSequence, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
@@ -257,17 +255,6 @@ JULIA_TYPE_MAP = {
     Any: "Any"
 }
 
-VARIABLE_MAP = {
-    "c_int8": c_int8,
-    "c_int16": c_int16,
-    "c_int32": c_int32,
-    "c_int64": c_int64,
-    "c_uint8": c_uint8,
-    "c_uint16": c_uint16,
-    "c_uint32": c_uint32,
-    "c_uint64": c_uint64,
-}
-
 JULIA_INTEGER_TYPES = \
     [
         "Int8",
@@ -284,8 +271,22 @@ JULIA_INTEGER_TYPES = \
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
+IMPORTS_DISPATCH_TABLE = {
+    # "radians": math.radians,
+    # "round": round,
+    # "sum": sum,
+    # "fsum": sum,
+    "c_int8": c_int8,
+    "c_int16": c_int16,
+    "c_int32": c_int32,
+    "c_int64": c_int64,
+    "c_uint8": c_uint8,
+    "c_uint16": c_uint16,
+    "c_uint32": c_uint32,
+    "c_uint64": c_uint64,
+}
+
 CONTAINER_DISPATCH_TABLE = {
-    Array: "Array",
     List: "Vector",
     Dict: "Dict",
     Set: "Set",
@@ -298,7 +299,6 @@ SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
-    "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
@@ -340,36 +340,55 @@ ATTR_DISPATCH_TABLE = {
 
 FuncType = Union[Callable, str]
 
-
-# Functions have string-based fallback
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    # Uncomment after upstream uploads a new version
-    # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
-    # HACKs: remove all string based dispatch here, once we replace them with type based
-    argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
-    "f.read": (lambda self, node, vargs: "f.read_string()", True),
-    "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
-    "f.close": (lambda self, node, vargs: "drop(f)", False),
-    open: (JuliaTranspilerPlugins.visit_open, True),
-    # List Support
+    # Array Support
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
-    list.remove: (lambda self, node, vargs: f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
+    list.remove: (lambda self, node, vargs: \
+        f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
     list.extend: (lambda self, node, vargs: f"{vargs[0]} = append!({vargs[0]}, {vargs[1]})", True),
     list.count: (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
-    # 
-    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
-    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
+    bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" \
+        if len(vargs) == 0 \
+        else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
+    itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
+    # Math operations
+    math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
+    math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
+    math.cos: (lambda self, node, vargs: f"cos({vargs[0]})", False),
+    math.tan: (lambda self, node, vargs: f"tan({vargs[0]})", False),
+    math.asin: (lambda self, node, vargs: f"asin({vargs[0]})", False),
+    math.acos: (lambda self, node, vargs: f"acos({vargs[0]})", False),
+    math.atan: (lambda self, node, vargs: f"atan({vargs[0]})", False),
+    math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
+    math.fsum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
+    sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
+    round: (lambda self, node, vargs: f"round({vargs[0]}, digits={vargs[1]})", False),
+    # io
+    argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
+    sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
+    sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
+    sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
+    open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
+    # sys
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-    list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
-    bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" if len(vargs) == 0 else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
-    itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
     sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
-    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True), # For later
-    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    # misc
     str.format: (lambda self, node, vargs: f"test", True), # Does not work
+    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
+    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    time.time: (lambda self, node, vargs: "pylib::time()", False),
+    random.seed: (
+        lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
+        False,
+    ),
+    random.random: (lambda self, node, vargs: "pylib::random::random()", False),
+    # TODO: remove string-based fallback
+    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True), 
+    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
 }

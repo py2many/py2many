@@ -1,14 +1,15 @@
 import ast
 from ctypes import c_int64
-from typing import Any, Dict
+from typing import Any
 import inspect
 
-from py2many.inference import InferTypesTransformer, get_inferred_type, infer_types, is_compatible
+from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name, find_node_matching_type, is_class_type
+from py2many.tracer import find_node_matching_type
+from py2many.clike import class_for_typename
 from pyjl.plugins import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
-from pyjl.clike import CLikeTranspiler, class_for_typename
+from pyjl.clike import CLikeTranspiler
 
 JULIA_NONE_TYPE = "nothing"
 
