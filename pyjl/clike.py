@@ -97,10 +97,19 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def visit_Name(self, node) -> str:
         node_id = get_id(node)
         if node_id in julia_keywords:
-            return node.id + "_"
+            return f"{node.id}_"
         # elif get_id(node) in CONTAINER_TYPE_MAP:
         #     return CONTAINER_TYPE_MAP[get_id(node)]
         return super().visit_Name(node)
+
+    def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
+        args = [self.visit(arg) for arg in node.args]
+        if args == []:
+            return [], []
+        typenames, args = map(list, zip(*args))
+        # Replace julia keywords
+        args = [a if a not in julia_keywords else f"{a}_" for a in args]
+        return typenames, args
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Mult):

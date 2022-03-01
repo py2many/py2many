@@ -59,9 +59,8 @@ class Hello(something):
 """
 
 code5 = """
-from py2many.smt import check_sat, get_model
-
-x: int
+def visit_FunctionDef(self, node: ast.FunctionDef):
+    pass
 """
 
 if __name__ == "__main__":
@@ -69,6 +68,5 @@ if __name__ == "__main__":
     # tree2 = ast.parse(code2)
     # tree3 = ast.parse(code3)
     # tree4 = ast.parse(code4)
-    a = 1
     tree5 = ast.parse(code5, type_comments=True)
     print(ast.dump(tree5, indent=4))
