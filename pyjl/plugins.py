@@ -153,16 +153,6 @@ class JuliaTranspilerPlugins:
         return fields, field_repr
 
 
-
-    ############ 
-    # Continuables support
-    def visit_continuables_ann(self, node, decorator):
-        annotation, body = "", ""
-        self._usings.add("Continuables")
-        annotation = "@cont "
-        return annotation, body
-
-
     def visit_async_ann(self, node, decorator):
         return ""
 
@@ -321,8 +311,7 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 
 DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
-    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
-    "use_continuables": JuliaTranspilerPlugins.visit_continuables_ann
+    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass
 }
 
 CLASS_DISPATCH_TABLE = {

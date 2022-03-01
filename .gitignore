@@ -9,6 +9,7 @@
 .tox
 build
 .DS_Store
+dist/
 tests/build
 tests/cases/*.dart
 tests/cases/*.go

@@ -37,7 +37,8 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaClassRewriter, JuliaDecoratorRewriter, JuliaTranspiler, JuliaMethodCallRewriter, julia_decorator_rewriter
+from pyjl.rewriters import JuliaClassRewriter, JuliaMethodCallRewriter, julia_decorator_rewriter
+from pyjl.transpiler import JuliaTranspiler
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types

@@ -59,8 +59,9 @@ class Hello(something):
 """
 
 code5 = """
-def visit_FunctionDef(self, node: ast.FunctionDef):
-    pass
+@jl_class 
+class Packet:
+    val: float
 """
 
 if __name__ == "__main__":

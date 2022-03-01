@@ -1,49 +1,18 @@
 
-abstract type AbstractPacket end
 abstract type AbstractRegister end
 abstract type AbstractValueHolder end
-mutable struct Packet <: AbstractPacket
+
+@class Packet begin
     val::Float64
-end
-
-function __init__(self::AbstractPacket, val::Float64)
-    setfield!(self::AbstractPacket, :val, val::Float64)
-end
-
-function __repr__(self::AbstractPacket)::String
-    return AbstractPacket(self.val)
-end
-function __eq__(self::AbstractPacket, other::AbstractPacket)::Bool
-    return __key(self) == __key(other)
-end
-
-function __lt__(self::AbstractPacket, other::AbstractPacket)::Bool
-    return __key(self) < __key(other)
-end
-
-function __le__(self::AbstractPacket, other::AbstractPacket)::Bool
-    return __key(self) <= __key(other)
-end
-
-function __gt__(self::AbstractPacket, other::AbstractPacket)::Bool
-    return __key(self) > __key(other)
-end
-
-function __ge__(self::AbstractPacket, other::AbstractPacket)::Bool
-    return __key(self) >= __key(other)
-end
-
-function __key(self::AbstractPacket)
-    (__key(self.val))
 end
 
 
 mutable struct Register <: AbstractRegister
-    PACKET::AbstractPacket
+    PACKET::Packet
     VALUE::Int64
 end
 
-function __init__(self::AbstractRegister, PACKET::AbstractPacket, VALUE::Int64)
+function __init__(self::AbstractRegister, PACKET::Packet, VALUE::Int64)
     setfield!(self::AbstractRegister, :PACKET, PACKET::Packet),
     setfield!(self::AbstractRegister, :VALUE, VALUE::Int64)
 end
@@ -72,7 +41,7 @@ function __ge__(self::AbstractRegister, other::AbstractRegister)::Bool
 end
 
 function __key(self::AbstractRegister)
-    (self.PACKET, __key(self.VALUE))
+    (__key(self.PACKET), __key(self.VALUE))
 end
 
 
