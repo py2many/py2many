@@ -375,8 +375,6 @@ class JuliaTranspiler(CLikeTranspiler):
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
-    
-
     def visit_Return(self, node) -> str:
         if node.value:
             return f"return {self.visit(node.value)}" 

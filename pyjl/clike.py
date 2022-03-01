@@ -185,15 +185,15 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             # Default if no type is found
             return typename
 
+    ################################################
+    ############## For Julia Imports ###############
+    ################################################
     def visit_Import(self, node) -> str:
-        names = [self.visit(n) for n in node.names]
-        
-        imports = [
-            self._import_str(name, alias) # Does Python inline this?
-            for name, alias in names
-            if name not in self._ignored_module_set
-        ]
+        '''Adds extra function call to _import_str to add 
+        Julia import syntax'''
 
+        # Add imports to _imported_names
+        names = [self.visit(n) for n in node.names]
         for name, asname in names:
             if asname is not None:
                 try:
@@ -201,15 +201,18 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 except ImportError:
                     imported_name = name
                 self._imported_names[asname] = imported_name
+
+        imports = [
+            self._import_str(name, alias)
+            for name, alias in names
+            if name not in self._ignored_module_set
+        ]
+
         return "\n".join(imports)
 
-    def _import_str(self, name, alias):
-        import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
-        return f"{import_str} as {alias}" if alias else import_str
-
     def visit_ImportFrom(self, node) -> str:
-        if node.module in self._ignored_module_set:
-            return ""
+        '''Adds to import map even if it is ignored. 
+        This ensures that dispatch is correct'''
 
         imported_name = MODULE_DISPATCH_TABLE[node.module] if node.module in MODULE_DISPATCH_TABLE else node.module
         imported_module = None
@@ -222,6 +225,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             # Import from '.'
             imported_name = "."
 
+        # Add imports to _imported_names
         names = [self.visit(n) for n in node.names]
         for name, asname in names:
             asname = asname if asname is not None else name
@@ -229,11 +233,19 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 self._imported_names[asname] = getattr(imported_module, name, None)
             else:
                 self._imported_names[asname] = (imported_name, name)
-            # self._import_aliases[asname] = name # Added
+        
+        if node.module in self._ignored_module_set:
+            return ""
+        
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 
-    # TODO
+    def _import_str(self, name, alias):
+        '''Formatting Julia Imports'''
+
+        import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
+        return f"{import_str} as {alias}" if alias else import_str
+
     ################################################
     ######### For Type Inference Mechanism #########
     ################################################
@@ -259,7 +271,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
         # TODO: Is there a better way to do this?
-        self._imported_names |= IMPORTS_DISPATCH_TABLE
+        # self._imported_names |= IMPORTS_DISPATCH_TABLE
         func = class_for_typename(fname, self._default_type, self._imported_names)
         if func is None:
             return None

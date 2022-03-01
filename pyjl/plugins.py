@@ -272,10 +272,6 @@ JULIA_INTEGER_TYPES = \
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
 IMPORTS_DISPATCH_TABLE = {
-    # "radians": math.radians,
-    # "round": round,
-    # "sum": sum,
-    # "fsum": sum,
     "c_int8": c_int8,
     "c_int16": c_int16,
     "c_int32": c_int32,
@@ -299,6 +295,8 @@ SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
+    # "round": lambda node, vargs: f"round({vargs[0]}, digits = {vargs[1]})",
+    # "sum": lambda node, vargs: f"sum({', '.join(vargs)})",
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
@@ -363,9 +361,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.acos: (lambda self, node, vargs: f"acos({vargs[0]})", False),
     math.atan: (lambda self, node, vargs: f"atan({vargs[0]})", False),
     math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
-    math.fsum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
+    math.fsum: (lambda self, node, vargs: f"fsum({', '.join(vargs)})", False),
+    math.sqrt: (lambda self, node, vargs: f"√({vargs[0]})", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
-    round: (lambda self, node, vargs: f"round({vargs[0]}, digits={vargs[1]})", False),
+    round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),

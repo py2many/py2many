@@ -8,8 +8,8 @@ if __name__ == "__main__":
     a = [1,2,3,4]
     a_sum = sum(a)
     assert s1 == 0.9999999999999999 
-    assert a_sum == 10
     assert s2 == 1.0
+    assert a_sum == 10
     assert sin(0) == 0
     assert cos(0) == 1
     assert tan(0) == 0
