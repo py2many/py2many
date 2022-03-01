@@ -10,7 +10,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from py2many.tracer import find_node_matching_type, is_list
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import CONTAINER_TYPE_MAP, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
+from pyjl.plugins import CONTAINER_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP, VARIABLE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -190,17 +190,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         typeclass = class_for_typename(typename, self._default_type)
         if typeclass in JULIA_TYPE_MAP:
             return JULIA_TYPE_MAP[typeclass]
-        elif typename in CONTAINER_TYPE_MAP:
-            return CONTAINER_TYPE_MAP[typename]
-        elif typename in MODULE_DISPATCH_TABLE:
-            return MODULE_DISPATCH_TABLE[typename]
+        elif typeclass in CONTAINER_DISPATCH_TABLE:
+            return CONTAINER_DISPATCH_TABLE[typeclass]
+        elif typeclass in MODULE_DISPATCH_TABLE:
+            return MODULE_DISPATCH_TABLE[typeclass]
         else:
             # Default if no type is found
             return typename
-
-    ################################################
-    ########### Supporting Julia imports ###########
-    ################################################
 
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
@@ -222,7 +218,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _import_str(self, name, alias):
         import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
-        return import_str + f" as {alias}" if alias else import_str
+        return f"{import_str} as {alias}" if alias else import_str
 
     def visit_ImportFrom(self, node) -> str:
         if node.module in self._ignored_module_set:

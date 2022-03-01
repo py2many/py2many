@@ -12,12 +12,12 @@ from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
-    CONTAINER_TYPE_MAP,
+    CONTAINER_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
-    INTEGER_TYPES,
+    JULIA_INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
-    NUM_TYPES,
+    JULIA_NUM_TYPES,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
@@ -605,20 +605,20 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number 
-            if((isinstance(node.right, ast.Num) or (right_jl_ann in NUM_TYPES)) and 
+            if((isinstance(node.right, ast.Num) or (right_jl_ann in JULIA_NUM_TYPES)) and 
                     ((isinstance(node.left, ast.List) or left_jl_ann == "Array" or left_jl_ann == "Vector") or 
                     (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
                 return f"repeat({left},{right})"
 
-            if((isinstance(node.left, ast.Num) or (left_jl_ann in NUM_TYPES)) and 
+            if((isinstance(node.left, ast.Num) or (left_jl_ann in JULIA_NUM_TYPES)) and 
                     ((isinstance(node.right, ast.List) or right_jl_ann == "Array" or right_jl_ann == "Vector") or
                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 
             # Cover Python Int and Boolean multiplication (also supported in Julia)
-            if (((isinstance(node.right, ast.Num) or right_jl_ann in NUM_TYPES )
+            if (((isinstance(node.right, ast.Num) or right_jl_ann in JULIA_NUM_TYPES )
                     and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")) or
-                    ((isinstance(node.left, ast.Num) or left_jl_ann in NUM_TYPES)
+                    ((isinstance(node.left, ast.Num) or left_jl_ann in JULIA_NUM_TYPES)
                     and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool"))):
                 return f"{left}*{right}"
 
@@ -707,7 +707,7 @@ class JuliaTranspiler(CLikeTranspiler):
         field_str = ""
         for field, value in fields:
                 field_str += f"\t{field}\n"
-        if("unique" in decorators and typename not in INTEGER_TYPES):
+        if("unique" in decorators and typename not in JULIA_INTEGER_TYPES):
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
@@ -790,8 +790,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if index == None:
             return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
-            if value in CONTAINER_TYPE_MAP:
-                value = CONTAINER_TYPE_MAP[value]
+            if value in CONTAINER_DISPATCH_TABLE:
+                value = CONTAINER_DISPATCH_TABLE[value]
             if value == "Tuple":
                 return "({0})".format(index)
             return "{0}{{{1}}}".format(value, index)

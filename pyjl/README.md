@@ -226,7 +226,7 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - Example: Raising 0.0 to a negative number results in `ZeroDivisionException` in Python but returns Inf in Julia.
 
 #
-## Missing Tests
+## Missing Tests (Converting to Issues on github)
 - ~~Test `raise` keyword~~
   - ~~Add to: `tests/cases/exceptions.py`~~
 - Test Literal translation (escape sequences PLR 2.4.1)
@@ -246,29 +246,15 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - Create new `tests/cases/classes_callable.py`
 - Check coroutine functions `async def` and expressions `await`, `async with` and `async for`
   - Create new `tests/cases/coroutine_functions.py`
-- Check asyncrhonous generator functions `async def` and `async for`
-  - Create new `tests/cases/async_gen_functions.py`
-- Create new `tests/cases/math_ops.py` to test `math.sin()`, `math.cos()`, ...
-- Test list slicing
-  - Add to `tests/cases/list_op.py`
-- Check keyword and starred arguments
-  - Create new `tests/cases/calls.py`
-- Test arithmetic power operations
-  - Add to `tests/cases/bin_op.py`
-- Test expression lists
-  - Create new `tests/cases/expressions.py`
-- Add `visit_LShift` and `visit_RShift` to transpiler
-- Translate match-case to Julia. 
-  - Add to `tests/cases/match_case.py`
 
 #
 ## Keywords
 - PLR - Python Language Reference (Based on version 3.9.7)
 
 #
-## Extra
-### Running pytype
-Example with N-Body
+## Inference
+### `pytype`
+This section is reserved for `pytype` testing. This is an example on how to run it with the N-Body benchmark:
 
 ```
 pytype tests/performance_tests/n_body_problem.py -o tests/performance_tests/annotations/
@@ -276,9 +262,16 @@ pytype tests/performance_tests/n_body_problem.py -o tests/performance_tests/anno
 merge-pyi -i tests/performance_tests/n_body_problem.py tests/performance_tests/annotations/pyi/n_body_problem.pyi
 ```
 
-Then run py2many
+Then run py2many to convert it to Julia
 ```
 sudo ./setup.py install
 
 py2many --julia=1 tests/performance_tests
+```
+Currently there are some errors after merging. One possible alternative is to use the generated `.pyi` files and do the AST traversal using PyJL.
+
+### `TYPPETE`
+Currently, typete returns an error: 
+```
+ast.Name has no attribue value
 ```

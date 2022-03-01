@@ -7,7 +7,7 @@ from py2many.inference import InferTypesTransformer, get_inferred_type, infer_ty
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import find_node_matching_name_and_type, find_closest_scope_name, find_node_matching_type, is_class_type
-from pyjl.plugins import INTEGER_TYPES, NUM_TYPES
+from pyjl.plugins import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
 from pyjl.clike import CLikeTranspiler, class_for_typename
 
 JULIA_NONE_TYPE = "nothing"
@@ -195,8 +195,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if hasattr(node.left, "julia_annotation") else self._clike._map_type(left_id))
             right_annotation = (node.right.julia_annotation 
                 if hasattr(node.right, "julia_annotation") else self._clike._map_type(right_id))
-            if ((isinstance(node.left, ast.Num) or left_annotation in NUM_TYPES) and 
-                    (isinstance(node.right, ast.Num) or right_annotation in NUM_TYPES)) :
+            if ((isinstance(node.left, ast.Num) or left_annotation in JULIA_NUM_TYPES) and 
+                    (isinstance(node.right, ast.Num) or right_annotation in JULIA_NUM_TYPES)) :
                 if (not isinstance(node.op, ast.Div) or 
                         getattr(node, "use_integer_div", False)):
                     node.annotation = ast.Name(id=left_id)
@@ -208,8 +208,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             # By default, assign left
             node.annotation = left
         else:
-            if ((left in INTEGER_TYPES and right == "float") or 
-                    (right in INTEGER_TYPES and left == "float")):
+            if ((left in JULIA_INTEGER_TYPES and right == "float") or 
+                    (right in JULIA_INTEGER_TYPES and left == "float")):
                 self._add_julia_annotation(node, "float", "float")
                 node.annotation = ast.Name(id="float")
                 return node
@@ -236,8 +236,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         mapped_left = self._clike._map_type(left_id)
         mapped_right = self._clike._map_type(right_id)
-        if (((mapped_left in NUM_TYPES and mapped_right == "String") 
-            or (mapped_right in NUM_TYPES and mapped_left == "String")) 
+        if (((mapped_left in JULIA_NUM_TYPES and mapped_right == "String") 
+            or (mapped_right in JULIA_NUM_TYPES and mapped_left == "String")) 
             and node.op == ast.Mult):
             node.annotation = ast.Name(id="str")
 

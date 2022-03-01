@@ -1,6 +1,9 @@
 import argparse
+from bisect import bisect
+from datetime import datetime
 import io
 import itertools
+import json
 from multiprocessing.dummy import Array
 import os
 import ast
@@ -9,7 +12,7 @@ import sys
 # from sys import stdout
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, MutableSequence, Tuple, Union
+from typing import Any, Callable, Dict, List, MutableSequence, Optional, Set, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
@@ -265,7 +268,7 @@ VARIABLE_MAP = {
     "c_uint64": c_uint64,
 }
 
-INTEGER_TYPES = \
+JULIA_INTEGER_TYPES = \
     [
         "Int8",
         "Int16",
@@ -279,18 +282,16 @@ INTEGER_TYPES = \
         "Integer"
     ]
 
+JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
-NUM_TYPES = INTEGER_TYPES + ["Float16", "Float32", "Float64"]
-
-CONTAINER_TYPE_MAP = {
-    "Array": "Array",
-    "List": "Vector",
-    "Dict": "Dict",
-    "Set": "Set",
-    "Optional": "nothing",
-    "bytearray": f"Vector{{Int8}}"
+CONTAINER_DISPATCH_TABLE = {
+    Array: "Array",
+    List: "Vector",
+    Dict: "Dict",
+    Set: "Set",
+    Optional: "nothing",
+    bytearray: f"Vector{{Int8}}"
 }
-
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
