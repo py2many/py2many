@@ -88,7 +88,8 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._hierarchy_map_mod = {} # for the module
+        self._hierarchy_map = {}
+        self._class_body_nodes = []
         self._import_list = [] # TODO: Currently not in use
         self._import_cnt = 0
 
@@ -97,75 +98,72 @@ class JuliaClassRewriter(ast.NodeTransformer):
         node.col_offset = 0
 
         # visit nodes recursively
-        for i in range(len(node.body)):
-            n = node.body[i]
-            if isinstance(n, ast.ClassDef):
-                decorator_list = list(map(get_decorator_id, n.decorator_list))
-                if "jl_class" in decorator_list:
-                    node.body[i] = juliaAst.JuliaClass(name = ast.Name(id=get_id(n)), 
-                        bases = n.bases, keywords = n.keywords, 
-                        body = n.body, decorator_list = n.decorator_list,
-                        ctx=ast.Load, lineno=n.lineno, col_offset = n.col_offset)
-                    continue
+        for n in node.body:
             self.visit(n)
 
         # Create abstract types if needed
-        class_names = []
+        node.class_names = []
         abstract_types = []
         l_no = len(self._import_list)
-        for value in self._hierarchy_map_mod.items():
-            class_name, extends_lst = value
-            class_names.append(class_name)
-            if len(extends_lst) <= 1:
+        for (class_name, (is_jlClass, extends_lst)) in self._hierarchy_map.items():
+            node.class_names.append(class_name)
+            if not is_jlClass:
+                # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
-                extends = (ast.Name(id=f"Abstract{extends_lst[0]}") 
-                    if (len(extends_lst) == 1) 
-                    else None)
+                extends = ast.Name(id=f"Abstract{extends_lst[0]}")
                 abstract_types.append(
                     juliaAst.AbstractType(value=nameVal, extends=extends, 
                         ctx=ast.Load, lineno=l_no, col_offset = 0))
-            else:
-                # TODO: Investigate Julia traits
-                pass
-
-            # increment linenumber
-            l_no += 1
+                # increment linenumber
+                l_no += 1
 
         if abstract_types:
             node.body = node.body[:self._import_cnt] + abstract_types + node.body[self._import_cnt:]
 
-        self._hierarchy_map_mod = {}
+        # Visit Function nodes later to account for all classes
+        for (c_name, nodes) in self._class_body_nodes:
+            for n in nodes:
+                if isinstance(n, ast.FunctionDef):
+                    n.self_type = c_name
+                    self.visit(n)
+
+        self._hierarchy_map = {}
         self._import_list = []
         self._import_cnt = 0
-
-        node.class_names = class_names
 
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name: str = get_id(node)
 
-        # Change extends to Abstract type
+        decorator_list = list(map(get_decorator_id, node.decorator_list))
+        is_jlClass = "jl_class" in decorator_list
+        
+        extends = []
+
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
-            self._hierarchy_map_mod[class_name] = [name]
+            extends = [name]
         else:
             # TODO: Investigate Julia traits
             extends_lst = []
             for base in node.bases:
                 name = get_id(base)
                 extends_lst.append(name)
-            self._hierarchy_map_mod[class_name] = extends_lst
+            extends = extends_lst
+        
+        self._hierarchy_map[class_name] = (extends, is_jlClass)
 
         if len(node.bases) <= 1:
             node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
-        # Recursive visit
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = ast.Name(id=node.name) # Add self information
-            self.visit(b)
+        # Add to list and visit later
+        self._class_body_nodes += (node.name, node.body)
+        # for b in node.body:
+        #     if isinstance(b, ast.FunctionDef):
+        #         # Add self information
+        #         b.self_type = ast.Name(id=node.name) 
 
         return node
 
@@ -175,11 +173,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for arg in args.args:
             if ((annotation := getattr(arg, "annotation", None)) and 
                     (name := getattr(annotation, "id", None)) and 
-                    name in self._hierarchy_map_mod):
+                    name in self._hierarchy_map):
                 setattr(name, "id", f"Abstract{name}")                    
 
         if (hasattr(node, "self_type") and 
-                (self_type := get_id(node.self_type)) in self._hierarchy_map_mod):
+                (self_type := get_id(node.self_type)) in self._hierarchy_map):
             setattr(node.self_type, "id", f"Abstract{self_type}")
 
     def visit_Import(self, node: ast.Import) -> Any:
@@ -197,3 +195,14 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 self._import_list.append(asname)
             elif name := getattr(alias, "name", None):
                 self._import_list.append(name) 
+
+    # def _get_JuliaClass(self, node:ast.ClassDef):
+    #     class_node = juliaAst.JuliaClass(name = ast.Name(id=get_id(node)), 
+    #         bases = node.bases, keywords = node.keywords, 
+    #         body = node.body, decorator_list = node.decorator_list,
+    #         ctx=ast.Load, lineno=node.lineno, col_offset = node.col_offset)
+
+    #     # Add to list and visit later
+    #     self._class_body_nodes += (node.name, node.body)
+
+    #     return class_node

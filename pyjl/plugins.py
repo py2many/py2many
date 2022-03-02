@@ -26,28 +26,44 @@ except ImportError:
 
 
 class JuliaTranspilerPlugins:
-    def visit_jl_dataclass(transpiler_mod, node, decorator):
-        transpiler_mod._usings.add("DataClass")
+    def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
+        t_self._usings.add("DataClass")
 
         dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
-        fields, field_repr = dataclass_data[0], dataclass_data[1]
-
-        fields_str, annotation, body, modifiers = "", "", "", ""
-        # if it defines init it needs to be mutable
-        if fields["init"]:
+        d_fields, field_repr = dataclass_data[0], dataclass_data[1]
+        if d_fields["init"]:
+            # if it defines __init__, it needs to be mutable
             modifiers = "mutable"
-        annotation = "@dataclass "
-        fields_str = "_initvars = [" + ", ".join(field_repr) + "]\n"
-        return annotation, fields_str, modifiers, body 
 
+        # Visit class fields
+        fields = "\n".join([
+            t_self._visit_class_fields(node.declarations),
+            "_initvars = [" + ", ".join(field_repr) + "]\n"
+        ])
 
-    def visit_py_dataclass(transpiler_mod, node, decorator) -> str:
+        # Struct definition
+        bases = [t_self.visit(base) for base in node.bases]
+        struct_def = f"{modifiers} struct {node.name} <: {bases[0]}" \
+            if bases else f"{modifiers} struct {node.name}"
+        
+        body = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body.append(t_self.visit(b))
+        body = "\n".join(body)
+        return f"""
+            @dataclass {struct_def} begin
+                {fields}
+            end
+            {body}
+        """
+
+    def visit_py_dataclass(t_self, node: ast.ClassDef, decorator) -> str:
         dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
-        [fields, _] = dataclass_data[0], dataclass_data[1]
+        [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
-        annotation, fields_str, modifiers, body = "", "", "", ""
+        fields = t_self._visit_class_fields(node.declarations)
 
-        structname = get_id(node)
 
         # Get struct fields
         struct_fields = []
@@ -56,7 +72,7 @@ class JuliaTranspilerPlugins:
                 else f"{declaration}::{node.declarations[declaration]}"))
 
         # Abstract type
-        structname = "".join(["Abstract", structname])
+        struct_name = "".join(["Abstract", get_id(node)])
         
         # get struct variables using getfield
         attr_vars = []
@@ -67,10 +83,10 @@ class JuliaTranspilerPlugins:
             field_name, field_type = field.split("::")
             attr_vars.append(f"self.{field_name}")
             key_vars.append(f"self.{field_name}"
-                if (field_type in transpiler_mod._class_names) else f"__key(self.{field_name})")
-            assign_variables_init.append(f"setfield!(self::{structname}, :{field_name}, {field})")
+                if (field_type in t_self._class_names) else f"__key(self.{field_name})")
+            assign_variables_init.append(f"setfield!(self::{struct_name}, :{field_name}, {field})")
             str_struct_fields.append(f"{field_name}::{field_type}"
-                if field_type not in transpiler_mod._class_names 
+                if field_type not in t_self._class_names 
                 else f"{field_name}::Abstract{field_type}")
 
         # Convert into string
@@ -79,54 +95,73 @@ class JuliaTranspilerPlugins:
         assign_variables_init = ", ".join(assign_variables_init)
         str_struct_fields = ", ".join(str_struct_fields)
 
-        if fields["init"]:
-            modifiers = "mutable"
+        # Visit class body
+        body = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body.append(t_self.visit(b))
 
-            body += f"""
-                function __init__(self::{structname}, {str_struct_fields})
+        # Add functions to body
+        modifiers = ""
+        if d_fields["init"]:
+            modifiers = "mutable "
+
+            body.append(f"""
+                function __init__(self::{struct_name}, {str_struct_fields})
                     {assign_variables_init}
-                end\n
-            """
-        if fields["repr"]:
-            body += f"""function __repr__(self::{structname})::String
-                return {structname}({attr_vars})
-            end\n"""
-        if fields["eq"]:
-            body += f"""\
-                function __eq__(self::{structname}, other::{structname})::Bool
+                end
+            """)
+        if d_fields["repr"]:
+            body.append(f"""function __repr__(self::{struct_name})::String
+                return {struct_name}({attr_vars})
+            end""")
+        if d_fields["eq"]:
+            body.append(f"""\
+                function __eq__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) == __key(other)
-                end\n
-            """
-        if fields["order"]:
-            body += f"""\
-                function __lt__(self::{structname}, other::{structname})::Bool
+                end
+            """)
+        if d_fields["order"]:
+            body.append(f"""\
+                function __lt__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) < __key(other)
                 end\n
-                function __le__(self::{structname}, other::{structname})::Bool
+                function __le__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) <= __key(other)
                 end\n
-                function __gt__(self::{structname}, other::{structname})::Bool
+                function __gt__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) > __key(other)
                 end\n
-                function __ge__(self::{structname}, other::{structname})::Bool
+                function __ge__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) >= __key(other)
-                end\n
-            """
-        if fields["unsafe_hash"]:
-            if fields["_eq"]: # && ismutable
-                body += f"""\
-                function __hash__(self::{structname})
+                end
+            """)
+        if d_fields["unsafe_hash"]:
+            if d_fields["_eq"]: # && ismutable
+                body.append(f"""\
+                function __hash__(self::{struct_name})
                     return __key(self)
-                end\n
-                """
+                end
+                """)
 
-        body += f"""\
-                function __key(self::{structname})
+        body.append(f"""\
+                function __key(self::{struct_name})
                     ({key_vars})
-                end\n
-                """
+                end
+                """)
+        
+        body = "\n".join(body)
 
-        return annotation, fields_str, modifiers, body 
+        bases = [t_self.visit(base) for base in node.bases]
+        struct_def = f"{modifiers}struct {node.name} <: {bases[0]}" \
+            if bases else f"{modifiers}struct {node.name}"
+
+        return f"""
+            {struct_def} begin
+                {fields}
+            end
+            {body}
+        """
 
     def _generic_dataclass_visit(decorator):
         fields = {}
@@ -152,6 +187,26 @@ class JuliaTranspilerPlugins:
 
         return fields, field_repr
 
+    def visit_JuliaClass(t_self, node: ast.ClassDef, decorator) -> Any:
+        # Visit class fields
+        fields = t_self._visit_class_fields(node.declarations)
+
+        # Struct definition
+        bases = [t_self.visit(base) for base in node.bases]
+        struct_def = f"{t_self.visit(node.name)} <: {', '.join(bases)}" \
+            if bases else f"{t_self.visit(node.name)}"
+
+        body = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body.append(f"{t_self.visit(b)}")
+        body = "\n".join(body)
+        return f"""
+            @class {struct_def} begin
+                {fields}
+            end
+            {body}
+            """
 
     def visit_async_ann(self, node, decorator):
         return ""
@@ -311,7 +366,8 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 
 DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
-    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass
+    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
+    "jl_class": JuliaTranspilerPlugins.visit_JuliaClass
 }
 
 CLASS_DISPATCH_TABLE = {
