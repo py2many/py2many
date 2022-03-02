@@ -57,9 +57,9 @@ end
 function compute_rows(n, f)
     row_jobs = ((y, n) for y in (0:n-1))
     if length(Sys.cpu_info()) < 2
-        map(f, row_jobs)
+        @yield from map(f, row_jobs)
     else
-        ordered_rows(map(f, row_jobs), n)
+        @yield from ordered_rows(map(f, row_jobs), n)
     end
 end
 

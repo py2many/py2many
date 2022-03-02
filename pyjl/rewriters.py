@@ -95,9 +95,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map = {}
-        self._class_body_nodes = []
-        self._import_list = []  # TODO: Currently not in use
-        self._import_cnt = 0
+        self._import_list = []  # TODO: Consider imported classes
 
     def visit_Module(self, node: ast.Module) -> Any:
         node.lineno = 0
@@ -106,8 +104,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         # visit nodes recursively
         for n in node.body:
-            if isinstance(n, ast.ClassDef):
-                self.visit(n)
+            self.visit(n)
 
         # Create abstract types if needed
         abstract_types = []
@@ -126,19 +123,19 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 l_no += 1
 
         if abstract_types:
-            node.body = node.body[:self._import_cnt] + \
-                abstract_types + node.body[self._import_cnt:]
+            node.body = node.body[:len(self._import_list) - 1] + \
+                abstract_types + node.body[len(self._import_list) - 1:]
 
         # Visit Function nodes later to account for all classes
-        for (c_name, nodes) in self._class_body_nodes:
-            for n in nodes:
-                if isinstance(n, ast.FunctionDef):
-                    n.self_type = c_name
-                    self.visit(n)
+        for n in node.body:
+            if isinstance(n, ast.ClassDef):
+                for d in n.body:
+                    if isinstance(d, ast.FunctionDef):
+                        d.self_type = n.name
+                        self.visit(d)
 
         self._hierarchy_map = {}
         self._import_list = []
-        self._import_cnt = 0
 
         return node
 
@@ -160,12 +157,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 extends.append(name)
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
-
-        if len(node.bases) <= 1:
-            node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-
-        # Add to list and visit later
-        self._class_body_nodes.append((node.name, node.body))
+        node.bases += [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
         return node
 
@@ -179,8 +171,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 setattr(name, "id", f"Abstract{name}")
 
         if (hasattr(node, "self_type") and
-                (self_type := get_id(node.self_type)) in self._hierarchy_map):
-            setattr(node.self_type, "id", f"Abstract{self_type}")
+                (self_type := node.self_type) in self._hierarchy_map):
+            node.self_type = f"Abstract{self_type}"
         return node
 
     def visit_Import(self, node: ast.Import) -> Any:
@@ -192,7 +184,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
         return node
 
     def _generic_import_visit(self, node):
-        self._import_cnt += 1
         for alias in node.names:
             if asname := getattr(alias, "asname", None):
                 self._import_list.append(asname)

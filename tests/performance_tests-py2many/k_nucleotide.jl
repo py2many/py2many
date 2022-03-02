@@ -12,6 +12,7 @@ function lean_args(sequence, reading_frames, i, j)
     return (lean_key, reading_frames, i, j)
 end
 
+
 struct lean_call <: Abstractlean_call
     func::Any
 end
@@ -37,6 +38,7 @@ function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vect
     end
     return lean_results
 end
+
 
 function count_frequencies(sequence, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
@@ -147,7 +149,7 @@ function display(results, display_list, sort = false, relative = false, end_ = "
         (k_nucleotide, frame, bits) in display_list
     ]
     if sort
-        lines = sorted(lines, (v) -> (-v[2][1], v[1]))
+        lines = sorted(lines, (v) -> (-(v[2][1]), v[1]))
     end
     for (k_nucleotide, (frequency, n)) in lines
         if relative

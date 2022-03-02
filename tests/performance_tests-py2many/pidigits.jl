@@ -2,12 +2,16 @@ using Printf
 
 using ctypes.util: find_library
 
-abstract type Abstractmpz_t <: AbstractStructure end
 GMP = CDLL(find_library("gmp"))
 __gmpz_get_ui(GMP).restype = c_ulong
-struct mpz_t <: Abstractmpz_t end
+
+struct mpz_t <: Structure
+
+end
+
 
 tmp1 = mpz_t()
+abstract type Abstractmpz_t <: AbstractStructure end
 tmp2 = mpz_t()
 acc = mpz_t()
 den = mpz_t()

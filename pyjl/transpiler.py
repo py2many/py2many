@@ -141,7 +141,7 @@ class JuliaTranspiler(CLikeTranspiler):
         is_python_main = getattr(node, "python_main", False)
 
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = get_id(node.self_type)
+            typenames[0] = node.self_type
 
         defaults = node.args.defaults
         len_defaults = len(defaults)

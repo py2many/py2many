@@ -67,7 +67,7 @@ end
         else
             @yield 0
         end
-        alternating_factor = -alternating_factor
+        alternating_factor = -(alternating_factor)
     end
     @yield maximum_flips
 end
@@ -79,7 +79,7 @@ end
 
 function fannkuch(n)
     if n < 0
-        for data in split(permutations(-n, 0, factorial(-n)))[factorial(-n)]
+        for data in split(permutations(-(n), 0, factorial(-(n))))[factorial(-(n))]
             println(join(map((n) -> string(n + 1), data), ""))
         end
     else

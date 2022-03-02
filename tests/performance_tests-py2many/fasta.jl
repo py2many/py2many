@@ -111,7 +111,7 @@ end
 function lcg_lookup_slow(probabilities, seed, im, ia, ic)
     if true
         prng = closing(lcg(seed, im, ia, ic))
-        lookup(probabilities, prng)
+        @yield from lookup(probabilities, prng)
     end
 end
 
