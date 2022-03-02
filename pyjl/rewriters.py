@@ -1,5 +1,6 @@
 import ast
 from typing import Any, Dict
+from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_matching_type
@@ -96,6 +97,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
         super().__init__()
         self._hierarchy_map = {}
         self._import_list = []  # TODO: Consider imported classes
+        self._import_count = 0
+        self._ignored_module_set = IGNORED_MODULE_SET
 
     def visit_Module(self, node: ast.Module) -> Any:
         node.lineno = 0
@@ -108,7 +111,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         # Create abstract types if needed
         abstract_types = []
-        l_no = len(self._import_list)
+        l_no = self._import_count
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             node.class_names.append(class_name)
             if not is_jlClass:
@@ -123,8 +126,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 l_no += 1
 
         if abstract_types:
-            node.body = node.body[:len(self._import_list) - 1] + \
-                abstract_types + node.body[len(self._import_list) - 1:]
+            node.body = node.body[:self._import_count] + \
+                abstract_types + node.body[self._import_count:]
 
         # Visit Function nodes later to account for all classes
         for n in node.body:
@@ -136,6 +139,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         self._hierarchy_map = {}
         self._import_list = []
+        self._import_count = 0
 
         return node
 
@@ -184,8 +188,15 @@ class JuliaClassRewriter(ast.NodeTransformer):
         return node
 
     def _generic_import_visit(self, node):
+        is_visit = False
         for alias in node.names:
-            if asname := getattr(alias, "asname", None):
-                self._import_list.append(asname)
-            elif name := getattr(alias, "name", None):
-                self._import_list.append(name)
+            alias_id = get_id(alias)
+            if alias_id not in self._ignored_module_set:
+                is_visit = True
+                if asname := getattr(alias, "asname", None):
+                    self._import_list.append(asname)
+                elif name := getattr(alias, "name", None):
+                    self._import_list.append(name)
+
+        if is_visit:
+            self._import_count += 1

@@ -1,13 +1,13 @@
 #= This file implements a rectangle class  
 =#
-abstract type AbstractRectangle end
 
+abstract type AbstractRectangle end
 
 mutable struct Rectangle <: AbstractRectangle
     height::Int64
     length::Int64
 end
-function is_square(self)::Bool
+function is_square(self::AbstractRectangle)::Bool
     return self.height == self.length
 end
 

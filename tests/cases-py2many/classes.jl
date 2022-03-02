@@ -5,15 +5,15 @@ abstract type AbstractStudent <: AbstractPerson end
 struct Foo <: AbstractFoo
 
 end
-function bar(self)::Int64
+function bar(self::AbstractFoo)::Int64
     return baz(self)
 end
 
-function baz(self)::Int64
+function baz(self::AbstractFoo)::Int64
     return 10
 end
 
-function bar_str(self)::String
+function bar_str(self::AbstractFoo)::String
     return "a"
 end
 
@@ -22,26 +22,26 @@ end
 struct Person <: AbstractPerson
     name::String
 end
-function __init__(self, name::String)
+function __init__(self::AbstractPerson, name::String)
     self.name = name
 end
 
-function get_name(self)
+function get_name(self::AbstractPerson)
     return self.name
 end
 
 
 
-struct Student <: AbstractStudent
+struct Student <: Person
     name::String
     student_number::Int64
 end
-function __init__(self, name::String, student_number::Int64)
+function __init__(self::AbstractStudent, name::String, student_number::Int64)
     self.name = name
     self.student_number = student_number
 end
 
-function get_name(self)
+function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
 end
 

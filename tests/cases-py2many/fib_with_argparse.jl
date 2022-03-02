@@ -1,5 +1,5 @@
-abstract type AbstractOptions end
 using argparse_dataclass: dataclass
+abstract type AbstractOptions end
 
 mutable struct Options <: AbstractOptions
     v::Bool

@@ -1,28 +1,28 @@
+
 abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
 
-
-struct Colors <: AbstractColors
+struct Colors <: IntEnum
 
 end
 
 
 
-struct Permissions <: AbstractPermissions
+struct Permissions <: IntFlag
 
 end
 
 
 function show()
-    color_map = Dict(RED(Colors) => "red", GREEN(Colors) => "green", BLUE(Colors) => "blue")
-    a = GREEN(Colors)
-    if a == GREEN(Colors)
+    color_map = Dict(Colors.RED => "red", Colors.GREEN => "green", Colors.BLUE => "blue")
+    a = Colors.GREEN
+    if a == Colors.GREEN
         println("green")
     else
         println("Not green")
     end
-    b = R(Permissions)
-    if b == R(Permissions)
+    b = Permissions.R
+    if b == Permissions.R
         println("R")
     else
         println("Not R")

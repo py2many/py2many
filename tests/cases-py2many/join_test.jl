@@ -3,7 +3,7 @@ abstract type AbstractHello end
 struct Hello <: AbstractHello
 
 end
-function test(self)::String
+function test(self::AbstractHello)::String
     return "ola"
 end
 

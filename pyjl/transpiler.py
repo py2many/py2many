@@ -111,27 +111,17 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         # visit function body
-        body = ""
-        node_body = "\n".join([self.visit(n) for n in node.body])
-        if node_body == "...":
-            node_body = ""
-
-        # Check for function annotations
-        annotation = ""
-        annotation_body = ""
+        body = "\n".join([self.visit(n) for n in node.body])
+        if body == "...":
+            body = ""
 
         decorator_list = _parse_annotations(node.decorator_list)
-
         for decorator in decorator_list:
             d_id = get_decorator_id(decorator)
             if d_id in DECORATOR_DISPATCH_TABLE:
                 ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
-                    annotation += ret[0]
-                    annotation_body += ret[1]
-
-        # Adding the body of the node
-        body += node_body + annotation_body
+                    return ret
 
         typenames, args = self.visit(node.args)
 
@@ -198,6 +188,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Check if current function is a generator function
         py_yield = find_node_matching_type(ast.Yield, [node.scopes[-1]])
+        annotation = ""
         if py_yield is not None:
             annotation += " @resumable "
 
