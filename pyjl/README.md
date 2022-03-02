@@ -190,8 +190,8 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [ ] `%`
   - [ ] `@` matrix multiplication
 - Shift operations (PLR 6.8)
-  - [ ] `<<`
-  - [ ] `>>`
+  - [x] `<<`
+  - [x] `>>`
 - Binary bitwise operations (PLR 6.9)
   - [ ] `&`
   - [ ] `|`

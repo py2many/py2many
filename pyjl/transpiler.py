@@ -416,18 +416,6 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.append("end")
         return "\n".join(buf)
 
-    def visit_UnaryOp(self, node) -> str:
-        if hasattr(node, "op"):
-            if isinstance(node.op, ast.UAdd):
-                return f"+{self.visit(node.operand)}"
-            elif isinstance(node.op, ast.USub):
-                return f"-{self.visit(node.operand)}"
-            elif isinstance(node.op, ast.Invert):
-                return f"~{self.visit(node.operand)}"
-            else:
-                return super().visit_UnaryOp(node)
-        return super().visit_UnaryOp(node)
-
     def visit_BinOp(self, node) -> str:
         left_jl_ann = node.left.julia_annotation
         right_jl_ann = node.right.julia_annotation
@@ -469,17 +457,14 @@ class JuliaTranspiler(CLikeTranspiler):
                     or (right_jl_ann == "String" and left_jl_ann == "String")):
                 return f"{left} * {right}"
 
-        if isinstance(node.op, ast.MatMult):
-            if(isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num)):
-                return "({0}*{1})".format(left, right)
-
-        if isinstance(node.op, ast.Pow):
-            if isinstance(node.right, ast.Num) and isinstance(node.left, ast.Num) \
-                    and right_jl_ann == "Int64" and left_jl_ann == "Int64":
-                return "({0}^{1})".format(left, right)
-
         # By default, call super
         return super().visit_BinOp(node)
+
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> str:
+        if isinstance(node.operand, (ast.Call, ast.Num)):
+            # Shortcut if parenthesis are not needed
+            return f"{self.visit(node.op)}{self.visit(node.operand)}"
+        return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
         extractor = DeclarationExtractor(JuliaTranspiler())

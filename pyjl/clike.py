@@ -54,8 +54,14 @@ julia_keywords = frozenset(
 
 _DEFAULT = "Any"
 
-# TODO: Check ast.Is, ast.Not
-jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
+jl_symbols = {
+    ast.BitXor: " ⊻ ", 
+    ast.And: " && ", 
+    ast.Or: " || ",
+    ast.Invert: "~",
+    ast.Pow: "*",
+    ast.MatMult: "*",
+}
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""

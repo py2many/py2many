@@ -76,6 +76,7 @@ symbols = {
     ast.Not: "!",
     ast.IsNot: "!=",
     ast.USub: "-",
+    ast.UAdd: "+",
     ast.And: "&&",
     ast.Or: "||",
     ast.In: "in",

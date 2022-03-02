@@ -12,8 +12,8 @@ end
 end
 
 function yield_from()
-    generator1()
-    generator2()
+    @yield from generator1()
+    @yield from generator2()
 end
 
 function main()

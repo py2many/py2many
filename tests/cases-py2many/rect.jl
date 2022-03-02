@@ -37,7 +37,7 @@ function show()
     r = Rectangle(1, 1)
     @assert(is_square(r))
     r = Rectangle(1, 2)
-    @assert(!(is_square(r)))
+    @assert(!is_square(r))
     println(height(r))
     println(length(r))
 end
