@@ -1,9 +1,10 @@
 import argparse
 import ast
-import functools
-from getpass import getpass
 import os
-from pyjl.inference import infer_julia_types
+import functools
+from subprocess import Popen, PIPE
+from getpass import getpass
+
 import sys
 import tempfile
 
@@ -76,7 +77,9 @@ from py2many.rewriters import (
     UnpackScopeRewriter,
 )
 
-from .input_configuration import InputParser, ParseFileStructure
+from pyjl.inference import infer_julia_types
+
+from .input_configuration import InputParser
 
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
@@ -297,7 +300,8 @@ def julia_settings(args, env=os.environ):
     format_jl = None
     if sys.platform == "win32":
         user = getpass.getuser()
-        julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-1.7.1/bin/julia.exe"
+        julia_version = "1.7.1"
+        julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-{julia_version}/bin/julia.exe"
     else:
         julia_path = "julia"
     if os.path.exists("pyjl/formatter"):
@@ -498,17 +502,8 @@ def _format_one(settings: LanguageSettings, output_path, env=None):
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env, capture_output=True)
+        proc = run(cmd, env=env, capture_output=True, universal_newlines = True)
         if proc.returncode:
-            # format.jl exit code is unreliable
-            if settings.ext == ".jl":
-                if proc.stderr is not None:
-                    print(
-                        f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
-                    )
-                    if b"ERROR: " in proc.stderr:
-                        return False
-                return True
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
             )
@@ -564,7 +559,7 @@ def _process_many(
     format_errors = set()
     if settings.formatter:
         if settings.ext == ".jl":
-            # Format.jl can receive multiple files
+            # Julia Formatter can receive multiple files
             _format_one(settings, outdir, env)
         else:
             # TODO: Optimize to a single invocation

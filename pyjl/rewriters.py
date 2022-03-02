@@ -96,21 +96,23 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         node.lineno = 0
         node.col_offset = 0
+        node.class_names = []
 
         # visit nodes recursively
         for n in node.body:
-            self.visit(n)
+            if isinstance(n, ast.ClassDef):
+                self.visit(n)
 
         # Create abstract types if needed
-        node.class_names = []
         abstract_types = []
         l_no = len(self._import_list)
-        for (class_name, (is_jlClass, extends_lst)) in self._hierarchy_map.items():
+        for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             node.class_names.append(class_name)
             if not is_jlClass:
                 # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
-                extends = ast.Name(id=f"Abstract{extends_lst[0]}")
+                extends = ast.Name(id=f"Abstract{extends_lst[0]}") \
+                    if extends_lst else None
                 abstract_types.append(
                     juliaAst.AbstractType(value=nameVal, extends=extends, 
                         ctx=ast.Load, lineno=l_no, col_offset = 0))
@@ -140,18 +142,15 @@ class JuliaClassRewriter(ast.NodeTransformer):
         is_jlClass = "jl_class" in decorator_list
         
         extends = []
-
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
             extends = [name]
         else:
             # TODO: Investigate Julia traits
-            extends_lst = []
             for base in node.bases:
                 name = get_id(base)
-                extends_lst.append(name)
-            extends = extends_lst
+                extends.append(name)
         
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 
@@ -159,7 +158,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
             node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
         # Add to list and visit later
-        self._class_body_nodes += (node.name, node.body)
+        self._class_body_nodes.append((node.name, node.body))
         # for b in node.body:
         #     if isinstance(b, ast.FunctionDef):
         #         # Add self information
@@ -179,6 +178,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if (hasattr(node, "self_type") and 
                 (self_type := get_id(node.self_type)) in self._hierarchy_map):
             setattr(node.self_type, "id", f"Abstract{self_type}")
+        return node
 
     def visit_Import(self, node: ast.Import) -> Any:
         self._generic_import_visit(node)

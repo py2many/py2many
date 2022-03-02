@@ -513,7 +513,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 body.append(self.visit(b))
         body = "\n".join(body)
         return f"""
-            {struct_def} begin
+            {struct_def}
                 {fields}
             end
             {body}

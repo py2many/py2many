@@ -62,14 +62,13 @@ class JuliaTranspilerPlugins:
         dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
-        fields = t_self._visit_class_fields(node.declarations)
-
-
+        fields: str = t_self._visit_class_fields(node.declarations)
+        struct_fields = fields.split("\n")
         # Get struct fields
-        struct_fields = []
-        for declaration in node.declarations:
-            (struct_fields.append(declaration if node.declarations[declaration] == "" 
-                else f"{declaration}::{node.declarations[declaration]}"))
+        # struct_fields = []
+        # for declaration in node.declarations:
+        #     (struct_fields.append(declaration if node.declarations[declaration] == "" 
+        #         else f"{declaration}::{node.declarations[declaration]}"))
 
         # Abstract type
         struct_name = "".join(["Abstract", get_id(node)])
@@ -81,9 +80,12 @@ class JuliaTranspilerPlugins:
         str_struct_fields = []
         for field in struct_fields:
             field_name, field_type = field.split("::")
+            st_name = field_type
+            if field_type.startswith("Abstract"):
+                st_name = field_type[8:]
             attr_vars.append(f"self.{field_name}")
             key_vars.append(f"self.{field_name}"
-                if (field_type in t_self._class_names) else f"__key(self.{field_name})")
+                if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
             assign_variables_init.append(f"setfield!(self::{struct_name}, :{field_name}, {field})")
             str_struct_fields.append(f"{field_name}::{field_type}"
                 if field_type not in t_self._class_names 
@@ -112,17 +114,19 @@ class JuliaTranspilerPlugins:
                 end
             """)
         if d_fields["repr"]:
-            body.append(f"""function __repr__(self::{struct_name})::String
-                return {struct_name}({attr_vars})
-            end""")
+            body.append(f"""
+                function __repr__(self::{struct_name})::String 
+                    return {struct_name}({attr_vars}) 
+                end
+            """)
         if d_fields["eq"]:
-            body.append(f"""\
+            body.append(f"""
                 function __eq__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) == __key(other)
                 end
             """)
         if d_fields["order"]:
-            body.append(f"""\
+            body.append(f"""
                 function __lt__(self::{struct_name}, other::{struct_name})::Bool
                     return __key(self) < __key(other)
                 end\n
@@ -138,13 +142,13 @@ class JuliaTranspilerPlugins:
             """)
         if d_fields["unsafe_hash"]:
             if d_fields["_eq"]: # && ismutable
-                body.append(f"""\
+                body.append(f"""
                 function __hash__(self::{struct_name})
                     return __key(self)
                 end
                 """)
 
-        body.append(f"""\
+        body.append(f"""
                 function __key(self::{struct_name})
                     ({key_vars})
                 end
@@ -157,7 +161,7 @@ class JuliaTranspilerPlugins:
             if bases else f"{modifiers}struct {node.name}"
 
         return f"""
-            {struct_def} begin
+            {struct_def}
                 {fields}
             end
             {body}
@@ -192,9 +196,13 @@ class JuliaTranspilerPlugins:
         fields = t_self._visit_class_fields(node.declarations)
 
         # Struct definition
-        bases = [t_self.visit(base) for base in node.bases]
-        struct_def = f"{t_self.visit(node.name)} <: {', '.join(bases)}" \
-            if bases else f"{t_self.visit(node.name)}"
+        bases = []
+        for b in node.bases:
+            b_name = t_self.visit(b)
+            if b_name != f"Abstract{node.name}":
+                bases.append(b_name)
+        struct_def = f"{node.name} <: {', '.join(bases)}" \
+            if bases else f"{node.name}"
 
         body = []
         for b in node.body:
