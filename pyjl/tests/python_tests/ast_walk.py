@@ -59,10 +59,8 @@ class Hello(something):
 """
 
 code5 = """
-class Colors(IntEnum):
-    RED = auto()
-    GREEN = auto()
-    BLUE = auto()
+class Foo:
+    num = 1
 """
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ class DeclarationExtractor(ast.NodeVisitor):
         typed_members = {self._maybe_rename_key(k): v for k, v in typed_members.items()}
         return typed_members
 
+    # TODO: Does this have to do with the types of default values?
     def get_declarations_with_defaults(self):
         typed_members = self.annotated_members
         for member, var in self.member_assignments.items():
@@ -51,6 +52,14 @@ class DeclarationExtractor(ast.NodeVisitor):
                 typed_members[member] = (self.typed_function_args[var], None)
 
         for member, value in self.member_assignments.items():
+            if member not in typed_members:
+                typed_members[member] = (
+                    self.transpiler._typename_from_annotation(value),
+                    None,
+                )
+        
+        # Added visit to class assignments
+        for member, value in self.class_assignments.items():
             if member not in typed_members:
                 typed_members[member] = (
                     self.transpiler._typename_from_annotation(value),
