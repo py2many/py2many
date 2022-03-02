@@ -25,7 +25,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_node_matching_type, find_node_matching_name_and_type, \
+from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, \
     get_class_scope, is_class_type, is_enum
 
 from typing import Any, Dict, List, Tuple, Union
@@ -110,25 +110,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_Constant(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
-        # visit function body
-        body = "\n".join([self.visit(n) for n in node.body])
-        if body == "...":
-            body = ""
-
-        decorator_list = _parse_annotations(node.decorator_list)
-        for decorator in decorator_list:
-            d_id = get_decorator_id(decorator)
-            if d_id in DECORATOR_DISPATCH_TABLE:
-                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
-                if ret is not None:
-                    return ret
-
+        # Parse function args
         typenames, args = self.visit(node.args)
-
         args_list = []
         typedecls = []
-
-        is_python_main = getattr(node, "python_main", False)
 
         if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
             typenames[0] = node.self_type
@@ -142,13 +127,6 @@ class JuliaTranspiler(CLikeTranspiler):
             if arg_typename != None and arg_typename != "T":
                 arg_typename = super()._map_type(arg_typename)
 
-            # TODO: Check if this is necessary
-            # elif arg_typename == "T":
-            #     # Allow the user to know that type is generic
-            #     arg_typename = "T{0}".format(index)
-            #     typedecls.append(arg_typename)
-            #     index += 1
-
             # Get default parameter values
             default = None
             if defaults:
@@ -160,13 +138,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
             if default is not None:
                 default = self.visit(default)
-            # if get_id(default):
-            #     default = get_id(default)
-            # elif isinstance(default, ast.Constant):
-            #     print(type(default.value))
-            #     default = self.visit(default.value)
-            #     # if isinstance(default, str):
-            #     #     default = f"\"{default}\""
 
             arg_signature = ""
             if arg_typename:
@@ -175,6 +146,19 @@ class JuliaTranspiler(CLikeTranspiler):
                 arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
             args_list.append(arg_signature)
 
+        args = ", ".join(args_list)
+        node.parsed_args = args_list
+
+        # Visit decorators
+        decorator_list = _parse_annotations(node.decorator_list)
+        for decorator in decorator_list:
+            d_id = get_decorator_id(decorator)
+            if d_id in DECORATOR_DISPATCH_TABLE:
+                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
+                if ret is not None:
+                    return ret
+
+        # Parse return type
         return_type = ""
         if not is_void_function(node):
             if node.returns:
@@ -186,17 +170,19 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "{{{0}}}".format(", ".join(typedecls))
 
-        # Check if current function is a generator function
-        py_yield = find_node_matching_type(ast.Yield, [node.scopes[-1]])
-        annotation = ""
-        if py_yield is not None:
-            annotation += " @resumable "
+        # Visit function body
+        body = "\n".join(self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
 
-        args = ", ".join(args_list)
-        funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
-        maybe_main = ""
-        if is_python_main:
-            maybe_main = "\nmain()"
+        # Check if current function contains yield expressions
+        py_yield = find_in_body(node.body, (lambda x: isinstance(x, ast.Yield)))
+        annotation = "@resumable " if py_yield else ""
+        
+        funcdef = f"{annotation} function {node.name}{template}({args}){return_type}"
+
+        is_python_main = getattr(node, "python_main", False)
+        maybe_main = "\nmain()" if is_python_main else ""
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
     def visit_Return(self, node) -> str:
