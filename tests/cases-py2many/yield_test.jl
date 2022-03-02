@@ -57,7 +57,7 @@ end
 
 
 struct TestClass <: AbstractTestClass
-
+    num::Int64
 end
 @resumable function generator_func(self::AbstractTestClass)
     num = 123

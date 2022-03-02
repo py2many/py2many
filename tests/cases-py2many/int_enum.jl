@@ -3,13 +3,17 @@ abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
 
 struct Colors <: IntEnum
-
+    RED::Any
+    GREEN::Any
+    BLUE::Any
 end
 
 
 
 struct Permissions <: IntFlag
-
+    R::Int64
+    W::Int64
+    X::Int64
 end
 
 

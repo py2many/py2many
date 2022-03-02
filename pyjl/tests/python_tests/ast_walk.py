@@ -59,9 +59,10 @@ class Hello(something):
 """
 
 code5 = """
-@jl_class 
-class Packet:
-    val: float
+class Colors(IntEnum):
+    RED = auto()
+    GREEN = auto()
+    BLUE = auto()
 """
 
 if __name__ == "__main__":
