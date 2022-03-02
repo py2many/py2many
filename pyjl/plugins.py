@@ -29,7 +29,8 @@ class JuliaTranspilerPlugins:
     def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
         t_self._usings.add("DataClass")
 
-        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
+            decorator)
         d_fields, field_repr = dataclass_data[0], dataclass_data[1]
         if d_fields["init"]:
             # if it defines __init__, it needs to be mutable
@@ -45,7 +46,7 @@ class JuliaTranspilerPlugins:
         bases = [t_self.visit(base) for base in node.bases]
         struct_def = f"{modifiers} struct {node.name} <: {bases[0]}" \
             if bases else f"{modifiers} struct {node.name}"
-        
+
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
@@ -59,20 +60,16 @@ class JuliaTranspilerPlugins:
         """
 
     def visit_py_dataclass(t_self, node: ast.ClassDef, decorator) -> str:
-        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(decorator)
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
+            decorator)
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
         fields: str = t_self._visit_class_fields(node.declarations)
         struct_fields = fields.split("\n")
-        # Get struct fields
-        # struct_fields = []
-        # for declaration in node.declarations:
-        #     (struct_fields.append(declaration if node.declarations[declaration] == "" 
-        #         else f"{declaration}::{node.declarations[declaration]}"))
 
         # Abstract type
         struct_name = "".join(["Abstract", get_id(node)])
-        
+
         # get struct variables using getfield
         attr_vars = []
         key_vars = []
@@ -85,11 +82,12 @@ class JuliaTranspilerPlugins:
                 st_name = field_type[8:]
             attr_vars.append(f"self.{field_name}")
             key_vars.append(f"self.{field_name}"
-                if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
-            assign_variables_init.append(f"setfield!(self::{struct_name}, :{field_name}, {field})")
+                            if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
+            assign_variables_init.append(
+                f"setfield!(self::{struct_name}, :{field_name}, {field})")
             str_struct_fields.append(f"{field_name}::{field_type}"
-                if field_type not in t_self._class_names 
-                else f"{field_name}::Abstract{field_type}")
+                                     if field_type not in t_self._class_names
+                                     else f"{field_name}::Abstract{field_type}")
 
         # Convert into string
         key_vars = ", ".join(key_vars)
@@ -141,7 +139,7 @@ class JuliaTranspilerPlugins:
                 end
             """)
         if d_fields["unsafe_hash"]:
-            if d_fields["_eq"]: # && ismutable
+            if d_fields["_eq"]:  # && ismutable
                 body.append(f"""
                 function __hash__(self::{struct_name})
                     return __key(self)
@@ -153,7 +151,7 @@ class JuliaTranspilerPlugins:
                     ({key_vars})
                 end
                 """)
-        
+
         body = "\n".join(body)
 
         bases = [t_self.visit(base) for base in node.bases]
@@ -171,7 +169,7 @@ class JuliaTranspilerPlugins:
         fields = {}
         field_repr = []
         keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
-            'unsafe_hash': False, 'frozen': False}
+                    'unsafe_hash': False, 'frozen': False}
 
         # Parse received keywords if needed
         if isinstance(decorator, ast.Call):
@@ -251,7 +249,7 @@ class JuliaTranspilerPlugins:
     def visit_range(self, node, vargs: List[str]) -> str:
         end = vargs[0] if len(vargs) == 1 else vargs[1]
         if ((isinstance(end, str) and end.lstrip("-").isnumeric())
-                or isinstance(end, int) or  isinstance(end, float)):
+                or isinstance(end, int) or isinstance(end, float)):
             end = int(end) - 1
         else:
             end += " - 1"
@@ -271,7 +269,7 @@ class JuliaTranspilerPlugins:
         args = ", ".join(vargs)
         if "%" in args:
             # TODO: Further rules are necessary
-            res = re.split(r"\s\%\s", args) 
+            res = re.split(r"\s\%\s", args)
             args = ", ".join(res)
             self._usings.add("Printf")
             return f"@printf({args})"
@@ -284,11 +282,12 @@ class JuliaTranspilerPlugins:
                 return f"Int64(floor({vargs[0]}))"
         if vargs:
             return f"parse(Int64, {vargs[0]})"
-        return f"zero(Int)" # Default int value
+        return f"zero(Int)"  # Default int value
 
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
+
 
 JULIA_TYPE_MAP = {
     bool: "Bool",
@@ -314,11 +313,11 @@ JULIA_INTEGER_TYPES = \
         "Int16",
         "Int32",
         "Int64",
-        "UInt128", 
-        "UInt64", 
-        "UInt32", 
-        "UInt16", 
-        "UInt8", 
+        "UInt128",
+        "UInt64",
+        "UInt32",
+        "UInt16",
+        "UInt8",
         "Integer"
     ]
 
@@ -348,7 +347,8 @@ SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
-    "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false", # default is false
+    # default is false
+    "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
     "None": lambda n, vargs: f"nothing",
@@ -394,14 +394,14 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     list.remove: (lambda self, node, vargs: \
-        f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
+                  f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
     list.extend: (lambda self, node, vargs: f"{vargs[0]} = append!({vargs[0]}, {vargs[1]})", True),
     list.count: (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
     bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" \
-        if len(vargs) == 0 \
-        else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
+                if len(vargs) == 0 \
+                else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
     itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
@@ -429,7 +429,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
     sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
     # misc
-    str.format: (lambda self, node, vargs: f"test", True), # Does not work
+    str.format: (lambda self, node, vargs: f"test", True),  # Does not work
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
@@ -439,6 +439,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     # TODO: remove string-based fallback
-    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True), 
+    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
 }

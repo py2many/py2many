@@ -532,22 +532,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return "" if fields == [] else "\n".join(fields)
 
-    def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
-        decorators = [get_decorator_id(d) for d in node.decorator_list]
-        field_str = ""
-        for field, value in fields:
-            field_str += f"\t{field}\n"
-        if("unique" in decorators and typename not in JULIA_INTEGER_TYPES):
-            return textwrap.dedent(
-                f"@enum {node.name}::{typename} begin\n{field_str}end"
-            )
-        else:
-            # Cover case in pyenum where values are unique and strings
-            self._usings.add("PyEnum")
-            return textwrap.dedent(
-                f"@pyenum {node.name}::{typename} begin\n{field_str}end"
-            )
-
     def visit_StrEnum(self, node) -> str:
         fields = []
         for i, (member, var) in enumerate(node.class_assignments.items()):
@@ -565,6 +549,22 @@ class JuliaTranspiler(CLikeTranspiler):
                 var = i
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
+
+    def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
+        decorators = [get_decorator_id(d) for d in node.decorator_list]
+        field_str = ""
+        for field, value in fields:
+            field_str += f"\t{field}\n"
+        if("unique" in decorators and typename not in JULIA_INTEGER_TYPES):
+            return textwrap.dedent(
+                f"@enum {node.name}::{typename} begin\n{field_str}end"
+            )
+        else:
+            # Cover case in pyenum where values are unique and strings
+            self._usings.add("PyEnum")
+            return textwrap.dedent(
+                f"@pyenum {node.name}::{typename} begin\n{field_str}end"
+            )
 
     def visit_IntFlag(self, node) -> str:
         fields = []
@@ -830,7 +830,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported
-        return f"{self.visit(node.value)}"
+        return f"@yield from {self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:
         buf = []
@@ -859,6 +859,27 @@ class JuliaTranspiler(CLikeTranspiler):
                      self._visit_generators(generators))
 
         return f"Dict({dict_comp})"
+
+    def _visit_generators(self, generators):
+        gen_exp = []
+        for i in range(len(generators)):
+            generator = generators[i]
+            target = self.visit(generator.target)
+            iter = self.visit(generator.iter)
+            exp = f"for {target} in {iter}"
+            gen_exp.append(exp) \
+                if i == 0 \
+                else gen_exp.append(f" {exp}")
+            filter_str = ""
+            if(len(generator.ifs) == 1):
+                filter_str += f" if {self.visit(generator.ifs[0])} "
+            else:
+                for i in range(0, len(generator.ifs)):
+                    gen_if = generator.ifs[i]
+                    filter_str += f" if {self.visit(gen_if)}" if i == 0 else f" && {self.visit(gen_if)} "
+            gen_exp.append(filter_str)
+
+        return "".join(gen_exp)
 
     def visit_Global(self, node) -> str:
         return "global {0}".format(", ".join(node.names))
@@ -902,31 +923,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{value}"
 
     ######################################################
-    ################## Private Methods ###################
-    ######################################################
-
-    def _visit_generators(self, generators):
-        gen_exp = []
-        for i in range(len(generators)):
-            generator = generators[i]
-            target = self.visit(generator.target)
-            iter = self.visit(generator.iter)
-            exp = f"for {target} in {iter}"
-            gen_exp.append(exp) \
-                if i == 0 \
-                else gen_exp.append(f" {exp}")
-            filter_str = ""
-            if(len(generator.ifs) == 1):
-                filter_str += f" if {self.visit(generator.ifs[0])} "
-            else:
-                for i in range(0, len(generator.ifs)):
-                    gen_if = generator.ifs[i]
-                    filter_str += f" if {self.visit(gen_if)}" if i == 0 else f" && {self.visit(gen_if)} "
-            gen_exp.append(filter_str)
-
-        return "".join(gen_exp)
-
-    ######################################################
     #################### Julia Nodes #####################
     ######################################################
 
@@ -938,34 +934,3 @@ class JuliaTranspiler(CLikeTranspiler):
         return (f"abstract type Abstract{name} end"
                 if extends is None
                 else f"abstract type Abstract{name} <: {extends} end")
-
-    # TODO: Still needs revisiting
-    # DeclarationExtractor not working
-    # def visit_JuliaClass(self, node: juliaAst.JuliaClass) -> Any:
-    #     # Struct definition
-    #     bases = [self.visit(base) for base in node.bases]
-    #     struct_def = f"{self.visit(node.name)} <: {', '.join(bases)}" \
-    #         if bases else f"{self.visit(node.name)}"
-
-    #     body = []
-    #     fields = []
-    #     for b in node.body:
-    #         if isinstance(b, ast.FunctionDef):
-    #             body.append(f"{self.visit(b)}")
-    #         else:
-    #             field = self.visit(b)
-    #             dec = field.split(".")
-    #             dec = dec[1] if dec[0] == "self" else dec[0]
-    #             dec = dec.split("::")
-    #             if self._class_names is not None and dec[-1] in self._class_names:
-    #                 dec[-1] = f"Abstract{dec[-1]}"
-    #             fields.append("::".join(dec))
-
-    #     fields = "" if fields == [] else "\n".join(fields)
-    #     body = "\n".join(body)
-    #     return f"""
-    #         @class {struct_def} begin
-    #             {fields}
-    #         end
-    #         {body}
-    #         """

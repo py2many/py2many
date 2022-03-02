@@ -2,7 +2,6 @@ import argparse
 import ast
 import os
 import functools
-from subprocess import Popen, PIPE
 from getpass import getpass
 
 import sys
@@ -97,7 +96,8 @@ def core_transformers(tree, trees, args):
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
     infer_meta = (
-        infer_types_typpete(tree) if args and args.typpete else infer_types(tree)
+        infer_types_typpete(
+            tree) if args and args.typpete else infer_types(tree)
     )
     add_imports(tree)
     return tree, infer_meta
@@ -123,7 +123,8 @@ def _transpile(
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
-        tree.__files__ = filenames # information of all files (for import distiction)
+        # information of all files (for import distiction)
+        tree.__files__ = filenames
         tree_list.append(tree)
     trees = toposort(tree_list)
     topo_filenames = [t.__file__ for t in trees]
@@ -163,13 +164,14 @@ def _transpile(
 
             formatted_lines = traceback.format_exc().splitlines()
             if isinstance(e, AstErrorBase):
-                print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                print(
+                    f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
                 print(f"{filename}: {formatted_lines[-1]}")
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
                 raise
             outputs[filename] = "FAILED"
-            # outputs[filename] = str(e) 
+            # outputs[filename] = str(e)
     # return output in the same order as input
     output_list = [outputs[f] for f in filenames]
     return output_list, successful
@@ -266,7 +268,8 @@ def cpp_settings(args, env=os.environ):
         cxx_flags += ["-stdlib=libc++"]
 
     if clang_format_style:
-        clang_format_cmd = ["clang-format", f"-style={clang_format_style}", "-i"]
+        clang_format_cmd = ["clang-format",
+                            f"-style={clang_format_style}", "-i"]
     else:
         clang_format_cmd = ["clang-format", "-i"]
 
@@ -289,7 +292,8 @@ def rust_settings(args, env=os.environ):
         ["rustfmt", "--edition=2018"],
         None,
         rewriters=[RustNoneCompareRewriter()],
-        transformers=[functools.partial(infer_rust_types, extension=args.extension)],
+        transformers=[functools.partial(
+            infer_rust_types, extension=args.extension)],
         post_rewriters=[RustLoopIndexRewriter(), RustStringJoinRewriter()],
         create_project=["cargo", "new", "--bin"],
         project_subdir="src",
@@ -305,7 +309,8 @@ def julia_settings(args, env=os.environ):
     else:
         julia_path = "julia"
     if os.path.exists("pyjl/formatter"):
-        format_jl = [julia_path, "-O0", "--compile=min", "--startup=no", "pyjl/formatter/format_files.jl"]
+        format_jl = [julia_path, "-O0", "--compile=min",
+                     "--startup=no", "pyjl/formatter/format_files.jl"]
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
         ext=".jl",
@@ -377,7 +382,8 @@ def go_settings(args, env=os.environ):
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
         linter=(
-            ["revive", "--config", str(revive_config)] if revive_config else ["revive"]
+            ["revive", "--config", str(revive_config)
+             ] if revive_config else ["revive"]
         ),
     )
 
@@ -492,6 +498,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
 
     return True
 
+
 def _format_one(settings: LanguageSettings, output_path, env=None):
     try:
         restore_cwd = False
@@ -502,7 +509,7 @@ def _format_one(settings: LanguageSettings, output_path, env=None):
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env, capture_output=True, universal_newlines = True)
+        proc = run(cmd, env=env, capture_output=True, universal_newlines=True)
         if proc.returncode:
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
@@ -630,8 +637,8 @@ def main(args=None, env=os.environ):
             help=f"Generate {settings.display_name} code",
         )
     parser.add_argument(
-        "--outdir", 
-        default=None, 
+        "--outdir",
+        default=None,
         help="Output directory"
     )
     parser.add_argument(
@@ -658,7 +665,8 @@ def main(args=None, env=os.environ):
         default=None,
         help="Alternate suffix to use instead of the default one for the language",
     )
-    parser.add_argument("--no-prologue", action="store_true", default=False, help="")
+    parser.add_argument("--no-prologue", action="store_true",
+                        default=False, help="")
     parser.add_argument(
         "--force",
         action="store_true",
@@ -734,7 +742,6 @@ def main(args=None, env=os.environ):
         if args.comment_unsupported:
             settings.transpiler._throw_on_unimplemented = False
 
-        
         if args.outdir is None:
             outdir = source.parent
         else:
