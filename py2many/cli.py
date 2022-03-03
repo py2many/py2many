@@ -303,8 +303,8 @@ def rust_settings(args, env=os.environ):
 def julia_settings(args, env=os.environ):
     format_jl = None
     if sys.platform == "win32":
-        user = getpass.getuser()
-        julia_version = "1.7.1"
+        user = os.getlogin()
+        julia_version = "1.6.1"
         julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-{julia_version}/bin/julia.exe"
     else:
         julia_path = "julia"
@@ -494,6 +494,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
         f.write(result[0][0])
 
     if settings.formatter:
+        print("Formatting file")
         return _format_one(settings, output_path, env)
 
     return True
