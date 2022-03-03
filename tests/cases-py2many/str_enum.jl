@@ -2,9 +2,12 @@
 abstract type AbstractColors <: Abstractstr end
 
 struct Colors <: str
-    RED::String = "red"
-    GREEN::String = "green"
-    BLUE::String = "blue"
+    RED::String
+    GREEN::String
+    BLUE::String
+end
+function Colors(RED::Any = "red", GREEN::Any = "green", BLUE::Any = "blue")::Colors
+    return Colors(RED, GREEN, BLUE)
 end
 
 

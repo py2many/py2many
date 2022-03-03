@@ -1,12 +1,15 @@
+from __future__ import annotations
 import ast
+from dataclasses import fields
 from typing import Any, Dict
 from py2many.analysis import IGNORED_MODULE_SET
+from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_matching_type
 from py2many.ast_helpers import get_id
 import pyjl.juliaAst as juliaAst
-from pyjl.transpiler import get_decorator_id
+from pyjl.transpiler import JuliaTranspiler, get_decorator_id
 
 
 def julia_decorator_rewriter(tree, input_config, filename):
@@ -143,7 +146,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:    
         class_name: str = get_id(node)
 
         decorator_list = list(map(get_decorator_id, node.decorator_list))
@@ -200,3 +203,4 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         if is_visit:
             self._import_count += 1
+

@@ -18,7 +18,7 @@ class Person:
 
 class Student(Person):
     def __init__(self, name:str, student_number:int):
-        # super().__init__(name) # Currenlty unsupported
+        # super().__init__(name) # Currently unsupported
         self.name = name
         self.student_number = student_number
 

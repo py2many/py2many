@@ -14,8 +14,12 @@ end
 
 
 struct lean_call <: Abstractlean_call
-    func::Any = func
+    func::Any
 end
+function lean_call(func::Any = func)::lean_call
+    return lean_call(func)
+end
+
 function __init__(self::Abstractlean_call, func)
     self.func = func
 end

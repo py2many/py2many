@@ -1,5 +1,6 @@
 from __future__ import annotations
 import ast
+from fileinput import lineno
 from py2many.exceptions import AstTypeNotSupported
 
 import textwrap
@@ -24,7 +25,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_in_body, find_node_matching_type, find_node_matching_name_and_type, \
+from py2many.tracer import find_in_body, find_node_matching_name_and_type, \
     get_class_scope, is_class_type, is_enum
 
 from typing import Any, Dict, List, Tuple, Union
@@ -443,10 +444,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-        declarations = node.declarations = extractor.get_declarations_with_defaults()
-        node.class_assignments = extractor.class_assignments
+        # Get class declarations and assignments
+        self._visit_class_fields(node)
+
         ret = super().visit_ClassDef(node)
         if ret is not None:
             return ret
@@ -458,9 +458,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 dec_ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if dec_ret:
                     return dec_ret
-
-        # Visit class fields
-        fields = self._visit_class_fields(declarations)
 
         # TODO: Investigate Julia traits
         struct_name = get_id(node)
@@ -475,15 +472,23 @@ class JuliaTranspiler(CLikeTranspiler):
         body = "\n".join(body)
         return f"""
             {struct_def}
-                {fields}
+                {node.fields}
             end
             {body}
         """
 
-    # TODO: Check https://discourse.julialang.org/t/default-value-of-some-fields-in-a-mutable-struct/33408
-    def _visit_class_fields(self, declarations: dict[str, (str, Any)]) -> str:
-        """Get declarations with default values"""
+    def _visit_class_fields(self, node):
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+        node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        node.class_assignments = extractor.class_assignments
 
+        declarations: dict[str, (str, Any)] = node.declarations_with_defaults
+
+        args = []
+        defaults = []
+        decs = []
         fields = []
         for declaration, (typename, default) in declarations.items():
             dec = declaration.split(".")
@@ -491,17 +496,44 @@ class JuliaTranspiler(CLikeTranspiler):
                 declaration = dec[1]
             if self._class_names is not None and typename in self._class_names:
                 typename = f"Abstract{typename}"
-            
-            field = []
-            field.append(declaration 
-                if typename == "" else f"{declaration}::{typename}")
-            if default: 
-                field.append(self.visit(default))
-            
-            fields.append(" = ".join(field))
-            
 
-        return "" if fields == [] else "\n".join(fields)
+            decs.append(declaration)
+
+            args.append(ast.arg(arg=declaration, annotation=typename))
+            if default: 
+                defaults.append(default)
+
+            fields.append(declaration \
+                if typename == "" else f"{declaration}::{typename}")
+
+        node.fields = "" if fields == [] else "\n".join(fields)
+
+        if defaults:
+            call_args = [ast.Name(id=d) for d in decs]
+            body = ast.Return(
+                    value =
+                        ast.Call(
+                            ast.Name(id=node.name),
+                            args=call_args,
+                            keywords = [],
+                            scopes=node.scopes,
+                            lineno=node.lineno + 2,
+                            col_offset = node.col_offset + 4,
+                        ),
+                    lineno=node.lineno + 2,
+                    col_offset = node.col_offset + 4,
+                    )
+            defaults_func = ast.FunctionDef(
+                name=node.name, 
+                args=ast.arguments(args=args, defaults=defaults), 
+                body=[body], 
+                returns=ast.Name(id=node.name),
+                var_map = [], # TODO: Check this
+                lineno=node.lineno + 1,
+                col_offset = node.col_offset,
+                decorator_list = []
+            )
+            node.body = [defaults_func] + node.body
 
     def visit_StrEnum(self, node) -> str:
         fields = []
