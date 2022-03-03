@@ -14,7 +14,7 @@ end
 
 
 struct lean_call <: Abstractlean_call
-    func::Any
+    func::Any = func
 end
 function __init__(self::Abstractlean_call, func)
     self.func = func

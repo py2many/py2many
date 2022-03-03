@@ -481,6 +481,7 @@ class JuliaTranspiler(CLikeTranspiler):
             {body}
         """
 
+    # TODO: Check https://discourse.julialang.org/t/default-value-of-some-fields-in-a-mutable-struct/33408
     def _visit_class_fields(self, declarations: dict[str, (str, Any)]) -> str:
         """Get declarations with default values"""
 
