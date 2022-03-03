@@ -32,16 +32,11 @@ class DeclarationExtractor(ast.NodeVisitor):
         for member, value in self.member_assignments.items():
             if member not in typed_members:
                 typed_members[member] = self.transpiler._typename_from_annotation(value)
-        
-        # Added visit to class assignments
-        for member, value in self.class_assignments.items():
-            if member not in typed_members:
-                typed_members[member] = self.transpiler._typename_from_annotation(value)
 
         typed_members = {self._maybe_rename_key(k): v for k, v in typed_members.items()}
         return typed_members
 
-    # TODO: Does this have to do with the types of default values?
+    # TODO: Get default values
     def get_declarations_with_defaults(self):
         typed_members = self.annotated_members
         for member, var in self.member_assignments.items():
@@ -55,15 +50,7 @@ class DeclarationExtractor(ast.NodeVisitor):
             if member not in typed_members:
                 typed_members[member] = (
                     self.transpiler._typename_from_annotation(value),
-                    None,
-                )
-        
-        # Added visit to class assignments
-        for member, value in self.class_assignments.items():
-            if member not in typed_members:
-                typed_members[member] = (
-                    self.transpiler._typename_from_annotation(value),
-                    None,
+                    value,
                 )
 
         return typed_members
@@ -86,6 +73,7 @@ class DeclarationExtractor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)
 
+    # Get Default values here
     def visit_FunctionDef(self, node):
         types, names = self.transpiler.visit(node.args)
 
@@ -124,14 +112,18 @@ class DeclarationExtractor(ast.NodeVisitor):
                 self.annotated_members[target_id] = (type_str, node.value)
 
     def visit_Assign(self, node):
+        parent = node.scopes[-1]
         target = node.targets[0]
         if self.is_member(target):
             if target.attr not in self.member_assignments:
                 self.member_assignments[target.attr] = node.value
+        elif isinstance(parent, ast.ClassDef):
+            if (target_id := get_id(target)) not in self.member_assignments:
+                self.member_assignments[target_id] = node.value
         else:
             node.class_assignment = True
             target = get_id(target)
-            if target not in self.class_assignments:
+            if target is not None and target not in self.class_assignments:
                 self.class_assignments[target] = node.value
 
     def is_member(self, node):

@@ -20,7 +20,7 @@ end
 
 
 struct Person <: AbstractPerson
-    name::String
+    name::String = name
 end
 function __init__(self::AbstractPerson, name::String)
     self.name = name
@@ -33,8 +33,8 @@ end
 
 
 struct Student <: Person
-    name::String
-    student_number::Int64
+    name::String = name
+    student_number::Int64 = student_number
 end
 function __init__(self::AbstractStudent, name::String, student_number::Int64)
     self.name = name

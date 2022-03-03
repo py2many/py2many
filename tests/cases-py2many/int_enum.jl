@@ -3,17 +3,17 @@ abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
 
 struct Colors <: IntEnum
-    RED::Any
-    GREEN::Any
-    BLUE::Any
+    RED::Any = auto()
+    GREEN::Any = auto()
+    BLUE::Any = auto()
 end
 
 
 
 struct Permissions <: IntFlag
-    R::Int64
-    W::Int64
-    X::Int64
+    R::Int64 = 1
+    W::Int64 = 2
+    X::Int64 = 16
 end
 
 

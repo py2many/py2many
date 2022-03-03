@@ -2,9 +2,9 @@
 abstract type AbstractColors <: Abstractstr end
 
 struct Colors <: str
-    RED::String
-    GREEN::String
-    BLUE::String
+    RED::String = "red"
+    GREEN::String = "green"
+    BLUE::String = "blue"
 end
 
 

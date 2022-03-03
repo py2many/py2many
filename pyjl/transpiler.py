@@ -446,7 +446,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
         extractor = DeclarationExtractor(JuliaTranspiler())
         extractor.visit(node)
-        declarations = node.declarations = extractor.get_declarations()
+        declarations = node.declarations = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
         ret = super().visit_ClassDef(node)
         if ret is not None:
@@ -481,16 +481,25 @@ class JuliaTranspiler(CLikeTranspiler):
             {body}
         """
 
-    def _visit_class_fields(self, declarations: dict[str, str]) -> str:
+    def _visit_class_fields(self, declarations: dict[str, (str, Any)]) -> str:
+        """Get declarations with default values"""
+
         fields = []
-        for declaration, typename in declarations.items():
+        for declaration, (typename, default) in declarations.items():
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
             if self._class_names is not None and typename in self._class_names:
                 typename = f"Abstract{typename}"
-            fields.append(declaration if typename ==
-                          "" else f"{declaration}::{typename}")
+            
+            field = []
+            field.append(declaration 
+                if typename == "" else f"{declaration}::{typename}")
+            if default: 
+                field.append(self.visit(default))
+            
+            fields.append(" = ".join(field))
+            
 
         return "" if fields == [] else "\n".join(fields)
 

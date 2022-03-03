@@ -7,7 +7,7 @@ GMP = CDLL(find_library("gmp"))
 __gmpz_get_ui(GMP).restype = c_ulong
 
 struct mpz_t <: Structure
-
+    _fields_::Vector
 end
 
 
