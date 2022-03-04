@@ -220,6 +220,15 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [ ] starred_item
 
 #
+## Additional Functionalities
+- Python `with` statement uses context managers to allocate and release resources. Julia's do-block does not use context managers but is built with the same idea. (https://book.pythontips.com/en/latest/context_managers.html)
+- `with` and `try-finally` can be used for similar purposes. (Example of file closing)
+- `del` keyword mapping (probably not possible)
+- `__init__` should be mapped to a constructor in Julia
+- `__repr__` requires a `show()` implementation: show(io::IO, o::object) = print(io, "$(o.attr)")
+
+
+#
 ## Inference
 ### `pytype`
 This section is reserved for `pytype` testing. This is an example on how to run it with the N-Body benchmark:
