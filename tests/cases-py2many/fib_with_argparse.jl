@@ -2,13 +2,17 @@ using argparse_dataclass: dataclass
 abstract type AbstractOptions end
 
 mutable struct Options <: AbstractOptions
-    v::Bool = false
-    n::Int64 = 0
+    v::Bool
+    n::Int64
+end
+function Options(v::Any = false, n::Any = 0)::Options
+    return Options(v, n)
 end
 
-function __init__(self::AbstractOptions, v::Bool = false, n::Int64 = 0)
-    setfield!(self::AbstractOptions, :v, v::Bool = false),
-    setfield!(self::AbstractOptions, :n, n::Int64 = 0)
+
+function __init__(self::AbstractOptions, v::Bool, n::Int64)
+    setfield!(self::AbstractOptions, :v, v::Bool),
+    setfield!(self::AbstractOptions, :n, n::Int64)
 end
 
 

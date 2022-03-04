@@ -38,7 +38,7 @@ class JuliaTranspilerPlugins:
 
         # Visit class fields
         fields = "\n".join([
-            t_self._visit_class_fields(node.declarations),
+            node.fields,
             "_initvars = [" + ", ".join(field_repr) + "]\n"
         ])
 
@@ -64,7 +64,7 @@ class JuliaTranspilerPlugins:
             decorator)
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
-        fields: str = t_self._visit_class_fields(node.declarations)
+        fields: str = node.fields
         struct_fields = fields.split("\n")
 
         # Abstract type
@@ -190,9 +190,6 @@ class JuliaTranspilerPlugins:
         return fields, field_repr
 
     def visit_JuliaClass(t_self, node: ast.ClassDef, decorator) -> Any:
-        # Visit class fields
-        fields = t_self._visit_class_fields(node.declarations)
-
         # Struct definition
         bases = []
         for b in node.bases:
@@ -209,7 +206,7 @@ class JuliaTranspilerPlugins:
         body = "\n".join(body)
         return f"""
             @class {struct_def} begin
-                {fields}
+                {node.fields}
             end
             {body}
             """
