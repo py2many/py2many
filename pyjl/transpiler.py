@@ -179,7 +179,7 @@ class JuliaTranspiler(CLikeTranspiler):
         py_yield = find_in_body(node.body, (lambda x: isinstance(x, ast.Yield)))
         annotation = "@resumable " if py_yield else ""
         
-        funcdef = f"{annotation} function {node.name}{template}({args}){return_type}"
+        funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
 
         is_python_main = getattr(node, "python_main", False)
         maybe_main = "\nmain()" if is_python_main else ""
@@ -821,7 +821,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"wait({self.visit(node.value)})"
 
     def visit_AsyncFunctionDef(self, node) -> str:
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+        return f"@async {self.visit(node)}"
 
     def visit_Yield(self, node: ast.Yield) -> str:
         if "ResumableFunctions" not in self._usings:
