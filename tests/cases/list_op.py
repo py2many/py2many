@@ -115,6 +115,23 @@ def for_cycle_vars():
     x = 1
     assert seq[x] == 2
 
+def reversed_array():
+    x = [1,2,3]
+    x = x[::-1]
+    assert x ==[3,2,1]
+
+def list_of_lists():
+    x = [[1,2],[3,4,5,6],[3,4,5,6]]
+    assert (x[1][2]) == 5
+    assert (x[2][3]) == 6
+
+def inplace_ops():
+    a = [1, 1]
+    b = a; 
+    b += [3, 3]
+    assert a == [1, 1, 3, 3]
+    assert b == [1, 1, 3, 3]
+
 def list_ops():
     a = list()
 
@@ -170,4 +187,7 @@ if __name__ == "__main__":
     while_with_continue()
     loop_range_test()
     for_cycle_vars()
+    reversed_array()
+    list_of_lists()
+    inplace_ops()
     list_ops()

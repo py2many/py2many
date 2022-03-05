@@ -30,3 +30,28 @@ barbaz(x, @nospecialize y) = x + y
 @code_llvm barbaz(1, 2)
 @code_llvm barbaz(1,2.0)
 
+
+#################################
+# Example of function with promote
+function largest(a::Float64,b::Int64)
+    if a > b
+        c = a
+    else
+        c = b  
+    end
+    return c
+end
+
+function largest_with_promote(a::Float64,b::Int64)
+    pa,pb = promote(a,b)
+    if a > b
+        c = pa
+    else
+        c = pb 
+    end
+    return c
+end
+
+@code_typed(largest(1.0, 2)) # Returns: Union{Int64, Float64}
+@code_typed(largest_with_promote(1.0, 2)) # Returns: Float64
+

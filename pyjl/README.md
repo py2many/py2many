@@ -109,8 +109,8 @@ The following section describes the currently supported features of PyJL. All ma
     - [x] imagnumber
 - Operators (PLR 2.5)
   - See expressions below
-- Delimiters (PLR 2.6) &rarr; only relevant ones included
-  - [x] `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `&=`, `|=`, `^=`, `>>=`, `<<=` &rarr; direct translation
+- Delimiters (PLR 2.6) &rarr; Read [issue #21](https://github.com/MiguelMarcelino/py2many/issues/21)
+  - [ ] `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `&=`, `|=`, `^=`, `>>=`, `<<=` &rarr; direct translation
   - [ ] `@=`
   - [ ] `**=`
 
@@ -248,10 +248,7 @@ py2many --julia=1 tests/performance_tests
 Currently there are some errors after merging. One possible alternative is to use the generated `.pyi` files and do the AST traversal using PyJL.
 
 ### `TYPPETE`
-Currently, typete returns an error: 
-```
-ast.Name has no attribue value
-```
+Typpete only supports Python up to version 3.7.
 
 #
 ## Keywords

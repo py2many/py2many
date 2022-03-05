@@ -59,10 +59,10 @@ class Hello(something):
 """
 
 code5 = """
-class Colors(IntEnum):
+'''class Colors(IntEnum):
     RED = auto()
     GREEN = auto()
-    BLUE = auto()
+    BLUE = auto()'''
 """
 
 if __name__ == "__main__":
