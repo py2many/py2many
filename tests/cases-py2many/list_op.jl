@@ -112,6 +112,26 @@ function for_cycle_vars()
     @assert(seq[x+1] == 2)
 end
 
+function reversed_array()
+    x = [1, 2, 3]
+    x = x[begin:end]
+    @assert(x == [3, 2, 1])
+end
+
+function list_of_lists()
+    x = [[1, 2], [3, 4, 5, 6], [3, 4, 5, 6]]
+    @assert(x[2][3] == 5)
+    @assert(x[3][4] == 6)
+end
+
+function inplace_ops()
+    a = [1, 1]
+    b = a
+    b += [3, 3]
+    @assert(a == [1, 1, 3, 3])
+    @assert(b == [1, 1, 3, 3])
+end
+
 function list_ops()
     a = Vector()
     push!(a, "test")
@@ -153,6 +173,9 @@ function main()
     while_with_continue()
     loop_range_test()
     for_cycle_vars()
+    reversed_array()
+    list_of_lists()
+    inplace_ops()
     list_ops()
 end
 

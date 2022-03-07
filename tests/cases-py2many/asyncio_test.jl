@@ -1,14 +1,12 @@
 
 
-@async function nested()::Int64
+@async function nested()
     return 42
 end
-
 @async function async_main()
     @assert(wait(nested()) == 42)
     println("OK")
 end
-
 @async function echo_server()
     server = listen(2001)
     while true
@@ -19,11 +17,9 @@ end
                 wait(write(sock, upper(data)))
             end
         end
-
         wait(writer())
     end
 end
-
 function main()::Int64
     run(asyncio, async_main())
     run(asyncio, echo_server())

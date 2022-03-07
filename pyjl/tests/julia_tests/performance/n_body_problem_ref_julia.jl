@@ -150,10 +150,9 @@ if !isinteractive()
     # The expanded form of Printf.@printf macro takes a significant time to compile,
     # accounting for 10% of the total program runtime. Base.Ryu.writefixed(::Float64, ::Int)
     # should already be compiled into the default system image.
-    println(Base.Ryu.writefixed(energy(bodies), 9))
-    # nbody!(bodies, parse(Int, ARGS[1]))
-    # Benchmark
-    @time nbody!(bodies, parse(Int, ARGS[1]))
-    println(Base.Ryu.writefixed(energy(bodies), 9))
-
+    @time begin
+        println(Base.Ryu.writefixed(energy(bodies), 9))
+        nbody!(bodies, parse(Int, ARGS[1]))
+        println(Base.Ryu.writefixed(energy(bodies), 9))
+    end
 end

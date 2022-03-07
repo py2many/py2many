@@ -110,42 +110,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_Constant(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
-        # Parse function args
-        typenames, args = self.visit(node.args)
-        args_list = []
         typedecls = []
 
-        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
-
-        defaults = node.args.defaults
-        len_defaults = len(defaults)
-        len_args = len(args)
-        for i in range(len_args):
-            arg_typename = typenames[i]
-            arg = args[i]
-            if arg_typename != None and arg_typename != "T":
-                arg_typename = super()._map_type(arg_typename)
-
-            # Get default parameter values
-            default = None
-            if defaults:
-                if len_defaults != len_args:
-                    diff_len = len_args - len_defaults
-                    default = defaults[i - diff_len] if i >= diff_len else None
-                else:
-                    default = defaults[i]
-
-            if default is not None:
-                default = self.visit(default)
-
-            arg_signature = ""
-            if arg_typename:
-                arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
-            else:
-                arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
-            args_list.append(arg_signature)
-
+        # Parse function args       
+        args_list = self._get_func_args(node)
         args = ", ".join(args_list)
         node.parsed_args = args_list
 
@@ -184,6 +152,43 @@ class JuliaTranspiler(CLikeTranspiler):
         is_python_main = getattr(node, "python_main", False)
         maybe_main = "\nmain()" if is_python_main else ""
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
+
+    def _get_func_args(self, node) -> list[str]:
+        typenames, args = self.visit(node.args)
+        args_list = []
+
+        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+            typenames[0] = node.self_type
+
+        defaults = node.args.defaults
+        len_defaults = len(defaults)
+        len_args = len(args)
+        for i in range(len_args):
+            arg_typename = typenames[i]
+            arg = args[i]
+            if arg_typename != None and arg_typename != "T":
+                arg_typename = super()._map_type(arg_typename)
+
+            # Get default parameter values
+            default = None
+            if defaults:
+                if len_defaults != len_args:
+                    diff_len = len_args - len_defaults
+                    default = defaults[i - diff_len] if i >= diff_len else None
+                else:
+                    default = defaults[i]
+
+            if default is not None:
+                default = self.visit(default)
+
+            arg_signature = ""
+            if arg_typename:
+                arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
+            else:
+                arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
+            args_list.append(arg_signature)
+        
+        return args_list
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -820,8 +825,21 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Await(self, node) -> str:
         return f"wait({self.visit(node.value)})"
 
-    def visit_AsyncFunctionDef(self, node) -> str:
-        return f"@async {self.visit(node)}"
+    def visit_AsyncFunctionDef(self, node:ast.AsyncFunctionDef) -> str:
+        # Parse function args       
+        args_list = self._get_func_args(node)
+        args = ", ".join(args_list)
+
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+
+        if hasattr(node, "returns") and node.returns:
+            print(node.returns)
+            f"@async function {node.name} ({args})::{self.visit(node.returns)}\n{body}end"
+
+        return f"@async function {node.name}({args})\n{body}\nend"
 
     def visit_Yield(self, node: ast.Yield) -> str:
         if "ResumableFunctions" not in self._usings:
