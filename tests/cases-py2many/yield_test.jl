@@ -55,7 +55,6 @@ end
     end
 end
 
-
 struct TestClass <: AbstractTestClass
 
 end
@@ -67,7 +66,6 @@ end
     num = 10
     @yield num
 end
-
 
 function main()
     arr1 = []

@@ -2,7 +2,6 @@
 abstract type AbstractPacket end
 abstract type AbstractRegister end
 abstract type AbstractValueHolder end
-
 mutable struct Packet <: AbstractPacket
     val::Float64
 end
@@ -42,8 +41,6 @@ end
 function __key(self::AbstractPacket)
     (self.val)
 end
-
-
 
 mutable struct Register <: AbstractRegister
     PACKET::AbstractPacket
@@ -87,8 +84,6 @@ function __key(self::AbstractRegister)
     (__key(self.PACKET), self.VALUE)
 end
 
-
-
 mutable struct ValueHolder <: AbstractValueHolder
     val::Int64
     strVal::String
@@ -130,7 +125,6 @@ end
 function __key(self::AbstractValueHolder)
     (self.val, self.strVal)
 end
-
 
 function main()
     c1 = ValueHolder(2, "1")

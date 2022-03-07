@@ -87,7 +87,7 @@ class JuliaTranspilerPlugins:
                 f"setfield!(self::{struct_name}, :{field_name}, {field})")
             str_struct_fields.append(f"{field_name}::{field_type}"
                                      if field_type not in t_self._class_names
-                                     else f"{field_name}::Abstract{field_type}")
+                                     else f"{field_name}::Abstract{field_type}")        
 
         # Convert into string
         key_vars = ", ".join(key_vars)
@@ -158,12 +158,11 @@ class JuliaTranspilerPlugins:
         struct_def = f"{modifiers}struct {node.name} <: {bases[0]}" \
             if bases else f"{modifiers}struct {node.name}"
 
-        return f"""
-            {struct_def}
-                {fields}
-            end
-            {body}
-        """
+        if hasattr(node, "constructors"):
+            return f"{struct_def}\n{fields}\n{node.constructors}\nend\n{body}"
+        
+        return f"{struct_def}\n{fields}\nend\n{body}"
+        
 
     def _generic_dataclass_visit(decorator):
         fields = {}
@@ -183,7 +182,7 @@ class JuliaTranspilerPlugins:
             arg = kw
             value = keywords[arg]
             if value == None:
-                return None
+                return (None, None)
             fields[arg] = value
             field_repr.append(f"_{arg}={key_map[value]}")
 
@@ -204,12 +203,11 @@ class JuliaTranspilerPlugins:
             if isinstance(b, ast.FunctionDef):
                 body.append(f"{t_self.visit(b)}")
         body = "\n".join(body)
-        return f"""
-            @class {struct_def} begin
-                {node.fields}
-            end
-            {body}
-            """
+
+        if hasattr(node, "constructor"):
+            return f"@class {struct_def}begin\n{node.fields}\n{node.constructors}\nend\n{body}"
+
+        return f"@class {struct_def} begin\n{node.fields}\nend\n{body}"
 
     def visit_async_ann(self, node, decorator):
         return ""

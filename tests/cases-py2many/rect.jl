@@ -2,7 +2,6 @@
 =#
 
 abstract type AbstractRectangle end
-
 mutable struct Rectangle <: AbstractRectangle
     height::Int64
     length::Int64
@@ -31,7 +30,6 @@ end
 function __key(self::AbstractRectangle)
     (self.height, self.length)
 end
-
 
 function show()
     r = Rectangle(1, 1)

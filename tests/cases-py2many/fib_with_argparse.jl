@@ -1,14 +1,12 @@
 using argparse_dataclass: dataclass
 abstract type AbstractOptions end
-
 mutable struct Options <: AbstractOptions
     v::Bool
     n::Int64
-end
-function Options(v::Any = false, n::Any = 0)::Options
-    return Options(v, n)
-end
 
+    Options(v::Bool = false, n::Int64 = 0) = new(v, n)
+    Options(v, n) = new(v, n)
+end
 
 function __init__(self::AbstractOptions, v::Bool, n::Int64)
     setfield!(self::AbstractOptions, :v, v::Bool),
@@ -29,7 +27,6 @@ end
 function __key(self::AbstractOptions)
     (self.v, self.n)
 end
-
 
 function fib(i::Int64)::Int64
     if i == 0 || i == 1

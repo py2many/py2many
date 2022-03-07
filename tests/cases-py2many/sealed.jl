@@ -2,7 +2,6 @@
 abstract type AbstractPacket end
 abstract type AbstractRegister end
 
-
 mutable struct Packet <: AbstractPacket
     val::Float64
 end
@@ -26,13 +25,10 @@ function __key(self::AbstractPacket)
     (self.val)
 end
 
-
-
 struct Register <: AbstractRegister
     PACKET::AbstractPacket
     VALUE::Int64
 end
-
 
 function main()
     a = VALUE(Register, 10)

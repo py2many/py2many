@@ -2,7 +2,6 @@
 abstract type AbstractIntListNonEmpty end
 abstract type AbstractIntList end
 
-
 mutable struct IntListNonEmpty <: AbstractIntListNonEmpty
     first::Int64
     rest::AbstractIntList
@@ -27,8 +26,6 @@ end
 function __key(self::AbstractIntListNonEmpty)
     (self.first, __key(self.rest))
 end
-
-
 
 struct IntList <: AbstractIntList
     NONE::Any

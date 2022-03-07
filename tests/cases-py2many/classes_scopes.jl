@@ -3,14 +3,12 @@ function func()::String
     return "test"
 end
 
-
 struct TestClass <: AbstractTestClass
 
 end
 function func(self::AbstractTestClass)::String
     return "test2"
 end
-
 
 function test()
     num::Int64 = 2

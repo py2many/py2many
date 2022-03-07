@@ -475,12 +475,11 @@ class JuliaTranspiler(CLikeTranspiler):
             if isinstance(b, ast.FunctionDef):
                 body.append(self.visit(b))
         body = "\n".join(body)
-        return f"""
-            {struct_def}
-                {node.fields}
-            end
-            {body}
-        """
+
+        if hasattr(node, "constructors"):
+            return f"{struct_def}\n{node.fields}\n{node.constructors}\nend\n{body}"
+
+        return f"{struct_def}\n{node.fields}\nend\n{body}"
 
     def _visit_class_fields(self, node):
         extractor = DeclarationExtractor(JuliaTranspiler())
@@ -491,10 +490,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
-        args = []
-        defaults = []
         decs = []
         fields = []
+        fields_with_defaults = []
         for declaration, (typename, default) in declarations.items():
             dec = declaration.split(".")
             if dec[0] == "self":
@@ -504,41 +502,52 @@ class JuliaTranspiler(CLikeTranspiler):
 
             decs.append(declaration)
 
-            args.append(ast.arg(arg=declaration, annotation=typename))
-            if default: 
-                defaults.append(default)
+            field = declaration \
+                if typename == "" else f"{declaration}::{typename}"
+            fields.append(field)
+            
+            # Default field values 
+            if default:
+                if declaration != (default_value:= self.visit(default)):
+                    fields_with_defaults.append(f"{field}={default_value}")
 
-            fields.append(declaration \
-                if typename == "" else f"{declaration}::{typename}")
+
+        if fields_with_defaults:
+            fields_with_defaults = ", ".join(fields_with_defaults)
+            declarations = ", ".join(decs)
+            # Define constructor with defaults and default constructor
+            node.constructors = f"""
+                {node.name}({fields_with_defaults}) = 
+                    new({declarations})
+                {node.name}({declarations}) =
+                    new({declarations})"""
 
         node.fields = "" if fields == [] else "\n".join(fields)
-
-        if defaults:
-            call_args = [ast.Name(id=d) for d in decs]
-            body = ast.Return(
-                    value =
-                        ast.Call(
-                            ast.Name(id=node.name),
-                            args=call_args,
-                            keywords = [],
-                            scopes=node.scopes,
-                            lineno=node.lineno + 2,
-                            col_offset = node.col_offset + 4,
-                        ),
-                    lineno=node.lineno + 2,
-                    col_offset = node.col_offset + 4,
-                    )
-            defaults_func = ast.FunctionDef(
-                name=node.name, 
-                args=ast.arguments(args=args, defaults=defaults), 
-                body=[body], 
-                returns=ast.Name(id=node.name),
-                var_map = [], # TODO: Check this
-                lineno=node.lineno + 1,
-                col_offset = node.col_offset,
-                decorator_list = []
-            )
-            node.body = [defaults_func] + node.body
+            # call_args = [ast.Name(id=d) for d in decs]
+            # body = ast.Return(
+            #         value =
+            #             ast.Call(
+            #                 ast.Name(id=node.name),
+            #                 args=call_args,
+            #                 keywords = [],
+            #                 scopes=node.scopes,
+            #                 lineno=node.lineno + 2,
+            #                 col_offset = node.col_offset + 4,
+            #             ),
+            #         lineno=node.lineno + 2,
+            #         col_offset = node.col_offset + 4,
+            #         )
+            # defaults_func = ast.FunctionDef(
+            #     name=node.name, 
+            #     args=ast.arguments(args=args, defaults=defaults), 
+            #     body=[body], 
+            #     returns=ast.Name(id=node.name),
+            #     var_map = [], # TODO: Check this
+            #     lineno=node.lineno + 1,
+            #     col_offset = node.col_offset,
+            #     decorator_list = []
+            # )
+            # node.body = [defaults_func] + node.body
 
     def visit_StrEnum(self, node) -> str:
         fields = []
@@ -836,7 +845,6 @@ class JuliaTranspiler(CLikeTranspiler):
         body = "\n".join(body)
 
         if hasattr(node, "returns") and node.returns:
-            print(node.returns)
             f"@async function {node.name} ({args})::{self.visit(node.returns)}\n{body}end"
 
         return f"@async function {node.name}({args})\n{body}\nend"
