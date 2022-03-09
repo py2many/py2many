@@ -8,7 +8,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_matching_type
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import CONTAINER_DISPATCH_TABLE, IMPORTS_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import CONTAINER_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -61,6 +61,9 @@ jl_symbols = {
     ast.Invert: "~",
     ast.Pow: "*",
     ast.MatMult: "*",
+    ast.In: "in",
+    ast.NotIn: "not in",
+    ast.Eq: "=="
 }
 
 def jl_symbol(node):

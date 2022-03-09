@@ -318,17 +318,6 @@ JULIA_INTEGER_TYPES = \
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
-IMPORTS_DISPATCH_TABLE = {
-    "c_int8": c_int8,
-    "c_int16": c_int16,
-    "c_int32": c_int32,
-    "c_int64": c_int64,
-    "c_uint8": c_uint8,
-    "c_uint16": c_uint16,
-    "c_uint32": c_uint32,
-    "c_uint64": c_uint64,
-}
-
 CONTAINER_DISPATCH_TABLE = {
     List: "Vector",
     Dict: "Dict",

@@ -1,6 +1,8 @@
 from __future__ import annotations
 import ast
 from fileinput import lineno
+
+from numpy import isin
 from py2many.exceptions import AstTypeNotSupported
 
 import textwrap
@@ -319,19 +321,16 @@ class JuliaTranspiler(CLikeTranspiler):
             comp_str = self.visit(comparator)
             op_str = self.visit(op)
 
-            if hasattr(comparator, "annotation"):
-                self._generic_typename_from_annotation(node.comparators[0])
-                value_type = getattr(
-                    comparator.annotation, "generic_container_type", None
-                )
-                if value_type and value_type[0] == "Dict":
-                    comp_str = f"keys({comp_str})"
+            if isinstance(op, ast.In) or isinstance(op, ast.NotIn):
+                if hasattr(comparator, "annotation"):
+                    self._generic_typename_from_annotation(node.comparators[0])
+                    value_type = getattr(
+                        comparator.annotation, "generic_container_type", None
+                    )
+                    if value_type and value_type[0] == "Dict":
+                        comp_str = f"keys({comp_str})"
 
-            if isinstance(op, ast.In):
-                op_str = "in"
-            elif isinstance(op, ast.NotIn):
-                op_str = "not in"
-            elif (isinstance(op, ast.Eq)
+            if (isinstance(op, ast.Eq)
                     and (is_mutable(node.scopes, comp_str) or comp_str == "nothing")):
                 op_str = "==="
 
@@ -601,9 +600,15 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"Set([{elements_str}])"
 
     def visit_Dict(self, node) -> str:
-        keys = [self.visit(k) for k in node.keys]
-        values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k} => {v}" for k, v in zip(keys, values)])
+        kv_pairs = []
+        for key, value in zip (node.keys, node.values):
+            if key:
+                kv_pairs.append(f"{self.visit(key)} => {self.visit(value)}")
+            else:
+                if isinstance(value, ast.Dict):
+                    kv_pairs.append(f"{self.visit(value)}...")
+        
+        kv_pairs = ", ".join(kv_pairs)
         return f"Dict({kv_pairs})"
 
     def visit_Subscript(self, node) -> str:

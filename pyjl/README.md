@@ -214,10 +214,10 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
 - Lambdas (PLR 6.14)
   - [x] lambda expressions
 - Expression lists (PLR 6.15)
-  - [ ] expression_list
-  - [ ] starred_list
-  - [ ] starred_expression
-  - [ ] starred_item
+  - [x] expression_list
+  - [x] starred_list
+  - [x] starred_expression
+  - [x] starred_item
 
 #
 ## Additional Functionalities
