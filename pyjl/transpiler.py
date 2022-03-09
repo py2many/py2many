@@ -523,31 +523,6 @@ class JuliaTranspiler(CLikeTranspiler):
                     new({declarations})"""
 
         node.fields = "" if fields == [] else "\n".join(fields)
-            # call_args = [ast.Name(id=d) for d in decs]
-            # body = ast.Return(
-            #         value =
-            #             ast.Call(
-            #                 ast.Name(id=node.name),
-            #                 args=call_args,
-            #                 keywords = [],
-            #                 scopes=node.scopes,
-            #                 lineno=node.lineno + 2,
-            #                 col_offset = node.col_offset + 4,
-            #             ),
-            #         lineno=node.lineno + 2,
-            #         col_offset = node.col_offset + 4,
-            #         )
-            # defaults_func = ast.FunctionDef(
-            #     name=node.name, 
-            #     args=ast.arguments(args=args, defaults=defaults), 
-            #     body=[body], 
-            #     returns=ast.Name(id=node.name),
-            #     var_map = [], # TODO: Check this
-            #     lineno=node.lineno + 1,
-            #     col_offset = node.col_offset,
-            #     decorator_list = []
-            # )
-            # node.body = [defaults_func] + node.body
 
     def visit_StrEnum(self, node) -> str:
         fields = []
