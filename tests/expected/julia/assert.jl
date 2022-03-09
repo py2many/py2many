@@ -9,7 +9,7 @@ function main()
     compare_assert(1, 1)
     @assert(true)
     @assert(true)
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

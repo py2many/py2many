@@ -1,7 +1,7 @@
 
 function show()
-    myfunc = (x, y) -> (x + y)
-    println(join([myfunc(1, 2)], " "))
+    myfunc::Callable[([int, int], int)] = (x, y) -> x + y
+    println(myfunc(1, 2))
 end
 
 function main()

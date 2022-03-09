@@ -1,5 +1,7 @@
 import argparse
 import ast
+from genericpath import isfile
+from ntpath import join
 import os
 import functools
 from getpass import getpass
@@ -10,7 +12,7 @@ import tempfile
 
 from distutils import spawn
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PosixPath
 from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
@@ -137,6 +139,7 @@ def _transpile(
         IgnoredAssignRewriter(language),
     ]
 
+
     # PyJL does not benefit from rewriting f_string
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
@@ -172,8 +175,10 @@ def _transpile(
                 raise
             outputs[filename] = "FAILED"
             # outputs[filename] = str(e)
+
     # return output in the same order as input
     output_list = [outputs[f] for f in filenames]
+
     return output_list, successful
 
 
@@ -221,8 +226,8 @@ def _transpile_one(
 
 
 @lru_cache(maxsize=100)
-def _process_one_data(source_data, filename, settings):
-    return _transpile([filename], [source_data], settings)[0][0]
+def _process_one_data(source_data, filename, settings, args):
+    return _transpile([filename], [source_data], settings, args)[0][0]
 
 
 def _create_cmd(parts, filename, **kw):
@@ -231,6 +236,27 @@ def _create_cmd(parts, filename, **kw):
         return cmd
     return [*parts, str(filename)]
 
+
+def parse_expected(outputs: Dict[PosixPath, str], settings, args):
+    """Check if files match the expected results"""
+    file_out = args.expected
+    if os.path.isdir(file_out):
+        dir_files = []
+        for f in os.listdir(file_out):
+            dir_files.append(f.split(".")[0])
+        for (f_name, f_contents) in outputs:
+            name: str = f_name.name.split(".")[0]
+            if name in dir_files:
+                expected_data: List[str] = []
+                with open(f"{file_out}/{name}{settings.ext}") as f:
+                    expected_data += f.read().split()
+                split_contents = f_contents.split()
+                if split_contents != expected_data:
+                    print(f"File with name {name} does not have expected result")
+    else:
+        # TODO: Parse single file
+        pass
+    
 
 def python_settings(args, env=os.environ):
     return LanguageSettings(
@@ -463,7 +489,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
 
     if filename.name == STDIN:
         # special case for simple pipes
-        output = _process_one_data(sys.stdin.read(), Path("test.py"), settings)
+        output = _process_one_data(sys.stdin.read(), Path("test.py"), settings, args)
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
@@ -540,7 +566,7 @@ FileSet = Set[Path]
 
 
 def _process_many(
-    settings, basedir, filenames, outdir, env=None, _suppress_exceptions=Exception
+    settings, basedir, filenames, outdir, args, env=None, _suppress_exceptions=Exception
 ) -> Tuple[FileSet, FileSet]:
     """Transpile and reformat many files."""
 
@@ -553,7 +579,7 @@ def _process_many(
             source_data.append(f.read())
 
     outputs, successful = _transpile(
-        filenames, source_data, settings, _suppress_exceptions=_suppress_exceptions
+        filenames, source_data, settings, args, _suppress_exceptions=_suppress_exceptions
     )
 
     output_paths = [
@@ -575,15 +601,19 @@ def _process_many(
                 if filename in successful and not _format_one(settings, output_path, env):
                     format_errors.add(Path(filename))
 
+    # Compare with expected
+    if hasattr(args, "expected") and args.expected is not None:
+        parse_expected(zip(filenames, outputs), settings, args)
+
     return (successful, format_errors)
 
 
 def _process_dir(
-    settings, source, outdir, project, env=None, _suppress_exceptions=Exception
+    settings, source, outdir, args, env=None, _suppress_exceptions=Exception
 ):
     print(f"Transpiling whole directory to {outdir}:")
 
-    if settings.create_project is not None and project:
+    if settings.create_project is not None and args.project:
         cmd = settings.create_project + [f"{outdir}"]
         proc = run(cmd, env=env, capture_output=True)
         if proc.returncode:
@@ -613,6 +643,7 @@ def _process_dir(
         source,
         input_paths,
         outdir,
+        args, 
         env=env,
         _suppress_exceptions=_suppress_exceptions,
     )
@@ -686,12 +717,20 @@ def main(args=None, env=os.environ):
         help="Create a project when using directory mode",
     )
 
-    # Added input file for additional JSON info (currently in use by JuliaTranspiler)
+    # External annotation files (currently in use by JuliaTranspiler)
     parser.add_argument(
         "--input-config",
         default=None,
-        help="Input JSON file containing additional transpile information (currently only supported in Julia)",
+        help="External annotations with additional transpilation information (currently only supported in PyJL)",
     )
+
+    # Compare files to expected
+    parser.add_argument(
+        "--expected",
+        default=None,
+        help="Directory containing expected results for comparison",
+    )
+
     args, rest = parser.parse_known_args(args=args)
 
     # Validation of the args
@@ -772,7 +811,7 @@ def main(args=None, env=os.environ):
                 settings,
                 source,
                 outdir,
-                args.project,
+                args,
                 env=env,
             )
             rv = not (failures or format_errors)

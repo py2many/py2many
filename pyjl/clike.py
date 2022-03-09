@@ -76,6 +76,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
         self._default_type = _DEFAULT
+        self._statement_separator = ""
         
     def visit(self, node) -> str:
         if type(node) in jl_symbols:

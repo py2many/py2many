@@ -1,6 +1,6 @@
 
 function main()
-    println(join(["OK"], " "))
+    println("OK")
     exit(sys, 1)
 end
 

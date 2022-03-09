@@ -29,7 +29,7 @@ function main()
     @assert(dict_values())
     @assert(return_dict_index_str("KEY") == 1)
     @assert(return_dict_index_int(1) == "one")
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()
