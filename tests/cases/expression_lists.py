@@ -1,15 +1,9 @@
-# From PLR 6.15
-# expression_list ::= expression ("," expression)* [","]
-# starred_list ::= starred_item ("," starred_item)* [","]
-# starred_expression ::= expression | (starred_item ",")* [starred_item]
-# starred_item ::= assignment_expression | "*" or_expr
+# Examples taken from: 
+# - https://www.python.org/dev/peps/pep-0448/
+# - https://www.python.org/dev/peps/pep-3132/
 
-# conditional_expression ::= or_test ["if" or_test "else" expression]
-# expression ::= conditional_expression | lambda_expr
+# Python's ast module already converts all expression lists to tuples
 
-# Examples taken from: https://www.python.org/dev/peps/pep-0448/
-
-# Python's ast module converst all expression lists to tuples
 from typing import Tuple
 
 
@@ -21,15 +15,15 @@ def expression_list():
     assert b == (56, -1)
     assert c == (1,2)
     assert (a, 4) == ((1, 2), 4)
-    assert isinstance(a, Tuple) # Check if type is correct
+    assert isinstance(a, Tuple)
 
 
 def starred_item():
     # Assignments
-    a, *b, c = range(5)
+    a, *b, c = range(6)
     assert a == 0
-    assert b == [1,2,3]
-    assert c == 4
+    assert b == [1,2,3,4]
+    assert c == 5
     # Dictionary
     assert {'x': 1, **{'y': 2}} == {'x': 1, 'y': 2}
     # Range
