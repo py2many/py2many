@@ -5,6 +5,8 @@ from ntpath import join
 import os
 import functools
 from getpass import getpass
+import re
+import string
 
 import sys
 import tempfile
@@ -237,25 +239,38 @@ def _create_cmd(parts, filename, **kw):
     return [*parts, str(filename)]
 
 
-def parse_expected(outputs: Dict[PosixPath, str], settings, args):
+def parse_expected(outputs: Dict[PosixPath, PosixPath], settings, args):
     """Check if files match the expected results"""
     file_out = args.expected
     if os.path.isdir(file_out):
         dir_files = []
         for f in os.listdir(file_out):
             dir_files.append(f.split(".")[0])
-        for (f_name, f_contents) in outputs:
+        for (f_name, path) in outputs:
             name: str = f_name.name.split(".")[0]
             if name in dir_files:
-                expected_data: List[str] = []
-                with open(f"{file_out}/{name}{settings.ext}") as f:
-                    expected_data += f.read().split()
-                split_contents = f_contents.split()
-                if split_contents != expected_data:
-                    print(f"File with name {name} does not have expected result")
-    else:
+                expected_data = None
+                curr_file_data = None
+                with open(f"{file_out}/{name}{settings.ext}", "w", encoding="utf-8") as f1, \
+                     open(f"{path}", "w", encoding="utf-8") as f2:
+                    expected_data = f1.read()
+                    curr_file_data = f2.read()
+                # remove = string.whitespace
+                # mapping = {ord(c): None for c in remove}
+                # data: str = expected_data.translate(mapping)
+                # contents: str = f_contents.translate(mapping)
+                data = re.sub('\s+', '', expected_data)
+                contents = re.sub('\s+', '', curr_file_data)
+                if contents != data:
+                    print(contents)
+                    print(data)
+                    dif = set(data) - set(contents)
+                    print(f"{name} does not have expected result: {dif}")
+    elif(os.path.isfile(file_out)):
         # TODO: Parse single file
         pass
+    else:
+        print(f"Could not parse expected files. {file_out} could not be found.")
     
 
 def python_settings(args, env=os.environ):
@@ -603,7 +618,7 @@ def _process_many(
 
     # Compare with expected
     if hasattr(args, "expected") and args.expected is not None:
-        parse_expected(zip(filenames, outputs), settings, args)
+        parse_expected(zip(filenames, output_paths), settings, args)
 
     return (successful, format_errors)
 

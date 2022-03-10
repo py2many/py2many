@@ -106,6 +106,12 @@ py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comme
 - __project__: Create a project when using directory mode. The default is `True`
 - __expected__: Location of output files to compare. Can either be a directory containing the expected file or a file. The file must have the same name as the input file.
 
+### Dependencies
+Please install the following dependencies before running Py2Many:
+```
+pip install toposort
+pip install numpy
+```
 
 ### Example
 Add the py2many script to your $PATH and run:

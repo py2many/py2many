@@ -9,6 +9,7 @@ def get_first(container: List[int]):
 
 if __name__ == "__main__":
     assert sum_two(1, 2) == 3
+    assert sum_two(1, 2.0) == 3.0
     assert sum_two("1", "2") == "12"
     assert get_first([1,2,3]) == 1
     assert get_first(["1","2","3"]) == "1"
