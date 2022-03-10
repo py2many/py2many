@@ -141,7 +141,6 @@ def _transpile(
         IgnoredAssignRewriter(language),
     ]
 
-
     # PyJL does not benefit from rewriting f_string
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
@@ -239,8 +238,9 @@ def _create_cmd(parts, filename, **kw):
     return [*parts, str(filename)]
 
 
-def parse_expected(outputs: Dict[PosixPath, PosixPath], settings, args):
+def _parse_expected(outputs, settings, args):
     """Check if files match the expected results"""
+
     file_out = args.expected
     if os.path.isdir(file_out):
         dir_files = []
@@ -249,29 +249,47 @@ def parse_expected(outputs: Dict[PosixPath, PosixPath], settings, args):
         for (f_name, path) in outputs:
             name: str = f_name.name.split(".")[0]
             if name in dir_files:
-                expected_data = None
-                curr_file_data = None
-                with open(f"{file_out}/{name}{settings.ext}", "w", encoding="utf-8") as f1, \
-                     open(f"{path}", "w", encoding="utf-8") as f2:
-                    expected_data = f1.read()
-                    curr_file_data = f2.read()
-                # remove = string.whitespace
-                # mapping = {ord(c): None for c in remove}
-                # data: str = expected_data.translate(mapping)
-                # contents: str = f_contents.translate(mapping)
-                data = re.sub('\s+', '', expected_data)
-                contents = re.sub('\s+', '', curr_file_data)
-                if contents != data:
-                    print(contents)
-                    print(data)
-                    dif = set(data) - set(contents)
-                    print(f"{name} does not have expected result: {dif}")
+                comp_res = _compare_file_contents(
+                    f"{file_out}/{name}{settings.ext}", f"{path}")
+                if not comp_res:
+                    print(f"{name} does not have expected result")
     elif(os.path.isfile(file_out)):
-        # TODO: Parse single file
-        pass
+        file_name, file_ext = file_out.split(".")
+        if file_ext != settings.ext:
+            raise Exception(
+                "Attempting to parse a file with an incompatibel exception")
+        if len(outputs) > 1:
+            raise Exception(
+                "Attempting to parse one expected file with multiple outputs")
+
+        return _compare_file_contents(f"{file_out}", f"{path}")
     else:
-        print(f"Could not parse expected files. {file_out} could not be found.")
-    
+        raise Exception(
+            f"Could not parse expected files. {file_out} could not be found.")
+
+
+def _compare_file_contents(file1_path, file2_path):
+    """Compares file contents for equality"""
+
+    # Read data from files
+    expected_data = None
+    curr_file_data = None
+    with open(file1_path, encoding="utf-8") as f1, \
+            open(file2_path, encoding="utf-8") as f2:
+        expected_data = f1.read()
+        curr_file_data = f2.read()
+
+    if expected_data == None or curr_file_data == None:
+        raise Exception(
+            f"File {file1_path} does not have an expected result file")
+
+    # Check if files match
+    remove = string.whitespace
+    mapping = {ord(c): None for c in remove}
+    data: str = expected_data.translate(mapping)
+    contents: str = curr_file_data.translate(mapping)
+    return contents == data
+
 
 def python_settings(args, env=os.environ):
     return LanguageSettings(
@@ -504,7 +522,8 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
 
     if filename.name == STDIN:
         # special case for simple pipes
-        output = _process_one_data(sys.stdin.read(), Path("test.py"), settings, args)
+        output = _process_one_data(
+            sys.stdin.read(), Path("test.py"), settings, args)
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
@@ -534,11 +553,16 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     with open(output_path, "w") as f:
         f.write(result[0][0])
 
+    format_res = False
     if settings.formatter:
         print("Formatting file")
-        return _format_one(settings, output_path, env)
+        format_res = _format_one(settings, output_path, env)
 
-    return True
+    # Compare with expected
+    if hasattr(args, "expected") and args.expected is not None:
+        _parse_expected([(filename, output_path)], settings, args)
+
+    return format_res
 
 
 def _format_one(settings: LanguageSettings, output_path, env=None):
@@ -618,7 +642,7 @@ def _process_many(
 
     # Compare with expected
     if hasattr(args, "expected") and args.expected is not None:
-        parse_expected(zip(filenames, output_paths), settings, args)
+        _parse_expected(zip(filenames, output_paths), settings, args)
 
     return (successful, format_errors)
 
@@ -658,7 +682,7 @@ def _process_dir(
         source,
         input_paths,
         outdir,
-        args, 
+        args,
         env=env,
         _suppress_exceptions=_suppress_exceptions,
     )

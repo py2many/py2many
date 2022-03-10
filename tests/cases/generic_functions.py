@@ -1,10 +1,10 @@
 from typing import List
 
 
-def sum_two(x: int, y: int):
+def sum_two(x, y):
     return x + y
 
-def get_first(container: List[int]):
+def get_first(container):
     return container[0]
 
 if __name__ == "__main__":
