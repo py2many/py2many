@@ -92,7 +92,7 @@ sudo ./setup.py install  # installs systemwide
 ### Transpiling
 To run Py2Many, you can use the following command
 ```
-py2many.py --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>] [--expected=<exp_path>]
+py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>] [--expected=<exp_path>]
 ```
 - __lang__: The language we want to use (See examples in section below)
 - __path__: Is either a path to a Python module or a folder containing Python modules.
