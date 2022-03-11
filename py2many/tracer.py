@@ -151,11 +151,13 @@ def find_in_body(body, fn):
         node = body[i]
         if fn(node):
             return node
-        elif (isinstance(node, ast.Expr) and hasattr(node, "value") 
+        elif (isinstance(node, ast.Expr) and hasattr(node, "value")
                 and fn(node.value)):
             return node.value
         elif hasattr(node, "body"):
-            return find_in_body(node.body, fn)
+            ret = find_in_body(node.body, fn)
+            if ret:
+                return ret
 
     return None
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 from fileinput import lineno
+from libcst import Yield
 
 from numpy import isin
 from py2many.exceptions import AstTypeNotSupported
@@ -146,8 +147,10 @@ class JuliaTranspiler(CLikeTranspiler):
             body = ""
 
         # Check if current function contains yield expressions
-        py_yield = find_in_body(node.body, (lambda x: isinstance(x, ast.Yield)))
-        annotation = "@resumable " if py_yield else ""
+        annotation = ""
+        py_yield = find_in_body(node.body, lambda x: isinstance(x, ast.Yield))
+        if py_yield:
+            annotation = "@resumable "
         
         funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
 

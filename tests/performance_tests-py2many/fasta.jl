@@ -19,7 +19,7 @@ function started_process(target, args)
     return process
 end
 
-function lock_pair(pre_lock = nothing, post_lock = nothing, locks = nothing)
+@resumable function lock_pair(pre_lock = nothing, post_lock = nothing, locks = nothing)
     pre, post = locks ? (locks) : ((pre_lock, post_lock))
     if pre
         acquire(pre)

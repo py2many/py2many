@@ -3,6 +3,10 @@ from cmath import sin
 from decimal import *
 from statistics import mode
 
+from libcst import Yield
+
+from py2many.tracer import find_in_body
+
 code = """
 def show_res():
     a: List[int] = []
@@ -59,9 +63,13 @@ class Hello(something):
 """
 
 code5 = """
-with lock_pair(locks=locks):
-    write(header)
-    write_lines(sequence, n, width)
+def lock_pair(pre_lock=None, post_lock=None, locks=None):
+    pre, post = locks if locks else (pre_lock, post_lock)
+    if pre:
+        pre.acquire()
+    yield
+    if post:
+        post.release()
 """
 
 if __name__ == "__main__":
