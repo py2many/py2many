@@ -40,6 +40,7 @@ SYSTEM = collect(values(BODIES))
 
 function combinations(l)::Vector
     result = []
+    result = Tuple{eltype(l), eltype(l)}[]
     # result::Vector{Tuple{Tuple{Vector{Float64}, 
     #         Vector{Float64}, Float64},
     #     Tuple{Vector{Float64},
@@ -56,5 +57,32 @@ function combinations(l)::Vector
     # return convert(Vector{typeof(result[1])}, result)
 end
 
+PAIRS = combinations(SYSTEM)
+
+
+function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
+    for i in (0:n-1)
+        for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
+            dx = x1 - x2
+            dy = y1 - y2
+            dz = z1 - z2
+            mag = dt * ((dx * dx + dy * dy) + dz * dz)^-1.5
+            b1m = m1 * mag
+            b2m = m2 * mag
+            v1[1] -= dx * b2m
+            v1[2] -= dy * b2m
+            v1[3] -= dz * b2m
+            v2[1] += dx * b1m
+            v2[2] += dy * b1m
+            v2[3] += dz * b1m
+        end
+        for (r, (vx, vy, vz), m) in bodies
+            r[1] += dt * vx
+            r[2] += dt * vy
+            r[3] += dt * vz
+        end
+    end
+end
+
 # @code_lowered combinations(SYSTEM)
-@code_typed combinations(SYSTEM)
+@code_typed advance(0.01, 10)
