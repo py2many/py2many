@@ -137,13 +137,13 @@ def _transpile(
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         DocStringToCommentRewriter(language),
-        WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
     ]
 
-    # PyJL does not benefit from rewriting f_string
+    # PyJL does not benefit from rewriting f_string nor Python's 'with' statement
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
+        generic_rewriters.append(WithToBlockTransformer(language))
 
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [

@@ -931,6 +931,20 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{value}"
 
+    def visit_With(self, node: ast.With) -> Any:
+        items = [self.visit(it) for it in node.items]
+        items = "; ".join(items)
+        body = [self.visit(n) for n in node.body]
+        body = "\n".join(body)
+        return f"{items} \n{body}\nend"
+    
+    def visit_withitem(self, node: ast.withitem) -> Any:
+        cntx_data = self.visit(node.context_expr)
+        if hasattr(node, "optional_vars") and node.optional_vars:
+            optional = self.visit(node.optional_vars)
+            return f"{cntx_data} do {optional}"
+        return f"{cntx_data} do"
+
     ######################################################
     #################### Julia Nodes #####################
     ######################################################

@@ -5,16 +5,14 @@ using ctypes.util: find_library
 abstract type Abstractmpz_t <: AbstractStructure end
 GMP = CDLL(find_library("gmp"))
 __gmpz_get_ui(GMP).restype = c_ulong
-
 struct mpz_t <: Structure
     _fields_::Vector
-end
-function mpz_t(
-    _fields_::Any = [("mp_alloc", c_int), ("mp_size", c_int), ("mp_d", c_void_p)],
-)::mpz_t
-    return mpz_t(_fields_)
-end
 
+    mpz_t(
+        _fields_::Vector = [("mp_alloc", c_int), ("mp_size", c_int), ("mp_d", c_void_p)],
+    ) = new(_fields_)
+    mpz_t(_fields_) = new(_fields_)
+end
 
 tmp1 = mpz_t()
 tmp2 = mpz_t()
@@ -70,4 +68,4 @@ function main()
     end
 end
 
-main();
+main()

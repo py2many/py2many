@@ -59,7 +59,9 @@ class Hello(something):
 """
 
 code5 = """
-{*range(4), 4}
+with lock_pair(locks=locks):
+    write(header)
+    write_lines(sequence, n, width)
 """
 
 if __name__ == "__main__":

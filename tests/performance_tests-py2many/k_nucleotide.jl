@@ -12,14 +12,9 @@ function lean_args(sequence, reading_frames, i, j)
     return (lean_key, reading_frames, i, j)
 end
 
-
 struct lean_call <: Abstractlean_call
     func::Any
 end
-function lean_call(func::Any = func)::lean_call
-    return lean_call(func)
-end
-
 function __init__(self::Abstractlean_call, func)
     self.func = func
 end
@@ -42,7 +37,6 @@ function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vect
     end
     return lean_results
 end
-
 
 function count_frequencies(sequence, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
@@ -203,8 +197,7 @@ function main_func()
         results = collect(chain(starmap(count_frequencies, count_jobs)...))
     else
         lean_jobs = collect(starmap(lean_args, count_jobs))
-        if true
-            pool = Pool()
+        Pool() do pool
             async_results = starmap_async(pool, lean_call(count_frequencies), lean_jobs)
             results = collect(chain(get(async_results)...))
         end

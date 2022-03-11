@@ -83,8 +83,7 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
     while length(sequence) < n
         extend(sequence, sequence)
     end
-    if true
-        __tmp1 = lock_pair()
+    lock_pair() do
         write(header)
         write_lines(sequence, n, width)
     end
@@ -109,8 +108,7 @@ end
 end
 
 function lcg_lookup_slow(probabilities, seed, im, ia, ic)
-    if true
-        prng = closing(lcg(seed, im, ia, ic))
+    closing(lcg(seed, im, ia, ic)) do prng
         @yield from lookup(probabilities, prng)
     end
 end
@@ -143,8 +141,7 @@ function lookup_and_write(
         output = Vector{UInt8}()
         output[begin:stop-start] = lookup(probabilities, values)
     end
-    if true
-        __tmp2 = lock_pair()
+    lock_pair() do
         if start == 0
             write(header)
         end
@@ -158,8 +155,7 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
     ic = 29573.0
     probabilities, table = cumulative_probabilities(alphabet, im)
     if !(locks)
-        if true
-            prng = closing(lcg_lookup_fast(probabilities, seed, im, ia, ic))
+        closing(lcg_lookup_fast(probabilities, seed, im, ia, ic)) do prng
             output = Vector{UInt8}(join(split(prng)[n], ""))
         end
         lookup_and_write(header, probabilities, table, output, 0, n, width)
@@ -169,10 +165,8 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
         partitions = [(n / width * m) * width * i for i in (1:m-1)]
         processes = []
         pre = pre_write
-        if true
-            __tmp3 = lock_pair()
-            if true
-                prng = closing(lcg(seed, im, ia, ic))
+        lock_pair() do
+            closing(lcg(seed, im, ia, ic)) do prng
                 for (start, stop) in zip([0] + partitions, partitions + [n])
                     values = collect(split(prng)[stop-start])
                     post = stop < n ? (acquired_lock()) : (post_write)

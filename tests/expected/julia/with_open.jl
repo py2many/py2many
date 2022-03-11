@@ -1,14 +1,11 @@
 using tempfile: NamedTemporaryFile
 function main()
-    if true
-        temp_file = NamedTempFile::new()
-        file_path = name(temp_file)
-        if true
-            f = open(file_path, "w")
+    NamedTempFile::new() do temp_file
+        file_path = temp_file.name
+        open(file_path, "w") do f
             write(f, "hello")
         end
-        if true
-            f = open(file_path, "r")
+        open(file_path, "r") do f
             @assert(read(f, 1) == "h")
             @assert(read(f) == "ello")
             println("OK")
