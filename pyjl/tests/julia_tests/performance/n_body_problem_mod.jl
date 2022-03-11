@@ -8,7 +8,6 @@ function combinations(l)::Vector
     #         Vector{Float64}, Float64},
     #     Tuple{Vector{Float64},
     #         Vector{Float64}, Float64}}} = []
-    result = []
     for x in (0:length(l)-1-1)
         ls = l[(x+1+1):end]
         for y in ls
