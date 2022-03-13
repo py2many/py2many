@@ -480,9 +480,9 @@ class JuliaTranspiler(CLikeTranspiler):
         body = "\n".join(body)
 
         if hasattr(node, "constructors"):
-            return f"{struct_def}\n{node.fields}\n{node.constructors}\nend\n{body}"
+            return f"{struct_def}\n{node.fields_str}\n{node.constructors}\nend\n{body}"
 
-        return f"{struct_def}\n{node.fields}\nend\n{body}"
+        return f"{struct_def}\n{node.fields_str}\nend\n{body}"
 
     def _visit_class_fields(self, node):
         extractor = DeclarationExtractor(JuliaTranspiler())
@@ -505,8 +505,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
             decs.append(declaration)
 
-            field = declaration \
-                if typename == "" else f"{declaration}::{typename}"
+            field = (declaration, None) \
+                if typename == "" else (declaration, typename)
             fields.append(field)
             
             # Default field values
@@ -532,7 +532,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 {node.name}({decs_str}) =
                     new({decs_str})"""
 
-        node.fields = "" if fields == [] else "\n".join(fields)
+        node.fields = fields
+        fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
+        node.fields_str = (", ").join(fields_str) if fields else ""
 
     def visit_StrEnum(self, node) -> str:
         fields = []

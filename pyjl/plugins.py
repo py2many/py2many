@@ -16,7 +16,7 @@ from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
-from py2many.tracer import find_node_matching_type
+from py2many.tracer import find_node_matching_name_and_type, find_node_matching_type
 
 try:
     from dataclasses import dataclass
@@ -35,7 +35,7 @@ class JuliaTranspilerPlugins:
 
         # Visit class fields
         fields = "\n".join([
-            node.fields,
+            node.fields_str,
             "_initvars = [" + ", ".join(field_repr) + "]\n"
         ])
 
@@ -61,7 +61,7 @@ class JuliaTranspilerPlugins:
             decorator)
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
-        fields: str = node.fields
+        fields: str = node.fields_str
         struct_fields = fields.split("\n")
 
         # Abstract type
@@ -183,12 +183,30 @@ class JuliaTranspilerPlugins:
         return fields, field_repr
 
     def visit_JuliaClass(t_self, node: ast.ClassDef, decorator) -> Any:
+        t_self._usings.add("Classes")
+
         # Struct definition
+        fields = []
         bases = []
         for b in node.bases:
             b_name = t_self.visit(b)
             if b_name != f"Abstract{node.name}":
                 bases.append(b_name)
+
+            # Don't repeat elements of superclasses
+            base_class = find_node_matching_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
+            if base_class:
+                base_class_decs = list(map(lambda x: x[0], base_class.fields))
+                for (declaration, typename) in node.fields:
+                    if declaration not in base_class_decs:
+                        fields.append((declaration, typename))
+
+        # Change string representation if fields have been changed
+        if node.bases and fields and fields != node.fields:
+            print(fields)
+            fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
+            node.fields_str = (", ").join(fields_str) if fields else ""
+
         struct_def = f"{node.name} <: {', '.join(bases)}" \
             if bases else f"{node.name}"
 
@@ -199,9 +217,9 @@ class JuliaTranspilerPlugins:
         body = "\n".join(body)
 
         if hasattr(node, "constructor"):
-            return f"@class {struct_def}begin\n{node.fields}\n{node.constructors}\nend\n{body}"
+            return f"@class {struct_def}begin\n{node.fields_str}\n{node.constructors}\nend\n{body}"
 
-        return f"@class {struct_def} begin\n{node.fields}\nend\n{body}"
+        return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
 
     def visit_async_ann(self, node, decorator):
         return ""

@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
-# @jl_class
+# @jl_dataclass # For PyJL
 @dataclass(init=True, eq=True, order=True, unsafe_hash=False, frozen=False)
 class Packet:
     val: float
 
+# @jl_dataclass # For PyJL
 @dataclass(init=True, eq=True, order=True, unsafe_hash=False, frozen=False)
 class Register:
     PACKET: Packet
