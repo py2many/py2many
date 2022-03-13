@@ -316,6 +316,7 @@ class JuliaTranspiler(CLikeTranspiler):
         extractor = DeclarationExtractor(JuliaTranspiler())
         extractor.visit(node)
         declarations = node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
         ret = super().visit_ClassDef(node)
         if ret is not None:

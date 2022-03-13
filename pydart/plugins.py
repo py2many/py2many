@@ -23,7 +23,7 @@ class DartTranspilerPlugins:
             declaration,
             typename_with_default,
         ) in node.declarations_with_defaults.items():
-            typename, default_value = typename_with_default
+            typename, default_value, parent = typename_with_default
             if typename == None:
                 return None
             if default_value is not None and typename != "bool":
