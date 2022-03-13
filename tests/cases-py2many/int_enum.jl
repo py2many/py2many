@@ -1,7 +1,7 @@
 
 abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
-struct Colors <: IntEnum
+mutable struct Colors <: IntEnum
     RED::Any
     GREEN::Any
     BLUE::Any
@@ -11,7 +11,7 @@ struct Colors <: IntEnum
     Colors(RED, GREEN, BLUE) = new(RED, GREEN, BLUE)
 end
 
-struct Permissions <: IntFlag
+mutable struct Permissions <: IntFlag
     R::Int64
     W::Int64
     X::Int64

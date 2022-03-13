@@ -27,7 +27,7 @@ function __key(self::AbstractIntListNonEmpty)
     (self.first, __key(self.rest))
 end
 
-struct IntList <: AbstractIntList
+mutable struct IntList <: AbstractIntList
     NONE::Any
     REST::AbstractIntListNonEmpty
 end

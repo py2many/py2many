@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 from fileinput import lineno
+from imp import init_frozen
 from libcst import Yield
 
 from numpy import isin
@@ -469,8 +470,8 @@ class JuliaTranspiler(CLikeTranspiler):
         # TODO: Investigate Julia traits
         struct_name = get_id(node)
         bases = [self.visit(base) for base in node.bases]
-        struct_def = f"struct {struct_name} <: {bases[0]}" \
-            if bases else f"struct {struct_name}"
+        struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
+            if bases else f"mutable struct {struct_name}"
 
         body = []
         for b in node.body:
@@ -490,12 +491,12 @@ class JuliaTranspiler(CLikeTranspiler):
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
 
-        declarations: dict[str, (str, Any)] = node.declarations_with_defaults
+        declarations: dict[str, (str, Any, Any)] = node.declarations_with_defaults
 
         decs = []
         fields = []
         fields_with_defaults = []
-        for declaration, (typename, default) in declarations.items():
+        for declaration, (typename, default, parent) in declarations.items():
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
@@ -508,21 +509,28 @@ class JuliaTranspiler(CLikeTranspiler):
                 if typename == "" else f"{declaration}::{typename}"
             fields.append(field)
             
-            # Default field values 
-            if default:
+            # Default field values
+            if (default and isinstance(parent, ast.ClassDef)) or \
+                    (isinstance(parent, ast.FunctionDef) and parent.name == "__init__"):
                 if declaration != (default_value:= self.visit(default)):
-                    fields_with_defaults.append(f"{field}={default_value}")
-
+                    fields_with_defaults.append((declaration, field, default_value))
 
         if fields_with_defaults:
-            fields_with_defaults = ", ".join(fields_with_defaults)
-            declarations = ", ".join(decs)
+            decs_str = ", ".join(decs)
+            default_decs = []
+            default_fields = []
+            for (declaration, field, default_value) in fields_with_defaults:
+                default_decs.append(declaration)
+                default_fields.append(f"{field} = {default_value}")
+            default_decs = ", ".join(default_decs)
+            default_fields = ", ".join(default_fields)
+
             # Define constructor with defaults and default constructor
             node.constructors = f"""
-                {node.name}({fields_with_defaults}) = 
-                    new({declarations})
-                {node.name}({declarations}) =
-                    new({declarations})"""
+                {node.name}({default_fields}) =
+                    new({default_decs})
+                {node.name}({decs_str}) =
+                    new({decs_str})"""
 
         node.fields = "" if fields == [] else "\n".join(fields)
 

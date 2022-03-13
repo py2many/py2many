@@ -32,9 +32,6 @@ class JuliaTranspilerPlugins:
         dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
             decorator)
         d_fields, field_repr = dataclass_data[0], dataclass_data[1]
-        if d_fields["init"]:
-            # if it defines __init__, it needs to be mutable
-            modifiers = "mutable"
 
         # Visit class fields
         fields = "\n".join([
@@ -44,8 +41,8 @@ class JuliaTranspilerPlugins:
 
         # Struct definition
         bases = [t_self.visit(base) for base in node.bases]
-        struct_def = f"{modifiers} struct {node.name} <: {bases[0]}" \
-            if bases else f"{modifiers} struct {node.name}"
+        struct_def = f"mutable struct {node.name} <: {bases[0]}" \
+            if bases else f"mutable struct {node.name}"
 
         body = []
         for b in node.body:
@@ -102,10 +99,7 @@ class JuliaTranspilerPlugins:
                 body.append(t_self.visit(b))
 
         # Add functions to body
-        modifiers = ""
         if d_fields["init"]:
-            modifiers = "mutable "
-
             body.append(f"""
                 function __init__(self::{struct_name}, {str_struct_fields})
                     {assign_variables_init}
@@ -155,8 +149,8 @@ class JuliaTranspilerPlugins:
         body = "\n".join(body)
 
         bases = [t_self.visit(base) for base in node.bases]
-        struct_def = f"{modifiers}struct {node.name} <: {bases[0]}" \
-            if bases else f"{modifiers}struct {node.name}"
+        struct_def = f"mutable struct {node.name} <: {bases[0]}" \
+            if bases else f"mutable struct {node.name}"
 
         if hasattr(node, "constructors"):
             return f"{struct_def}\n{fields}\n{node.constructors}\nend\n{body}"
@@ -317,6 +311,11 @@ JULIA_INTEGER_TYPES = \
     ]
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
+
+# JULIA_IGNORED_FUNCTIONS = [
+#     "__init__",
+#     "__str__",
+# ]
 
 CONTAINER_DISPATCH_TABLE = {
     List: "Vector",

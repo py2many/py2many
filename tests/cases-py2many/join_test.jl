@@ -1,5 +1,5 @@
 abstract type AbstractHello end
-struct Hello <: AbstractHello
+mutable struct Hello <: AbstractHello
 
 end
 function test(self::AbstractHello)::String

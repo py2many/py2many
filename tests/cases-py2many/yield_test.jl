@@ -55,7 +55,7 @@ end
     end
 end
 
-struct TestClass <: AbstractTestClass
+mutable struct TestClass <: AbstractTestClass
 
 end
 @resumable function generator_func(self::AbstractTestClass)

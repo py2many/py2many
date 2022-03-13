@@ -1,6 +1,6 @@
 
 abstract type AbstractColors <: Abstractstr end
-struct Colors <: str
+mutable struct Colors <: str
     RED::String
     GREEN::String
     BLUE::String

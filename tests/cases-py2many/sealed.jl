@@ -25,7 +25,7 @@ function __key(self::AbstractPacket)
     (self.val)
 end
 
-struct Register <: AbstractRegister
+mutable struct Register <: AbstractRegister
     PACKET::AbstractPacket
     VALUE::Int64
 end

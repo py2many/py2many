@@ -102,6 +102,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._import_list = []  # TODO: Consider imported classes
         self._import_count = 0
         self._ignored_module_set = IGNORED_MODULE_SET
+        # self._assignments: Dict[str, Any] = {}
 
     def visit_Module(self, node: ast.Module) -> Any:
         node.lineno = 0
@@ -180,7 +181,31 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if (hasattr(node, "self_type") and
                 (self_type := node.self_type) in self._hierarchy_map):
             node.self_type = f"Abstract{self_type}"
+
         return node
+
+    # def visit_Call(self, node: ast.Call) -> Any:
+    #     fname = node.func
+    #     if fname in JULIA_IGNORED_FUNCTIONS:
+    #     return super().visit_Call(node)
+
+    # def visit_Assign(self, node: ast.Assign) -> Any:
+    #     target = node.targets[0]
+    #     if self.is_member(target) and target.attr not in self._assignments:
+    #         self._assignments[target.attr] = node
+    #     return node
+
+    # def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+    #     target = node.target
+    #     if self.is_member(target) == "self" and target.attr not in self._assignments:
+    #         self._assignments[target.attr] = node
+    #     return node
+
+    def is_member(self, node):
+        if hasattr(node, "value"):
+            if get_id(node.value) == "self":
+                return True
+        return False
 
     def visit_Import(self, node: ast.Import) -> Any:
         self._generic_import_visit(node)

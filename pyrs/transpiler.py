@@ -523,7 +523,7 @@ class RustTranspiler(CLikeTranspiler):
             member_id = get_id(member)
             camel_member_id = camel_case(member_id)
             lower_member_id = member_id.lower()
-            typename = node.declarations_with_defaults.get(member_id, None)
+            typename, default, parent = node.declarations_with_defaults.get(member_id, None)
             if typename == None:
                 variants.append(f"{member_id},")
             else:
