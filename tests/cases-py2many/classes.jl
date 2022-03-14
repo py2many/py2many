@@ -1,5 +1,7 @@
-using Classes
-@class Foo begin
+abstract type AbstractFoo end
+abstract type AbstractPerson end
+abstract type AbstractStudent <: AbstractPerson end
+mutable struct Foo <: AbstractFoo
 
 end
 function bar(self::AbstractFoo)::Int64
@@ -14,7 +16,7 @@ function bar_str(self::AbstractFoo)::String
     return "a"
 end
 
-@class Person begin
+mutable struct Person <: AbstractPerson
     name::String
 end
 function __init__(self::AbstractPerson, name::String)
@@ -25,7 +27,7 @@ function get_name(self::AbstractPerson)
     return self.name
 end
 
-@class Student <: Person begin
+mutable struct Student <: Person
     name::String
     student_number::Int64
 end

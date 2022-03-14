@@ -495,6 +495,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         decs = []
         fields = []
+        fields_str = []
         fields_with_defaults = []
         for declaration, (typename, default, parent) in declarations.items():
             dec = declaration.split(".")
@@ -505,9 +506,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
             decs.append(declaration)
 
-            field = (declaration, None) \
-                if typename == "" else (declaration, typename)
-            fields.append(field)
+            field = declaration if typename == "" else f"{declaration}::{typename}"
+            fields_str.append(field)
+            fields.append((declaration, None) \
+                if typename == "" else (declaration, typename))
             
             # Default field values
             if (default and isinstance(parent, ast.ClassDef)) or \
@@ -533,8 +535,7 @@ class JuliaTranspiler(CLikeTranspiler):
                     new({decs_str})"""
 
         node.fields = fields
-        fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
-        node.fields_str = (", ").join(fields_str) if fields else ""
+        node.fields_str = ("\n").join(fields_str)
 
     def visit_StrEnum(self, node) -> str:
         fields = []

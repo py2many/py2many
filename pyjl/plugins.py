@@ -29,9 +29,8 @@ class JuliaTranspilerPlugins:
     def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
         t_self._usings.add("DataClass")
 
-        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
+        d_fields, field_repr = JuliaTranspilerPlugins._generic_dataclass_visit(
             decorator)
-        d_fields, field_repr = dataclass_data[0], dataclass_data[1]
 
         # Visit class fields
         fields = "\n".join([
