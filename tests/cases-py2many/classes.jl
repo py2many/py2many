@@ -19,28 +19,19 @@ end
 mutable struct Person <: AbstractPerson
     name::String
 end
-function __init__(self::AbstractPerson, name::String)
-    self.name = name
-end
-
 function get_name(self::AbstractPerson)
     return self.name
 end
 
 mutable struct Student <: Person
+    domain::String
     name::String
     student_number::Int64
-end
-function __init__(
-    self::AbstractStudent,
-    name::String,
-    student_number::Int64,
-    domain::String = "school.student.pt",
-)
-    self.name = name
-    self.student_number = student_number
-end
 
+    Student(domain::String = "school.student.pt", name::String, student_number::Int64) =
+        new(domain, name, student_number)
+    Student(domain, name, student_number) = new(domain, name, student_number)
+end
 function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
 end

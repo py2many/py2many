@@ -1,64 +1,64 @@
 function foo()
-    a = 10
-    b = a
-    @assert(b == 10)
+a = 10
+b = a
+@assert(b == 10)
 end
 
 function fibonacci(n)::Int64
-    if n == 0
-        return 0
-    elseif n == 1
-        return 1
-    else
-        return fibonacci(n - 2) + fibonacci(n - 1)
-    end
+if n == 0
+return 0
+elseif n == 1
+return 1
+else
+return fibonacci(n - 2) + fibonacci(n - 1)
+end
 end
 
 function mul_list()::Int64
-    a::Vector = []
-    for i in (0:4)
-        push!(a, i)
-    end
-    return repeat(a, 2)
+a::Vector = []
+for i in (0:4)
+push!(a, i)
+end
+return repeat(a,2)
 end
 
 function combinations(array)::Vector
-    result = []
-    for x in array
-        for y in array
-            push!(result, (x, y))
-        end
-    end
-    return result
+result = []
+for x in array
+for y in array
+push!(result, (x, y))
+end
+end
+return result
 end
 
 function mul_recvd_list(a::list)
-    for i in (0:length(a)-1)
-        append(a, i)
-    end
-    return 2 * a
+for i in (0:length(a) - 1)
+append(a, i)
+end
+return 2*a
 end
 
 function plus_test(x, y)
-    return x + y
+return x + y
 end
 
 function plus_test(x::String, y::String)::String
-    return x * y
+return x * y
 end
 
 function main()
-    foo()
-    @assert(fibonacci(10) == 55)
-    @assert((repeat("test", fibonacci(3))) == "testtest")
-    a = []
-    a_mul = mul_recvd_list(convert(list, a))
-    @assert(a_mul == [])
-    x = "ss"
-    y = "zz"
-    res = plus_test(x, y)
-    @assert(res == "sszz")
-    println("OK")
+foo()
+@assert(fibonacci(10) == 55)
+@assert((repeat("test",fibonacci(3))) == "testtest")
+a = []
+a_mul = mul_recvd_list(convert(list, a))
+@assert(a_mul == [])
+x = "ss"
+y = "zz"
+res = plus_test(x, y)
+@assert(res == "sszz")
+println("OK")
 end
 
 main()

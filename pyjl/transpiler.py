@@ -13,6 +13,7 @@ from .plugins import (
     DECORATOR_DISPATCH_TABLE,
     CONTAINER_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
+    JULIA_IGNORED_FUNCTION_SET,
     JULIA_INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
@@ -109,6 +110,9 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_Constant(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
+        if node.name in JULIA_IGNORED_FUNCTION_SET:
+            return ""
+
         typedecls = []
 
         # Parse function args       
@@ -493,6 +497,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields_str = []
         has_default = False
         for declaration, (typename, default, parent) in declarations.items():
+            print(declaration)
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
@@ -510,26 +515,32 @@ class JuliaTranspiler(CLikeTranspiler):
                     (isinstance(parent, ast.FunctionDef) and parent.name == "__init__"):
                 if declaration != default_value:
                     has_default = True
-                    fields.append((declaration, None, default_value) \
-                        if typename == "" else (declaration, typename, default_value))
-            else:
-                fields.append((declaration, None, default_value) \
-                    if typename == "" else (declaration, typename, default_value))
+                else:
+                    default_value = None
+
+            fields.append((declaration, typename, default_value) \
+                if typename == "" else (declaration, typename, default_value))
 
         if has_default:
             decs_str = ", ".join(decs)
-            default_decs = []
             default_fields = []
             for (declaration, typename, default_value) in fields:
-                default_decs.append(declaration)
-                default_fields.append(f"{declaration}::{typename} = {default_value}")
-            default_decs = ", ".join(default_decs)
+                field = []
+                if typename:
+                    field.append(f"{declaration}::{typename}")
+                else:
+                    field.append(declaration)
+                
+                if default_value:
+                    field.append(f" = {default_value}")
+                field = "".join(field)
+                default_fields.append(field)
             default_fields = ", ".join(default_fields)
 
             # Define constructor with defaults and default constructor
             node.constructors = f"""
                 {node.name}({default_fields}) =
-                    new({default_decs})
+                    new({decs_str})
                 {node.name}({decs_str}) =
                     new({decs_str})"""
 

@@ -1,11 +1,11 @@
 function test()
-    if (i = 2) < 3
-        @assert(i == 2)
-    end
+if (i = 2) < 3
+@assert(i == 2)
+end
 end
 
 function main()
-    test()
+test()
 end
 
 main()

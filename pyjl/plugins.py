@@ -72,18 +72,27 @@ class JuliaTranspilerPlugins:
         assign_variables_init = []
         str_struct_fields = []
         for field in struct_fields:
-            field_name, field_type = field.split("::")
-            st_name = field_type
-            if field_type.startswith("Abstract"):
-                st_name = field_type[8:]
-            attr_vars.append(f"self.{field_name}")
-            key_vars.append(f"self.{field_name}"
+            field_name = field
+            field_type = None
+            field_split = field.split("::")
+            if len(field_split) > 1:
+                field_name = field_split[0]
+                field_type = field_split[1]
+
+            if field_type:
+                st_name = field_type[8:] if field_type.startswith("Abstract") else field_type
+                str_struct_fields.append(f"{field_name}::{field_type}"
+                                        if field_type not in t_self._class_names
+                                        else f"{field_name}::Abstract{field_type}")  
+                key_vars.append(f"self.{field_name}"
                             if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
+            else:
+                print(field_name)
+                str_struct_fields.append(f"{field_name}")
+                key_vars.append(f"self.{field_name}")
+            attr_vars.append(f"self.{field_name}")
             assign_variables_init.append(
-                f"setfield!(self::{struct_name}, :{field_name}, {field})")
-            str_struct_fields.append(f"{field_name}::{field_type}"
-                                     if field_type not in t_self._class_names
-                                     else f"{field_name}::Abstract{field_type}")        
+                f"setfield!(self::{struct_name}, :{field_name}, {field})")      
 
         # Convert into string
         key_vars = ", ".join(key_vars)
@@ -328,10 +337,9 @@ JULIA_INTEGER_TYPES = \
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
-# JULIA_IGNORED_FUNCTIONS = [
-#     "__init__",
-#     "__str__",
-# ]
+JULIA_IGNORED_FUNCTION_SET = set([
+    "__init__"
+])
 
 CONTAINER_DISPATCH_TABLE = {
     List: "Vector",

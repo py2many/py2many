@@ -63,13 +63,12 @@ class Hello(something):
 """
 
 code5 = """
-def lock_pair(pre_lock=None, post_lock=None, locks=None):
-    pre, post = locks if locks else (pre_lock, post_lock)
-    if pre:
-        pre.acquire()
-    yield
-    if post:
-        post.release()
+def __init__(self, 
+                 name:str, 
+                 student_number:int, 
+                 domain:str = "school.student.pt"):
+        self.name = name
+        self.student_number = student_number
 """
 
 if __name__ == "__main__":
