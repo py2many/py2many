@@ -196,13 +196,12 @@ class JuliaTranspilerPlugins:
             base_class = find_node_matching_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
             if base_class:
                 base_class_decs = list(map(lambda x: x[0], base_class.fields))
-                for (declaration, typename) in node.fields:
+                for (declaration, typename, _) in node.fields:
                     if declaration not in base_class_decs:
                         fields.append((declaration, typename))
 
         # Change string representation if fields have been changed
-        if node.bases and fields and fields != node.fields:
-            print(fields)
+        if fields and fields != node.fields:
             fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
             node.fields_str = (", ").join(fields_str) if fields else ""
 

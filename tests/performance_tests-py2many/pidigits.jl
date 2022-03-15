@@ -5,7 +5,7 @@ using ctypes.util: find_library
 abstract type Abstractmpz_t <: AbstractStructure end
 GMP = CDLL(find_library("gmp"))
 __gmpz_get_ui(GMP).restype = c_ulong
-struct mpz_t <: Structure
+mutable struct mpz_t <: Structure
     _fields_::Vector
 
     mpz_t(

@@ -12,7 +12,7 @@ function lean_args(sequence, reading_frames, i, j)
     return (lean_key, reading_frames, i, j)
 end
 
-struct lean_call <: Abstractlean_call
+mutable struct lean_call <: Abstractlean_call
     func::Any
 end
 function __init__(self::Abstractlean_call, func)

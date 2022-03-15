@@ -1,11 +1,6 @@
 from __future__ import annotations
-import ast
-from fileinput import lineno
-from imp import init_frozen
-from libcst import Yield
-
-from numpy import isin
 from py2many.exceptions import AstTypeNotSupported
+import ast
 
 import textwrap
 import re
@@ -496,7 +491,7 @@ class JuliaTranspiler(CLikeTranspiler):
         decs = []
         fields = []
         fields_str = []
-        fields_with_defaults = []
+        has_default = False
         for declaration, (typename, default, parent) in declarations.items():
             dec = declaration.split(".")
             if dec[0] == "self":
@@ -508,22 +503,26 @@ class JuliaTranspiler(CLikeTranspiler):
 
             field = declaration if typename == "" else f"{declaration}::{typename}"
             fields_str.append(field)
-            fields.append((declaration, None) \
-                if typename == "" else (declaration, typename))
             
             # Default field values
+            default_value = self.visit(default) if default else None
             if (default and isinstance(parent, ast.ClassDef)) or \
                     (isinstance(parent, ast.FunctionDef) and parent.name == "__init__"):
-                if declaration != (default_value:= self.visit(default)):
-                    fields_with_defaults.append((declaration, field, default_value))
+                if declaration != default_value:
+                    has_default = True
+                    fields.append((declaration, None, default_value) \
+                        if typename == "" else (declaration, typename, default_value))
+            else:
+                fields.append((declaration, None, default_value) \
+                    if typename == "" else (declaration, typename, default_value))
 
-        if fields_with_defaults:
+        if has_default:
             decs_str = ", ".join(decs)
             default_decs = []
             default_fields = []
-            for (declaration, field, default_value) in fields_with_defaults:
+            for (declaration, typename, default_value) in fields:
                 default_decs.append(declaration)
-                default_fields.append(f"{field} = {default_value}")
+                default_fields.append(f"{declaration}::{typename} = {default_value}")
             default_decs = ", ".join(default_decs)
             default_fields = ", ".join(default_fields)
 

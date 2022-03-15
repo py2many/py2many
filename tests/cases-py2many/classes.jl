@@ -1,7 +1,7 @@
-abstract type AbstractFoo end
+using Classes
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
-mutable struct Foo <: AbstractFoo
+@class Foo begin
 
 end
 function bar(self::AbstractFoo)::Int64
@@ -31,7 +31,12 @@ mutable struct Student <: Person
     name::String
     student_number::Int64
 end
-function __init__(self::AbstractStudent, name::String, student_number::Int64)
+function __init__(
+    self::AbstractStudent,
+    name::String,
+    student_number::Int64,
+    domain::String = "school.student.pt",
+)
     self.name = name
     self.student_number = student_number
 end

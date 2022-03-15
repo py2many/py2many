@@ -1,4 +1,4 @@
-# @jl_class # For PyJL
+@jl_class # For PyJL
 class Foo:
     def bar(self):
         return self.baz()
@@ -18,9 +18,20 @@ class Person:
         return self.name
 
 # @jl_class # For PyJL
+# class Student(Person):
+#     def __init__(self, name:str, student_number:int):
+#         # super().__init__(name) # Currently unsupported
+#         self.name = name
+#         self.student_number = student_number
+
+#     def get_name(self):
+#         return f"{self.student_number} - {self.name}"
+
 class Student(Person):
-    def __init__(self, name:str, student_number:int):
-        # super().__init__(name) # Currently unsupported
+    def __init__(self, 
+                 name:str, 
+                 student_number:int, 
+                 domain:str = "school.student.pt"):
         self.name = name
         self.student_number = student_number
 
