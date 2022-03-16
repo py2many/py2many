@@ -6,11 +6,6 @@ mutable struct Packet <: AbstractPacket
     val::Float64
 end
 
-function __init__(self::AbstractPacket, val::Float64)
-    setfield!(self::AbstractPacket, :val, val::Float64)
-end
-
-
 function __repr__(self::AbstractPacket)::String
     return AbstractPacket(self.val)
 end
@@ -47,12 +42,6 @@ mutable struct Register <: AbstractRegister
     VALUE::Int64
 end
 
-function __init__(self::AbstractRegister, PACKET::AbstractPacket, VALUE::Int64)
-    setfield!(self::AbstractRegister, :PACKET, PACKET::AbstractPacket),
-    setfield!(self::AbstractRegister, :VALUE, VALUE::Int64)
-end
-
-
 function __repr__(self::AbstractRegister)::String
     return AbstractRegister(self.PACKET, self.VALUE)
 end
@@ -88,12 +77,6 @@ mutable struct ValueHolder <: AbstractValueHolder
     val::Int64
     strVal::String
 end
-
-function __init__(self::AbstractValueHolder, val::Int64, strVal::String)
-    setfield!(self::AbstractValueHolder, :val, val::Int64),
-    setfield!(self::AbstractValueHolder, :strVal, strVal::String)
-end
-
 
 function __repr__(self::AbstractValueHolder)::String
     return AbstractValueHolder(self.val, self.strVal)

@@ -8,12 +8,6 @@ mutable struct Options <: AbstractOptions
     Options(v, n) = new(v, n)
 end
 
-function __init__(self::AbstractOptions, v::Bool, n::Int64)
-    setfield!(self::AbstractOptions, :v, v::Bool),
-    setfield!(self::AbstractOptions, :n, n::Int64)
-end
-
-
 function __repr__(self::AbstractOptions)::String
     return AbstractOptions(self.v, self.n)
 end

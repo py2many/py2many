@@ -7,12 +7,6 @@ mutable struct IntListNonEmpty <: AbstractIntListNonEmpty
     rest::AbstractIntList
 end
 
-function __init__(self::AbstractIntListNonEmpty, first::Int64, rest::AbstractIntList)
-    setfield!(self::AbstractIntListNonEmpty, :first, first::Int64),
-    setfield!(self::AbstractIntListNonEmpty, :rest, rest::AbstractIntList)
-end
-
-
 function __repr__(self::AbstractIntListNonEmpty)::String
     return AbstractIntListNonEmpty(self.first, self.rest)
 end

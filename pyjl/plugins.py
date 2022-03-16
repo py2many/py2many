@@ -69,7 +69,6 @@ class JuliaTranspilerPlugins:
         # get struct variables using getfield
         attr_vars = []
         key_vars = []
-        assign_variables_init = []
         str_struct_fields = []
         for field in struct_fields:
             field_name = field
@@ -89,14 +88,11 @@ class JuliaTranspilerPlugins:
             else:
                 str_struct_fields.append(f"{field_name}")
                 key_vars.append(f"self.{field_name}")
-            attr_vars.append(f"self.{field_name}")
-            assign_variables_init.append(
-                f"setfield!(self::{struct_name}, :{field_name}, {field})")      
+            attr_vars.append(f"self.{field_name}")   
 
         # Convert into string
         key_vars = ", ".join(key_vars)
         attr_vars = ", ".join(attr_vars)
-        assign_variables_init = ", ".join(assign_variables_init)
         str_struct_fields = ", ".join(str_struct_fields)
 
         # Visit class body
@@ -106,12 +102,6 @@ class JuliaTranspilerPlugins:
                 body.append(t_self.visit(b))
 
         # Add functions to body
-        if d_fields["init"]:
-            body.append(f"""
-                function __init__(self::{struct_name}, {str_struct_fields})
-                    {assign_variables_init}
-                end
-            """)
         if d_fields["repr"]:
             body.append(f"""
                 function __repr__(self::{struct_name})::String 
@@ -161,7 +151,7 @@ class JuliaTranspilerPlugins:
 
         if hasattr(node, "constructors"):
             return f"{struct_def}\n{fields}\n{node.constructors}\nend\n{body}"
-        
+
         return f"{struct_def}\n{fields}\nend\n{body}"
         
 

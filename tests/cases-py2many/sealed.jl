@@ -6,11 +6,6 @@ mutable struct Packet <: AbstractPacket
     val::Float64
 end
 
-function __init__(self::AbstractPacket, val::Float64)
-    setfield!(self::AbstractPacket, :val, val::Float64)
-end
-
-
 function __repr__(self::AbstractPacket)::String
     return AbstractPacket(self.val)
 end

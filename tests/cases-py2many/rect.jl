@@ -11,12 +11,6 @@ function is_square(self::AbstractRectangle)::Bool
 end
 
 
-function __init__(self::AbstractRectangle, height::Int64, length::Int64)
-    setfield!(self::AbstractRectangle, :height, height::Int64),
-    setfield!(self::AbstractRectangle, :length, length::Int64)
-end
-
-
 function __repr__(self::AbstractRectangle)::String
     return AbstractRectangle(self.height, self.length)
 end
