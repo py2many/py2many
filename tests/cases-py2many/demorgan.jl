@@ -1,6 +1,6 @@
 
 function demorgan(a::Bool, b::Bool)::Bool
-return (a && b) == !(!(a) || !(b))
+    return (a && b) == !(!(a) || !(b))
 end
 
 @assert(demorgan(true, true))

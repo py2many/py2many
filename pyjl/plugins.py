@@ -62,6 +62,7 @@ class JuliaTranspilerPlugins:
 
         fields: str = node.fields_str
         struct_fields = fields.split("\n")
+        print(struct_fields)
 
         # Abstract type
         struct_name = "".join(["Abstract", get_id(node)])
@@ -87,7 +88,6 @@ class JuliaTranspilerPlugins:
                 key_vars.append(f"self.{field_name}"
                             if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
             else:
-                print(field_name)
                 str_struct_fields.append(f"{field_name}")
                 key_vars.append(f"self.{field_name}")
             attr_vars.append(f"self.{field_name}")
@@ -303,6 +303,54 @@ class JuliaTranspilerPlugins:
         return f"block_on({vargs[0]})"
 
 
+class JuliaRewriterPlugins:
+    def visit_init(t_self, node: ast.FunctionDef):
+        # Visit Args
+        arg_values = JuliaRewriterPlugins._get_args(t_self, node.args)
+        for (name, type, default) in arg_values:
+            if name not in t_self._class_fields and default:
+                if type:
+                    t_self._class_fields[name] = ast.AnnAssign(
+                        target=ast.Name(id=name, ctx=ast.Store()),
+                        annotation = type,
+                        value = default,
+                        lineno=1) # TODO: Deal with linenumber (and col_offset)
+                else:
+                    t_self._class_fields[name] = ast.Assign(
+                        targets=[ast.Name(id=name, ctx=ast.Store())],
+                        value = default,
+                        lineno=1)  # TODO: Deal with linenumber (and col_offset)
+                
+
+        # Visit Body
+        for n in node.body:
+            t_self.visit(n)
+
+    def _get_args(t_self, args: ast.arguments):
+        defaults = args.defaults
+        arguments: list[ast.arg] = args.args
+        len_defaults = len(defaults)
+        len_args = len(arguments)
+        arg_values = []
+        for i in range(len_args):
+            arg = arguments[i]
+            default = None
+            if defaults:
+                if len_defaults != len_args:
+                    diff_len = len_args - len_defaults
+                    default = defaults[i - diff_len] if i >= diff_len else None
+                else:
+                    default = defaults[i]
+            
+            # if isinstance(default, ast.Constant):
+            #     default = default.value
+            # else:
+            #     default = get_id(default)
+            arg_values.append((arg.arg, arg.annotation, default))
+
+        return arg_values
+
+
 JULIA_TYPE_MAP = {
     bool: "Bool",
     int: "Int64",
@@ -336,10 +384,6 @@ JULIA_INTEGER_TYPES = \
     ]
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
-
-JULIA_IGNORED_FUNCTION_SET = set([
-    "__init__"
-])
 
 CONTAINER_DISPATCH_TABLE = {
     List: "Vector",
@@ -448,4 +492,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # TODO: remove string-based fallback
     # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+}
+
+# Dispatches special Functions
+JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
+    "__init__": JuliaRewriterPlugins.visit_init
 }

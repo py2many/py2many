@@ -13,7 +13,6 @@ from .plugins import (
     DECORATOR_DISPATCH_TABLE,
     CONTAINER_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
-    JULIA_IGNORED_FUNCTION_SET,
     JULIA_INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
@@ -110,9 +109,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_Constant(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
-        if node.name in JULIA_IGNORED_FUNCTION_SET:
-            return ""
-
         typedecls = []
 
         # Parse function args       

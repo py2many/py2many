@@ -1,6 +1,5 @@
 from __future__ import annotations
 import ast
-from fileinput import lineno
 from typing import Any, Dict
 from py2many.analysis import IGNORED_MODULE_SET
 
@@ -8,7 +7,7 @@ from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_matching_type
 from py2many.ast_helpers import get_id
 import pyjl.juliaAst as juliaAst
-from pyjl.plugins import JULIA_IGNORED_FUNCTION_SET
+from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 from pyjl.transpiler import get_decorator_id
 
 
@@ -139,27 +138,31 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 body = []
                 self._class_fields = {}
                 for d in n.body:
-                    if isinstance(d, ast.Assign) or \
-                            isinstance(d, ast.AnnAssign) or \
-                            isinstance(d, ast.Expr):
-                        self.visit(d)
-                    elif isinstance(d, ast.FunctionDef):
-                        if d.name not in JULIA_IGNORED_FUNCTION_SET:
+                    # if isinstance(d, ast.Assign) or \
+                    #         isinstance(d, ast.AnnAssign) or \
+                    #         isinstance(d, ast.Expr):
+                    #     self.visit(d)
+                    if isinstance(d, ast.FunctionDef):
+                        if d.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
+                            print("ola")
+                            JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[d.name](self, d)
+                        else:
                             d.self_type = n.name
                             self.visit(d)
                             body.append(d)
-                        else:
-                            self._visit_ignored_functions(d)
+                    else:
+                        self.visit(d)
+                        body.append(d)
                 fields = []
                 for f in self._class_fields.values():
+                    print(f)
                     if f is not None:
                         fields.append(f)
                 # DEBUG
                 # for s in fields:
                 #     print(ast.dump(s, indent=4))
 
-                body = fields + body
-                n.body = body
+                n.body = fields + body
 
         self._hierarchy_map = {}
         self._import_list = []
@@ -202,55 +205,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 (self_type := node.self_type) in self._hierarchy_map):
             node.self_type = f"Abstract{self_type}"
 
-        return node
-
-    def _visit_ignored_functions(self, node):
-        # Visit Args
-        arg_values = self._get_args(node.args)
-        for (name, type, default) in arg_values:
-            if name not in self._class_fields and default:
-                if type:
-                    self._class_fields[name] = ast.AnnAssign(
-                        target=ast.Name(id=name, ctx=ast.Store()),
-                        annotation = type,
-                        value = default,
-                        lineno=1) # TODO: Deal with linenumber (and col_offset)
-                else:
-                    self._class_fields[name] = ast.Assign(
-                        targets=[ast.Name(id=name, ctx=ast.Store())],
-                        value = default,
-                        lineno=1)  # TODO: Deal with linenumber (and col_offset)
-                
-
-        # Visit Body
-        for n in node.body:
-            if isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign):
-                self.visit(n)
-
-    def _get_args(self, args: ast.arguments):
-        defaults = args.defaults
-        arguments: list[ast.arg] = args.args
-        len_defaults = len(defaults)
-        len_args = len(arguments)
-        arg_values = []
-        for i in range(len_args):
-            arg = arguments[i]
-            default = None
-            if defaults:
-                if len_defaults != len_args:
-                    diff_len = len_args - len_defaults
-                    default = defaults[i - diff_len] if i >= diff_len else None
-                else:
-                    default = defaults[i]
-            
-            # if isinstance(default, ast.Constant):
-            #     default = default.value
-            # else:
-            #     default = get_id(default)
-            arg_values.append((arg.arg, arg.annotation, default))
-
-        return arg_values
-
+        return self.generic_visit(node)
 
     # def visit_Call(self, node: ast.Call) -> Any:
     #     fname = node.func
@@ -264,17 +219,17 @@ class JuliaClassRewriter(ast.NodeTransformer):
         # Initialize class expression with None type
         if isinstance(parent, ast.ClassDef) and (id := get_id(node.value)):
             self._class_fields[id] = None
-        return node
+        return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         target = node.targets[0]
         self._generic_assign_visit(node, target)
-        return node
+        return self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
         target = node.target
         self._generic_assign_visit(node, target)
-        return node
+        return self.generic_visit(node)
 
     def _generic_assign_visit(self, node, target):
         if self._is_member(target):
@@ -287,13 +242,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def _is_member(self, node):
         return hasattr(node, "value") and get_id(node.value) == "self"
-
-    def visit_Expr(self, node: ast.Expr) -> Any:
-        parent = node.scopes[-1]
-        if isinstance(parent, ast.ClassDef):
-            name = get_id(node.value)
-            self._class_fields[name] = None
-        return node
 
     def visit_Import(self, node: ast.Import) -> Any:
         self._generic_import_visit(node)

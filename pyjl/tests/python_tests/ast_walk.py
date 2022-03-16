@@ -1,11 +1,4 @@
 import ast
-from cmath import sin
-from decimal import *
-from statistics import mode
-
-from libcst import Yield
-
-from py2many.tracer import find_in_body
 
 code = """
 def show_res():
@@ -63,12 +56,9 @@ class Hello(something):
 """
 
 code5 = """
-def __init__(self, 
-                 name:str, 
-                 student_number:int, 
-                 domain:str = "school.student.pt"):
-        self.name = name
-        self.student_number = student_number
+@dataclass(init=True, eq=True, order=True, unsafe_hash=False, frozen=False)
+class Packet:
+    val: float
 """
 
 if __name__ == "__main__":
