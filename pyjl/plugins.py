@@ -62,7 +62,6 @@ class JuliaTranspilerPlugins:
 
         fields: str = node.fields_str
         struct_fields = fields.split("\n")
-        print(struct_fields)
 
         # Abstract type
         struct_name = "".join(["Abstract", get_id(node)])
@@ -309,17 +308,16 @@ class JuliaRewriterPlugins:
         arg_values = JuliaRewriterPlugins._get_args(t_self, node.args)
         for (name, type, default) in arg_values:
             if name not in t_self._class_fields and default:
+                # TODO: Deal with linenumber (and col_offset)
                 if type:
                     t_self._class_fields[name] = ast.AnnAssign(
                         target=ast.Name(id=name, ctx=ast.Store()),
                         annotation = type,
-                        value = default,
-                        lineno=1) # TODO: Deal with linenumber (and col_offset)
+                        value = default)
                 else:
                     t_self._class_fields[name] = ast.Assign(
                         targets=[ast.Name(id=name, ctx=ast.Store())],
-                        value = default,
-                        lineno=1)  # TODO: Deal with linenumber (and col_offset)
+                        value = default)  
                 
 
         # Visit Body

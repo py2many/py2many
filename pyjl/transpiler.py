@@ -493,7 +493,6 @@ class JuliaTranspiler(CLikeTranspiler):
         fields_str = []
         has_default = False
         for declaration, (typename, default, parent) in declarations.items():
-            print(declaration)
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]

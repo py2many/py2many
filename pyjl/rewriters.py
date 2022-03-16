@@ -95,6 +95,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
 
 class JuliaClassRewriter(ast.NodeTransformer):
+    """Transforms Python classes into Julia compatible nodes"""
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map = {}
@@ -138,13 +139,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 body = []
                 self._class_fields = {}
                 for d in n.body:
-                    # if isinstance(d, ast.Assign) or \
-                    #         isinstance(d, ast.AnnAssign) or \
-                    #         isinstance(d, ast.Expr):
-                    #     self.visit(d)
                     if isinstance(d, ast.FunctionDef):
                         if d.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-                            print("ola")
                             JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[d.name](self, d)
                         else:
                             d.self_type = n.name
@@ -155,13 +151,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                         body.append(d)
                 fields = []
                 for f in self._class_fields.values():
-                    print(f)
                     if f is not None:
                         fields.append(f)
-                # DEBUG
-                # for s in fields:
-                #     print(ast.dump(s, indent=4))
-
                 n.body = fields + body
 
         self._hierarchy_map = {}
@@ -207,10 +198,10 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         return self.generic_visit(node)
 
+    # TODO: Rewrite special method calls
     # def visit_Call(self, node: ast.Call) -> Any:
     #     fname = node.func
-    #     if fname in JULIA_IGNORED_FUNCTION_SET:
-    #         # TODO
+    #     if fname in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
     #         pass
     #     return node
 
