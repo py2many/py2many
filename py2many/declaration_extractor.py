@@ -1,6 +1,5 @@
 import ast
 from typing import Any, Dict, Tuple
-
 from py2many.ast_helpers import get_id
 
 
@@ -85,7 +84,7 @@ class DeclarationExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def visit_AnnAssign(self, node, dataclass=False):
+    def visit_AnnAssign(self, node: ast.AnnAssign, dataclass=False):
         parent = node.scopes[-1]
         target = node.target
         target_id = get_id(target)
@@ -112,12 +111,16 @@ class DeclarationExtractor(ast.NodeVisitor):
             if target_id not in self.annotated_members:
                 self.annotated_members[target_id] = (type_str, node.value, parent)
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign):
         parent = node.scopes[-1]
         target = node.targets[0]
         if self.is_member(target):
             if target.attr not in self.member_assignments:
-                self.member_assignments[target.attr] = (node.value, parent)
+                if self.transpiler.visit(node.value) == target.attr:
+                    # Avoid things like: self.attr_name = attr_name
+                    self.member_assignments[target.attr] = (None, parent)
+                else:
+                    self.member_assignments[target.attr] = (node.value, parent)
         elif isinstance(parent, ast.ClassDef):
             if (target_id := get_id(target)) not in self.member_assignments:
                 self.member_assignments[target_id] = (node.value, parent)

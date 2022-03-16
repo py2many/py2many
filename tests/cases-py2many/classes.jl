@@ -1,6 +1,7 @@
 using Classes
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
+abstract type AbstractStudent2 <: AbstractPerson end
 @class Foo begin
 
 end
@@ -17,23 +18,35 @@ function bar_str(self::AbstractFoo)::String
 end
 
 mutable struct Person <: AbstractPerson
-    name::String
+    name::Any
 end
 function get_name(self::AbstractPerson)
     return self.name
 end
 
-mutable struct Student <: Person
+mutable struct Student <: AbstractPerson
+    student_number::Any
+    name::Any
     domain::String
-    name::String
-    student_number::Int64
 
-    Student(domain::String = "school.student.pt", name::String, student_number::Int64) =
-        new(domain, name, student_number)
-    Student(domain, name, student_number) = new(domain, name, student_number)
+    Student(student_number::Any, name::Any, domain::String = "school.student.pt") =
+        new(student_number, name, domain)
 end
 function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
+end
+
+mutable struct Student2 <: AbstractPerson
+    student_number::Any
+    name::Any
+
+    Student2(name::String, student_number::Int64) = begin
+        if student_number < 0
+            throw(Exception("Error"))
+        end
+        new(name, student_number)
+    end
+
 end
 
 function main()

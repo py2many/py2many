@@ -15,10 +15,6 @@ end
 mutable struct lean_call <: Abstractlean_call
     func::Any
 end
-function __init__(self::Abstractlean_call, func)
-    self.func = func
-end
-
 function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vector
     global lean_buffer
     sequence = lean_buffer[lean_key]

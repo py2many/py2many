@@ -1,4 +1,6 @@
 from __future__ import annotations
+from functools import reduce
+from build.lib.py2many.tracer import is_class_or_module
 from py2many.exceptions import AstTypeNotSupported
 import ast
 
@@ -112,7 +114,7 @@ class JuliaTranspiler(CLikeTranspiler):
         typedecls = []
 
         # Parse function args       
-        args_list = self._get_func_args(node)
+        args_list = self._get_args(node)
         args = ", ".join(args_list)
         node.parsed_args = args_list
 
@@ -154,12 +156,13 @@ class JuliaTranspiler(CLikeTranspiler):
         maybe_main = "\nmain()" if is_python_main else ""
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
-    def _get_func_args(self, node) -> list[str]:
+    def _get_args(self, node, is_constructor = False) -> list[str]:
         typenames, args = self.visit(node.args)
         args_list = []
 
-        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
+        if not is_constructor:
+            if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+                typenames[0] = node.self_type
 
         defaults = node.args.defaults
         len_defaults = len(defaults)
@@ -464,7 +467,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # TODO: Investigate Julia traits
         struct_name = get_id(node)
-        bases = [self.visit(base) for base in node.bases]
+        bases = []
+        for base in node.bases:
+            b = self.visit(base)
+            bases.append(f"Abstract{b}") \
+                if is_class_or_module(b, node.scopes) \
+                else bases.append(b)
+
         struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
             if bases else f"mutable struct {struct_name}"
 
@@ -474,8 +483,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 body.append(self.visit(b))
         body = "\n".join(body)
 
-        if hasattr(node, "constructors"):
-            return f"{struct_def}\n{node.fields_str}\n{node.constructors}\nend\n{body}"
+        if hasattr(node, "constructor_str"):
+            return f"{struct_def}\n{node.fields_str}\n{node.constructor_str}\nend\n{body}"
 
         return f"{struct_def}\n{node.fields_str}\nend\n{body}"
 
@@ -485,14 +494,21 @@ class JuliaTranspiler(CLikeTranspiler):
         node.declarations = extractor.get_declarations()
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
-
+        
         declarations: dict[str, (str, Any, Any)] = node.declarations_with_defaults
+        has_defaults = any(list(map(
+            lambda x: x[1][1] is not None and isinstance(x[1][2], ast.ClassDef), 
+            declarations.items())))
+
+        # Reorganize fields, so that defaults are last
+        dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] is None, x), reverse=True) \
+            if has_defaults \
+            else declarations.items()
 
         decs = []
         fields = []
         fields_str = []
-        has_default = False
-        for declaration, (typename, default, parent) in declarations.items():
+        for declaration, (typename, default, parent) in dec_items:
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
@@ -500,44 +516,39 @@ class JuliaTranspiler(CLikeTranspiler):
                 typename = f"Abstract{typename}"
 
             decs.append(declaration)
-
-            field = declaration if typename == "" else f"{declaration}::{typename}"
-            fields_str.append(field)
+            fields_str.append(declaration if typename == "" else f"{declaration}::{typename}")
             
             # Default field values
-            default_value = self.visit(default) if default else None
-            if (default and isinstance(parent, ast.ClassDef)) or \
-                    (isinstance(parent, ast.FunctionDef) and parent.name == "__init__"):
-                if declaration != default_value:
-                    has_default = True
-                else:
-                    default_value = None
-
+            default_value = self.visit(default) \
+                if (default and isinstance(parent, ast.ClassDef)) \
+                else None
             fields.append((declaration, typename, default_value) \
                 if typename == "" else (declaration, typename, default_value))
 
-        if has_default:
-            decs_str = ", ".join(decs)
-            default_fields = []
-            for (declaration, typename, default_value) in fields:
-                field = []
-                if typename:
-                    field.append(f"{declaration}::{typename}")
-                else:
-                    field.append(declaration)
-                
-                if default_value:
-                    field.append(f" = {default_value}")
-                field = "".join(field)
-                default_fields.append(field)
-            default_fields = ", ".join(default_fields)
+        if not hasattr(node, "constructor"):
+            if has_defaults:
+                decs_str = ", ".join(decs)
+                default_fields = []
+                for (declaration, typename, default_value) in fields:
+                    field = []
+                    if typename:
+                        field.append(f"{declaration}::{typename}")
+                    else:
+                        field.append(declaration)
+                    
+                    if default_value:
+                        field.append(f" = {default_value}")
+                    field = "".join(field)
+                    default_fields.append(field)
+                default_fields = ", ".join(default_fields)
 
-            # Define constructor with defaults and default constructor
-            node.constructors = f"""
-                {node.name}({default_fields}) =
-                    new({decs_str})
-                {node.name}({decs_str}) =
-                    new({decs_str})"""
+                # Define constructor with defaults and default constructor
+                node.constructor_str = f"""
+                    {node.name}({default_fields}) =
+                        new({decs_str})"""
+        else:
+            # Case where __init__ has custom implementation
+            node.constructor_str = self.visit(node.constructor)
 
         node.fields = fields
         node.fields_str = ("\n").join(fields_str)
@@ -835,7 +846,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_AsyncFunctionDef(self, node:ast.AsyncFunctionDef) -> str:
         # Parse function args       
-        args_list = self._get_func_args(node)
+        args_list = self._get_args(node)
         args = ", ".join(args_list)
 
         body = []
@@ -976,3 +987,29 @@ class JuliaTranspiler(CLikeTranspiler):
         return (f"abstract type Abstract{name} end"
                 if extends is None
                 else f"abstract type Abstract{name} <: {extends} end")
+
+    def visit_Constructor(self, node: juliaAst.Constructor) -> Any:
+        # Get constructor arguments
+        args = self._get_args(node, is_constructor=True)
+        decls = list(map(lambda x: x.split("::")[0], args))
+
+        args_str = ", ".join(args)
+        decls_str = ", ".join(decls)
+
+        # Visit constructor Body
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+
+        struct_name = self.visit(node.struct_name)
+
+
+        if body:
+            return f"""
+            {struct_name}({args_str}) = begin
+                {body}
+                new({decls_str})
+            end
+            """
+        return f"{struct_name}({args_str}) = new({decls_str})"

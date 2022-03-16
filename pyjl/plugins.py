@@ -9,12 +9,15 @@ import random
 import re
 import sys
 
+import pyjl.juliaAst as juliaAst
+
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from py2many.ast_helpers import get_id
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+
 
 from py2many.tracer import find_node_matching_name_and_type, find_node_matching_type
 
@@ -29,7 +32,7 @@ class JuliaTranspilerPlugins:
     def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
         t_self._usings.add("DataClass")
 
-        d_fields, field_repr = JuliaTranspilerPlugins._generic_dataclass_visit(
+        _, field_repr = JuliaTranspilerPlugins._generic_dataclass_visit(
             decorator)
 
         # Visit class fields
@@ -48,6 +51,14 @@ class JuliaTranspilerPlugins:
             if isinstance(b, ast.FunctionDef):
                 body.append(t_self.visit(b))
         body = "\n".join(body)
+
+        if hasattr(node, "constructor_str"):
+            return f"""@dataclass {struct_def} begin
+                {fields}
+                {node.constructor_str}
+            end
+            {body}"""
+
         return f"""
             @dataclass {struct_def} begin
                 {fields}
@@ -149,8 +160,8 @@ class JuliaTranspilerPlugins:
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
-        if hasattr(node, "constructors"):
-            return f"{struct_def}\n{fields}\n{node.constructors}\nend\n{body}"
+        if hasattr(node, "constructor_str"):
+            return f"{struct_def}\n{fields}\n{node.constructor_str}\nend\n{body}"
 
         return f"{struct_def}\n{fields}\nend\n{body}"
         
@@ -213,7 +224,7 @@ class JuliaTranspilerPlugins:
         body = "\n".join(body)
 
         if hasattr(node, "constructor"):
-            return f"@class {struct_def}begin\n{node.fields_str}\n{node.constructors}\nend\n{body}"
+            return f"@class {struct_def}begin\n{node.fields_str}\n{node.constructor_str}\nend\n{body}"
 
         return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
 
@@ -303,16 +314,33 @@ class JuliaRewriterPlugins:
                     t_self._class_fields[name] = ast.AnnAssign(
                         target=ast.Name(id=name, ctx=ast.Store()),
                         annotation = type,
-                        value = default)
+                        value = default,
+                        lineno=1)
                 else:
                     t_self._class_fields[name] = ast.Assign(
                         targets=[ast.Name(id=name, ctx=ast.Store())],
-                        value = default)  
-                
+                        value = default,
+                        lineno=1)
 
-        # Visit Body
+        constructor_body = []
         for n in node.body:
+            if not (isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign)):
+                constructor_body.append(n)
             t_self.visit(n)
+
+        if constructor_body:
+            parent: ast.ClassDef = node.scopes[-2]
+            constructor_args = node.args
+            # Remove self
+            constructor_args.args = constructor_args.args[1:]
+            # TODO: Check lineno and col_offset
+            parent.constructor = juliaAst.Constructor(
+                                    struct_name = ast.Name(id = parent.name),
+                                    args=constructor_args,
+                                    body = constructor_body,
+                                    ctx=ast.Load(), 
+                                    lineno=node.lineno + len(constructor_args.args), 
+                                    col_offset=4)
 
     def _get_args(t_self, args: ast.arguments):
         defaults = args.defaults

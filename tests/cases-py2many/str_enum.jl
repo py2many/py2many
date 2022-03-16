@@ -7,7 +7,6 @@ mutable struct Colors <: str
 
     Colors(RED::String = "red", GREEN::String = "green", BLUE::String = "blue") =
         new(RED, GREEN, BLUE)
-    Colors(RED, GREEN, BLUE) = new(RED, GREEN, BLUE)
 end
 
 function show()

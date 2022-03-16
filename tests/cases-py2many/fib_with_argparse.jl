@@ -5,7 +5,6 @@ mutable struct Options <: AbstractOptions
     n::Int64
 
     Options(v::Bool = false, n::Int64 = 0) = new(v, n)
-    Options(v, n) = new(v, n)
 end
 
 function __repr__(self::AbstractOptions)::String

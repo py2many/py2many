@@ -125,7 +125,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
                     if extends_lst else None
                 abstract_types.append(
                     juliaAst.AbstractType(value=nameVal, extends=extends,
-                                          ctx=ast.Load, lineno=l_no, col_offset=0))
+                                          ctx=ast.Load(), lineno=l_no, col_offset=0))
                 # increment linenumber
                 l_no += 1
 

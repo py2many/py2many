@@ -18,15 +18,6 @@ class Person:
         return self.name
 
 # @jl_class # For PyJL
-# class Student(Person):
-#     def __init__(self, name:str, student_number:int):
-#         # super().__init__(name) # Currently unsupported
-#         self.name = name
-#         self.student_number = student_number
-
-#     def get_name(self):
-#         return f"{self.student_number} - {self.name}"
-
 class Student(Person):
     def __init__(self, 
                  name:str, 
@@ -37,6 +28,16 @@ class Student(Person):
 
     def get_name(self):
         return f"{self.student_number} - {self.name}"
+
+class Student2(Person):
+    def __init__(self, 
+                 name:str, 
+                 student_number:int):
+        if student_number < 0:
+            raise Exception("Error")
+        
+        self.student_number = student_number
+        self.name = name
 
 if __name__ == "__main__":
     # Accessing class values
