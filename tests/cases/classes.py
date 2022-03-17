@@ -1,4 +1,4 @@
-@jl_class # For PyJL
+# @jl_class # For PyJL
 class Foo:
     def bar(self):
         return self.baz()
@@ -34,7 +34,7 @@ class Student2(Person):
                  name:str, 
                  student_number:int):
         if student_number < 0:
-            raise Exception("Error")
+            raise ValueError("Student number must be a positive number")
         
         self.student_number = student_number
         self.name = name
@@ -52,5 +52,8 @@ if __name__ == "__main__":
     s = Student("S", 111111)
     assert p.get_name() == "P"
     assert s.get_name() == "111111 - S"
+
+    s = Student2("S2", 123)
+    # Student2("S2", -1) # Should raise an exception
     
     print("OK")

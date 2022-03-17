@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 from typing import Any, Dict
+from build.lib.py2many.tracer import is_class_or_module
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -171,6 +172,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
+            if is_class_or_module(name, node.scopes):
+                node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             extends = [name]
         else:
             # TODO: Investigate Julia traits
@@ -179,7 +182,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 extends.append(name)
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
-        node.bases += [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+        if not node.bases:
+            node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
         return node
 

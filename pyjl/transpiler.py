@@ -469,10 +469,7 @@ class JuliaTranspiler(CLikeTranspiler):
         struct_name = get_id(node)
         bases = []
         for base in node.bases:
-            b = self.visit(base)
-            bases.append(f"Abstract{b}") \
-                if is_class_or_module(b, node.scopes) \
-                else bases.append(b)
+            bases.append(self.visit(base))
 
         struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
             if bases else f"mutable struct {struct_name}"

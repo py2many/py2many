@@ -42,7 +42,7 @@ mutable struct Student2 <: AbstractPerson
 
     Student2(name::String, student_number::Int64) = begin
         if student_number < 0
-            throw(Exception("Error"))
+            error("Student number must be a positive number")
         end
         new(name, student_number)
     end

@@ -508,6 +508,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # TODO: remove string-based fallback
     # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    # Exceptions
+    ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
+         if len(vargs) == 1 else "ArgumentError" , True),
 }
 
 # Dispatches special Functions
