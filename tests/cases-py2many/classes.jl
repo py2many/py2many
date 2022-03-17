@@ -39,13 +39,15 @@ end
 mutable struct Student2 <: AbstractStudent2
     student_number::Any
     name::Any
+    domain::String
 
-    Student2(name::String, student_number::Int64) = begin
-        if student_number < 0
-            throw(ArgumentError("Student number must be a positive number"))
+    Student2(name::String, student_number::Int64, domain::String = "school.student.pt") =
+        begin
+            if student_number < 0
+                throw(ArgumentError("Student number must be a positive number"))
+            end
+            new(name, student_number, domain)
         end
-        new(name, student_number)
-    end
 end
 
 function main()
