@@ -170,7 +170,7 @@ function main_func()
         return [(n, length(n), str_to_bits(n)) for n in k_nucleotides]
     end
 
-    sequence = read_sequence(buffer(stdin), b"THREE", translation)
+    sequence = read_sequence(stdin.buffer, b"THREE", translation)
     mono_nucleotides = ("G", "A", "T", "C")
     di_nucleotides = tuple((n + m for n in mono_nucleotides for m in mono_nucleotides))
     k_nucleotides = ("GGT", "GGTA", "GGTATT", "GGTATTTTAATT", "GGTATTTTAATTTATAGT")

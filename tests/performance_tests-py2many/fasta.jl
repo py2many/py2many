@@ -6,7 +6,7 @@ using multiprocessing: Lock, RawValue, Process
 
 using re: sub
 
-write = buffer(stdout).write
+write = stdout.buffer.write
 function acquired_lock()
     lock = Lock()
     acquire(lock)

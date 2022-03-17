@@ -1,8 +1,8 @@
-using Classes
+abstract type AbstractFoo end
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
 abstract type AbstractStudent2 <: AbstractPerson end
-@class Foo begin
+mutable struct Foo <: AbstractFoo
 
 end
 function bar(self::AbstractFoo)::Int64
@@ -24,7 +24,7 @@ function get_name(self::AbstractPerson)
     return self.name
 end
 
-mutable struct Student <: AbstractPerson
+mutable struct Student <: AbstractStudent
     student_number::Any
     name::Any
     domain::String
@@ -36,17 +36,16 @@ function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
 end
 
-mutable struct Student2 <: AbstractPerson
+mutable struct Student2 <: AbstractStudent2
     student_number::Any
     name::Any
 
     Student2(name::String, student_number::Int64) = begin
         if student_number < 0
-            error("Student number must be a positive number")
+            throw(ArgumentError("Student number must be a positive number"))
         end
         new(name, student_number)
     end
-
 end
 
 function main()
@@ -59,6 +58,7 @@ function main()
     s = Student("S", 111111)
     @assert(get_name(p) == "P")
     @assert(get_name(s) == "111111 - S")
+    s = Student2("S2", 123)
     println("OK")
 end
 

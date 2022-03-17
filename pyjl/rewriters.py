@@ -172,14 +172,22 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
-            if is_class_or_module(name, node.scopes):
+            if is_class_or_module(name, node.scopes) or name in self._import_list:
                 node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             extends = [name]
         else:
             # TODO: Investigate Julia traits
+            new_bases = []
             for base in node.bases:
                 name = get_id(base)
+                if is_class_or_module(name, node.scopes) or name in self._import_list:
+                    b = ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)
+                    if b not in new_bases:
+                        new_bases.append(b)
+                else:
+                    new_bases.append(base)
                 extends.append(name)
+            node.bases = new_bases
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
         if not node.bases:

@@ -231,9 +231,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{value_id}.{attr}"
 
         if is_class_type(value_id, node.scopes):
-            # return f"{value_id}::{attr}"
-            if find_node_matching_name_and_type(attr, ast.FunctionDef, node.scopes):
-                return f"{attr}({value_id})"
+            return f"{value_id}.{attr}"
 
         return f"{value_id}.{attr}"
 
@@ -1007,6 +1005,5 @@ class JuliaTranspiler(CLikeTranspiler):
             {struct_name}({args_str}) = begin
                 {body}
                 new({decls_str})
-            end
-            """
+            end"""
         return f"{struct_name}({args_str}) = new({decls_str})"
