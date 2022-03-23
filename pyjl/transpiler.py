@@ -1,6 +1,6 @@
 from __future__ import annotations
 from functools import reduce
-from build.lib.py2many.tracer import is_class_or_module
+from py2many.tracer import is_class_or_module
 from py2many.exceptions import AstTypeNotSupported
 import ast
 

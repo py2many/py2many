@@ -1,4 +1,0 @@
-
-function test()
-    return
-end

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import ast
 from typing import Any, Dict
-from build.lib.py2many.tracer import is_class_or_module
+from py2many.tracer import is_class_or_module
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
