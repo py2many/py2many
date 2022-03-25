@@ -1,5 +1,6 @@
 from __future__ import annotations
 import ast
+from posixpath import split
 from typing import Any, Dict
 from py2many.tracer import is_class_or_module
 from py2many.analysis import IGNORED_MODULE_SET
@@ -8,7 +9,7 @@ from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_matching_type
 from py2many.ast_helpers import get_id
 import pyjl.juliaAst as juliaAst
-from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
+from pyjl.plugins import JL_IGNORED_MODULE_SET, JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 from pyjl.transpiler import get_decorator_id
 
 
@@ -120,10 +121,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             node.class_names.append(class_name)
             if not is_jlClass:
+                core_module = extends_lst[0].split(".")[0] if extends_lst else None
                 # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
                 extends = ast.Name(id=f"Abstract{extends_lst[0]}") \
-                    if extends_lst else None
+                    if extends_lst and core_module not in JL_IGNORED_MODULE_SET \
+                    else None
                 abstract_types.append(
                     juliaAst.AbstractType(value=nameVal, extends=extends,
                                           ctx=ast.Load(), lineno=l_no, col_offset=0))
@@ -172,8 +175,15 @@ class JuliaClassRewriter(ast.NodeTransformer):
         if len(node.bases) == 1:
             base = node.bases[0]
             name = get_id(base)
-            if is_class_or_module(name, node.scopes) or name in self._import_list:
-                node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+            import_name = None
+            module = name.split(".")
+            for i in range(len(module)):
+                m = ".".join(module[0:i])
+                if m in self._import_list:
+                    import_name = m 
+                    break
+            if is_class_or_module(name, node.scopes) or import_name:
+                node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             extends = [name]
         else:
             # TODO: Investigate Julia traits
@@ -187,11 +197,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 else:
                     new_bases.append(base)
                 extends.append(name)
-            node.bases = new_bases
+            node.jl_bases = new_bases
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
         if not node.bases:
-            node.bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
         return node
 

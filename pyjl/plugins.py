@@ -8,6 +8,9 @@ import ast
 import random
 import re
 import sys
+import unittest
+from unittest import TestCase
+from numbers import Complex, Real, Rational, Integral
 
 import pyjl.juliaAst as juliaAst
 
@@ -42,7 +45,7 @@ class JuliaTranspilerPlugins:
         ])
 
         # Struct definition
-        bases = [t_self.visit(base) for base in node.bases]
+        bases = [t_self.visit(base) for base in node.jl_bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -156,7 +159,7 @@ class JuliaTranspilerPlugins:
 
         body = "\n".join(body)
 
-        bases = [t_self.visit(base) for base in node.bases]
+        bases = [t_self.visit(base) for base in node.jl_bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -196,7 +199,7 @@ class JuliaTranspilerPlugins:
         # Struct definition
         fields = []
         bases = []
-        for b in node.bases:
+        for b in node.jl_bases:
             b_name = t_self.visit(b)
             if b_name != f"Abstract{node.name}":
                 bases.append(b_name)
@@ -230,6 +233,36 @@ class JuliaTranspilerPlugins:
 
     def visit_async_ann(self, node, decorator):
         return ""
+
+    def visit_assertTrue(self, node, vargs):
+        JuliaTranspilerPlugins._generic_test_visit(self)
+        return f"@test {vargs[1]}"
+
+    def visit_assertFalse(self, node, vargs):
+        JuliaTranspilerPlugins._generic_test_visit(self)
+        return f"@test !({vargs[1]})"
+
+    def visit_assertEqual(self, node, vargs):
+        JuliaTranspilerPlugins._generic_test_visit(self)
+        arg = self.visit(ast.Name(id=vargs[2]))
+        return f"@test ({vargs[1]} == {arg})"
+
+    def visit_assertRaises(self, node, vargs):
+        exception = vargs[1]
+        func = vargs[2]
+        if len(vargs) > 4:
+            # Lowering
+            arr = []
+            arr.append("# Lowered")
+            test_vargs: list[str] = vargs[3:]
+            for v in test_vargs:
+                arr.append(f"@test_throws {exception} {func}({v})")
+            return "\n".join(arr)
+
+        return f"@test_throws {exception} {func}({vargs[3]})"
+
+    def _generic_test_visit(self):
+        self._usings.add("Test")
 
     #################################################
     ################# TODO from here ################
@@ -381,6 +414,10 @@ JULIA_TYPE_MAP = {
     c_uint16: "UInt16",
     c_uint32: "UInt32",
     c_uint64: "UInt64",
+    Integral: "Integer",
+    Complex: "Complex",
+    Rational: "Rational",
+    Real: "Real",
     None: "nothing",
     Any: "Any"
 }
@@ -408,6 +445,16 @@ CONTAINER_DISPATCH_TABLE = {
     Optional: "nothing",
     bytearray: f"Vector{{Int8}}"
 }
+
+JL_IGNORED_MODULE_SET = set([
+    "unittest",
+    "operator",
+    "numbers",
+    "Complex",
+    "Real",
+    "Rational",
+    "Integer"
+])
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -457,7 +504,7 @@ ATTR_DISPATCH_TABLE = {
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    # Array Support
+    # Array Operations
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     list.remove: (lambda self, node, vargs: \
@@ -481,6 +528,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
     math.fsum: (lambda self, node, vargs: f"fsum({', '.join(vargs)})", False),
     math.sqrt: (lambda self, node, vargs: f"√({vargs[0]})", False),
+    math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
     # io
@@ -497,7 +545,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
     # misc
     str.format: (lambda self, node, vargs: f"test", True),  # Does not work
-    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
+    isinstance: (lambda self, node, vargs: 
+        f"isa({self.visit(ast.Name(id=vargs[0]))}, {self.visit(ast.Name(id=vargs[1]))})", True),
+    issubclass: (lambda self, node, vargs: 
+        f"{self.visit(ast.Name(id=vargs[0]))} <: {self.visit(ast.Name(id=vargs[1]))}", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     random.seed: (
@@ -508,6 +559,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # TODO: remove string-based fallback
     # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    # Unit Tests
+    unittest.TestCase.assertTrue: (JuliaTranspilerPlugins.visit_assertTrue, True),
+    unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
+    unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
+    unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
     # Exceptions
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
          if len(vargs) == 1 else "ArgumentError" , True),

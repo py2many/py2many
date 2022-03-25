@@ -1,4 +1,5 @@
 import ast
+from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
 from typing import List, Optional, Tuple, Union
@@ -8,7 +9,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_matching_type
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import CONTAINER_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import CONTAINER_DISPATCH_TABLE, JL_IGNORED_MODULE_SET, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -77,6 +78,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._type_map = JULIA_TYPE_MAP
         self._default_type = _DEFAULT
         self._statement_separator = ""
+        self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
@@ -88,6 +90,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return f"{node.id}_"
+        try:
+            node_type = self._func_for_lookup(node_id)
+            if node_type in JULIA_TYPE_MAP:
+                return JULIA_TYPE_MAP(node_type)
+        except(Exception):
+            return super().visit_Name(node)
+        
         return super().visit_Name(node)
 
     def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
@@ -205,12 +214,15 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         # Add imports to _imported_names
         names = [self.visit(n) for n in node.names]
         for name, asname in names:
-            if asname is not None:
-                try:
-                    imported_name = importlib.import_module(name)
-                except ImportError:
-                    imported_name = name
+            try:
+                imported_name = importlib.import_module(name)
+            except ImportError:
+                imported_name = name
+                
+            if asname:
                 self._imported_names[asname] = imported_name
+            else:
+                self._imported_names[name] = imported_name
 
         imports = [
             self._import_str(name, alias)
@@ -272,20 +284,36 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         if isinstance(node, ast.Call) and len(node.args) > 0:
-            # Account for JuliaMethodCallRewriter 
+            # Self argument type lookup
             var = get_id(node.args[0])
-            # Find either function or module
-            func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+            if var == "self":
+                class_node: ast.ClassDef = find_node_matching_type(ast.ClassDef, node.scopes)
+                for base in class_node.bases:
+                    b_name = get_id(base)
+                    dispatch_func = self._get_dispatch_func(node, b_name, fname, vargs)
+                    if dispatch_func:
+                        return dispatch_func
+
+            # Account for JuliaMethodCallRewriter
+            func_node: ast.FunctionDef = find_node_matching_type(ast.FunctionDef, node.scopes)
             if func_node:
                 var_map = func_node.var_map
                 annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
                 if annotation:
-                    py_type = self._func_for_lookup(f"{annotation}.{fname}")
-                    if py_type in self._func_dispatch_table:
-                        ret, node.result_type = self._func_dispatch_table[py_type]
-                        try:
-                            return ret(self, node, vargs)
-                        except (IndexError, Exception):
-                            return super()._dispatch(node, fname, vargs)
+                    dispatch_func = self._get_dispatch_func(node, annotation, fname, vargs)
+                    if dispatch_func:
+                        return dispatch_func
 
         return super()._dispatch(node, fname, vargs)
+
+    def _get_dispatch_func(self, node, class_name, fname, vargs):
+        py_type = self._func_for_lookup(f"{class_name}.{fname}")
+        if py_type in self._func_dispatch_table:
+            ret, node.result_type = self._func_dispatch_table[py_type]
+            try:
+                return ret(self, node, vargs)
+            except (IndexError, Exception):
+                return None
+
+        return None
+        

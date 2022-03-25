@@ -1,5 +1,7 @@
 from __future__ import annotations
+from enum import IntFlag
 from functools import reduce
+from numbers import Integral
 from py2many.tracer import is_class_or_module
 from py2many.exceptions import AstTypeNotSupported
 import ast
@@ -85,7 +87,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return uses
 
     def comment(self, text):
-        return f"#= {text} \n=#"
+        return f"#= {text} =#"
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
@@ -346,12 +348,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{left}{comp_exp}"
 
-    def visit_Name(self, node) -> str:
-        if get_id(node) == "None":
-            return "nothing"
-        else:
-            return super().visit_Name(node)
-
     def visit_NameConstant(self, node) -> str:
         if node.value is True:
             return "true"
@@ -466,7 +462,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # TODO: Investigate Julia traits
         struct_name = get_id(node)
         bases = []
-        for base in node.bases:
+        for base in node.jl_bases:
             bases.append(self.visit(base))
 
         struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
@@ -549,47 +545,44 @@ class JuliaTranspiler(CLikeTranspiler):
         node.fields_str = ("\n").join(fields_str)
 
     def visit_StrEnum(self, node) -> str:
-        fields = []
-        for i, (member, var) in enumerate(node.class_assignments.items()):
-            var = self.visit(var)
-            if var == _AUTO_INVOKED:
-                var = f'"{member}"'
-            fields.append((member, var))
-        return self._visit_enum(node, "String", fields)
+        return self._visit_enum(node, "String", str)
 
     def visit_IntEnum(self, node) -> str:
-        fields = []
-        for i, (member, var) in enumerate(node.class_assignments.items()):
-            var = self.visit(var)
-            if var == _AUTO_INVOKED:
-                var = i
-            fields.append((member, var))
-        return self._visit_enum(node, "Int64", fields)
+        return self._visit_enum(node, "Int64", int)
 
-    def _visit_enum(self, node, typename: str, fields: List[Tuple]) -> str:
+    def visit_IntFlag(self, node: IntFlag) -> str:
+        return self._visit_enum(node, "Int64", IntFlag)
+
+    def _visit_enum(self, node, typename: str, caller_type) -> str:
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        declarations: dict[str, (str, Any, Any)] = node.declarations_with_defaults
+
+        fields = []
+        for i, (declaration, (t_name, default, parent)) in enumerate(declarations.items()):
+            val = self.visit(default)
+            if val == _AUTO_INVOKED:
+                if caller_type == IntFlag:
+                    val = 1 << i
+                elif caller_type == int:
+                    val = i
+                elif caller_type == str:
+                    val = f'"{default}"'
+            fields.append(f"{declaration} = {val}")
+        field_str = "\n".join(fields)
+        
         decorators = [get_decorator_id(d) for d in node.decorator_list]
-        field_str = ""
-        for field, value in fields:
-            field_str += f"\t{field}\n"
-        if("unique" in decorators and typename not in JULIA_INTEGER_TYPES):
+        if("unique" in decorators or typename not in JULIA_INTEGER_TYPES):
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
         else:
-            # Cover case in pyenum where values are unique and strings
+            # Cover case where values are not unique and not strings
             self._usings.add("PyEnum")
             return textwrap.dedent(
                 f"@pyenum {node.name}::{typename} begin\n{field_str}end"
             )
-
-    def visit_IntFlag(self, node) -> str:
-        fields = []
-        for i, (member, var) in enumerate(node.class_assignments.items()):
-            var = self.visit(var)
-            if var == _AUTO_INVOKED:
-                var = 1 << i
-            fields.append((member, var))
-        return self._visit_enum(node, "Int64", fields)
 
     def _import(self, name: str) -> str:
         return f"import {name}"  # import or using?
