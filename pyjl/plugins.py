@@ -531,6 +531,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
+    int.real: (lambda self, node, vargs: f"real({vargs[0]})", False),
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
@@ -545,10 +546,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
     # misc
     str.format: (lambda self, node, vargs: f"test", True),  # Does not work
-    isinstance: (lambda self, node, vargs: 
-        f"isa({self.visit(ast.Name(id=vargs[0]))}, {self.visit(ast.Name(id=vargs[1]))})", True),
-    issubclass: (lambda self, node, vargs: 
-        f"{self.visit(ast.Name(id=vargs[0]))} <: {self.visit(ast.Name(id=vargs[1]))}", True),
+    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
+    issubclass: (lambda self, node, vargs: f"{vargs[0]} <: {vargs[1]}", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     random.seed: (

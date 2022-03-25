@@ -93,7 +93,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         try:
             node_type = self._func_for_lookup(node_id)
             if node_type in JULIA_TYPE_MAP:
-                return JULIA_TYPE_MAP(node_type)
+                return JULIA_TYPE_MAP[node_type]
         except(Exception):
             return super().visit_Name(node)
         
@@ -289,8 +289,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if var == "self":
                 class_node: ast.ClassDef = find_node_matching_type(ast.ClassDef, node.scopes)
                 for base in class_node.bases:
-                    b_name = get_id(base)
-                    dispatch_func = self._get_dispatch_func(node, b_name, fname, vargs)
+                    base_str = get_id(base)
+                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
 

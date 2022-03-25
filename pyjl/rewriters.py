@@ -18,6 +18,13 @@ def julia_decorator_rewriter(tree, input_config, filename):
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
+
+    # def visit_Attribute(self, node: ast.Attribute) -> Any:
+    #     value = node.value
+    #     node.value = node.attr 
+    #     node.attr = value
+    #     return node
+
     def visit_Call(self, node):
         args = []
         if node.args:
