@@ -1,7 +1,7 @@
 
 
 function main()
-    a::List[str] = append!([PROGRAM_FILE], ARGS)
+    a::List[String] = append!([PROGRAM_FILE], ARGS)
     cmd::String = a[1]
     if cmd == "dart"
         #= pass =#

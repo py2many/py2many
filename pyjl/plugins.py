@@ -2,6 +2,7 @@ import argparse
 import io
 import itertools
 import math
+import operator
 import time
 import os
 import ast
@@ -326,9 +327,9 @@ class JuliaTranspilerPlugins:
         if hasattr(node, "args") and node.args:
             arg_type = self._typename_from_annotation(node.args[0])
             if arg_type is not None and arg_type.startswith("Float"):
-                return f"Int64(floor({vargs[0]}))"
+                return f"Int(floor({vargs[0]}))"
         if vargs:
-            return f"parse(Int64, {vargs[0]})"
+            return f"Int({vargs[0]})"
         return f"zero(Int)"  # Default int value
 
     @staticmethod
@@ -438,10 +439,11 @@ JULIA_INTEGER_TYPES = \
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
-CONTAINER_DISPATCH_TABLE = {
+CONTAINER_TYPE_MAP = {
     List: "Vector",
     Dict: "Dict",
     Set: "Set",
+    Tuple: "Tuple",
     Optional: "nothing",
     bytearray: f"Vector{{Int8}}"
 }
@@ -449,11 +451,7 @@ CONTAINER_DISPATCH_TABLE = {
 JL_IGNORED_MODULE_SET = set([
     "unittest",
     "operator",
-    "numbers",
-    "Complex",
-    "Real",
-    "Rational",
-    "Integer"
+    "numbers"
 ])
 
 # small one liners are inlined here as lambdas
@@ -531,7 +529,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
-    int.real: (lambda self, node, vargs: f"real({vargs[0]})", False),
+    operator.mod: (lambda self, node, vargs: f"mod({vargs[0]})", False),
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),

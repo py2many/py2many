@@ -9,23 +9,23 @@ mutable struct TestNumbers <: AbstractTestNumbers
 
 end
 function test_int(self::AbstractTestNumbers)
-    @test Int64 <: Integer
-    @test Int64 <: Complex
-    @test (7 == Int64(7).real)
-    @test (0 == Int64(7).imag)
-    @test (7 == conjugate(Int64(7)))
-    @test (-7 == conjugate(Int64(-7)))
-    @test (7 == Int64(7).numerator)
-    @test (1 == Int64(7).denominator)
+    @test int <: Integral
+    @test int <: Complex
+    @test (7 == Int(7).real)
+    @test (0 == Int(7).imag)
+    @test (7 == conjugate(Int(7)))
+    @test (-7 == conjugate(Int(-7)))
+    @test (7 == Int(7).numerator)
+    @test (1 == Int(7).denominator)
 end
 
 function test_float(self::AbstractTestNumbers)
-    @test !(Float64 <: Rational)
-    @test Float64 <: Real
-    @test (7.3 == Float64(7.3).real)
-    @test (0 == Float64(7.3).imag)
-    @test (7.3 == conjugate(Float64(7.3)))
-    @test (-7.3 == conjugate(Float64(-7.3)))
+    @test !(float <: Rational)
+    @test float <: Real
+    @test (7.3 == float(7.3).real)
+    @test (0 == float(7.3).imag)
+    @test (7.3 == conjugate(float(7.3)))
+    @test (-7.3 == conjugate(float(-7.3)))
 end
 
 function test_complex(self::AbstractTestNumbers)
@@ -42,8 +42,8 @@ function test_complex(self::AbstractTestNumbers)
     # Lowered
     @test_throws TypeError operator.floordiv(c1)
     @test_throws TypeError operator.floordiv(c2)
-    @test_throws TypeError Float64(c1)
-    @test_throws TypeError Int64(c1)
+    @test_throws TypeError float(c1)
+    @test_throws TypeError int(c1)
 end
 
 function main()

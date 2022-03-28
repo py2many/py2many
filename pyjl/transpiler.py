@@ -15,7 +15,6 @@ from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
-    CONTAINER_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
     JULIA_INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
@@ -34,6 +33,7 @@ from py2many.tracer import find_in_body, find_node_matching_name_and_type, \
 from typing import Any, Dict, List, Tuple, Union
 
 _DEFAULT = "Any"
+_NOTHING = "nothing"
 
 
 def get_decorator_id(decorator):
@@ -98,7 +98,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return "nothing"
+            return _NOTHING
         elif isinstance(node.value, str):
             return self.visit_Str(node)
         elif isinstance(node.value, bytes):
@@ -333,7 +333,7 @@ class JuliaTranspiler(CLikeTranspiler):
                         comp_str = f"keys({comp_str})"
 
             if (isinstance(op, ast.Eq)
-                    and (is_mutable(node.scopes, comp_str) or comp_str == "nothing")):
+                    and (is_mutable(node.scopes, comp_str) or comp_str == _NOTHING)):
                 op_str = "==="
 
             # Isolate composite operations
@@ -354,7 +354,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return "nothing"
+            return _NOTHING
         else:
             return super().visit_NameConstant(node)
 
@@ -603,13 +603,21 @@ class JuliaTranspiler(CLikeTranspiler):
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
-    def visit_List(self, node) -> str:
-        elements = [self.visit(e) for e in node.elts]
-        elements_str = ", ".join(elements)
+    def visit_List(self, node:ast.List) -> str:
+        elts = []
+        for e in node.elts:
+            e_str = self.visit(e)
+            if hasattr(node, "is_annotation"):
+                node_type = self._func_for_lookup(e_str)
+                if node_type in self._type_map:
+                    elts.append(self._type_map[node_type])
+                    continue
+            elts.append(e_str)
+        elts = ", ".join(elts)
         return (
-            f"({elements_str})"
+            f"({elts})"
             if hasattr(node, "lhs") and node.lhs
-            else f"[{elements_str}]"
+            else f"[{elts}]"
         )
 
     def visit_Set(self, node) -> str:
@@ -635,11 +643,14 @@ class JuliaTranspiler(CLikeTranspiler):
         if index == None:
             return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
-            if value in CONTAINER_DISPATCH_TABLE:
-                value = CONTAINER_DISPATCH_TABLE[value]
+            if value in self._container_type_map:
+                value = self._container_type_map[value]
             if value == "Tuple":
                 return "({0})".format(index)
-            return "{0}{{{1}}}".format(value, index)
+            index_type = self._func_for_lookup(index)
+            if index_type and index_type in self._type_map:
+                index = self._type_map[index_type]
+            return f"{value}[{index}]"
 
         # Julia array indices start at 1; Change "-1" for "end"
         if isinstance(index, str) and index.lstrip("-").isnumeric():
@@ -691,9 +702,19 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Ellipsis(self, node: ast.Ellipsis) -> str:
         return "..."
 
-    def visit_Tuple(self, node) -> str:
-        elts = [self.visit(e) for e in node.elts]
+    def visit_Tuple(self, node: ast.Tuple) -> str:
+        elts = []
+        for e in node.elts:
+            e_str = self.visit(e)
+            if hasattr(node, "is_annotation"):
+                node_type = self._func_for_lookup(e_str)
+                if node_type in self._type_map:
+                    elts.append(self._type_map[node_type])
+                    continue
+
+            elts.append(e_str)
         elts = ", ".join(elts)
+
         if hasattr(node, "is_annotation"):
             return elts
         return "({0})".format(elts)
@@ -741,7 +762,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # default Python annotation
         type_str = (
             node.julia_annotation
-            if (node.julia_annotation and node.julia_annotation != "nothing")
+            if (node.julia_annotation and node.julia_annotation != _NOTHING)
             else type_str
         )
 
@@ -777,7 +798,7 @@ class JuliaTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
-                value = "nothing"
+                value = _NOTHING
             return "{0} = {1}".format(target, value)
 
         # TODO: Check this

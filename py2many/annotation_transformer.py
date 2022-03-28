@@ -47,9 +47,10 @@ class AnnotationTransformer(ast.NodeTransformer):
     def visit_Subscript(self, node):
         return self._visit_record_handling_annotation(node)
 
-    def visit_AnnAssign(self, node):
+    def visit_AnnAssign(self, node: ast.AnnAssign):
         self.handling_annotation = True
-        self.visit(node.target)
+        # self.visit(node.target)
+        self.visit(node.annotation) # Added
         self.handling_annotation = False
         self.generic_visit(node)
         return node

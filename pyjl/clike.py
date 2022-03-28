@@ -9,7 +9,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_matching_type
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import CONTAINER_DISPATCH_TABLE, JL_IGNORED_MODULE_SET, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import CONTAINER_TYPE_MAP, JL_IGNORED_MODULE_SET, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
 
 logger = logging.Logger("pyjl")
@@ -76,6 +76,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
+        self._container_type_map = CONTAINER_TYPE_MAP
         self._default_type = _DEFAULT
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
@@ -90,12 +91,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         node_id = get_id(node)
         if node_id in julia_keywords:
             return f"{node.id}_"
-        try:
-            node_type = self._func_for_lookup(node_id)
-            if node_type in JULIA_TYPE_MAP:
-                return JULIA_TYPE_MAP[node_type]
-        except(Exception):
-            return super().visit_Name(node)
         
         return super().visit_Name(node)
 
@@ -194,10 +189,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _get_julia_type(self, typename):
         typeclass = self._func_for_lookup(typename)
-        if typeclass in JULIA_TYPE_MAP:
-            return JULIA_TYPE_MAP[typeclass]
-        elif typeclass in CONTAINER_DISPATCH_TABLE:
-            return CONTAINER_DISPATCH_TABLE[typeclass]
+        if typeclass in self._type_map:
+            return self._type_map[typeclass]
+        elif typeclass in self._container_type_map:
+            return self._container_type_map[typeclass]
         elif typeclass in MODULE_DISPATCH_TABLE:
             return MODULE_DISPATCH_TABLE[typeclass]
         else:
