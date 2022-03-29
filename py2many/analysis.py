@@ -1,4 +1,5 @@
 import ast
+from typing import Any
 
 from .ast_helpers import get_id
 
@@ -142,13 +143,20 @@ class AttributeCallTransformer(ast.NodeTransformer):
 class ImportTransformer(ast.NodeTransformer):
     """Adds imports to scope block"""
 
-    def visit_ImportFrom(self, node):
+    def visit_ImportFrom(self, node) -> ast.ImportFrom:
+        self._generic_import_visit(node)
+        return node
+
+    def visit_Import(self, node: ast.Import) -> ast.ImportFrom:
+        self._generic_import_visit(node)
+        return node
+
+    def _generic_import_visit(self, node) -> Any:
         for name in node.names:
             name.imported_from = node
             scope = name.scopes[-1]
             if hasattr(scope, "imports"):
                 scope.imports.append(name)
-        return node
 
     def visit_Module(self, node):
         node.imports = []

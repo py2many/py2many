@@ -9,7 +9,6 @@ class TestNumbers(unittest.TestCase):
     def test_int(self):
         self.assertTrue(issubclass(int, Integral))
         self.assertTrue(issubclass(int, Complex))
-
         self.assertEqual(7, int(7).real)
         self.assertEqual(0, int(7).imag)
         self.assertEqual(7, int(7).conjugate())

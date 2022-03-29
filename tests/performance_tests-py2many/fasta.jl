@@ -6,7 +6,7 @@ using multiprocessing: Lock, RawValue, Process
 
 using re: sub
 
-write = stdout.buffer.write
+write = write(stdout.buffer)
 function acquired_lock()
     lock = Lock()
     acquire(lock)
@@ -90,14 +90,14 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
 end
 
 @resumable function lcg(seed, im, ia, ic)
-    local_seed = seed.value
+    local_seed = value(seed)
     try
         while true
             local_seed = (local_seed * ia + ic) % im
             @yield local_seed
         end
     finally
-        seed.value = local_seed
+        value(seed) = local_seed
     end
 end
 
@@ -114,14 +114,14 @@ function lcg_lookup_slow(probabilities, seed, im, ia, ic)
 end
 
 @resumable function lcg_lookup_fast(probabilities, seed, im, ia, ic)
-    local_seed = seed.value
+    local_seed = value(seed)
     try
         while true
             local_seed = (local_seed * ia + ic) % im
             @yield bisect(probabilities, local_seed)
         end
     finally
-        seed.value = local_seed
+        value(seed) = local_seed
     end
 end
 
@@ -240,7 +240,7 @@ function fasta(n)
 end
 
 function main()
-    fasta(parse(Int64, argv[2]))
+    fasta(parse(Int, argv[2]))
 end
 
 main()

@@ -65,7 +65,7 @@ end
 
 function mandelbrot(n)
     rows = compute_rows(n, compute_row)
-    println(encode("P4\n{0} {0}\n".format(n)))
+    println(encode(format("P4\n{0} {0}\n", n)))
     for row in rows
         println(row[2])
     end

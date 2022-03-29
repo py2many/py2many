@@ -1,8 +1,5 @@
 from __future__ import annotations
 from enum import IntFlag
-from functools import reduce
-from numbers import Integral
-from py2many.tracer import is_class_or_module
 from py2many.exceptions import AstTypeNotSupported
 import ast
 
@@ -28,7 +25,7 @@ from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_matching_name_and_type, \
-    get_class_scope, is_class_type, is_enum
+    get_class_scope
 
 from typing import Any, Dict, List, Tuple, Union
 
@@ -219,21 +216,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
-
         value_id = self.visit(node.value)
 
         if not value_id:
             value_id = ""
 
-        if value_id == "sys":
-            if attr == "argv":
-                return "append!([PROGRAM_FILE], ARGS)"
-
-        if is_enum(value_id, node.scopes):
-            return f"{value_id}.{attr}"
-
-        if is_class_type(value_id, node.scopes):
-            return f"{value_id}.{attr}"
+        if ret := self._dispatch(node, f"{value_id}.{attr}", []):
+            return ret
 
         return f"{value_id}.{attr}"
 
@@ -838,10 +827,10 @@ class JuliaTranspiler(CLikeTranspiler):
             type_ann = self._typename_from_annotation(node_assign)
             if isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann):
                 return f"empty!({target_name})"
-
-        raise AstTypeNotSupported(
-            f"{target_name} does not support del"
-        )
+        return f"{target_name}!"
+        # raise AstTypeNotSupported(
+        #     f"{target_name} does not support del", node
+        # )
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:

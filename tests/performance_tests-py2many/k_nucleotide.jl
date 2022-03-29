@@ -1,6 +1,6 @@
 
 
-using collections: defaultdict
+
 using itertools: starmap, chain
 using multiprocessing: Pool
 abstract type Abstractlean_call end
@@ -158,7 +158,7 @@ end
 function main_func()
     translation = maketrans(bytes, b"GTCAgtca", b"\x00\x01\x02\x03\x00\x01\x02\x03")
     function str_to_bits(text)::Int64
-        buffer = translate(text.encode("latin1"), translation)
+        buffer = translate(encode(text, "latin1"), translation)
         bits = 0
         for k in (0:length(buffer)-1)
             bits = bits * 4 + buffer[k+1]

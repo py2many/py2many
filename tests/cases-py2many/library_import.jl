@@ -8,25 +8,25 @@ function typing_test()::Int64
 end
 
 function calendar_test()
-    return isoformat(dt.datetime.utcnow())
+    return isoformat(utcnow(dt.datetime))
 end
 
-function date_to_json(objDate::dt.datetime)::js
+function date_to_json(objDate::Any)::js
     return Dict(
         "__type__" => "datetime",
-        "year" => objDate.year,
-        "month" => objDate.month,
-        "day" => objDate.day,
-        "hour" => objDate.hour,
-        "minute" => objDate.minute,
-        "second" => objDate.second,
-        "microsecond" => objDate.microsecond,
-        "tz" => (tzname(objDate.tzinfo, objDate), total_seconds(objDate.utcoffset())),
+        "year" => year(objDate),
+        "month" => month(objDate),
+        "day" => day(objDate),
+        "hour" => hour(objDate),
+        "minute" => minute(objDate),
+        "second" => second(objDate),
+        "microsecond" => microsecond(objDate),
+        "tz" => (tzname(objDate.tzinfo, objDate), total_seconds(utcoffset(objDate))),
     )
 end
 
 function calendar_json_test()::js
-    now = now(dt.datetime, dt.timezone.utc)
+    now = now(dt.datetime, utc(dt.timezone))
     return dumps(js, now, date_to_json)
 end
 

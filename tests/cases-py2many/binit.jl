@@ -1,9 +1,9 @@
 
 function bisect_right(data::Vector{Int64}, item::Int64)::Int64
     low = 0
-    high::Int64 = parse(Int64, length(data))
+    high::Int64 = parse(Int, length(data))
     while low < high
-        middle = Int64(floor((low + high) / 2))
+        middle = Int(floor((low + high) / 2))
         if item < data[middle+1]
             high = middle
         else

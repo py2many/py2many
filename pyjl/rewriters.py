@@ -1,8 +1,7 @@
 from __future__ import annotations
 import ast
-from posixpath import split
 from typing import Any, Dict
-from py2many.tracer import is_class_or_module
+from py2many.tracer import is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -18,12 +17,6 @@ def julia_decorator_rewriter(tree, input_config, filename):
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
-
-    # def visit_Attribute(self, node: ast.Attribute) -> Any:
-    #     value = node.value
-    #     node.value = node.attr 
-    #     node.attr = value
-    #     return node
 
     def visit_Call(self, node):
         args = []
@@ -42,7 +35,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             if new_func_name == "join":
                 # Join with empty string if no content is present
                 if not node0:
-                    node0 = f"\"\""
+                    node0 = ast.Name(id=f"\"\"", lineno=node.lineno, ctx=ast.Load())
                 args = node.args + [node0]
             else:
                 args = [node0] + node.args
@@ -50,12 +43,35 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(
                 id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
+            # Dispatch information
+            node.dispatch = node0
+
         if isinstance(fname, ast.Name):
             if get_id(node.func) == "join" and node.args:
                 args.reverse()
 
         node.args = args
-        return node
+        return self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        value_id = None
+        if node_id := get_id(node.value):
+            value_id = node_id
+        elif isinstance(node.value, ast.Call)\
+            and (call_id := get_id(node.value.func)):
+            value_id = call_id
+
+        if value_id and (is_enum(value_id, node.scopes) or 
+                is_class_type(value_id, node.scopes) or 
+                value_id.startswith("self")):
+            return node
+
+        return ast.Call(
+            func = ast.Name(id = node.attr, ctx = ast.Load()),
+            args = [node.value],
+            keywords = [],
+            lineno = node.lineno,
+            col_offset = node.col_offset)
 
 
 class JuliaDecoratorRewriter(ast.NodeTransformer):

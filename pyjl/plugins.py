@@ -10,7 +10,6 @@ import random
 import re
 import sys
 import unittest
-from unittest import TestCase
 from numbers import Complex, Real, Rational, Integral
 
 import pyjl.juliaAst as juliaAst
@@ -251,16 +250,17 @@ class JuliaTranspilerPlugins:
     def visit_assertRaises(self, node, vargs):
         exception = vargs[1]
         func = vargs[2]
-        if len(vargs) > 4:
-            # Lowering
-            arr = []
-            arr.append("# Lowered")
-            test_vargs: list[str] = vargs[3:]
-            for v in test_vargs:
-                arr.append(f"@test_throws {exception} {func}({v})")
-            return "\n".join(arr)
+        values = ", ".join(vargs[3:])
+        # if len(vargs) > 4:
+        #     # Lowering
+        #     arr = []
+        #     arr.append("# Lowered")
+        #     test_vargs: list[str] = vargs[3:]
+        #     for v in test_vargs:
+        #         arr.append(f"@test_throws {exception} {func}({v})")
+        #     return "\n".join(arr)
 
-        return f"@test_throws {exception} {func}({vargs[3]})"
+        return f"@test_throws {exception} {func}({values})"
 
     def _generic_test_visit(self):
         self._usings.add("Test")
@@ -329,7 +329,15 @@ class JuliaTranspilerPlugins:
             if arg_type is not None and arg_type.startswith("Float"):
                 return f"Int(floor({vargs[0]}))"
         if vargs:
-            return f"Int({vargs[0]})"
+            needs_parsing = False
+            for varg in vargs:
+                if not isinstance(varg, int):
+                    needs_parsing = True
+                    break
+            if needs_parsing:
+                return f"parse(Int, {vargs[0]})"
+            else:
+                return f"Int({vargs[0]})"
         return f"zero(Int)"  # Default int value
 
     @staticmethod
@@ -416,6 +424,7 @@ JULIA_TYPE_MAP = {
     c_uint32: "UInt32",
     c_uint64: "UInt64",
     Integral: "Integer",
+    complex: "Complex",
     Complex: "Complex",
     Rational: "Rational",
     Real: "Real",
@@ -451,7 +460,13 @@ CONTAINER_TYPE_MAP = {
 JL_IGNORED_MODULE_SET = set([
     "unittest",
     "operator",
-    "numbers"
+    "numbers",
+    "collections",
+    "test",
+    "weakref",
+    "pickle",
+    "struct",
+    "array"
 ])
 
 # small one liners are inlined here as lambdas
@@ -464,6 +479,7 @@ SMALL_DISPATCH_MAP = {
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
     "None": lambda n, vargs: f"nothing",
+    "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
 }
 
 SMALL_USINGS_MAP = {
@@ -526,26 +542,27 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
     math.fsum: (lambda self, node, vargs: f"fsum({', '.join(vargs)})", False),
     math.sqrt: (lambda self, node, vargs: f"√({vargs[0]})", False),
-    math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})", False),
+    math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})" if vargs else "trunc", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
-    operator.mod: (lambda self, node, vargs: f"mod({vargs[0]})", False),
+    operator.mod: (lambda self, node, vargs: f"mod({vargs[0]})" if vargs else "mod", True),
+    int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
     sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
+    sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
+    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})" \
+        if vargs else "write", True), # Fallback
     open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
-    # sys
-    sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})", True),
     # misc
     str.format: (lambda self, node, vargs: f"test", True),  # Does not work
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
-    issubclass: (lambda self, node, vargs: f"{vargs[0]} <: {vargs[1]}", True),
+    issubclass: (lambda self, node, vargs: f"{JULIA_TYPE_MAP[eval(vargs[0])]} <: {JULIA_TYPE_MAP[eval(vargs[1])]}", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     random.seed: (
@@ -561,6 +578,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
+    unittest.main: (lambda self, node, vargs: "", True),
     # Exceptions
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
          if len(vargs) == 1 else "ArgumentError" , True),

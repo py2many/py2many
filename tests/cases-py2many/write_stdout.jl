@@ -1,6 +1,6 @@
 
 function main()
-    write = stdout.buffer.write
+    write = write(stdout.buffer)
     write("P4")
 end
 

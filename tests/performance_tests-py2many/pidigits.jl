@@ -4,7 +4,7 @@ using ctypes.util: find_library
 
 abstract type Abstractmpz_t <: AbstractStructure end
 GMP = CDLL(find_library("gmp"))
-GMP.__gmpz_get_ui.restype = c_ulong
+restype(GMP.__gmpz_get_ui) = c_ulong
 mutable struct mpz_t <: Abstractmpz_t
     _fields_::Vector
 
@@ -40,7 +40,7 @@ function next_Term(k)
 end
 
 function main()
-    n = parse(Int64, argv[2])
+    n = parse(Int, argv[2])
     __gmpz_init_set_ui(GMP, byref(tmp1), c_ulong(0))
     __gmpz_init_set_ui(GMP, byref(tmp2), c_ulong(0))
     __gmpz_init_set_ui(GMP, byref(acc), c_ulong(0))

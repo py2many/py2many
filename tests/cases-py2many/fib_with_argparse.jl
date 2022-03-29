@@ -30,10 +30,10 @@ end
 
 function main()
     args = parse_args(Options)
-    if args.n == 0
-        args.n = 5
+    if n(args) == 0
+        n(args) = 5
     end
-    println(fib(args.n))
+    println(fib(n(args)))
 end
 
 main()

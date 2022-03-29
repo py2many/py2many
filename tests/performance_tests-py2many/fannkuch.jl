@@ -80,7 +80,7 @@ end
 function fannkuch(n)
     if n < 0
         for data in split(permutations(-(n), 0, factorial(-(n))))[factorial(-(n))]
-            println(join(map((n) -> string(n + 1), data), ""))
+            println(join("", map((n) -> string(n + 1), data)))
         end
     else
         @assert(n > 0)

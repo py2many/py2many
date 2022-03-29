@@ -298,6 +298,16 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                     dispatch_func = self._get_dispatch_func(node, annotation, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
+            
+            if hasattr(node, "dispatch"):
+                d_type = None
+                if isinstance(node.dispatch, ast.Call):
+                    d_type = get_id(node.dispatch.func)
+                elif id := get_id(node.dispatch):
+                    d_type = id
+                dispatch_func = self._get_dispatch_func(node, d_type, fname, vargs)
+                if dispatch_func:
+                    return dispatch_func
 
         return super()._dispatch(node, fname, vargs)
 
