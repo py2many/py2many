@@ -75,6 +75,7 @@ from py2many.rewriters import (
     DocStringToCommentRewriter,
     PrintBoolRewriter,
     StrStrRewriter,
+    UnitTestRewriter,
     WithToBlockTransformer,
     IgnoredAssignRewriter,
     UnpackScopeRewriter,
@@ -140,7 +141,6 @@ def _transpile(
         IgnoredAssignRewriter(language),
     ]
 
-    # PyJL does not benefit from rewriting f_string nor Python's 'with' statement
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
         generic_rewriters.append(WithToBlockTransformer(language))
@@ -150,6 +150,7 @@ def _transpile(
         PrintBoolRewriter(language),
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
+        UnitTestRewriter(language)
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters

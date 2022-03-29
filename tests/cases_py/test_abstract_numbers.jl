@@ -41,7 +41,10 @@ function test_complex(self::AbstractTestNumbers)
 end
 
 function main()
-    main()
+    test_numbers = TestNumbers()
+    test_int(test_numbers)
+    test_float(test_numbers)
+    test_complex(test_numbers)
 end
 
 main()

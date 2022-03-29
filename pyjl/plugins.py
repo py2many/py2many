@@ -582,7 +582,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
-    unittest.main: (lambda self, node, vargs: "", True),
     # Exceptions
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
          if len(vargs) == 1 else "ArgumentError" , True),

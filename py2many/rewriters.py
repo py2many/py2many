@@ -1,5 +1,8 @@
 import ast
+import re
 import textwrap
+
+from numpy import isin
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_block, create_ast_node
@@ -7,7 +10,7 @@ from py2many.astx import ASTxFunctionDef
 from py2many.clike import CLikeTranspiler
 from py2many.inference import get_inferred_type
 
-from typing import cast, Optional
+from typing import Any, cast, Optional
 
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
@@ -180,14 +183,12 @@ class PythonMainRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_If(self, node):
-        is_main = (
-            isinstance(node.test, ast.Compare)
-            and isinstance(node.test.left, ast.Name)
-            and node.test.left.id == "__name__"
-            and isinstance(node.test.ops[0], ast.Eq)
-            and isinstance(node.test.comparators[0], ast.Constant)
-            and node.test.comparators[0].value == "__main__"
-        )
+        is_main = (isinstance(node.test, ast.Compare)
+                and isinstance(node.test.left, ast.Name)
+                and node.test.left.id == "__name__"
+                and isinstance(node.test.ops[0], ast.Eq)
+                and isinstance(node.test.comparators[0], ast.Constant)
+                and node.test.comparators[0].value == "__main__")
         if is_main:
             if hasattr(node, "scopes") and len(node.scopes) > 1:
                 rename(node.scopes[-2], "main", "main_func")
@@ -453,3 +454,81 @@ class UnpackScopeRewriter(ast.NodeTransformer):
 
     def visit_While(self, node: ast.With) -> ast.With:
         return self._visit_assign_node_body(node)
+
+class UnitTestRewriter(ast.NodeTransformer):
+    """Converts unittest.main call and instead calls all the necessary functions"""
+    def __init__(self, language):
+        super().__init__()
+        self._language = language
+        self._test_classes: list[str, list[str]] = []
+        self._test_modules = TEST_MODULE_SET
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        funcs = []
+        for n in node.body:
+            if isinstance(n, ast.FunctionDef) and n.name == "main":
+                funcs.append(n)
+                continue
+            self.visit(n)
+
+        for n in funcs:
+            self.visit(n)
+
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        for b in node.bases:
+            if get_id(b) in self._test_modules:
+                function_defs = []
+                for n in node.body:
+                    if isinstance(n, ast.FunctionDef):
+                        function_defs.append(n.name)
+                self._test_classes.append((node.name, function_defs))
+                break
+                    
+        return self.generic_visit(node)
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        l_no = node.body[-1].lineno + 1
+        if node.name == "main":
+            body = []
+            for n in node.body:
+                # Remove "unittest.main"
+                if not(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
+                        and isinstance(n.value.func, ast.Attribute)
+                        and f"{get_id(n.value.func.value)}.{n.value.func.attr}" == "unittest.main"):
+                    body.append(n)
+            for (class_name, func_defs) in self._test_classes:
+                # Convert to snake case
+                instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
+                body.append(
+                    ast.Assign(
+                        targets = [ast.Name(id=instance_name)],
+                        value = ast.Call(
+                            func = ast.Name(id = class_name, ctx = ast.Load()),
+                            args = [],
+                            keywords = [],
+                            lineno = l_no,
+                            col_offset = node.col_offset
+                        )))
+                l_no += 1
+
+                # Create Function Calls
+                for func_name in func_defs:
+                    body.append(ast.Call(
+                        func = ast.Name(id = func_name, ctx = ast.Load()),
+                        args = [ast.Name(id = instance_name)],
+                        keywords = [],
+                        lineno = l_no,
+                        col_offset = node.col_offset))
+                    l_no += 1
+
+            # Update node.body
+            node.body = body
+
+        return self.generic_visit(node)
+
+
+TEST_MODULE_SET = set([
+    "unittest.TestCase"
+])
