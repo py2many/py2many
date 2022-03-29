@@ -219,11 +219,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             else:
                 self._imported_names[name] = imported_name
 
-        imports = [
-            self._import_str(name, alias)
-            for name, alias in names
-            if name not in self._ignored_module_set
-        ]
+        imports = []
+        for name, alias in names:
+            n_import = name.split(".")
+            for i in range(len(n_import)):
+                if ".".join(n_import[0:i+1]) in self._ignored_module_set:
+                    break
+                imports.append(self._import_str(name, alias))
 
         return "\n".join(imports)
 

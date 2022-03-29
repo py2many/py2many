@@ -9,6 +9,7 @@ import ast
 import random
 import re
 import sys
+import array
 import unittest
 from numbers import Complex, Real, Rational, Integral
 
@@ -265,9 +266,10 @@ class JuliaTranspilerPlugins:
     def _generic_test_visit(self):
         self._usings.add("Test")
 
-    #################################################
-    ################# TODO from here ################
-    #################################################
+    def visit_array(self, node, vargs):
+        type_code = vargs[0]
+        if type_code in TYPE_CODE_MAP:
+            return f"Vector{TYPE_CODE_MAP[type_code]}"
 
     def visit_open(self, node, vargs):
         for_node = find_node_matching_type(ast.For, node.scopes)
@@ -281,18 +283,6 @@ class JuliaTranspilerPlugins:
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
         node.result_type = True
         return "NamedTempFile::new()"
-
-    def visit_textio_read(self, node, vargs):
-        # TODO
-        return None
-
-    def visit_textio_write(self, node, vargs):
-        # TODO
-        return None
-
-    def visit_ap_dataclass(self, cls):
-        # Do whatever transformation the decorator does to cls here
-        return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
         end = vargs[0] if len(vargs) == 1 else vargs[1]
@@ -344,6 +334,18 @@ class JuliaTranspilerPlugins:
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
+
+    def visit_textio_read(self, node, vargs):
+        # TODO
+        return None
+
+    def visit_textio_write(self, node, vargs):
+        # TODO
+        return None
+
+    def visit_ap_dataclass(self, cls):
+        # Do whatever transformation the decorator does to cls here
+        return cls
 
 
 class JuliaRewriterPlugins:
@@ -425,7 +427,7 @@ JULIA_TYPE_MAP = {
     c_uint32: "UInt32",
     c_uint64: "UInt64",
     Integral: "Integer",
-    complex: "Complex",
+    complex: "complex",
     Complex: "Complex",
     Rational: "Rational",
     Real: "Real",
@@ -455,7 +457,24 @@ CONTAINER_TYPE_MAP = {
     Set: "Set",
     Tuple: "Tuple",
     Optional: "nothing",
-    bytearray: f"Vector{{Int8}}"
+    bytearray: f"Vector{{Int8}}",
+    array.array: JuliaTranspilerPlugins.visit_array # TODO: No args received
+}
+
+TYPE_CODE_MAP = {
+    "b": "Int8",
+    "B": "Uint8",
+    "h": "Int16",
+    "H": "UInt16",
+    "i": "Int32",
+    "I": "UInt32",
+    "l": "Int64",
+    "L": "UInt64",
+    "q": "Int128",
+    "Q": "UInt128",
+    "f": "Float64",
+    "d": "Float64"
+
 }
 
 JL_IGNORED_MODULE_SET = set([
@@ -464,10 +483,11 @@ JL_IGNORED_MODULE_SET = set([
     "numbers",
     "collections",
     "test",
+    "test.support",
     "weakref",
     "pickle",
     "struct",
-    "array"
+    "array",
 ])
 
 # small one liners are inlined here as lambdas

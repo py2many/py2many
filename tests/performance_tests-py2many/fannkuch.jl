@@ -8,7 +8,7 @@ using itertools: islice, starmap
     count = Vector{UInt8}(join(n, ""))
     remainder = start
     for v in (n-1:-1:-1)
-        count[v+1], remainder = divmod(remainder, factorial(v))
+        count[v+1], remainder = div(remainder)
         for _ in (0:count[v+1]-1)
             p[begin:v], p[v+1] = (p[2:v+1], p[1])
         end
