@@ -24,18 +24,18 @@ function test_float(self::AbstractTestNumbers)
     @test Float64 <: Real
     @test (7.3 == real(float(7.3)))
     @test (0 == imag(float(7.3)))
-    @test (7.3 == conjugate(float(7.3)))
-    @test (-7.3 == conjugate(float(-7.3)))
+    @test (7.3 == conj(float(7.3)))
+    @test (-7.3 == conj(float(-7.3)))
 end
 
 function test_complex(self::AbstractTestNumbers)
     @test !(Complex <: Real)
     @test Complex <: Complex
     c1, c2 = (complex(3, 2), complex(4, 1))
-    @test_throws TypeError math.trunc(c1)
-    @test_throws TypeError operator.mod(c1, c2)
+    @test_throws TypeError trunc(c1)
+    @test_throws TypeError mod(c1, c2)
     @test_throws TypeError divmod(c1, c2)
-    @test_throws TypeError operator.floordiv(c1, c2)
+    @test_throws TypeError div(c1, c2)
     @test_throws TypeError float(c1)
     @test_throws TypeError int(c1)
 end

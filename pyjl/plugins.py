@@ -331,7 +331,8 @@ class JuliaTranspilerPlugins:
         if vargs:
             needs_parsing = False
             for varg in vargs:
-                if not isinstance(varg, int):
+                # varg: str = varg
+                if not varg.lstrip("-").isnumeric():
                     needs_parsing = True
                     break
             if needs_parsing:
@@ -545,8 +546,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})" if vargs else "trunc", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
-    operator.mod: (lambda self, node, vargs: f"mod({vargs[0]})" if vargs else "mod", True),
+    operator.mod: (lambda self, node, vargs: f"mod({vargs[0]}, {vargs[1]})" if vargs else "mod", True),
+    operator.floordiv: (lambda self, node, vargs: f"div({vargs[0]}, {vargs[1]})" if vargs else "div", True),
     int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
+    float.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
+    divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
