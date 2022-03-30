@@ -29,7 +29,7 @@ using itertools: islice
     end
 end
 
-function compute_row(p)
+function compute_row(p)::Tuple
     y, n = p
     result = Vector{UInt8}(join(split(pixels(y, n, abs))[(n+7)÷8], ""))
     result[end] = result[end] & (255 << (8 - (n % 8)))

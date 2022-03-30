@@ -5,7 +5,7 @@ using itertools: starmap, chain
 using multiprocessing: Pool
 abstract type Abstractlean_call end
 lean_buffer = Dict()
-function lean_args(sequence, reading_frames, i, j)
+function lean_args(sequence, reading_frames, i, j)::Tuple
     global lean_buffer
     lean_key = length(lean_buffer)
     lean_buffer[lean_key] = sequence
@@ -128,7 +128,7 @@ function read_sequence(file, header, translation)
     return translate(sequence, translation, b"\n\r\t ")
 end
 
-function lookup_frequency(results, frame, bits)
+function lookup_frequency(results, frame, bits)::Tuple
     n = 1
     frequency = 0
     for (_, n, frequencies) in filter((r) -> r[1] == frame, results)

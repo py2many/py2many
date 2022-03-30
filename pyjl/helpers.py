@@ -49,3 +49,8 @@ def _get_value(node):
         return node.value
 
     return node
+
+def find_assign_value(id, scopes):
+    assign = getattr(find_node_by_name_and_type(id, ast.Assign, scopes)[0], "value", None)
+    ann_assign = getattr(find_node_by_name_and_type(id, ast.AnnAssign, scopes)[0], "value", None)
+    return assign if assign else ann_assign

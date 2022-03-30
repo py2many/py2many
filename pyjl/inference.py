@@ -6,8 +6,9 @@ import inspect
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_by_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type
 from py2many.clike import class_for_typename
+from pyjl.helpers import find_assign_value
 from pyjl.plugins import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
 from pyjl.clike import CLikeTranspiler
 
@@ -102,19 +103,29 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.visit(node.value)
 
         ann = getattr(node.value, "annotation", None)
-        
         annotation = ann if ann else getattr(node, "annotation", None)
-        if annotation is None:
+
+        if not get_id(annotation):
             # Attempt to get type
             if isinstance(node.value, ast.Call):
                 node_id = get_id(node.value.func)
                 try:
                     id_type = eval(node_id, None) if id else None
                     if id_type is not Any and id_type is not None and inspect.isclass(id_type):
-                        self._add_annotation(node, ast.Name(id=node_id), node.targets[0])
+                        annotation = ast.Name(id=node_id)
+                    else:
+                        return node
                 except Exception:
                     return node
-            return node
+            elif isinstance(node.value, ast.Name):
+                # Try to get related assignment
+                assign_ann = self._find_annotated_assign(node.value, node.scopes)
+                if assign_ann:
+                    annotation = assign_ann
+                else: 
+                    return node
+            else:
+                return node
 
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
@@ -123,11 +134,22 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-            # TODO: We cannot infer if it is subscript, as they are used in Dicts, Lists, etc.
+
             if (not target_has_annotation or inferred) and not isinstance(target, ast.Subscript):
                 self._add_annotation(node, annotation, target)
+
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
+
+    def _find_annotated_assign(self, node, scopes):
+        assign = find_assign_value(get_id(node), scopes)
+        if assign:
+            if (assign_ann := getattr(assign, "annotation", None)):
+                return assign_ann
+            else:
+                return self._find_annotated_assign(assign, scopes)
+        else:
+            return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
@@ -173,16 +195,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
+        left_id = get_id(left)
+        right_id = get_id(right)
+
         # If one or more nodes are None, skip other conditions
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
-            self._add_julia_annotation(node, get_id(left), get_id(right))
+            self._add_julia_annotation(node, left_id, right_id)
             return node
-
-        # Both operands are annotated
-        left_id = get_id(left)
-        right_id = get_id(right)
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
@@ -206,6 +227,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     node.annotation = ast.Name(id="float")
                     self._add_julia_annotation(node, "float", "float")
                 return node
+
             # By default, assign left
             node.annotation = left
         else:
@@ -251,6 +273,18 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
+    def visit_List(self, node: ast.List) -> Any:
+        node.annotation = ast.Name(id = "List")
+        return self.generic_visit(node)
+    
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        node.annotation = ast.Name(id = "Tuple")
+        return self.generic_visit(node)
+
+    def visit_Dict(self, node: ast.Dict) -> Any:
+        node.annotation = ast.Name(id = "Dict")
+        return self.generic_visit(node)
+
     ######################################################
     ################# Inference Methods ##################
     ######################################################
@@ -290,13 +324,20 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             left_default = defaults[0]
             right_default = defaults[1]
 
+            left_ann = self._stack_var_map[get_id(node.left)][0] \
+                if get_id(node.left) in self._stack_var_map \
+                else None
+            right_ann = self._stack_var_map[get_id(node.right)][0] \
+                if get_id(node.right) in self._stack_var_map \
+                else None
+
             # Assign left and right annotations
-            node.left.julia_annotation = (self._stack_var_map[get_id(node.left)][0]
-                if get_id(node.left) in self._stack_var_map
+            node.left.julia_annotation = (left_ann
+                if left_ann and left_ann != self._none_type
                 else self._clike._map_type(left_default)
             )
-            node.right.julia_annotation = (self._stack_var_map[get_id(node.right)][0]
-                if get_id(node.right) in self._stack_var_map
+            node.right.julia_annotation = (right_ann
+                if right_ann and right_ann != self._none_type
                 else self._clike._map_type(right_default)
             )
 
@@ -306,6 +347,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if julia_annotation == None 
             else julia_annotation
         )
+
         var_name = get_id(target)
         if(julia_type != self._none_type and var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
             raise AstIncompatibleAssign(f"{julia_type} incompatible with {self._stack_var_map[var_name][0]}", node)

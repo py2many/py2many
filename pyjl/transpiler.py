@@ -5,6 +5,7 @@ import ast
 
 import textwrap
 import re
+from pyjl.helpers import find_assign_value
 
 import pyjl.juliaAst as juliaAst
 
@@ -380,7 +381,7 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.append("end")
         return "\n".join(buf)
 
-    def visit_BinOp(self, node) -> str:
+    def visit_BinOp(self, node: ast.BinOp) -> str:
         left_jl_ann = node.left.julia_annotation
         right_jl_ann = node.right.julia_annotation
 
@@ -641,10 +642,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}[{index_type}]"
 
-        assign = getattr(find_node_by_name_and_type(value, ast.Assign, node.scopes)[0], "value", None)
-        ann_assign = getattr(find_node_by_name_and_type(value, ast.AnnAssign, node.scopes)[0], "value", None)
-        increment = (not (isinstance(assign, ast.Dict) or isinstance(ann_assign, ast.Dict)))
-        if increment:
+        assign = find_assign_value(value, node.scopes)
+        if not (isinstance(assign, ast.Dict)):
             # Shortcut if index is a numeric value
             if isinstance(index, str) and index.lstrip("-").isnumeric():
                 return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"

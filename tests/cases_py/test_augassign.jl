@@ -26,8 +26,8 @@ end
 
 function testInList(self::AbstractAugAssignTest)
     x = [2]
-    x[1] += 1
-    x[1] *= 2
+    x[1] = x[1] + 1
+    x[1] = x[1] * 2
     x[1] ^= 2
     x[1] -= 8
     x[1] ÷= 5
@@ -56,13 +56,13 @@ end
 
 function testSequences(self::AbstractAugAssignTest)
     x = [1, 2]
-    x += [3, 4]
-    x *= 2
+    x = [x; [3, 4]]
+    x = repeat(x, 2)
     @test (x == [1, 2, 3, 4, 1, 2, 3, 4])
     x = [1, 2, 3]
     y = x
-    x[2:2] *= 2
-    y[2:2] += [1]
+    x[2:2] = x[2:2] * 2
+    y[2:2] = y[2:2] + [1]
     @test (x == [1, 2, 1, 2, 3])
     @test x == y
 end

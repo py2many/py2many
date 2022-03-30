@@ -85,7 +85,7 @@ function loop_element_test()
 end
 
 function for_cycle_vars()
-    seq::Vector[Int64] = [1, 2, 3, 4, 5]
+    seq::Vector = [1, 2, 3, 4, 5]
     seq_copy::list = collect(seq)
     for i in (0:length(seq)-1-1)
         @assert(seq[i+1] == seq_copy[i+1])
@@ -109,7 +109,7 @@ function for_cycle_vars()
     @assert(seq[3] == 3)
     @assert(seq[end] == 5)
     x = 1
-    @assert(seq[x+1] == 2)
+    @assert(seq[x] == 2)
 end
 
 function reversed_array()
@@ -127,7 +127,7 @@ end
 function inplace_ops()
     a = [1, 1]
     b = a
-    b += [3, 3]
+    b = [b; [3, 3]]
     @assert(a == [1, 1, 3, 3])
     @assert(b == [1, 1, 3, 3])
 end

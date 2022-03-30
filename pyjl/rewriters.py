@@ -4,12 +4,13 @@ from typing import Any, Dict
 from libcst import ImportFrom
 
 from numpy import isin
-from py2many.tracer import is_class_or_module, is_enum
+from py2many.tracer import find_node_by_name_and_type, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
+from pyjl.helpers import find_assign_value
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JL_IGNORED_MODULE_SET, JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 from pyjl.transpiler import get_decorator_id
@@ -319,8 +320,16 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         super().__init__()
     
     def visit_AugAssign(self, node: ast.AugAssign) -> Any:
-        if isinstance(node.op, ast.BitXor) or \
-                isinstance(node.op, ast.BitAnd):
+        requires_lowering = (
+            isinstance(node.op, ast.BitXor) or 
+            isinstance(node.op, ast.BitAnd) or
+            ((isinstance(node.op, ast.Add) or 
+              isinstance(node.op, ast.Mult) or 
+              isinstance(node.op, ast.MatMult)) and 
+                (self._is_list(node.target, node.scopes) or 
+                self._is_list(node.value, node.scopes)))
+        )
+        if requires_lowering:
             return ast.Assign(
                 targets = [node.target],
                 value = ast.BinOp(
@@ -335,3 +344,12 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             )
 
         return self.generic_visit(node)
+
+    def _is_list(self, node, scopes):
+        if isinstance(node, ast.List):
+            return True
+        if (isinstance(node, ast.Subscript) and (id:=get_id(node.value))) or (id :=  get_id(node)):
+            val = find_assign_value(id, node.scopes)
+            return isinstance(val, ast.List) or isinstance(val, ast.List)
+        return False
+

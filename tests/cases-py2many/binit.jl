@@ -19,7 +19,7 @@ function bin_it(limits::Vector{Int64}, data::Vector{Int64})::Vector{Int64}
         push!(bins, 0)
     end
     for d in data
-        bins[bisect_right(limits, d)+1] += 1
+        bins[bisect_right(limits, d)+1] = bins[bisect_right(limits, d)+1] + 1
     end
     return bins
 end

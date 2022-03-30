@@ -68,7 +68,7 @@ function write_lines(
     flush(stdout.buffer)
 end
 
-function cumulative_probabilities(alphabet, factor = 1.0)
+function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
     probabilities = tuple(accumulate((p * factor for (_, p) in alphabet)))
     table = maketrans(
         bytearray,
@@ -230,7 +230,7 @@ function fasta(n)
             (seeded_2, nothing, written_2, nothing),
         ]
         processes = [
-            started_process(target, args + [locks_sets[i]]) for
+            started_process(target, args + [locks_sets[i+1]]) for
             (i, (target, args)) in tasks.iter().enumerate()
         ]
         for p in processes

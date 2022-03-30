@@ -72,7 +72,7 @@ end
     @yield maximum_flips
 end
 
-function task(n, start, size)
+function task(n, start, size)::Tuple
     alternating_flips = alternating_flips_generator(n, start, size)
     return (sum(split(alternating_flips)[size]), next(alternating_flips))
 end

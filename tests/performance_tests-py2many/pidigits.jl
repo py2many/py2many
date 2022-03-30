@@ -6,10 +6,14 @@ abstract type Abstractmpz_t <: AbstractStructure end
 GMP = CDLL(find_library("gmp"))
 restype(GMP.__gmpz_get_ui) = c_ulong
 mutable struct mpz_t <: Abstractmpz_t
-    _fields_::Vector
+    _fields_::Vector{Tuple}
 
     mpz_t(
-        _fields_::Vector = [("mp_alloc", c_int), ("mp_size", c_int), ("mp_d", c_void_p)],
+        _fields_::Vector{Tuple} = [
+            ("mp_alloc", c_int),
+            ("mp_size", c_int),
+            ("mp_d", c_void_p),
+        ],
     ) = new(_fields_)
 end
 
