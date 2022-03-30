@@ -39,7 +39,7 @@ function write_lines(
     table = nothing,
 )
     i = 0
-    blocks = ((n - width) / width) / lines_per_block
+    blocks = ((n - width) ÷ width) ÷ lines_per_block
     if blocks
         for _ in (0:blocks-1)
             output = Vector{UInt8}()
@@ -162,7 +162,7 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
     else
         pre_seed, post_seed, pre_write, post_write = locks
         m = n > (width * 15) ? (length(Sys.cpu_info()) * 3) : (1)
-        partitions = [(n / width * m) * width * i for i in (1:m-1)]
+        partitions = [(n ÷ width * m) * width * i for i in (1:m-1)]
         processes = []
         pre = pre_write
         lock_pair() do

@@ -6,7 +6,7 @@ import inspect
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_matching_type
+from py2many.tracer import find_node_by_type
 from py2many.clike import class_for_typename
 from pyjl.plugins import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
 from pyjl.clike import CLikeTranspiler
@@ -77,7 +77,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
         )
 
-        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        func_node = find_node_by_type(ast.FunctionDef, node.scopes)
         type_str = get_id(func_node.returns) if func_node else None
         if new_type_str is None:
             return node

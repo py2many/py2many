@@ -41,17 +41,17 @@ end
 
 function testInDict(self::AbstractAugAssignTest)
     x = Dict(0 => 2)
-    x[1] += 1
-    x[1] *= 2
-    x[1] ^= 2
-    x[1] -= 8
-    x[1] ÷= 5
-    x[1] %= 3
-    x[1] = x[1] & 2
-    x[1] |= 5
-    x[1] = x[1] ⊻ 1
-    x[1] /= 2
-    @test (x[1] == 3.0)
+    x[0] += 1
+    x[0] *= 2
+    x[0] ^= 2
+    x[0] -= 8
+    x[0] ÷= 5
+    x[0] %= 3
+    x[0] = x[0] & 2
+    x[0] |= 5
+    x[0] = x[0] ⊻ 1
+    x[0] /= 2
+    @test (x[0] == 3.0)
 end
 
 function testSequences(self::AbstractAugAssignTest)

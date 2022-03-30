@@ -8,7 +8,7 @@ from py2many.tracer import is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
-from py2many.tracer import find_node_matching_type
+from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JL_IGNORED_MODULE_SET, JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
@@ -89,7 +89,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
         node_scope_name = None
         if self._input_config_map:
             if len(node.scopes) > 2:
-                node_class = find_node_matching_type(ast.ClassDef, node.scopes)
+                node_class = find_node_by_type(ast.ClassDef, node.scopes)
                 node_scope_name = get_id(node_class) if node_class else None
 
             node_field_map = ParseFileStructure.get_function_attributes(node_name,

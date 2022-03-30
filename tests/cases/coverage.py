@@ -1,4 +1,4 @@
-# Generic Test taht covers many features
+# Generic Test that covers many features
 
 from typing import List
 

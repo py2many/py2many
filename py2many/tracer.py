@@ -88,7 +88,7 @@ def get_class_scope(name, scopes):
 # the given scope (search in reverse order)
 def find_closest_scope_name(scopes):
     scope_name: str = (
-        get_id(find_node_matching_type(
+        get_id(find_node_by_type(
             (ast.FunctionDef, ast.ClassDef), 
         scopes))
     )
@@ -100,7 +100,7 @@ def find_closest_scope_name(scopes):
 
 # Searches for the first node of type node_type using
 # the given scope (search in reverse order)
-def find_node_matching_type(node_type, scopes):
+def find_node_by_type(node_type, scopes):
     c_node = None
     for i in range(len(scopes) - 1, -1, -1):
         sc = scopes[i]
@@ -112,7 +112,7 @@ def find_node_matching_type(node_type, scopes):
             break
     return c_node
 
-def find_node_matching_name(name, scopes):
+def find_node_by_name(name, scopes):
     if name is None:
         return None
 
@@ -126,7 +126,7 @@ def find_node_matching_name(name, scopes):
     return c_node
 
 # Finds a node by its name and type
-def find_node_matching_name_and_type(name, node_type, scopes):
+def find_node_by_name_and_type(name, node_type, scopes):
     if name is None:
         return None, None
 

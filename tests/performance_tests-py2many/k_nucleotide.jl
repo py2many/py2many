@@ -72,7 +72,7 @@ function count_frequencies(sequence, reading_frames, i, j)
             count = length(worklist)
             tmp = replace(worklist, pattern + pattern, b"12")
             tmp = replace(tmp, pattern, b"1")
-            count = (count - length(tmp)) / 2
+            count = (count - length(tmp)) ÷ 2
             count += count(tmp, b"1" + v)
             count += count(tmp, b"2" + v[begin:1])
             freq[bits+1] += count
@@ -184,7 +184,7 @@ function main_func()
     else
         n = 1
     end
-    partitions = [length(sequence) * i / n for i in (0:n+1-1)]
+    partitions = [length(sequence) * i ÷ n for i in (0:n+1-1)]
     count_jobs = [
         (sequence, reading_frames, partitions[i], partitions[i+1]) for
         i in (0:length(partitions)-1-1)

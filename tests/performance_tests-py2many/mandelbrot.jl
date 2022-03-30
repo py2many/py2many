@@ -31,8 +31,8 @@ end
 
 function compute_row(p)
     y, n = p
-    result = Vector{UInt8}(join(split(pixels(y, n, abs))[(n+7)/8], ""))
-    result[end] &= 255 << (8 - (n % 8))
+    result = Vector{UInt8}(join(split(pixels(y, n, abs))[(n+7)÷8], ""))
+    result[end] = result[end] & (255 << (8 - (n % 8)))
     return (y, result)
 end
 

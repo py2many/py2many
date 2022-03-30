@@ -7,7 +7,7 @@ from py2many.ast_helpers import get_id
 import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
-from py2many.tracer import find_node_matching_type
+from py2many.tracer import find_node_by_type
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import CONTAINER_TYPE_MAP, JL_IGNORED_MODULE_SET, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
 import importlib
@@ -285,7 +285,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             # Self argument type lookup
             var = get_id(node.args[0])
             if var == "self":
-                class_node: ast.ClassDef = find_node_matching_type(ast.ClassDef, node.scopes)
+                class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
                 for base in class_node.bases:
                     base_str = get_id(base)
                     dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
@@ -293,7 +293,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                         return dispatch_func
 
             # Account for JuliaMethodCallRewriter
-            func_node: ast.FunctionDef = find_node_matching_type(ast.FunctionDef, node.scopes)
+            func_node: ast.FunctionDef = find_node_by_type(ast.FunctionDef, node.scopes)
             if func_node:
                 var_map = func_node.var_map
                 annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type

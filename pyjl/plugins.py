@@ -23,7 +23,7 @@ from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 
-from py2many.tracer import find_node_matching_name_and_type, find_node_matching_type, is_class_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -206,7 +206,7 @@ class JuliaTranspilerPlugins:
                 bases.append(b_name)
 
             # Don't repeat elements of superclasses
-            base_class = find_node_matching_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
+            base_class = find_node_by_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
             if base_class:
                 base_class_decs = list(map(lambda x: x[0], base_class.fields))
                 for (declaration, typename, _) in node.fields:
@@ -272,7 +272,7 @@ class JuliaTranspilerPlugins:
             return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
 
     def visit_open(self, node, vargs):
-        for_node = find_node_matching_type(ast.For, node.scopes)
+        for_node = find_node_by_type(ast.For, node.scopes)
         # Check if this is always like this
         if for_node is not None:
             return f"readline({vargs[0]})"

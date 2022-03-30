@@ -2,7 +2,7 @@
 import ast
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_node_matching_name_and_type
+from py2many.tracer import find_node_by_name_and_type
 
 # TODO: Delete if not necessary
 def get_range_from_for_loop(node):
@@ -17,11 +17,11 @@ def get_range_from_for_loop(node):
 
         # If they are name nodes, search for their values
         if isinstance(end_val, ast.Name):
-            end_val = find_node_matching_name_and_type(get_id(end_val), 
+            end_val = find_node_by_name_and_type(get_id(end_val), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0]
             if end_val is not None: end_val = end_val.value
         if isinstance(start_val, ast.Name):
-            start_val = find_node_matching_name_and_type(get_id(start_val), 
+            start_val = find_node_by_name_and_type(get_id(start_val), 
                 (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0]
             if start_val is not None: start_val = start_val.value
 

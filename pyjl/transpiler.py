@@ -25,7 +25,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_in_body, find_node_matching_name_and_type, \
+from py2many.tracer import find_in_body, find_node_by_name_and_type, \
     get_class_scope, is_class_or_module
 
 from typing import Any, Dict, List, Tuple, Union
@@ -385,10 +385,8 @@ class JuliaTranspiler(CLikeTranspiler):
         right_jl_ann = node.right.julia_annotation
 
         # Visit left and right
-        left = self.visit_List(node.left) if isinstance(
-            node.left, ast.List) else self.visit(node.left)
-        right = self.visit_List(node.right) if isinstance(
-            node.right, ast.List) else self.visit(node.right)
+        left = self.visit(node.left)
+        right = self.visit(node.right)
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number
@@ -591,21 +589,28 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"using {jl_module_name}: {str_imports}"
 
     def visit_List(self, node:ast.List) -> str:
-        elts = []
-        for e in node.elts:
-            e_str = self.visit(e)
-            if hasattr(node, "is_annotation"):
-                node_type = self._func_for_lookup(e_str)
-                if node_type in self._type_map:
-                    elts.append(self._type_map[node_type])
-                    continue
-            elts.append(e_str)
-        elts = ", ".join(elts)
+        elts = self._parse_elts(node)
         return (
             f"({elts})"
             if hasattr(node, "lhs") and node.lhs
             else f"[{elts}]"
         )
+    
+    def visit_Tuple(self, node: ast.Tuple) -> str:
+        elts = self._parse_elts(node)
+        if hasattr(node, "is_annotation"):
+            return elts
+        return "({0})".format(elts)
+    
+    def _parse_elts(self, node):
+        elts = []
+        for e in node.elts:
+            e_str = self.visit(e)
+            if hasattr(node, "is_annotation"):
+                elts.append(self._map_type(e_str))
+                continue
+            elts.append(e_str)
+        return ", ".join(elts)
 
     def visit_Set(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
@@ -630,37 +635,38 @@ class JuliaTranspiler(CLikeTranspiler):
         if index == None:
             return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
-            if value in self._container_type_map:
-                value = self._container_type_map[value]
-            if value == "Tuple":
-                return "({0})".format(index)
-            index_type = self._func_for_lookup(index)
-            if index_type and index_type in self._type_map:
-                index = self._type_map[index_type]
-            return f"{value}[{index}]"
+            value_type = self._map_type(value)
+            index_type = self._map_type(index)
+            if value_type == "Tuple":
+                return f"({index})"
+            return f"{value_type}[{index_type}]"
 
-        # Julia array indices start at 1; Change "-1" for "end"
-        if isinstance(index, str) and index.lstrip("-").isnumeric():
-            return f"{value}[{int(index)+1}]" if index != "-1" else f"{value}[end]"
-        elif isinstance(index, int) or isinstance(index, float):
-            return f"{value}[{index + 1}]"
+        assign = getattr(find_node_by_name_and_type(value, ast.Assign, node.scopes)[0], "value", None)
+        ann_assign = getattr(find_node_by_name_and_type(value, ast.AnnAssign, node.scopes)[0], "value", None)
+        increment = (not (isinstance(assign, ast.Dict) or isinstance(ann_assign, ast.Dict)))
+        if increment:
+            # Shortcut if index is a numeric value
+            if isinstance(index, str) and index.lstrip("-").isnumeric():
+                return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
+            elif isinstance(index, int) or isinstance(index, float):
+                return f"{value}[{index + 1}]"
 
-        # TODO: Optimize; value_type is computed once per definition
-        self._generic_typename_from_annotation(node.value)
-        if hasattr(node.value, "annotation"):
-            value_type = getattr(node.value.annotation,
-                                 "generic_container_type", None)
-            if (value_type is not None and value_type[0] == "List"
-                    and not isinstance(node.slice, ast.Slice)):
-                # Julia array indices start at 1
+            # TODO: Optimize; value_type is computed once per definition
+            self._generic_typename_from_annotation(node.value)
+            if hasattr(node.value, "annotation"):
+                value_type = getattr(node.value.annotation,
+                                    "generic_container_type", None)
+                if (value_type is not None and value_type[0] == "List"
+                        and not isinstance(node.slice, ast.Slice)):
+                    # Julia array indices start at 1
+                    return f"{value}[{index} + 1]"
+
+            # Increment index's that use for loop variables
+            split_index = set(
+                filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
+            intsct = split_index.intersection(self._scope_stack["loop"])
+            if intsct and not isinstance(node.slice, ast.Slice):
                 return f"{value}[{index} + 1]"
-
-        # Increment index's that use for loop variables
-        split_index = set(
-            filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
-        intsct = split_index.intersection(self._scope_stack["loop"])
-        if intsct and not isinstance(node.slice, ast.Slice):
-            return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
 
@@ -688,23 +694,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Ellipsis(self, node: ast.Ellipsis) -> str:
         return "..."
-
-    def visit_Tuple(self, node: ast.Tuple) -> str:
-        elts = []
-        for e in node.elts:
-            e_str = self.visit(e)
-            if hasattr(node, "is_annotation"):
-                node_type = self._func_for_lookup(e_str)
-                if node_type in self._type_map:
-                    elts.append(self._type_map[node_type])
-                    continue
-
-            elts.append(e_str)
-        elts = ", ".join(elts)
-
-        if hasattr(node, "is_annotation"):
-            return elts
-        return "({0})".format(elts)
 
     def visit_Try(self, node, finallybody=None) -> str:
         buf = []
@@ -817,7 +806,7 @@ class JuliaTranspiler(CLikeTranspiler):
         target = node.targets[0]
         target_name = self.visit(target)
         node_assign = (
-            find_node_matching_name_and_type(target_name,
+            find_node_by_name_and_type(target_name,
                                              (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0]
             if not hasattr(target, "annotation") else target
         )

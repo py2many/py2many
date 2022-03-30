@@ -86,7 +86,7 @@ function fannkuch(n)
         @assert(n > 0)
         task_count = length(Sys.cpu_info())
         total = factorial(n)
-        task_size = ((total + task_count) - 1) / task_count
+        task_size = ((total + task_count) - 1) ÷ task_count
         if task_size < 20000
             task_size = total
             task_count = 1

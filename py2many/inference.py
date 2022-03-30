@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_matching_type, is_enum
+from py2many.tracer import find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -350,7 +350,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             return node
         
         # Finds the closest node that is a function definition
-        func_node = find_node_matching_type(ast.FunctionDef, node.scopes)
+        func_node = find_node_by_type(ast.FunctionDef, node.scopes)
         type_str = get_id(func_node.returns) if func_node else None
         if type_str is not None:
             if new_type_str != type_str:
