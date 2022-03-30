@@ -23,7 +23,7 @@ from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 
-from py2many.tracer import find_node_matching_name_and_type, find_node_matching_type
+from py2many.tracer import find_node_matching_name_and_type, find_node_matching_type, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -96,10 +96,10 @@ class JuliaTranspilerPlugins:
             if field_type:
                 st_name = field_type[8:] if field_type.startswith("Abstract") else field_type
                 str_struct_fields.append(f"{field_name}::{field_type}"
-                                        if field_type not in t_self._class_names
+                                        if is_class_type(field_type, node.scopes)
                                         else f"{field_name}::Abstract{field_type}")  
                 key_vars.append(f"self.{field_name}"
-                            if (st_name not in t_self._class_names) else f"__key(self.{field_name})")
+                            if (not is_class_type(st_name, node.scopes)) else f"__key(self.{field_name})")
             else:
                 str_struct_fields.append(f"{field_name}")
                 key_vars.append(f"self.{field_name}")
@@ -267,9 +267,9 @@ class JuliaTranspilerPlugins:
         self._usings.add("Test")
 
     def visit_array(self, node, vargs):
-        type_code = vargs[0]
+        type_code: str = re.sub(r"\"", "", vargs[0])
         if type_code in TYPE_CODE_MAP:
-            return f"Vector{TYPE_CODE_MAP[type_code]}"
+            return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
 
     def visit_open(self, node, vargs):
         for_node = find_node_matching_type(ast.For, node.scopes)
@@ -458,10 +458,10 @@ CONTAINER_TYPE_MAP = {
     Tuple: "Tuple",
     Optional: "nothing",
     bytearray: f"Vector{{Int8}}",
-    array.array: JuliaTranspilerPlugins.visit_array # TODO: No args received
 }
 
 TYPE_CODE_MAP = {
+    "u": "Char",
     "b": "Int8",
     "B": "Uint8",
     "h": "Int16",
@@ -474,7 +474,18 @@ TYPE_CODE_MAP = {
     "Q": "UInt128",
     "f": "Float64",
     "d": "Float64"
+}
 
+SPECIAL_CHARACTER_MAP = {
+    "\a": "\\a", 
+    "\b": "\\b",
+    "\f": "\\f", 
+    "\n": "\\n", 
+    "\r": "\\r", 
+    "\v": "\\v", 
+    "\t": "\\t",
+    '"': '\\"',
+    "\xe9":"\\xe9",
 }
 
 JL_IGNORED_MODULE_SET = set([
@@ -512,6 +523,7 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
+    "array.array": JuliaTranspilerPlugins.visit_array
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {

@@ -311,6 +311,11 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 if dispatch_func:
                     return dispatch_func
 
+            new_name = f"{fname}.{vargs[0]}"
+            ret = super()._dispatch(node, new_name, vargs[1:])
+            if ret:
+                return ret
+
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):
