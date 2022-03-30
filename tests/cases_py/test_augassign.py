@@ -18,8 +18,9 @@ class AugAssignTest(unittest.TestCase):
         x /= 2
         self.assertEqual(x, 3.0)
 
-    def test_with_unpacking(self):
-        self.assertRaises(SyntaxError, compile, "x, b += 3", "<test>", "exec")
+    # compile cannot be called in Julia
+    # def test_with_unpacking(self):
+    #     self.assertRaises(SyntaxError, compile, "x, b += 3", "<test>", "exec")
 
     def testInList(self):
         x = [2]

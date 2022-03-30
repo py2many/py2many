@@ -144,7 +144,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         node.lineno = 0
         node.col_offset = 0
 
-        # Visit and organize nodes
+        # Visit body nodes
         body = []
         for n in node.body:
             if isinstance(n, ast.ClassDef):
@@ -169,12 +169,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 func = self.visit(n)
                 if self._nested_classes:
                     for cls in self._nested_classes:
-                        body.append(cls)
+                        body.append(self.visit(cls))
                 body.append(func)
             else:
                 body.append(self.visit(n))
 
-        # Create abstract types if needed
+        # Create abstract types
         abstract_types = []
         l_no = self._import_count
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
@@ -200,27 +200,20 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:    
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name: str = get_id(node)
 
         decorator_list = list(map(get_decorator_id, node.decorator_list))
         is_jlClass = "jl_class" in decorator_list
 
         extends = []
-        if len(node.bases) == 1:
-            base = node.bases[0]
-            name = get_id(base)
-            import_name = None
-            module = name.split(".")
-            for i in range(len(module)):
-                m = ".".join(module[0:i])
-                if m in self._import_list:
-                    import_name = m 
-                    break
-            if is_class_or_module(name, node.scopes) or import_name:
-                node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+        if not node.bases or len(node.bases) == 0:
+            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+        elif len(node.bases) == 1:
+            name = get_id(node.bases[0])
+            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             extends = [name]
-        else:
+        elif len(node.bases) > 1:
             # TODO: Investigate Julia traits
             new_bases = []
             for base in node.bases:
@@ -235,10 +228,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
             node.jl_bases = new_bases
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
-        if not node.bases:
-            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
 
-        return node
+        return self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         args = node.args
@@ -256,7 +247,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             if isinstance(n, ast.ClassDef):
-                self._nested_classes.append(self.visit(n))
+                self._nested_classes.append(n)
             else:
                 body.append(self.visit(n))
 
@@ -302,11 +293,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def visit_Import(self, node: ast.Import) -> Any:
         self._generic_import_visit(node)
-        return node
+        return self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
         self._generic_import_visit(node)
-        return node
+        return self.generic_visit(node)
 
     def _generic_import_visit(self, node):
         is_visit = False
@@ -328,7 +319,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         super().__init__()
     
     def visit_AugAssign(self, node: ast.AugAssign) -> Any:
-        if isinstance(node.op, ast.BitXor):
+        if isinstance(node.op, ast.BitXor) or \
+                isinstance(node.op, ast.BitAnd):
             return ast.Assign(
                 targets = [node.target],
                 value = ast.BinOp(

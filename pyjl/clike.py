@@ -60,11 +60,12 @@ jl_symbols = {
     ast.And: " && ", 
     ast.Or: " || ",
     ast.Invert: "~",
-    ast.Pow: "*",
+    ast.Pow: "^",
     ast.MatMult: "*",
     ast.In: "in",
     ast.NotIn: "not in",
-    ast.Eq: "=="
+    ast.Eq: "==",
+    ast.FloorDiv: "÷"
 }
 
 def jl_symbol(node):

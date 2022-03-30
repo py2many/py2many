@@ -1,11 +1,11 @@
 using Test
-
+abstract type AbstractAugAssignTest end
 abstract type Abstractaug_test end
 abstract type Abstractaug_test2 <: Abstractaug_test end
 abstract type Abstractaug_test3 <: Abstractaug_test end
 abstract type Abstractaug_test4 <: Abstractaug_test3 end
 abstract type Abstracttestall end
-abstract type AbstractAugAssignTest end
+
 mutable struct AugAssignTest <: AbstractAugAssignTest
 
 end
@@ -13,30 +13,26 @@ function testBasic(self::AbstractAugAssignTest)
     x = 2
     x += 1
     x *= 2
-    x *= 2
+    x ^= 2
     x -= 8
-    x /= 5
+    x ÷= 5
     x %= 3
-    x &= 2
+    x = x & 2
     x |= 5
     x = x ⊻ 1
     x /= 2
     @test (x == 3.0)
 end
 
-function test_with_unpacking(self::AbstractAugAssignTest)
-    @test_throws SyntaxError compile("x, b += 3", "<test>", "exec")
-end
-
 function testInList(self::AbstractAugAssignTest)
     x = [2]
     x[1] += 1
     x[1] *= 2
-    x[1] *= 2
+    x[1] ^= 2
     x[1] -= 8
-    x[1] /= 5
+    x[1] ÷= 5
     x[1] %= 3
-    x[1] &= 2
+    x[1] = x[1] & 2
     x[1] |= 5
     x[1] = x[1] ⊻ 1
     x[1] /= 2
@@ -47,11 +43,11 @@ function testInDict(self::AbstractAugAssignTest)
     x = Dict(0 => 2)
     x[1] += 1
     x[1] *= 2
-    x[1] *= 2
+    x[1] ^= 2
     x[1] -= 8
-    x[1] /= 5
+    x[1] ÷= 5
     x[1] %= 3
-    x[1] &= 2
+    x[1] = x[1] & 2
     x[1] |= 5
     x[1] = x[1] ⊻ 1
     x[1] /= 2
@@ -77,18 +73,18 @@ function testCustomMethods1(self::AbstractAugAssignTest)
     x += 10
     assertIsInstance(self, x, aug_test)
     @test y != x
-    @test (x.val == 11)
+    @test (val(x) == 11)
     x = aug_test2(2)
     y = x
     x += 10
     @test y == x
-    @test (x.val == 12)
+    @test (val(x) == 12)
     x = aug_test3(3)
     y = x
     x += 10
     assertIsInstance(self, x, aug_test3)
     @test y != x
-    @test (x.val == 13)
+    @test (val(x) == 13)
     x = aug_test4(4)
     assertRaises(self, TypeError) do
         x += 10
@@ -113,21 +109,21 @@ function testCustomMethods2(test_self)
     x / 1
     1 / x
     x /= 1
-    x / 1
-    1 / x
-    x /= 1
+    x ÷ 1
+    1 ÷ x
+    x ÷= 1
     x % 1
     1 % x
     x %= 1
     x^1
     1^x
-    x *= 1
+    x ^= 1
     x | 1
     1 | x
     x |= 1
     x & 1
     1 & x
-    x &= 1
+    x = x & 1
     x ⊻ 1
     1 ⊻ x
     x = x ⊻ 1
@@ -361,7 +357,6 @@ end
 function main()
     aug_assign_test = AugAssignTest()
     testBasic(aug_assign_test)
-    test_with_unpacking(aug_assign_test)
     testInList(aug_assign_test)
     testInDict(aug_assign_test)
     testSequences(aug_assign_test)
