@@ -110,7 +110,8 @@ The following section describes the currently supported features of PyJL. All ma
 - Operators (PLR 2.5)
   - See expressions below
 - Delimiters (PLR 2.6) &rarr; Read [issue #21](https://github.com/MiguelMarcelino/py2many/issues/21)
-  - [ ] `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `&=`, `|=`, `^=`, `>>=`, `<<=` &rarr; direct translation
+  - [ ] `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `&=`, `|=`, `>>=`, `<<=` &rarr; direct translation
+  - [x] `^=`
   - [ ] `@=`
   - [ ] `**=`
 

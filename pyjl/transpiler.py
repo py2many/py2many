@@ -19,13 +19,14 @@ from .plugins import (
     JULIA_NUM_TYPES,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
+    SPECIAL_CHARACTER_MAP,
 )
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_matching_name_and_type, \
-    get_class_scope
+    get_class_scope, is_class_or_module
 
 from typing import Any, Dict, List, Tuple, Union
 
@@ -67,15 +68,14 @@ class JuliaTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
         # Added
+        self._special_character_map = SPECIAL_CHARACTER_MAP
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
         self._modules = []
-        self._class_names = []
 
     def visit_Module(self, node) -> str:
         self._modules = list(path.name.split(
             ".")[0] for path in node.__files__)
-        self._class_names = getattr(node, "class_names", [])
         return super().visit_Module(node)
 
     def usings(self):
@@ -287,9 +287,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Str(self, node: ast.Str) -> str:
         node_str = node.value
         # Escape special characters
-        node_str = node_str.translate(str.maketrans({"\a": "\\a", "\b": "\\b",
-                                                     "\f": "\\f", "\n": "\\n", "\r": "\\r", "\v": "\\v", "\t": "\\t",
-                                                     '"': '\\"'}))
+        node_str = node_str.translate(str.maketrans(self._special_character_map))
         return f'"{node_str}"'
 
     def visit_Bytes(self, node: ast.Bytes) -> str:
@@ -492,7 +490,7 @@ class JuliaTranspiler(CLikeTranspiler):
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
-            if self._class_names is not None and typename in self._class_names:
+            if is_class_or_module(typename, node.scopes):
                 typename = f"Abstract{typename}"
 
             decs.append(declaration)
