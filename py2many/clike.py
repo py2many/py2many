@@ -175,18 +175,6 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
-        if isinstance(typename, list):
-            raise NotImplementedError(f"{typename} not supported in this context")
-        typeclass = class_for_typename(typename, self._default_type)
-        return self._type_map.get(typeclass, typename)
-
-    def _map_types(self, typenames: List[str]) -> List[str]:
-        return [self._map_type(e) for e in typenames]
-
-    def _map_container_type(self, typename) -> str:
-        return self._container_type_map.get(typename, self._default_type)
-
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}<{index_type}>"
 
@@ -204,6 +192,20 @@ class CLikeTranspiler(ast.NodeVisitor):
         if index_contains_default or value_type == self._default_type:
             return self._default_type
         return self._combine_value_index(value_type, index_type)
+
+    ###########################
+    # TODO: To Type Inference
+    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
+        typeclass = class_for_typename(typename, self._default_type)
+        return self._type_map.get(typeclass, typename)
+
+    def _map_types(self, typenames: List[str]) -> List[str]:
+        return [self._map_type(e) for e in typenames]
+
+    def _map_container_type(self, typename) -> str:
+        return self._container_type_map.get(typename, self._default_type)
 
     def _typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
@@ -285,6 +287,8 @@ class CLikeTranspiler(ast.NodeVisitor):
                 node.generic_container_type = type_node.generic_container_type
             return ret
         return typename
+
+    ###########################
 
     def visit(self, node) -> str:
         if node is None:

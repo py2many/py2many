@@ -3,7 +3,7 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
-from typing import cast, Set, Optional
+from typing import Any, cast, Set, Optional
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
@@ -284,6 +284,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id="Dict")
         return node
 
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        node.annotation = ast.Name(id = "Tuple")
+        return self.generic_visit(node)
+
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
         self.visit(node.value)
@@ -291,6 +295,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         annotation = getattr(node.value, "annotation", None)
         if annotation is None:
             return node
+
+        # print(ast.dump(node, indent=4))
+        # print(f"ASSIGN {get_id(node.targets[0])}: {ast.dump(annotation)}")
 
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
@@ -419,6 +426,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
+
         if left is None and right is not None:
             node.annotation = right
             return node
@@ -539,17 +547,21 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def visit_Subscript(self, node):
+    def visit_Subscript(self, node: ast.Subscript):
         definition = node.scopes.find(get_id(node.value))
         if hasattr(definition, "annotation"):
             self._clike._typename_from_annotation(definition)
-            if hasattr(definition, "container_type"):
+            if hasattr(definition, "container_type") and \
+                    not isinstance(node.slice, ast.Slice):
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
                 node.annotation = ast.Name(id=element_type)
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
+            else:
+                print(definition.container_type)
+                node.annotation = definition.annotation
         self.generic_visit(node)
         return node
 

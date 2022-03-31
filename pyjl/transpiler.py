@@ -413,7 +413,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List))
                     or ((right_jl_ann == "Array" or right_jl_ann == "Vector")
                         and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
-                return f"[{left};{right}]"
+                return f"append!({left}, {right})"
 
             # Cover Python String concatenation
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str))

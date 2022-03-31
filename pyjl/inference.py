@@ -105,7 +105,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         ann = getattr(node.value, "annotation", None)
         annotation = ann if ann else getattr(node, "annotation", None)
 
-        if not get_id(annotation):
+        # print(f"{ast.dump(node.targets[0])} -> {annotation}")
+
+        if annotation is None:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
                 node_id = get_id(node.value.func)
@@ -135,7 +137,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
 
-            if (not target_has_annotation or inferred) and not isinstance(target, ast.Subscript):
+            if (not target_has_annotation or inferred):
                 self._add_annotation(node, annotation, target)
 
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
@@ -197,6 +199,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         left_id = get_id(left)
         right_id = get_id(right)
+
+        # print(ast.dump(node.left.annotation))
+        # print(right_id)
 
         # If one or more nodes are None, skip other conditions
         if ((left is None and right is not None) 
@@ -273,17 +278,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-    def visit_List(self, node: ast.List) -> Any:
-        node.annotation = ast.Name(id = "List")
-        return self.generic_visit(node)
-    
-    def visit_Tuple(self, node: ast.Tuple) -> Any:
-        node.annotation = ast.Name(id = "Tuple")
-        return self.generic_visit(node)
-
-    def visit_Dict(self, node: ast.Dict) -> Any:
-        node.annotation = ast.Name(id = "Dict")
-        return self.generic_visit(node)
+    # def visit_Subscript(self, node: ast.Subscript) -> Any:
+    #     if hasattr(node, "annotation"):
+    #         print(ast.dump(node.annotation))
+    #     return self.generic_visit(node)
 
     ######################################################
     ################# Inference Methods ##################
@@ -342,11 +340,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             )
 
     def append_to_type_map(self, node, annotation, target):
-        julia_annotation = self._get_inferred_julia_type(node)        
+        julia_annotation = self._get_inferred_julia_type(node)
         julia_type = (self._clike._map_type(get_id(annotation)) 
             if julia_annotation == None 
             else julia_annotation
         )
+
+        print(get_id(annotation))
 
         var_name = get_id(target)
         if(julia_type != self._none_type and var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
