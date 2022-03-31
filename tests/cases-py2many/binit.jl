@@ -16,7 +16,7 @@ end
 function bin_it(limits::Vector{Int64}, data::Vector{Int64})::Vector{Int64}
     bins = [0]
     for _x in limits
-        push!(bins, 0)
+        append(bins, 0)
     end
     for d in data
         bins[bisect_right(limits, d)+1] = bins[bisect_right(limits, d)+1] + 1

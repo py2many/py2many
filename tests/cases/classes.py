@@ -53,7 +53,7 @@ if __name__ == "__main__":
     assert p.get_name() == "P"
     assert s.get_name() == "111111 - S"
 
-    s = Student2("S2", 123)
+    s2 = Student2("S2", 123)
     # Student2("S2", -1) # Should raise an exception
     
     print("OK")

@@ -3,7 +3,7 @@ import re
 import Dates as dt
 import JSON as js
 function typing_test()::Int64
-    a::Vector[Int64] = [1, 2, 3]
+    a::Vector{Int64} = [1, 2, 3]
     return a[2]
 end
 

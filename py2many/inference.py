@@ -166,6 +166,7 @@ class InferTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         self.handling_annotation = False
         self.has_fixed_width_ints = False
+        # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
 
     @staticmethod

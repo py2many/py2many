@@ -402,8 +402,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_BinOp(self, node: ast.BinOp) -> str:
-        left_jl_ann = node.left.julia_annotation
-        right_jl_ann = node.right.julia_annotation
+        left_jl_ann: str = node.left.julia_annotation
+        right_jl_ann: str = node.right.julia_annotation
+
+        is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
 
         # Visit left and right
         left = self.visit(node.left)
@@ -412,12 +414,12 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number
             if((isinstance(node.right, ast.Num) or (right_jl_ann in JULIA_NUM_TYPES)) and
-                    ((isinstance(node.left, ast.List) or left_jl_ann == "Array" or left_jl_ann == "Vector") or
+                    ((isinstance(node.left, ast.List) or is_list(left_jl_ann)) or
                      (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
                 return f"repeat({left},{right})"
 
             if((isinstance(node.left, ast.Num) or (left_jl_ann in JULIA_NUM_TYPES)) and
-                    ((isinstance(node.right, ast.List) or right_jl_ann == "Array" or right_jl_ann == "Vector") or
+                    ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
                      (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 
@@ -431,7 +433,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Add):
             # Cover Python list addition
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List))
-                    or ((right_jl_ann == "Array" or right_jl_ann == "Vector")
+                    or (is_list(right_jl_ann)
                         and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
                 return f"append!({left}, {right})"
 

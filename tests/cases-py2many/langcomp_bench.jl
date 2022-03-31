@@ -3,7 +3,7 @@ function test_python(iterations::Int64)
     iteration = 0
     total = float(0.0)
     array_length = 1000
-    array::Vector[Int64] = [i for i in (0:array_length-1)]
+    array::Vector{Int64} = [i for i in (0:array_length-1)]
     println("iterations", iterations)
     while iteration < iterations
         innerloop = 0

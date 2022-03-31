@@ -81,7 +81,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if type_str is not None:
             type_str = new_type_str
             # Add julia_annotation value
-            func_node.julia_annotation = self._clike._map_type(type_str)
+            func_node.julia_annotation = self._parse_annotation(type_str, self._clike._map_type, self._none_type)
             setattr(func_node.returns, "id", type_str)
         else:
             # Do not overwrite source annotation with inferred
@@ -99,14 +99,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         ann = getattr(node.value, "annotation", None)
         annotation = ann if ann else getattr(node, "annotation", None)
 
-        # print(f"{ast.dump(node.targets[0])} -> {annotation}")
-
         if annotation is None:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
                 node_id = get_id(node.value.func)
                 try:
-                    id_type = eval(node_id, None) if id else None
+                    # id_type = eval(node_id, None) if node_id else None
+                    id_type = self._clike._typename_from_type_node(node_id)
                     if id_type is not Any and id_type is not None and inspect.isclass(id_type):
                         annotation = ast.Name(id=node_id)
                     else:
@@ -154,7 +153,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         target = node.target
         annotation = ann if ann else getattr(node, "annotation", None)
         node.annotation = annotation
-        self.append_to_type_map(node, annotation, target)
+        self._append_to_type_map(node, annotation, target)
 
         target_typename = self._clike._typename_from_annotation(target)
         value_typename = self._clike._generic_typename_from_type_node(annotation)
@@ -191,17 +190,17 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
-        left_id = get_id(left)
-        right_id = get_id(right)
+        left_id = self._parse_annotation(left)
+        right_id = self._parse_annotation(right)
 
-        # print(ast.dump(node.left.annotation))
-        # print(right_id)
+        is_numeric = (lambda x: x == "int" or "float" or "complex"
+            or x.startswith("c_int") or x.startswith("c_uint"))
 
         # If one or more nodes are None, skip other conditions
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
-            self._add_julia_annotation(node, left_id, right_id)
+            self._add_julia_annotation(node, left, right)
             return node
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
@@ -212,16 +211,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         if left_id == right_id:
             # Cover division with ints
-            left_annotation = (node.left.julia_annotation 
-                if hasattr(node.left, "julia_annotation") else self._clike._map_type(left_id))
-            right_annotation = (node.right.julia_annotation 
-                if hasattr(node.right, "julia_annotation") else self._clike._map_type(right_id))
-            if ((isinstance(node.left, ast.Num) or left_annotation in JULIA_NUM_TYPES) and 
-                    (isinstance(node.right, ast.Num) or right_annotation in JULIA_NUM_TYPES)) :
+            if ((isinstance(node.left, ast.Num) or is_numeric(left_id)) and 
+                    (isinstance(node.right, ast.Num) or is_numeric(right_id))):
                 if (not isinstance(node.op, ast.Div) or 
                         getattr(node, "use_integer_div", False)):
-                    node.annotation = ast.Name(id=left_id)
-                    self._add_julia_annotation(node, left_id, left_id)
+                    node.annotation = left
+                    self._add_julia_annotation(node, left, left)
                 else:
                     node.annotation = ast.Name(id="float")
                     self._add_julia_annotation(node, "float", "float")
@@ -230,8 +225,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             # By default, assign left
             node.annotation = left
         else:
-            if ((left in JULIA_INTEGER_TYPES and right == "float") or 
-                    (right in JULIA_INTEGER_TYPES and left == "float")):
+            if ((left_id == "int" and right == "float") or 
+                    (right_id == "int" and left == "float")):
                 self._add_julia_annotation(node, "float", "float")
                 node.annotation = ast.Name(id="float")
                 return node
@@ -256,15 +251,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="int")
 
-        mapped_left = self._clike._map_type(left_id)
-        mapped_right = self._clike._map_type(right_id)
-        if (((mapped_left in JULIA_NUM_TYPES and mapped_right == "String") 
-            or (mapped_right in JULIA_NUM_TYPES and mapped_left == "String")) 
-            and node.op == ast.Mult):
-            node.annotation = ast.Name(id="str")
+        # mapped_left = self._clike._map_type(left_id)
+        # mapped_right = self._clike._map_type(right_id)
+        # if (((mapped_left in JULIA_NUM_TYPES and mapped_right == "String") 
+        #     or (mapped_right in JULIA_NUM_TYPES and mapped_left == "String")) 
+        #     and node.op == ast.Mult):
+        #     node.annotation = ast.Name(id="str")
 
         # By default (if no translation possible), the types are left_id and right_id respectively
-        self._add_julia_annotation(node, left_id, right_id)
+        self._add_julia_annotation(node, left, right)
 
         ILLEGAL_COMBINATIONS = {}
 
@@ -284,7 +279,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         # Assign variables to field in function node
         node.var_map = self._stack_var_map
-        
+
         # Returns to state before visiting the function body
         # This accounts for nested functions
         self._stack_var_map = curr_state
@@ -301,15 +296,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 return self._get_inferred_julia_type(definition)
         
         python_type = get_inferred_type(node)
-        ret = self._clike._map_type(get_id(python_type))
+        ret = self._parse_annotation(python_type, self._clike._map_type, self._none_type)
         node.julia_annotation = ret
         return ret
 
     def _add_julia_annotation(self, node, *defaults) :
         if isinstance(node, ast.BinOp):
             # Get default values
-            left_default = defaults[0]
-            right_default = defaults[1]
+            left_default = self._parse_annotation(defaults[0], self._clike._map_type, self._none_type)
+            right_default = self._parse_annotation(defaults[1], self._clike._map_type, self._none_type)
 
             left_ann = self._stack_var_map[get_id(node.left)][0] \
                 if get_id(node.left) in self._stack_var_map \
@@ -321,31 +316,60 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             # Assign left and right annotations
             node.left.julia_annotation = (left_ann
                 if left_ann and left_ann != self._none_type
-                else self._clike._map_type(left_default)
+                else left_default
             )
             node.right.julia_annotation = (right_ann
                 if right_ann and right_ann != self._none_type
-                else self._clike._map_type(right_default)
+                else right_default
             )
 
-    def append_to_type_map(self, node, annotation, target):
+    def _append_to_type_map(self, node, annotation, target):
+        python_annotation = self._parse_annotation(annotation)
+        parsed_annotation = self._parse_annotation(annotation, self._clike._map_type, self._none_type)
         julia_annotation = self._get_inferred_julia_type(node)
-        julia_type = (self._clike._map_type(get_id(annotation)) 
-            if julia_annotation == None 
+        julia_type = (parsed_annotation 
+            if julia_annotation == None or julia_annotation == self._none_type
             else julia_annotation
         )
 
-        print(get_id(annotation))
-
-        var_name = get_id(target)
-        if(julia_type != self._none_type and var_name in self._stack_var_map and self._stack_var_map[var_name][0] != julia_type):
-            raise AstIncompatibleAssign(f"{julia_type} incompatible with {self._stack_var_map[var_name][0]}", node)
-        self._stack_var_map[var_name] = (julia_type, get_id(annotation.value)) \
-            if isinstance(annotation, ast.Subscript) \
-            else (julia_type, get_id(annotation))
+        var_name = self._get_str_repr(target)
+        if(python_annotation and var_name in self._stack_var_map and self._stack_var_map[var_name][1] != python_annotation):
+            raise AstIncompatibleAssign(f"Variable {var_name}: {python_annotation} incompatible with {self._stack_var_map[var_name][1]}", node)
+        self._stack_var_map[var_name] = (julia_type, python_annotation)
 
     def _add_annotation(self, node, annotation, target):
-        self.append_to_type_map(node, annotation, target)
+        self._append_to_type_map(node, annotation, target)
         target.annotation = annotation
         target.annotation.inferred = True
+
+    def _parse_annotation(self, node, parse_func = None, default = None):
+        if isinstance(node, str):
+            if parse_func:
+                return parse_func(node)
+        if id := get_id(node):
+            if parse_func:
+                return parse_func(id)
+            return id
+        elif isinstance(node, ast.Tuple) \
+                or isinstance(node, ast.List):
+            elts = []
+            for e in node.elts:
+                elts.append(self._parse_annotation(e, parse_func, self._none_type))
+            return ", ".join(elts)
+        elif isinstance(node, ast.Subscript):
+            id = self._parse_annotation(node.value, parse_func, self._none_type)
+            slice_val = self._parse_annotation(node.slice, parse_func, self._none_type)
+            return f"{id}{{{slice_val}}}"
+
+        return default
+    
+    def _get_str_repr(self, node):
+        if id := get_id(node):
+            return id
+        elif isinstance(node, ast.Subscript):
+            if isinstance(node.slice, ast.Slice):
+                return f"{self._get_str_repr(node.value)}"
+            else:
+                return f"{self._get_str_repr(node.value)}_subscript"
+        return None
 

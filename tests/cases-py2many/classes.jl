@@ -60,7 +60,7 @@ function main()
     s = Student("S", 111111)
     @assert(get_name(p) == "P")
     @assert(get_name(s) == "111111 - S")
-    s = Student2("S2", 123)
+    s2 = Student2("S2", 123)
     println("OK")
 end
 
