@@ -1,23 +1,20 @@
 import ast
 from ctypes import c_int64
-from typing import Any
+
 import inspect
+from typing import Any
 
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_by_name_and_type, find_node_by_type
+from py2many.tracer import find_node_by_type
 from py2many.clike import class_for_typename
+from pyjl.clike import JULIA_INTEGER_TYPES, _NONE_TYPE, JULIA_NUM_TYPES, CLikeTranspiler
 from pyjl.helpers import find_assign_value
-from pyjl.plugins import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
-from pyjl.clike import CLikeTranspiler
-
-JULIA_NONE_TYPE = "nothing"
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
-
 
 class InferJuliaTypesTransformer(ast.NodeTransformer):
     """
@@ -31,10 +28,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
-        self._clike = CLikeTranspiler()
         # Holds Tuple(julia_type, python_type) with id as variable name
         self._stack_var_map = {}
-        self._none_type = JULIA_NONE_TYPE
+        self._none_type = _NONE_TYPE
+        self._clike = CLikeTranspiler()
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -60,9 +57,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             return "float"
         return left_id if left_idx > right_idx else right_id
 
-    ######################################################
-    ###################### Modified ######################
-    ######################################################
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self._generic_scope_visit(node)
@@ -277,11 +271,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
-
-    # def visit_Subscript(self, node: ast.Subscript) -> Any:
-    #     if hasattr(node, "annotation"):
-    #         print(ast.dump(node.annotation))
-    #     return self.generic_visit(node)
 
     ######################################################
     ################# Inference Methods ##################

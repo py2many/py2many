@@ -175,9 +175,6 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
-    def _combine_value_index(self, value_type, index_type) -> str:
-        return f"{value_type}<{index_type}>"
-
     def _visit_container_type(self, typename: Tuple) -> str:
         value_type, index_type = typename
         if isinstance(index_type, List):
@@ -192,103 +189,6 @@ class CLikeTranspiler(ast.NodeVisitor):
         if index_contains_default or value_type == self._default_type:
             return self._default_type
         return self._combine_value_index(value_type, index_type)
-
-    ###########################
-    # TODO: To Type Inference
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
-        if isinstance(typename, list):
-            raise NotImplementedError(f"{typename} not supported in this context")
-        typeclass = class_for_typename(typename, self._default_type)
-        return self._type_map.get(typeclass, typename)
-
-    def _map_types(self, typenames: List[str]) -> List[str]:
-        return [self._map_type(e) for e in typenames]
-
-    def _map_container_type(self, typename) -> str:
-        return self._container_type_map.get(typename, self._default_type)
-
-    def _typename_from_type_node(self, node) -> Union[List, str, None]:
-        if isinstance(node, ast.Name):
-            return self._map_type(
-                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
-            )
-        elif isinstance(node, ast.Constant) and node.value is not None:
-            return node.value
-        elif isinstance(node, ast.ClassDef):
-            return get_id(node)
-        elif isinstance(node, ast.Tuple):
-            return [self._typename_from_type_node(e) for e in node.elts]
-        elif isinstance(node, ast.Attribute):
-            node_id = get_id(node)
-            if node_id.startswith("typing."):
-                node_id = node_id.split(".")[1]
-            return node_id
-        elif isinstance(node, ast.Subscript):
-            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
-            # in node.container_type
-            # And return a target specific type
-            slice_value = self._slice_value(node)
-            (value_type, index_type) = tuple(
-                map(self._typename_from_type_node, (node.value, slice_value))
-            )
-            value_type = self._map_container_type(value_type)
-            node.container_type = (value_type, index_type)
-            return self._combine_value_index(value_type, index_type)
-        return self._default_type
-
-    def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
-        if isinstance(node, ast.Name):
-            return get_id(node)
-        elif isinstance(node, ast.Constant):
-            return node.value
-        elif isinstance(node, ast.ClassDef):
-            return get_id(node)
-        elif isinstance(node, ast.Tuple):
-            return [self._generic_typename_from_type_node(e) for e in node.elts]
-        elif isinstance(node, ast.Attribute):
-            node_id = get_id(node)
-            if node_id.startswith("typing."):
-                node_id = node_id.split(".")[1]
-            return node_id
-        elif isinstance(node, ast.Subscript):
-            slice_value = self._slice_value(node)
-            (value_type, index_type) = tuple(
-                map(self._generic_typename_from_type_node, (node.value, slice_value))
-            )
-            node.generic_container_type = (value_type, index_type)
-            return f"{value_type}[{index_type}]"
-        return self._default_type
-
-    def _typename_from_annotation(self, node, attr="annotation") -> str:
-        default_type = self._default_type
-        typename = default_type
-        if hasattr(node, attr):
-            type_node = getattr(node, attr)
-            typename = self._typename_from_type_node(type_node)
-            if isinstance(type_node, ast.Subscript):
-                node.container_type = type_node.container_type
-                try:
-                    return self._visit_container_type(type_node.container_type)
-                except TypeNotSupported as e:
-                    raise AstTypeNotSupported(str(e), node)
-            if typename is None:
-                raise AstCouldNotInfer(type_node, node)
-        return typename
-
-    def _generic_typename_from_annotation(
-        self, node, attr="annotation"
-    ) -> Optional[str]:
-        """Unlike the one above, this doesn't do any target specific mapping."""
-        typename = None
-        if hasattr(node, attr):
-            type_node = getattr(node, attr)
-            ret = self._generic_typename_from_type_node(type_node)
-            if isinstance(type_node, ast.Subscript):
-                node.generic_container_type = type_node.generic_container_type
-            return ret
-        return typename
-
-    ###########################
 
     def visit(self, node) -> str:
         if node is None:
@@ -627,6 +527,106 @@ class CLikeTranspiler(ast.NodeVisitor):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"({test}? ({{ {body}; }}) : ({{ {orelse}; }}))"
+
+    ######################################################
+    ################### Type Mappings ####################
+    ######################################################
+
+    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
+        typeclass = class_for_typename(typename, self._default_type)
+        return self._type_map.get(typeclass, typename)
+
+    def _map_types(self, typenames: List[str]) -> List[str]:
+        return [self._map_type(e) for e in typenames]
+
+    def _map_container_type(self, typename) -> str:
+        return self._container_type_map.get(typename, self._default_type)
+
+    def _typename_from_type_node(self, node) -> Union[List, str, None]:
+        if isinstance(node, ast.Name):
+            return self._map_type(
+                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
+            )
+        elif isinstance(node, ast.Constant) and node.value is not None:
+            return node.value
+        elif isinstance(node, ast.ClassDef):
+            return get_id(node)
+        elif isinstance(node, ast.Tuple):
+            return [self._typename_from_type_node(e) for e in node.elts]
+        elif isinstance(node, ast.Attribute):
+            node_id = get_id(node)
+            if node_id.startswith("typing."):
+                node_id = node_id.split(".")[1]
+            return node_id
+        elif isinstance(node, ast.Subscript):
+            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
+            # in node.container_type
+            # And return a target specific type
+            slice_value = self._slice_value(node)
+            (value_type, index_type) = tuple(
+                map(self._typename_from_type_node, (node.value, slice_value))
+            )
+            value_type = self._map_container_type(value_type)
+            node.container_type = (value_type, index_type)
+            return self._combine_value_index(value_type, index_type)
+        return self._default_type
+
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}<{index_type}>"
+
+    def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
+        if isinstance(node, ast.Name):
+            return get_id(node)
+        elif isinstance(node, ast.Constant):
+            return node.value
+        elif isinstance(node, ast.ClassDef):
+            return get_id(node)
+        elif isinstance(node, ast.Tuple):
+            return [self._generic_typename_from_type_node(e) for e in node.elts]
+        elif isinstance(node, ast.Attribute):
+            node_id = get_id(node)
+            if node_id.startswith("typing."):
+                node_id = node_id.split(".")[1]
+            return node_id
+        elif isinstance(node, ast.Subscript):
+            slice_value = self._slice_value(node)
+            (value_type, index_type) = tuple(
+                map(self._generic_typename_from_type_node, (node.value, slice_value))
+            )
+            node.generic_container_type = (value_type, index_type)
+            return f"{value_type}[{index_type}]"
+        return self._default_type
+
+    def _typename_from_annotation(self, node, attr="annotation") -> str:
+        default_type = self._default_type
+        typename = default_type
+        if hasattr(node, attr):
+            type_node = getattr(node, attr)
+            typename = self._typename_from_type_node(type_node)
+            if isinstance(type_node, ast.Subscript):
+                node.container_type = type_node.container_type
+                try:
+                    return self._visit_container_type(type_node.container_type)
+                except TypeNotSupported as e:
+                    raise AstTypeNotSupported(str(e), node)
+            if typename is None:
+                raise AstCouldNotInfer(type_node, node)
+        return typename
+
+    def _generic_typename_from_annotation(
+        self, node, attr="annotation"
+    ) -> Optional[str]:
+        """Unlike the one above, this doesn't do any target specific mapping."""
+        typename = None
+        if hasattr(node, attr):
+            type_node = getattr(node, attr)
+            ret = self._generic_typename_from_type_node(type_node)
+            if isinstance(type_node, ast.Subscript):
+                node.generic_container_type = type_node.generic_container_type
+            return ret
+        return typename
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
         func = class_for_typename(fname, None, self._imported_names)

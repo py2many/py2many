@@ -16,12 +16,9 @@ from numbers import Complex, Real, Rational, Integral
 import pyjl.juliaAst as juliaAst
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
-
 
 from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_type
 
@@ -412,95 +409,6 @@ class JuliaRewriterPlugins:
         return arg_values
 
 
-JULIA_TYPE_MAP = {
-    bool: "Bool",
-    int: "Int64",
-    float: "Float64",
-    bytes: "Array{UInt8}",
-    str: "String",
-    c_int8: "Int8",
-    c_int16: "Int16",
-    c_int32: "Int32",
-    c_int64: "Int64",
-    c_uint8: "UInt8",
-    c_uint16: "UInt16",
-    c_uint32: "UInt32",
-    c_uint64: "UInt64",
-    Integral: "Integer",
-    complex: "complex",
-    Complex: "Complex",
-    Rational: "Rational",
-    Real: "Real",
-    None: "nothing",
-    Any: "Any"
-}
-
-JULIA_INTEGER_TYPES = \
-    [
-        "Int8",
-        "Int16",
-        "Int32",
-        "Int64",
-        "UInt128",
-        "UInt64",
-        "UInt32",
-        "UInt16",
-        "UInt8",
-        "Integer"
-    ]
-
-JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
-
-CONTAINER_TYPE_MAP = {
-    List: "Vector",
-    Dict: "Dict",
-    Set: "Set",
-    Tuple: "Tuple",
-    Optional: "nothing",
-    bytearray: f"Vector{{Int8}}",
-}
-
-TYPE_CODE_MAP = {
-    "u": "Char",
-    "b": "Int8",
-    "B": "Uint8",
-    "h": "Int16",
-    "H": "UInt16",
-    "i": "Int32",
-    "I": "UInt32",
-    "l": "Int64",
-    "L": "UInt64",
-    "q": "Int128",
-    "Q": "UInt128",
-    "f": "Float64",
-    "d": "Float64"
-}
-
-SPECIAL_CHARACTER_MAP = {
-    "\a": "\\a", 
-    "\b": "\\b",
-    "\f": "\\f", 
-    "\n": "\\n", 
-    "\r": "\\r", 
-    "\v": "\\v", 
-    "\t": "\\t",
-    '"': '\\"',
-    "\xe9":"\\xe9",
-}
-
-JL_IGNORED_MODULE_SET = set([
-    "unittest",
-    "operator",
-    "numbers",
-    "collections",
-    "test",
-    "test.support",
-    "weakref",
-    "pickle",
-    "struct",
-    "array",
-])
-
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
@@ -598,7 +506,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # misc
     str.format: (lambda self, node, vargs: f"test", True),  # Does not work
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
-    issubclass: (lambda self, node, vargs: f"{JULIA_TYPE_MAP[eval(vargs[0])]} <: {JULIA_TYPE_MAP[eval(vargs[1])]}", True),
+    issubclass: (lambda self, node, vargs: f"{vargs[0]} <: {vargs[1]}", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     random.seed: (

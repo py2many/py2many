@@ -1,11 +1,11 @@
 from __future__ import annotations
 from enum import IntFlag
-from py2many.exceptions import AstTypeNotSupported
 import ast
 
 import textwrap
 import re
 from pyjl.helpers import find_assign_value
+from pyjl.inference import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
 
 import pyjl.juliaAst as juliaAst
 
@@ -14,13 +14,10 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
-    JULIA_INTEGER_TYPES,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
-    JULIA_NUM_TYPES,
     SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
-    SPECIAL_CHARACTER_MAP,
+    SMALL_USINGS_MAP
 )
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -29,11 +26,35 @@ from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_by_name_and_type, \
     get_class_scope, is_class_or_module
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List
 
-_DEFAULT = "Any"
-_NOTHING = "nothing"
+TYPE_CODE_MAP = {
+    "u": "Char",
+    "b": "Int8",
+    "B": "Uint8",
+    "h": "Int16",
+    "H": "UInt16",
+    "i": "Int32",
+    "I": "UInt32",
+    "l": "Int64",
+    "L": "UInt64",
+    "q": "Int128",
+    "Q": "UInt128",
+    "f": "Float64",
+    "d": "Float64"
+}
 
+SPECIAL_CHARACTER_MAP = {
+    "\a": "\\a", 
+    "\b": "\\b",
+    "\f": "\\f", 
+    "\n": "\\n", 
+    "\r": "\\r", 
+    "\v": "\\v", 
+    "\t": "\\t",
+    '"': '\\"',
+    "\xe9":"\\xe9",
+}
 
 def get_decorator_id(decorator):
     id = get_id(decorator.func) if isinstance(
@@ -61,7 +82,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._headers = set([])
-        self._default_type = _DEFAULT
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -96,7 +116,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return _NOTHING
+            return self._none_type
         elif isinstance(node.value, str):
             return self.visit_Str(node)
         elif isinstance(node.value, bytes):
@@ -321,7 +341,7 @@ class JuliaTranspiler(CLikeTranspiler):
                         comp_str = f"keys({comp_str})"
 
             if (isinstance(op, ast.Eq)
-                    and (is_mutable(node.scopes, comp_str) or comp_str == _NOTHING)):
+                    and (is_mutable(node.scopes, comp_str) or comp_str == self._none_type)):
                 op_str = "==="
 
             # Isolate composite operations
@@ -342,7 +362,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return _NOTHING
+            return self._none_type
         else:
             return super().visit_NameConstant(node)
 
@@ -737,7 +757,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # default Python annotation
         type_str = (
             node.julia_annotation
-            if (node.julia_annotation and node.julia_annotation != _NOTHING)
+            if (node.julia_annotation and node.julia_annotation != self._none_type)
             else type_str
         )
 
@@ -773,7 +793,7 @@ class JuliaTranspiler(CLikeTranspiler):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
-                value = _NOTHING
+                value = self._none_type
             return "{0} = {1}".format(target, value)
 
         # TODO: Check this

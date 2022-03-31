@@ -10,9 +10,10 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
+from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.helpers import find_assign_value
 import pyjl.juliaAst as juliaAst
-from pyjl.plugins import JL_IGNORED_MODULE_SET, JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
+from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 from pyjl.transpiler import get_decorator_id
 
 

@@ -166,7 +166,6 @@ class InferTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         self.handling_annotation = False
         self.has_fixed_width_ints = False
-        # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
 
     @staticmethod
@@ -560,7 +559,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
             else:
-                print(definition.container_type)
+                # print(definition.container_type)
                 node.annotation = definition.annotation
         self.generic_visit(node)
         return node

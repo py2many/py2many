@@ -53,7 +53,7 @@ function show()
     @assert(sum1 == 45)
     a5 = [1, 2, 3]
     println(length(a5))
-    a9::Vector = ["a", "b", "c", "d"]
+    a9::Vector[String] = ["a", "b", "c", "d"]
     @assert(length(a9) == 4)
     @assert(a9 == ["a", "b", "c", "d"])
     a6 = Set([1, 2, 3, 4])

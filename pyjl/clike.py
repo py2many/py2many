@@ -9,8 +9,14 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_by_type
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import CONTAINER_TYPE_MAP, JL_IGNORED_MODULE_SET, MODULE_DISPATCH_TABLE, JULIA_TYPE_MAP
+from pyjl.plugins import MODULE_DISPATCH_TABLE
 import importlib
+
+from numbers import Complex, Integral, Rational, Real
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from ctypes import c_int8, c_int16, c_int32, c_int64
+from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
 logger = logging.Logger("pyjl")
 
@@ -54,6 +60,7 @@ julia_keywords = frozenset(
 )
 
 _DEFAULT = "Any"
+_NONE_TYPE = "nothing"
 
 jl_symbols = {
     ast.BitXor: " ⊻ ", 
@@ -68,6 +75,68 @@ jl_symbols = {
     ast.FloorDiv: "÷"
 }
 
+JL_IGNORED_MODULE_SET = set([
+    "unittest",
+    "operator",
+    "numbers",
+    "collections",
+    "test",
+    "test.support",
+    "weakref",
+    "pickle",
+    "struct",
+    "array",
+])
+
+JULIA_TYPE_MAP = {
+    bool: "Bool",
+    int: "Int64",
+    float: "Float64",
+    bytes: "Array{UInt8}",
+    str: "String",
+    c_int8: "Int8",
+    c_int16: "Int16",
+    c_int32: "Int32",
+    c_int64: "Int64",
+    c_uint8: "UInt8",
+    c_uint16: "UInt16",
+    c_uint32: "UInt32",
+    c_uint64: "UInt64",
+    Integral: "Integer",
+    complex: "complex",
+    Complex: "Complex",
+    Rational: "Rational",
+    Real: "Real",
+    None: "nothing",
+    Any: "Any"
+}
+
+JULIA_INTEGER_TYPES = \
+    [
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
+        "UInt128",
+        "UInt64",
+        "UInt32",
+        "UInt16",
+        "UInt8",
+        "Integer"
+    ]
+
+JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
+
+CONTAINER_TYPE_MAP = {
+    List: "Vector",
+    Dict: "Dict",
+    Set: "Set",
+    Tuple: "Tuple",
+    Optional: "nothing",
+    bytearray: f"Vector{{Int8}}",
+}
+
+
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
     symbol_type = type(node)
@@ -79,6 +148,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._type_map = JULIA_TYPE_MAP
         self._container_type_map = CONTAINER_TYPE_MAP
         self._default_type = _DEFAULT
+        self._none_type = _NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         
@@ -122,7 +192,27 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
-    # TODO: Investigate method better
+    ######################################################
+    ################### Type Mappings ####################
+    ######################################################
+
+    def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
+        if isinstance(typename, list):
+            raise NotImplementedError(f"{typename} not supported in this context")
+        return self._get_julia_type(typename)
+
+    def _get_julia_type(self, typename):
+        typeclass = self._func_for_lookup(typename)
+        if typeclass in self._type_map:
+            return self._type_map[typeclass]
+        elif typeclass in self._container_type_map:
+            return self._container_type_map[typeclass]
+        elif typeclass in MODULE_DISPATCH_TABLE:
+            return MODULE_DISPATCH_TABLE[typeclass]
+        else:
+            # Default if no type is found
+            return typename
+
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if hasattr(node, attr):
@@ -183,26 +273,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             index_type = ", ".join(index_type)
         return self._combine_value_index(value_type, index_type)
 
-    def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
-        if isinstance(typename, list):
-            raise NotImplementedError(f"{typename} not supported in this context")
-        return self._get_julia_type(typename)
+    ######################################################
+    ################# For Julia Imports ##################
+    ######################################################
 
-    def _get_julia_type(self, typename):
-        typeclass = self._func_for_lookup(typename)
-        if typeclass in self._type_map:
-            return self._type_map[typeclass]
-        elif typeclass in self._container_type_map:
-            return self._container_type_map[typeclass]
-        elif typeclass in MODULE_DISPATCH_TABLE:
-            return MODULE_DISPATCH_TABLE[typeclass]
-        else:
-            # Default if no type is found
-            return typename
-
-    ################################################
-    ############## For Julia Imports ###############
-    ################################################
     def visit_Import(self, node) -> str:
         '''Adds extra function call to _import_str to add 
         Julia import syntax'''
