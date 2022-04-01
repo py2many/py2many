@@ -9,7 +9,7 @@ from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import find_node_by_type
 from py2many.clike import class_for_typename
-from pyjl.clike import JULIA_INTEGER_TYPES, _NONE_TYPE, JULIA_NUM_TYPES, CLikeTranspiler
+from pyjl.clike import _NONE_TYPE, CLikeTranspiler
 from pyjl.helpers import find_assign_value
 
 def infer_julia_types(node, extension=False):

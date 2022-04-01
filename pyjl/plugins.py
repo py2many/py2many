@@ -9,9 +9,7 @@ import ast
 import random
 import re
 import sys
-import array
 import unittest
-from numbers import Complex, Real, Rational, Integral
 
 import pyjl.juliaAst as juliaAst
 
@@ -232,20 +230,20 @@ class JuliaTranspilerPlugins:
     def visit_async_ann(self, node, decorator):
         return ""
 
-    def visit_assertTrue(self, node, vargs):
+    def visit_assertTrue(t_self, node, vargs):
         JuliaTranspilerPlugins._generic_test_visit(self)
         return f"@test {vargs[1]}"
 
-    def visit_assertFalse(self, node, vargs):
+    def visit_assertFalse(t_self, node, vargs):
         JuliaTranspilerPlugins._generic_test_visit(self)
         return f"@test !({vargs[1]})"
 
-    def visit_assertEqual(self, node, vargs):
+    def visit_assertEqual(t_self, node, vargs):
         JuliaTranspilerPlugins._generic_test_visit(self)
         arg = self.visit(ast.Name(id=vargs[2]))
         return f"@test ({vargs[1]} == {arg})"
 
-    def visit_assertRaises(self, node, vargs):
+    def visit_assertRaises(t_self, node, vargs):
         exception = vargs[1]
         func = vargs[2]
         values = ", ".join(vargs[3:])
@@ -260,15 +258,15 @@ class JuliaTranspilerPlugins:
 
         return f"@test_throws {exception} {func}({values})"
 
-    def _generic_test_visit(self):
-        self._usings.add("Test")
+    def _generic_test_visit(t_self):
+        t_self._usings.add("Test")
 
-    def visit_array(self, node, vargs):
-        type_code: str = re.sub(r"\"", "", vargs[0])
-        if type_code in TYPE_CODE_MAP:
-            return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
+    # def visit_array(self, node, vargs):
+    #     type_code: str = re.sub(r"\"", "", vargs[0])
+    #     if type_code in TYPE_CODE_MAP:
+    #         return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
 
-    def visit_open(self, node, vargs):
+    def visit_open(t_self, node, vargs):
         for_node = find_node_by_type(ast.For, node.scopes)
         # Check if this is always like this
         if for_node is not None:
@@ -276,12 +274,12 @@ class JuliaTranspilerPlugins:
 
         return f"open({vargs[0]}, {vargs[1]})"
 
-    def visit_named_temp_file(self, node, vargs):
+    def visit_named_temp_file(t_self, node, vargs):
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
         node.result_type = True
         return "NamedTempFile::new()"
 
-    def visit_range(self, node, vargs: List[str]) -> str:
+    def visit_range(t_self, node, vargs: List[str]) -> str:
         end = vargs[0] if len(vargs) == 1 else vargs[1]
         if ((isinstance(end, str) and end.lstrip("-").isnumeric())
                 or isinstance(end, int) or isinstance(end, float)):
@@ -300,19 +298,19 @@ class JuliaTranspilerPlugins:
             "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
-    def visit_print(self, node, vargs: List[str]) -> str:
+    def visit_print(t_self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)
         if "%" in args:
             # TODO: Further rules are necessary
             res = re.split(r"\s\%\s", args)
             args = ", ".join(res)
-            self._usings.add("Printf")
+            t_self._usings.add("Printf")
             return f"@printf({args})"
         return f"println({args})"
 
-    def visit_cast_int(self, node, vargs) -> str:
+    def visit_cast_int(t_self, node, vargs) -> str:
         if hasattr(node, "args") and node.args:
-            arg_type = self._typename_from_annotation(node.args[0])
+            arg_type = t_self._typename_from_annotation(node.args[0])
             if arg_type is not None and arg_type.startswith("Float"):
                 return f"Int(floor({vargs[0]}))"
         if vargs:
@@ -328,19 +326,32 @@ class JuliaTranspilerPlugins:
                 return f"Int({vargs[0]})"
         return f"zero(Int)"  # Default int value
 
+    def visit_maketrans(t_self, node, vargs: list[str]):
+        original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
+        replacement_lst = [vargs[1][i] for i in range(2, len(vargs[1]) - 1)]
+        element_lst = []
+        for o, r in zip(original_lst, replacement_lst):
+            if o in t_self._special_character_map:
+                o = t_self._special_character_map[o]
+            if r in t_self._special_character_map:
+                r = t_self._special_character_map[r]
+            element_lst.append(f'b"{o}" => b"{r}"')
+        element_lst_str = ", ".join(element_lst)
+        return f"Dict({element_lst_str})"
+
     @staticmethod
-    def visit_asyncio_run(node, vargs) -> str:
+    def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
 
-    def visit_textio_read(self, node, vargs):
+    def visit_textio_read(t_self, node, vargs):
         # TODO
         return None
 
-    def visit_textio_write(self, node, vargs):
+    def visit_textio_write(t_self, node, vargs):
         # TODO
         return None
 
-    def visit_ap_dataclass(self, cls):
+    def visit_ap_dataclass(t_self, cls):
         # Do whatever transformation the decorator does to cls here
         return cls
 
@@ -408,6 +419,21 @@ class JuliaRewriterPlugins:
 
         return arg_values
 
+TYPE_CODE_MAP = {
+    "u": "Char",
+    "b": "Int8",
+    "B": "Uint8",
+    "h": "Int16",
+    "H": "UInt16",
+    "i": "Int32",
+    "I": "UInt32",
+    "l": "Int64",
+    "L": "UInt64",
+    "q": "Int128",
+    "Q": "UInt128",
+    "f": "Float64",
+    "d": "Float64"
+}
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -431,7 +457,8 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
-    "array.array": JuliaTranspilerPlugins.visit_array
+    # TODO: array.array not supported yet
+    # "array.array": JuliaTranspilerPlugins.visit_array
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
@@ -444,7 +471,7 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
-    "jl_class": JuliaTranspilerPlugins.visit_JuliaClass
+    "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
 }
 
 CLASS_DISPATCH_TABLE = {
@@ -490,15 +517,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     operator.floordiv: (lambda self, node, vargs: f"div({vargs[0]}, {vargs[1]})" if vargs else "div", True),
     int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
     float.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
-    divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback
+    divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "x -> div(x)", True), # Fallback
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
     sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(IOStream, {vargs[0]})" \
-        if vargs else "write", True), # Fallback
+    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(stdout, {vargs[0]})" \
+        if vargs else "x -> write(stdout, x)", True), # TODO: Is there a better way to name the variable?
+    sys.stdout.buffer.flush: (lambda self, node, vargs: "flush(stdout)", True),
     open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
@@ -513,6 +541,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
         False,
     ),
+    bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
+    "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     # TODO: remove string-based fallback
     # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),

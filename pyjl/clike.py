@@ -56,6 +56,8 @@ julia_keywords = frozenset(
         "type",
         "using",
         "while",
+        "write",
+        "flush",
     ]
 )
 
@@ -86,6 +88,7 @@ JL_IGNORED_MODULE_SET = set([
     "pickle",
     "struct",
     "array",
+    "itertools",
 ])
 
 JULIA_TYPE_MAP = {
@@ -355,6 +358,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         return func
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+        # TODO: Temporary Fix
+        if fname[-1] == "_":
+            fname = fname[0:-1]
+
         if isinstance(node, ast.Call) and len(node.args) > 0:
             # Self argument type lookup
             var = get_id(node.args[0])
@@ -375,21 +382,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                     dispatch_func = self._get_dispatch_func(node, annotation, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
-            
-            if hasattr(node, "dispatch"):
-                d_type = None
-                if isinstance(node.dispatch, ast.Call):
-                    d_type = get_id(node.dispatch.func)
-                elif id := get_id(node.dispatch):
-                    d_type = id
-                dispatch_func = self._get_dispatch_func(node, d_type, fname, vargs)
-                if dispatch_func:
-                    return dispatch_func
 
-            new_name = f"{fname}.{vargs[0]}"
-            ret = super()._dispatch(node, new_name, vargs[1:])
-            if ret:
-                return ret
+            dispatch_func = self._get_dispatch_func(node, vargs[0], fname, vargs[1:])
+            if dispatch_func:
+                return dispatch_func
 
         return super()._dispatch(node, fname, vargs)
 

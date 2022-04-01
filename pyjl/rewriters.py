@@ -48,9 +48,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.func = ast.Name(
                 id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
-            # Dispatch information
-            node.dispatch = node0
-
         if isinstance(fname, ast.Name):
             if get_id(node.func) == "join" and node.args:
                 args.reverse()

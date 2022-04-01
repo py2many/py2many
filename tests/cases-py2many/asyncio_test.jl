@@ -14,7 +14,7 @@ end
         @async function writer()
             while isopen(sock)
                 data = wait(readline(sock))
-                wait(write(sock, upper(data)))
+                wait(write_(sock, upper(data)))
             end
         end
         wait(writer())

@@ -1,6 +1,6 @@
 using ResumableFunctions
 using contextlib: closing
-using itertools: islice
+
 
 
 @resumable function pixels(y, n, abs)

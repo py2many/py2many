@@ -103,5 +103,4 @@ def fannkuch(n):
         print("{0}\nPfannkuchen({1}) = {2}".format(checksum, n, maximum))
 
 if __name__ == "__main__":
-    arg: int = 12
-    fannkuch(arg)
+    fannkuch(int(argv[1]))

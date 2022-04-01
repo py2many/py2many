@@ -1,7 +1,7 @@
 
 
 
-using itertools: starmap, chain
+
 using multiprocessing: Pool
 abstract type Abstractlean_call end
 lean_buffer = Dict()
@@ -49,7 +49,7 @@ function count_frequencies(sequence, reading_frames, i, j)
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
-            worklist = translate(worklist, nothing, n)
+            worklist = replace!(nothing, n)
             len_after = length(worklist)
             freq[n[1]] = len_before - len_after
             len_before = len_after
@@ -125,7 +125,7 @@ function read_sequence(file, header, translation)
         end
         sequence += line
     end
-    return translate(sequence, translation, b"\n\r\t ")
+    return replace!(translation, b"\n\r\t ")
 end
 
 function lookup_frequency(results, frame, bits)::Tuple

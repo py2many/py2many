@@ -3,7 +3,7 @@ function main()
     NamedTempFile::new() do temp_file
         file_path = name(temp_file)
         open(file_path, "w") do f
-            write(f, "hello")
+            write_(f, "hello")
         end
         open(file_path, "r") do f
             @assert(read(f, 1) == "h")

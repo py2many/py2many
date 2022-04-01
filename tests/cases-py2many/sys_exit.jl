@@ -1,7 +1,7 @@
 
 function main()
     println("OK")
-    quit(sys)
+    quit(1)
 end
 
 main()

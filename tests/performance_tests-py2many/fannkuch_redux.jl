@@ -2,7 +2,7 @@ using ResumableFunctions
 
 
 using multiprocessing: cpu_count, Pool
-using itertools: islice, starmap
+
 @resumable function permutations(n, start, size)
     p = Vector{UInt8}(join((0:n-1), ""))
     count = Vector{UInt8}(join(n, ""))
@@ -106,8 +106,7 @@ function fannkuch(n)
 end
 
 function main()
-    arg::Int64 = 12
-    fannkuch(arg)
+    fannkuch(parse(Int, argv[2]))
 end
 
 main()

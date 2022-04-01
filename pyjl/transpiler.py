@@ -4,12 +4,12 @@ import ast
 
 import textwrap
 import re
+from py2many.exceptions import AstUnsupportedOperation
 from pyjl.helpers import find_assign_value
-from pyjl.inference import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES
 
 import pyjl.juliaAst as juliaAst
 
-from .clike import CLikeTranspiler
+from .clike import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES, CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
@@ -23,26 +23,10 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_in_body, find_node_by_name_and_type, \
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, \
     get_class_scope, is_class_or_module
 
 from typing import Any, Dict, List
-
-TYPE_CODE_MAP = {
-    "u": "Char",
-    "b": "Int8",
-    "B": "Uint8",
-    "h": "Int16",
-    "H": "UInt16",
-    "i": "Int32",
-    "I": "UInt32",
-    "l": "Int64",
-    "L": "UInt64",
-    "q": "Int128",
-    "Q": "UInt128",
-    "f": "Float64",
-    "d": "Float64"
-}
 
 SPECIAL_CHARACTER_MAP = {
     "\a": "\\a", 
@@ -52,7 +36,8 @@ SPECIAL_CHARACTER_MAP = {
     "\r": "\\r", 
     "\v": "\\v", 
     "\t": "\\t",
-    '"': '\\"',
+    "\"": "\\\"",
+    "\\": "\\\\",
     "\xe9":"\\xe9",
 }
 
@@ -89,6 +74,8 @@ class JuliaTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
         # Added
+        self._julia_num_types = JULIA_NUM_TYPES
+        self._julia_integer_types = JULIA_INTEGER_TYPES
         self._special_character_map = SPECIAL_CHARACTER_MAP
         self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
@@ -138,6 +125,27 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(args_list)
         node.parsed_args = args_list
 
+        # Parse return type
+        return_type = ""
+        if not is_void_function(node):
+            if node.returns:
+                func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
+                                 else self._typename_from_annotation(node, attr="returns"))
+                return_type = f"::{super()._map_type(func_typename)}"
+        node.return_type = return_type
+
+        template = ""
+        if len(typedecls) > 0:
+            template = "{{{0}}}".format(", ".join(typedecls))
+        node.template = template
+
+        # Visit function body
+        body = "\n".join(self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
+
+        node.is_python_main = is_python_main = getattr(node, "python_main", False)
+
         # Visit decorators
         decorator_list = _parse_annotations(node.decorator_list)
         for decorator in decorator_list:
@@ -147,30 +155,13 @@ class JuliaTranspiler(CLikeTranspiler):
                 if ret is not None:
                     return ret
 
-        # Parse return type
-        return_type = ""
-        if not is_void_function(node):
-            if node.returns:
-                func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
-                                 else self._typename_from_annotation(node, attr="returns"))
-                return_type = f"::{super()._map_type(func_typename)}"
-
-        template = ""
-        if len(typedecls) > 0:
-            template = "{{{0}}}".format(", ".join(typedecls))
-
-        # Visit function body
-        body = "\n".join(self.visit(n) for n in node.body)
-        if body == "...":
-            body = ""
-
         # Check if current function contains yield expressions
         annotation = ""
         py_yield = find_in_body(node.body, lambda x: isinstance(x, ast.Yield))
         if py_yield:
             annotation = "@resumable "
         
-        funcdef = f"{annotation}function {node.name}{template}({args}){return_type}"
+        funcdef = f"function {node.name}{template}({args}){return_type}"
 
         is_python_main = getattr(node, "python_main", False)
         maybe_main = "\nmain()" if is_python_main else ""
@@ -413,20 +404,20 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List and Number
-            if((isinstance(node.right, ast.Num) or (right_jl_ann in JULIA_NUM_TYPES)) and
+            if((isinstance(node.right, ast.Num) or (right_jl_ann in self._julia_num_types)) and
                     ((isinstance(node.left, ast.List) or is_list(left_jl_ann)) or
                      (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
                 return f"repeat({left},{right})"
 
-            if((isinstance(node.left, ast.Num) or (left_jl_ann in JULIA_NUM_TYPES)) and
+            if((isinstance(node.left, ast.Num) or (left_jl_ann in self._julia_num_types)) and
                     ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
                      (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
                 return f"repeat({right},{left})"
 
             # Cover Python Int and Boolean multiplication (also supported in Julia)
-            if (((isinstance(node.right, ast.Num) or right_jl_ann in JULIA_NUM_TYPES)
+            if (((isinstance(node.right, ast.Num) or right_jl_ann in self._julia_num_types)
                     and (isinstance(node.left, ast.BoolOp) or left_jl_ann == "Bool")) or
-                    ((isinstance(node.left, ast.Num) or left_jl_ann in JULIA_NUM_TYPES)
+                    ((isinstance(node.left, ast.Num) or left_jl_ann in self._julia_num_types)
                      and (isinstance(node.right, ast.BoolOp) or right_jl_ann == "Bool"))):
                 return f"{left}*{right}"
 
@@ -581,7 +572,7 @@ class JuliaTranspiler(CLikeTranspiler):
         field_str = "\n".join(fields)
         
         decorators = [get_decorator_id(d) for d in node.decorator_list]
-        if("unique" in decorators or typename not in JULIA_INTEGER_TYPES):
+        if("unique" in decorators or typename not in self._julia_integer_types):
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
@@ -866,16 +857,23 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"@async function {node.name}({args})\n{body}\nend"
 
     def visit_Yield(self, node: ast.Yield) -> str:
-        if "ResumableFunctions" not in self._usings:
-            self._usings.add("ResumableFunctions")
-        if node.value:
-            return f"@yield {self.visit(node.value)}"
-        else:
-            return "@yield"
+        func_scope = find_closest_scope(node.scopes)
+        if isinstance(func_scope, ast.FunctionDef):
+            if "resumables" in func_scope.decorator_list:
+                return f"@yield {self.visit(node.value)}" \
+                    if node.value \
+                    else "@yield"
+            else:
+                if node.value:
+                    return f"put!(ch_{func_scope.name}, {self.visit(node.value)})"
+                else:
+                    raise AstUnsupportedOperation(
+                            "yield requires a value when using channels", node
+                        )
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported
-        return f"@yield from {self.visit(node.value)}"
+        return f"#Unsupported#\n@yield from {self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:
         buf = []

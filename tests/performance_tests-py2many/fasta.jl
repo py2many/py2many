@@ -1,12 +1,12 @@
 using ResumableFunctions
 using BisectPy: bisect
 using contextlib: closing, contextmanager
-using itertools: accumulate, chain, islice, zip_longest
+
 using multiprocessing: Lock, RawValue, Process
 
 using re: sub
 
-write = write(stdout.buffer)
+write_ = x -> write(IOBuffer(), x)
 function acquired_lock()
     lock = Lock()
     acquire(lock)
@@ -47,9 +47,9 @@ function write_lines(
                 output += sequence[(i+1):i+width] + newline
             end
             if table
-                write(translate(output, table))
+                write_(translate(output, table))
             else
-                write(output)
+                write_(output)
             end
         end
     end
@@ -61,11 +61,11 @@ function write_lines(
     end
     output += sequence[(i+1):n] + newline
     if table
-        write(translate(output, table))
+        write_(translate(output, table))
     else
-        write(output)
+        write_(output)
     end
-    flush(stdout.buffer)
+    flush
 end
 
 function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
@@ -84,7 +84,7 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
         extend(sequence, sequence)
     end
     lock_pair() do
-        write(header)
+        write_(header)
         write_lines(sequence, n, width)
     end
 end
@@ -143,7 +143,7 @@ function lookup_and_write(
     end
     lock_pair() do
         if start == 0
-            write(header)
+            write_(header)
         end
         write_lines(output, length(output), width)
     end
@@ -198,7 +198,7 @@ end
 
 function fasta(n)
     alu = sub(
-        "\s+",
+        "\\s+",
         "",
         "\nGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA\nTCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT\nAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG\nGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG\nCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA\n",
     )

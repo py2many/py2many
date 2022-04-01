@@ -86,12 +86,10 @@ def get_class_scope(name, scopes):
 
 # Searches for the closest scope using
 # the given scope (search in reverse order)
-def find_closest_scope_name(scopes):
-    scope_name: str = (
-        get_id(find_node_by_type(
+def find_closest_scope(scopes):
+    find_node_by_type(
             (ast.FunctionDef, ast.ClassDef), 
-        scopes))
-    )
+        scopes)
     # If no scope found, default is module scope
     if scope_name == None:
         scope_name = "module"
