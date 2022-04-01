@@ -454,7 +454,7 @@ class VTranspiler(CLikeTranspiler):
         keys: List[str] = [self.visit(k) for k in node.keys]
         values: List[str] = [self.visit(k) for k in node.values]
         kv_pairs: str = " ".join([f"{k}: {v}" for k, v in zip(keys, values)])
-        return f"map{{{kv_pairs}}}"
+        return f"{{{kv_pairs}}}"
 
     def visit_Subscript(self, node: ast.Subscript) -> str:
         value: str = self.visit(node.value)
