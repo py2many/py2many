@@ -1,10 +1,39 @@
 using ResumableFunctions
 
 
-reverse_translation = maketrans(
-    bytes,
-    b"ABCDGHKMNRSTUVWYabcdghkmnrstuvwy",
-    b"TVGHCDMKNYSAABWRTVGHCDMKNYSAABWR",
+reverse_translation = Dict(
+    b"A" => b"T",
+    b"B" => b"V",
+    b"C" => b"G",
+    b"D" => b"H",
+    b"G" => b"C",
+    b"H" => b"D",
+    b"K" => b"M",
+    b"M" => b"K",
+    b"N" => b"N",
+    b"R" => b"Y",
+    b"S" => b"S",
+    b"T" => b"A",
+    b"U" => b"A",
+    b"V" => b"B",
+    b"W" => b"W",
+    b"Y" => b"R",
+    b"a" => b"T",
+    b"b" => b"V",
+    b"c" => b"G",
+    b"d" => b"H",
+    b"g" => b"C",
+    b"h" => b"D",
+    b"k" => b"M",
+    b"m" => b"K",
+    b"n" => b"N",
+    b"r" => b"Y",
+    b"s" => b"S",
+    b"t" => b"A",
+    b"u" => b"A",
+    b"v" => b"B",
+    b"w" => b"W",
+    b"y" => b"R",
 )
 function reverse_complement(header, sequence)::Tuple
     t = replace!(reverse_translation, b"\n\r ")
@@ -39,14 +68,15 @@ end
     end
 end
 
-@resumable function main()
-    write_ = x -> write(IOBuffer(), x)
-    flush = flush
+function main()
+    write_ = x -> write(stdout, x)
+    flush_ = flush(stdout)
     s = read_sequences(stdin.buffer)
     data = next(s)
-    @resumable function merge(v, g)
-        @yield v
-        @yield from g
+    function merge(v, g)
+        put!(ch_merge, v)
+        # Unsupported
+        @yield_from g
     end
 
     for (h, r) in starmap(reverse_complement, merge(data, s))

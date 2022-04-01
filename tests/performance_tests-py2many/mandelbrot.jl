@@ -1,9 +1,8 @@
-using ResumableFunctions
 using contextlib: closing
 
 
 
-@resumable function pixels(y, n, abs)
+function pixels(y, n, abs)
     range7 = Vector{UInt8}(join((0:6), ""))
     pixel_bits = Vector{UInt8}(join((128 >> pos for pos in (0:7)), ""))
     c1 = 2.0 / float(n)
@@ -24,7 +23,7 @@ using contextlib: closing
             end
             c += c1
         end
-        @yield pixel
+        put!(ch_pixels, pixel)
         x += 8
     end
 end
@@ -36,7 +35,7 @@ function compute_row(p)::Tuple
     return (y, result)
 end
 
-@resumable function ordered_rows(rows, n)
+function ordered_rows(rows, n)
     order = [nothing] * n
     i = 0
     j = n
@@ -47,7 +46,7 @@ end
             j -= 1
         end
         if order[i]
-            @yield order[i]
+            put!(ch_ordered_rows, order[i])
             order[i] = nothing
             i += 1
         end
@@ -57,9 +56,11 @@ end
 function compute_rows(n, f)
     row_jobs = ((y, n) for y in (0:n-1))
     if length(Sys.cpu_info()) < 2
-        @yield from map(f, row_jobs)
+        # Unsupported
+        @yield_from map(f, row_jobs)
     else
-        @yield from ordered_rows(map(f, row_jobs), n)
+        # Unsupported
+        @yield_from ordered_rows(map(f, row_jobs), n)
     end
 end
 

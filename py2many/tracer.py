@@ -87,14 +87,12 @@ def get_class_scope(name, scopes):
 # Searches for the closest scope using
 # the given scope (search in reverse order)
 def find_closest_scope(scopes):
-    find_node_by_type(
-            (ast.FunctionDef, ast.ClassDef), 
-        scopes)
-    # If no scope found, default is module scope
-    if scope_name == None:
-        scope_name = "module"
+    for i in range(len(scopes) - 1, 0, -1):
+        sc = scopes[i]
+        if isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef):
+            return sc
 
-    return scope_name
+    return None
 
 # Searches for the first node of type node_type using
 # the given scope (search in reverse order)
@@ -157,6 +155,14 @@ def find_in_body(body, fn):
             if ret:
                 return ret
 
+    return None
+
+# Finds a node in a given scope
+def find_in_scope(scope, fn):
+    for node in scope.body:
+        if fn(node):
+            return node
+        
     return None
 
 # Checks if a given node's name matches 

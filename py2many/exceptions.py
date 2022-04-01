@@ -61,7 +61,7 @@ class AstEmptyNodeFound(TypeError):
     def __init__(self):
         super().__init__("node can not be None")
 
-class AstUnsupportedOperation(TypeError):
+class AstUnsupportedOperation(AstNotImplementedError):
     "When a node does not correspond to the supported feature set"
 
     def __init__(self, msg, node: ast.AST):

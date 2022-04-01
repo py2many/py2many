@@ -156,7 +156,16 @@ function display(results, display_list, sort = false, relative = false, end_ = "
 end
 
 function main_func()
-    translation = maketrans(bytes, b"GTCAgtca", b"\x00\x01\x02\x03\x00\x01\x02\x03")
+    translation = Dict(
+        b"G" => b"\\",
+        b"T" => b"x",
+        b"C" => b"0",
+        b"A" => b"0",
+        b"g" => b"\\",
+        b"t" => b"x",
+        b"c" => b"0",
+        b"a" => b"1",
+    )
     function str_to_bits(text)::Int64
         buffer = translate(encode(text, "latin1"), translation)
         bits = 0

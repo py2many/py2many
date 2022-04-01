@@ -1,9 +1,8 @@
-using ResumableFunctions
 
 
 using multiprocessing: cpu_count, Pool
 
-@resumable function permutations(n, start, size)
+function permutations(n, start, size)
     p = Vector{UInt8}(join((0:n-1), ""))
     count = Vector{UInt8}(join(n, ""))
     remainder = start
@@ -16,7 +15,7 @@ using multiprocessing: cpu_count, Pool
     @assert(count[2] == 0)
     @assert(size < 2 || (size % 2) == 0)
     if size < 2
-        @yield p[begin:end]
+        put!(ch_permutations, p[begin:end])
     else
         rotation_swaps = [nothing] * n
         for i in (1:n-1)
@@ -33,9 +32,9 @@ using multiprocessing: cpu_count, Pool
             rotation_swaps[i] = tuple(swaps)
         end
         while true
-            @yield p[begin:end]
+            put!(ch_permutations, p[begin:end])
             p[1], p[2] = (p[2], p[1])
-            @yield p[begin:end]
+            put!(ch_permutations, p[begin:end])
             i = 2
             while count[i] >= i
                 count[i] = 0
@@ -45,7 +44,7 @@ using multiprocessing: cpu_count, Pool
     end
 end
 
-@resumable function alternating_flips_generator(n, start, size)
+function alternating_flips_generator(n, start, size)
     maximum_flips = 0
     alternating_factor = 1
     for permutation in split(permutations(n, start, size))[size]
@@ -63,13 +62,13 @@ end
             if maximum_flips < flips_count
                 maximum_flips = flips_count
             end
-            @yield flips_count * alternating_factor
+            put!(ch_alternating_flips_generator, flips_count * alternating_factor)
         else
-            @yield 0
+            put!(ch_alternating_flips_generator, 0)
         end
         alternating_factor = -(alternating_factor)
     end
-    @yield maximum_flips
+    put!(ch_alternating_flips_generator, maximum_flips)
 end
 
 function task(n, start, size)::Tuple

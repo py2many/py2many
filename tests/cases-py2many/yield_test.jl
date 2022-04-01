@@ -1,56 +1,55 @@
-using ResumableFunctions
 abstract type AbstractTestClass end
-@resumable function generator_func()
+function generator_func()
     num = 1
-    @yield num
+    put!(ch_generator_func, num)
     num = 5
-    @yield num
+    put!(ch_generator_func, num)
     num = 10
-    @yield num
+    put!(ch_generator_func, num)
 end
 
-@resumable function generator_func_loop()
+function generator_func_loop()
     num = 0
     for n in (0:2)
-        @yield num + n
+        put!(ch_generator_func_loop, num + n)
     end
 end
 
-@resumable function generator_func_loop_using_var()
+function generator_func_loop_using_var()
     num = 0
     end_ = 2
     end_ = 3
     for n in (0:end_-1)
-        @yield num + n
+        put!(ch_generator_func_loop_using_var, num + n)
     end
 end
 
-@resumable function generator_func_nested_loop()
+function generator_func_nested_loop()
     for n in (0:1)
         for i in (0:1)
-            @yield (n, i)
+            put!(ch_generator_func_nested_loop, (n, i))
         end
     end
 end
 
-@resumable function file_reader(file_name::String)
+function file_reader(file_name::String)
     for file_row in readline(file_name)
-        @yield file_row
+        put!(ch_file_reader, file_row)
     end
 end
 
-@resumable function testgen()
+function testgen()
     println("first")
-    @yield 1
+    put!(ch_testgen, 1)
     println("second")
-    @yield 2
+    put!(ch_testgen, 2)
 end
 
-@resumable function fib()
+function fib()
     a = 0
     b = 1
     while true
-        @yield a
+        put!(ch_fib, a)
         a, b = (b, a + b)
     end
 end
@@ -58,13 +57,13 @@ end
 mutable struct TestClass <: AbstractTestClass
 
 end
-@resumable function generator_func(self::AbstractTestClass)
+function generator_func(self::AbstractTestClass)
     num = 123
-    @yield num
+    put!(ch_generator_func, num)
     num = 5
-    @yield num
+    put!(ch_generator_func, num)
     num = 10
-    @yield num
+    put!(ch_generator_func, num)
 end
 
 function main()

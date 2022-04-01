@@ -1,19 +1,20 @@
-using ResumableFunctions
-@resumable function generator1()
+function generator1()
     for i in (0:2)
-        @yield i
+        put!(ch_generator1, i)
     end
 end
 
-@resumable function generator2()
+function generator2()
     for j in (3:4)
-        @yield j
+        put!(ch_generator2, j)
     end
 end
 
 function yield_from()
-    @yield from generator1()
-    @yield from generator2()
+    # Unsupported
+    @yield_from generator1()
+    # Unsupported
+    @yield_from generator2()
 end
 
 function main()

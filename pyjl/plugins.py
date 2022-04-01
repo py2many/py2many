@@ -10,6 +10,7 @@ import random
 import re
 import sys
 import unittest
+from py2many.exceptions import AstUnsupportedOperation
 
 import pyjl.juliaAst as juliaAst
 
@@ -18,7 +19,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_type
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -226,6 +227,25 @@ class JuliaTranspilerPlugins:
             return f"@class {struct_def}begin\n{node.fields_str}\n{node.constructor_str}\nend\n{body}"
 
         return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
+
+    def visit_resumables(t_self, node, decorator):
+        # node.scopes[-2] because node.scopes[-1] is the current function
+        parent = node.scopes[-2]
+        if isinstance(parent, ast.FunctionDef):
+            raise AstUnsupportedOperation(
+                "Cannot use resumable functions when function is nested", node)
+
+        t_self._usings.add("ResumableFunctions")
+        
+        funcdef = f"function {node.name}{node.template}({node.parsed_args}){node.return_type}"
+
+        # Visit function body
+        body = "\n".join(t_self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
+
+        maybe_main = "\nmain()" if node.is_python_main else ""
+        return f"@resumable {funcdef}\n{body}\nend\n{maybe_main}"
 
     def visit_async_ann(self, node, decorator):
         return ""
@@ -472,6 +492,7 @@ DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
     "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
+    "resumable": JuliaTranspilerPlugins.visit_resumables
 }
 
 CLASS_DISPATCH_TABLE = {

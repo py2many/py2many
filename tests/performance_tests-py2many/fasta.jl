@@ -6,7 +6,7 @@ using multiprocessing: Lock, RawValue, Process
 
 using re: sub
 
-write_ = x -> write(IOBuffer(), x)
+write_ = x -> write(stdout, x)
 function acquired_lock()
     lock = Lock()
     acquire(lock)
@@ -65,7 +65,7 @@ function write_lines(
     else
         write_(output)
     end
-    flush
+    flush(stdout)
 end
 
 function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
@@ -89,36 +89,37 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
     end
 end
 
-@resumable function lcg(seed, im, ia, ic)
+function lcg(seed, im, ia, ic)
     local_seed = value(seed)
     try
         while true
             local_seed = (local_seed * ia + ic) % im
-            @yield local_seed
+            put!(ch_lcg, local_seed)
         end
     finally
         value(seed) = local_seed
     end
 end
 
-@resumable function lookup(probabilities, values)
+function lookup(probabilities, values)
     for value in values
-        @yield bisect(probabilities, value)
+        put!(ch_lookup, bisect(probabilities, value))
     end
 end
 
 function lcg_lookup_slow(probabilities, seed, im, ia, ic)
     closing(lcg(seed, im, ia, ic)) do prng
-        @yield from lookup(probabilities, prng)
+        # Unsupported
+        @yield_from lookup(probabilities, prng)
     end
 end
 
-@resumable function lcg_lookup_fast(probabilities, seed, im, ia, ic)
+function lcg_lookup_fast(probabilities, seed, im, ia, ic)
     local_seed = value(seed)
     try
         while true
             local_seed = (local_seed * ia + ic) % im
-            @yield bisect(probabilities, local_seed)
+            put!(ch_lcg_lookup_fast, bisect(probabilities, local_seed))
         end
     finally
         value(seed) = local_seed

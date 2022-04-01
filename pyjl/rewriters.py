@@ -4,7 +4,7 @@ from typing import Any, Dict
 from libcst import ImportFrom
 
 from numpy import isin
-from py2many.tracer import find_node_by_name_and_type, is_class_or_module, is_enum
+from py2many.tracer import find_closest_scope, find_in_body, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -40,7 +40,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             if new_func_name == "join":
                 # Join with empty string if no content is present
                 if not node0:
-                    node0 = ast.Name(id=f"\"\"", lineno=node.lineno, ctx=ast.Load())
+                    node0 = ast.Name(
+                        id=f"\"\"", lineno=node.lineno, ctx=ast.Load())
                 args = node.args + [node0]
             else:
                 args = [node0] + node.args
@@ -60,20 +61,20 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if node_id := get_id(node.value):
             value_id = node_id
         elif isinstance(node.value, ast.Call)\
-            and (call_id := get_id(node.value.func)):
+                and (call_id := get_id(node.value.func)):
             value_id = call_id
 
-        if value_id and (is_enum(value_id, node.scopes) or 
-                is_class_or_module(value_id, node.scopes) or 
-                value_id.startswith("self")):
+        if value_id and (is_enum(value_id, node.scopes) or
+                         is_class_or_module(value_id, node.scopes) or
+                         value_id.startswith("self")):
             return node
 
         return ast.Call(
-            func = ast.Name(id = node.attr, ctx = ast.Load()),
-            args = [node.value],
-            keywords = [],
-            lineno = node.lineno,
-            col_offset = node.col_offset)
+            func=ast.Name(id=node.attr, ctx=ast.Load()),
+            args=[node.value],
+            keywords=[],
+            lineno=node.lineno,
+            col_offset=node.col_offset)
 
 
 class JuliaDecoratorRewriter(ast.NodeTransformer):
@@ -123,6 +124,7 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
 class JuliaClassRewriter(ast.NodeTransformer):
     """Transforms Python classes into Julia compatible classes"""
+
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map = {}
@@ -152,7 +154,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 for d in n.body:
                     if isinstance(d, ast.FunctionDef):
                         if d.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-                            JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[d.name](self, d)
+                            JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[d.name](
+                                self, d)
                         else:
                             d.self_type = n.name
                             class_body.append(self.visit(d))
@@ -179,7 +182,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             # node.class_names.append(class_name)
             if not is_jlClass:
-                core_module = extends_lst[0].split(".")[0] if extends_lst else None
+                core_module = extends_lst[0].split(
+                    ".")[0] if extends_lst else None
                 # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
                 extends = ast.Name(id=f"Abstract{extends_lst[0]}") \
@@ -207,10 +211,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         extends = []
         if not node.bases or len(node.bases) == 0:
-            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+            node.jl_bases = [
+                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
         elif len(node.bases) == 1:
             name = get_id(node.bases[0])
-            node.jl_bases = [ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+            node.jl_bases = [
+                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             extends = [name]
         elif len(node.bases) > 1:
             # TODO: Investigate Julia traits
@@ -316,29 +322,29 @@ class JuliaClassRewriter(ast.NodeTransformer):
 class JuliaAugAssignRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def visit_AugAssign(self, node: ast.AugAssign) -> Any:
         requires_lowering = (
-            isinstance(node.op, ast.BitXor) or 
+            isinstance(node.op, ast.BitXor) or
             isinstance(node.op, ast.BitAnd) or
-            ((isinstance(node.op, ast.Add) or 
-              isinstance(node.op, ast.Mult) or 
-              isinstance(node.op, ast.MatMult)) and 
-                (self._is_list(node.target, node.scopes) or 
-                self._is_list(node.value, node.scopes)))
+            ((isinstance(node.op, ast.Add) or
+              isinstance(node.op, ast.Mult) or
+              isinstance(node.op, ast.MatMult)) and
+                (self._is_list(node.target, node.scopes) or
+                 self._is_list(node.value, node.scopes)))
         )
         if requires_lowering:
             return ast.Assign(
-                targets = [node.target],
-                value = ast.BinOp(
-                    left = node.target,
-                    op = node.op,
-                    right = node.value,
-                    lineno = node.lineno,
-                    col_offset = node.col_offset
+                targets=[node.target],
+                value=ast.BinOp(
+                    left=node.target,
+                    op=node.op,
+                    right=node.value,
+                    lineno=node.lineno,
+                    col_offset=node.col_offset
                 ),
-                lineno = node.lineno,
-                col_offset = node.col_offset
+                lineno=node.lineno,
+                col_offset=node.col_offset
             )
 
         return self.generic_visit(node)
@@ -346,8 +352,71 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
     def _is_list(self, node, scopes):
         if isinstance(node, ast.List):
             return True
-        if (isinstance(node, ast.Subscript) and (id:=get_id(node.value))) or (id :=  get_id(node)):
+        if (isinstance(node, ast.Subscript) and (id := get_id(node.value))) or (id := get_id(node)):
             val = find_assign_value(id, node.scopes)
             return isinstance(val, ast.List) or isinstance(val, ast.List)
         return False
+
+
+class JuliaChannelRewriter(ast.NodeTransformer):
+    def __init__(self):
+        self._generator_func_names = []
+        self._assign_map = {}
+        super().__init__()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        yield_node = find_in_scope(
+            node, lambda x: isinstance(x, ast.Yield))
+        decs = list(map(get_id, node.decorator_list))
+        if yield_node and "resumable" not in decs:
+            # Body contains yield and is not resumable function
+            self._generator_func_names.append(node.name)
+            node.body = [
+                ast.With(
+                    items = [
+                        ast.withitem(
+                            context_expr = ast.Call(
+                                func=ast.Name(
+                                    id = "Channel",
+                                    lineno = node.lineno,
+                                    col_offset = node.col_offset),
+                                args = [],
+                                keywords = [],
+                                scopes = [],
+                                lineno = node.lineno,
+                                col_offset = node.col_offset),
+                            optional_vars = ast.Name(
+                                id = f"ch_{node.name}",
+                                lineno = node.lineno,
+                                col_offset = node.col_offset)
+                        )
+                    ],
+                    body = node.body,
+                    lineno = node.lineno,
+                    col_offset = node.col_offset)
+            ]
+        return self.generic_visit(node)
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        for target in node.targets:
+            t_id = get_id(target)
+            if t_id:
+                self._assign_map[t_id] = self._get_str_repr(node.value)
+        return self.generic_visit(node)
+
+    def _get_str_repr(self, node):
+        if id := get_id(node):
+            return id
+        if isinstance(node, ast.Call):
+            return self._get_str_repr(node.func)
+        return None
+        
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        if id := get_id(node.value):
+            if id in self._assign_map:
+                func_name = self._assign_map[id]
+                if func_name in self._generator_func_names:
+                    if node.attr == "__next__":
+                        node.attr = "take!"
+        return self.generic_visit(node)
 

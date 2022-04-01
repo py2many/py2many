@@ -17,7 +17,7 @@ from .plugins import (
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP
+    SMALL_USINGS_MAP,
 )
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -123,7 +123,7 @@ class JuliaTranspiler(CLikeTranspiler):
         # Parse function args       
         args_list = self._get_args(node)
         args = ", ".join(args_list)
-        node.parsed_args = args_list
+        node.parsed_args = args
 
         # Parse return type
         return_type = ""
@@ -154,12 +154,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
                     return ret
-
-        # Check if current function contains yield expressions
-        annotation = ""
-        py_yield = find_in_body(node.body, lambda x: isinstance(x, ast.Yield))
-        if py_yield:
-            annotation = "@resumable "
         
         funcdef = f"function {node.name}{template}({args}){return_type}"
 
@@ -859,7 +853,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Yield(self, node: ast.Yield) -> str:
         func_scope = find_closest_scope(node.scopes)
         if isinstance(func_scope, ast.FunctionDef):
-            if "resumables" in func_scope.decorator_list:
+            decs = list(map(get_id, func_scope.decorator_list))
+            if "resumable" in decs:
                 return f"@yield {self.visit(node.value)}" \
                     if node.value \
                     else "@yield"
@@ -868,12 +863,11 @@ class JuliaTranspiler(CLikeTranspiler):
                     return f"put!(ch_{func_scope.name}, {self.visit(node.value)})"
                 else:
                     raise AstUnsupportedOperation(
-                            "yield requires a value when using channels", node
-                        )
+                            "yield requires a value when using channels", node)
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported
-        return f"#Unsupported#\n@yield from {self.visit(node.value)}"
+        return f"# Unsupported\n@yield_from {self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:
         buf = []
