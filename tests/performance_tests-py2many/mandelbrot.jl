@@ -4,28 +4,30 @@ using contextlib: closing
 
 function pixels(y, n, abs)
     Channel() do ch_pixels
-        range7 = Vector{UInt8}(join((0:6), ""))
-        pixel_bits = Vector{UInt8}(join((128 >> pos for pos in (0:7)), ""))
-        c1 = 2.0 / float(n)
-        c0 = (-1.5 + 1im * y * c1) - 1im
-        x = 0
-        while true
-            pixel = 0
-            c = x * c1 + c0
-            for pixel_bit in pixel_bits
-                z = c
-                for _ in range7
+        Channel() do ch_pixels
+            range7 = Vector{UInt8}(join((0:6), ""))
+            pixel_bits = Vector{UInt8}(join((128 >> pos for pos in (0:7)), ""))
+            c1 = 2.0 / float(n)
+            c0 = (-1.5 + 1im * y * c1) - 1im
+            x = 0
+            while true
+                pixel = 0
+                c = x * c1 + c0
+                for pixel_bit in pixel_bits
+                    z = c
                     for _ in range7
-                        z = z * z + c
+                        for _ in range7
+                            z = z * z + c
+                        end
+                        if abs(z) >= 2.0
+                            break
+                        end
                     end
-                    if abs(z) >= 2.0
-                        break
-                    end
+                    c += c1
                 end
-                c += c1
+                put!(ch_pixels, pixel)
+                x += 8
             end
-            put!(ch_pixels, pixel)
-            x += 8
         end
     end
 end
@@ -39,19 +41,21 @@ end
 
 function ordered_rows(rows, n)
     Channel() do ch_ordered_rows
-        order = [nothing] * n
-        i = 0
-        j = n
-        while i < length(order)
-            if j > 0
-                row = next(rows)
-                order[row[1]] = row
-                j -= 1
-            end
-            if order[i]
-                put!(ch_ordered_rows, order[i])
-                order[i] = nothing
-                i += 1
+        Channel() do ch_ordered_rows
+            order = [nothing] * n
+            i = 0
+            j = n
+            while i < length(order)
+                if j > 0
+                    row = next(rows)
+                    order[row[1]] = row
+                    j -= 1
+                end
+                if order[i]
+                    put!(ch_ordered_rows, order[i])
+                    order[i] = nothing
+                    i += 1
+                end
             end
         end
     end

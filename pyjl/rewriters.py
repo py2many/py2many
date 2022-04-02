@@ -1,17 +1,19 @@
 from __future__ import annotations
 import ast
+from re import I
 from typing import Any, Dict
-from libcst import ImportFrom
+from libcst import ImportFrom, Yield
 
 from numpy import isin
-from py2many.tracer import find_in_body, find_in_scope, is_class_or_module, is_enum
+from py2many.exceptions import AstUnsupportedOperation
+from py2many.tracer import find_closest_scope, find_in_body, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.helpers import find_assign_value
+from pyjl.helpers import find_assign_value, get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -356,6 +358,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             return isinstance(val, ast.List) or isinstance(val, ast.List)
         return False
 
+# TODO: Not actually a Rewriter (more of a transformer)
 class JuliaDecoratorRewriter(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
@@ -386,9 +389,9 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
         node.parsed_decorators = parsed_decorators
 
-class JuliaChannelRewriter(ast.NodeTransformer):
+class JuliaGeneratorRewriter(ast.NodeTransformer):
     def __init__(self):
-        self._generator_func_names = []
+        self._generator_funcs = {}
         self._assign_map = {}
         self._nested_funcs = []
         super().__init__()
@@ -406,12 +409,12 @@ class JuliaChannelRewriter(ast.NodeTransformer):
             else:
                 body.append(self.visit(n))
         node.body = body
-        return node
+        return self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         yield_node = find_in_scope(
             node.body, lambda x: isinstance(x, ast.Yield))
-            
+
         body = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and "resumable" in n.parsed_decorators:
@@ -422,9 +425,18 @@ class JuliaChannelRewriter(ast.NodeTransformer):
             body.append(self.visit(n))
         node.body = body
 
-        if yield_node and "resumable" not in node.parsed_decorators:
+        if "resumable" in node.parsed_decorators and \
+                "channels" in node.parsed_decorators:
+            raise AstUnsupportedOperation(  
+                "Function cannot have both @resumable and @channels decorators", 
+                node)
+
+        is_resumable = "resumable" in node.parsed_decorators \
+            or ("resumable" in node.parsed_decorators and 
+                node.parsed_decorators["resumable"])
+        self._generator_funcs[node.name] = is_resumable
+        if yield_node and not is_resumable:
             # Body contains yield and is not resumable function
-            self._generator_func_names.append(node.name)
             node.body = [
                 ast.With(
                     items = [
@@ -450,7 +462,34 @@ class JuliaChannelRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset)
             ]
 
-        return node
+        return self.generic_visit(node)
+
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
+        parent = node.scopes[-1]
+        if isinstance(parent, ast.FunctionDef):
+            dec = None
+            if "channels" in parent.parsed_decorators:
+                dec = parent.parsed_decorators["channels"]
+            elif "resumable" in parent.parsed_decorators:
+                dec = parent.parsed_decorators["resumable"]
+            lower_yield_from = dec and dec["lower_yield_from"]
+            if lower_yield_from:
+                val = ast.Name(
+                        id = get_variable_name(parent),
+                        lineno = node.lineno,
+                        col_offset = node.col_offset)
+                new_node = ast.For(
+                    target = val,
+                    iter = node.value,
+                    body = [
+                        ast.Yield(
+                            value = val
+                        )],
+                    lineno = node.lineno,
+                    col_offset = node.col_offset)
+                return new_node
+
+        return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         for target in node.targets:
@@ -465,13 +504,35 @@ class JuliaChannelRewriter(ast.NodeTransformer):
         if isinstance(node, ast.Call):
             return self._get_str_repr(node.func)
         return None
-        
+    
+    # TODO: Both visit_Attribute and visit_Call are a fallback. 
+    # If inference can detect Generator functions, add this to the dispatch_map 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         if id := get_id(node.value):
             if id in self._assign_map:
-                func_name = self._assign_map[id]
-                if func_name in self._generator_func_names:
+                assign_res = self._assign_map[id]
+                if assign_res in self._generator_funcs:
                     if node.attr == "__next__":
-                        node.attr = "take!"
+                        node.attr = (f"{assign_res}()"
+                            if self._generator_funcs[assign_res]
+                            else "take!")
+        return self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        if (id := get_id(node.func)) and len(node.args) > 0:
+            arg = get_id(node.args[0])
+            if arg in self._assign_map:
+                assign_res = self._assign_map[arg]
+                if assign_res in self._generator_funcs:
+                    if id == "next":
+                        if self._generator_funcs[assign_res]:
+                            new_id = f"{arg}"
+                            node.args = node.args[1:]
+                        else:
+                            new_id = "take!"
+                        node.func = ast.Name(
+                            id = new_id,
+                            lineno = node.lineno,
+                            col_offset = node.col_offset)
         return self.generic_visit(node)
 

@@ -1,8 +1,11 @@
 # Gets range from for loop
 import ast
+from ctypes import Union
+
+from libcst import FunctionDef
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_node_by_name_and_type
+from py2many.tracer import find_in_body, find_node_by_name_and_type
 
 # TODO: Delete if not necessary
 def get_range_from_for_loop(node):
@@ -54,3 +57,26 @@ def find_assign_value(id, scopes):
     assign = getattr(find_node_by_name_and_type(id, ast.Assign, scopes)[0], "value", None)
     ann_assign = getattr(find_node_by_name_and_type(id, ast.AnnAssign, scopes)[0], "value", None)
     return assign if assign else ann_assign
+
+def get_variable_name(scope):
+    common_vars = ["v", "w", "x", "y", "z"]
+    new_var = None
+    for var in common_vars:
+        found = True
+        if isinstance(scope, ast.FunctionDef):
+            for arg in scope.args.args:
+                if arg.arg == var:
+                    found = False
+                    break
+        if found and (body := getattr(scope, "body", None)):
+            for n in body:
+                if isinstance(n, ast.Assign):
+                    for x in n.targets:
+                        if get_id(x) == new_var:
+                            found = False
+                            break
+        if found:
+            new_var = var
+            break
+
+    return new_var

@@ -66,8 +66,8 @@ if __name__ == '__main__':
     # if cpu_count() == 1 or len(data[1]) < 1000000:
     #     from itertools import starmap
 
-    # TODO: implement new parsing for decorator as ast_Call
-    @resumable(remove_nested=True)
+    @resumable(remove_nested=True, lower_yield_from=True)
+    # @channels(lower_yield_from=True)
     def merge(v, g):
         yield v
         yield from g

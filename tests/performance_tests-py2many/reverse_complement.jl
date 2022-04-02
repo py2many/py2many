@@ -68,19 +68,18 @@ end
     end
 end
 
+@resumable function merge(v, g)
+    @yield v
+    for w in g
+        @yield w
+    end
+end
+
 function main()
     write_ = x -> write(stdout, x)
     flush_ = flush(stdout)
     s = read_sequences(stdin.buffer)
     data = next(s)
-    function merge(v, g)
-        Channel() do ch_merge
-            put!(ch_merge, v)
-            # Unsupported
-            @yield_from g
-        end
-    end
-
     for (h, r) in starmap(reverse_complement, merge(data, s))
         write_(h)
         write_(r)

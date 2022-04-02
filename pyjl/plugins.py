@@ -15,7 +15,7 @@ from py2many.exceptions import AstUnsupportedOperation
 import pyjl.juliaAst as juliaAst
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
