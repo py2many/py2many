@@ -4,7 +4,7 @@ from typing import Any, Dict
 from libcst import ImportFrom
 
 from numpy import isin
-from py2many.tracer import find_closest_scope, find_in_body, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_enum
+from py2many.tracer import find_in_body, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -14,11 +14,10 @@ from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.helpers import find_assign_value
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
-from pyjl.transpiler import get_decorator_id
 
 
-def julia_decorator_rewriter(tree, input_config, filename):
-    JuliaDecoratorRewriter(input_config, filename).visit(tree)
+def julia_config_rewriter(tree, input_config, filename):
+    JuliaConfigRewriter(input_config, filename).visit(tree)
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -77,7 +76,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             col_offset=node.col_offset)
 
 
-class JuliaDecoratorRewriter(ast.NodeTransformer):
+class JuliaConfigRewriter(ast.NodeTransformer):
     def __init__(self, input_config: Dict, filename: str) -> None:
         super().__init__()
         self._input_config_map = (ParseFileStructure.retrieve_structure(filename, input_config)
@@ -206,7 +205,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name: str = get_id(node)
 
-        decorator_list = list(map(get_decorator_id, node.decorator_list))
+        decorator_list = list(map(get_id, node.decorator_list))
         is_jlClass = "jl_class" in decorator_list
 
         extends = []
@@ -357,18 +356,73 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             return isinstance(val, ast.List) or isinstance(val, ast.List)
         return False
 
+class JuliaDecoratorRewriter(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self._parse_decorators(node)
+        return self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._parse_decorators(node)
+        return self.generic_visit(node)
+
+    def _parse_decorators(self, node):
+        parsed_decorators: Dict[str, Dict[str, str]] = {}
+        if decorator_list := getattr(node, "decorator_list", None):
+            for decorator in decorator_list:
+                if isinstance(decorator, ast.Name):
+                    parsed_decorators[get_id(decorator)] = None
+                elif isinstance(decorator, ast.Call):
+                    keywords = {}
+                    for keyword in decorator.keywords:
+                        keywords[keyword.arg] = keyword.value.value
+                    parsed_decorators[get_id(decorator.func)] = keywords
+                
+        if "dataclass" in parsed_decorators \
+                and "jl_dataclass" in parsed_decorators:
+            parsed_decorators.pop("dataclass")
+
+        node.parsed_decorators = parsed_decorators
 
 class JuliaChannelRewriter(ast.NodeTransformer):
     def __init__(self):
         self._generator_func_names = []
         self._assign_map = {}
+        self._nested_funcs = []
         super().__init__()
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        body = []
+        for n in node.body:
+            if isinstance(n, ast.FunctionDef):
+                func = self.visit(n)
+                if self._nested_funcs:
+                    for nested in self._nested_funcs:
+                        body.append(nested)
+                    self._nested_funcs = []
+                body.append(func)
+            else:
+                body.append(self.visit(n))
+        node.body = body
+        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         yield_node = find_in_scope(
-            node, lambda x: isinstance(x, ast.Yield))
-        decs = list(map(get_id, node.decorator_list))
-        if yield_node and "resumable" not in decs:
+            node.body, lambda x: isinstance(x, ast.Yield))
+            
+        body = []
+        for n in node.body:
+            if isinstance(n, ast.FunctionDef) and "resumable" in n.parsed_decorators:
+                resumable_keywords = n.parsed_decorators["resumable"]
+                if resumable_keywords and "remove_nested" in resumable_keywords:
+                    self._nested_funcs.append(n)
+                    continue
+            body.append(self.visit(n))
+        node.body = body
+
+        if yield_node and "resumable" not in node.parsed_decorators:
             # Body contains yield and is not resumable function
             self._generator_func_names.append(node.name)
             node.body = [
@@ -395,7 +449,8 @@ class JuliaChannelRewriter(ast.NodeTransformer):
                     lineno = node.lineno,
                     col_offset = node.col_offset)
             ]
-        return self.generic_visit(node)
+
+        return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         for target in node.targets:

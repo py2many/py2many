@@ -63,11 +63,11 @@ if __name__ == '__main__':
     # Not used
     s = read_sequences(stdin.buffer)
     data = next(s)
-    # # if cpu_count() == 1 or len(data[1]) < 1000000:
-    # #     from itertools import starmap
+    # if cpu_count() == 1 or len(data[1]) < 1000000:
+    #     from itertools import starmap
 
     # TODO: implement new parsing for decorator as ast_Call
-    # @resumable(remove_nested=True)
+    @resumable(remove_nested=True)
     def merge(v, g):
         yield v
         yield from g

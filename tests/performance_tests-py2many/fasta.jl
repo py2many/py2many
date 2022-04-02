@@ -90,20 +90,24 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
 end
 
 function lcg(seed, im, ia, ic)
-    local_seed = value(seed)
-    try
-        while true
-            local_seed = (local_seed * ia + ic) % im
-            put!(ch_lcg, local_seed)
+    Channel() do ch_lcg
+        local_seed = value(seed)
+        try
+            while true
+                local_seed = (local_seed * ia + ic) % im
+                put!(ch_lcg, local_seed)
+            end
+        finally
+            value(seed) = local_seed
         end
-    finally
-        value(seed) = local_seed
     end
 end
 
 function lookup(probabilities, values)
-    for value in values
-        put!(ch_lookup, bisect(probabilities, value))
+    Channel() do ch_lookup
+        for value in values
+            put!(ch_lookup, bisect(probabilities, value))
+        end
     end
 end
 
@@ -115,14 +119,16 @@ function lcg_lookup_slow(probabilities, seed, im, ia, ic)
 end
 
 function lcg_lookup_fast(probabilities, seed, im, ia, ic)
-    local_seed = value(seed)
-    try
-        while true
-            local_seed = (local_seed * ia + ic) % im
-            put!(ch_lcg_lookup_fast, bisect(probabilities, local_seed))
+    Channel() do ch_lcg_lookup_fast
+        local_seed = value(seed)
+        try
+            while true
+                local_seed = (local_seed * ia + ic) % im
+                put!(ch_lcg_lookup_fast, bisect(probabilities, local_seed))
+            end
+        finally
+            value(seed) = local_seed
         end
-    finally
-        value(seed) = local_seed
     end
 end
 

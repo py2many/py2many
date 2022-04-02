@@ -32,8 +32,7 @@ class JuliaTranspilerPlugins:
     def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
         t_self._usings.add("DataClass")
 
-        _, field_repr = JuliaTranspilerPlugins._generic_dataclass_visit(
-            decorator)
+        _, field_repr = JuliaTranspilerPlugins._generic_dataclass_visit(node, decorator)
 
         # Visit class fields
         fields = "\n".join([
@@ -67,8 +66,7 @@ class JuliaTranspilerPlugins:
         """
 
     def visit_py_dataclass(t_self, node: ast.ClassDef, decorator) -> str:
-        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
-            decorator)
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(node, decorator)
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
         fields: str = node.fields_str
@@ -166,18 +164,18 @@ class JuliaTranspilerPlugins:
         return f"{struct_def}\n{fields}\nend\n{body}"
         
 
-    def _generic_dataclass_visit(decorator):
+    def _generic_dataclass_visit(node, decorator):
         fields = {}
         field_repr = []
         keywords = {'init': True, 'repr': True, 'eq': True, 'order': False,
                     'unsafe_hash': False, 'frozen': False}
+        parsed_decorators: Dict[str, Dict[str, str]] = node.parsed_decorators
 
         # Parse received keywords if needed
         if isinstance(decorator, ast.Call):
-            received_keywords = decorator.keywords
-            for x in received_keywords:
-                if x.arg in keywords:
-                    keywords[x.arg] = x.value.value
+            parsed_keywords: Dict[str, str] = parsed_decorators[get_id(decorator.func)]
+            for (key, value) in parsed_keywords.items():
+                keywords[key] = value
 
         key_map = {False: "false", True: "true"}
         for kw in keywords:
@@ -251,16 +249,16 @@ class JuliaTranspilerPlugins:
         return ""
 
     def visit_assertTrue(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(self)
+        JuliaTranspilerPlugins._generic_test_visit(t_self)
         return f"@test {vargs[1]}"
 
     def visit_assertFalse(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(self)
+        JuliaTranspilerPlugins._generic_test_visit(t_self)
         return f"@test !({vargs[1]})"
 
     def visit_assertEqual(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(self)
-        arg = self.visit(ast.Name(id=vargs[2]))
+        JuliaTranspilerPlugins._generic_test_visit(t_self)
+        arg = t_self.visit(ast.Name(id=vargs[2]))
         return f"@test ({vargs[1]} == {arg})"
 
     def visit_assertRaises(t_self, node, vargs):
@@ -555,7 +553,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # misc
     str.format: (lambda self, node, vargs: f"test", True),  # Does not work
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
-    issubclass: (lambda self, node, vargs: f"{vargs[0]} <: {vargs[1]}", True),
+    issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     random.seed: (

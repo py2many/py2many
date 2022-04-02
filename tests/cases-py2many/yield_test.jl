@@ -1,56 +1,70 @@
 abstract type AbstractTestClass end
 function generator_func()
-    num = 1
-    put!(ch_generator_func, num)
-    num = 5
-    put!(ch_generator_func, num)
-    num = 10
-    put!(ch_generator_func, num)
+    Channel() do ch_generator_func
+        num = 1
+        put!(ch_generator_func, num)
+        num = 5
+        put!(ch_generator_func, num)
+        num = 10
+        put!(ch_generator_func, num)
+    end
 end
 
 function generator_func_loop()
-    num = 0
-    for n in (0:2)
-        put!(ch_generator_func_loop, num + n)
+    Channel() do ch_generator_func_loop
+        num = 0
+        for n in (0:2)
+            put!(ch_generator_func_loop, num + n)
+        end
     end
 end
 
 function generator_func_loop_using_var()
-    num = 0
-    end_ = 2
-    end_ = 3
-    for n in (0:end_-1)
-        put!(ch_generator_func_loop_using_var, num + n)
+    Channel() do ch_generator_func_loop_using_var
+        num = 0
+        end_ = 2
+        end_ = 3
+        for n in (0:end_-1)
+            put!(ch_generator_func_loop_using_var, num + n)
+        end
     end
 end
 
 function generator_func_nested_loop()
-    for n in (0:1)
-        for i in (0:1)
-            put!(ch_generator_func_nested_loop, (n, i))
+    Channel() do ch_generator_func_nested_loop
+        for n in (0:1)
+            for i in (0:1)
+                put!(ch_generator_func_nested_loop, (n, i))
+            end
         end
     end
 end
 
 function file_reader(file_name::String)
-    for file_row in readline(file_name)
-        put!(ch_file_reader, file_row)
+    Channel() do ch_file_reader
+        for file_row in readline(file_name)
+            put!(ch_file_reader, file_row)
+        end
     end
 end
 
 function testgen()
-    println("first")
-    put!(ch_testgen, 1)
-    println("second")
-    put!(ch_testgen, 2)
+    Channel() do ch_testgen
+        println("first")
+        put!(ch_testgen, 1)
+        println("second")
+        put!(ch_testgen, 2)
+    end
 end
 
 function fib()
-    a = 0
-    b = 1
-    while true
-        put!(ch_fib, a)
-        a, b = (b, a + b)
+    Channel() do ch_fib
+        a = 0
+        b = 1
+        while true
+            put!(ch_fib, a)
+            a, b = (b, a + b)
+        end
     end
 end
 
@@ -58,12 +72,14 @@ mutable struct TestClass <: AbstractTestClass
 
 end
 function generator_func(self::AbstractTestClass)
-    num = 123
-    put!(ch_generator_func, num)
-    num = 5
-    put!(ch_generator_func, num)
-    num = 10
-    put!(ch_generator_func, num)
+    Channel() do ch_generator_func
+        num = 123
+        put!(ch_generator_func, num)
+        num = 5
+        put!(ch_generator_func, num)
+        num = 10
+        put!(ch_generator_func, num)
+    end
 end
 
 function main()
@@ -101,7 +117,7 @@ function main()
     arr7 = []
     res = fib()
     for i in (0:5)
-        push!(arr7, __next__(res))
+        push!(arr7, take!(res))
     end
     @assert(arr7 == [0, 1, 1, 2, 3, 5])
     for i in testgen()

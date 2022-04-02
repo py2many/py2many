@@ -1,12 +1,16 @@
 function generator1()
-    for i in (0:2)
-        put!(ch_generator1, i)
+    Channel() do ch_generator1
+        for i in (0:2)
+            put!(ch_generator1, i)
+        end
     end
 end
 
 function generator2()
-    for j in (3:4)
-        put!(ch_generator2, j)
+    Channel() do ch_generator2
+        for j in (3:4)
+            put!(ch_generator2, j)
+        end
     end
 end
 

@@ -41,7 +41,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.rewriters import JuliaAugAssignRewriter, JuliaChannelRewriter, JuliaClassRewriter, JuliaMethodCallRewriter, julia_decorator_rewriter
+from pyjl.rewriters import JuliaAugAssignRewriter, JuliaChannelRewriter, JuliaClassRewriter, JuliaDecoratorRewriter, JuliaMethodCallRewriter, julia_config_rewriter
 from pyjl.transpiler import JuliaTranspiler
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
@@ -190,6 +190,10 @@ def _transpile_one(
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
+    # Language specific configuration file rewriters
+    if hasattr(args, "input_config") and args.input_config is not None:
+        for conf in config_rewriter:
+            conf(tree, args.input_config, filename)
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
@@ -201,11 +205,6 @@ def _transpile_one(
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
-
-    # Language specific configuration file rewriters
-    if hasattr(args, "input_config") and args.input_config is not None:
-        for conf in config_rewriter:
-            conf(tree, args.input_config, filename)
 
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
@@ -377,10 +376,10 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaAugAssignRewriter(), JuliaChannelRewriter()],
+        rewriters=[JuliaDecoratorRewriter(), JuliaAugAssignRewriter(), JuliaChannelRewriter()],
         transformers=[infer_julia_types],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter()],
-        config_rewriters=[julia_decorator_rewriter]
+        config_rewriters=[julia_config_rewriter]
     )
 
 

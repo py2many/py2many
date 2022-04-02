@@ -23,7 +23,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, \
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, \
     get_class_scope, is_class_or_module
 
 from typing import Any, Dict, List
@@ -40,26 +40,6 @@ SPECIAL_CHARACTER_MAP = {
     "\\": "\\\\",
     "\xe9":"\\xe9",
 }
-
-def get_decorator_id(decorator):
-    id = get_id(decorator.func) if isinstance(
-        decorator, ast.Call) else get_id(decorator)
-    # TODO: Probably not correct
-    if isinstance(id, list):
-        id = id[0]
-    return id if id is not None else decorator
-
-
-def _parse_annotations(node_decorator_list: list):
-    decorator_list_cpy = node_decorator_list.copy()
-    decorator_list = list(map(get_decorator_id, decorator_list_cpy))
-
-    if "dataclass" in decorator_list and "jl_dataclass" in decorator_list:
-        decorator_list_cpy = filter(lambda e: get_decorator_id(
-            e) != "dataclass", decorator_list_cpy)
-
-    return decorator_list_cpy
-
 
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
@@ -147,9 +127,7 @@ class JuliaTranspiler(CLikeTranspiler):
         node.is_python_main = is_python_main = getattr(node, "python_main", False)
 
         # Visit decorators
-        decorator_list = _parse_annotations(node.decorator_list)
-        for decorator in decorator_list:
-            d_id = get_decorator_id(decorator)
+        for ((d_id, _), decorator) in zip(node.parsed_decorators.items(), node.decorator_list):
             if d_id in DECORATOR_DISPATCH_TABLE:
                 ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if ret is not None:
@@ -445,9 +423,8 @@ class JuliaTranspiler(CLikeTranspiler):
             return ret
 
         # Visit decorators
-        decorator_list = _parse_annotations(node.decorator_list)
-        for decorator in decorator_list:
-            if (d_id := get_decorator_id(decorator)) in DECORATOR_DISPATCH_TABLE:
+        for ((d_id, _), decorator) in zip(node.parsed_decorators.items(), node.decorator_list):
+            if d_id in DECORATOR_DISPATCH_TABLE:
                 dec_ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
                 if dec_ret:
                     return dec_ret
@@ -564,9 +541,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     val = f'"{default}"'
             fields.append(f"{declaration} = {val}")
         field_str = "\n".join(fields)
-        
-        decorators = [get_decorator_id(d) for d in node.decorator_list]
-        if("unique" in decorators or typename not in self._julia_integer_types):
+
+        if("unique" in node.parsed_decorators or typename not in self._julia_integer_types):
             return textwrap.dedent(
                 f"@enum {node.name}::{typename} begin\n{field_str}end"
             )
@@ -853,8 +829,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Yield(self, node: ast.Yield) -> str:
         func_scope = find_closest_scope(node.scopes)
         if isinstance(func_scope, ast.FunctionDef):
-            decs = list(map(get_id, func_scope.decorator_list))
-            if "resumable" in decs:
+            if "resumable" in func_scope.parsed_decorators:
                 return f"@yield {self.visit(node.value)}" \
                     if node.value \
                     else "@yield"

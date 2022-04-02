@@ -158,10 +158,20 @@ def find_in_body(body, fn):
     return None
 
 # Finds a node in a given scope
-def find_in_scope(scope, fn):
-    for node in scope.body:
+def find_in_scope(body, fn):
+    for i in range(len(body) - 1, -1, -1):
+        node = body[i]
         if fn(node):
             return node
+        elif (isinstance(node, ast.Expr) and hasattr(node, "value")
+                and fn(node.value)):
+            return node.value
+        elif hasattr(node, "body") and \
+                not (isinstance(node, ast.FunctionDef) 
+                    or isinstance(node, ast.ClassDef)):
+            ret = find_in_scope(node.body, fn)
+            if ret:
+                return ret
         
     return None
 
