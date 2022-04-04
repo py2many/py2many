@@ -1,6 +1,7 @@
+using Distributed
 
 
-using multiprocessing: cpu_count, Pool
+
 
 function permutations(n, start, size)
     Channel() do ch_permutations
@@ -26,7 +27,7 @@ function permutations(n, start, size)
                         r[begin:v], r[v+1] = (r[2:v+1], r[1])
                     end
                     swaps = []
-                    for (dst, src) in r.iter().enumerate()
+                    for (dst, src) in enumerate(r)
                         if dst != src
                             push!(swaps, (dst, src))
                         end
@@ -81,7 +82,7 @@ end
 
 function task(n, start, size)::Tuple
     alternating_flips = alternating_flips_generator(n, start, size)
-    return (sum(split(alternating_flips)[size]), next(alternating_flips))
+    return (sum(split(alternating_flips)[size]), take!(alternating_flips))
 end
 
 function fannkuch(n)
@@ -102,7 +103,7 @@ function fannkuch(n)
         task_args = [(n, i * task_size, task_size) for i in (0:task_count-1)]
         if task_count > 1
             Pool() do pool
-                checksums, maximums = zip(starmap(pool, task, task_args)...)
+                checksums, maximums = zip(pmap(task, task_args)...)
             end
         else
             checksums, maximums = zip(starmap(task, task_args)...)

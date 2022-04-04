@@ -46,7 +46,7 @@ from pyjl.rewriters import (
     JuliaClassRewriter,
     JuliaDecoratorRewriter, 
     JuliaGeneratorRewriter, 
-    JuliaMethodCallRewriter, 
+    JuliaMethodCallRewriter,
     julia_config_rewriter
 )
 from pyjl.transpiler import JuliaTranspiler

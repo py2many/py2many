@@ -1,4 +1,4 @@
-using ResumableFunctions
+using Distributed
 
 
 reverse_translation = Dict(
@@ -48,30 +48,27 @@ function reverse_complement(header, sequence)::Tuple
     return (header, output[begin:end])
 end
 
-@resumable function read_sequences(file)
-    for line in file
-        if line[1] == ord(">")
-            header = line
-            sequence = Vector{UInt8}()
+function read_sequences(file)
+    Channel() do ch_read_sequences
+        Channel() do ch_read_sequences
             for line in file
                 if line[1] == ord(">")
-                    @yield (header, sequence)
                     header = line
                     sequence = Vector{UInt8}()
-                else
-                    sequence += line
+                    for line in file
+                        if line[1] == ord(">")
+                            put!(ch_read_sequences, (header, sequence))
+                            header = line
+                            sequence = Vector{UInt8}()
+                        else
+                            sequence += line
+                        end
+                    end
+                    put!(ch_read_sequences, (header, sequence))
+                    break
                 end
             end
-            @yield (header, sequence)
-            break
         end
-    end
-end
-
-@resumable function merge(v, g)
-    @yield v
-    for w in g
-        @yield w
     end
 end
 
@@ -79,10 +76,25 @@ function main()
     write_ = x -> write(stdout, x)
     flush_ = flush(stdout)
     s = read_sequences(stdin.buffer)
-    data = next(s)
+    data = take!(s)
+    function merge(v, g)
+        Channel() do ch_merge
+            Channel() do ch_merge
+                Channel() do ch_merge
+                    Channel() do ch_merge
+                        put!(ch_merge, v)
+                        # Unsupported
+                        @yield_from g
+                    end
+                end
+            end
+        end
+    end
+
     for (h, r) in starmap(reverse_complement, merge(data, s))
         write_(h)
         write_(r)
+        flush_
     end
 end
 

@@ -2,7 +2,7 @@ using ResumableFunctions
 using BisectPy: bisect
 using contextlib: closing, contextmanager
 
-using multiprocessing: Lock, RawValue, Process
+
 
 using re: sub
 
@@ -244,7 +244,7 @@ function fasta(n)
         ]
         processes = [
             started_process(target, args + [locks_sets[i+1]]) for
-            (i, (target, args)) in tasks.iter().enumerate()
+            (i, (target, args)) in enumerate(tasks)
         ]
         for p in processes
             join(p)

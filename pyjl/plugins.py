@@ -2,6 +2,7 @@ import argparse
 import io
 import itertools
 import math
+from multiprocessing import Pool
 import operator
 import time
 import os
@@ -357,6 +358,10 @@ class JuliaTranspilerPlugins:
         element_lst_str = ", ".join(element_lst)
         return f"Dict({element_lst_str})"
 
+    def visit_starmap(t_self, node, vargs):
+        t_self._usings.add("Distributed")
+        return f"pmap({vargs[1]}, {vargs[2]})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -457,7 +462,7 @@ TYPE_CODE_MAP = {
 SMALL_DISPATCH_MAP = {
     "str": lambda node, vargs: f"string({vargs[0]})" if vargs else f"string()",
     "len": lambda n, vargs: f"length({vargs[0]})",
-    "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
+    "enumerate": lambda n, vargs: f"enumerate({vargs[0]})",
     # default is false
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
@@ -563,9 +568,14 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
+    itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
+        if len(vargs) > 2 else f"repeat({vargs[0]})", False),
+    # Multiprocessing
     # TODO: remove string-based fallback
-    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    "starmap": (JuliaTranspilerPlugins.visit_starmap, True),
+    # Pool.starmap(): (lambda self, node, vargs: f"pmap({vargs[1]}, {vargs[2]})", True),
     # Unit Tests
     unittest.TestCase.assertTrue: (JuliaTranspilerPlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),

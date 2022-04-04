@@ -1,8 +1,9 @@
+using Distributed
 
 
 
 
-using multiprocessing: Pool
+
 abstract type Abstractlean_call end
 lean_buffer = Dict()
 function lean_args(sequence, reading_frames, i, j)::Tuple
@@ -85,7 +86,7 @@ function count_frequencies(sequence, reading_frames, i, j)
         if i == 0
             for k in (i:(i+frame)-1-1)
                 bits = bits * 4 + sequence[k+1]
-                for (t, (f, m)) in short_frame_frequences.iter().enumerate()
+                for (t, (f, m)) in enumerate(short_frame_frequences)
                     if ((k - i) + 1) >= frames[t+1]
                         f[bits&m+1] += 1
                     end
@@ -106,7 +107,7 @@ function count_frequencies(sequence, reading_frames, i, j)
     end
     return [
         (frame, (length(sequence) - frame) + 1, frequences_mask_list[i][1]) for
-        (i, frame) in frames.iter().enumerate()
+        (i, frame) in enumerate(frames)
     ]
 end
 

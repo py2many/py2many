@@ -287,7 +287,7 @@ class JuliaTranspiler(CLikeTranspiler):
         comparators = node.comparators
         ops = node.ops
 
-        comp_exp = ""
+        comp_exp = []
         for i in range(len(node.comparators)):
             comparator = comparators[i]
             op = ops[i]
@@ -303,7 +303,7 @@ class JuliaTranspiler(CLikeTranspiler):
                     if value_type and value_type[0] == "Dict":
                         comp_str = f"keys({comp_str})"
 
-            if (isinstance(op, ast.Eq)
+            if ((isinstance(op, ast.Eq) or isinstance(op, ast.Is))
                     and (is_mutable(node.scopes, comp_str) or comp_str == self._none_type)):
                 op_str = "==="
 
@@ -311,12 +311,13 @@ class JuliaTranspiler(CLikeTranspiler):
             if isinstance(comparator, ast.BinOp) or isinstance(comparator, ast.BoolOp):
                 comp_str = f"({comp_str})"
 
-            comp_exp += f" {op_str} {comp_str}"
+            comp_exp.append(f"{op_str} {comp_str}")
 
         # Isolate composite operations
         if isinstance(node.left, ast.BinOp) or isinstance(node.left, ast.BoolOp):
             left = f"({left})"
 
+        comp_exp = " ".join(comp_exp)
         return f"{left}{comp_exp}"
 
     def visit_NameConstant(self, node) -> str:
@@ -369,22 +370,27 @@ class JuliaTranspiler(CLikeTranspiler):
         right_jl_ann: str = node.right.julia_annotation
 
         is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
+        is_tuple = lambda x: x.startswith("Tuple")
 
         # Visit left and right
         left = self.visit(node.left)
         right = self.visit(node.right)
 
         if isinstance(node.op, ast.Mult):
-            # Cover multiplication between List and Number
-            if((isinstance(node.right, ast.Num) or (right_jl_ann in self._julia_num_types)) and
-                    ((isinstance(node.left, ast.List) or is_list(left_jl_ann)) or
-                     (isinstance(node.left, ast.Str) or left_jl_ann == "String"))):
-                return f"repeat({left},{right})"
+            # Cover multiplication between List/Tuple and Int
+            if isinstance(node.right, ast.Num) or right_jl_ann.startswith("Int"):
+                if ((isinstance(node.left, ast.List) or is_list(left_jl_ann))  or
+                        (isinstance(node.left, ast.Str) or left_jl_ann == "String")):
+                    return f"repeat({left},{right})"
+                elif isinstance(node.left, ast.Tuple) or is_tuple(left_jl_ann):
+                    return f"repeat([{left}...],{right})"
 
-            if((isinstance(node.left, ast.Num) or (left_jl_ann in self._julia_num_types)) and
-                    ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
-                     (isinstance(node.right, ast.Str) or right_jl_ann == "String"))):
-                return f"repeat({right},{left})"
+            if isinstance(node.left, ast.Num) or left_jl_ann.startswith("Int"):
+                if ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
+                        (isinstance(node.right, ast.Str) or right_jl_ann == "String")):
+                    return f"repeat({right},{left})"
+                elif isinstance(node.right, ast.Tuple) or is_tuple(right_jl_ann):
+                    return f"repeat([{right}...],{left})"
 
             # Cover Python Int and Boolean multiplication (also supported in Julia)
             if (((isinstance(node.right, ast.Num) or right_jl_ann in self._julia_num_types)
@@ -584,7 +590,9 @@ class JuliaTranspiler(CLikeTranspiler):
         elts = self._parse_elts(node)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        if len(node.elts) == 1:
+            return f"({elts},)"
+        return f"({elts})"
     
     def _parse_elts(self, node):
         elts = []

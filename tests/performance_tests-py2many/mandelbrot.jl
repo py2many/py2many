@@ -47,7 +47,7 @@ function ordered_rows(rows, n)
             j = n
             while i < length(order)
                 if j > 0
-                    row = next(rows)
+                    row = take!(rows)
                     order[row[1]] = row
                     j -= 1
                 end

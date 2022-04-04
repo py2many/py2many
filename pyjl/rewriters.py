@@ -5,6 +5,7 @@ from typing import Any, Dict
 from libcst import ImportFrom, Yield
 
 from numpy import isin
+from py2many.clike import CLikeTranspiler
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.tracer import find_closest_scope, find_in_body, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
@@ -536,3 +537,29 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                             col_offset = node.col_offset)
         return self.generic_visit(node)
 
+# Is this useful?
+# class JuliaTypeRewriter(ast.NodeTransformer):
+#     def __init__(self) -> None:
+#         super().__init__()
+
+#     def visit_BinOp(self, node: ast.BinOp) -> Any:
+#         left_jl_ann: str = getattr(node.left, "julia_annotation", "nothing")
+#         right_jl_ann: str = getattr(node.right, "julia_annotation", "nothing")
+
+#         build_list = lambda x: ast.List(
+#                         elts = x.elts,
+#                         lineno = x.lineno,
+#                         col_offset = x.col_offset,
+#                         julia_annotation = 
+#                             x.julia_annotation.replace("Tuple", "Vector", 1))
+
+#         if isinstance(node.op, ast.Mult):
+#             if (isinstance(node.right, ast.Num) or (right_jl_ann.startswith("Int"))) and \
+#                     isinstance(node.left, ast.Tuple):
+#                 node.left = build_list(node.left)
+
+#             if (isinstance(node.left, ast.Num) or (left_jl_ann.startswith("Int"))) and \
+#                     isinstance(node.right, ast.Tuple):
+#                 node.right = build_list(node.right)
+
+#         return self.generic_visit(node)

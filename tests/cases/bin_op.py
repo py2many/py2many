@@ -16,6 +16,14 @@ def mult_int_and_string():
     a: int = 2
     return a*"test"
 
+def mult_int_and_bool():
+    a: bool = False
+    return a*1
+
+def mult_bool_and_string():
+    a: int = 1
+    return a*False
+
 def mult_list_and_int():
     a: List[int] = []
     for i in range(0, 10):
@@ -23,6 +31,12 @@ def mult_list_and_int():
 
     # a: int = 2 # Should fail if uncommented
     return a*2
+
+def mult_tuple_and_int():
+    mul_1 = (1,) * 2
+    a = (1,)
+    mul_2 = a * 2
+    assert mul_1 == mul_2
 
 def add_two_lists():
     a: List[int] = []
@@ -32,14 +46,6 @@ def add_two_lists():
         b.append(i)
 
     return a+b
-
-def mult_int_and_bool():
-    a: bool = False
-    return a*1
-
-def mult_bool_and_string():
-    a: int = 1
-    return a*False
 
 def and_op_int_and_int():
     a: int = 2
@@ -75,3 +81,4 @@ if __name__ == "__main__":
     assert arithmetic_shift_right_int_and_int() == 1
     assert arithmetic_shift_left_int_and_int() == 4
     assert nested_bin_op() == 61120
+    mult_tuple_and_int()

@@ -23,7 +23,7 @@ def reverse_complement(header, sequence):
         output += b'\n' + t[i:i+60]
     return header, output[::-1]
 
-@resumable
+# @resumable
 def read_sequences(file):
     for line in file:
         if line[0] == ord('>'):
@@ -66,14 +66,14 @@ if __name__ == '__main__':
     # if cpu_count() == 1 or len(data[1]) < 1000000:
     #     from itertools import starmap
 
-    @resumable(remove_nested=True, lower_yield_from=True)
-    # @channels(lower_yield_from=True)
+    # @resumable(remove_nested=True, lower_yield_from=True)
     def merge(v, g):
         yield v
         yield from g
     for h, r in starmap(reverse_complement, merge(data, s)):
         write(h)
         write(r)
+        flush
 
     # Not used
     # else:

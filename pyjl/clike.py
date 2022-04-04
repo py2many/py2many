@@ -89,6 +89,7 @@ JL_IGNORED_MODULE_SET = set([
     "struct",
     "array",
     "itertools",
+    "multiprocessing"
 ])
 
 JULIA_TYPE_MAP = {
@@ -135,6 +136,7 @@ CONTAINER_TYPE_MAP = {
     Dict: "Dict",
     Set: "Set",
     Tuple: "Tuple",
+    tuple: "Tuple",
     Optional: "nothing",
     bytearray: f"Vector{{Int8}}",
 }
