@@ -1,13 +1,9 @@
 from __future__ import annotations
 import ast
-from re import I
 from typing import Any, Dict
-from libcst import ImportFrom, Yield
 
-from numpy import isin
-from py2many.clike import CLikeTranspiler
 from py2many.exceptions import AstUnsupportedOperation
-from py2many.tracer import find_closest_scope, find_in_body, find_in_scope, is_class_or_module, is_enum
+from py2many.tracer import find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure

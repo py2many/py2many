@@ -1,25 +1,17 @@
+using PyEnum
 
 abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
-struct Colors <: IntEnum
-    RED::Any
-    GREEN::Any
-    BLUE::Any
-
-    Colors(RED::Any = auto(), GREEN::Any = auto(), BLUE::Any = auto()) =
-        new(RED, GREEN, BLUE)
-    Colors(RED, GREEN, BLUE) = new(RED, GREEN, BLUE)
+@pyenum Colors::Int64 begin
+    RED = 0
+    GREEN = 1
+    BLUE = 2
 end
-
-struct Permissions <: IntFlag
-    R::Int64
-    W::Int64
-    X::Int64
-
-    Permissions(R::Int64 = 1, W::Int64 = 2, X::Int64 = 16) = new(R, W, X)
-    Permissions(R, W, X) = new(R, W, X)
+@pyenum Permissions::Int64 begin
+    R = 1
+    W = 2
+    X = 16
 end
-
 function show()
     color_map = Dict(Colors.RED => "red", Colors.GREEN => "green", Colors.BLUE => "blue")
     a = Colors.GREEN

@@ -85,7 +85,7 @@ function loop_element_test()
 end
 
 function for_cycle_vars()
-    seq::List[int] = [1, 2, 3, 4, 5]
+    seq::Vector{Int64} = [1, 2, 3, 4, 5]
     seq_copy::list = collect(seq)
     for i in (0:length(seq)-1-1)
         @assert(seq[i+1] == seq_copy[i+1])
@@ -127,37 +127,37 @@ end
 function inplace_ops()
     a = [1, 1]
     b = a
-    b += [3, 3]
+    b = b + [3, 3]
     @assert(a == [1, 1, 3, 3])
     @assert(b == [1, 1, 3, 3])
 end
 
 function list_ops()
     a = Vector()
-    push!(a, "test")
+    append(a, "test")
     @assert(a == ["test"])
-    empty!(a)
+    clear(a)
     @assert(a == [])
     @assert(length(a) == 0)
-    push!(a, "test1")
-    push!(a, "test2")
-    a = deleteat!(a, findfirst(isequal("test1"), a))
+    append(a, "test1")
+    append(a, "test2")
+    remove(a, "test1")
     @assert(a == ["test2"])
     @assert(length(a) == 1)
-    empty!(a)
-    push!(a, "test")
+    clear(a)
+    append(a, "test")
     b = copy(a)
     @assert(b == a)
-    empty!(a)
-    push!(a, "test2")
-    push!(a, "test2")
-    a = deleteat!(a, findfirst(isequal("test2"), a))
-    @assert(count(isequal("test2"), a) == 1)
-    empty!(a)
-    push!(a, "test1")
-    a = append!(a, b)
+    clear(a)
+    append(a, "test2")
+    append(a, "test2")
+    remove(a, "test2")
+    @assert(count(a, "test2") == 1)
+    clear(a)
+    append(a, "test1")
+    extend(a, b)
     @assert(a == ["test1", "test"])
-    empty!(a)
+    clear(a)
     elems = ["1", "2", "3"]
     new_elems = []
     for e in elems

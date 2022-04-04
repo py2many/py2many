@@ -3,7 +3,7 @@ function func()::String
     return "test"
 end
 
-struct TestClass <: AbstractTestClass
+mutable struct TestClass <: AbstractTestClass
 
 end
 function func(self::AbstractTestClass)::String
@@ -19,7 +19,7 @@ function test()
 
     function inner_test_2()::String
         num = 4
-        return num * teststr
+        return repeat(teststr, num)
     end
 
     @assert(inner_test() == "testtest")

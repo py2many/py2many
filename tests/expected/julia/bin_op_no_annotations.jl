@@ -11,12 +11,12 @@ end
 
 function mult_string_and_int()::String
     a = "test"
-    return a * 2
+    return repeat(a, 2)
 end
 
 function mult_int_and_string()::String
     a = 2
-    return a * "test"
+    return repeat("test", a)
 end
 
 function mult_list_and_int()::Vector
@@ -24,7 +24,7 @@ function mult_list_and_int()::Vector
     for i in (0:9)
         push!(a, i)
     end
-    return a * 2
+    return repeat(a, 2)
 end
 
 function add_two_lists()::Vector
@@ -34,7 +34,7 @@ function add_two_lists()::Vector
         push!(a, i)
         push!(b, i)
     end
-    return a + b
+    return append!(a, b)
 end
 
 function mult_int_and_bool()::Int64

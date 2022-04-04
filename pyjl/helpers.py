@@ -1,11 +1,9 @@
 # Gets range from for loop
 import ast
-from ctypes import Union
 
-from libcst import FunctionDef
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_in_body, find_node_by_name_and_type
+from py2many.tracer import find_node_by_name_and_type
 
 # TODO: Delete if not necessary
 def get_range_from_for_loop(node):

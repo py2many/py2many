@@ -1,7 +1,6 @@
 
 function inline_pass()
-    #= pass 
-    =#
+    #= pass =#
 end
 
 function inline_ellipsis()
@@ -13,7 +12,7 @@ function indexing()::Int64
     a::Vector = []
     for i in (0:9)
         push!(a, i)
-        sum += a[i+1]
+        sum = sum + a[i+1]
     end
     return sum
 end
@@ -54,7 +53,7 @@ function show()
     @assert(sum1 == 45)
     a5 = [1, 2, 3]
     println(length(a5))
-    a9::List[str] = ["a", "b", "c", "d"]
+    a9::Vector{String} = ["a", "b", "c", "d"]
     @assert(length(a9) == 4)
     @assert(a9 == ["a", "b", "c", "d"])
     a6 = Set([1, 2, 3, 4])

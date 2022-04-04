@@ -5,14 +5,7 @@ mutable struct Options <: AbstractOptions
     n::Int64
 
     Options(v::Bool = false, n::Int64 = 0) = new(v, n)
-    Options(v, n) = new(v, n)
 end
-
-function __init__(self::AbstractOptions, v::Bool, n::Int64)
-    setfield!(self::AbstractOptions, :v, v::Bool),
-    setfield!(self::AbstractOptions, :n, n::Int64)
-end
-
 
 function __repr__(self::AbstractOptions)::String
     return AbstractOptions(self.v, self.n)
@@ -37,10 +30,10 @@ end
 
 function main()
     args = parse_args(Options)
-    if args.n == 0
-        args.n = 5
+    if n(args) == 0
+        n(args) = 5
     end
-    println(fib(args.n))
+    println(fib(n(args)))
 end
 
 main()

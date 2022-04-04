@@ -1,5 +1,4 @@
-#= This file implements a rectangle class  
-=#
+#= This file implements a rectangle class  =#
 
 abstract type AbstractRectangle end
 mutable struct Rectangle <: AbstractRectangle
@@ -8,12 +7,6 @@ mutable struct Rectangle <: AbstractRectangle
 end
 function is_square(self::AbstractRectangle)::Bool
     return self.height == self.length
-end
-
-
-function __init__(self::AbstractRectangle, height::Int64, length::Int64)
-    setfield!(self::AbstractRectangle, :height, height::Int64),
-    setfield!(self::AbstractRectangle, :length, length::Int64)
 end
 
 

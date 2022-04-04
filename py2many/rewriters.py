@@ -2,8 +2,6 @@ import ast
 import re
 import textwrap
 
-from numpy import isin
-
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_block, create_ast_node
 from py2many.astx import ASTxFunctionDef

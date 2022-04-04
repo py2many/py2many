@@ -370,7 +370,7 @@ def julia_settings(args, env=os.environ):
     format_jl = None
     if sys.platform == "win32":
         user = os.getlogin()
-        julia_version = "1.7.1"
+        julia_version = "1.7.1" # TODO: Make an adjustable parameter
         julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-{julia_version}/bin/julia.exe"
     else:
         julia_path = "julia"

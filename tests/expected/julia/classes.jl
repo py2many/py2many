@@ -1,7 +1,8 @@
 abstract type AbstractFoo end
 abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
-struct Foo <: AbstractFoo
+abstract type AbstractStudent2 <: AbstractPerson end
+mutable struct Foo <: AbstractFoo
 
 end
 function bar(self::AbstractFoo)::Int64
@@ -16,28 +17,37 @@ function bar_str(self::AbstractFoo)::String
     return "a"
 end
 
-struct Person <: AbstractPerson
-    name::String
+mutable struct Person <: AbstractPerson
+    name::Any
 end
-function __init__(self::AbstractPerson, name::String)
-    self.name = name
-end
-
 function get_name(self::AbstractPerson)
     return self.name
 end
 
-struct Student <: Person
-    name::String
-    student_number::Int64
-end
-function __init__(self::AbstractStudent, name::String, student_number::Int64)
-    self.name = name
-    self.student_number = student_number
-end
+mutable struct Student <: AbstractStudent
+    student_number::Any
+    name::Any
+    domain::String
 
+    Student(student_number::Any, name::Any, domain::String = "school.student.pt") =
+        new(student_number, name, domain)
+end
 function get_name(self::AbstractStudent)
     return "$(self.student_number) - $(self.name)"
+end
+
+mutable struct Student2 <: AbstractStudent2
+    student_number::Any
+    name::Any
+    domain::String
+
+    Student2(name::String, student_number::Int64, domain::String = "school.student.pt") =
+        begin
+            if student_number < 0
+                throw(ArgumentError("Student number must be a positive number"))
+            end
+            new(name, student_number, domain)
+        end
 end
 
 function main()
@@ -50,6 +60,7 @@ function main()
     s = Student("S", 111111)
     @assert(get_name(p) == "P")
     @assert(get_name(s) == "111111 - S")
+    s2 = Student2("S2", 123)
     println("OK")
 end
 

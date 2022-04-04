@@ -1,11 +1,10 @@
 
 
 function main()
-    a::List[str] = append!([PROGRAM_FILE], ARGS)
+    a::Vector{String} = append!([PROGRAM_FILE], ARGS)
     cmd::String = a[1]
     if cmd == "dart"
-        #= pass 
-        =#
+        #= pass =#
     else
         @assert(findfirst("sys_argv", cmd) != Nothing)
     end
