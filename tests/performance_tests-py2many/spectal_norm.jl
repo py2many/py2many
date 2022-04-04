@@ -40,7 +40,7 @@ function main_func()
 end
 
 function main()
-    Pool(1) do pool
+    default_worker_pool() do pool
         main_func()
     end
 end

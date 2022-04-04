@@ -89,7 +89,8 @@ JL_IGNORED_MODULE_SET = set([
     "struct",
     "array",
     "itertools",
-    "multiprocessing"
+    "multiprocessing",
+    "re"
 ])
 
 JULIA_TYPE_MAP = {
@@ -361,12 +362,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
         # TODO: Temporary Fix
-        if fname[-1] == "_":
-            fname = fname[0:-1]
+        fname = fname.removesuffix("_")
 
         if isinstance(node, ast.Call) and len(node.args) > 0:
+            var = vargs[0]
+
             # Self argument type lookup
-            var = get_id(node.args[0])
             if var == "self":
                 class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
                 for base in class_node.bases:
@@ -385,7 +386,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                     if dispatch_func:
                         return dispatch_func
 
-            dispatch_func = self._get_dispatch_func(node, vargs[0], fname, vargs[1:])
+            dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:])
             if dispatch_func:
                 return dispatch_func
 

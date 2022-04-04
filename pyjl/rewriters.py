@@ -14,7 +14,7 @@ from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.helpers import find_assign_value, get_variable_name
+from pyjl.helpers import find_assign_value, get_str_repr, get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -493,18 +493,18 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        for target in node.targets:
-            t_id = get_id(target)
-            if t_id:
-                self._assign_map[t_id] = self._get_str_repr(node.value)
-        return self.generic_visit(node)
+        if isinstance(node.value, ast.List) or isinstance(node.value, ast.Tuple):
+            value_list = map(lambda x: get_str_repr(x) if isinstance(x, ast.Call) else None, node.value.elts)
+            for target, value in zip(node.targets, value_list):
+                if value and (t_id := get_id(target)):
+                    self._assign_map[t_id] = get_str_repr(node.value)
+        else:
+            if isinstance(node.value, ast.Call):
+                for target in node.targets:
+                    if t_id := get_id(target):
+                        self._assign_map[t_id] = get_str_repr(node.value)
 
-    def _get_str_repr(self, node):
-        if id := get_id(node):
-            return id
-        if isinstance(node, ast.Call):
-            return self._get_str_repr(node.func)
-        return None
+        return self.generic_visit(node)
     
     # TODO: Both visit_Attribute and visit_Call are a fallback. 
     # If inference can detect Generator functions, add this to the dispatch_map 

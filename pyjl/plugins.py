@@ -3,6 +3,7 @@ import io
 import itertools
 import math
 from multiprocessing import Pool
+import multiprocessing
 import operator
 import time
 import os
@@ -359,8 +360,19 @@ class JuliaTranspilerPlugins:
         return f"Dict({element_lst_str})"
 
     def visit_starmap(t_self, node, vargs):
-        t_self._usings.add("Distributed")
+        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
         return f"pmap({vargs[1]}, {vargs[2]})"
+
+    def visit_map(t_self, node, vargs):
+        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
+        return f"pmap({vargs[1]}, {vargs[2]})"
+
+    def visit_Pool(t_self, node, vargs):
+        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
+        return "default_worker_pool()"
+    
+    def _generic_distributed_visit(t_self):
+        t_self._usings.add("Distributed")
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -555,27 +567,34 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
-    # misc
-    str.format: (lambda self, node, vargs: f"test", True),  # Does not work
+    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    # Instance checks
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
-    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
-    time.time: (lambda self, node, vargs: "pylib::time()", False),
+    # Random
     random.seed: (
         lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
         False,
     ),
+    random.random: (lambda self, node, vargs: "pylib::random::random()", False),
+    # Str and Byte transformations
+    str.format: (lambda self, node, vargs: f"test", True),  # Does not work
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
-    random.random: (lambda self, node, vargs: "pylib::random::random()", False),
+    # Itertools
     itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
         if len(vargs) > 2 else f"repeat({vargs[0]})", False),
     # Multiprocessing
-    # TODO: remove string-based fallback
-    "cpu_count": (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
-    # os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
-    "starmap": (JuliaTranspilerPlugins.visit_starmap, True),
-    # Pool.starmap(): (lambda self, node, vargs: f"pmap({vargs[1]}, {vargs[2]})", True),
+    os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    multiprocessing.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
+    multiprocessing.Pool: (JuliaTranspilerPlugins.visit_Pool, True),
+    "starmap": (JuliaTranspilerPlugins.visit_starmap, True), # TODO: remove string-based fallback
+    Pool().map: (JuliaTranspilerPlugins.visit_map, True), # TODO: Does not work, Pool is an instance
+    # Time
+    time.time: (lambda self, node, vargs: "pylib::time()", False),
+    # Regex
+    re.sub: (lambda self, node, vargs: f"replace({vargs[2]}, r{vargs[0]} => s{vargs[1]})", False),
+    re.findall: (lambda self, node, vargs: f"findall({vargs[0]}, {vargs[1]})", False),
     # Unit Tests
     unittest.TestCase.assertTrue: (JuliaTranspilerPlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),

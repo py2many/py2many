@@ -2,6 +2,6 @@ function my_func1(x::Int64, y::Int64)::Int64
 
 end
 
-bit::BitVec{nothing}
-myu32::BitVec{nothing}
-myu64::BitVec{nothing}
+bit::BitVec{1}
+myu32::BitVec{32}
+myu64::BitVec{64}

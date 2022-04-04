@@ -98,7 +98,7 @@ function fannkuch(n)
         @assert((task_size % 2) == 0)
         task_args = [(n, i * task_size, task_size) for i in (0:task_count-1)]
         if task_count > 1
-            Pool() do pool
+            default_worker_pool() do pool
                 checksums, maximums = zip(pmap(task, task_args)...)
             end
         else

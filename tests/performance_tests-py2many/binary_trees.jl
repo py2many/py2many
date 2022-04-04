@@ -1,3 +1,4 @@
+using Distributed
 
 
 function make_tree(depth::Int64)::Tuple
@@ -19,10 +20,29 @@ function main_func(requested_max_depth, min_depth = 4)
     println("stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")
     long_lived_tree = make_tree(max_depth)
     mmd = max_depth + min_depth
-    for test_depth in (min_depth:2:stretch_depth-1)
-        tree_count = 2^(mmd - test_depth)
-        check_sum = sum(map(run, repeat([(test_depth,)...], tree_count)))
-        println("$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)")
+    if length(Sys.cpu_info()) > 1
+        default_worker_pool() do pool
+            for test_depth in (min_depth:2:stretch_depth-1)
+                tree_count = 2^(mmd - test_depth)
+                check_sum = sum(
+                    map(
+                        pool,
+                        run,
+                        repeat([(test_depth,)...], tree_count),
+                        (tree_count ÷ length(Sys.cpu_info())) + 1,
+                    ),
+                )
+                println(
+                    "$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)",
+                )
+            end
+        end
+    else
+        for test_depth in (min_depth:2:stretch_depth-1)
+            tree_count = 2^(mmd - test_depth)
+            check_sum = sum(map(run, repeat([(test_depth,)...], tree_count)))
+            println("$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)")
+        end
     end
     println(
         "long lived tree of depth $(max_depth)\t check: $(check_node(long_lived_tree...))",
@@ -30,7 +50,7 @@ function main_func(requested_max_depth, min_depth = 4)
 end
 
 function main()
-    main_func(20)
+    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
 
 main()

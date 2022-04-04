@@ -34,8 +34,8 @@ def get_range_from_for_loop(node):
             return 0
 
         # Calculate iter value
-        start_val = _get_value(start_val)
-        end_val = _get_value(end_val)
+        start_val = get_str_repr(start_val)
+        end_val = get_str_repr(end_val)
         if not isinstance(start_val, int): 
             start_val = int(start_val)
         if not isinstance(end_val, int):
@@ -47,11 +47,47 @@ def get_range_from_for_loop(node):
             iter *= -1
     return iter
 
-def _get_value(node):
+# returns a string representation of the node
+def get_str_repr(node, parse_func = None, default = None):
+    if isinstance(node, str):
+        if parse_func:
+            return parse_func(node)
+        return node
+    if id := get_id(node):
+        if parse_func:
+            return parse_func(id)
+        return id
+    if isinstance(node, ast.Call):
+        return get_str_repr(node.func, parse_func, default)
+    if isinstance(node, ast.Attribute):
+        return f"{get_str_repr(node.value, parse_func, default)}.\
+            {get_str_repr(node.attr, parse_func, default)}"
     if isinstance(node, ast.Constant):
-        return node.value
+        if isinstance(node.value, bytes):
+            return node.value.decode("utf-8")
+        else:
+            return node.value
+    if isinstance(node, ast.Subscript):
+        id = get_str_repr(node.value, parse_func, default)
+        slice_val = get_str_repr(node.slice, parse_func, default)
+        return f"{id}{{{slice_val}}}"
+        # TODO: Is this correct?
+        # if isinstance(node.slice, ast.Slice):
+        #     return f"{get_str_repr(node.value, parse_func, default)}"
+        # else:
+        #     return f"{get_str_repr(node.value, parse_func, default)}_subscript"
+    if isinstance(node, ast.Tuple) \
+            or isinstance(node, ast.List):
+        elts = []
+        for e in node.elts:
+            elts.append(get_str_repr(e, parse_func, default))
+        return ", ".join(elts)
+    if isinstance(node, ast.Subscript):
+        id = get_str_repr(node.value, parse_func, default)
+        slice_val = get_str_repr(node.slice, parse_func, default)
+        return f"{id}{{{slice_val}}}"
 
-    return node
+    return default
 
 def find_assign_value(id, scopes):
     assign = getattr(find_node_by_name_and_type(id, ast.Assign, scopes)[0], "value", None)

@@ -203,7 +203,7 @@ function main_func()
         results = collect(chain(starmap(count_frequencies, count_jobs)...))
     else
         lean_jobs = collect(starmap(lean_args, count_jobs))
-        Pool() do pool
+        default_worker_pool() do pool
             async_results = starmap_async(pool, lean_call(count_frequencies), lean_jobs)
             results = collect(chain(get(async_results)...))
         end

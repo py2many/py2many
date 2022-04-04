@@ -4,7 +4,7 @@ using contextlib: closing, contextmanager
 
 
 
-using re: sub
+
 
 write_ = x -> write(stdout, x)
 function acquired_lock()
@@ -204,10 +204,9 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
 end
 
 function fasta(n)
-    alu = sub(
-        "\\s+",
-        "",
+    alu = replace(
         "\nGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA\nTCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT\nAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG\nGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG\nCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA\n",
+        r"\\s+" => s"",
     )
     iub = collect(zip_longest("acgtBDHKMNRSVWY", (0.27, 0.12, 0.12, 0.27), 0.02))
     homosapiens = collect(
