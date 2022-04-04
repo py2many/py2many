@@ -19,12 +19,29 @@ function mult_int_and_string()::String
     return repeat("test", a)
 end
 
+function mult_int_and_bool()::Int64
+    a::Bool = false
+    return a * 1
+end
+
+function mult_bool_and_string()::Int64
+    a::Int64 = 1
+    return a * false
+end
+
 function mult_list_and_int()::Vector
     a::Vector = []
     for i in (0:9)
         push!(a, i)
     end
     return repeat(a, 2)
+end
+
+function mult_tuple_and_int()
+    mul_1 = repeat([(1,)...], 2)
+    a = (1,)
+    mul_2 = repeat([a...], 2)
+    @assert(mul_1 == mul_2)
 end
 
 function add_two_lists()::Vector
@@ -35,16 +52,6 @@ function add_two_lists()::Vector
         push!(b, i)
     end
     return append!(a, b)
-end
-
-function mult_int_and_bool()::Int64
-    a::Bool = false
-    return a * 1
-end
-
-function mult_bool_and_string()::Int64
-    a::Int64 = 1
-    return a * false
 end
 
 function and_op_int_and_int()::Int64
@@ -88,6 +95,7 @@ function main()
     @assert(arithmetic_shift_right_int_and_int() == 1)
     @assert(arithmetic_shift_left_int_and_int() == 4)
     @assert(nested_bin_op() == 61120)
+    mult_tuple_and_int()
 end
 
 main()
