@@ -318,7 +318,7 @@ class JuliaTranspiler(CLikeTranspiler):
             left = f"({left})"
 
         comp_exp = " ".join(comp_exp)
-        return f"{left}{comp_exp}"
+        return f"{left} {comp_exp}"
 
     def visit_NameConstant(self, node) -> str:
         if node.value is True:

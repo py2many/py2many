@@ -50,23 +50,21 @@ end
 
 function read_sequences(file)
     Channel() do ch_read_sequences
-        Channel() do ch_read_sequences
-            for line in file
-                if line[1] == ord(">")
-                    header = line
-                    sequence = Vector{UInt8}()
-                    for line in file
-                        if line[1] == ord(">")
-                            put!(ch_read_sequences, (header, sequence))
-                            header = line
-                            sequence = Vector{UInt8}()
-                        else
-                            sequence += line
-                        end
+        for line in file
+            if line[1] == ord(">")
+                header = line
+                sequence = Vector{UInt8}()
+                for line in file
+                    if line[1] == ord(">")
+                        put!(ch_read_sequences, (header, sequence))
+                        header = line
+                        sequence = Vector{UInt8}()
+                    else
+                        sequence += line
                     end
-                    put!(ch_read_sequences, (header, sequence))
-                    break
                 end
+                put!(ch_read_sequences, (header, sequence))
+                break
             end
         end
     end
@@ -80,13 +78,9 @@ function main()
     function merge(v, g)
         Channel() do ch_merge
             Channel() do ch_merge
-                Channel() do ch_merge
-                    Channel() do ch_merge
-                        put!(ch_merge, v)
-                        # Unsupported
-                        @yield_from g
-                    end
-                end
+                put!(ch_merge, v)
+                # Unsupported
+                @yield_from g
             end
         end
     end

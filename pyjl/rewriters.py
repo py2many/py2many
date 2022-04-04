@@ -410,7 +410,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             else:
                 body.append(self.visit(n))
         node.body = body
-        return self.generic_visit(node)
+        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         yield_node = find_in_scope(

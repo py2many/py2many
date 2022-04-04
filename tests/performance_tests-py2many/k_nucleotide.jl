@@ -188,7 +188,7 @@ function main_func()
         [
             (1, tuple(map(str_to_bits, mono_nucleotides))),
             (2, tuple(map(str_to_bits, di_nucleotides))),
-        ] + collect(map((s) -> (length(s), (str_to_bits(s))), k_nucleotides))
+        ] + collect(map((s) -> (length(s), (str_to_bits(s),)), k_nucleotides))
     if length(sequence) > (128 * length(Sys.cpu_info()))
         n = length(Sys.cpu_info())
     else
