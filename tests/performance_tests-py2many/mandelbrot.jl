@@ -58,14 +58,16 @@ end
 @resumable function compute_rows(n, f)
     row_jobs = ((y, n) for y in (0:n-1))
     if length(Sys.cpu_info()) < 2
-        # Unsupported
-        @yield_from map(f, row_jobs)
+        for v in map(f, row_jobs)
+            @yield v
+        end
     else
 
         default_worker_pool() do pool
             unordered_rows = imap_unordered(pool, f, row_jobs)
-            # Unsupported
-            @yield_from ordered_rows(unordered_rows, n)
+            for v in ordered_rows(unordered_rows, n)
+                @yield v
+            end
         end
     end
 end

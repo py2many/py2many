@@ -3,7 +3,7 @@ import ast
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
-from py2many.tracer import find_in_scope, is_class_or_module, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -455,7 +455,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
-        parent = node.scopes[-1]
+        parent = find_closest_scope(node.scopes)
         if isinstance(parent, ast.FunctionDef):
             dec = None
             if "channels" in parent.parsed_decorators:
