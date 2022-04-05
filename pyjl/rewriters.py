@@ -135,9 +135,9 @@ class JuliaClassRewriter(ast.NodeTransformer):
         # Visit body nodes
         body = []
         for n in node.body:
+            self._class_fields = {}
             if isinstance(n, ast.ClassDef):
                 class_body = []
-                self._class_fields = {}
                 for d in n.body:
                     if isinstance(d, ast.FunctionDef):
                         if d.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
@@ -153,15 +153,15 @@ class JuliaClassRewriter(ast.NodeTransformer):
                     if f is not None:
                         fields.append(f)
                 n.body = fields + class_body
-                body.append(self.visit(n))
-            elif isinstance(n, ast.FunctionDef):
-                func = self.visit(n)
-                if self._nested_classes:
-                    for cls in self._nested_classes:
-                        body.append(self.visit(cls))
-                body.append(func)
-            else:
-                body.append(self.visit(n))
+
+            b_node = self.visit(n)
+
+            if self._nested_classes:                    
+                for cls in self._nested_classes:
+                    body.append(self.visit(cls))
+                self._nested_classes = []
+
+            body.append(b_node)
 
         # Create abstract types
         abstract_types = []
@@ -235,10 +235,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 is_class_or_module(node.self_type, node.scopes)):
             node.self_type = f"Abstract{node.self_type}"
 
-        # Remove any classes from function body
+        # Remove any classes from function body 
+        # if @remove_nested decorator is present
         body = []
         for n in node.body:
-            if isinstance(n, ast.ClassDef):
+            if isinstance(n, ast.ClassDef) and \
+                    "remove_nested" in map(get_str_repr, n.decorator_list):
                 self._nested_classes.append(n)
             else:
                 body.append(self.visit(n))

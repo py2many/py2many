@@ -462,7 +462,7 @@ class UnitTestRewriter(ast.NodeTransformer):
         self._test_modules = TEST_MODULE_SET
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._test_classes = {}
+        self._test_classes = []
         funcs = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and n.name == "main":
@@ -499,6 +499,9 @@ class UnitTestRewriter(ast.NodeTransformer):
                     body.append(n)
             for (class_name, func_defs) in self._test_classes:
                 # Convert to snake case
+                # (?<!^) --> Don't put underscore at beginning 
+                #    ?<! --> negative lookbehind: asserts that string 
+                #              is not equal to the beginning "^"
                 instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
                 body.append(
                     ast.Assign(
