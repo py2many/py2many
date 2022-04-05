@@ -1,3 +1,4 @@
+using ResumableFunctions
 function generator1()
     Channel() do ch_generator1
         for i in (0:2)
@@ -14,11 +15,13 @@ function generator2()
     end
 end
 
-function yield_from()
-    # Unsupported
-    @yield_from generator1()
-    # Unsupported
-    @yield_from generator2()
+@resumable function yield_from()
+    for v in generator1()
+        @yield v
+    end
+    for v in generator2()
+        @yield v
+    end
 end
 
 function main()

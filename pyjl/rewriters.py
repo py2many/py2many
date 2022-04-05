@@ -387,16 +387,17 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         body = []
         for n in node.body:
+            b_node = self.visit(n)
             if isinstance(n, ast.FunctionDef):
-                func = self.visit(n)
                 if self._nested_funcs:
                     for nested in self._nested_funcs:
-                        body.append(nested)
+                        body.append(self.visit(nested))
                     self._nested_funcs = []
-                body.append(func)
-            else:
-                body.append(self.visit(n))
+
+            body.append(b_node)
+
         node.body = body
+
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
@@ -406,8 +407,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and "resumable" in n.parsed_decorators:
-                resumable_keywords = n.parsed_decorators["resumable"]
-                if resumable_keywords and "remove_nested" in resumable_keywords:
+                resumable = n.parsed_decorators["resumable"]
+                if "remove_nested" in resumable \
+                        and resumable["remove_nested"]:
                     self._nested_funcs.append(n)
                     continue
             body.append(self.visit(n))
