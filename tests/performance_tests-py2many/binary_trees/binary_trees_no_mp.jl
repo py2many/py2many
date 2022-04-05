@@ -1,6 +1,5 @@
 
-using BenchmarkTools
-
+using time: perf_counter
 function make_tree(depth::Int64)::Tuple
     return depth == 0 ? ((nothing, nothing)) :
            ((make_tree(depth - 1), make_tree(depth - 1)))
@@ -33,6 +32,5 @@ end
 function main()
     main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
-
 
 main()

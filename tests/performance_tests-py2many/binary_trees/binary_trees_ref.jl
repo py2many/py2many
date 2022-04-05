@@ -15,7 +15,7 @@ mutable struct Latch
 end
 
 function Latch(n::Int)::Latch
-    Latch(n,Threads.Condition())
+    Latch(n, Threads.Condition())
 end
 
 function countDown(latch::Latch)
@@ -37,7 +37,7 @@ function await(latch::Latch)
 end
 
 function make(n::Int)::Node
-    n === 0 ? Node(nothing, nothing) : Node(make(n-1), make(n-1))
+    n === 0 ? Node(nothing, nothing) : Node(make(n - 1), make(n - 1))
 end
 
 function check(node::Node)::Int
@@ -50,8 +50,8 @@ function binary_trees(io, n::Int)
     long_tree::Node = make(n)
 
     minDepth::Int = 4
-    resultSize::Int = trunc(Int,(n - minDepth) / 2 ) + 1
-    results = Vector{String}(undef,resultSize)
+    resultSize::Int = trunc(Int, (n - minDepth) / 2) + 1
+    results = Vector{String}(undef, resultSize)
     latch::Latch = Latch(resultSize)
     Threads.@threads for depth::Int = minDepth:2:n
         c::Int = 0
@@ -59,16 +59,16 @@ function binary_trees(io, n::Int)
         lk::ReentrantLock = ReentrantLock()
         Threads.@threads for _ = 1:niter
             lock(lk) do
-                c+=check(make(depth))
+                c += check(make(depth))
             end
         end#for
-        index::Int = trunc(Int,(depth - minDepth)/2) + 1
+        index::Int = trunc(Int, (depth - minDepth) / 2) + 1
         results[index] = "$niter\t trees of depth $depth\t check: $c\n"
         countDown(latch)
     end
     await(latch)
     for i in results
-        write(io,i)
+        write(io, i)
     end
 
     write(io, "long lived tree of depth $n\t check: $(check(long_tree))\n")
@@ -77,7 +77,7 @@ end#function
 # isinteractive() || binary_trees(stdout, parse(Int, ARGS[1])) 
 
 # Benchmarks
-ARGS=["20"]
+ARGS = ["20"]
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150

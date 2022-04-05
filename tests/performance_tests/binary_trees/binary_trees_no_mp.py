@@ -50,15 +50,15 @@ def main(requested_max_depth, min_depth=4):
     print(f'long lived tree of depth {max_depth}'
           f'\t check: {check_node(*long_lived_tree)}')
 
-# if __name__ == '__main__':
-#     main(int(sys.argv[1]))
+if __name__ == '__main__':
+    main(int(sys.argv[1]))
 
 # Benchmarks
-if __name__ == '__main__':
-    requested_max_depth = int(sys.argv[1])
-    for _ in range(0,10):
-        start_time = perf_counter()
-        main(int(sys.argv[1]))
-        end_time = perf_counter()
-        with open('binary_trees.txt', 'a') as f:
-            f.write(f"{end_time-start_time}\n")
+# if __name__ == '__main__':
+#     requested_max_depth = int(sys.argv[1])
+#     for _ in range(0,10):
+#         start_time = perf_counter()
+#         main(int(sys.argv[1]))
+#         end_time = perf_counter()
+#         with open('binary_trees.txt', 'a') as f:
+#             f.write(f"{end_time-start_time}\n")
