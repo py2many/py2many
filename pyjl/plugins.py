@@ -374,6 +374,11 @@ class JuliaTranspilerPlugins:
     def _generic_distributed_visit(t_self):
         t_self._usings.add("Distributed")
 
+    def visit_join(t_self, node, vargs):
+        if isinstance(vargs[0], str):
+            return f"join({vargs[1]}, {vargs[0]})"
+        return f"join({vargs[0]}, {vargs[1]})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -492,6 +497,7 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
+    "join": JuliaTranspilerPlugins.visit_join
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
 }
@@ -578,7 +584,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     # Str and Byte transformations
-    str.format: (lambda self, node, vargs: f"test", True),  # Does not work
+    str.join: (JuliaTranspilerPlugins.visit_join, False),
+    str.format: (lambda self, node, vargs: f"test", False),  # Does not work
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
     # Itertools

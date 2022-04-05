@@ -462,6 +462,7 @@ class UnitTestRewriter(ast.NodeTransformer):
         self._test_modules = TEST_MODULE_SET
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._test_classes = {}
         funcs = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and n.name == "main":

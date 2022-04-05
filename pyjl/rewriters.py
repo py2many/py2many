@@ -35,21 +35,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             else:
                 node0 = fname.value
 
-            if new_func_name == "join":
-                # Join with empty string if no content is present
-                if not node0:
-                    node0 = ast.Name(
-                        id=f"\"\"", lineno=node.lineno, ctx=ast.Load())
-                args = node.args + [node0]
-            else:
-                args = [node0] + node.args
+            args = [node0] + node.args
 
             node.func = ast.Name(
                 id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
-
-        if isinstance(fname, ast.Name):
-            if get_id(node.func) == "join" and node.args:
-                args.reverse()
 
         node.args = args
         return self.generic_visit(node)

@@ -8,6 +8,7 @@ from itertools import islice
 from os import cpu_count
 from sys import argv, stdout
 
+@resumable
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
@@ -36,6 +37,7 @@ def compute_row(p):
     result[-1] &= 0xff << (8 - n % 8)
     return y, result
 
+@resumable
 def ordered_rows(rows, n):
     order = [None] * n
     i = 0
@@ -51,31 +53,25 @@ def ordered_rows(rows, n):
             order[i] = None
             i += 1
 
+@resumable(lower_yield_from=True)
 def compute_rows(n, f):
     row_jobs = ((y, n) for y in range(n))
 
     if cpu_count() < 2:
         yield from map(f, row_jobs)
     else:
-        # from multiprocessing import Pool
-        # with Pool() as pool:
-        #     unordered_rows = pool.imap_unordered(f, row_jobs)
-        #     yield from ordered_rows(row_jobs, n)
-        yield from ordered_rows(map(f, row_jobs), n)
+        from multiprocessing import Pool
+        with Pool() as pool:
+            unordered_rows = pool.imap_unordered(f, row_jobs)
+            yield from ordered_rows(unordered_rows, n)
 
 def mandelbrot(n):
-    # write = stdout.buffer.write
-    # with closing(compute_rows(n, compute_row)) as rows:
-    #     write("P4\n{0} {0}\n".format(n).encode())
-    #     for row in rows:
-    #         write(row[1])
-    
-    # Simple replacement
-    rows = compute_rows(n, compute_row)
-    print("P4\n{0} {0}\n".format(n).encode())
-    for row in rows:
-        print(row[1])
+    write = stdout.buffer.write
+
+    with closing(compute_rows(n, compute_row)) as rows:
+        write("P4\n{0} {0}\n".format(n).encode())
+        for row in rows:
+            write(row[1])
 
 if __name__ == '__main__':
-    num: int = 16000
-    mandelbrot(1000)
+    mandelbrot(int(argv[1]))
