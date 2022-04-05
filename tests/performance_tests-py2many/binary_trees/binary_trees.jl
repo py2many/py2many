@@ -1,12 +1,13 @@
 using Distributed
 
 
+
 function make_tree(depth::Int64)::Tuple
     return depth == 0 ? ((nothing, nothing)) :
            ((make_tree(depth - 1), make_tree(depth - 1)))
 end
 
-function check_node(left, right)::Int64
+function check_node(left::Union{Tuple,nothing}, right::Union{Tuple,nothing})::Int64
     return left === nothing ? (1) : ((1 + check_node(left...)) + check_node(right...))
 end
 

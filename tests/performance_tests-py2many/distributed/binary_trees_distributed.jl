@@ -2,7 +2,7 @@
 using Distributed
 
 # Has to be at the top
-addprocs(8)
+addprocs(4)
 
 @everywhere begin
     function make_tree(depth::Int64)::Tuple
@@ -52,7 +52,7 @@ end
 
 function main()
     # main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
-    main_func(20)
+    @time main_func(20)
 end
 
 main()

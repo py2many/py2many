@@ -4,6 +4,8 @@
 # Contributed by Joonas Muhonen. Based on code by Adam Beckmeyer, Jarret Revels, Alex
 # Arslan, Michal Stransky, Jens Adam.
 
+using BenchmarkTools
+
 struct Node
     l::Union{Node,Nothing}
     r::Union{Node,Nothing}
@@ -57,6 +59,7 @@ function binary_trees(io, n::Int)
         c::Int = 0
         niter::Int = 1 << (n - depth + minDepth)
         lk::ReentrantLock = ReentrantLock()
+        # Is this required/helpful?
         Threads.@threads for _ = 1:niter
             lock(lk) do
                 c += check(make(depth))
@@ -77,8 +80,8 @@ end#function
 # isinteractive() || binary_trees(stdout, parse(Int, ARGS[1])) 
 
 # Benchmarks
-ARGS = ["20"]
+# ARGS = ["20"]
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150
-@benchmark binary_trees(stdout, parse(Int, ARGS[1]))
+@benchmark binary_trees(stdout, parse(Int, ARGS[1])) # @benchmark 

@@ -3,6 +3,7 @@
 #
 # contributed by Corentin Risselin
 
+from ctypes import Union
 import sys
 import multiprocessing as mp
 
@@ -14,7 +15,7 @@ def make_tree(depth: int) -> tuple:
 
 
 # def check_node(left: tuple, right: tuple) -> int:
-def check_node(left, right) -> int:
+def check_node(left: Union[tuple, None], right: Union[tuple, None]) -> int:
     """
     Count 1 for each node found.
     (Unpacking directly in the parameters is faster)

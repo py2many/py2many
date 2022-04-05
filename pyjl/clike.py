@@ -1,4 +1,5 @@
 import ast
+from operator import index
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
@@ -8,6 +9,7 @@ import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_by_type
+from pyjl.helpers import get_str_repr
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import MODULE_DISPATCH_TABLE
 import importlib
@@ -248,27 +250,20 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
-        elif isinstance(node, ast.Constant) and node.value is not None:
-            return node.value
-        elif isinstance(node, ast.ClassDef):
-            return get_id(node)
-        elif isinstance(node, ast.Tuple):
-            return [self._map_type(self._typename_from_type_node(e)) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return self._map_type(node_id)
         elif isinstance(node, ast.Subscript):
-            # Obtains container type
             (value_type, index_type) = tuple(
-                map(self._typename_from_type_node, (node.value, node.slice))
+                map(lambda x: 
+                        get_str_repr(x, self._map_type, self._none_type), 
+                    (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
-            return self._visit_container_type((value_type, index_type)) \
-                if isinstance(index_type, List) \
-                else self._combine_value_index(value_type, index_type)
-        return self._default_type
+            return f"{value_type}{index_type}"
+        return get_str_repr(node, self._map_type, self._default_type)
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"

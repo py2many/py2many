@@ -61,19 +61,17 @@ def get_str_repr(node, parse_func = None, default = None):
         return f"{get_str_repr(node.value, parse_func, default)}.\
             {get_str_repr(node.attr, parse_func, default)}"
     if isinstance(node, ast.Constant):
-        if isinstance(node.value, bytes):
-            return node.value.decode("utf-8")
-        else:
+        if node.value:
             return node.value
+        else:
+            if parse_func:
+                parse_func(node.value)
+            else:
+                return default
     if isinstance(node, ast.Subscript):
         id = get_str_repr(node.value, parse_func, default)
         slice_val = get_str_repr(node.slice, parse_func, default)
         return f"{id}{{{slice_val}}}"
-        # TODO: Is this correct?
-        # if isinstance(node.slice, ast.Slice):
-        #     return f"{get_str_repr(node.value, parse_func, default)}"
-        # else:
-        #     return f"{get_str_repr(node.value, parse_func, default)}_subscript"
     if isinstance(node, ast.Tuple) \
             or isinstance(node, ast.List):
         elts = []
