@@ -52,7 +52,7 @@ function count_frequencies(sequence, reading_frames, i, j)
             n = worklist[1:1]
             worklist = replace!(nothing, n)
             len_after = length(worklist)
-            freq[n[1]] = len_before - len_after
+            freq[n[1]+1] = len_before - len_after
             len_before = len_after
             push!(mono_nucleotides, n)
         end
@@ -148,9 +148,9 @@ function display(results, display_list, sort = false, relative = false, end_ = "
     end
     for (k_nucleotide, (frequency, n)) in lines
         if relative
-            println(format("{0} {1:.3f}", k_nucleotide, frequency * 100.0 / n))
+            println("$k_nucleotide {1:.3f}")
         else
-            println(format("{1}\t{0}", k_nucleotide, frequency))
+            println("$frequency\t$k_nucleotide")
         end
     end
     println(end_)
@@ -168,7 +168,7 @@ function main_func()
         b"a" => b"1",
     )
     function str_to_bits(text)::Int64
-        buffer = translate(encode(text, "latin1"), translation)
+        buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k in (0:length(buffer)-1)
             bits = bits * 4 + buffer[k+1]

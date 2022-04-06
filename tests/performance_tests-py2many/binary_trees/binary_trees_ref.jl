@@ -80,7 +80,7 @@ end#function
 # isinteractive() || binary_trees(stdout, parse(Int, ARGS[1])) 
 
 # Benchmarks
-# ARGS = ["20"]
+ARGS = ["21"]
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150

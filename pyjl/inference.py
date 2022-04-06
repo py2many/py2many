@@ -10,6 +10,7 @@ from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import find_node_by_type
 from py2many.clike import class_for_typename
 from pyjl.clike import _NONE_TYPE, CLikeTranspiler
+from pyjl.global_vars import CHANNELS, RESUMABLE
 from pyjl.helpers import find_assign_value, get_str_repr
 
 def infer_julia_types(node, extension=False):
@@ -64,6 +65,13 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._generic_scope_visit(node)
+        # if get_id(node.returns) == "Generator":
+        #     if RESUMABLE in node.parsed_decorators:
+        #         node.returns = None
+        #     elif CHANNELS in node.parsed_decorators or \
+        #             getattr(node, "returns_channel", None):
+        #         node.returns = ast.Name(id="Channel")
+        #         print(ast.dump(node.returns))
         return node
 
     def visit_Return(self, node: ast.Return):

@@ -89,7 +89,9 @@ def get_class_scope(name, scopes):
 def find_closest_scope(scopes):
     for i in range(len(scopes) - 1, 0, -1):
         sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef):
+        if isinstance(sc, ast.FunctionDef) \
+                or isinstance(sc, ast.ClassDef) \
+                or isinstance(sc, ast.Module):
             return sc
 
     return None

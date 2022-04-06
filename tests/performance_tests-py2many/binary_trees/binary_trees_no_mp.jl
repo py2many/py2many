@@ -1,5 +1,5 @@
 
-using time: perf_counter
+
 function make_tree(depth::Int64)::Tuple
     return depth == 0 ? ((nothing, nothing)) :
            ((make_tree(depth - 1), make_tree(depth - 1)))
@@ -30,7 +30,15 @@ function main_func(requested_max_depth, min_depth = 4)
 end
 
 function main()
-    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+    requested_max_depth = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
+    for _ in (0:9)
+        start_time = perf_counter()
+        main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+        end_time = perf_counter()
+        readline("binary_trees.txt") do f
+            write_(f, "$(end_time - start_time)\n")
+        end
+    end
 end
 
 main()

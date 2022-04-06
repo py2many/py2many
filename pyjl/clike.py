@@ -92,7 +92,9 @@ JL_IGNORED_MODULE_SET = set([
     "array",
     "itertools",
     "multiprocessing",
-    "re"
+    "re",
+    "contextlib",
+    "time"
 ])
 
 JULIA_TYPE_MAP = {

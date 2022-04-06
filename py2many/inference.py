@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -373,6 +373,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
+
     def visit_UnaryOp(self, node):
         self.generic_visit(node)
 
@@ -510,6 +511,15 @@ class InferTypesTransformer(ast.NodeTransformer):
         node.annotation = ast.Name(id=node.name)
         self.generic_visit(node)
         return node
+    
+    # TODO: not working as intended
+    # def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+    #     # self.generic_visit(node)
+    #     yield_node = find_in_body(node.body, lambda x: isinstance(x, ast.Yield) 
+    #         or isinstance(x, ast.YieldFrom))
+    #     if yield_node:
+    #         node.returns = ast.Name(id="Generator")
+    #     return self.generic_visit(node)
 
     def visit_Attribute(self, node):
         value_id = get_id(node.value)

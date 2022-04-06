@@ -10,6 +10,7 @@ from py2many.input_configuration import ParseFileStructure
 from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
+from pyjl.global_vars import CHANNELS, REMOVE_NESTED, RESUMABLE
 from pyjl.helpers import find_assign_value, get_str_repr, get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
@@ -240,7 +241,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             if isinstance(n, ast.ClassDef) and \
-                    "remove_nested" in map(get_str_repr, n.decorator_list):
+                    REMOVE_NESTED in map(get_str_repr, n.decorator_list):
                 self._nested_classes.append(n)
             else:
                 body.append(self.visit(n))
@@ -388,11 +389,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             b_node = self.visit(n)
-            if isinstance(n, ast.FunctionDef):
-                if self._nested_funcs:
-                    for nested in self._nested_funcs:
-                        body.append(self.visit(nested))
-                    self._nested_funcs = []
+            if self._nested_funcs:
+                for nested in self._nested_funcs:
+                    body.append(self.visit(nested))
 
             body.append(b_node)
 
@@ -401,32 +400,35 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        self._nested_funcs = []
         yield_node = find_in_scope(
             node.body, lambda x: isinstance(x, ast.Yield))
 
         body = []
         for n in node.body:
-            if isinstance(n, ast.FunctionDef) and "resumable" in n.parsed_decorators:
-                resumable = n.parsed_decorators["resumable"]
-                if "remove_nested" in resumable \
-                        and resumable["remove_nested"]:
+            if isinstance(n, ast.FunctionDef) and RESUMABLE in n.parsed_decorators:
+                resumable = n.parsed_decorators[RESUMABLE]
+                if REMOVE_NESTED in resumable \
+                        and resumable[REMOVE_NESTED]:
                     self._nested_funcs.append(n)
                     continue
             body.append(self.visit(n))
         node.body = body
 
-        if "resumable" in node.parsed_decorators and \
-                "channels" in node.parsed_decorators:
+        if RESUMABLE in node.parsed_decorators and \
+                CHANNELS in node.parsed_decorators:
             raise AstUnsupportedOperation(  
                 "Function cannot have both @resumable and @channels decorators", 
                 node)
 
-        is_resumable = "resumable" in node.parsed_decorators \
-            or ("resumable" in node.parsed_decorators and 
-                node.parsed_decorators["resumable"])
+        is_resumable = RESUMABLE in node.parsed_decorators \
+            or (RESUMABLE in node.parsed_decorators and 
+                node.parsed_decorators[RESUMABLE])
         self._generator_funcs[node.name] = is_resumable
         if yield_node and not is_resumable:
             # Body contains yield and is not resumable function
+            node.returns_channel = True
             node.body = [
                 ast.With(
                     items = [
@@ -452,16 +454,16 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset)
             ]
 
-        return self.generic_visit(node)
+        return node
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
         parent = find_closest_scope(node.scopes)
         if isinstance(parent, ast.FunctionDef):
             dec = None
-            if "channels" in parent.parsed_decorators:
-                dec = parent.parsed_decorators["channels"]
-            elif "resumable" in parent.parsed_decorators:
-                dec = parent.parsed_decorators["resumable"]
+            if CHANNELS in parent.parsed_decorators:
+                dec = parent.parsed_decorators[CHANNELS]
+            elif RESUMABLE in parent.parsed_decorators:
+                dec = parent.parsed_decorators[RESUMABLE]
             lower_yield_from = dec and dec["lower_yield_from"]
             if lower_yield_from:
                 val = ast.Name(
@@ -509,9 +511,45 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> Any:
+        parent = node.scopes[-1]
         if (id := get_id(node.func)) and len(node.args) > 0:
-            arg = get_id(node.args[0])
-            if arg in self._assign_map:
+            if id in self._generator_funcs \
+                    and self._generator_funcs[id]:
+                if not getattr(parent, "has_generator_assign", None):
+                    # Create new assignment node for resumable
+                    new_node.resumables_assignment = True
+                    new_node = ast.Assign(
+                        targets = [
+                            ast.Name(
+                                id=f"{id}_var",
+                                lineno = node.lineno,
+                                col_offset = node.col_offset)
+                        ],
+                        value = ast.Call(
+                            func = node.func,
+                            args = node.args.copy(),
+                            keywords = node.keywords,
+                            scopes = node.scopes,
+                            lineno = node.lineno,
+                            col_offset = node.col_offset
+                        ),
+                        lineno = node.lineno,
+                        col_offset = node.col_offset)
+
+                    parent.has_generator_assign = True
+                    if hasattr(parent, "body"):
+                        print(get_id(parent))
+                        print("has_body")
+                        body = parent.body
+                        body:list[ast.expr] = parent.body
+                        body.insert(0, new_node)
+
+                node.func = ast.Name(
+                    id= f"{id}_var",
+                    lineno = node.lineno,
+                    col_offset = node.col_offset)
+                node.args = []
+            elif (arg := get_id(node.args[0])) in self._assign_map:
                 assign_res = self._assign_map[arg]
                 if assign_res in self._generator_funcs:
                     if id == "next":

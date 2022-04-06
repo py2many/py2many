@@ -5,6 +5,7 @@ import ast
 import textwrap
 import re
 from py2many.exceptions import AstUnsupportedOperation
+from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import find_assign_value
 
 import pyjl.juliaAst as juliaAst
@@ -837,7 +838,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Yield(self, node: ast.Yield) -> str:
         func_scope = find_closest_scope(node.scopes)
         if isinstance(func_scope, ast.FunctionDef):
-            if "resumable" in func_scope.parsed_decorators:
+            if RESUMABLE in func_scope.parsed_decorators:
                 return f"@yield {self.visit(node.value)}" \
                     if node.value \
                     else "@yield"

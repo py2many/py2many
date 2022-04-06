@@ -379,6 +379,25 @@ class JuliaTranspilerPlugins:
             return f"join({vargs[1]}, {vargs[0]})"
         return f"join({vargs[0]}, {vargs[1]})"
 
+    def visit_format(t_self, node, vargs):
+        # TODO: Optimize
+        res: str = vargs[0]
+        subst_values = vargs[1:]
+        # re.sub(r"\{\d+\}", r"\$" + re.escape(subst_values[r"\d"]), res)
+        for i in range(len(subst_values)):
+            subst_val = subst_values[i]
+            res = res.replace(f"{{{i}}}", f"${subst_val}")
+        return res
+
+    def visit_bytearray(t_self, node, vargs: list[str]):
+        if len(vargs) == 0:
+            return "Vector{UInt8}()"
+        else:
+            parsed_args = vargs[0]
+            if isinstance(node.args[0], ast.GeneratorExp):
+                parsed_args = f"[{vargs[0][1:-1]}]"
+            return f"Vector{{UInt8}}({parsed_args})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -486,6 +505,7 @@ SMALL_DISPATCH_MAP = {
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
+    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})"
 }
 
 SMALL_USINGS_MAP = {
@@ -497,7 +517,8 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
-    "join": JuliaTranspilerPlugins.visit_join
+    "join": JuliaTranspilerPlugins.visit_join,
+    "format": JuliaTranspilerPlugins.visit_format
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
 }
@@ -517,7 +538,6 @@ DECORATOR_DISPATCH_TABLE = {
 }
 
 CLASS_DISPATCH_TABLE = {
-    "bytearray": (lambda self, node, vargs: f"Vector{{Int8}}()", True),
     # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
 }
 
@@ -537,10 +557,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list.count: (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
-    bytearray: (lambda self, node, vargs: f"Vector{{UInt8}}()" \
-                if len(vargs) == 0 \
-                else f"Vector{{UInt8}}(join({vargs[0]}, \"\"))", True),
-    itertools.islice: (lambda self, node, vargs: f"split({vargs[0]})[{vargs[1]}]", True),
+    bytearray: (JuliaTranspilerPlugins.visit_bytearray, True),
+    itertools.islice: (lambda self, node, vargs: f"({vargs[0]} for _ in (0:{vargs[1]}))", True),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
