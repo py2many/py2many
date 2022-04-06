@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import io
 import itertools
 import math
@@ -395,6 +396,7 @@ class JuliaTranspilerPlugins:
         else:
             parsed_args = vargs[0]
             if isinstance(node.args[0], ast.GeneratorExp):
+                parsed_args = parsed_args.removeprefix("(").removesuffix(")")
                 parsed_args = f"[{vargs[0][1:-1]}]"
             return f"Vector{{UInt8}}({parsed_args})"
 
@@ -625,6 +627,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
+    #
+    contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
     # Exceptions
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
          if len(vargs) == 1 else "ArgumentError" , True),

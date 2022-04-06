@@ -32,8 +32,8 @@ end
 
 function compute_row(p)::Tuple
     y, n = p
-    result = Vector{UInt8}((pixels_var() for _ in (0:(n+7)÷8)))
-    pixels_var = pixels_var()
+    pixels_var = pixels(y, n, abs)
+    result = Vector{UInt8}([pixels_var() for _ in (0:(n+7)÷8)])
     result[end] = result[end] & (255 << (8 - (n % 8)))
     return (y, result)
 end
@@ -47,12 +47,12 @@ end
 
 function mandelbrot(n)
     write_ = x -> write(stdout, x)
-    closing(compute_rows_var()) do rows
+    compute_rows_var = compute_rows(n, compute_row)
+    compute_rows_var() do rows
         write_(Vector{UInt8}("P4\n$n $n\n"))
         for row in rows
             write_(row[2])
         end
-        compute_rows_var = compute_rows_var()
     end
 end
 

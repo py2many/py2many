@@ -383,15 +383,18 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         self._generator_funcs = {}
         self._assign_map = {}
         self._nested_funcs = []
+        self._resumables_assigns = []
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
         body = []
         for n in node.body:
             b_node = self.visit(n)
-            if self._nested_funcs:
-                for nested in self._nested_funcs:
-                    body.append(self.visit(nested))
+            if isinstance(n, ast.FunctionDef):
+                self._nested_funcs = []
+                if self._nested_funcs:
+                    for nested in self._nested_funcs:
+                        body.append(self.visit(nested))
 
             body.append(b_node)
 
@@ -400,8 +403,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self.generic_visit(node)
-        self._nested_funcs = []
+        # self.generic_visit(node)
         yield_node = find_in_scope(
             node.body, lambda x: isinstance(x, ast.Yield))
 
@@ -413,7 +415,15 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         and resumable[REMOVE_NESTED]:
                     self._nested_funcs.append(n)
                     continue
-            body.append(self.visit(n))
+
+            visit_node = self.visit(n)
+            if self._resumables_assigns:
+                for assert_node in self._resumables_assigns:
+                    body.append(assert_node)
+                self._resumables_assigns = []
+            
+            body.append(visit_node)
+
         node.body = body
 
         if RESUMABLE in node.parsed_decorators and \
@@ -422,9 +432,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 "Function cannot have both @resumable and @channels decorators", 
                 node)
 
-        is_resumable = RESUMABLE in node.parsed_decorators \
-            or (RESUMABLE in node.parsed_decorators and 
-                node.parsed_decorators[RESUMABLE])
+        is_resumable = RESUMABLE in node.parsed_decorators
         self._generator_funcs[node.name] = is_resumable
         if yield_node and not is_resumable:
             # Body contains yield and is not resumable function
@@ -484,6 +492,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
         if isinstance(node.value, ast.List) or isinstance(node.value, ast.Tuple):
             value_list = map(lambda x: get_str_repr(x) if isinstance(x, ast.Call) else None, node.value.elts)
             for target, value in zip(node.targets, value_list):
@@ -495,29 +504,29 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                     if t_id := get_id(target):
                         self._assign_map[t_id] = get_str_repr(node.value)
 
-        return self.generic_visit(node)
+        return node
     
     # TODO: Both visit_Attribute and visit_Call are a fallback. 
     # If inference can detect Generator functions, add this to the dispatch_map 
-    def visit_Attribute(self, node: ast.Attribute) -> Any:
-        if id := get_id(node.value):
-            if id in self._assign_map:
-                assign_res = self._assign_map[id]
-                if assign_res in self._generator_funcs:
-                    if node.attr == "__next__":
-                        node.attr = (f"{assign_res}()"
-                            if self._generator_funcs[assign_res]
-                            else "take!")
-        return self.generic_visit(node)
+    # def visit_Attribute(self, node: ast.Attribute) -> Any:
+    #     if id := get_id(node.value):
+    #         if id in self._assign_map:
+    #             assign_res = self._assign_map[id]
+    #             if assign_res in self._generator_funcs:
+    #                 if node.attr == "__next__":
+    #                     node.attr = (f"{assign_res}()"
+    #                         if self._generator_funcs[assign_res]
+    #                         else "take!")
+    #     return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> Any:
-        parent = node.scopes[-1]
+        self.generic_visit(node)
+        parent = find_closest_scope(node.scopes)
         if (id := get_id(node.func)) and len(node.args) > 0:
             if id in self._generator_funcs \
                     and self._generator_funcs[id]:
                 if not getattr(parent, "has_generator_assign", None):
                     # Create new assignment node for resumable
-                    new_node.resumables_assignment = True
                     new_node = ast.Assign(
                         targets = [
                             ast.Name(
@@ -536,33 +545,28 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         lineno = node.lineno,
                         col_offset = node.col_offset)
 
+                    self._resumables_assigns.append(new_node)
                     parent.has_generator_assign = True
-                    if hasattr(parent, "body"):
-                        print(get_id(parent))
-                        print("has_body")
-                        body = parent.body
-                        body:list[ast.expr] = parent.body
-                        body.insert(0, new_node)
 
                 node.func = ast.Name(
                     id= f"{id}_var",
                     lineno = node.lineno,
                     col_offset = node.col_offset)
                 node.args = []
-            elif (arg := get_id(node.args[0])) in self._assign_map:
-                assign_res = self._assign_map[arg]
-                if assign_res in self._generator_funcs:
-                    if id == "next":
-                        if self._generator_funcs[assign_res]:
-                            new_id = f"{arg}"
-                            node.args = node.args[1:]
-                        else:
-                            new_id = "take!"
-                        node.func = ast.Name(
-                            id = new_id,
-                            lineno = node.lineno,
-                            col_offset = node.col_offset)
-        return self.generic_visit(node)
+            # elif (arg := get_id(node.args[0])) in self._assign_map:
+            #     assign_res = self._assign_map[arg]
+            #     if assign_res in self._generator_funcs:
+            #         if id == "next":
+            #             if self._generator_funcs[assign_res]:
+            #                 new_id = f"{arg}"
+            #                 node.args = node.args[1:]
+            #             else:
+            #                 new_id = "take!"
+            #             node.func = ast.Name(
+            #                 id = new_id,
+            #                 lineno = node.lineno,
+            #                 col_offset = node.col_offset)
+        return node
 
 # Is this useful?
 # class JuliaTypeRewriter(ast.NodeTransformer):
