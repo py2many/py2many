@@ -62,6 +62,8 @@ class AugAssignTest(unittest.TestCase):
         x = [1, 2, 3]
         y = x
         x[1:2] *= 2
+        # splice!(x[1:2], x[1:2]*2)
+        # x[1:2] = repeat(x[1:2], 2)
         y[1:2] += [1]
 
         self.assertEqual(x, [1, 2, 1, 2, 3])
@@ -122,6 +124,7 @@ class AugAssignTest(unittest.TestCase):
     def testCustomMethods2(test_self):
         output = []
 
+        @remove_nested
         class testall:
             def __add__(self, val):
                 output.append("__add__ called")

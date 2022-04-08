@@ -34,7 +34,7 @@ function main()
     main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
 
-ARGS = ["21"]
+ARGS = ["15"]
 BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150

@@ -52,7 +52,7 @@ function count_frequencies(sequence, reading_frames, i, j)
             n = worklist[1:1]
             worklist = replace!(nothing, n)
             len_after = length(worklist)
-            freq[n[1]+1] = len_before - len_after
+            freq[n[1]] = len_before - len_after
             len_before = len_after
             push!(mono_nucleotides, n)
         end

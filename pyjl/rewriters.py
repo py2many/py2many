@@ -1,5 +1,7 @@
 from __future__ import annotations
 import ast
+from mimetypes import init
+from operator import contains
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
@@ -519,54 +521,54 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     #                         else "take!")
     #     return self.generic_visit(node)
 
-    def visit_Call(self, node: ast.Call) -> Any:
-        self.generic_visit(node)
-        parent = find_closest_scope(node.scopes)
-        if (id := get_id(node.func)) and len(node.args) > 0:
-            if id in self._generator_funcs \
-                    and self._generator_funcs[id]:
-                if not getattr(parent, "has_generator_assign", None):
-                    # Create new assignment node for resumable
-                    new_node = ast.Assign(
-                        targets = [
-                            ast.Name(
-                                id=f"{id}_var",
-                                lineno = node.lineno,
-                                col_offset = node.col_offset)
-                        ],
-                        value = ast.Call(
-                            func = node.func,
-                            args = node.args.copy(),
-                            keywords = node.keywords,
-                            scopes = node.scopes,
-                            lineno = node.lineno,
-                            col_offset = node.col_offset
-                        ),
-                        lineno = node.lineno,
-                        col_offset = node.col_offset)
+    # def visit_Call(self, node: ast.Call) -> Any:
+    #     self.generic_visit(node)
+    #     parent = find_closest_scope(node.scopes)
+    #     if (id := get_id(node.func)) and len(node.args) > 0:
+    #         if id in self._generator_funcs \
+    #                 and self._generator_funcs[id]:
+    #             if not getattr(parent, "has_generator_assign", None):
+    #                 # Create new assignment node for resumable
+    #                 new_node = ast.Assign(
+    #                     targets = [
+    #                         ast.Name(
+    #                             id=f"{id}_var",
+    #                             lineno = node.lineno,
+    #                             col_offset = node.col_offset)
+    #                     ],
+    #                     value = ast.Call(
+    #                         func = node.func,
+    #                         args = node.args.copy(),
+    #                         keywords = node.keywords,
+    #                         scopes = node.scopes,
+    #                         lineno = node.lineno,
+    #                         col_offset = node.col_offset
+    #                     ),
+    #                     lineno = node.lineno,
+    #                     col_offset = node.col_offset)
 
-                    self._resumables_assigns.append(new_node)
-                    parent.has_generator_assign = True
+    #                 self._resumables_assigns.append(new_node)
+    #                 parent.has_generator_assign = True
 
-                node.func = ast.Name(
-                    id= f"{id}_var",
-                    lineno = node.lineno,
-                    col_offset = node.col_offset)
-                node.args = []
-            # elif (arg := get_id(node.args[0])) in self._assign_map:
-            #     assign_res = self._assign_map[arg]
-            #     if assign_res in self._generator_funcs:
-            #         if id == "next":
-            #             if self._generator_funcs[assign_res]:
-            #                 new_id = f"{arg}"
-            #                 node.args = node.args[1:]
-            #             else:
-            #                 new_id = "take!"
-            #             node.func = ast.Name(
-            #                 id = new_id,
-            #                 lineno = node.lineno,
-            #                 col_offset = node.col_offset)
-        return node
+    #             node.func = ast.Name(
+    #                 id= f"{id}_var",
+    #                 lineno = node.lineno,
+    #                 col_offset = node.col_offset)
+    #             node.args = []
+    #         elif (arg := get_id(node.args[0])) in self._assign_map:
+    #             assign_res = self._assign_map[arg]
+    #             if assign_res in self._generator_funcs:
+    #                 if id == "next":
+    #                     if self._generator_funcs[assign_res]:
+    #                         new_id = f"{arg}"
+    #                         node.args = node.args[1:]
+    #                     else:
+    #                         new_id = "take!"
+    #                     node.func = ast.Name(
+    #                         id = new_id,
+    #                         lineno = node.lineno,
+    #                         col_offset = node.col_offset)
+    #     return node
 
 # Is this useful?
 # class JuliaTypeRewriter(ast.NodeTransformer):
@@ -594,3 +596,4 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 #                 node.right = build_list(node.right)
 
 #         return self.generic_visit(node)
+

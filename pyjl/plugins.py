@@ -18,7 +18,7 @@ from py2many.exceptions import AstUnsupportedOperation
 import pyjl.juliaAst as juliaAst
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Generator, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
@@ -395,10 +395,15 @@ class JuliaTranspilerPlugins:
             return "Vector{UInt8}()"
         else:
             parsed_args = vargs[0]
-            if isinstance(node.args[0], ast.GeneratorExp):
+            if isinstance(node.args[0], ast.GeneratorExp) \
+                    or getattr(node.args[0], "is_gen_expr", None):
                 parsed_args = parsed_args.removeprefix("(").removesuffix(")")
                 parsed_args = f"[{vargs[0][1:-1]}]"
             return f"Vector{{UInt8}}({parsed_args})"
+
+    def visit_islice(t_self, node, vargs: list[str]) -> str:
+        node.is_gen_expr = True
+        return f"({vargs[0]} for _ in (0:{vargs[1]}))"
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -560,7 +565,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
     bytearray: (JuliaTranspilerPlugins.visit_bytearray, True),
-    itertools.islice: (lambda self, node, vargs: f"({vargs[0]} for _ in (0:{vargs[1]}))", True),
+    slice: (lambda self, node, vargs: f"({vargs[0]}:{vargs[1]})", False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
@@ -611,6 +616,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Itertools
     itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
         if len(vargs) > 2 else f"repeat({vargs[0]})", False),
+    itertools.islice: (JuliaTranspilerPlugins.visit_islice, True),
     # Multiprocessing
     os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     multiprocessing.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
@@ -627,7 +633,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
-    #
+    # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
     # Exceptions
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \

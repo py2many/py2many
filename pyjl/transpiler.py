@@ -401,10 +401,10 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"{left}*{right}"
 
         if isinstance(node.op, ast.Add):
-            # Cover Python list addition
+            # Add two lists
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List))
                     or (is_list(right_jl_ann)
-                        and (left_jl_ann == "Array" or left_jl_ann == "Vector"))):
+                        and (left_jl_ann.startswith("Array") or left_jl_ann.startswith("Vector")))):
                 return f"append!({left}, {right})"
 
             # Cover Python String concatenation
