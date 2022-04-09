@@ -340,7 +340,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 # Replace node with a call
                 call = ast.Call(
                     func = ast.Name(
-                        id = "split!",
+                        id = "splice!",
                         lineno = node.lineno,
                         col_offset = node.col_offset),
                     args = [],
