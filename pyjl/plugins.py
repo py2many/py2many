@@ -14,6 +14,7 @@ import re
 import sys
 import unittest
 from py2many.exceptions import AstUnsupportedOperation
+from pyjl.global_vars import RESUMABLE
 
 import pyjl.juliaAst as juliaAst
 
@@ -22,7 +23,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_type
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, find_node_by_type, get_class_scope, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -405,6 +406,27 @@ class JuliaTranspilerPlugins:
         node.is_gen_expr = True
         return f"({vargs[0]} for _ in (0:{vargs[1]}))"
 
+    def visit_iter(t_self, node, vargs: list[str]) -> str:
+        node.is_gen_expr = True
+        return f"(x for x in {vargs[0]})"
+
+    def visit_next(t_self, node, vargs: list[str]) -> str:
+        if class_scope := get_class_scope(vargs[1], node.scopes):
+            # Check if it is a generator function
+            if find_in_body(class_scope.body, 
+                lambda x: isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+                if RESUMABLE in node.parsed_decorators:
+                    return f"{vargs[0]}({', '.split(vargs[1:])})" \
+                        if len(vargs) > 1 \
+                        else f"{vargs[0]}()"
+                else:
+                    return f"take!({vargs[0]})"
+        # TODO: Is this valid? Is this undecidable?
+        # else:
+        #     getattr(node, "is_gen_expr", None)
+        #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
+        return f"next({', '.join(vargs)})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -566,6 +588,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),
     bytearray: (JuliaTranspilerPlugins.visit_bytearray, True),
     slice: (lambda self, node, vargs: f"({vargs[0]}:{vargs[1]})", False),
+    iter: (JuliaTranspilerPlugins.visit_iter, False),
+    next: (JuliaTranspilerPlugins.visit_next, False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),

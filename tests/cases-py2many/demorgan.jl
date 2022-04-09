@@ -7,5 +7,4 @@ end
 @assert(demorgan(true, false))
 @assert(demorgan(false, true))
 @assert(demorgan(false, false))
-check_sat()
 println("OK")

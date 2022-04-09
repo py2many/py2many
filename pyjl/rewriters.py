@@ -5,6 +5,7 @@ from operator import contains
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
+from py2many.inference import InferTypesTransformer
 from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
@@ -326,15 +327,57 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                  self._is_list(node.value, node.scopes)))
         )
         if requires_lowering:
-            return ast.Assign(
-                targets=[node.target],
-                value=ast.BinOp(
+            # New binary operation
+            value = ast.BinOp(
                     left=node.target,
                     op=node.op,
                     right=node.value,
                     lineno=node.lineno,
-                    col_offset=node.col_offset
-                ),
+                    col_offset=node.col_offset)
+
+            if isinstance(node.target, ast.Subscript) and \
+                    isinstance(node.target.slice, ast.Slice):
+                # Replace node with a call
+                call = ast.Call(
+                    func = ast.Name(
+                        id = "split!",
+                        lineno = node.lineno,
+                        col_offset = node.col_offset),
+                    args = [],
+                    keywords = [],
+                    lineno = node.lineno,
+                    col_offset = node.col_offset)
+
+                is_number = (lambda x: 
+                    isinstance(x, ast.Num) or 
+                    (isinstance(x, ast.Constant) and x.value.isdigit()) or 
+                    (get_id(getattr(x, "annotation", None)) in 
+                        InferTypesTransformer.FIXED_WIDTH_INTS))
+            
+                if is_number(node.value) and isinstance(node.op, ast.Mult):
+                    call.args.extend([node.target.value, node.target.slice, value])
+                    return call
+                elif not is_number(node.value) and isinstance(node.op, ast.Add):
+                    old_slice: ast.Slice = node.target.slice
+                    lower = old_slice.lower
+                    upper = old_slice.upper
+                    if (isinstance(lower, ast.Constant) and 
+                                ((isinstance(lower, str) and lower.value.isdigit()) or
+                                isinstance(lower, int))) or \
+                            isinstance(lower, ast.Num):
+                        lower = ast.Constant(value = int(lower.value) + 1)
+                    else:
+                        lower.splice_increment = True
+                    new_slice = ast.Slice(
+                        lower = lower,
+                        upper = upper
+                    )
+                    call.args.extend([node.target.value, new_slice, node.value])
+                    return call
+
+            return ast.Assign(
+                targets=[node.target],
+                value = value,
                 lineno=node.lineno,
                 col_offset=node.col_offset
             )

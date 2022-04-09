@@ -10,5 +10,5 @@ assert demorgan(True, False)
 assert demorgan(False, True)
 assert demorgan(False, False)
 # assert not demorgan # Should fail if uncommented
-check_sat()
+# check_sat()
 print("OK")

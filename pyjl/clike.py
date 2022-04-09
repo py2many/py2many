@@ -94,7 +94,8 @@ JL_IGNORED_MODULE_SET = set([
     "multiprocessing",
     "re",
     "contextlib",
-    "time"
+    "time",
+    "argparse_dataclass"
 ])
 
 JULIA_TYPE_MAP = {

@@ -51,7 +51,7 @@ if __name__ == "__main__":
     p = Person("P")
     s = Student("S", 111111)
     assert p.get_name() == "P"
-    assert s.get_name() == "111111 - S"
+    assert s.get_name() == "S - 111111"
 
     s2 = Student2("S2", 123)
     # Student2("S2", -1) # Should raise an exception

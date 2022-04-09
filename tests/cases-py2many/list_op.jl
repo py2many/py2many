@@ -127,7 +127,7 @@ end
 function inplace_ops()
     a = [1, 1]
     b = a
-    b = b + [3, 3]
+    b = append!(b, [3, 3])
     @assert(a == [1, 1, 3, 3])
     @assert(b == [1, 1, 3, 3])
 end

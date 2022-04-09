@@ -678,6 +678,9 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{lower}:{lower}"
         elif isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
             lower = f"{(int(lower) + 1)}"
+        elif getattr(node.lower, "splice_increment", None):
+            # From JuliaAugAssignRewriter
+            lower = f"({lower} + 2)"
         elif lower != "begin":
             lower = f"({lower} + 1)"
 
