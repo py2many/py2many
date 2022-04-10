@@ -39,7 +39,7 @@ ENV = {
 }
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
-    + (["-stdlib=libc++"] if CXX == "clang++" else [])
+    + (["-stdlib=libc++"] if CXX.startswith("clang++") else [])
     + (["-o", "{exe}", "{filename}"] if sys.platform == "win32" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
@@ -305,7 +305,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     if case == "coverage":
                         linter.append(
                             "-Wno-null-arithmetic"
-                            if CXX == "clang++"
+                            if CXX.startswith("clang++")
                             else "-Wno-pointer-arith"
                         )
                 proc = run(linter, env=env)
