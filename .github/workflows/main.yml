@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-18.04
+          - ubuntu-20.04
           - macos-10.15
           - windows-2019
     runs-on: ${{ matrix.os }}
@@ -79,7 +79,12 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-              sudo apt-get install --yes astyle
+              sudo apt-get install --yes \
+                  astyle \
+                  libc++-12-dev \
+                  libc++abi-12-dev \
+                && true
+              echo "CXX=clang++-12" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
