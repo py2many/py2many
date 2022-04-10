@@ -24,10 +24,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Check for runner dependencies
+        shell: bash
+        run: |
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
+
       - uses: actions/setup-java@v3
         with:
           distribution: adopt
           java-version: 15
+
+      - name: Add missing dependencies on act Medium runner
+        if: ${{ env.ACT }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+              cargo \
+              clang \
+              clang-format \
+              powershell \
+              rustfmt \
+              z3 \
+            && true
+          echo "${HOME}/.cargo/bin/" >> $GITHUB_PATH
+
       - uses: subosito/flutter-action@v1
         with:
           channel: 'stable'
@@ -42,6 +63,7 @@ jobs:
         with:
           python-version: '3.8'
       - name: Install V
+        if: ${{ !env.WHICH_V }}
         shell: bash
         env:
           RELEASE: weekly.2021.29
@@ -58,11 +80,13 @@ jobs:
       - name: Install go packages
         shell: bash
         run: |
-          (go get github.com/hgfischer/go-iter \
-           && go get github.com/google/go-cmp/cmp \
-           && go get github.com/adsharma/py2many/pygo/runtime \
-           && go get github.com/mgechev/revive \
-          )
+          go get github.com/hgfischer/go-iter
+          go get github.com/google/go-cmp/cmp
+          go get github.com/adsharma/py2many/pygo/runtime
+          go get github.com/mgechev/revive
+          if [[ -d /usr/local/bin && ! -f /usr/local/bin/golint && -f $HOME/go/bin/golint ]]; then
+            (cd /usr/local/bin && sudo ln -fs $HOME/go/bin/golint)
+          fi
 
       - name: Install tox
         run: |
@@ -74,6 +98,9 @@ jobs:
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
+          if [[ -d /usr/local/bin && ! -f /usr/local/bin/format.jl ]]; then
+            (cd /usr/local/bin && sudo ln -fs $(find ~/.julia -name format.jl))
+          fi
 
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
@@ -88,13 +115,9 @@ jobs:
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
-              (cd /usr/local/bin && sudo ln -s $(find ~/.julia -name format.jl))
-              (cd /usr/local/bin && sudo ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install clang-format kscript ktlint astyle
-              (cd /usr/local/bin && ln -s $(find ~/.julia -name format.jl))
-              (cd /usr/local/bin && ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
@@ -137,6 +160,7 @@ jobs:
              chmod +x install-cljstyle
              sudo ./install-cljstyle)
           fi
+
       - name: Run tox
         shell: bash
         # sdkman init can be replaced with actions setup when the following is fixed
