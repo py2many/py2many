@@ -2,11 +2,11 @@
 import 'package:sprintf/sprintf.dart';
 
 inline_pass() {
-/* pass */
+  /* pass */
 }
 
 inline_ellipsis() {
-/* ... */
+  /* ... */
 }
 
 int indexing() {

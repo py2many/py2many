@@ -46,6 +46,9 @@ pub fn fib(i: i32) -> i32 {
 
 pub fn main() -> Result<()> {
     let mut args = Options::from_args();
+    if args.v {
+        println!("{}", "args.v is true");
+    }
     if (args.n as i32) == 0 {
         args.n = 5;
     }
