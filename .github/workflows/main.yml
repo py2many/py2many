@@ -98,12 +98,23 @@ jobs:
         run: |
           dart --version
           # tests/build here must be the same as defined in test_cli
-          (dart create --no-pub -t package-simple tests/build && cd tests/build \
-           && dart pub add collection \
-           && dart pub add sprintf \
-           && dart pub add tuple \
-           && sed -i.bak '/test:/d' pubspec.yaml \
-           && flutter pub add vnum)
+          if [[ ! -d tests/build ]]; then
+            dart create --no-pub -t package-simple tests/build
+          fi
+          cd tests/build
+          if ! grep vnum pubspec.yaml ; then
+            # Specifying the version here doesnt stick
+            set -ex
+            dart pub add collection:1.15.0
+            cat pubspec.yaml
+            dart pub add sprintf
+            dart pub add tuple
+            cat pubspec.yaml
+            sed -i.bak '/test:/d' pubspec.yaml
+            # Force version downgrade here
+            sed -i.bak 's:1.16.0:1.15.0:' pubspec.yaml
+            flutter pub add vnum
+          fi
 
       - name: Install cargo-script
         run: cargo install cargo-script
