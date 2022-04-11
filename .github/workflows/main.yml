@@ -150,7 +150,7 @@ jobs:
             mv ktlint /tmp/ktlint/ktlint.jar
             curl -sSLO https://github.com/lordmulder/Launch5j/releases/download/0.7.0/launch5j-bin.2020-10-05.zip
             unzip launch5j-bin.2020-10-05.zip
-            mv launch5j_x86_nogui.exe /tmp/ktlint/ktlint.exe
+            mv launch5j_x86_nogui_registry.exe /tmp/ktlint/ktlint.exe
             echo "::add-path::/tmp/ktlint"
           else
             chmod a+x ktlint
@@ -200,9 +200,6 @@ jobs:
         run: |
           if [[ -f $HOME/.sdkman/bin/sdkman-init.sh ]]; then
             source "$HOME/.sdkman/bin/sdkman-init.sh"
-          fi
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            export PATH="$PATH:/tmp/v"
           fi
           tox
 
