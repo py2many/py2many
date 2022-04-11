@@ -41,7 +41,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
               cargo \
-              clang \
+              clang-12 \
               clang-format \
               powershell \
               rustfmt \
@@ -62,6 +62,12 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
+      - uses: sdkman/sdkman-action@master
+        id: sdkman
+        with:
+          candidate: kscript
+          version: 3.1.0
+
       - name: Install V
         if: ${{ !env.WHICH_V }}
         shell: bash
@@ -71,9 +77,12 @@ jobs:
           FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip
           (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE})
           (cd /tmp && unzip ${FILE})
-          if [ "$RUNNER_OS" != "Windows" ]; then
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "/tmp/v" >> $GITHUB_PATH
+          else
             (cd /usr/local/bin && sudo ln -s /tmp/v/v)
           fi
+
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
 
@@ -117,13 +126,11 @@ jobs:
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install clang-format kscript ktlint astyle
+              brew install astyle clang-format cljstyle ktlint
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
-          curl -s "https://get.sdkman.io" | bash
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          sdk install kscript
+          echo "WHICH_CLJSTYLE=$(which cljstyle 2>/dev/null)" >> $GITHUB_ENV
 
       - name: Install dart dependencies
         shell: bash
@@ -149,12 +156,14 @@ jobs:
           fi
 
       - name: Install cargo-script
-        run: cargo install cargo-script
+        run: |
+          cargo install cargo-quickinstall
+          cargo quickinstall cargo-script
 
-      - name: Install smt dependencies
+      - name: Install smt dependency cljstyle (Linux)
         shell: bash
         run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
+          if [ "$RUNNER_OS" == "Linux" ]; then
             (curl -sLO https://raw.githubusercontent.com/greglook/cljstyle/main/script/install-cljstyle
              sed -i.bak 's/--overwrite//' install-cljstyle
              chmod +x install-cljstyle
@@ -163,14 +172,9 @@ jobs:
 
       - name: Run tox
         shell: bash
-        # sdkman init can be replaced with actions setup when the following is fixed
-        # https://github.com/sdkman/sdkman-action/issues/8
+        env:
+          VERBOSE_SKIPS: 0
         run: |
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          LINT=1
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
-          fi
           tox
 
   lint:
