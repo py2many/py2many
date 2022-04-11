@@ -70,7 +70,7 @@ jobs:
         run: |
           FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip
           (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE})
-          (cd /tmp && unzip ${FILE})
+          (cd /tmp && unzip ${FILE} || true) # unzip can return 1 without any errors for the Windows zip.
           if [ "$RUNNER_OS" != "Windows" ]; then
             (cd /usr/local/bin && sudo ln -s /tmp/v/v)
           fi
