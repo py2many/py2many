@@ -70,7 +70,7 @@ jobs:
             mkdir /tmp/ktlint
             mv ktlint ktlint.jar
             bash -c "$(curl -fsSL https://raw.githubusercontent.com/jayvdb/warp4j/win/install)"
-            ./warp4j --windows ktlint.jar
+            $HOME/warp/warp4j --windows ktlint.jar
             mv warped/my-app-windows-x64.exe /tmp/ktlint/ktlint.exe
             /tmp/ktlint/ktlint --help ||:
             echo "::add-path::/tmp/ktlint"
@@ -179,7 +179,7 @@ jobs:
             mkdir /tmp/ktlint
             mv ktlint ktlint.jar
             bash -c "$(curl -fsSL https://raw.githubusercontent.com/guziks/warp4j/stable/install)"
-            ./warp4j --windows ktlint.jar
+            $HOME/warp/warp4j --windows ktlint.jar
             mv warped/my-app-windows-x64.exe /tmp/ktlint/ktlint.exe
             /tmp/ktlint/ktlint --help ||:
             echo "::add-path::/tmp/ktlint"
