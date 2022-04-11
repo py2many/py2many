@@ -4,20 +4,21 @@ using Distributed
 # Has to be at the top
 addprocs(4)
 
-@everywhere begin
-    function make_tree(depth::Int64)::Tuple
-        return depth == 0 ? ((nothing, nothing)) :
-               ((make_tree(depth - 1), make_tree(depth - 1)))
-    end
-
-    function check_node(left, right)::Int64
-        return left === nothing ? (1) : ((1 + check_node(left...)) + check_node(right...))
-    end
-
-    function run(depth::Int64)::Int64
-        return check_node(make_tree(depth)...)
-    end
+function make_tree(depth::Int64)::Tuple
+    return depth == 0 ? ((nothing, nothing)) :
+           ((make_tree(depth - 1), make_tree(depth - 1)))
 end
+
+function check_node(left, right)::Int64
+    return left === nothing ? (1) : ((1 + check_node(left...)) + check_node(right...))
+end
+
+function run(depth::Int64)::Int64
+    return check_node(make_tree(depth)...)
+end
+# @everywhere begin
+
+# end
 
 function main_func(requested_max_depth, min_depth = 4)
     max_depth = max(min_depth + 2, requested_max_depth)

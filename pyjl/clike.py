@@ -11,7 +11,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_ty
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_str_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import MODULE_DISPATCH_TABLE
+from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 import importlib
 
 from numbers import Complex, Integral, Rational, Real
@@ -58,8 +58,6 @@ julia_keywords = frozenset(
         "type",
         "using",
         "while",
-        "write",
-        "flush",
     ]
 )
 
@@ -95,7 +93,8 @@ JL_IGNORED_MODULE_SET = set([
     "re",
     "contextlib",
     "time",
-    "argparse_dataclass"
+    "argparse_dataclass",
+    "bisect"
 ])
 
 JULIA_TYPE_MAP = {
@@ -359,9 +358,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         return func
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        # TODO: Temporary Fix
-        fname = fname.removesuffix("_")
-
         if isinstance(node, ast.Call) and len(node.args) > 0:
             var = vargs[0]
 

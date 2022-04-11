@@ -15,6 +15,9 @@ def decltype(node):
 # is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
+        if isinstance(scope, ast.ClassDef) and \
+                scope.name == name:
+            return scope
         for entry in scope.body:
             if isinstance(entry, ast.ClassDef):
                 if entry.name == name:

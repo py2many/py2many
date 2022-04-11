@@ -1,4 +1,5 @@
 import argparse
+from bisect import bisect, bisect_left, bisect_right
 import contextlib
 import io
 import itertools
@@ -13,8 +14,11 @@ import random
 import re
 import sys
 import unittest
+
+from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
+from pyjl.helpers import get_str_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -377,9 +381,7 @@ class JuliaTranspilerPlugins:
         t_self._usings.add("Distributed")
 
     def visit_join(t_self, node, vargs):
-        if isinstance(vargs[0], str):
-            return f"join({vargs[1]}, {vargs[0]})"
-        return f"join({vargs[0]}, {vargs[1]})"
+        return f"join({vargs[1]}, {vargs[0]})" if vargs else "join"
 
     def visit_format(t_self, node, vargs):
         # TODO: Optimize
@@ -411,11 +413,22 @@ class JuliaTranspilerPlugins:
         return f"(x for x in {vargs[0]})"
 
     def visit_next(t_self, node, vargs: list[str]) -> str:
-        if class_scope := get_class_scope(vargs[1], node.scopes):
+        # TODO: Simplify
+        func_scope = None
+        node_type = find_node_by_name_and_type(vargs[0], 
+                ast.Assign, node.scopes)[0]
+        if isinstance(node_type, ast.Assign):
+            func_scope = find_node_by_name_and_type(get_str_repr(node_type.value), 
+                ast.FunctionDef, node.scopes)[0]
+        elif isinstance(node_type, ast.FunctionDef):
+            func_scope = node_type
+
+        if func_scope and isinstance(func_scope, ast.FunctionDef):
             # Check if it is a generator function
-            if find_in_body(class_scope.body, 
-                lambda x: isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
-                if RESUMABLE in node.parsed_decorators:
+            if find_in_body(func_scope.body, 
+                    lambda x: isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+                decs = getattr(func_scope, "parsed_decorators", None)
+                if RESUMABLE in decs:
                     return f"{vargs[0]}({', '.split(vargs[1:])})" \
                         if len(vargs) > 1 \
                         else f"{vargs[0]}()"
@@ -426,6 +439,17 @@ class JuliaTranspilerPlugins:
         #     getattr(node, "is_gen_expr", None)
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
+
+    def visit_bisect_right(t_self, node, vargs: list[str]):
+        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
+        return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
+
+    def visit_bisect_left(t_self, node, vargs: list[str]):
+        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
+        return f"bisect_left({', '.join(vargs)})" if vargs else "bisect_left"
+
+    def _generic_bisect_visit(t_self):
+        t_self._usings.add("BisectPy")
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -507,6 +531,11 @@ class JuliaRewriterPlugins:
 
         return arg_values
 
+    def visit_next(r_self, node: ast.FunctionDef):
+        r_self.generic_visit(node)
+        return node
+
+
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -547,7 +576,8 @@ DISPATCH_MAP = {
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
     "join": JuliaTranspilerPlugins.visit_join,
-    "format": JuliaTranspilerPlugins.visit_format
+    "format": JuliaTranspilerPlugins.visit_format,
+    "__next__": JuliaTranspilerPlugins.visit_next,
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
 }
@@ -556,7 +586,6 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "dataclass": "DataClass",
     "json": "JSON",
     "datetime": "Dates",
-    "bisect": "BisectPy"
 }
 
 DECORATOR_DISPATCH_TABLE = {
@@ -626,6 +655,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Instance checks
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
+    # Bysect
+    bisect_right: (JuliaTranspilerPlugins.visit_bisect_right, True),
+    bisect_left: (JuliaTranspilerPlugins.visit_bisect_left, True),
     # Random
     random.seed: (
         lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
@@ -659,12 +691,13 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
-    # Exceptions
+    # Exceptions (This is not so simple)
     ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
          if len(vargs) == 1 else "ArgumentError" , True),
 }
 
 # Dispatches special Functions
 JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
-    "__init__": JuliaRewriterPlugins.visit_init
+    "__init__": JuliaRewriterPlugins.visit_init,
+    "__next__": JuliaRewriterPlugins.visit_next,
 }

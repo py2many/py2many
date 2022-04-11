@@ -1,5 +1,6 @@
+using BisectPy
 using ResumableFunctions
-using BisectPy: bisect
+
 
 
 
@@ -106,7 +107,7 @@ end
 function lookup(probabilities, values)
     Channel() do ch_lookup
         for value in values
-            put!(ch_lookup, bisect(probabilities, value))
+            put!(ch_lookup, bisect_right(probabilities, value))
         end
     end
 end
@@ -124,7 +125,7 @@ function lcg_lookup_fast(probabilities, seed, im, ia, ic)
         try
             while true
                 local_seed = (local_seed * ia + ic) % im
-                put!(ch_lcg_lookup_fast, bisect(probabilities, local_seed))
+                put!(ch_lcg_lookup_fast, bisect_right(probabilities, local_seed))
             end
         finally
             value(seed) = local_seed
