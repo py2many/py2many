@@ -50,6 +50,26 @@ jobs:
             && true
           echo "::add-path::${HOME}/.cargo/bin/"
 
+      - name: Install ktlint
+        shell: bash
+        env:
+          KTLINT_VERSION: 0.41.0
+        run: |
+          set -ex
+          curl -sSLO https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            mkdir /tmp/ktlint
+            mv ktlint ktlint.jar
+            bash -c "$(curl -fsSL https://raw.githubusercontent.com/jayvdb/warp4j/win/install)"
+            ./warp4j --windows ktlint.jar
+            mv warped/my-app-windows-x64.exe /tmp/ktlint/ktlint.exe
+            /tmp/ktlint/ktlint --help ||:
+            echo "::add-path::/tmp/ktlint"
+          else
+            chmod a+x ktlint
+            sudo mv ktlint /usr/local/bin/
+          fi
+
       - uses: subosito/flutter-action@v1
         with:
           channel: 'stable'
@@ -144,6 +164,7 @@ jobs:
         env:
           KTLINT_VERSION: 0.41.0
         run: |
+          set -ex
           curl -sSLO https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint
           if [ "$RUNNER_OS" == "Windows" ]; then
             mkdir /tmp/ktlint
