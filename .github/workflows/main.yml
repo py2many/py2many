@@ -147,10 +147,11 @@ jobs:
           curl -sSLO https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint
           if [ "$RUNNER_OS" == "Windows" ]; then
             mkdir /tmp/ktlint
-            mv ktlint /tmp/ktlint/ktlint.jar
-            curl -sSLO https://github.com/lordmulder/Launch5j/releases/download/0.7.0/launch5j-bin.2020-10-05.zip
-            unzip launch5j-bin.2020-10-05.zip
-            mv launch5j_x86_nogui_registry.exe /tmp/ktlint/ktlint.exe
+            mv ktlint ktlint.jar
+            bash -c "$(curl -fsSL https://raw.githubusercontent.com/guziks/warp4j/stable/install)"
+            ./warp4j --windows ktlint.jar
+            mv warped/my-app-windows-x64.exe /tmp/ktlint/ktlint.exe
+            /tmp/ktlint/ktlint --help ||:
             echo "::add-path::/tmp/ktlint"
           else
             chmod a+x ktlint
