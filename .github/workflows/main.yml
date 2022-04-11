@@ -51,6 +51,14 @@ jobs:
             && true
           echo "::add-path::${HOME}/.cargo/bin/"
 
+      - name: Install dependencies for ${{ runner.os }}.
+        shell: bash
+        run: |
+          set -ex
+          if [ "$RUNNER_OS" == "Windows" ]; then
+              choco install awk zip curl
+          fi
+
       - name: Install ktlint
         shell: bash
         env:
