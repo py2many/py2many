@@ -45,9 +45,8 @@ jobs:
               clang-format \
               powershell \
               rustfmt \
-              z3 \
             && true
-          echo "${HOME}/.cargo/bin/" >> $GITHUB_PATH
+          echo "::add-path::${HOME}/.cargo/bin/"
 
       - uses: subosito/flutter-action@v1
         with:
@@ -78,7 +77,7 @@ jobs:
           (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE})
           (cd /tmp && unzip ${FILE})
           if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "/tmp/v" >> $GITHUB_PATH
+            echo "::add-path::/tmp/v"
           else
             (cd /usr/local/bin && sudo ln -s /tmp/v/v)
           fi
@@ -114,11 +113,14 @@ jobs:
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
         run: |
+          set -ex
+          which v ||:
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes \
                   astyle \
                   libc++-12-dev \
                   libc++abi-12-dev \
+                  z3 \
                 && true
               echo "CXX=clang++-12" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
@@ -126,7 +128,7 @@ jobs:
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install astyle clang-format cljstyle ktlint
+              brew install astyle clang-format cljstyle ktlint z3
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
@@ -172,9 +174,11 @@ jobs:
 
       - name: Run tox
         shell: bash
-        env:
-          VERBOSE_SKIPS: 0
         run: |
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            export PATH="/tmp/v"
+          fi
           tox
 
   lint:
