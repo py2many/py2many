@@ -61,11 +61,6 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
-      - uses: sdkman/sdkman-action@master
-        id: sdkman
-        with:
-          candidate: kscript
-          version: 3.1.0
 
       - name: Install V
         if: ${{ !env.WHICH_V }}
@@ -123,16 +118,42 @@ jobs:
                   z3 \
                 && true
               echo "CXX=clang++-12" >> $GITHUB_ENV
-              curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
-              chmod a+x ktlint
-              sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install astyle clang-format cljstyle ktlint z3
+              brew install astyle clang-format cljstyle kscript ktlint z3
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
           echo "WHICH_CLJSTYLE=$(which cljstyle 2>/dev/null)" >> $GITHUB_ENV
+          echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
+          echo "WHICH_KTLINT=$(which ktlint 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install kscript
+        if: ${{ !env.WHICH_KSCRIPT }}
+        shell: bash
+        run: |
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          sdk install kscript
+
+      - name: Install ktlint
+        if: ${{ !env.WHICH_KTLINT }}
+        shell: bash
+        env:
+          KTLINT_VERSION: 0.41.0
+        run: |
+          curl -sSLO https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            mkdir /tmp/ktlint
+            mv ktlint /tmp/ktlint/ktlint.jar
+            curl -sSLO https://github.com/lordmulder/Launch5j/releases/download/0.7.0/launch5j-bin.2020-10-05.zip
+            unzip launch5j-bin.2020-10-05.zip
+            mv launch5j_x86_nogui.exe /tmp/ktlint/ktlint.exe
+            echo "::add-path::/tmp/ktlint"
+          else
+            chmod a+x ktlint
+            sudo mv ktlint /usr/local/bin/
+          fi
 
       - name: Install dart dependencies
         shell: bash
@@ -175,9 +196,11 @@ jobs:
       - name: Run tox
         shell: bash
         run: |
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          if [[ -f $HOME/.sdkman/bin/sdkman-init.sh ]]; then
+            source "$HOME/.sdkman/bin/sdkman-init.sh"
+          fi
           if [ "$RUNNER_OS" == "Windows" ]; then
-            export PATH="/tmp/v"
+            export PATH="$PATH:/tmp/v"
           fi
           tox
 
