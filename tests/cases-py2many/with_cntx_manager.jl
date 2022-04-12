@@ -24,7 +24,7 @@ function main()
     NamedTempFile::new() do temp_file
         file_path = name(temp_file)
         FileOp(file_path, "w") do file
-            write_(file, "test")
+            write(file, "test")
         end
         open(file_path, "r") do f
             @assert(read(f) == "test")

@@ -14,7 +14,7 @@ from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, REMOVE_NESTED, RESUMABLE
-from pyjl.helpers import find_assign_value, get_str_repr, get_variable_name
+from pyjl.helpers import find_assign_value, get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -244,7 +244,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             if isinstance(n, ast.ClassDef) and \
-                    REMOVE_NESTED in map(get_str_repr, n.decorator_list):
+                    REMOVE_NESTED in n.parsed_decorators:
                 self._nested_classes.append(n)
             else:
                 body.append(self.visit(n))
@@ -539,15 +539,15 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     def visit_Assign(self, node: ast.Assign) -> Any:
         self.generic_visit(node)
         if isinstance(node.value, ast.List) or isinstance(node.value, ast.Tuple):
-            value_list = map(lambda x: get_str_repr(x) if isinstance(x, ast.Call) else None, node.value.elts)
+            value_list = map(lambda x: get_id(x.func) if isinstance(x, ast.Call) else None, node.value.elts)
             for target, value in zip(node.targets, value_list):
                 if value and (t_id := get_id(target)):
-                    self._assign_map[t_id] = get_str_repr(node.value)
+                    self._assign_map[t_id] = value
         else:
             if isinstance(node.value, ast.Call):
                 for target in node.targets:
                     if t_id := get_id(target):
-                        self._assign_map[t_id] = get_str_repr(node.value)
+                        self._assign_map[t_id] = get_id(node.value.func)
 
         return node
     

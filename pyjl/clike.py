@@ -202,6 +202,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def visit_NamedExpr(self, node) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
+    def visit_keyword(self, node: ast.keyword) -> Any:
+        arg_str = node.arg if node.arg not in julia_keywords else f"{node.arg}_"
+        return f"{arg_str} = {self.visit(node.value)}"
+
     ######################################################
     ################### Type Mappings ####################
     ######################################################

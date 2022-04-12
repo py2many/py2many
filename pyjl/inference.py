@@ -197,8 +197,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
-        left_id = get_str_repr(left)
-        right_id = get_str_repr(right)
+        # left_id = get_str_repr(left)
+        left_id = get_id(left)
+        # right_id = get_str_repr(right)
+        right_id = get_id(right)
 
         is_numeric = (lambda x: x == "int" or "float" or "complex"
             or x.startswith("c_int") or x.startswith("c_uint"))

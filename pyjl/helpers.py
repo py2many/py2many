@@ -1,5 +1,6 @@
 # Gets range from for loop
 import ast
+import re
 
 from py2many.ast_helpers import get_id
 
@@ -112,3 +113,7 @@ def get_variable_name(scope):
             break
 
     return new_var
+
+def create_annotation_tuple(type_str: str):
+    types = re.split(r"\[|\]", type_str)
+    pass

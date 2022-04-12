@@ -7,7 +7,7 @@ using ResumableFunctions
 
 
 
-write_ = x -> write(stdout, x)
+write = x -> write(stdout, x)
 function acquired_lock()
     lock = Lock()
     acquire(lock)
@@ -48,9 +48,9 @@ function write_lines(
                 output += sequence[(i+1):i+width] + newline
             end
             if table
-                write_(translate(output, table))
+                write(translate(output, table))
             else
-                write_(output)
+                write(output)
             end
         end
     end
@@ -62,9 +62,9 @@ function write_lines(
     end
     output += sequence[(i+1):n] + newline
     if table
-        write_(translate(output, table))
+        write(translate(output, table))
     else
-        write_(output)
+        write(output)
     end
     flush(stdout)
 end
@@ -85,7 +85,7 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
         extend(sequence, sequence)
     end
     lock_pair() do
-        write_(header)
+        write(header)
         write_lines(sequence, n, width)
     end
 end
@@ -151,7 +151,7 @@ function lookup_and_write(
     end
     lock_pair() do
         if start == 0
-            write_(header)
+            write(header)
         end
         write_lines(output, length(output), width)
     end

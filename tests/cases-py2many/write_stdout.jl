@@ -1,9 +1,9 @@
 
 function main()
-    write_ = x -> write(stdout, x)
+    write = x -> write(stdout, x)
     write(stdout, b"Test\n")
-    write_(b"P4\n")
-    flush_ = flush(stdout)
+    write(b"P4\n")
+    flush = flush(stdout)
     flush(stdout)
 end
 

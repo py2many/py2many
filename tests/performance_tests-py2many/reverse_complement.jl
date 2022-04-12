@@ -71,14 +71,14 @@ function read_sequences(file)
 end
 
 function main()
-    write_ = x -> write(stdout, x)
-    flush_ = flush(stdout)
+    write = x -> write(stdout, x)
+    flush = flush(stdout)
     s = read_sequences(stdin.buffer)
-    data = next(s)
+    data = take!(s)
     for (h, r) in starmap(reverse_complement, merge(data, s))
-        write_(h)
-        write_(r)
-        flush_
+        write(h)
+        write(r)
+        flush
     end
 end
 

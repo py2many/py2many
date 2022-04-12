@@ -324,15 +324,19 @@ class JuliaTranspilerPlugins:
             "encountered range() call with unknown parameters: range({})".format(vargs)
         )
 
-    def visit_print(t_self, node, vargs: List[str]) -> str:
-        args = ", ".join(vargs)
-        if "%" in args:
-            # TODO: Further rules are necessary
-            res = re.split(r"\s\%\s", args)
-            args = ", ".join(res)
-            t_self._usings.add("Printf")
-            return f"@printf({args})"
-        return f"println({args})"
+    def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
+        if node.args:
+            if isinstance(node.args[0], ast.BinOp):
+                args_str, args_vals = [], []
+                for arg in vargs:
+                    arg_str, arg_val = re.split(r"\s\%\s", arg)
+                    args_str.append(arg_str)
+                    args_vals.append(arg_val)
+
+                t_self._usings.add("Printf")
+                return f'@printf({", ".join(args_str)}, {", ".join(args_vals)})'
+
+        return f"println({', '.join(vargs)})"
 
     def visit_cast_int(t_self, node, vargs) -> str:
         if hasattr(node, "args") and node.args:

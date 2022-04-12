@@ -1,5 +1,5 @@
 using BisectPy
-using Printf
+using ResumableFunctions
 
 alu = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
 iub = collect(zip("acgtBDHKMNRSVWY", append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11))))
@@ -9,14 +9,12 @@ homosapiens = [
     ("g", 0.1975473066391),
     ("t", 0.3015094502008),
 ]
-function genRandom(ia = 3877, ic = 29573, im = 139968)
-    Channel() do ch_genRandom
-        seed = 42
-        imf = float(im)
-        while 1
-            seed = (seed * ia + ic) % im
-            put!(ch_genRandom, seed / imf)
-        end
+@resumable function genRandom(ia = 3877, ic = 29573, im = 139968)
+    seed = 42
+    imf = float(im)
+    while 1
+        seed = (seed * ia + ic) % im
+        @yield seed / imf
     end
 end
 
@@ -41,8 +39,7 @@ function repeatFasta(src::String, n::Int64)
         i = j * width % r
         println(s[(i+1):i+width])
     end
-    println(n)
-    if (n % width) == 0
+    if n % width
         println(s[end:end])
     end
 end
@@ -50,7 +47,7 @@ end
 function randomFasta(table, n)
     width = 60
     r = (0:width-1)
-    gR = __next__(Random)
+    gR = Random()
     bb = bisect_right
     jn = join("")
     probs, chars = makeCumulative(table)
@@ -59,13 +56,12 @@ function randomFasta(table, n)
         println(x)
     end
     if n % width
-        println(jn([chars[bb(probs, gR())] for i in (0:n, width - 1)]))
+        println(jn([chars[bb(probs, gR())] for i in (0:n%width-1)]))
     end
 end
 
 function main()
-    n = 100
-    # n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
+    n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
     println(">ONE Homo sapiens alu")
     repeatFasta(alu, n * 2)
     println(">TWO IUB ambiguity codes")

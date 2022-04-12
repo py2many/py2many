@@ -75,9 +75,9 @@ end
 end
 
 function mandelbrot(n)
-    write_ = x -> write(stdout, x)
+    write = x -> write(stdout, x)
     compute_rows(n, compute_row) do rows
-        write_(Vector{UInt8}("P4\n$n $n\n"))
+        write(Vector{UInt8}("P4\n$n $n\n"))
         for row in rows
             #= pass =#
         end
