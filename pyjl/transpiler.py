@@ -206,9 +206,6 @@ class JuliaTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
 
-        if ret := self._dispatch(node, f"{value_id}.{attr}", []):
-            return ret
-
         return f"{value_id}.{attr}"
 
     def visit_Call(self, node: ast.Call) -> str:

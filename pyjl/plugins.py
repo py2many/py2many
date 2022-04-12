@@ -18,7 +18,7 @@ import unittest
 from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_str_repr
+from pyjl.helpers import find_assign_value, get_str_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, find_node_by_type, get_class_scope, is_class_type
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name, find_node_by_name_and_type, find_node_by_type, get_class_scope, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -419,8 +419,7 @@ class JuliaTranspilerPlugins:
     def visit_next(t_self, node, vargs: list[str]) -> str:
         # TODO: Simplify
         func_scope = None
-        node_type = find_node_by_name_and_type(vargs[0], 
-                ast.Assign, node.scopes)[0]
+        node_type = find_node_by_name(vargs[0], node.scopes)
         if isinstance(node_type, ast.Assign):
             func_scope = find_node_by_name_and_type(get_str_repr(node_type.value), 
                 ast.FunctionDef, node.scopes)[0]
@@ -435,7 +434,7 @@ class JuliaTranspilerPlugins:
                 if RESUMABLE in decs:
                     return f"{vargs[0]}({', '.split(vargs[1:])})" \
                         if len(vargs) > 1 \
-                        else f"{vargs[0]}()"
+                        else f"{vargs[0]}"
                 else:
                     return f"take!({vargs[0]})"
         # TODO: Is this valid? Is this undecidable?

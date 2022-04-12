@@ -392,37 +392,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             return isinstance(val, ast.List) or isinstance(val, ast.List)
         return False
 
-# TODO: Not actually a Rewriter (more of a transformer)
-class JuliaDecoratorRewriter(ast.NodeTransformer):
-    def __init__(self):
-        super().__init__()
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self._parse_decorators(node)
-        return self.generic_visit(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self._parse_decorators(node)
-        return self.generic_visit(node)
-
-    def _parse_decorators(self, node):
-        parsed_decorators: Dict[str, Dict[str, str]] = {}
-        if decorator_list := getattr(node, "decorator_list", None):
-            for decorator in decorator_list:
-                if isinstance(decorator, ast.Name):
-                    parsed_decorators[get_id(decorator)] = None
-                elif isinstance(decorator, ast.Call):
-                    keywords = {}
-                    for keyword in decorator.keywords:
-                        keywords[keyword.arg] = keyword.value.value
-                    parsed_decorators[get_id(decorator.func)] = keywords
-                
-        if "dataclass" in parsed_decorators \
-                and "jl_dataclass" in parsed_decorators:
-            parsed_decorators.pop("dataclass")
-
-        node.parsed_decorators = parsed_decorators
-
 class JuliaGeneratorRewriter(ast.NodeTransformer):
     def __init__(self):
         self._generator_funcs = {}

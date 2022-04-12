@@ -51,7 +51,7 @@ function main_func(requested_max_depth, min_depth = 4)
 end
 
 function main()
-    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+    main_func(parse(Int, sys.argv[2]))
 end
 
 main()

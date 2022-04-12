@@ -41,7 +41,7 @@ function main_func()
     for (f, r) in collect(items(subst))
         seq = replace(seq, rf => sr)
     end
-    print()
+    println()
     println(ilen)
     println(clen)
     println(length(seq))

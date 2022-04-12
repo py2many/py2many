@@ -1,11 +1,7 @@
 import argparse
 import ast
-from genericpath import isfile
-from ntpath import join
 import os
 import functools
-from getpass import getpass
-import re
 import string
 
 import sys
@@ -18,6 +14,8 @@ from pathlib import Path, PosixPath
 from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
+
+from pyjl.transformers import JuliaDecoratorTransformer, JuliaLoopAnalysis
 
 
 from .analysis import add_imports
@@ -44,7 +42,6 @@ from pyrs.transpiler import (
 from pyjl.rewriters import (
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
-    JuliaDecoratorRewriter, 
     JuliaGeneratorRewriter, 
     JuliaMethodCallRewriter,
     julia_config_rewriter
@@ -383,9 +380,8 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaDecoratorRewriter(), JuliaAugAssignRewriter(),
-                   JuliaGeneratorRewriter()],
-        transformers=[infer_julia_types],
+        rewriters=[JuliaAugAssignRewriter(), JuliaGeneratorRewriter()],
+        transformers=[infer_julia_types, JuliaDecoratorTransformer(), JuliaLoopAnalysis()],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter()],
         config_rewriters=[julia_config_rewriter]
     )

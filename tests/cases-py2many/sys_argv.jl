@@ -1,7 +1,7 @@
 
 
 function main()
-    a::Vector{String} = append!([PROGRAM_FILE], ARGS)
+    a::Vector{String} = sys.argv
     cmd::String = a[1]
     if cmd == "dart"
         #= pass =#
