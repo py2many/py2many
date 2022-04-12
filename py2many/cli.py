@@ -10,12 +10,12 @@ import tempfile
 
 from distutils import spawn
 from functools import lru_cache
-from pathlib import Path, PosixPath
+from pathlib import Path
 from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
 
-from pyjl.transformers import JuliaDecoratorTransformer, JuliaLoopAnalysis
+from pyjl.transformers import analyse_loops
 
 
 from .analysis import add_imports
@@ -42,6 +42,7 @@ from pyrs.transpiler import (
 from pyjl.rewriters import (
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
+    JuliaDecoratorRewriter,
     JuliaGeneratorRewriter, 
     JuliaMethodCallRewriter,
     julia_config_rewriter
@@ -380,8 +381,8 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaAugAssignRewriter(), JuliaGeneratorRewriter()],
-        transformers=[infer_julia_types, JuliaDecoratorTransformer(), JuliaLoopAnalysis()],
+        rewriters=[JuliaDecoratorRewriter(), JuliaAugAssignRewriter(), JuliaGeneratorRewriter()],
+        transformers=[infer_julia_types, analyse_loops],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter()],
         config_rewriters=[julia_config_rewriter]
     )

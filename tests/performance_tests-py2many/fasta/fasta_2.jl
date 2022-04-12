@@ -46,7 +46,7 @@ end
 function randomFasta(table, n)
     width = 60
     r = (0:width-1)
-    gR = Random()
+    gR = Random
     bb = bisect.bisect
     jn = join("")
     probs, chars = makeCumulative(table)
