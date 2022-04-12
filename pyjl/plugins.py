@@ -695,9 +695,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
-    # Exceptions (This is not so simple)
-    ValueError: (lambda self, node, vargs: f"ArgumentError({vargs[0]})" \
-         if len(vargs) == 1 else "ArgumentError" , True),
 }
 
 # Dispatches special Functions

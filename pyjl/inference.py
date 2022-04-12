@@ -260,13 +260,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                         (isinstance(node.right, ast.BoolOp) and isinstance(node.left, ast.Num))):
                     node.annotation = ast.Name(id="int")
 
-        # mapped_left = self._clike._map_type(left_id)
-        # mapped_right = self._clike._map_type(right_id)
-        # if (((mapped_left in JULIA_NUM_TYPES and mapped_right == "String") 
-        #     or (mapped_right in JULIA_NUM_TYPES and mapped_left == "String")) 
-        #     and node.op == ast.Mult):
-        #     node.annotation = ast.Name(id="str")
-
         # By default (if no translation possible), the types are left_id and right_id respectively
         self._add_julia_annotation(node, left, right)
 
@@ -287,9 +280,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if id_type != self._clike._default_type and id_type is not None:
                 annotation = ast.Name(id=var_value)
                 self._add_annotation(node, annotation, node.optional_vars)
-            # TODO: Remove this hack
-            # else:
-            #     self._add_annotation(node, node.context_expr, node.optional_vars)
 
         return node
 

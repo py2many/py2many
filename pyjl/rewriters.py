@@ -550,20 +550,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         self._assign_map[t_id] = get_id(node.value.func)
 
         return node
-    
-    # TODO: Both visit_Attribute and visit_Call are a fallback. 
-    # If inference can detect Generator functions, add this to the dispatch_map 
-    # def visit_Attribute(self, node: ast.Attribute) -> Any:
-    #     if id := get_id(node.value):
-    #         if id in self._assign_map:
-    #             assign_res = self._assign_map[id]
-    #             if assign_res in self._generator_funcs:
-    #                 if node.attr == "__next__":
-    #                     node.attr = (f"{assign_res}()"
-    #                         if self._generator_funcs[assign_res]
-    #                         else "take!")
-    #     return self.generic_visit(node)
 
+    # TODO: Creating assignments for resumable func calls. Does not work
     # def visit_Call(self, node: ast.Call) -> Any:
     #     self.generic_visit(node)
     #     parent = find_closest_scope(node.scopes)
@@ -598,45 +586,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     #                 lineno = node.lineno,
     #                 col_offset = node.col_offset)
     #             node.args = []
-    #         elif (arg := get_id(node.args[0])) in self._assign_map:
-    #             assign_res = self._assign_map[arg]
-    #             if assign_res in self._generator_funcs:
-    #                 if id == "next":
-    #                     if self._generator_funcs[assign_res]:
-    #                         new_id = f"{arg}"
-    #                         node.args = node.args[1:]
-    #                     else:
-    #                         new_id = "take!"
-    #                     node.func = ast.Name(
-    #                         id = new_id,
-    #                         lineno = node.lineno,
-    #                         col_offset = node.col_offset)
     #     return node
 
-# Is this useful?
-# class JuliaTypeRewriter(ast.NodeTransformer):
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def visit_BinOp(self, node: ast.BinOp) -> Any:
-#         left_jl_ann: str = getattr(node.left, "julia_annotation", "nothing")
-#         right_jl_ann: str = getattr(node.right, "julia_annotation", "nothing")
-
-#         build_list = lambda x: ast.List(
-#                         elts = x.elts,
-#                         lineno = x.lineno,
-#                         col_offset = x.col_offset,
-#                         julia_annotation = 
-#                             x.julia_annotation.replace("Tuple", "Vector", 1))
-
-#         if isinstance(node.op, ast.Mult):
-#             if (isinstance(node.right, ast.Num) or (right_jl_ann.startswith("Int"))) and \
-#                     isinstance(node.left, ast.Tuple):
-#                 node.left = build_list(node.left)
-
-#             if (isinstance(node.left, ast.Num) or (left_jl_ann.startswith("Int"))) and \
-#                     isinstance(node.right, ast.Tuple):
-#                 node.right = build_list(node.right)
-
-#         return self.generic_visit(node)
 
