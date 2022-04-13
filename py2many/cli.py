@@ -15,7 +15,6 @@ from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
 
-from pyjl.transformers import analyse_loops
 
 
 from .analysis import add_imports
@@ -39,6 +38,8 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
+
+from pyjl.analysis import analyse_loops
 from pyjl.rewriters import (
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
@@ -48,6 +49,7 @@ from pyjl.rewriters import (
     julia_config_rewriter
 )
 from pyjl.transpiler import JuliaTranspiler
+
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
