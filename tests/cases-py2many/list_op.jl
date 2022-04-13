@@ -72,7 +72,7 @@ function loop_element_test()
     arr = [1, 2]
     res_1 = []
     for e in arr
-        e[2]
+        e[1]
         push!(res_1, e)
     end
     @assert(res_1 == [1, 2])
@@ -88,7 +88,7 @@ function for_cycle_vars()
     seq::Vector{Int64} = [1, 2, 3, 4, 5]
     seq_copy::list = collect(seq)
     for i in (0:length(seq)-1-1)
-        @assert(seq[i+1] == seq_copy[i+1])
+        @assert(seq[i+1] == seq_copy[i])
     end
     complex_list = [([1, 2], 3, 4)]
     for ((a1, a2), b, c) in complex_list
@@ -120,8 +120,8 @@ end
 
 function list_of_lists()
     x = [[1, 2], [3, 4, 5, 6], [3, 4, 5, 6]]
-    @assert(x[2][3] == 5)
-    @assert(x[3][4] == 6)
+    @assert(x[2][2] == 5)
+    @assert(x[3][3] == 6)
 end
 
 function inplace_ops()

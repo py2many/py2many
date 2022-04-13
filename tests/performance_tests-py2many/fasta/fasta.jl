@@ -178,7 +178,7 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
                 for (start, stop) in zip([0] + partitions, partitions + [n])
                     values = collect((prng for _ in (0:stop-start)))
                     post = stop < n ? (acquired_lock()) : (post_write)
-                    push!(
+                    append(
                         processes,
                         started_process(
                             lookup_and_write,
@@ -247,7 +247,7 @@ function fasta(n)
 end
 
 function main()
-    fasta(parse(Int, argv[2]))
+    fasta(parse(Int, argv[1]))
 end
 
 main()

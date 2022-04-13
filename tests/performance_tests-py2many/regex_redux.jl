@@ -29,7 +29,7 @@ function main_func()
         "agggtaa[cgt]|[acg]ttaccct",
     )
     for f in zip(variants, imap(pool, var_find, variants))
-        println(f[1], f[2])
+        println(f[0], f[1])
     end
     subst = Dict(
         "tHa[Nt]" => "<4>",

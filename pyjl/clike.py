@@ -1,5 +1,6 @@
 import ast
 from operator import index
+import re
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
@@ -375,12 +376,17 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                         return dispatch_func
 
             # Account for JuliaMethodCallRewriter
-            func_node: ast.FunctionDef = find_node_by_type(ast.FunctionDef, node.scopes)
-            if func_node:
-                var_map = func_node.var_map
-                annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
-                if annotation:
-                    dispatch_func = self._get_dispatch_func(node, annotation, fname, vargs)
+            # func_node: ast.FunctionDef = find_node_by_type(ast.FunctionDef, node.scopes)
+            # if func_node:
+            #     var_map = func_node.var_map
+            #     annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
+            if v := node.scopes.find(var):
+                annotation = getattr(v, "annotation", None)
+                if ann_id := get_str_repr(annotation):
+                    # Temporary (NOT WORKING)
+                    ann_id: str = re.split(r"\s+{*}", ann_id)[0]
+                    print(ann_id)
+                    dispatch_func = self._get_dispatch_func(node, ann_id, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
 

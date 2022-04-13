@@ -18,7 +18,7 @@ import unittest
 from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import find_assign_value, get_str_repr
+from pyjl.helpers import get_str_repr
 
 import pyjl.juliaAst as juliaAst
 

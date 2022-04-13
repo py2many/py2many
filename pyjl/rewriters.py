@@ -14,7 +14,7 @@ from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, REMOVE_NESTED, RESUMABLE
-from pyjl.helpers import find_assign_value, get_variable_name
+from pyjl.helpers import get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -388,7 +388,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         if isinstance(node, ast.List):
             return True
         if (isinstance(node, ast.Subscript) and (id := get_id(node.value))) or (id := get_id(node)):
-            val = find_assign_value(id, node.scopes)
+            val = node.scopes.find(id)
             return isinstance(val, ast.List) or isinstance(val, ast.List)
         return False
 

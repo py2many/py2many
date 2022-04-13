@@ -12,7 +12,7 @@ function indexing()::Int64
     a::Vector = []
     for i in (0:9)
         push!(a, i)
-        sum = sum + a[i+1]
+        sum += a[i+1]
     end
     return sum
 end

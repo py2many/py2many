@@ -33,7 +33,7 @@ end
 function compute_row(p)::Tuple
     y, n = p
     result = Vector{UInt8}([pixels(y, n, abs) for _ in (0:(n+7)÷8)])
-    result[end] = result[end] & (255 << (8 - (n % 8)))
+    result[-1] = result[-1] & (255 << (8 - (n % 8)))
     return (y, result)
 end
 
@@ -49,7 +49,7 @@ function mandelbrot(n)
     compute_rows(n, compute_row) do rows
         write(Vector{UInt8}("P4\n$n $n\n"))
         for row in rows
-            write(row[2])
+            write(row[1])
         end
     end
 end

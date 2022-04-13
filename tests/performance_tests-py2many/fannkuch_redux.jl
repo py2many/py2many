@@ -9,12 +9,12 @@ function permutations(n, start, size)
         count = Vector{UInt8}(n)
         remainder = start
         for v in (n-1:-1:-1)
-            count[v+1], remainder = div(remainder)
-            for _ in (0:count[v+1]-1)
-                p[begin:v], p[v+1] = (p[2:v+1], p[1])
+            count[v], remainder = div(remainder)
+            for _ in (0:count[v]-1)
+                p[begin:v], p[v] = (p[2:v+1], p[0])
             end
         end
-        @assert(count[2] == 0)
+        @assert(count[1] == 0)
         @assert(size < 2 || (size % 2) == 0)
         if size < 2
             put!(ch_permutations, p[begin:end])
@@ -23,19 +23,19 @@ function permutations(n, start, size)
             for i in (1:n-1)
                 r = collect((0:n-1))
                 for v in (1:i+1-1)
-                    r[begin:v], r[v+1] = (r[2:v+1], r[1])
+                    r[begin:v], r[v] = (r[2:v+1], r[0])
                 end
                 swaps = []
                 for (dst, src) in enumerate(r)
                     if dst != src
-                        push!(swaps, (dst, src))
+                        append(swaps, (dst, src))
                     end
                 end
                 rotation_swaps[i] = tuple(swaps)
             end
             while true
                 put!(ch_permutations, p[begin:end])
-                p[1], p[2] = (p[2], p[1])
+                p[0], p[1] = (p[1], p[0])
                 put!(ch_permutations, p[begin:end])
                 i = 2
                 while count[i] >= i
@@ -52,12 +52,12 @@ function alternating_flips_generator(n, start, size)
         maximum_flips = 0
         alternating_factor = 1
         for permutation in (permutations(n, start, size) for _ in (0:size))
-            first = permutation[1]
+            first = permutation[0]
             if first
                 flips_count = 1
                 while true
                     permutation[begin:first+1] = permutation[(first+1):end]
-                    first = permutation[1]
+                    first = permutation[0]
                     if !(first)
                         break
                     end
@@ -110,7 +110,7 @@ function fannkuch(n)
 end
 
 function main()
-    fannkuch(parse(Int, argv[2]))
+    fannkuch(parse(Int, argv[1]))
 end
 
 main()

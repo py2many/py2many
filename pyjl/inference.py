@@ -4,6 +4,8 @@ from ctypes import c_int64
 import inspect
 from typing import Any
 
+from pyrsistent import v
+
 from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
@@ -11,7 +13,7 @@ from py2many.tracer import find_node_by_type
 from py2many.clike import class_for_typename
 from pyjl.clike import _NONE_TYPE, CLikeTranspiler
 from pyjl.global_vars import CHANNELS, RESUMABLE
-from pyjl.helpers import find_assign_value, get_str_repr
+from pyjl.helpers import get_str_repr
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
@@ -121,7 +123,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     return node
             elif isinstance(node.value, ast.Name):
                 # Try to get related assignment
-                assign_ann = self._find_annotated_assign(node.value, node.scopes)
+                assign_ann = self._find_annotated_assign(node.value)
                 if assign_ann:
                     annotation = assign_ann
                 else: 
@@ -143,15 +145,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
 
-    def _find_annotated_assign(self, node, scopes):
-        assign = find_assign_value(get_id(node), scopes)
+    def _find_annotated_assign(self, node):
+        assign = node.scopes.find(get_id(node))
         if assign:
             if (assign_ann := getattr(assign, "annotation", None)):
                 return assign_ann
             else:
-                return self._find_annotated_assign(assign, scopes)
-        else:
-            return None
+                if value := getattr(assign, "value", None):
+                    return self._find_annotated_assign(value)
+        return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
@@ -197,9 +199,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
-        # left_id = get_str_repr(left)
         left_id = get_id(left)
-        # right_id = get_str_repr(right)
         right_id = get_id(right)
 
         is_numeric = (lambda x: x == "int" or "float" or "complex"
@@ -294,7 +294,11 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             self.visit(n)
 
         # Assign variables to field in function node
-        node.var_map = self._stack_var_map
+        for (id, (jl_type, py_type)) in self._stack_var_map.items():
+            if var := node.scopes.find(id):
+                var.annotation = ast.Name(id=py_type, inferred=True)
+                var.jl_annotation = ast.Name(id=jl_type, inferred=True)
+        # node.var_map = self._stack_var_map
 
         # Returns to state before visiting the function body
         # This accounts for nested functions
@@ -348,7 +352,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             else julia_annotation
         )
 
-        var_name = get_str_repr(target)
+        var_name = get_id(target)
         if(python_annotation and var_name in self._stack_var_map and self._stack_var_map[var_name][1] != python_annotation):
             raise AstIncompatibleAssign(f"Variable {var_name}: {python_annotation} incompatible with {self._stack_var_map[var_name][1]}", node)
         self._stack_var_map[var_name] = (julia_type, python_annotation)

@@ -6,7 +6,7 @@ import textwrap
 import re
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import find_assign_value
+from pyjl.helpers import get_str_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -631,8 +631,11 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}[{index_type}]"
 
-        assign = find_assign_value(value, node.scopes)
-        if not (isinstance(assign, ast.Dict)):
+        # Shortcut for now
+        val = node.scopes.find(value)
+        annotation = get_str_repr(getattr(val, "annotation", None))
+        if annotation and annotation.startswith("List"):
+        # if not (isinstance(assign, ast.Dict)):
             # Shortcut if index is a numeric value
             if isinstance(index, str) and index.lstrip("-").isnumeric():
                 return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"

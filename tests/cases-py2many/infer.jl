@@ -34,7 +34,7 @@ end
 
 function mul_recvd_list(a::list)
     for i in (0:length(a)-1)
-        append(a, i)
+        push!(a, i)
     end
     return 2 * a
 end

@@ -51,11 +51,11 @@ end
 function read_sequences(file)
     Channel() do ch_read_sequences
         for line in file
-            if line[1] == ord(">")
+            if line[0] == ord(">")
                 header = line
                 sequence = Vector{UInt8}()
                 for line in file
-                    if line[1] == ord(">")
+                    if line[0] == ord(">")
                         put!(ch_read_sequences, (header, sequence))
                         header = line
                         sequence = Vector{UInt8}()

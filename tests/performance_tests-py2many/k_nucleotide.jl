@@ -26,11 +26,11 @@ function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vect
         for (reading_frame, bits_list) in reading_frames
             if reading_frame == frame
                 for bits in bits_list
-                    lean_frequences[bits+1] = frequences[bits+1]
+                    lean_frequences[bits] = frequences[bits]
                 end
             end
         end
-        push!(lean_results, (frame, n, lean_frequences))
+        append(lean_results, (frame, n, lean_frequences))
     end
     return lean_results
 end
@@ -39,34 +39,34 @@ function count_frequencies(sequence, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
     frequences_mask_list =
         tuple(((defaultdict(int), (1 << 2 * frame) - 1) for frame in frames))
-    frame = frames[1]
-    frequences, mask = frequences_mask_list[1]
+    frame = frames[0]
+    frequences, mask = frequences_mask_list[0]
     short_frame_frequences = frequences_mask_list[2:end]
     mono_nucleotides = []
     frame_tail = length(frames) - 1
     if frame_tail >= 0 && frames[frame_tail] == 1
-        freq = frequences_mask_list[frame_tail][1]
+        freq = frequences_mask_list[frame_tail][0]
         worklist = sequence[(i+1):j]
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
             worklist = replace!(nothing, n)
             len_after = length(worklist)
-            freq[n[1]] = len_before - len_after
+            freq[n[0]] = len_before - len_after
             len_before = len_after
-            push!(mono_nucleotides, n)
+            append(mono_nucleotides, n)
         end
         frame_tail -= 1
     end
     if frame_tail >= 0 && frames[frame_tail] == 2 && mono_nucleotides
-        freq = frequences_mask_list[frame_tail][1]
+        freq = frequences_mask_list[frame_tail][0]
         worklist = sequence[(i+1):min(j + 1, length(sequence))]
         overlaps = []
         for v in (n + m for n in mono_nucleotides for m in mono_nucleotides)
-            bits = v[1] * 4 + v[2]
+            bits = v[0] * 4 + v[1]
             freq[bits] = count(worklist, v)
             if v[2:end] == v[begin:1]
-                push!(overlaps, (v, bits, v[begin:1] + v))
+                append(overlaps, (v, bits, v[begin:1] + v))
             end
         end
         for (v, bits, pattern) in overlaps
@@ -76,7 +76,7 @@ function count_frequencies(sequence, reading_frames, i, j)
             count = (count - length(tmp)) ÷ 2
             count += count(tmp, b"1" + v)
             count += count(tmp, b"2" + v[begin:1])
-            freq[bits+1] += count
+            freq[bits] += count
         end
         frame_tail -= 1
     end
@@ -85,35 +85,35 @@ function count_frequencies(sequence, reading_frames, i, j)
         bits = 0
         if i == 0
             for k in (i:(i+frame)-1-1)
-                bits = bits * 4 + sequence[k+1]
+                bits = bits * 4 + sequence[k]
                 for (t, (f, m)) in enumerate(short_frame_frequences)
-                    if ((k - i) + 1) >= frames[t+1]
-                        f[bits&m+1] += 1
+                    if ((k - i) + 1) >= frames[t]
+                        f[bits&m] += 1
                     end
                 end
             end
         else
             for k in ((i-frame)+1:i-1)
-                bits = bits * 4 + sequence[k+1]
+                bits = bits * 4 + sequence[k]
             end
         end
         for byte in sequence[(k+1+1):j]
             bits = (bits * 4 + byte) & mask
             frequences[bits] += 1
             for (f, m) in short_frame_frequences
-                f[bits&m+1] += 1
+                f[bits&m] += 1
             end
         end
     end
     return [
-        (frame, (length(sequence) - frame) + 1, frequences_mask_list[i][1]) for
+        (frame, (length(sequence) - frame) + 1, frequences_mask_list[i][0]) for
         (i, frame) in enumerate(frames)
     ]
 end
 
 function read_sequence(file, header, translation)
     for line in file
-        if line[1] == ord(">")
+        if line[0] == ord(">")
             if line[2:length(header)+1] == header
                 break
             end
@@ -121,7 +121,7 @@ function read_sequence(file, header, translation)
     end
     sequence = Vector{UInt8}()
     for line in file
-        if line[1] == ord(">")
+        if line[0] == ord(">")
             break
         end
         sequence += line
@@ -132,7 +132,7 @@ end
 function lookup_frequency(results, frame, bits)::Tuple
     n = 1
     frequency = 0
-    for (_, n, frequencies) in filter((r) -> r[1] == frame, results)
+    for (_, n, frequencies) in filter((r) -> r[0] == frame, results)
         frequency += frequencies[bits]
     end
     return (frequency, n > 0 ? (n) : (1))
@@ -144,7 +144,7 @@ function display(results, display_list, sort = false, relative = false, end_ = "
         (k_nucleotide, frame, bits) in display_list
     ]
     if sort
-        lines = sorted(lines, (v) -> (-(v[2][1]), v[1]))
+        lines = sorted(lines, (v) -> (-(v[1][0]), v[0]))
     end
     for (k_nucleotide, (frequency, n)) in lines
         if relative
@@ -171,7 +171,7 @@ function main_func()
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k in (0:length(buffer)-1)
-            bits = bits * 4 + buffer[k+1]
+            bits = bits * 4 + buffer[k]
         end
         return bits
     end

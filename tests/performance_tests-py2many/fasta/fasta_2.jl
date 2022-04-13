@@ -60,7 +60,7 @@ function randomFasta(table, n)
 end
 
 function main()
-    n = parse(Int, sys.argv[2])
+    n = parse(Int, sys.argv[1])
     println(">ONE Homo sapiens alu")
     repeatFasta(alu, n * 2)
     println(">TWO IUB ambiguity codes")

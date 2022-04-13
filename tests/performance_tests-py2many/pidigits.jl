@@ -44,7 +44,7 @@ function next_Term(k)
 end
 
 function main()
-    n = parse(Int, argv[2])
+    n = parse(Int, argv[1])
     __gmpz_init_set_ui(GMP, byref(tmp1), c_ulong(0))
     __gmpz_init_set_ui(GMP, byref(tmp2), c_ulong(0))
     __gmpz_init_set_ui(GMP, byref(acc), c_ulong(0))

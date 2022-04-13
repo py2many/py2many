@@ -296,9 +296,6 @@ class InferTypesTransformer(ast.NodeTransformer):
         if annotation is None:
             return node
 
-        # print(ast.dump(node, indent=4))
-        # print(f"ASSIGN {get_id(node.targets[0])}: {ast.dump(annotation)}")
-
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
             inferred = (
@@ -563,6 +560,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type") and \
                     not isinstance(node.slice, ast.Slice):
+                # print(definition.container_type)
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]

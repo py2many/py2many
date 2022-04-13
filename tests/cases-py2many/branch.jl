@@ -5,11 +5,11 @@ end
 function lookup_and_write(values)
     output = nothing
     if length(values) == 1
-        output = values[1]
+        output = values[0]
     elseif length(values) == 2
-        output = values[2]
+        output = values[1]
     elseif length(values) == 3
-        output = values[3]
+        output = values[2]
     else
         output = values
     end
@@ -19,11 +19,11 @@ end
 function lookup_and_write_without_else(values)
     output = nothing
     if length(values) == 1
-        output = values[1]
+        output = values[0]
     elseif length(values) == 2
-        output = values[2]
+        output = values[1]
     elseif length(values) == 3
-        output = values[3]
+        output = values[2]
     end
     return output
 end
