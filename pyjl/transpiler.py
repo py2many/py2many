@@ -634,7 +634,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Shortcut for now
         val = node.scopes.find(value)
-        annotation = self._typename_from_annotation(getattr(val, "annotation", None))
+        annotation = self._typename_from_type_node(getattr(val, "annotation", None))
         if annotation and not annotation.startswith("Dict"):
         # if not (isinstance(assign, ast.Dict)):
             # Shortcut if index is a numeric value
@@ -674,9 +674,8 @@ class JuliaTranspiler(CLikeTranspiler):
             upper = self.visit(node.upper)
 
         # Julia array indices start at 1
-        if lower == -1 or lower.startswith("-"):
+        if lower == -1 or lower == "-1":
             lower = "end"
-            return f"{lower}:{lower}"
         elif isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
             lower = f"{(int(lower) + 1)}"
         elif getattr(node.lower, "splice_increment", None):

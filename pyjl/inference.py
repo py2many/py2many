@@ -128,9 +128,10 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             if isinstance(node.value, ast.Call):
                 node_id = get_id(node.value.func)
                 try:
-                    id_type = self._clike._generic_typename_from_type_node(node_id)
-                    if id_type is not Any and id_type is not None and inspect.isclass(id_type):
-                        annotation = ast.Name(id=node_id)
+                    func_node = node.scopes.find(node_id)
+                    id_type = getattr(func_node, "annotation", None)
+                    if id_type:
+                        annotation = id_type
                     else:
                         return node
                 except Exception:
@@ -152,7 +153,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-
             if (not target_has_annotation or inferred):
                 self._add_annotation(node, annotation, target)
 

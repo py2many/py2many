@@ -18,6 +18,7 @@ import unittest
 from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
+from pyjl.helpers import get_ann_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -417,21 +418,16 @@ class JuliaTranspilerPlugins:
         node.is_gen_expr = True
         return f"(x for x in {vargs[0]})"
 
-    def visit_next(t_self, node, vargs: list[str]) -> str:
-        # TODO: Simplify
-        func_scope = None
-        node_type = find_node_by_name_and_type(vargs[0], 
-                ast.Assign, node.scopes)[0]
-        if isinstance(node_type, ast.Assign):
-            func_scope = find_node_by_name_and_type(get_id(node_type.value), 
-                ast.FunctionDef, node.scopes)[0]
-        elif isinstance(node_type, ast.FunctionDef):
-            func_scope = node_type
+    def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
+        varg = node.scopes.find(vargs[0])
+        annotation = get_id(getattr(varg, "annotation", None))
 
-        if func_scope and isinstance(func_scope, ast.FunctionDef):
-            # Check if it is a generator function
-            if find_in_body(func_scope.body, 
-                    lambda x: isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+        if annotation == "Generator":
+            func_scope = None
+            v_node = find_node_by_name(get_id(varg), node.scopes)
+            if isinstance(v_node, ast.Assign) and isinstance(v_node.value, ast.Call):
+                func_scope = node.scopes.find(get_id(v_node.value.func))
+            if func_scope:
                 decs = getattr(func_scope, "parsed_decorators", None)
                 if RESUMABLE in decs:
                     return f"{vargs[0]}({', '.split(vargs[1:])})" \
@@ -576,7 +572,6 @@ SMALL_USINGS_MAP = {
 }
 
 DISPATCH_MAP = {
-    "range": JuliaTranspilerPlugins.visit_range,
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
@@ -624,6 +619,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     slice: (lambda self, node, vargs: f"({vargs[0]}:{vargs[1]})", False),
     iter: (JuliaTranspilerPlugins.visit_iter, False),
     next: (JuliaTranspilerPlugins.visit_next, False),
+    range: (JuliaTranspilerPlugins.visit_range, False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),

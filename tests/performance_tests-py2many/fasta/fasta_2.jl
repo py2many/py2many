@@ -39,14 +39,14 @@ function repeatFasta(src::String, n::Int64)
         println(s[(i+1):i+width])
     end
     if n % width
-        println(s[end:end])
+        println(s[(-(n % width)+1):end])
     end
 end
 
 function randomFasta(table, n)
     width = 60
     r = (0:width-1)
-    gR = next(Random)
+    gR = Random
     bb = bisect.bisect
     jn = join("")
     probs, chars = makeCumulative(table)
@@ -60,7 +60,7 @@ function randomFasta(table, n)
 end
 
 function main()
-    n = parse(Int, sys.argv[2])
+    n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
     println(">ONE Homo sapiens alu")
     repeatFasta(alu, n * 2)
     println(">TWO IUB ambiguity codes")

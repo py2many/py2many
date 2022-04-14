@@ -247,7 +247,7 @@ function fasta(n)
 end
 
 function main()
-    fasta(parse(Int, argv[2]))
+    fasta(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
 
 main()

@@ -4,10 +4,10 @@
 # contributed by Joerg Baumann
 # many thanks to Oleg Mazurov for his helpful description
 
-from sys import argv
 from math import factorial
 from multiprocessing import cpu_count, Pool
 from itertools import islice, starmap
+import sys
 
 def permutations(n, start, size):
     p = bytearray(range(n))
@@ -103,4 +103,4 @@ def fannkuch(n):
         print("{0}\nPfannkuchen({1}) = {2}".format(checksum, n, maximum))
 
 if __name__ == "__main__":
-    fannkuch(int(argv[1]))
+    fannkuch(int(sys.argv[1]))

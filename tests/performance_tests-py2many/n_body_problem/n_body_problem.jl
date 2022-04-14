@@ -112,7 +112,7 @@ function main_func(n, ref = "sun")
 end
 
 function main()
-    main_func(parse(Int, sys.argv[2]))
+    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
 
 main()

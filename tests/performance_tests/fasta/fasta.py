@@ -9,9 +9,9 @@ from itertools import accumulate, chain, islice, zip_longest
 from multiprocessing import Lock, RawValue, Process
 from os import cpu_count
 from re import sub
-from sys import argv, stdout
+import sys
 
-write = stdout.buffer.write
+write = sys.stdout.buffer.write
 
 def acquired_lock():
     lock = Lock()
@@ -60,7 +60,7 @@ def write_lines(
         write(output.translate(table))
     else:
         write(output)
-    stdout.buffer.flush()
+    sys.stdout.buffer.flush()
 
 def cumulative_probabilities(alphabet, factor=1.0):
     probabilities = tuple(accumulate(p * factor for _, p in alphabet))
@@ -208,5 +208,5 @@ CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA
             p.join()
 
 if __name__ == "__main__":
-    fasta(int(argv[1]))
+    fasta(int(sys.argv[1]))
     

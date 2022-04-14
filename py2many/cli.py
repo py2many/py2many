@@ -383,9 +383,9 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaDecoratorRewriter(), JuliaAugAssignRewriter(), JuliaGeneratorRewriter()],
+        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loops],
-        post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter()],
+        post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), JuliaAugAssignRewriter()],
         config_rewriters=[julia_config_rewriter]
     )
 

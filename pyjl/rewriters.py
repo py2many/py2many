@@ -2,11 +2,12 @@ from __future__ import annotations
 import ast
 from mimetypes import init
 from operator import contains
+import sys
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
-from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -14,7 +15,7 @@ from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, REMOVE_NESTED, RESUMABLE
-from pyjl.helpers import get_variable_name
+from pyjl.helpers import get_ann_repr, get_variable_name
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -55,9 +56,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 and (call_id := get_id(node.value.func)):
             value_id = call_id
 
-        if value_id and (is_enum(value_id, node.scopes) or
-                         is_class_or_module(value_id, node.scopes) or
-                         value_id.startswith("self")):
+        if value_id and value_id not in sys.builtin_module_names \
+                and (is_enum(value_id, node.scopes) or
+                     # is_class_or_module(value_id, node.scopes) or
+                     is_class_type(value_id, node.scopes) or
+                     value_id.startswith("self")):
             return node
 
         return ast.Call(
@@ -323,8 +326,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             ((isinstance(node.op, ast.Add) or
               isinstance(node.op, ast.Mult) or
               isinstance(node.op, ast.MatMult)) and
-                (self._is_list(node.target, node.scopes) or
-                 self._is_list(node.value, node.scopes)))
+                (self._is_list(node.target) or
+                 self._is_list(node.value)))
         )
         if requires_lowering:
             # New binary operation
@@ -348,16 +351,10 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     lineno = node.lineno,
                     col_offset = node.col_offset)
 
-                is_number = (lambda x: 
-                    isinstance(x, ast.Num) or 
-                    (isinstance(x, ast.Constant) and x.value.isdigit()) or 
-                    (get_id(getattr(x, "annotation", None)) in 
-                        InferTypesTransformer.FIXED_WIDTH_INTS))
-            
-                if is_number(node.value) and isinstance(node.op, ast.Mult):
+                if self._is_number(node.value) and isinstance(node.op, ast.Mult):
                     call.args.extend([node.target.value, node.target.slice, value])
                     return call
-                elif not is_number(node.value) and isinstance(node.op, ast.Add):
+                elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
                     old_slice: ast.Slice = node.target.slice
                     lower = old_slice.lower
                     upper = old_slice.upper
@@ -384,13 +381,20 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
 
         return self.generic_visit(node)
 
-    def _is_list(self, node, scopes):
-        if isinstance(node, ast.List):
-            return True
-        if (isinstance(node, ast.Subscript) and (id := get_id(node.value))) or (id := get_id(node)):
-            val = node.scopes.find(id)
-            return isinstance(val, ast.List) or isinstance(val, ast.List)
+    @staticmethod
+    def _is_list(node):
+        annotation = getattr(node, "annotation", None)
+        if annotation:
+            return get_ann_repr(annotation).startswith("List")
         return False
+
+    @staticmethod
+    def _is_number(node):
+        return isinstance(node, ast.Num) or \
+                (isinstance(node, ast.Constant) and node.value.isdigit()) or \
+                (get_id(getattr(node, "annotation", None)) in 
+                    InferTypesTransformer.FIXED_WIDTH_INTS)
+
 
 class JuliaGeneratorRewriter(ast.NodeTransformer):
     def __init__(self):

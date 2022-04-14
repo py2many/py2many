@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -522,6 +522,14 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_ClassDef(self, node):
         node.annotation = ast.Name(id=node.name)
         self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        if find_in_body(node.body, lambda x: 
+                isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+            node.annotation = ast.Name(id="Generator")
+
         return node
 
     def visit_Attribute(self, node):

@@ -372,10 +372,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                         return dispatch_func
 
             # Account for JuliaMethodCallRewriter
-            # func_node: ast.FunctionDef = find_node_by_type(ast.FunctionDef, node.scopes)
-            # if func_node:
-            #     var_map = func_node.var_map
-            #     annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
             if v := node.scopes.find(var):
                 annotation = getattr(v, "annotation", None)
                 if ann := self._generic_typename_from_type_node(annotation):
@@ -388,6 +384,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:])
             if dispatch_func:
                 return dispatch_func
+
+            # Remove any extra values
+            if re.match(r"\w+", var):
+                dispatch = super()._dispatch(node, f"{var}.{fname}", vargs[1:])
+                if dispatch:
+                    return dispatch
 
         return super()._dispatch(node, fname, vargs)
 
