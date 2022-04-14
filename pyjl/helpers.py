@@ -6,7 +6,7 @@ from py2many.ast_helpers import get_id
 
 from py2many.tracer import find_node_by_name_and_type
 
-# TODO: Delete if not necessary
+# TODO: Currently not in use
 def get_range_from_for_loop(node):
     iter = 0
     if hasattr(node.iter, "args") and node.iter.args:
@@ -86,36 +86,6 @@ def get_ann_repr(node, parse_func = None, default = None):
 
     return default
 
-# # Builds a tuple representation of the annotation
-# def parse_annotation(node, parse_func = None, default = None):
-#     if id := get_id(node):
-#         return id
-#     if isinstance(node, ast.Call):
-#         return parse_annotation(node.func, parse_func, default)
-#     if isinstance(node, ast.Constant):
-#         if node.value:
-#             return node.value
-#         else:
-#             if parse_func:
-#                 parse_func(node.value)
-#             else:
-#                 return default
-#     if isinstance(node, ast.Subscript):
-#         return (parse_annotation(node.value), 
-#             (parse_annotation(node.slice, parse_func, default)))
-#     if isinstance(node, ast.Tuple) \
-#             or isinstance(node, ast.List):
-#         elts = []
-#         for e in node.elts:
-#             elts.append(parse_annotation(e, parse_func, default))
-#         return tuple(elts)
-#     if isinstance(node, ast.Subscript):
-#         id = parse_annotation(node.value, parse_func, default)
-#         slice_val = parse_annotation(node.slice, parse_func, default)
-#         return (id, (slice_val))
-
-#     return default
-
 def get_variable_name(scope):
     common_vars = ["v", "w", "x", "y", "z"]
     new_var = None
@@ -139,6 +109,3 @@ def get_variable_name(scope):
 
     return new_var
 
-def create_annotation_tuple(type_str: str):
-    types = re.split(r"\[|\]", type_str)
-    pass

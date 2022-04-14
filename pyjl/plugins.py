@@ -273,15 +273,6 @@ class JuliaTranspilerPlugins:
         exception = vargs[1]
         func = vargs[2]
         values = ", ".join(vargs[3:])
-        # if len(vargs) > 4:
-        #     # Lowering
-        #     arr = []
-        #     arr.append("# Lowered")
-        #     test_vargs: list[str] = vargs[3:]
-        #     for v in test_vargs:
-        #         arr.append(f"@test_throws {exception} {func}({v})")
-        #     return "\n".join(arr)
-
         return f"@test_throws {exception} {func}({values})"
 
     def _generic_test_visit(t_self):

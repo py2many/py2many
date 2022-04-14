@@ -6,7 +6,6 @@ import textwrap
 import re
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_ann_repr
 
 import pyjl.juliaAst as juliaAst
 

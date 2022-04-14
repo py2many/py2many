@@ -1,7 +1,6 @@
 import ast
-from ctypes import c_int64, cast
+from ctypes import c_int64
 
-import inspect
 from typing import Any
 
 from py2many.inference import InferTypesTransformer, is_compatible
@@ -64,12 +63,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._generic_scope_visit(node)
-        # if get_id(node.returns) == "Generator":
-        #     if RESUMABLE in node.parsed_decorators:
-        #         node.returns = None
-        #     elif CHANNELS in node.parsed_decorators or \
-        #             getattr(node, "returns_channel", None):
-        #         node.returns = ast.Name(id="Channel")
         return node
 
     def _generic_scope_visit(self, node):
@@ -103,17 +96,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     not isinstance(last_node, ast.Return):
                 setattr(func_node.returns, "id", ann)
                 return node
-
-        # type_str = get_id(func_node.returns) if func_node else None
-        # if type_str is not None:
-        #     setattr(func_node.returns, "id", type_str)
-        # else:
-        #     # Do not overwrite source annotation with inferred
-        #     if func_node.returns is None:
-        #         func_node.returns = ast.Name(id=new_type_str)
-        #         lifetime = getattr(node.value.annotation, "lifetime", None)
-        #         if lifetime is not None:
-        #             func_node.returns.lifetime = lifetime
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
@@ -290,54 +272,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ################# Inference Methods ##################
     ######################################################
 
-    # def _get_inferred_julia_type(self, node):
-    #     if hasattr(node, "julia_annotation"):
-    #         return node.julia_annotation
-    #     if isinstance(node, ast.Name):
-    #         if not hasattr(node, "scopes"):
-    #             return None
-    #         definition = node.scopes.find(get_id(node))
-    #         # Prevent infinite recursion
-    #         if definition and definition != node:
-    #             return self._get_inferred_julia_type(definition)
-        
-    #     python_type = get_inferred_type(node)
-    #     ret = get_str_repr(python_type, self._clike._map_type, self._none_type)
-    #     node.julia_annotation = ret
-    #     return ret
-
-    # def _add_julia_annotation(self, node, *defaults) :
-    #     if isinstance(node, ast.BinOp):
-    #         # Get default values
-    #         left_default = defaults[0]
-    #         right_default = defaults[1]
-
-    #         left_ann = self._stack_var_map[get_id(node.left)] \
-    #             if get_id(node.left) in self._stack_var_map \
-    #             else None
-    #         right_ann = self._stack_var_map[get_id(node.right)] \
-    #             if get_id(node.right) in self._stack_var_map \
-    #             else None
-
-    #         # Assign left and right annotations
-    #         node.left.annotation = (left_ann
-    #             if left_ann else left_default
-    #         )
-    #         node.right.annotation = (right_ann
-    #             if right_ann else right_default
-    #         )
-
     def _add_annotation(self, node, annotation, target):
-        # parsed_annotation = get_str_repr(annotation, self._clike._map_type, self._none_type)
-        # julia_annotation = self._get_inferred_julia_type(node)
-        # julia_type = (parsed_annotation 
-        #     if julia_annotation == None or julia_annotation == self._none_type
-        #     else julia_annotation
-        # )
-
-        # ast.parse produces a Module object that needs to be destructured
-        # node.annotation = annotation
-
         var_name = get_id(target)
         ann_str = get_ann_repr(annotation)
         map_ann_str = get_ann_repr(self._stack_var_map[var_name]) \

@@ -1,5 +1,4 @@
 import ast
-from operator import index
 import re
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
@@ -12,7 +11,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_ty
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
+from pyjl.plugins import MODULE_DISPATCH_TABLE
 import importlib
 
 from numbers import Complex, Integral, Rational, Real
