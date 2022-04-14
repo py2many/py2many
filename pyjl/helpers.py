@@ -33,8 +33,8 @@ def get_range_from_for_loop(node):
             return 0
 
         # Calculate iter value
-        start_val = get_str_repr(start_val)
-        end_val = get_str_repr(end_val)
+        start_val = get_ann_repr(start_val)
+        end_val = get_ann_repr(end_val)
         if not isinstance(start_val, int): 
             start_val = int(start_val)
         if not isinstance(end_val, int):
@@ -47,7 +47,7 @@ def get_range_from_for_loop(node):
     return iter
 
 # Returns a string representation of the node
-def get_str_repr(node, parse_func = None, default = None):
+def get_ann_repr(node, parse_func = None, default = None):
     if isinstance(node, str):
         if parse_func:
             return parse_func(node)
@@ -57,10 +57,10 @@ def get_str_repr(node, parse_func = None, default = None):
             return parse_func(id)
         return id
     if isinstance(node, ast.Call):
-        return get_str_repr(node.func, parse_func, default)
+        return get_ann_repr(node.func, parse_func, default)
     if isinstance(node, ast.Attribute):
-        return f"{get_str_repr(node.value, parse_func, default)}.\
-            {get_str_repr(node.attr, parse_func, default)}"
+        return f"{get_ann_repr(node.value, parse_func, default)}.\
+            {get_ann_repr(node.attr, parse_func, default)}"
     if isinstance(node, ast.Constant):
         if node.value:
             return node.value
@@ -70,51 +70,51 @@ def get_str_repr(node, parse_func = None, default = None):
             else:
                 return default
     if isinstance(node, ast.Subscript):
-        id = get_str_repr(node.value, parse_func, default)
-        slice_val = get_str_repr(node.slice, parse_func, default)
+        id = get_ann_repr(node.value, parse_func, default)
+        slice_val = get_ann_repr(node.slice, parse_func, default)
         return f"{id}{{{slice_val}}}"
     if isinstance(node, ast.Tuple) \
             or isinstance(node, ast.List):
         elts = []
         for e in node.elts:
-            elts.append(get_str_repr(e, parse_func, default))
+            elts.append(get_ann_repr(e, parse_func, default))
         return ", ".join(elts)
     if isinstance(node, ast.Subscript):
-        id = get_str_repr(node.value, parse_func, default)
-        slice_val = get_str_repr(node.slice, parse_func, default)
+        id = get_ann_repr(node.value, parse_func, default)
+        slice_val = get_ann_repr(node.slice, parse_func, default)
         return f"{id}{{{slice_val}}}"
 
     return default
 
-# Builds a tuple representation of the annotation
-def parse_annotation(node, parse_func = None, default = None):
-    if id := get_id(node):
-        return id
-    if isinstance(node, ast.Call):
-        return parse_annotation(node.func, parse_func, default)
-    if isinstance(node, ast.Constant):
-        if node.value:
-            return node.value
-        else:
-            if parse_func:
-                parse_func(node.value)
-            else:
-                return default
-    if isinstance(node, ast.Subscript):
-        return (parse_annotation(node.value), 
-            (parse_annotation(node.slice, parse_func, default)))
-    if isinstance(node, ast.Tuple) \
-            or isinstance(node, ast.List):
-        elts = []
-        for e in node.elts:
-            elts.append(parse_annotation(e, parse_func, default))
-        return tuple(elts)
-    if isinstance(node, ast.Subscript):
-        id = parse_annotation(node.value, parse_func, default)
-        slice_val = parse_annotation(node.slice, parse_func, default)
-        return (id, (slice_val))
+# # Builds a tuple representation of the annotation
+# def parse_annotation(node, parse_func = None, default = None):
+#     if id := get_id(node):
+#         return id
+#     if isinstance(node, ast.Call):
+#         return parse_annotation(node.func, parse_func, default)
+#     if isinstance(node, ast.Constant):
+#         if node.value:
+#             return node.value
+#         else:
+#             if parse_func:
+#                 parse_func(node.value)
+#             else:
+#                 return default
+#     if isinstance(node, ast.Subscript):
+#         return (parse_annotation(node.value), 
+#             (parse_annotation(node.slice, parse_func, default)))
+#     if isinstance(node, ast.Tuple) \
+#             or isinstance(node, ast.List):
+#         elts = []
+#         for e in node.elts:
+#             elts.append(parse_annotation(e, parse_func, default))
+#         return tuple(elts)
+#     if isinstance(node, ast.Subscript):
+#         id = parse_annotation(node.value, parse_func, default)
+#         slice_val = parse_annotation(node.slice, parse_func, default)
+#         return (id, (slice_val))
 
-    return default
+#     return default
 
 def get_variable_name(scope):
     common_vars = ["v", "w", "x", "y", "z"]

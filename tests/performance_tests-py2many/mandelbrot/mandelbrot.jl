@@ -35,7 +35,7 @@ end
 function compute_row(p)::Tuple
     y, n = p
     result = Vector{UInt8}([pixels(y, n, abs) for _ in (0:(n+7)÷8)])
-    result[-1] = result[-1] & (255 << (8 - (n % 8)))
+    result[end] = result[end] & (255 << (8 - (n % 8)))
     return (y, result)
 end
 
@@ -46,7 +46,7 @@ end
     while i < length(order)
         if j > 0
             row = next(rows)
-            order[row[0]] = row
+            order[row[1]] = row
             j -= 1
         end
         if order[i]

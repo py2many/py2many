@@ -1,7 +1,7 @@
 using ResumableFunctions
 
 alu = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-iub = collect(zip("acgtBDHKMNRSVWY", append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11))))
+iub = collect(zip("acgtBDHKMNRSVWY", [0.27, 0.12, 0.12, 0.27] + repeat([0.02], 11)))
 homosapiens = [
     ("a", 0.302954942668),
     ("c", 0.1979883004921),
@@ -46,7 +46,7 @@ end
 function randomFasta(table, n)
     width = 60
     r = (0:width-1)
-    gR = Random
+    gR = next(Random)
     bb = bisect.bisect
     jn = join("")
     probs, chars = makeCumulative(table)
@@ -60,7 +60,7 @@ function randomFasta(table, n)
 end
 
 function main()
-    n = parse(Int, sys.argv[1])
+    n = parse(Int, sys.argv[2])
     println(">ONE Homo sapiens alu")
     repeatFasta(alu, n * 2)
     println(">TWO IUB ambiguity codes")

@@ -5,7 +5,7 @@ function combinations(l)::Vector
     for x in (0:length(l)-1-1)
         ls = l[(x+1+1):end]
         for y in ls
-            append(result, (l[x], y))
+            push!(result, (l[x+1], y))
         end
     end
     return result
@@ -64,17 +64,17 @@ function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
             mag = dt * ((dx * dx + dy * dy) + dz * dz)^-1.5
             b1m = m1 * mag
             b2m = m2 * mag
-            v1[0] -= dx * b2m
-            v1[1] -= dy * b2m
-            v1[2] -= dz * b2m
-            v2[0] += dx * b1m
-            v2[1] += dy * b1m
-            v2[2] += dz * b1m
+            v1[1] -= dx * b2m
+            v1[2] -= dy * b2m
+            v1[3] -= dz * b2m
+            v2[1] += dx * b1m
+            v2[2] += dy * b1m
+            v2[3] += dz * b1m
         end
         for (r, (vx, vy, vz), m) in bodies
-            r[0] += dt * vx
-            r[1] += dt * vy
-            r[2] += dt * vz
+            r[1] += dt * vx
+            r[2] += dt * vy
+            r[3] += dt * vz
         end
     end
 end
@@ -99,9 +99,9 @@ function offset_momentum(ref, bodies = SYSTEM, px = 0.0, py = 0.0, pz = 0.0)
         pz -= vz * m
     end
     r, v, m = ref
-    v[0] = px / m
-    v[1] = py / m
-    v[2] = pz / m
+    v[1] = px / m
+    v[2] = py / m
+    v[3] = pz / m
 end
 
 function main_func(n, ref = "sun")
@@ -112,7 +112,7 @@ function main_func(n, ref = "sun")
 end
 
 function main()
-    main_func(parse(Int, sys.argv[1]))
+    main_func(parse(Int, sys.argv[2]))
 end
 
 main()

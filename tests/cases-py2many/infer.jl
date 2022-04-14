@@ -14,7 +14,7 @@ function fibonacci(n)::Int64
     end
 end
 
-function mul_list()::Int64
+function mul_list()::Union[list, List]
     a::Vector = []
     for i in (0:4)
         push!(a, i)
@@ -32,11 +32,11 @@ function combinations(array)::Vector
     return result
 end
 
-function mul_recvd_list(a::list)
+function mul_recvd_list(a::Vector)::Vector
     for i in (0:length(a)-1)
         push!(a, i)
     end
-    return 2 * a
+    return repeat(a, 2)
 end
 
 function plus_test(x, y)
@@ -52,7 +52,7 @@ function main()
     @assert(fibonacci(10) == 55)
     @assert((repeat("test", fibonacci(3))) == "testtest")
     a = []
-    a_mul = mul_recvd_list(convert(list, a))
+    a_mul = mul_recvd_list(a)
     @assert(a_mul == [])
     x = "ss"
     y = "zz"

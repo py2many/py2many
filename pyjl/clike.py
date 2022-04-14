@@ -10,7 +10,7 @@ import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_by_type
-from pyjl.helpers import get_str_repr
+from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 import importlib
@@ -138,6 +138,7 @@ JULIA_INTEGER_TYPES = \
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
 CONTAINER_TYPE_MAP = {
+    list: "Vector",
     List: "Vector",
     Dict: "Dict",
     Set: "Set",
@@ -211,12 +212,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     ################### Type Mappings ####################
     ######################################################
 
-    def _map_type(self, typename:str, lifetime=LifeTime.UNKNOWN) -> str:
-        if isinstance(typename, list):
-            raise NotImplementedError(f"{typename} not supported in this context")
-        return self._get_julia_type(typename)
-
-    def _get_julia_type(self, typename):
+    def _map_type(self, typename: str, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = self._func_for_lookup(typename)
         if typeclass in self._type_map:
             return self._type_map[typeclass]
@@ -252,7 +248,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             or isinstance(type_node, ast.Constant)
         )
     
-    def _typename_from_type_node(self, node) -> Union[List, str, None]:
+    def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
@@ -265,12 +261,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
                 map(lambda x: 
-                        get_str_repr(x, self._map_type, self._none_type), 
+                        get_ann_repr(x, self._map_type, self._none_type), 
                     (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
-            return f"{value_type}{index_type}"
-        return get_str_repr(node, self._map_type, self._default_type)
+            return f"{value_type}{{{index_type}}}"
+        return get_ann_repr(node, self._map_type, self._default_type)
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
@@ -382,11 +378,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             #     annotation = var_map[var][1] if (var is not None and var in var_map) else None # Get Python type
             if v := node.scopes.find(var):
                 annotation = getattr(v, "annotation", None)
-                if ann_id := get_str_repr(annotation):
+                if ann := self._generic_typename_from_type_node(annotation):
                     # Temporary (NOT WORKING)
-                    ann_id: str = re.split(r"\s+{*}", ann_id)[0]
-                    print(ann_id)
-                    dispatch_func = self._get_dispatch_func(node, ann_id, fname, vargs)
+                    ann: str = re.split(r"\s+[*]", ann)[0]
+                    dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
 

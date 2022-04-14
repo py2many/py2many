@@ -51,11 +51,11 @@ end
 function read_sequences(file)
     Channel() do ch_read_sequences
         for line in file
-            if line[0] == ord(">")
+            if line[1] == ord(">")
                 header = line
                 sequence = Vector{UInt8}()
                 for line in file
-                    if line[0] == ord(">")
+                    if line[1] == ord(">")
                         put!(ch_read_sequences, (header, sequence))
                         header = line
                         sequence = Vector{UInt8}()
@@ -74,7 +74,7 @@ function main()
     write = x -> write(stdout, x)
     flush = flush(stdout)
     s = read_sequences(stdin.buffer)
-    data = take!(s)
+    data = next(s)
     for (h, r) in starmap(reverse_complement, merge(data, s))
         write(h)
         write(r)

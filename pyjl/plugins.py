@@ -18,7 +18,6 @@ import unittest
 from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_str_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -340,18 +339,20 @@ class JuliaTranspilerPlugins:
 
     def visit_cast_int(t_self, node, vargs) -> str:
         if hasattr(node, "args") and node.args:
-            arg_type = t_self._typename_from_annotation(node.args[0])
-            if arg_type is not None and arg_type.startswith("Float"):
-                return f"Int(floor({vargs[0]}))"
-        if vargs:
             needs_parsing = False
-            for varg in vargs:
-                # varg: str = varg
-                if not varg.lstrip("-").isnumeric():
+            is_float = False
+            for arg in node.args:
+                arg_type = t_self._typename_from_annotation(arg)
+                if arg_type is not None and arg_type.startswith("Float"):
+                    is_float = True
+                elif not arg_type.startswith("Int"):
                     needs_parsing = True
                     break
+
             if needs_parsing:
                 return f"parse(Int, {vargs[0]})"
+            elif is_float:
+                return f"Int(floor({vargs[0]}))"
             else:
                 return f"Int({vargs[0]})"
         return f"zero(Int)"  # Default int value
@@ -419,9 +420,10 @@ class JuliaTranspilerPlugins:
     def visit_next(t_self, node, vargs: list[str]) -> str:
         # TODO: Simplify
         func_scope = None
-        node_type = find_node_by_name(vargs[0], node.scopes)
+        node_type = find_node_by_name_and_type(vargs[0], 
+                ast.Assign, node.scopes)[0]
         if isinstance(node_type, ast.Assign):
-            func_scope = find_node_by_name_and_type(get_str_repr(node_type.value), 
+            func_scope = find_node_by_name_and_type(get_id(node_type.value), 
                 ast.FunctionDef, node.scopes)[0]
         elif isinstance(node_type, ast.FunctionDef):
             func_scope = node_type

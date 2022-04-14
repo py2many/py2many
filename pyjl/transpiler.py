@@ -6,7 +6,7 @@ import textwrap
 import re
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_str_repr
+from pyjl.helpers import get_ann_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -110,9 +110,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                func_typename = (node.julia_annotation if hasattr(node, "julia_annotation")
-                                 else self._typename_from_annotation(node, attr="returns"))
-                return_type = f"::{super()._map_type(func_typename)}"
+                func_typename = self._typename_from_annotation(node, attr="returns")
+                return_type = f"::{self._map_type(func_typename)}"
         node.return_type = return_type
 
         template = ""
@@ -197,7 +196,7 @@ class JuliaTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "({0}) -> {1}".format(args_string, body)
+        return f"({args_string}) -> {body}"
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
@@ -364,8 +363,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_BinOp(self, node: ast.BinOp) -> str:
-        left_jl_ann: str = node.left.julia_annotation
-        right_jl_ann: str = node.right.julia_annotation
+        left_jl_ann: str = self._typename_from_type_node(node.left.annotation)
+        right_jl_ann: str = self._typename_from_type_node(node.right.annotation)
 
         is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
         is_tuple = lambda x: x.startswith("Tuple")
@@ -578,6 +577,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_List(self, node:ast.List) -> str:
         elts = self._parse_elts(node)
+        if hasattr(node, "is_annotation"):
+            return f"{{{elts}}}"
         return (
             f"({elts})"
             if hasattr(node, "lhs") and node.lhs
@@ -629,12 +630,12 @@ class JuliaTranspiler(CLikeTranspiler):
             index_type = self._map_type(index)
             if value_type == "Tuple":
                 return f"({index})"
-            return f"{value_type}[{index_type}]"
+            return f"{value_type}{{{index_type}}}"
 
         # Shortcut for now
         val = node.scopes.find(value)
-        annotation = get_str_repr(getattr(val, "annotation", None))
-        if annotation and annotation.startswith("List"):
+        annotation = self._typename_from_annotation(getattr(val, "annotation", None))
+        if annotation and not annotation.startswith("Dict"):
         # if not (isinstance(assign, ast.Dict)):
             # Shortcut if index is a numeric value
             if isinstance(index, str) and index.lstrip("-").isnumeric():
@@ -724,17 +725,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
         target = self.visit(node.target)
-        type_str = self.visit(node.annotation)
+        type_str = self._map_type(self.visit(node.annotation))
+
         val = None
         if node.value is not None:
             val = self.visit(node.value)
-        # If there is a Julia annotation, get that instead of the
-        # default Python annotation
-        type_str = (
-            node.julia_annotation
-            if (node.julia_annotation and node.julia_annotation != self._none_type)
-            else type_str
-        )
 
         if val:
             if not type_str or type_str == self._default_type:

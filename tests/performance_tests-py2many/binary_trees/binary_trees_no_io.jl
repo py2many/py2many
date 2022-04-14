@@ -16,15 +16,15 @@ function main_func(requested_max_depth, min_depth = 4)
     io_lst::Vector = []
     max_depth = max(min_depth + 2, requested_max_depth)
     stretch_depth = max_depth + 1
-    append(io_lst, "stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")
+    push!(io_lst, "stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")
     long_lived_tree = make_tree(max_depth)
     mmd = max_depth + min_depth
     for test_depth in (min_depth:2:stretch_depth-1)
         tree_count = 2^(mmd - test_depth)
         check_sum = sum(map(run, repeat([(test_depth,)...], tree_count)))
-        append(io_lst, "$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)")
+        push!(io_lst, "$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)")
     end
-    append(
+    push!(
         io_lst,
         "long lived tree of depth $(max_depth)\t check: $(check_node(long_lived_tree...))",
     )
@@ -32,7 +32,7 @@ function main_func(requested_max_depth, min_depth = 4)
 end
 
 function main()
-    main_func(parse(Int, sys.argv[1]))
+    main_func(parse(Int, sys.argv[2]))
 end
 
 main()

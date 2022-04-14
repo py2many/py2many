@@ -10,7 +10,7 @@ from typing import Callable
 
 
 def show():
-    myfunc: Callable[[int, int], int] = lambda x, y: x + y
+    myfunc = lambda x, y: x + y
     print(myfunc(1, 2))
 
 

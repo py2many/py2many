@@ -7,7 +7,7 @@ function init(arg)
     seq = arg
 end
 
-function var_find(f)
+function var_find(f)::Int64
     return length(findall(f, seq))
 end
 
@@ -29,7 +29,7 @@ function main_func()
         "agggtaa[cgt]|[acg]ttaccct",
     )
     for f in zip(variants, imap(pool, var_find, variants))
-        println(f[0], f[1])
+        println(f[1], f[2])
     end
     subst = Dict(
         "tHa[Nt]" => "<4>",

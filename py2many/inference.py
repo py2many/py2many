@@ -9,8 +9,8 @@ from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
-from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import find_in_body, find_node_by_type, is_enum
+from py2many.exceptions import AstIncompatibleAssign
+from py2many.tracer import find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -103,6 +103,10 @@ class InferTypesTransformer(ast.NodeTransformer):
     Tries to infer types
     """
 
+    # TODO: Is this a good method?
+    BUILT_IN_FUNC_TYPE_MAP = {
+        "len": "int"
+    }
     TYPE_DICT = {
         int: "int",
         float: "float",
@@ -487,15 +491,26 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id="complex")
             return node
 
-        # Container multiplication
-        if isinstance(node.op, ast.Mult) and {left_id, right_id} in [
-            {"bytes", "int"},
-            {"str", "int"},
-            {"tuple", "int"},
-            {"List", "int"},
-        ]:
-            node.annotation = ast.Name(id=left_id)
-            return node
+        if isinstance(node.op, ast.Mult):
+            # Container multiplication
+            if (left_id, right_id) in [
+                    ("bytes", "int"),
+                    ("str", "int"),
+                    ("tuple", "int"),
+                    ("List", "int"),
+                    ("list", "int"),
+                    ("int", "bool")]:
+                node.annotation = ast.Name(id=left_id)
+                return node
+            elif (left_id, right_id) in [
+                    ("int", "bytes"),
+                    ("int", "str"),
+                    ("int", "tuple"),
+                    ("int", "List"),
+                    ("int", "list"),
+                    ("bool", "int")]:
+                node.annotation = ast.Name(id=right_id)
+                return node
 
         # LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add)}
 
@@ -508,15 +523,6 @@ class InferTypesTransformer(ast.NodeTransformer):
         node.annotation = ast.Name(id=node.name)
         self.generic_visit(node)
         return node
-    
-    # TODO: not working as intended
-    # def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-    #     # self.generic_visit(node)
-    #     yield_node = find_in_body(node.body, lambda x: isinstance(x, ast.Yield) 
-    #         or isinstance(x, ast.YieldFrom))
-    #     if yield_node:
-    #         node.returns = ast.Name(id="Generator")
-    #     return self.generic_visit(node)
 
     def visit_Attribute(self, node):
         value_id = get_id(node.value)
@@ -551,6 +557,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                     node.annotation = return_type
             elif fname in self.TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
+            elif fname in self.BUILT_IN_FUNC_TYPE_MAP:
+                node.annotation = ast.Name(id=self.BUILT_IN_FUNC_TYPE_MAP[fname])
         self.generic_visit(node)
         return node
 
@@ -560,7 +568,6 @@ class InferTypesTransformer(ast.NodeTransformer):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type") and \
                     not isinstance(node.slice, ast.Slice):
-                # print(definition.container_type)
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
@@ -568,7 +575,6 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
             else:
-                # print(definition.container_type)
                 node.annotation = definition.annotation
         self.generic_visit(node)
         return node

@@ -89,7 +89,7 @@ _AUTO_INVOKED = "auto()"
 logger = logging.Logger("py2many")
 
 
-def class_for_typename(typename, default_type, locals=None) -> Union[str, object]:
+def class_for_typename(typename: str, default_type, locals=None) -> Union[str, object]:
     if typename is None:
         return None
     if typename == "super" or typename.startswith("super()"):
