@@ -8,8 +8,10 @@ from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.clike import class_for_typename
 from py2many.tracer import find_node_by_type
-from pyjl.clike import _NONE_TYPE, CLikeTranspiler
+from pyjl.clike import CLikeTranspiler
 from pyjl.helpers import get_ann_repr
+from pyjl.global_vars import NONE_TYPE
+from pyjl.global_vars import DEFAULT_TYPE
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
@@ -29,7 +31,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         super().__init__()
         # Holds Tuple python_type with id as variable name
         self._stack_var_map = {}
-        self._none_type = _NONE_TYPE
+        self._none_type = NONE_TYPE
+        self._default_type = DEFAULT_TYPE
         self._clike = CLikeTranspiler()
 
     def _handle_overflow(self, op, left_id, right_id):
@@ -195,8 +198,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
-        left_id = get_id(left)
-        right_id = get_id(right)
+        left_id = get_id(left.value) if isinstance(left, ast.Subscript) else get_id(left)
+        right_id = get_id(right.value) if isinstance(right, ast.Subscript) else get_id(right)
 
         is_numeric = (lambda x: x == "int" or "float" or "complex"
             or x.startswith("c_int") or x.startswith("c_uint"))
@@ -205,12 +208,14 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if ((left is None and right is not None) 
                 or (right is None and left is not None)
                 or (right is None and left is None)):
+            node.annotation = ast.Name(id="Any")
             self._assign_annotation(node, left, right)
             return node
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
             ret = self._handle_overflow(node.op, left_id, right_id)
+            node.annotation = ast.Name(id=ret)
             self._assign_annotation(node, ret, ret)
             return node
 
@@ -262,7 +267,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     #         self._add_annotation(node, ann, node.optional_vars)
     #     else:
     #         id_type = self._clike._generic_typename_from_type_node(var_value)
-    #         if id_type != self._clike._default_type and id_type is not None:
+    #         if id_type != DEFAULT and id_type is not None:
     #             annotation = ast.Name(id=var_value)
     #             self._add_annotation(node, annotation, node.optional_vars)
 
@@ -277,7 +282,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         ann_str = get_ann_repr(annotation)
         map_ann_str = get_ann_repr(self._stack_var_map[var_name]) \
             if var_name in self._stack_var_map else None
-        if(map_ann_str and ann_str != map_ann_str):
+        if(map_ann_str and ann_str != self._default_type and ann_str != map_ann_str):
             raise AstIncompatibleAssign(
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
                 node

@@ -1,11 +1,13 @@
 from __future__ import annotations
 import ast
+from cgi import test
+from lib2to3.pgen2.pgen import generate_grammar
 import sys
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
-from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_class_type, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.input_configuration import ParseFileStructure
@@ -23,6 +25,10 @@ def julia_config_rewriter(tree, input_config, filename):
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._ignored_module_set = JL_IGNORED_MODULE_SET
 
     def visit_Call(self, node):
         args = []
@@ -55,9 +61,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             value_id = call_id
 
         if value_id and value_id not in sys.builtin_module_names \
+                and value_id not in self._ignored_module_set \
                 and (is_enum(value_id, node.scopes) or
-                     # is_class_or_module(value_id, node.scopes) or
-                     is_class_type(value_id, node.scopes) or
+                     is_class_or_module(value_id, node.scopes) or
+                     # is_class_type(value_id, node.scopes) or
                      value_id.startswith("self")):
             return node
 
@@ -589,3 +596,71 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
             parsed_decorators.pop("dataclass")
 
         node.parsed_decorators = parsed_decorators
+
+
+class JuliaConditionRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_If(self, node: ast.If) -> Any:
+        self.generic_visit(node)
+        self._generic_test_visit(node)
+        return node
+
+    def visit_While(self, node: ast.While) -> Any:
+        self.generic_visit(node)
+        self._generic_test_visit(node)
+        return node
+
+    def _generic_test_visit(self, node):
+        # Shortcut if conditions are numbers
+        if isinstance(node.test, ast.Constant):
+            if node.test.value == 1 or node.test.value == "1":
+                node.test.value = True
+                return node
+            elif node.test.value == 0:
+                node.test.value = False
+                return node
+
+        annotation = getattr(node.test, "annotation", None)
+        ann_id = get_id(annotation)
+        if ann_id == "int" or ann_id == "float":
+            node.test = ast.Compare(
+                left = node.test,
+                ops = [ast.NotEq()],
+                comparators = [
+                    ast.Constant(
+                        0, 
+                        lineno = node.test.lineno,
+                        col_offset = node.test.col_offset)
+                    ],
+                lineno = node.test.lineno,
+                col_offset = node.test.col_offset
+            )
+
+class JuliaSliceRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        self.generic_visit(node)
+        if lower := getattr(node.slice, "lower", None):
+            if isinstance(lower, ast.UnaryOp) \
+                    and isinstance(lower.op, ast.USub):
+                node.slice.lower = ast.BinOp(
+                    left = ast.Call(
+                        func = ast.Name(
+                            id = "length",
+                            lineno = node.lineno,
+                            col_offset = node.col_offset),
+                        args = [node.value],
+                        keywords = [],
+                        annotation = ast.Name(id="int"),
+                        lineno = node.lineno,
+                        col_offset = node.col_offset),
+                    op = ast.Sub(),
+                    right = lower.operand,
+                    lineno = node.lineno,
+                    col_offset = node.col_offset)
+
+        return node

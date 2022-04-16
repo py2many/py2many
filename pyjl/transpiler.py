@@ -230,7 +230,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 actual_type = self._typename_from_annotation(node_arg)
                 declared_type = self._typename_from_annotation(
                     fnarg)  # if fnarg.arg != "self" else None
-                if declared_type != None and declared_type != self._default_type \
+                if declared_type != None and actual_type != None and declared_type != self._default_type \
                         and actual_type != self._default_type and actual_type != declared_type:
                     converted.append(f"convert({declared_type}, {varg})")
                 else:
@@ -398,8 +398,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Add):
             # Add two lists
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List))
-                    or (is_list(right_jl_ann)
-                        and (left_jl_ann.startswith("Array") or left_jl_ann.startswith("Vector")))):
+                    or (is_list(right_jl_ann) and is_list(left_jl_ann))):
                 return f"append!({left}, {right})"
 
             # Cover Python String concatenation

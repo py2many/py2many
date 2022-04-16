@@ -12,6 +12,8 @@ from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import MODULE_DISPATCH_TABLE
+from pyjl.global_vars import NONE_TYPE
+from pyjl.global_vars import DEFAULT_TYPE
 import importlib
 
 from numbers import Complex, Integral, Rational, Real
@@ -60,9 +62,6 @@ julia_keywords = frozenset(
         "while",
     ]
 )
-
-_DEFAULT = "Any"
-_NONE_TYPE = "nothing"
 
 jl_symbols = {
     ast.BitXor: " ⊻ ", 
@@ -158,8 +157,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
         self._container_type_map = CONTAINER_TYPE_MAP
-        self._default_type = _DEFAULT
-        self._none_type = _NONE_TYPE
+        self._default_type = DEFAULT_TYPE
+        self._none_type = NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         

@@ -44,8 +44,10 @@ from pyjl.rewriters import (
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
     JuliaDecoratorRewriter,
-    JuliaGeneratorRewriter, 
+    JuliaGeneratorRewriter,
+    JuliaConditionRewriter, 
     JuliaMethodCallRewriter,
+    JuliaSliceRewriter,
     julia_config_rewriter
 )
 from pyjl.transpiler import JuliaTranspiler
@@ -385,7 +387,8 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loops],
-        post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), JuliaAugAssignRewriter()],
+        post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
+            JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaSliceRewriter()],
         config_rewriters=[julia_config_rewriter]
     )
 

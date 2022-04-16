@@ -9,7 +9,7 @@ function main()
     start = 1
     stop = 3
     @assert(output[begin:stop-start] == [1, 2])
-    @assert(output[end:end] == [6])
+    @assert(output[(length(output)-1+1):end] == [6])
     @assert(output[end] == 6)
     println("OK")
 end

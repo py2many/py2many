@@ -441,8 +441,8 @@ class InferTypesTransformer(ast.NodeTransformer):
             return node
 
         # Both operands are annotated. Now we have interesting cases
-        left_id = get_id(left)
-        right_id = get_id(right)
+        left_id = get_id(left.value) if isinstance(left, ast.Subscript) else get_id(left)
+        right_id = get_id(right.value) if isinstance(right, ast.Subscript) else get_id(right)
 
         if left_id == right_id and left_id == "int":
             if not isinstance(node.op, ast.Div) or getattr(
@@ -498,7 +498,6 @@ class InferTypesTransformer(ast.NodeTransformer):
                     ("str", "int"),
                     ("tuple", "int"),
                     ("List", "int"),
-                    ("list", "int"),
                     ("int", "bool")]:
                 node.annotation = ast.Name(id=left_id)
                 return node
@@ -507,7 +506,6 @@ class InferTypesTransformer(ast.NodeTransformer):
                     ("int", "str"),
                     ("int", "tuple"),
                     ("int", "List"),
-                    ("int", "list"),
                     ("bool", "int")]:
                 node.annotation = ast.Name(id=right_id)
                 return node

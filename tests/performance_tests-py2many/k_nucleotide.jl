@@ -81,7 +81,7 @@ function count_frequencies(sequence, reading_frames, i, j)
         frame_tail -= 1
     end
     short_frame_frequences = short_frame_frequences[begin:frame_tail]
-    if length(short_frame_frequences)
+    if length(short_frame_frequences) != 0
         bits = 0
         if i == 0
             for k in (i:(i+frame)-1-1)
@@ -167,7 +167,7 @@ function main_func()
         b"c" => b"0",
         b"a" => b"1",
     )
-    function str_to_bits(text)::Int64
+    function str_to_bits(text)::Union[int, Any]
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k in (0:length(buffer)-1)

@@ -39,7 +39,7 @@ function reverse_complement(header, sequence)::Tuple
     t = replace!(reverse_translation, b"\n\r ")
     output = Vector{UInt8}()
     trailing_length = length(t) % 60
-    if trailing_length
+    if trailing_length != 0
         output += b"\n" + t[begin:trailing_length]
     end
     for i in (trailing_length:60:length(t)-1)

@@ -5,7 +5,7 @@ using ResumableFunctions
 
 @resumable function pixels(y, n, abs)
     range7 = Vector{UInt8}((0:6))
-    pixel_bits = Vector{UInt8}((128 >> pos for pos in (0:7)))
+    pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
     c1 = 2.0 / float(n)
     c0 = (-1.5 + 1im * y * c1) - 1im
     x = 0

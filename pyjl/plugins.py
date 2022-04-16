@@ -14,6 +14,7 @@ import random
 import re
 import sys
 import unittest
+import bisect
 
 from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
@@ -316,6 +317,7 @@ class JuliaTranspilerPlugins:
         )
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
+        # Revisit
         if node.args:
             if isinstance(node.args[0], ast.BinOp):
                 args_str, args_vals = [], []
@@ -378,7 +380,11 @@ class JuliaTranspilerPlugins:
         t_self._usings.add("Distributed")
 
     def visit_join(t_self, node, vargs):
-        return f"join({vargs[1]}, {vargs[0]})" if vargs else "join"
+        if len(vargs) == 2:
+            return f"join({vargs[1]}, {vargs[0]})"
+        elif len(vargs) == 1:
+            return f"x -> join(x, {vargs[0]})" 
+        return "join"
 
     def visit_format(t_self, node, vargs):
         # TODO: Optimize
@@ -629,7 +635,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     operator.floordiv: (lambda self, node, vargs: f"div({vargs[0]}, {vargs[1]})" if vargs else "div", True),
     int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
     float.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
-    divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "x -> div(x)", True), # Fallback
+    divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
     sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
@@ -647,7 +653,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Instance checks
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
-    # Bysect
+    # Bisect
+    bisect.bisect: (JuliaTranspilerPlugins.visit_bisect_right, True),
     bisect_right: (JuliaTranspilerPlugins.visit_bisect_right, True),
     bisect_left: (JuliaTranspilerPlugins.visit_bisect_left, True),
     # Random

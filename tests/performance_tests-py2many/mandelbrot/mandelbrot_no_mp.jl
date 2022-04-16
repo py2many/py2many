@@ -1,32 +1,33 @@
-using ResumableFunctions
 
 
 
 
 
-@resumable function pixels(y, n, abs)
-    range7 = Vector{UInt8}((0:6))
-    pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
-    c1 = 2.0 / float(n)
-    c0 = (-1.5 + 1im * y * c1) - 1im
-    x = 0
-    while true
-        pixel = 0
-        c = x * c1 + c0
-        for pixel_bit in pixel_bits
-            z = c
-            for _ in range7
+function pixels(y, n, abs)
+    Channel() do ch_pixels
+        range7 = Vector{UInt8}((0:6))
+        pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
+        c1 = 2.0 / float(n)
+        c0 = (-1.5 + 1im * y * c1) - 1im
+        x = 0
+        while true
+            pixel = 0
+            c = x * c1 + c0
+            for pixel_bit in pixel_bits
+                z = c
                 for _ in range7
-                    z = z * z + c
+                    for _ in range7
+                        z = z * z + c
+                    end
+                    if abs(z) >= 2.0
+                        break
+                    end
                 end
-                if abs(z) >= 2.0
-                    break
-                end
+                c += c1
             end
-            c += c1
+            put!(ch_pixels, pixel)
+            x += 8
         end
-        @yield pixel
-        x += 8
     end
 end
 
@@ -37,11 +38,10 @@ function compute_row(p)::Tuple
     return (y, result)
 end
 
-@resumable function compute_rows(n, f)
+function compute_rows(n, f)
     row_jobs = ((y, n) for y in (0:n-1))
-    for v in map(f, row_jobs)
-        @yield v
-    end
+    # Unsupported
+    @yield_from map(f, row_jobs)
 end
 
 function mandelbrot(n)
