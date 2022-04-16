@@ -2,7 +2,12 @@ using BisectPy
 using ResumableFunctions
 
 alu = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-iub = collect(zip("acgtBDHKMNRSVWY", append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11))))
+iub = collect(
+    zip(
+        ["a", "c", "g", "t", "B", "D", "H", "K", "M", "N", "R", "S", "V", "W", "Y"],
+        append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11)),
+    ),
+)
 homosapiens = [
     ("a", 0.302954942668),
     ("c", 0.1979883004921),
@@ -44,7 +49,7 @@ function repeatFasta(src::String, n::Int64)
     end
 end
 
-function randomFasta(table, n::Int64)
+function randomFasta(table::Vector{Tuple{String,Float64}}, n::Int64)
     width = 60
     r = (0:width-1)
     gR = Random
@@ -61,16 +66,13 @@ function randomFasta(table, n::Int64)
 end
 
 function main()
-    # n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
     n = 1000000
-    @time begin
-        println(">ONE Homo sapiens alu")
-        repeatFasta(alu, n * 2)
-        println(">TWO IUB ambiguity codes")
-        randomFasta(iub, n * 3)
-        println(">THREE Homo sapiens frequency")
-        randomFasta(homosapiens, n * 5)
-    end
+    println(">ONE Homo sapiens alu")
+    repeatFasta(alu, n * 2)
+    println(">TWO IUB ambiguity codes")
+    randomFasta(iub, n * 3)
+    println(">THREE Homo sapiens frequency")
+    randomFasta(convert(Vector{Tuple{String,Float64}}, homosapiens), n * 5)
 end
 
 main()

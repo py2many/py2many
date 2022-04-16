@@ -2,7 +2,9 @@ using BisectPy
 using ResumableFunctions
 
 alu = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
-iub = collect(zip("acgtBDHKMNRSVWY", append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11))))
+# iub = collect(zip("acgtBDHKMNRSVWY", append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11)))) # Creates vector with Chars, ot strings like Python
+iub = collect(zip(["a", "c", "g", "t", "B", "D", "H", "K", "M", "N", "R", "S", "V", "W", "Y"], 
+    append!([0.27, 0.12, 0.12, 0.27], repeat([0.02], 11))))
 homosapiens = [
     ("a", 0.302954942668),
     ("c", 0.1979883004921),
@@ -19,9 +21,9 @@ homosapiens = [
 end
 
 Random = genRandom()
-function makeCumulative(table)::Tuple
-    P = []
-    C = []
+function makeCumulative(table::Vector{Tuple{String, Float64}})::Tuple{Vector{Float64}, Vector{String}}
+    P::Vector{Float64} = []
+    C::Vector{String} = []
     prob = 0.0
     for (char, p) in table
         prob += p

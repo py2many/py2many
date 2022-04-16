@@ -7,6 +7,7 @@
 # 2to3
 
 import sys, bisect
+# from time import perf_counter
 
 alu = (
    'GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG'
@@ -56,7 +57,7 @@ def repeatFasta(src: str, n: int):
     if n % width:
         print(s[-(n % width):])
 
-def randomFasta(table, n: int):
+def randomFasta(table: list[tuple[str, float]], n: int):
     width = 60
     r = range(width)
     gR = Random.__next__
@@ -70,7 +71,10 @@ def randomFasta(table, n: int):
         print(jn([chars[bb(probs, gR())] for i in range(n % width)]))
 
 def main():
-    n = int(sys.argv[1])
+    # n = int(sys.argv[1])
+    n = 1000000
+
+    # start_time = perf_counter()
 
     print('>ONE Homo sapiens alu')
     repeatFasta(alu, n*2)
@@ -81,4 +85,6 @@ def main():
     print('>THREE Homo sapiens frequency')
     randomFasta(homosapiens, n*5)
 
+    # end_time = perf_counter()
+    # print(end_time-start_time)
 main()

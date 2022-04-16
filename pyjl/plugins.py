@@ -438,6 +438,20 @@ class JuliaTranspilerPlugins:
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
 
+    def visit_zip(t_self, node, vargs: list[str]):
+        ls1 = node.args[0]
+        if isinstance(ls1, ast.Constant) and \
+                isinstance(ls1.value, str):
+            ls1_lst = []
+            for n in ls1.value:
+                ls1_lst.append(f'\"{n}\"')
+            return f"zip([{', '.join(ls1_lst)}], {vargs[1]})"
+        
+        if len(vargs) == 0:
+            return "zip"
+
+        return f"zip({vargs[0]}, {vargs[1]})"
+
     def visit_bisect_right(t_self, node, vargs: list[str]):
         JuliaTranspilerPlugins._generic_bisect_visit(t_self)
         return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
@@ -617,6 +631,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     iter: (JuliaTranspilerPlugins.visit_iter, False),
     next: (JuliaTranspilerPlugins.visit_next, False),
     range: (JuliaTranspilerPlugins.visit_range, False),
+    zip: (JuliaTranspilerPlugins.visit_zip, False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),

@@ -120,4 +120,5 @@ function fasta(n, io=stdout)
     random_fasta(io, lookup_table(homosapiens, homosapiens_prob), 5n)
 end
 
-isinteractive() || fasta(parse(Int,ARGS[1]))
+isinteractive() || @time fasta(1000000)
+# fasta(parse(Int,ARGS[1]))
