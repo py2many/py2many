@@ -619,7 +619,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
 
-        # Shortcut for now
         val = node.scopes.find(value)
         annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
         if annotation and not annotation.startswith("Dict") and \

@@ -45,7 +45,7 @@ function reverse_complement(header, sequence)::Tuple
     for i in (trailing_length:60:length(t)-1)
         output += b"\n" + t[(i+1):i+60]
     end
-    return (header, output[begin:end])
+    return (header, output[end:-1:begin])
 end
 
 function read_sequences(file)

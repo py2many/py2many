@@ -1,8 +1,8 @@
 
 function main_func()
-    ands::Vector = []
-    ors::Vector = []
-    xors::Vector = []
+    ands::Vector{Bool} = []
+    ors::Vector{Bool} = []
+    xors::Vector{Bool} = []
     for a in [false, true]
         for b in [false, true]
             push!(ands, a & b)

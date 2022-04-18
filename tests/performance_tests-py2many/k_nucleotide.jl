@@ -44,27 +44,27 @@ function count_frequencies(sequence, reading_frames, i, j)
     short_frame_frequences = frequences_mask_list[2:end]
     mono_nucleotides = []
     frame_tail = length(frames) - 1
-    if frame_tail >= 0 && frames[frame_tail] == 1
-        freq = frequences_mask_list[frame_tail][1]
+    if frame_tail >= 0 && frames[frame_tail+1] == 1
+        freq = frequences_mask_list[frame_tail+1][1]
         worklist = sequence[(i+1):j]
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
             worklist = replace!(nothing, n)
             len_after = length(worklist)
-            freq[n[1]] = len_before - len_after
+            freq[n[1]+1] = len_before - len_after
             len_before = len_after
             push!(mono_nucleotides, n)
         end
         frame_tail -= 1
     end
-    if frame_tail >= 0 && frames[frame_tail] == 2 && mono_nucleotides
-        freq = frequences_mask_list[frame_tail][1]
+    if frame_tail >= 0 && frames[frame_tail+1] == 2 && mono_nucleotides
+        freq = frequences_mask_list[frame_tail+1][1]
         worklist = sequence[(i+1):min(j + 1, length(sequence))]
         overlaps = []
         for v in (n + m for n in mono_nucleotides for m in mono_nucleotides)
             bits = v[1] * 4 + v[2]
-            freq[bits] = count(worklist, v)
+            freq[bits+1] = count(worklist, v)
             if v[2:end] == v[begin:1]
                 push!(overlaps, (v, bits, v[begin:1] + v))
             end
@@ -99,14 +99,14 @@ function count_frequencies(sequence, reading_frames, i, j)
         end
         for byte in sequence[(k+1+1):j]
             bits = (bits * 4 + byte) & mask
-            frequences[bits] += 1
+            frequences[bits+1] += 1
             for (f, m) in short_frame_frequences
                 f[bits&m+1] += 1
             end
         end
     end
     return [
-        (frame, (length(sequence) - frame) + 1, frequences_mask_list[i][1]) for
+        (frame, (length(sequence) - frame) + 1, frequences_mask_list[i+1][1]) for
         (i, frame) in enumerate(frames)
     ]
 end
@@ -133,7 +133,7 @@ function lookup_frequency(results, frame, bits)::Tuple
     n = 1
     frequency = 0
     for (_, n, frequencies) in filter((r) -> r[1] == frame, results)
-        frequency += frequencies[bits]
+        frequency += frequencies[bits+1]
     end
     return (frequency, n > 0 ? (n) : (1))
 end
@@ -196,7 +196,7 @@ function main_func()
     end
     partitions = [length(sequence) * i ÷ n for i in (0:n+1-1)]
     count_jobs = [
-        (sequence, reading_frames, partitions[i], partitions[i+1]) for
+        (sequence, reading_frames, partitions[i+1], partitions[i+1+1]) for
         i in (0:length(partitions)-1-1)
     ]
     if n == 1

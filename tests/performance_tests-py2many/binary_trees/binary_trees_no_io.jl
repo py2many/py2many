@@ -13,7 +13,7 @@ function run(depth::Int64)::Int64
 end
 
 function main_func(requested_max_depth, min_depth = 4)
-    io_lst::Vector = []
+    io_lst::Vector{String} = []
     max_depth = max(min_depth + 2, requested_max_depth)
     stretch_depth = max_depth + 1
     push!(io_lst, "stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")

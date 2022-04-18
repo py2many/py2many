@@ -14,7 +14,7 @@ function fibonacci(n)::Int64
     end
 end
 
-function mul_list()::Vector
+function mul_list()
     a::Vector = []
     for i in (0:4)
         push!(a, i)

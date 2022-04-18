@@ -46,12 +46,12 @@ end
     while i < length(order)
         if j > 0
             row = next(rows)
-            order[row[1]] = row
+            order[row[1]+1] = row
             j -= 1
         end
-        if order[i]
-            @yield order[i]
-            order[i] = nothing
+        if order[i+1]
+            @yield order[i+1]
+            order[i+1] = nothing
             i += 1
         end
     end

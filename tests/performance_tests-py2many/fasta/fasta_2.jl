@@ -211,7 +211,10 @@ function fasta(n)
     )
     iub = collect(zip_longest("acgtBDHKMNRSVWY", (0.27, 0.12, 0.12, 0.27), 0.02))
     homosapiens = collect(
-        zip("acgt", (0.302954942668, 0.1979883004921, 0.1975473066391, 0.3015094502008)),
+        zip(
+            ["a", "c", "g", "t"],
+            (0.302954942668, 0.1979883004921, 0.1975473066391, 0.3015094502008),
+        ),
     )
     seed = RawValue("f", 42)
     width = 60

@@ -30,7 +30,7 @@ function mult_bool_and_string()::Int64
 end
 
 function mult_list_and_int()::Vector
-    a::Vector = []
+    a::Vector{Int64} = []
     for i in (0:9)
         push!(a, i)
     end
@@ -44,9 +44,9 @@ function mult_tuple_and_int()
     @assert(mul_1 == mul_2)
 end
 
-function add_two_lists()::Vector
-    a::Vector = []
-    b::Vector = []
+function add_two_lists()
+    a::Vector{Int64} = []
+    b::Vector{Int64} = []
     for i in (0:9)
         push!(a, i)
         push!(b, i)
