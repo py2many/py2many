@@ -449,6 +449,8 @@ class JuliaTranspilerPlugins:
         
         if len(vargs) == 0:
             return "zip"
+        if len(vargs) == 1:
+            f"zip({vargs[0]})"
 
         return f"zip({vargs[0]}, {vargs[1]})"
 
@@ -534,11 +536,6 @@ class JuliaRewriterPlugins:
                     default = defaults[i - diff_len] if i >= diff_len else None
                 else:
                     default = defaults[i]
-            
-            # if isinstance(default, ast.Constant):
-            #     default = default.value
-            # else:
-            #     default = get_id(default)
             arg_values.append((arg.arg, arg.annotation, default))
 
         return arg_values
