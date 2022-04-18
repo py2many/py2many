@@ -57,7 +57,6 @@ class JuliaTranspiler(CLikeTranspiler):
         self._julia_num_types = JULIA_NUM_TYPES
         self._julia_integer_types = JULIA_INTEGER_TYPES
         self._special_character_map = SPECIAL_CHARACTER_MAP
-        self._scope_stack: Dict[str, list] = {"loop": [], "func": []}
         self._nested_if_cnt = 0
         self._modules = []
 
@@ -248,19 +247,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Replace square brackets for normal brackets in lhs
         target = target.replace("[", "(").replace("]", ")")
-
-        # Add variables to current scope vars
-        target_vars = list(filter(None, re.split(r"\(|\)|\,|\s", target)))
-        self._scope_stack["loop"].extend(target_vars)
-
         buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
-
-        # Remove all items when leaving the scope
-        start = len(self._scope_stack["loop"]) - len(target_vars)
-        end = len(self._scope_stack["loop"])
-        del self._scope_stack["loop"][len(target_vars) - start:end]
 
         return "\n".join(buf)
 
@@ -632,31 +621,17 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Shortcut for now
         val = node.scopes.find(value)
-        annotation = self._typename_from_type_node(getattr(val, "annotation", None))
-        if annotation and not annotation.startswith("Dict"):
-        # if not (isinstance(assign, ast.Dict)):
+        annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
+        if annotation and not annotation.startswith("Dict") and \
+                not isinstance(node.slice, ast.Slice):
             # Shortcut if index is a numeric value
             if isinstance(index, str) and index.lstrip("-").isnumeric():
                 return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
-            elif isinstance(index, int) or isinstance(index, float):
+            if isinstance(index, int) or isinstance(index, float):
                 return f"{value}[{index + 1}]"
 
-            # TODO: Optimize; value_type is computed once per definition
-            self._generic_typename_from_annotation(node.value)
-            if hasattr(node.value, "annotation"):
-                value_type = getattr(node.value.annotation,
-                                    "generic_container_type", None)
-                if (value_type is not None and value_type[0] == "List"
-                        and not isinstance(node.slice, ast.Slice)):
-                    # Julia array indices start at 1
-                    return f"{value}[{index} + 1]"
-
-            # Increment index's that use for loop variables
-            split_index = set(
-                filter(None, re.split(r"\(|\)|\[|\]|-|\s|\:", index)))
-            intsct = split_index.intersection(self._scope_stack["loop"])
-            if intsct and not isinstance(node.slice, ast.Slice):
-                return f"{value}[{index} + 1]"
+            # Default, just add 1
+            return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
 
@@ -664,6 +639,12 @@ class JuliaTranspiler(CLikeTranspiler):
         return self.visit(node.value)
 
     def visit_Slice(self, node) -> str:
+        # Cover Python list reverse
+        if node.step and not (node.upper and node.lower):
+            step_str = self.visit(node.step)
+            if step_str == "-1":
+                return "end:-1:begin"
+
         lower = "begin"
         if node.lower:
             lower = self.visit(node.lower)
