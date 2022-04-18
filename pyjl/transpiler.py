@@ -638,12 +638,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return self.visit(node.value)
 
     def visit_Slice(self, node) -> str:
-        # Cover Python list reverse
-        if node.step and not (node.upper and node.lower):
-            step_str = self.visit(node.step)
-            if step_str == "-1":
-                return "end:-1:begin"
-
         lower = "begin"
         if node.lower:
             lower = self.visit(node.lower)
@@ -661,6 +655,20 @@ class JuliaTranspiler(CLikeTranspiler):
             lower = f"({lower} + 2)"
         elif lower != "begin":
             lower = f"({lower} + 1)"
+
+        if node.step:
+            step = self.visit(node.step)
+            # Cover Python list reverse
+            if step == "-1":
+                if not node.lower and not node.upper:
+                    return "end:-1:begin"
+                elif not node.upper:
+                    if lower == "end":
+                        return f"end:-1:begin"
+                    return f"end:-1:{lower}"
+                return f"{upper}:{step}:{lower}"
+            else:
+               return f"{lower}:{step}:{upper}"
 
         return f"{lower}:{upper}"
 

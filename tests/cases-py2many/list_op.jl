@@ -114,7 +114,7 @@ end
 
 function reversed_array()
     x = [1, 2, 3]
-    x = x[begin:end]
+    x = x[end:-1:begin]
     @assert(x == [3, 2, 1])
 end
 
@@ -134,30 +134,30 @@ end
 
 function list_ops()
     a = Vector()
-    append(a, "test")
+    push!(a, "test")
     @assert(a == ["test"])
-    clear(a)
+    empty!(a)
     @assert(a == [])
     @assert(length(a) == 0)
-    append(a, "test1")
-    append(a, "test2")
-    remove(a, "test1")
+    push!(a, "test1")
+    push!(a, "test2")
+    a = deleteat!(a, findfirst(isequal("test1"), a))
     @assert(a == ["test2"])
     @assert(length(a) == 1)
-    clear(a)
-    append(a, "test")
+    empty!(a)
+    push!(a, "test")
     b = copy(a)
     @assert(b == a)
-    clear(a)
-    append(a, "test2")
-    append(a, "test2")
-    remove(a, "test2")
-    @assert(count(a, "test2") == 1)
-    clear(a)
-    append(a, "test1")
-    extend(a, b)
+    empty!(a)
+    push!(a, "test2")
+    push!(a, "test2")
+    a = deleteat!(a, findfirst(isequal("test2"), a))
+    @assert(count(isequal("test2"), a) == 1)
+    empty!(a)
+    push!(a, "test1")
+    a = append!(a, b)
     @assert(a == ["test1", "test"])
-    clear(a)
+    empty!(a)
     elems = ["1", "2", "3"]
     new_elems = []
     for e in elems

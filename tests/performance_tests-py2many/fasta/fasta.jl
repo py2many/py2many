@@ -52,7 +52,7 @@ end
 function randomFasta(table, n::Int64)
     width = 60
     r = (0:width-1)
-    gR = Random
+    gR = next(Random)
     bb = bisect_right
     jn = x -> join(x, "")
     probs, chars = makeCumulative(table)

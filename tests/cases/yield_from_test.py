@@ -1,7 +1,9 @@
+@resumable
 def generator1():
     for i in range(3):
         yield i
 
+@resumable
 def generator2():
     for j in range(3, 5):
         yield j

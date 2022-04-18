@@ -357,7 +357,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         return func
 
     def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
-        if isinstance(node, ast.Call) and len(node.args) > 0:
+        # isinstance(node, ast.Call) and 
+        if len(node.args) > 0:
             var = vargs[0]
 
             # Self argument type lookup

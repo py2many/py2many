@@ -3,7 +3,7 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
-from typing import Any, cast, Set, Optional
+from typing import Any, Dict, List, Tuple, cast, Set, Optional
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
@@ -104,6 +104,10 @@ class InferTypesTransformer(ast.NodeTransformer):
     """
 
     # TODO: Is this a good method?
+    BUILTIN_TYPES = set([
+        "int", "float", "str", "bool", "bytes", "complex", 
+        "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
+    ])
     BUILT_IN_FUNC_TYPE_MAP = {
         "len": "int"
     }
@@ -115,6 +119,16 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytes: "bytes",
         complex: "complex",
         type(...): "...",
+    }
+    CONTAINER_TYPE_DICT = {
+        list: "list",
+        List: "List",
+        Dict: "Dict",
+        Set: "Set",
+        Tuple: "Tuple",
+        tuple: "tuple",
+        Optional: "Optional",
+        bytearray: f"bytearray",
     }
     FIXED_WIDTH_INTS_LIST = [
         bool,
@@ -545,8 +559,13 @@ class InferTypesTransformer(ast.NodeTransformer):
             # TODO: use remove suffix
             if fname.startswith("self."):
                 fname = fname.split(".", 1)[1]
+
             fn = node.scopes.find(fname)
-            if isinstance(fn, ast.ClassDef):
+
+            # TODO: Is thre a better method?
+            if fname in self.BUILTIN_TYPES:
+                self._annotate(node, fname)
+            elif isinstance(fn, ast.ClassDef):
                 self._annotate(node, fn.name)
             elif isinstance(fn, ast.FunctionDef):
                 return_type = (

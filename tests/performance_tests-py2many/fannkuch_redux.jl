@@ -56,7 +56,7 @@ function alternating_flips_generator(n, start, size)
             if first
                 flips_count = 1
                 while true
-                    permutation[begin:first+1] = permutation[end:-1:begin]
+                    permutation[begin:first+1] = permutation[end:-1:(first+1)]
                     first = permutation[1]
                     if !(first)
                         break
@@ -78,7 +78,7 @@ end
 
 function task(n, start, size)::Tuple
     alternating_flips = alternating_flips_generator(n, start, size)
-    return (sum((alternating_flips for _ in (0:size))), take!(alternating_flips))
+    return (sum((alternating_flips for _ in (0:size))), next(alternating_flips))
 end
 
 function fannkuch(n)

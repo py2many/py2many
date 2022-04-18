@@ -38,7 +38,7 @@ end
 function count_frequencies(sequence, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
     frequences_mask_list =
-        tuple(((defaultdict(int), (1 << 2 * frame) - 1) for frame in frames))
+        tuple(((defaultdict(int), (1 << repeat([frame...], 2)) - 1) for frame in frames))
     frame = frames[1]
     frequences, mask = frequences_mask_list[1]
     short_frame_frequences = frequences_mask_list[2:end]
@@ -167,7 +167,7 @@ function main_func()
         b"c" => b"0",
         b"a" => b"1",
     )
-    function str_to_bits(text)::Union[int, Any]
+    function str_to_bits(text)::Int64
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k in (0:length(buffer)-1)
@@ -184,11 +184,13 @@ function main_func()
     mono_nucleotides = ("G", "A", "T", "C")
     di_nucleotides = tuple((n + m for n in mono_nucleotides for m in mono_nucleotides))
     k_nucleotides = ("GGT", "GGTA", "GGTATT", "GGTATTTTAATT", "GGTATTTTAATTTATAGT")
-    reading_frames =
+    reading_frames = append!(
         [
             (1, tuple(map(str_to_bits, mono_nucleotides))),
             (2, tuple(map(str_to_bits, di_nucleotides))),
-        ] + collect(map((s) -> (length(s), (str_to_bits(s),)), k_nucleotides))
+        ],
+        collect(map((s) -> (length(s), (str_to_bits(s),)), k_nucleotides)),
+    )
     if length(sequence) > (128 * length(Sys.cpu_info()))
         n = length(Sys.cpu_info())
     else

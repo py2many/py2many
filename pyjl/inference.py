@@ -3,11 +3,10 @@ from ctypes import c_int64
 
 from typing import Any
 
-from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
+from py2many.inference import InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.clike import class_for_typename
-from py2many.tracer import find_node_by_type
 from pyjl.clike import CLikeTranspiler
 from pyjl.helpers import get_ann_repr
 from pyjl.global_vars import NONE_TYPE
@@ -29,7 +28,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
-        # Holds Tuple python_type with id as variable name
+        # Holds python_type with id as variable name
         self._stack_var_map = {}
         self._none_type = NONE_TYPE
         self._default_type = DEFAULT_TYPE
@@ -58,48 +57,49 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if left_id == "float" or right_id == "float":
             return "float"
         return left_id if left_idx > right_idx else right_id
+        
+    ##############################
+    # Scopes
+    # def visit_Module(self, node: ast.Module) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
+    # def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self._generic_scope_visit(node)
-        return node
+    # def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self._generic_scope_visit(node)
-        return node
+    # def visit_For(self, node: ast.For) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
-    def _generic_scope_visit(self, node):
-        curr_state = dict(self._stack_var_map)
+    # def visit_With(self, node: ast.With) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
-        for n in node.body:
-            self.visit(n)
+    # def visit_If(self, node: ast.If) -> Any:
+    #     self._generic_scope_visit(node)
+    #     return node
 
-        # Assign variables to field in function node
-        for (id, py_type) in self._stack_var_map.items():
-            # if not (var := node.scopes.find(id)):
-            #     node.scopes[-1].vars.append(ast.Name(id=py_type))
-            if var := node.scopes.find(id):
-                var.annotation = py_type
+    # def _generic_scope_visit(self, node):
+    #     curr_state = dict(self._stack_var_map)
 
-        # Returns to state before visiting the function body
-        # This accounts for nested functions
-        self._stack_var_map = curr_state
+    #     self.generic_visit(node)
 
-    def visit_Return(self, node: ast.Return):
-        self.generic_visit(node)
-        new_type_str = (
-            get_id(node.value.annotation) if hasattr(node.value, "annotation") else None
-        )
+    #     # Assign variables to field in function node
+    #     # for (id, py_type) in self._stack_var_map.items():
+    #     #     if id and (var := node.scopes.find(id)):
+    #     #         print("BEFORE: " + get_ann_repr(var.annotation))
+    #     #         var.annotation = py_type
+    #     #         print("AFTER: " + get_ann_repr(var.annotation))
 
-        # In Julia, the last node is a return
-        if not new_type_str:
-            func_node = find_node_by_type(ast.FunctionDef, node.scopes)
-            last_node = func_node.body[-1]
-            if ann := getattr(last_node, "annotation", None) and \
-                    not isinstance(last_node, ast.Return):
-                setattr(func_node.returns, "id", ann)
-                return node
-        return node
+    #     # Returns to state before visiting the body
+    #     self._stack_var_map = curr_state
+
+    ##############################
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
@@ -111,16 +111,16 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if annotation is None:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
-                node_id = get_id(node.value.func)
-                try:
-                    func_node = node.scopes.find(node_id)
-                    id_type = getattr(func_node, "annotation", None)
-                    if id_type:
+                typename = self._clike._generic_typename_from_annotation(node.value)
+                if typename:
+                    annotation = typename
+                else:
+                    func_node = node.scopes.find(get_id(node.value.func))
+                    if id_type := getattr(func_node, "annotation", None):
                         annotation = id_type
                     else:
                         return node
-                except Exception:
-                    return node
+
             elif isinstance(node.value, ast.Name):
                 # Try to get related assignment
                 assign_ann = self._find_annotated_assign(node.value)
@@ -139,7 +139,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if (not target_has_annotation or inferred):
-                self._add_annotation(node, annotation, target)
+                self._verify_annotation(node, annotation, target)
 
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
@@ -156,24 +156,24 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
-        node.target.annotation = node.annotation
-        target = node.target
-        target_typename = self._clike._typename_from_annotation(target)
-        if target_typename in self.FIXED_WIDTH_INTS_NAME:
-            self.has_fixed_width_ints = True
-        annotation = get_inferred_type(node.value)
-        self._add_annotation(node, node.annotation, target)
+        # node.target.annotation = node.annotation
+        # target = node.target
+        # target_typename = self._clike._typename_from_annotation(target)
+        # if target_typename in self.FIXED_WIDTH_INTS_NAME:
+        #     self.has_fixed_width_ints = True
+        # annotation = get_inferred_type(node.value)
+        self._verify_annotation(node, node.annotation, node.target, inferred=False)
     
-        value_typename = self._clike._generic_typename_from_type_node(annotation)
-        target_class = class_for_typename(target_typename, None)
-        value_class = class_for_typename(value_typename, None)
-        if (
-            not is_compatible(target_class, value_class, target, node.value)
-            and target_class is not None
-        ):
-            raise AstIncompatibleAssign(
-                f"{target_class} incompatible with {value_class}", node
-            )
+        # value_typename = self._clike._generic_typename_from_type_node(annotation)
+        # target_class = class_for_typename(target_typename, None)
+        # value_class = class_for_typename(value_typename, None)
+        # if (
+        #     not is_compatible(target_class, value_class, target, node.value)
+        #     and target_class is not None
+        # ):
+        #     raise AstIncompatibleAssign(
+        #         f"{target_class} incompatible with {value_class}", node
+        #     )
 
         return node
 
@@ -265,12 +265,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     #     var_value = get_str_repr(node.context_expr)
 
     #     if ann := getattr(node.context_expr, "annotation", None):
-    #         self._add_annotation(node, ann, node.optional_vars)
+    #         self._verify_annotation(node, ann, node.optional_vars)
     #     else:
     #         id_type = self._clike._generic_typename_from_type_node(var_value)
     #         if id_type != DEFAULT and id_type is not None:
     #             annotation = ast.Name(id=var_value)
-    #             self._add_annotation(node, annotation, node.optional_vars)
+    #             self._verify_annotation(node, annotation, node.optional_vars)
 
     #     return node
 
@@ -278,17 +278,22 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ################# Inference Methods ##################
     ######################################################
 
-    def _add_annotation(self, node, annotation, target):
+    def _verify_annotation(self, node, annotation, target, inferred = True):
+        annotation.is_inferred = inferred
         var_name = get_id(target)
         ann_str = get_ann_repr(annotation)
-        map_ann_str = get_ann_repr(self._stack_var_map[var_name]) \
-            if var_name in self._stack_var_map else None
-        if(map_ann_str and ann_str != self._default_type and ann_str != map_ann_str):
+        map_ann = node.scopes.find(var_name) 
+        # map_ann = self._stack_var_map[var_name] \
+            # if var_name in self._stack_var_map else None
+        map_ann_str = get_ann_repr(map_ann)
+        if(map_ann_str and getattr(map_ann, "is_inferred", True) == False and ann_str != self._default_type \
+                and map_ann_str != self._default_type and ann_str != map_ann_str):
             raise AstIncompatibleAssign(
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
                 node
             )
-        self._stack_var_map[var_name] = annotation
+        # if var_name and ann_str != self._default_type:
+        #     self._stack_var_map[var_name] = annotation
 
     def _assign_annotation(self, node, *defaults):
         if isinstance(node, ast.BinOp):
@@ -296,12 +301,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             left_default = defaults[0]
             right_default = defaults[1]
 
-            left_ann = self._stack_var_map[get_id(node.left)] \
-                if get_id(node.left) in self._stack_var_map \
-                else None
-            right_ann = self._stack_var_map[get_id(node.right)] \
-                if get_id(node.right) in self._stack_var_map \
-                else None
+            # left_ann = self._stack_var_map[get_id(node.left)] \
+            #     if get_id(node.left) in self._stack_var_map \
+            #     else None
+            # right_ann = self._stack_var_map[get_id(node.right)] \
+            #     if get_id(node.right) in self._stack_var_map \
+            #     else None
+
+            left_ann = node.scopes.find(get_id(node.left))
+            right_ann = node.scopes.find(get_id(node.right)) \
 
             # Assign left and right annotations
             node.left.annotation = (left_ann

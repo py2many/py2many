@@ -1,17 +1,13 @@
 using ResumableFunctions
-function generator1()
-    Channel() do ch_generator1
-        for i in (0:2)
-            put!(ch_generator1, i)
-        end
+@resumable function generator1()
+    for i in (0:2)
+        @yield i
     end
 end
 
-function generator2()
-    Channel() do ch_generator2
-        for j in (3:4)
-            put!(ch_generator2, j)
-        end
+@resumable function generator2()
+    for j in (3:4)
+        @yield j
     end
 end
 

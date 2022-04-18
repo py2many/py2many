@@ -1,4 +1,4 @@
-# @use_continuables # for PyJL
+@resumable # For PyJL
 def generator_func():
     num = 1
     yield num
@@ -7,11 +7,13 @@ def generator_func():
     num = 10
     yield num
 
+@resumable
 def generator_func_loop():
     num = 0
     for n in range(0, 3):
         yield num + n
 
+@resumable
 def generator_func_loop_using_var():
     num = 0
     end = 2
@@ -19,21 +21,25 @@ def generator_func_loop_using_var():
     for n in range(0, end):
         yield num + n
 
+@resumable
 def generator_func_nested_loop():
     for n in range(0, 2):
         for i in range(0, 2):
             yield (n,i)
 
+@resumable
 def file_reader(file_name:str):
     for file_row in open(file_name, "r"):
         yield file_row
 
+@resumable
 def testgen():
     print("first")
     yield 1
     print("second")
     yield 2
 
+@resumable
 def fib():
     a = 0
     b = 1
@@ -42,6 +48,7 @@ def fib():
         a, b = b, a+b
 
 class TestClass:
+    @resumable
     def generator_func(self):
         num = 123
         yield num

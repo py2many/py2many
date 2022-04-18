@@ -34,7 +34,7 @@ COMPLEMENTS = Dict(
     b"n" => b"N",
 )
 COMMENT = ord(">")
-function reverse_sequence(sequence)
+function reverse_sequence(sequence)::Vector{Int8}
     chunk = Vector{UInt8}()
     complemented = replace!(COMPLEMENTS, b"\n")
     seq_len = length(complemented)
