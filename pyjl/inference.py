@@ -3,7 +3,7 @@ from ctypes import c_int64
 
 from typing import Any
 
-from py2many.inference import InferTypesTransformer, is_compatible
+from py2many.inference import InferTypesTransformer, get_inferred_type, is_compatible
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.clike import class_for_typename
@@ -156,14 +156,14 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
-
-        ann = getattr(node.value, "annotation", None)
+        node.target.annotation = node.annotation
         target = node.target
-        annotation = ann if ann else getattr(node, "annotation", None)
-        node.annotation = annotation
-        self._add_annotation(node, annotation, target)
-
         target_typename = self._clike._typename_from_annotation(target)
+        if target_typename in self.FIXED_WIDTH_INTS_NAME:
+            self.has_fixed_width_ints = True
+        annotation = get_inferred_type(node.value)
+        self._add_annotation(node, node.annotation, target)
+    
         value_typename = self._clike._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
         value_class = class_for_typename(value_typename, None)
@@ -174,6 +174,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstIncompatibleAssign(
                 f"{target_class} incompatible with {value_class}", node
             )
+
         return node
 
     def visit_BinOp(self, node):
