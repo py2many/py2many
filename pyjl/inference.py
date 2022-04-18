@@ -57,49 +57,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         if left_id == "float" or right_id == "float":
             return "float"
         return left_id if left_idx > right_idx else right_id
-        
-    ##############################
-    # Scopes
-    # def visit_Module(self, node: ast.Module) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
 
-    # def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
-
-    # def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
-
-    # def visit_For(self, node: ast.For) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
-
-    # def visit_With(self, node: ast.With) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
-
-    # def visit_If(self, node: ast.If) -> Any:
-    #     self._generic_scope_visit(node)
-    #     return node
-
-    # def _generic_scope_visit(self, node):
-    #     curr_state = dict(self._stack_var_map)
-
-    #     self.generic_visit(node)
-
-    #     # Assign variables to field in function node
-    #     # for (id, py_type) in self._stack_var_map.items():
-    #     #     if id and (var := node.scopes.find(id)):
-    #     #         print("BEFORE: " + get_ann_repr(var.annotation))
-    #     #         var.annotation = py_type
-    #     #         print("AFTER: " + get_ann_repr(var.annotation))
-
-    #     # Returns to state before visiting the body
-    #     self._stack_var_map = curr_state
-
-    ##############################
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
@@ -156,25 +114,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
-        # node.target.annotation = node.annotation
-        # target = node.target
-        # target_typename = self._clike._typename_from_annotation(target)
-        # if target_typename in self.FIXED_WIDTH_INTS_NAME:
-        #     self.has_fixed_width_ints = True
-        # annotation = get_inferred_type(node.value)
         self._verify_annotation(node, node.annotation, node.target, inferred=False)
-    
-        # value_typename = self._clike._generic_typename_from_type_node(annotation)
-        # target_class = class_for_typename(target_typename, None)
-        # value_class = class_for_typename(value_typename, None)
-        # if (
-        #     not is_compatible(target_class, value_class, target, node.value)
-        #     and target_class is not None
-        # ):
-        #     raise AstIncompatibleAssign(
-        #         f"{target_class} incompatible with {value_class}", node
-        #     )
-
         return node
 
     def visit_BinOp(self, node):
@@ -260,19 +200,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-    # def visit_withitem(self, node: ast.withitem) -> Any:
-    #     self.generic_visit(node)
-    #     var_value = get_str_repr(node.context_expr)
-
-    #     if ann := getattr(node.context_expr, "annotation", None):
-    #         self._verify_annotation(node, ann, node.optional_vars)
-    #     else:
-    #         id_type = self._clike._generic_typename_from_type_node(var_value)
-    #         if id_type != DEFAULT and id_type is not None:
-    #             annotation = ast.Name(id=var_value)
-    #             self._verify_annotation(node, annotation, node.optional_vars)
-
-    #     return node
 
     ######################################################
     ################# Inference Methods ##################
@@ -282,9 +209,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         annotation.is_inferred = inferred
         var_name = get_id(target)
         ann_str = get_ann_repr(annotation)
-        map_ann = node.scopes.find(var_name) 
-        # map_ann = self._stack_var_map[var_name] \
-            # if var_name in self._stack_var_map else None
+        map_ann = node.scopes.find(var_name)
         map_ann_str = get_ann_repr(map_ann)
         if(map_ann_str and getattr(map_ann, "is_inferred", True) == False and ann_str != self._default_type \
                 and map_ann_str != self._default_type and ann_str != map_ann_str):
@@ -292,21 +217,12 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
                 node
             )
-        # if var_name and ann_str != self._default_type:
-        #     self._stack_var_map[var_name] = annotation
 
     def _assign_annotation(self, node, *defaults):
         if isinstance(node, ast.BinOp):
             # Get default values
             left_default = defaults[0]
             right_default = defaults[1]
-
-            # left_ann = self._stack_var_map[get_id(node.left)] \
-            #     if get_id(node.left) in self._stack_var_map \
-            #     else None
-            # right_ann = self._stack_var_map[get_id(node.right)] \
-            #     if get_id(node.right) in self._stack_var_map \
-            #     else None
 
             left_ann = node.scopes.find(get_id(node.left))
             right_ann = node.scopes.find(get_id(node.right)) \
