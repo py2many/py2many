@@ -31,7 +31,7 @@ end
 
 function mult_list_and_int()::Vector
     a::Vector{Int64} = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
     end
     return repeat(a, 2)
@@ -47,7 +47,7 @@ end
 function add_two_lists()
     a::Vector{Int64} = []
     b::Vector{Int64} = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
         push!(b, i)
     end

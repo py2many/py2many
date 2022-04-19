@@ -1,12 +1,12 @@
 using ResumableFunctions
 @resumable function generator1()
-    for i in (0:2)
+    for i = 0:2
         @yield i
     end
 end
 
 @resumable function generator2()
-    for j in (3:4)
+    for j = 3:4
         @yield j
     end
 end

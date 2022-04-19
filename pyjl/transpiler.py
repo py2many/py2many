@@ -619,18 +619,19 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
 
-        val = node.scopes.find(value)
-        annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
-        if annotation and not annotation.startswith("Dict") and \
-                not isinstance(node.slice, ast.Slice):
-            # Shortcut if index is a numeric value
-            if isinstance(index, str) and index.lstrip("-").isnumeric():
-                return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
-            if isinstance(index, int) or isinstance(index, float):
-                return f"{value}[{index + 1}]"
+        if not getattr(node, "range_optimization", None):
+            val = node.scopes.find(value)
+            annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
+            if annotation and not annotation.startswith("Dict") and \
+                    not isinstance(node.slice, ast.Slice):
+                # Shortcut if index is a numeric value
+                if isinstance(index, str) and index.lstrip("-").isnumeric():
+                    return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
+                if isinstance(index, int) or isinstance(index, float):
+                    return f"{value}[{index + 1}]"
 
-            # Default, just add 1
-            return f"{value}[{index} + 1]"
+                # Default, just add 1
+                return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
 
@@ -662,13 +663,11 @@ class JuliaTranspiler(CLikeTranspiler):
             if step == "-1":
                 if not node.lower and not node.upper:
                     return "end:-1:begin"
-                elif not node.upper:
+                if not node.upper:
                     if lower == "end":
                         return f"end:-1:begin"
                     return f"end:-1:{lower}"
-                return f"{upper}:{step}:{lower}"
-            else:
-               return f"{lower}:{step}:{upper}"
+            return f"{upper}:{step}:{lower}"
 
         return f"{lower}:{upper}"
 

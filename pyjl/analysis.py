@@ -4,17 +4,34 @@ from distutils.log import warn
 import logging
 from typing import Any
 
+from libcst import Call
+
 from py2many.ast_helpers import get_id
 from py2many.tracer import find_in_scope
 
 logger = logging.Logger("pyjl")
 
-def analyse_loops(node, extension=False):
-    visitor = JuliaLoopAnalysis()
+def analyse_loop_scope(node, extension=False):
+    visitor = JuliaLoopScopeAnalysis()
     visitor.visit(node)
 
+def optimize_loop_ranges(node, extension=False):
+    visitor = JuliaLoopRangesOptimization()
+    visitor.visit(node)
 
-class JuliaLoopAnalysis(ast.NodeTransformer):
+def get_target(target):
+    if id := get_id(target):
+        return {id}
+    elif isinstance(target, ast.Tuple) or \
+            isinstance(target, ast.List):
+        set_elems = set()
+        for e in target.elts:
+            set_elems.update(get_target(e))
+        return set_elems
+
+    return set()
+
+class JuliaLoopScopeAnalysis(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._loop_targets = set()
@@ -26,6 +43,7 @@ class JuliaLoopAnalysis(ast.NodeTransformer):
         self._targets_out_of_scope = set()
         self._generic_scope_analysis(node)
 
+        # TODO: Should messages be separated?
         if len(self._targets_out_of_scope) == 1:
             if target := self._targets_out_of_scope.pop():
                 warn(f"\033[93mWARNING { node.__file__.name}: Loop target variable(s)"
@@ -76,6 +94,7 @@ class JuliaLoopAnalysis(ast.NodeTransformer):
             self._targets_out_of_scope.add(node)
         return node
 
+
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         self.generic_visit(node)
         if not isinstance(node.slice, ast.Slice) \
@@ -90,7 +109,7 @@ class JuliaLoopAnalysis(ast.NodeTransformer):
         if not self._loop_scope:
             # Verify pre-condition
             for t in node.targets:
-                targets = self._get_target(t)
+                targets = get_target(t)
                 self._assign_targets.update(targets)                    
 
         return node
@@ -122,7 +141,7 @@ class JuliaLoopAnalysis(ast.NodeTransformer):
         return node
 
     def visit_For(self, node: ast.For) -> Any:
-        targets = self._get_target(node.target)
+        targets = get_target(node.target)
         self._loop_targets.update(targets)
         self._loop_scope = True
 
@@ -137,14 +156,78 @@ class JuliaLoopAnalysis(ast.NodeTransformer):
 
         return node
 
-    def _get_target(self, target):
-        if id := get_id(target):
-            return {id}
-        elif isinstance(target, ast.Tuple) or \
-                isinstance(target, ast.List):
-            set_elems = set()
-            for e in target.elts:
-                set_elems.update(self._get_target(e))
-            return set_elems
+    
 
-        return set()
+class JuliaLoopRangesOptimization(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        # Analysis phase
+        self._loop_targets = set() 
+        self._range_optimization = True
+        self._is_subscript = False
+        self._loop_scope = False
+        # Marking phase
+        self._marking = False
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        self.generic_visit(node)
+        if not self._marking:
+            if self._loop_scope and not self._is_subscript and \
+                    get_id(node) in self._loop_targets:
+                self._range_optimization = False
+        return node
+
+    def visit_arg(self, node: ast.arg) -> Any:
+        self.generic_visit(node)
+        if not self._marking:
+            if self._loop_scope and not self._is_subscript and \
+                    node.arg in self._loop_targets:
+                self._range_optimization = False
+        return node
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        if self._marking:
+            node.range_optimization = self._range_optimization
+            self.generic_visit(node)
+        else:
+            self._is_subscript = True
+            self.generic_visit(node)
+            self._is_subscript = False
+        return node
+
+    def visit_For(self, node: ast.For) -> Any:
+        # Pre-condition: iter can only be a call to range
+        iter = node.iter
+        if not (isinstance(iter, ast.Call) \
+                and get_id(iter.func) == "range"):
+            return node
+
+        # Analysis Phase
+        if not getattr(node, "is_nested_loop", None):
+            self._range_optimization = True
+            self._loop_scope = True
+
+        targets = get_target(node.target)
+        self._loop_targets.update(targets)
+
+        # Support for nested loops
+        for n in node.body:
+            if isinstance(n, ast.For):
+                n.is_nested_loop = True
+            self.visit(n)
+
+        if not getattr(node, "is_nested_loop", None):
+            self._loop_targets = set()
+            self._loop_scope = False
+
+        if self._range_optimization:
+            # Marking Phase
+            self._marking = True
+            for n in node.body:
+                self.visit(n)
+            self._marking = False
+
+            # Add information to iter
+            iter.range_optimization = True
+
+        return node

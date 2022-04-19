@@ -298,23 +298,40 @@ class JuliaTranspilerPlugins:
         return "NamedTempFile::new()"
 
     def visit_range(t_self, node, vargs: List[str]) -> str:
-        end = vargs[0] if len(vargs) == 1 else vargs[1]
-        if ((isinstance(end, str) and end.lstrip("-").isnumeric())
-                or isinstance(end, int) or isinstance(end, float)):
-            end = int(end) - 1
+        is_number = lambda x: ((isinstance(x, str) 
+                                    and x.lstrip("-").isnumeric())
+                                or isinstance(x, int))
+
+        start = 0
+        stop = 0
+        step = None
+        if len(vargs) == 1:
+            stop = vargs[0]
         else:
-            end += " - 1"
+            start = vargs[0]
+            stop = vargs[1]
+            if len(node.args) == 3:
+                step = vargs[2]
 
-        if len(node.args) == 1:
-            return f"(0:{end})"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}:{end})"
-        elif len(node.args) == 3:
-            return f"({vargs[0]}:{vargs[2]}:{end})"
+        if getattr(node, "range_optimization", False):
+            if is_number(start):
+                start = int(start) + 1
+            else:
+                start = f"{start} + 1"
+        else:
+            if is_number(stop):
+                stop = int(stop) - 1
+            else:
+                stop = f"{stop} - 1"
 
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
+        if step:
+            if step == "-1":
+                # Fails with negative indices other than -1 
+                return f"{stop}:{step}:{start}"
+            return f"{start}:{step}:{stop}"
+
+        return f"{start}:{stop}"
+
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
         # Revisit

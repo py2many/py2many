@@ -39,7 +39,7 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.analysis import analyse_loops
+from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
 from pyjl.rewriters import (
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
@@ -386,7 +386,7 @@ def julia_settings(args, env=os.environ):
         formatter=format_jl,
         indent=None,
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
-        transformers=[infer_julia_types, analyse_loops],
+        transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaSliceRewriter()],
         config_rewriters=[julia_config_rewriter]

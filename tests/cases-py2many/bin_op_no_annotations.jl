@@ -21,7 +21,7 @@ end
 
 function mult_list_and_int()::Vector
     a = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
     end
     return repeat(a, 2)
@@ -30,7 +30,7 @@ end
 function add_two_lists()::Vector
     a = []
     b = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
         push!(b, i)
     end

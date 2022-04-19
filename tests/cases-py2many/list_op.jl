@@ -1,6 +1,6 @@
 function for_with_break()
     arr = []
-    for i in (0:3)
+    for i = 0:3
         if i == 2
             break
         end
@@ -11,7 +11,7 @@ end
 
 function for_with_continue()
     arr = []
-    for i in (0:3)
+    for i = 0:3
         if i == 2
             continue
         end
@@ -22,7 +22,7 @@ end
 
 function for_with_else()
     arr = []
-    for i in (0:3)
+    for i = 0:3
         push!(arr, i)
     end
     @assert(arr == [0, 1, 2, 3, 4])
@@ -56,11 +56,11 @@ end
 
 function loop_range_test()
     arr1 = []
-    for i in (1:9)
+    for i = 1:9
         push!(arr1, i)
     end
     arr2 = []
-    num = (1:11)
+    num = 1:11
     for i in num
         push!(arr2, i)
     end
@@ -87,8 +87,8 @@ end
 function for_cycle_vars()
     seq::Vector = [1, 2, 3, 4, 5]
     seq_copy::Vector = collect(seq)
-    for i in (0:length(seq)-1-1)
-        @assert(seq[i+1] == seq_copy[i+1])
+    for i = 1:length(seq)-1
+        @assert(seq[i] == seq_copy[i])
     end
     complex_list = [([1, 2], 3, 4)]
     for ((a1, a2), b, c) in complex_list
@@ -98,7 +98,7 @@ function for_cycle_vars()
         @assert(c == 4)
         arr = []
         a = 1
-        for j in (0:1)
+        for j = 0:1
             push!(arr, a)
             a += 1
         end

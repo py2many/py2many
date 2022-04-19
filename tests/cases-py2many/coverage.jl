@@ -10,7 +10,7 @@ end
 function indexing()::Int64
     sum = 0
     a::Vector{Int64} = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
         sum += a[i+1]
     end
@@ -33,13 +33,13 @@ function show()
     a2::Float64 = 2.1
     @assert(a2 == 2.1)
     res = []
-    for i in (0:9)
+    for i = 0:9
         push!(res, i)
     end
-    for i in (0:2:9)
+    for i = 0:2:9
         push!(res, i)
     end
-    for i in (1:9)
+    for i = 1:9
         push!(res, i)
     end
     @assert(res == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 2, 4, 6, 8, 1, 2, 3, 4, 5, 6, 7, 8, 9])

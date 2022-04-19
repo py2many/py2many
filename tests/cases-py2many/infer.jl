@@ -16,7 +16,7 @@ end
 
 function mul_list()
     a::Vector = []
-    for i in (0:4)
+    for i = 0:4
         push!(a, i)
     end
     return repeat(a, 2)
@@ -33,7 +33,7 @@ function combinations(array)::Vector
 end
 
 function mul_recvd_list(a::Vector)
-    for i in (0:length(a)-1)
+    for i = 0:length(a)-1
         push!(a, i)
     end
     return repeat(a, 2)
