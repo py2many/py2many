@@ -15,7 +15,7 @@ from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, REMOVE_NESTED, RESUMABLE
-from pyjl.helpers import get_ann_repr, get_variable_name
+from pyjl.helpers import generate_var_name, get_ann_repr
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -497,8 +497,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 dec = parent.parsed_decorators[RESUMABLE]
             lower_yield_from = dec and dec["lower_yield_from"]
             if lower_yield_from:
+                common_loop_vars = ["v", "w", "x", "y", "z"]
                 val = ast.Name(
-                        id = get_variable_name(parent),
+                        id = generate_var_name(parent, common_loop_vars),
                         lineno = node.lineno,
                         col_offset = node.col_offset)
                 new_node = ast.For(
@@ -663,4 +664,30 @@ class JuliaSliceRewriter(ast.NodeTransformer):
                     lineno = node.lineno,
                     col_offset = node.col_offset)
 
+        return node
+
+class ForLoopTargetRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._targets_out_of_scope = set()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._generic_scope_visit(node)
+        return node
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._generic_scope_visit(node)
+        return node
+    
+    def _generic_scope_visit(self, node):
+        self._targets_out_of_scope = set()
+        self.generic_visit(node)
+        if self._targets_out_of_scope:
+            node.body.append()
+    
+    def visit_For(self, node: ast.For) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "targets_out_of_scope", None):
+            self._targets_out_of_scope = node.targets_out_of_scope
+            ast.Assign()
         return node

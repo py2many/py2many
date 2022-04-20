@@ -1,5 +1,7 @@
 # Gets range from for loop
 import ast
+from random import Random
+import random
 import re
 
 from py2many.ast_helpers import get_id
@@ -86,26 +88,54 @@ def get_ann_repr(node, parse_func = None, default = None):
 
     return default
 
-def get_variable_name(scope):
-    common_vars = ["v", "w", "x", "y", "z"]
-    new_var = None
-    for var in common_vars:
-        found = True
-        if isinstance(scope, ast.FunctionDef):
-            for arg in scope.args.args:
-                if arg.arg == var:
-                    found = False
-                    break
-        if found and (body := getattr(scope, "body", None)):
-            for n in body:
-                if isinstance(n, ast.Assign):
-                    for x in n.targets:
-                        if get_id(x) == new_var:
-                            found = False
-                            break
-        if found:
-            new_var = var
+# def get_variable_name(scope):
+#     common_vars = ["v", "w", "x", "y", "z"]
+#     new_var = None
+#     for var in common_vars:
+#         found = True
+#         if isinstance(scope, ast.FunctionDef):
+#             for arg in scope.args.args:
+#                 if arg.arg == var:
+#                     found = False
+#                     break
+#         if found and (body := getattr(scope, "body", None)):
+#             for n in body:
+#                 if isinstance(n, ast.Assign):
+#                     for x in n.targets:
+#                         if get_id(x) == new_var:
+#                             found = False
+#                             break
+#         if found:
+#             new_var = var
+#             break
+
+#     return new_var
+
+# Gets a new name for a variable
+def generate_var_name(node, possible_names: list[str], prefix = None, suffix = None):
+    final_name = None
+    for name in possible_names:
+        final_name = _apply_prefix_and_suffix(name)
+        if not node.scopes.find(final_name):
             break
+        else:
+            final_name = None
 
-    return new_var
+    while not final_name:
+        r = random.randint(100,999)
+        final_name = _apply_prefix_and_suffix(f"{name}_{r}")
+        if not node.scopes.find(final_name):
+            break
+        else:
+            final_name = None
 
+    return final_name
+
+# Applies prefix and suffix
+def _apply_prefix_and_suffix(name: str, prefix, suffix):
+    new_name = name
+    if prefix:
+        new_name = f"{prefix}_{name}"
+    if suffix:
+        new_name = f"{name}_{suffix}"
+    return new_name

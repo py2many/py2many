@@ -4,10 +4,7 @@ from distutils.log import warn
 import logging
 from typing import Any
 
-from libcst import Call
-
 from py2many.ast_helpers import get_id
-from py2many.tracer import find_in_scope
 
 logger = logging.Logger("pyjl")
 
@@ -94,7 +91,6 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
             self._targets_out_of_scope.add(node)
         return node
 
-
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         self.generic_visit(node)
         if not isinstance(node.slice, ast.Slice) \
@@ -153,6 +149,8 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         self.generic_visit(node)
         if not getattr(node, "is_nested_loop", None):
             self._loop_scope = False
+            if self._targets_out_of_scope:
+                node.targets_out_of_scope = self._targets_out_of_scope
 
         return node
 
