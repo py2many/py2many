@@ -6,8 +6,8 @@ using ResumableFunctions
 
 function pixels(y, n, abs)
     Channel() do ch_pixels
-        range7 = Vector{UInt8}((0:6))
-        pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
+        range7 = Vector{UInt8}(0:6)
+        pixel_bits = Vector{UInt8}([128 >> pos for pos = 0:7])
         c1 = 2.0 / float(n)
         c0 = (-1.5 + 1im * y * c1) - 1im
         x = 0
@@ -58,7 +58,7 @@ end
 end
 
 @resumable function compute_rows(n, f)
-    row_jobs = ((y, n) for y in (0:n-1))
+    row_jobs = ((y, n) for y = 0:n-1)
     if length(Sys.cpu_info()) < 2
         for v in map(f, row_jobs)
             @yield v

@@ -17,7 +17,7 @@ function At_sum(u, i)
 end
 
 function multiply_AtAv(u)
-    r = (0:length(u)-1)
+    r = 0:length(u)-1
     tmp = pmap(A_sum, zip(repeat(u), r))
     return pmap(At_sum, zip(repeat(tmp), r))
 end
@@ -25,7 +25,7 @@ end
 function main_func()
     n = 10
     u = repeat([1], n)
-    for _ in (0:9)
+    for _ = 1:10
         v = multiply_AtAv(u)
         u = multiply_AtAv(v)
     end

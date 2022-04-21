@@ -42,8 +42,8 @@ function reverse_sequence(sequence)::Vector{Int8}
     if last_line_len != 0
         chunk += b"\n" + complemented[begin:last_line_len]
     end
-    for i in (last_line_len:60:seq_len-1)
-        chunk += b"\n" + complemented[(i+1):i+60]
+    for i = last_line_len+1:60:seq_len
+        chunk += b"\n" + complemented[i:i+60]
     end
     return chunk[end:-1:begin]
 end

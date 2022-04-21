@@ -1,11 +1,12 @@
+
 function sieve(n)::Int64
     primes = repeat([true], (n + 1))
     counter = 0
-    for i in (2:n-1)
-        if primes[i+1]
+    for i = 3:n
+        if primes[i]
             counter = counter + 1
-            for j in (i*i:i:n-1)
-                primes[j+1] = false
+            for j = i*i+1:i:n
+                primes[j] = false
             end
         end
     end

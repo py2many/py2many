@@ -84,7 +84,7 @@ function count_frequencies(sequence, reading_frames, i, j)
     if length(short_frame_frequences) != 0
         bits = 0
         if i == 0
-            for k in (i:(i+frame)-1-1)
+            for k = i+1:(i+frame)-1
                 bits = bits * 4 + sequence[k+1]
                 for (t, (f, m)) in enumerate(short_frame_frequences)
                     if ((k - i) + 1) >= frames[t+1]
@@ -93,13 +93,13 @@ function count_frequencies(sequence, reading_frames, i, j)
                 end
             end
         else
-            for k in ((i-frame)+1:i-1)
-                bits = bits * 4 + sequence[k+1]
+            for k = (i-frame)+1+1:i
+                bits = bits * 4 + sequence[k]
             end
         end
         for byte in sequence[(k+1+1):j]
             bits = (bits * 4 + byte) & mask
-            frequences[bits+1] += 1
+            frequences[bits] += 1
             for (f, m) in short_frame_frequences
                 f[bits&m+1] += 1
             end
@@ -170,8 +170,8 @@ function main_func()
     function str_to_bits(text)::Int64
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
-        for k in (0:length(buffer)-1)
-            bits = bits * 4 + buffer[k+1]
+        for k = 1:length(buffer)
+            bits = bits * 4 + buffer[k]
         end
         return bits
     end
@@ -196,10 +196,10 @@ function main_func()
     else
         n = 1
     end
-    partitions = [length(sequence) * i ÷ n for i in (0:n+1-1)]
+    partitions = [length(sequence) * i ÷ n for i = 0:n+1-1]
     count_jobs = [
         (sequence, reading_frames, partitions[i+1], partitions[i+1+1]) for
-        i in (0:length(partitions)-1-1)
+        i = 0:length(partitions)-1-1
     ]
     if n == 1
         results = collect(chain(starmap(count_frequencies, count_jobs)...))

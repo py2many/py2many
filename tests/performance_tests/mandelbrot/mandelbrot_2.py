@@ -7,4 +7,4 @@ def mandelbrot(limit, c):
     return i+1
 
 if __name__ == "__main__":
-    mandelbrot(1000000, .2+.3j)
+    assert mandelbrot(1000000, .2+.3j) == 1000001

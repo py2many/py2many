@@ -5,8 +5,8 @@
 
 function pixels(y, n, abs)
     Channel() do ch_pixels
-        range7 = Vector{UInt8}((0:6))
-        pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
+        range7 = Vector{UInt8}(0:6)
+        pixel_bits = Vector{UInt8}([128 >> pos for pos = 0:7])
         c1 = 2.0 / float(n)
         c0 = (-1.5 + 1im * y * c1) - 1im
         x = 0
@@ -39,7 +39,7 @@ function compute_row(p)::Tuple
 end
 
 function compute_rows(n, f)
-    row_jobs = ((y, n) for y in (0:n-1))
+    row_jobs = ((y, n) for y = 0:n-1)
     # Unsupported
     @yield_from map(f, row_jobs)
 end

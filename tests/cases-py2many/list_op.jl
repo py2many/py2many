@@ -98,7 +98,7 @@ function for_cycle_vars()
         @assert(c == 4)
         arr = []
         a = 1
-        for j = 0:1
+        for j = 1:2
             push!(arr, a)
             a += 1
         end

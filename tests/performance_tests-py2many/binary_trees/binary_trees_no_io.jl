@@ -19,7 +19,7 @@ function main_func(requested_max_depth, min_depth = 4)
     push!(io_lst, "stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")
     long_lived_tree = make_tree(max_depth)
     mmd = max_depth + min_depth
-    for test_depth in (min_depth:2:stretch_depth-1)
+    for test_depth = min_depth:2:stretch_depth-1
         tree_count = 2^(mmd - test_depth)
         check_sum = sum(map(run, repeat([(test_depth,)...], tree_count)))
         push!(io_lst, "$(tree_count)\t trees of depth $(test_depth)\t check: $(check_sum)")

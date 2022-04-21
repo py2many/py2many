@@ -649,13 +649,14 @@ class JuliaTranspiler(CLikeTranspiler):
         # Julia array indices start at 1
         if lower == -1 or lower == "-1":
             lower = "end"
-        elif isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
-            lower = f"{(int(lower) + 1)}"
-        elif getattr(node.lower, "splice_increment", None):
-            # From JuliaAugAssignRewriter
-            lower = f"({lower} + 2)"
-        elif lower != "begin":
-            lower = f"({lower} + 1)"
+        elif not getattr(node, "range_optimization", None):
+            if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
+                lower = f"{(int(lower) + 1)}"
+            elif getattr(node.lower, "splice_increment", None):
+                # From JuliaAugAssignRewriter
+                lower = f"({lower} + 2)"
+            elif lower != "begin":
+                lower = f"({lower} + 1)"
 
         if node.step:
             step = self.visit(node.step)

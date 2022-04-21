@@ -115,7 +115,7 @@ def get_ann_repr(node, parse_func = None, default = None):
 def generate_var_name(node, possible_names: list[str], prefix = None, suffix = None):
     final_name = None
     for name in possible_names:
-        final_name = _apply_prefix_and_suffix(name)
+        final_name = _apply_prefix_and_suffix(name, prefix, suffix)
         if not node.scopes.find(final_name):
             break
         else:
@@ -123,7 +123,7 @@ def generate_var_name(node, possible_names: list[str], prefix = None, suffix = N
 
     while not final_name:
         r = random.randint(100,999)
-        final_name = _apply_prefix_and_suffix(f"{name}_{r}")
+        final_name = _apply_prefix_and_suffix(f"{name}_{r}", prefix, suffix)
         if not node.scopes.find(final_name):
             break
         else:

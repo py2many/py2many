@@ -5,12 +5,12 @@ using Distributed
 
 function permutations(n, start, size)
     Channel() do ch_permutations
-        p = Vector{UInt8}((0:n-1))
+        p = Vector{UInt8}(0:n-1)
         count = Vector{UInt8}(n)
         remainder = start
-        for v in (n-1:-1:-1)
+        for v = -1:-1:n-1
             count[v+1], remainder = div(remainder)
-            for _ in (0:count[v+1]-1)
+            for _ = 1:count[v+1]
                 p[begin:v], p[v+1] = (p[2:v+1], p[1])
             end
         end
@@ -20,10 +20,10 @@ function permutations(n, start, size)
             put!(ch_permutations, p[begin:end])
         else
             rotation_swaps = [nothing] * n
-            for i in (1:n-1)
-                r = collect((0:n-1))
-                for v in (1:i+1-1)
-                    r[begin:v], r[v+1] = (r[2:v+1], r[1])
+            for i = 2:n
+                r = collect(0:n-1)
+                for v = 2:i+1
+                    r[begin:v], r[v] = (r[1:v+1], r[0])
                 end
                 swaps = []
                 for (dst, src) in enumerate(r)
@@ -96,7 +96,7 @@ function fannkuch(n)
             task_count = 1
         end
         @assert((task_size % 2) == 0)
-        task_args = [(n, i * task_size, task_size) for i in (0:task_count-1)]
+        task_args = [(n, i * task_size, task_size) for i = 0:task_count-1]
         if task_count > 1
             default_worker_pool() do pool
                 checksums, maximums = zip(pmap(task, task_args)...)

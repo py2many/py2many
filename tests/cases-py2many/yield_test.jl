@@ -26,7 +26,7 @@ end
 end
 
 @resumable function generator_func_nested_loop()
-    for n = 0:1
+    for n = 1:2
         for i = 0:1
             @yield (n, i)
         end

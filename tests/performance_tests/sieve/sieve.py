@@ -1,3 +1,5 @@
+from time import perf_counter 
+
 def sieve(n):
     primes = [True] * (n+1)
     counter = 0

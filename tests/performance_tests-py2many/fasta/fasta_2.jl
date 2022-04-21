@@ -42,10 +42,10 @@ function write_lines(
     i = 0
     blocks = ((n - width) ÷ width) ÷ lines_per_block
     if blocks
-        for _ in (0:blocks-1)
+        for _ = 1:blocks
             output = Vector{UInt8}()
-            for i in (i:width:i+width*lines_per_block-1)
-                output += sequence[(i+1):i+width] + newline
+            for i = i+1:width:i+width*lines_per_block
+                output += sequence[i:i+width] + newline
             end
             if table
                 write(translate(output, table))
@@ -56,8 +56,8 @@ function write_lines(
     end
     output = Vector{UInt8}()
     if i < (n - width)
-        for i in (i:width:n-width-1)
-            output += sequence[(i+1):i+width] + newline
+        for i = i+1:width:n-width
+            output += sequence[i:i+width] + newline
         end
     end
     output += sequence[(i+1):n] + newline
@@ -73,7 +73,7 @@ function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
     probabilities = tuple(accumulate((p * factor for (_, p) in alphabet)))
     table = maketrans(
         bytearray,
-        bytes(chain((0:length(alphabet)-1), [255])),
+        bytes(chain(0:length(alphabet)-1, [255])),
         bytes(chain((ord(c) for (c, _) in alphabet), [10])),
     )
     return (probabilities, table)
@@ -170,7 +170,7 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
     else
         pre_seed, post_seed, pre_write, post_write = locks
         m = n > (width * 15) ? (length(Sys.cpu_info()) * 3) : (1)
-        partitions = [(n ÷ width * m) * width * i for i in (1:m-1)]
+        partitions = [(n ÷ width * m) * width * i for i = 1:m-1]
         processes = []
         pre = pre_write
         lock_pair() do

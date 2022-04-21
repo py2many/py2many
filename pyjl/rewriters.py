@@ -666,10 +666,10 @@ class JuliaSliceRewriter(ast.NodeTransformer):
 
         return node
 
+# Should only operate depending on a flag
 class ForLoopTargetRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._targets_out_of_scope = set()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._generic_scope_visit(node)
@@ -680,14 +680,38 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
         return node
     
     def _generic_scope_visit(self, node):
-        self._targets_out_of_scope = set()
-        self.generic_visit(node)
-        if self._targets_out_of_scope:
-            node.body.append()
-    
-    def visit_For(self, node: ast.For) -> Any:
-        self.generic_visit(node)
-        if getattr(node, "targets_out_of_scope", None):
-            self._targets_out_of_scope = node.targets_out_of_scope
-            ast.Assign()
+        body = []
+        for n in node.body:
+            self.visit(n)
+            if isinstance(n, ast.For):
+                if getattr(node, "targets_out_of_scope", None):
+                    target_id = get_id(n.target)
+                    annotation = getattr(n.scopes.find(n.target), "annotation", None)
+                    target = ast.Name(
+                                id = target_id,
+                                annotation = annotation)
+                    assign = ast.Assign(
+                        targets=[target],
+                        value = ast.Constant(value = None),
+                        # annotation = ast.Name(id= "int"),
+                        lineno = n.lineno - 1,
+                        col_offset = n.col_offset)
+                    body.append(assign)
+                    new_loop_id = f"_{target_id}"
+                    new_var_assign = ast.Assign(
+                        targets=[target],
+                        value = ast.Name(
+                            id = new_loop_id,
+                            annotation = annotation),
+                        # annotation = annotation,
+                        lineno = n.lineno + 1,
+                        col_offset = n.col_offset)
+                    n.target.id = new_loop_id
+                    n.body.insert(0, new_var_assign)
+
+            body.append(n)
+            
+        # Update node body
+        node.body = body
+        
         return node

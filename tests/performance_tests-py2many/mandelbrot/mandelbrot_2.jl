@@ -1,6 +1,8 @@
 function mandelbrot(limit, c)::Int64
     z = 0 + 0im
-    for i in (0:limit+1-1)
+    i = nothing
+    for _i = 0:limit+1-1
+        i = _i
         if abs(z) > 2
             return i
         end
@@ -10,7 +12,7 @@ function mandelbrot(limit, c)::Int64
 end
 
 function main()
-    mandelbrot(1000000, 0.2 + 0.3im)
+    @assert(mandelbrot(1000000, 0.2 + 0.3im) == 1000001)
 end
 
 main()
