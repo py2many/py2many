@@ -112,8 +112,7 @@ function main_func(n, ref = "sun")
 end
 
 function main()
-    main_func(10)
-    # main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
 
 main()

@@ -254,6 +254,9 @@ class JuliaTranspilerPlugins:
         maybe_main = "\nmain()" if node.is_python_main else ""
         return f"@resumable {funcdef}\n{body}\nend\n{maybe_main}"
 
+    def visit_offsetArrays(t_self, node, decorator):
+        t_self._usings.add("OffsetArrays")
+
     def visit_async_ann(self, node, decorator):
         return ""
 
@@ -313,7 +316,8 @@ class JuliaTranspilerPlugins:
             if len(node.args) == 3:
                 step = vargs[2]
 
-        if getattr(node, "range_optimization", False):
+        if getattr(node, "range_optimization", False) and \
+                not getattr(node, "using_offset_arrays", False):
             if is_number(start):
                 start = int(start) + 1
             else:
@@ -617,7 +621,8 @@ DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
     "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
-    "resumable": JuliaTranspilerPlugins.visit_resumables
+    "resumable": JuliaTranspilerPlugins.visit_resumables,
+    "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays
 }
 
 CLASS_DISPATCH_TABLE = {

@@ -619,7 +619,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
 
-        if not getattr(node, "range_optimization", None):
+        if not getattr(node, "range_optimization", None) and \
+                not getattr(node, "using_offset_arrays", None):
             val = node.scopes.find(value)
             annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
             if annotation and not annotation.startswith("Dict") and \
@@ -649,7 +650,8 @@ class JuliaTranspiler(CLikeTranspiler):
         # Julia array indices start at 1
         if lower == -1 or lower == "-1":
             lower = "end"
-        elif not getattr(node, "range_optimization", None):
+        elif not getattr(node, "range_optimization", None) and \
+                not getattr(node, "using_offset_arrays", None):
             if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
                 lower = f"{(int(lower) + 1)}"
             elif getattr(node.lower, "splice_increment", None):
@@ -977,3 +979,15 @@ class JuliaTranspiler(CLikeTranspiler):
                 new({decls_str})
             end"""
         return f"{struct_name}({args_str}) = new({decls_str})"
+
+    def visit_LetStmt(self, node: juliaAst.LetStmt) -> Any:
+        args = [self.visit(arg) for arg in node.args]
+        args_str = ", ".join(args)
+
+        # Visit let body
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+
+        return f"let {args_str}\n{body}\nend"

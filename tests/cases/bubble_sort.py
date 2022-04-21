@@ -2,7 +2,7 @@
 
 from typing import List
 
-
+# @offset_arrays # For PyJL
 def bubble_sort(seq: List[int]) -> List[int]:
     L = len(seq)
     for _ in range(L):

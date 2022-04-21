@@ -48,6 +48,7 @@ from pyjl.rewriters import (
     JuliaGeneratorRewriter,
     JuliaConditionRewriter, 
     JuliaMethodCallRewriter,
+    JuliaOffsetArrayRewriter,
     JuliaSliceRewriter,
     julia_config_rewriter
 )
@@ -390,7 +391,7 @@ def julia_settings(args, env=os.environ):
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaSliceRewriter(), 
-            ForLoopTargetRewriter()],
+            ForLoopTargetRewriter(), JuliaOffsetArrayRewriter()],
         config_rewriters=[julia_config_rewriter]
     )
 

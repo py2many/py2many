@@ -1,5 +1,4 @@
-from time import perf_counter 
-
+# @offset_arrays # For PyJL
 def sieve(n):
     primes = [True] * (n+1)
     counter = 0

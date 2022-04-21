@@ -1,4 +1,3 @@
-
 function sieve(n)::Int64
     primes = repeat([true], (n + 1))
     counter = 0

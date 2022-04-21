@@ -25,6 +25,11 @@ class Constructor(stmt):
     body: list[expr]
     ctx: expr_context
 
+class LetStmt(stmt):
+    args: expr
+    body: list[expr]
+    ctx: expr_context
+
 ######################################
 ############### Parser ###############
 ######################################
@@ -39,6 +44,12 @@ class JuliaNodeVisitor(NodeVisitor):
         return visitor(node)
 
     def visit_Constructor(self, node: Constructor) -> Any:
+        """Visit Julia constructor"""
+        method = 'visit_' + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        return visitor(node)
+
+    def visit_LetStmt(self, node: LetStmt) -> Any:
         """Visit Julia constructor"""
         method = 'visit_' + node.__class__.__name__
         visitor = getattr(self, method, self.generic_visit)
