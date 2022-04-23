@@ -105,6 +105,7 @@ py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comme
 - __typpete__: Use typpete for inference. The default is `False`
 - __project__: Create a project when using directory mode. The default is `True`
 - __expected__: Location of output files to compare. Can either be a directory containing the expected file or a file. The file must have the same name as the input file.
+- __input-config__: Input configuration files for the transpiler. They can be usd to add external annotations to the Python source code or inject flags for the transpiler
 
 ### Dependencies
 Please install the following dependencies before running Py2Many:

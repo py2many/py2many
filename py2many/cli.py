@@ -15,7 +15,7 @@ from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
 
-from py2many.input_configuration import ConfigFileHandler, parse_input_configurations
+from py2many.input_configuration import config_rewriters, parse_input_configurations
 
 
 from .analysis import add_imports
@@ -40,7 +40,6 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.config_parser import julia_config_parser
 from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
 from pyjl.rewriters import (
     ForLoopTargetRewriter,
@@ -131,7 +130,6 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
-    config_parser = settings.config_parser
     tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
@@ -162,12 +160,18 @@ def _transpile(
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
+
+    # Handle input configuration files
+    config_handler = None
+    if args.config:
+        config_handler = parse_input_configurations(args.config)
+
     outputs = {}
     successful = []
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, config_parser, args
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, config_handler, args
             )
 
             successful.append(filename)
@@ -193,14 +197,14 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, config_parser, args
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, config_handler, args
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
     # Configuration parser
-    if config_parser:
-        config_parser(tree, args.input_config)
+    if config_handler:
+        config_rewriters(config_handler, tree)
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
@@ -383,7 +387,6 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        config_parser=julia_config_parser,
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
@@ -706,13 +709,6 @@ def _process_dir(
     return (successful, format_errors, failures)
 
 
-def parse_config_file(args):
-    # Language specific configuration files
-    if input_conf := getattr(args, "input_config", None):
-        
-        parse_input_configurations(tree, args) 
-
-
 def main(args=None, env=os.environ):
     parser = argparse.ArgumentParser()
     LANGS = _get_all_settings(Mock(indent=4))
@@ -772,9 +768,9 @@ def main(args=None, env=os.environ):
         help="Create a project when using directory mode",
     )
 
-    # External annotation files (currently in use by JuliaTranspiler)
+    # Configuration files. See pyjl/test_files/setup.ini for an example
     parser.add_argument(
-        "--input-config",
+        "--config",
         default=None,
         help="External annotations with additional transpilation information (currently only supported in PyJL)",
     )
@@ -803,9 +799,6 @@ def main(args=None, env=os.environ):
 
     for filename in rest:
         source = Path(filename)
-
-        if args.input_config:
-            args.input_config = parse_input_configurations(args.input_config)
 
         settings = cpp_settings(args, env=env)
         if args.cpp:
