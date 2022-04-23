@@ -7,18 +7,16 @@ from py2many.input_configuration import ConfigFileHandler, ParseAnnotations
 from py2many.tracer import find_node_by_type
 
 
-# TODO: Optimize: The init and annotation files are parsed for every module
-def julia_config_parser(tree, input_config: ConfigFileHandler):
-    if ann_sec := input_config.get_section("annotations"):
-        # TODO: Could be per file
-        if input_config.get_option(ann_sec, "default"):
-            parser = ParseAnnotations(input_config.get_option(ann_sec, "default"))
-            JuliaAnnotationRewriter(parser).visit(tree)
-    if flags := input_config.get_section("annotations"):
-        flags.items()
+# TODO: Change this to be generic
+def julia_config_parser(tree, config_handler: ConfigFileHandler):
+    if default_parser := config_handler.get_default("annotations"):
+        AnnotationRewriter(default_parser).visit(tree)
+    if ann_sec := config_handler.get_sec_with_option("annotations", tree.__file__): 
+        parser = ParseAnnotations(tree.__file__)
+        AnnotationRewriter(parser).visit(tree)
 
 
-class JuliaFlagRewriter(ast.NodeTransformer):
+class FlagRewriter(ast.NodeTransformer):
     def __init__(self, flags) -> None:
         super().__init__()
         self._flags = flags
@@ -29,7 +27,7 @@ class JuliaFlagRewriter(ast.NodeTransformer):
         return node
 
 
-class JuliaAnnotationRewriter(ast.NodeTransformer):
+class AnnotationRewriter(ast.NodeTransformer):
     def __init__(self, parser: ParseAnnotations) -> None:
         super().__init__()
         self._input_config_map = {}

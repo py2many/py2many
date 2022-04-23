@@ -2,7 +2,7 @@ import json
 import yaml
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import configparser
 import logging
@@ -23,6 +23,9 @@ class ConfigFileHandler():
     def __init__(self, filename) -> None:
         self._config = configparser.ConfigParser()
         self._config.read(filename)
+        self._parsed_defaults: Dict[str, Any] = {}
+        # Parse default values
+        self.parse_defaults()
 
     def get_sec_with_option(self, section_name, option_name):
         if not self._config.has_section(section_name):
@@ -50,8 +53,22 @@ class ConfigFileHandler():
 
         return section[option_name]
 
+    def parse_defaults(self):
+        """Gets the supported defaults"""
+        default_sec = self.get_section("DEFAULT")
+        if option := self.get_option(default_sec, "annotations"):
+            parsed_annotations = ParseAnnotations(option)
+            self._parsed_defaults["annotations"] = parsed_annotations
+
+    def get_default(self, default_name):
+        if default_name in self._parsed_defaults:
+            return self._parsed_defaults[default_name]
+        else:
+            return None
+
 
 class ParseAnnotations():
+    """Parses annotation files"""
     def __init__(self, filename):
         self._filename = filename
         self._parsed_data = self.parse_file(filename)
