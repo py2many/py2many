@@ -502,7 +502,7 @@ class JuliaTranspiler(CLikeTranspiler):
             node.constructor_str = self.visit(node.constructor)
 
         node.fields = fields
-        node.fields_str = ("\n").join(fields_str)
+        node.fields_str = "\n".join(fields_str)
 
     def visit_StrEnum(self, node) -> str:
         return self._visit_enum(node, "String", str)

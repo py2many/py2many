@@ -38,7 +38,7 @@ class ConfigFileHandler():
             return None
         
         section = self._config[section_name]
-        if not self._config.has_option(option_name):
+        if not self._config.has_option(section.name, option_name):
             # logger.warn(f"No option named {option_name} for section {section_name}!")
             return None
 
@@ -51,8 +51,8 @@ class ConfigFileHandler():
         
         return self._config[section_name]
 
-    def get_option(self, section, option_name):
-        if not self._config.has_option(option_name):
+    def get_option(self, section: configparser.SectionProxy, option_name):
+        if not self._config.has_option(section.name, option_name):
             # logger.warn(f"No option named {option_name} for section {section_name}!")
             return None
 
@@ -70,40 +70,46 @@ class ConfigFileHandler():
 
 
 class ParseAnnotations():
-    """Parses annotation files"""
-    def __init__(self, filename):
-        self._filename = filename
-        self._parsed_data = self.parse_file(filename)
+    """Parses annotation files. If filename is None, it will look for generic annotations only"""
+    def __init__(self, annotation_filename, filename=None):
+        self._parsed_data = self.parse_file(annotation_filename, filename)
 
-    def parse_file(self, file_data):
-        if file_data is not None:
-            _, file_extension = os.path.splitext(file_data)
-            input = Path(file_data)
+    def parse_file(self, annotation_filename, filename):
+        """Parses the data. If filename is present, it will get 
+           the data from the corresponding module"""
+        if annotation_filename is not None:
+            _, file_extension = os.path.splitext(annotation_filename)
+            input = Path(annotation_filename)
             file = open(input)
+            file_data = None
             if not input.is_file:
                 raise Exception(f"The configruration file {file.name} was not found.")
             elif file_extension == ".json":
-                return json.load(file)
+                file_data = json.load(file)
             elif file_extension == ".yaml":
-                return yaml.load(file, Loader=yaml.FullLoader)
-            else :
+                file_data = yaml.load(file, Loader=yaml.FullLoader)
+            else:
                 raise Exception("Please supply either a JSON or a YAML file.")
 
-    def retrieve_structure(self):
-        file_name = str(self._filename).split(os.sep)[-1]
-        class_config = {}
-        if "modules" in self._parsed_data and file_name in self._parsed_data["modules"]:
-            class_config = self._parsed_data["modules"][file_name]
-        # Cover any general annotations that need to be applied to all files
-        non_modules = dict(self._parsed_data)
-        non_modules.pop("modules")
-        class_config |= non_modules
-        return class_config
+            # Get corresponding data
+            module_config = {}
+            if filename:
+                search_file_name = str(filename).split(os.sep)[-1]
+                if "modules" in file_data and search_file_name in file_data["modules"]:
+                    module_config = file_data["modules"][search_file_name]
+            # Cover any general annotations that need to be applied to all files
+            non_modules = dict(file_data)
+            non_modules.pop("modules")
+            module_config |= non_modules
+
+            return module_config
+
 
     def get_class_attributes(self, name: str):
         if ("classes" in self._parsed_data 
             and name in self._parsed_data["classes"]):
             return self._parsed_data["classes"][name]
+        return None
     
     def get_function_attributes(self, name: str, class_name: Optional[str]):
         node_field_map = {}
@@ -132,13 +138,14 @@ def config_rewriters(config_handler: ConfigFileHandler, tree):
         if name in PARSED_DISPATCH_MAP:
             PARSED_DISPATCH_MAP[name](tree, data)
     # Specific for each file 
-    if ann_sec := config_handler.get_sec_with_option("annotations", tree.__file__): 
-        parser = ParseAnnotations(ann_sec)
+    if ann_sec := config_handler.get_sec_with_option("ANNOTATIONS", tree.__file__.name):
+        parser = ParseAnnotations(ann_sec, tree.__file__.name)
         AnnotationRewriter(parser).visit(tree)
 
 
+
 class FlagRewriter(ast.NodeTransformer):
-    def __init__(self, flags) -> None:
+    def __init__(self, flags):
         super().__init__()
         self._flags = flags
 
@@ -149,50 +156,42 @@ class FlagRewriter(ast.NodeTransformer):
 
 
 class AnnotationRewriter(ast.NodeTransformer):
-    def __init__(self, parser: ParseAnnotations) -> None:
+    def __init__(self, parser: ParseAnnotations):
         super().__init__()
-        self._input_config_map = {}
         self._parser = parser
-        
-    def visit_Module(self, node: ast.Module) -> Any:
-        self._input_config_map = self._parser.retrieve_structure()
-        self.generic_visit(node)
-        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         self.generic_visit(node)
         node_name = get_id(node)
         node_scope_name = None
-        if self._input_config_map:
-            if len(node.scopes) > 2:
-                node_class = find_node_by_type(ast.ClassDef, node.scopes)
-                node_scope_name = get_id(node_class) if node_class else None
+        if len(node.scopes) > 2:
+            node_class = find_node_by_type(ast.ClassDef, node.scopes)
+            node_scope_name = get_id(node_class) if node_class else None
 
-            node_field_map = self._parser.get_function_attributes(node_name,
-                                                                        node_scope_name)
-
-            if "decorators" in node_field_map:
-                node.decorator_list += node_field_map["decorators"]
-                # Remove duplicates
-                node.decorator_list = list(set(node.decorator_list))
-                # Transform in Name nodes
-                node.decorator_list = list(
-                    map(lambda dec: ast.Name(id=dec), node.decorator_list))
+        node_field_map = self._parser.get_function_attributes(node_name, node_scope_name)
+        # print(node_scope_name)
+        # print(node_field_map)
+        if "decorators" in node_field_map:
+            node.decorator_list += node_field_map["decorators"]
+            # Remove duplicates
+            node.decorator_list = list(set(node.decorator_list))
+            # Transform in Name nodes
+            node.decorator_list = list(
+                map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
         return node
 
     def visit_ClassDef(self, node):
         self.generic_visit(node)
         class_name = get_id(node)
-        if self._input_config_map:
-            node_field_map = self._parser.get_class_attributes(class_name)
-            if "decorators" in node_field_map:
-                node.decorator_list += node_field_map["decorators"]
-                # Remove duplicates
-                node.decorator_list = list(set(node.decorator_list))
-                # Transform in Name nodes
-                node.decorator_list = list(
-                    map(lambda dec: ast.Name(id=dec), node.decorator_list))
+        node_field_map = self._parser.get_class_attributes(class_name)
+        if node_field_map and "decorators" in node_field_map:
+            node.decorator_list += node_field_map["decorators"]
+            # Remove duplicates
+            node.decorator_list = list(set(node.decorator_list))
+            # Transform in Name nodes
+            node.decorator_list = list(
+                map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
         return node
 

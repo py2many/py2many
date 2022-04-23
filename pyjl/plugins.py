@@ -79,7 +79,7 @@ class JuliaTranspilerPlugins:
         [d_fields, _] = dataclass_data[0], dataclass_data[1]
 
         fields: str = node.fields_str
-        struct_fields = fields.split("\n")
+        struct_fields = fields.split("\n") if fields else ""
 
         # Abstract type
         struct_name = "".join(["Abstract", get_id(node)])
@@ -219,7 +219,7 @@ class JuliaTranspilerPlugins:
         # Change string representation if fields have been changed
         if fields and fields != node.fields:
             fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
-            node.fields_str = (", ").join(fields_str) if fields else ""
+            node.fields_str = ", ".join(fields_str) if fields else ""
 
         struct_def = f"{node.name} <: {', '.join(bases)}" \
             if bases else f"{node.name}"
