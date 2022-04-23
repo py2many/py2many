@@ -142,6 +142,9 @@ def config_rewriters(config_handler: ConfigFileHandler, tree):
         parser = ParseAnnotations(ann_sec, tree.__file__.name)
         AnnotationRewriter(parser).visit(tree)
 
+    # Input flags
+    if flags := config_handler.get_section("FLAGS"):
+        FlagRewriter(flags).visit(tree)
 
 
 class FlagRewriter(ast.NodeTransformer):
@@ -150,8 +153,13 @@ class FlagRewriter(ast.NodeTransformer):
         self._flags = flags
 
     def visit_Module(self, node: ast.Module) -> Any:
-        for flag_name, flag_value in self._flags:
-            setattr(node, flag_name, flag_value)
+        for flag_name, flag_value in self._flags.items():
+            flag_type = None
+            if flag_value in {"True", "False"}:
+                flag_type = eval(flag_value)
+                setattr(node, flag_name, flag_type)
+            else:
+                raise Exception("Flag values can either be 'True' or 'False'")
         return node
 
 
@@ -169,8 +177,6 @@ class AnnotationRewriter(ast.NodeTransformer):
             node_scope_name = get_id(node_class) if node_class else None
 
         node_field_map = self._parser.get_function_attributes(node_name, node_scope_name)
-        # print(node_scope_name)
-        # print(node_field_map)
         if "decorators" in node_field_map:
             node.decorator_list += node_field_map["decorators"]
             # Remove duplicates

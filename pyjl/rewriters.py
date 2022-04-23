@@ -613,16 +613,20 @@ class JuliaSliceRewriter(ast.NodeTransformer):
 
         return node
 
-# Should only operate depending on a flag
+###########################################################
+################## Conditional Rewriters ##################
+###########################################################
+
 class ForLoopTargetRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self._generic_scope_visit(node)
+    
+    def visit_Module(self, node: ast.Module) -> Any:
+        if getattr(node, "optimize_loop_target", False):
+            self._generic_scope_visit(node)
         return node
 
-    def visit_Module(self, node: ast.Module) -> Any:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._generic_scope_visit(node)
         return node
     
@@ -670,6 +674,12 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         self._list_args = set()
         self._subscript_vals = set()
         self._using_offset_arrays = False
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        if getattr(node, "offset_arrays", False):
+            self._using_offset_arrays = True
+            self.generic_visit(node)
+        return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         self.generic_visit(node)
@@ -722,8 +732,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         parsed_decorators: Dict[str, Dict[str, str]] = node.parsed_decorators
-        if not OFFSET_ARRAYS in parsed_decorators:
-            self._using_offset_arrays = True
+        if not (OFFSET_ARRAYS in parsed_decorators and self._offset_arrays):
             return node
 
         # Get list args

@@ -42,9 +42,12 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         self._loop_scope = False
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._targets_out_of_scope = {}
-        self._generic_scope_analysis(node)
-        self._emit_warning(node)
+        if getattr(node, "optimize_loop_target", False) or \
+                getattr(node, "loop_scope_warning", False):
+            self._targets_out_of_scope = {}
+            self._generic_scope_analysis(node)
+            if getattr(node, "loop_scope_warning", False):
+                self._emit_warning(node)
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
@@ -159,6 +162,11 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
         # Marking phase
         self._marking = False
         self._subscript_vars = set()
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        if getattr(node, "optimize_loop_target", False):
+            self.generic_visit(node)
+        return node
 
     def visit_Name(self, node: ast.Name) -> Any:
         self.generic_visit(node)
