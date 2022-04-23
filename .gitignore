@@ -22,3 +22,4 @@ addons/
 # Removing generated tests
 # tests/cases-py2many
 # tests/performance_tests-py2many
+pyjl/test_files/

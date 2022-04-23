@@ -1,27 +1,19 @@
 from __future__ import annotations
 import ast
-from cgi import test
-from lib2to3.pgen2.pgen import generate_grammar
 import sys
 from typing import Any, Dict
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
-from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
-from py2many.input_configuration import ParseFileStructure
-from py2many.tracer import find_node_by_type
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE
 from pyjl.helpers import generate_var_name, get_ann_repr
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
-
-
-def julia_config_rewriter(tree, input_config, filename):
-    JuliaConfigRewriter(input_config, filename).visit(tree)
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -74,51 +66,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             keywords=[],
             lineno=node.lineno,
             col_offset=node.col_offset)
-
-
-class JuliaConfigRewriter(ast.NodeTransformer):
-    def __init__(self, input_config: Dict, filename: str) -> None:
-        super().__init__()
-        self._input_config_map = (ParseFileStructure.retrieve_structure(filename, input_config)
-                                  if input_config else None)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        self.generic_visit(node)
-        node_name = get_id(node)
-        node_scope_name = None
-        if self._input_config_map:
-            if len(node.scopes) > 2:
-                node_class = find_node_by_type(ast.ClassDef, node.scopes)
-                node_scope_name = get_id(node_class) if node_class else None
-
-            node_field_map = ParseFileStructure.get_function_attributes(node_name,
-                                                                        node_scope_name, self._input_config_map)
-
-            if "decorators" in node_field_map:
-                node.decorator_list += node_field_map["decorators"]
-                # Remove duplicates
-                node.decorator_list = list(set(node.decorator_list))
-                # Transform in Name nodes
-                node.decorator_list = list(
-                    map(lambda dec: ast.Name(id=dec), node.decorator_list))
-
-        return node
-
-    def visit_ClassDef(self, node):
-        self.generic_visit(node)
-        class_name = get_id(node)
-        if self._input_config_map:
-            node_field_map = ParseFileStructure.get_class_attributes(
-                class_name, self._input_config_map)
-            if "decorators" in node_field_map:
-                node.decorator_list += node_field_map["decorators"]
-                # Remove duplicates
-                node.decorator_list = list(set(node.decorator_list))
-                # Transform in Name nodes
-                node.decorator_list = list(
-                    map(lambda dec: ast.Name(id=dec), node.decorator_list))
-
-        return node
 
 
 class JuliaClassRewriter(ast.NodeTransformer):

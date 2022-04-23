@@ -15,6 +15,7 @@ from subprocess import run
 from typing import Dict, List, Optional, Set, Tuple
 from unittest.mock import Mock
 
+from py2many.input_configuration import ConfigFileHandler, parse_input_configurations
 
 
 from .analysis import add_imports
@@ -39,6 +40,7 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
+from pyjl.config_parser import julia_config_parser
 from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
 from pyjl.rewriters import (
     ForLoopTargetRewriter,
@@ -50,9 +52,9 @@ from pyjl.rewriters import (
     JuliaMethodCallRewriter,
     JuliaOffsetArrayRewriter,
     JuliaSliceRewriter,
-    julia_config_rewriter
 )
 from pyjl.transpiler import JuliaTranspiler
+from pyjl.inference import infer_julia_types
 
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
@@ -92,16 +94,11 @@ from py2many.rewriters import (
     UnpackScopeRewriter,
 )
 
-from pyjl.inference import infer_julia_types
-
-from .input_configuration import InputParser
-
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
 STDIN = "-"
 STDOUT = "-"
 CWD = Path.cwd()
-
 
 def core_transformers(tree, trees, args):
     add_variable_context(tree, trees)
@@ -134,7 +131,7 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
-    config_rewriters = settings.config_rewriters
+    config_parser = settings.config_parser
     tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
@@ -170,7 +167,7 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, config_rewriters, args, filename
+                trees, tree, transpiler, rewriters, transformers, post_rewriters, config_parser, args
             )
 
             successful.append(filename)
@@ -196,15 +193,14 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, config_rewriter, args, filename
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, config_parser, args
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
-    # Language specific configuration file rewriters
-    if hasattr(args, "input_config") and args.input_config is not None:
-        for conf in config_rewriter:
-            conf(tree, args.input_config, filename)
+    # Configuration parser
+    if config_parser:
+        config_parser(tree, args.input_config)
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
@@ -387,12 +383,12 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
+        config_parser=julia_config_parser,
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaSliceRewriter(), 
             ForLoopTargetRewriter(), JuliaOffsetArrayRewriter()],
-        config_rewriters=[julia_config_rewriter]
     )
 
 
@@ -710,6 +706,13 @@ def _process_dir(
     return (successful, format_errors, failures)
 
 
+def parse_config_file(args):
+    # Language specific configuration files
+    if input_conf := getattr(args, "input_config", None):
+        
+        parse_input_configurations(tree, args) 
+
+
 def main(args=None, env=os.environ):
     parser = argparse.ArgumentParser()
     LANGS = _get_all_settings(Mock(indent=4))
@@ -790,10 +793,6 @@ def main(args=None, env=os.environ):
         print("extension supported only with rust via pyo3")
         return -1
 
-    if args.input_config is not None and not args.julia:
-        print("Extension supported only with Julia")
-        return -1
-
     if args.comment_unsupported:
         print("Wrapping unimplemented in comments")
 
@@ -805,9 +804,8 @@ def main(args=None, env=os.environ):
     for filename in rest:
         source = Path(filename)
 
-        # Input Yaml file with annotations
-        if args.input_config is not None:
-            args.input_config = InputParser.parse_file(args.input_config)
+        if args.input_config:
+            args.input_config = parse_input_configurations(args.input_config)
 
         settings = cpp_settings(args, env=env)
         if args.cpp:

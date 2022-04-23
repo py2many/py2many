@@ -13,10 +13,10 @@ class LanguageSettings:
     display_name: str
     formatter: Optional[List[str]] = None
     indent: Optional[int] = None
+    config_parser: Optional[Callable] = None
     rewriters: List[ast.NodeVisitor] = field(default_factory=list)
     transformers: List[Callable] = field(default_factory=list)
     post_rewriters: List[ast.NodeVisitor] = field(default_factory=list)
-    config_rewriters: Optional[List[Callable]] = field(default_factory=list)
     linter: Optional[List[str]] = None
     # Create a language specific project structure
     create_project: Optional[List[str]] = None
