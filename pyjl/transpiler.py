@@ -1,4 +1,3 @@
-from __future__ import annotations
 from enum import IntFlag
 import ast
 
@@ -186,7 +185,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return (None, "self")
         # typename = "T"
         typename = ""
-        if node.annotation:
+        if hasattr(node, "annotation"):
             typename = self._typename_from_annotation(node)
         return (typename, id)
 
@@ -619,20 +618,20 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
 
-        if not getattr(node, "range_optimization", None) and \
-                not getattr(node, "using_offset_arrays", None):
-            val = node.scopes.find(value)
-            annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
-            if annotation and not annotation.startswith("Dict") and \
-                    not isinstance(node.slice, ast.Slice):
-                # Shortcut if index is a numeric value
-                if isinstance(index, str) and index.lstrip("-").isnumeric():
-                    return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
-                if isinstance(index, int) or isinstance(index, float):
-                    return f"{value}[{index + 1}]"
+        # if not getattr(node, "range_optimization", None) and \
+        #         not getattr(node, "using_offset_arrays", None):
+        #     val = node.scopes.find(value)
+        #     annotation = self._generic_typename_from_type_node(getattr(val, "annotation", None))
+        #     if annotation and not annotation.startswith("Dict") and \
+        #             not isinstance(node.slice, ast.Slice):
+        #         # Shortcut if index is a numeric value
+        #         if isinstance(index, str) and index.lstrip("-").isnumeric():
+        #             return f"{value}[{int(index) + 1}]" if index != "-1" else f"{value}[end]"
+        #         if isinstance(index, int) or isinstance(index, float):
+        #             return f"{value}[{index + 1}]"
 
-                # Default, just add 1
-                return f"{value}[{index} + 1]"
+        #         # Default, just add 1
+        #         return f"{value}[{index} + 1]"
 
         return f"{value}[{index}]"
 
@@ -647,32 +646,36 @@ class JuliaTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        # Julia array indices start at 1
-        if lower == -1 or lower == "-1":
-            lower = "end"
-        elif not getattr(node, "range_optimization", None) and \
-                not getattr(node, "using_offset_arrays", None):
-            if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
-                lower = f"{(int(lower) + 1)}"
-            elif getattr(node.lower, "splice_increment", None):
-                # From JuliaAugAssignRewriter
-                lower = f"({lower} + 2)"
-            elif lower != "begin":
-                lower = f"({lower} + 1)"
-
-        if node.step:
+        if getattr(node, "step", None):
             step = self.visit(node.step)
-            # Cover Python list reverse
-            if step == "-1":
-                if not node.lower and not node.upper:
-                    return "end:-1:begin"
-                if not node.upper:
-                    if lower == "end":
-                        return f"end:-1:begin"
-                    return f"end:-1:{lower}"
             return f"{upper}:{step}:{lower}"
 
         return f"{lower}:{upper}"
+
+        # # Julia array indices start at 1
+        # if lower == -1 or lower == "-1":
+        #     lower = "end"
+        # elif not getattr(node, "range_optimization", None) and \
+        #         not getattr(node, "using_offset_arrays", None):
+        #     if isinstance(lower, ast.Num) or (isinstance(lower, str) and lower.isnumeric()):
+        #         lower = f"{(int(lower) + 1)}"
+        #     elif getattr(node.lower, "splice_increment", None):
+        #         # From JuliaAugAssignRewriter
+        #         lower = f"({lower} + 2)"
+        #     elif lower != "begin":
+        #         lower = f"({lower} + 1)"
+
+        # if node.step:
+        #     step = self.visit(node.step)
+        #     # Cover Python list reverse
+        #     if step == "-1":
+        #         if not node.lower and not node.upper:
+        #             return "end:-1:begin"
+        #         if not node.upper:
+        #             if lower == "end":
+        #                 return "end:-1:begin"
+        #             return f"end:-1:{lower}"
+        #     return f"{upper}:{step}:{lower}"
 
     def visit_Ellipsis(self, node: ast.Ellipsis) -> str:
         return "..."

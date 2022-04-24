@@ -12,7 +12,7 @@ from distutils import spawn
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
@@ -47,10 +47,10 @@ from pyjl.rewriters import (
     JuliaClassRewriter,
     JuliaDecoratorRewriter,
     JuliaGeneratorRewriter,
-    JuliaConditionRewriter, 
+    JuliaConditionRewriter,
+    JuliaIndexingRewriter, 
     JuliaMethodCallRewriter,
     JuliaOffsetArrayRewriter,
-    JuliaSliceRewriter,
 )
 from pyjl.transpiler import JuliaTranspiler
 from pyjl.inference import infer_julia_types
@@ -390,7 +390,7 @@ def julia_settings(args, env=os.environ):
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
-            JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaSliceRewriter(), 
+            JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaIndexingRewriter(), 
             ForLoopTargetRewriter(), JuliaOffsetArrayRewriter()],
     )
 

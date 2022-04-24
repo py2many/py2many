@@ -1,4 +1,4 @@
-function sieve(n)::Int64
+function sieve(n::Any)::Int64
     primes = repeat([true], (n + 1))
     counter = 0
     for i = 2:n-1

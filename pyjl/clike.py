@@ -170,7 +170,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def visit_Name(self, node) -> str:
         node_id = get_id(node)
-        if node_id in julia_keywords:
+        if node_id in julia_keywords and \
+                not getattr(node, "preserve_keyword", False):
             return f"{node.id}_"
         
         return super().visit_Name(node)

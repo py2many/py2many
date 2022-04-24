@@ -14,13 +14,17 @@ function acquired_lock()
     return lock
 end
 
-function started_process(target, args)
+function started_process(target::Any, args::Any)
     process = Process(target, args)
     start(process)
     return process
 end
 
-@resumable function lock_pair(pre_lock = nothing, post_lock = nothing, locks = nothing)
+@resumable function lock_pair(
+    pre_lock::Any = nothing,
+    post_lock::Any = nothing,
+    locks::Any = nothing,
+)
     pre, post = locks ? (locks) : ((pre_lock, post_lock))
     if pre
         acquire(pre)
@@ -32,12 +36,12 @@ end
 end
 
 function write_lines(
-    sequence,
-    n,
-    width,
-    lines_per_block = 10000,
-    newline = b"\n",
-    table = nothing,
+    sequence::Any,
+    n::Any,
+    width::Any,
+    lines_per_block::Any = 10000,
+    newline::Any = b"\n",
+    table::Any = nothing,
 )
     i = 0
     blocks = ((n - width) ÷ width) ÷ lines_per_block
@@ -45,7 +49,7 @@ function write_lines(
         for _ = 0:blocks-1
             output = Vector{UInt8}()
             for i = i:width:i+width*lines_per_block-1
-                output += sequence[(i+1):i+width] + newline
+                output += sequence[i+1:i+width] + newline
             end
             if table
                 write(translate(output, table))
@@ -57,10 +61,10 @@ function write_lines(
     output = Vector{UInt8}()
     if i < (n - width)
         for i = i:width:n-width-1
-            output += sequence[(i+1):i+width] + newline
+            output += sequence[i+1:i+width] + newline
         end
     end
-    output += sequence[(i+1):n] + newline
+    output += sequence[i+1:n] + newline
     if table
         write(translate(output, table))
     else
@@ -69,7 +73,7 @@ function write_lines(
     flush(stdout)
 end
 
-function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
+function cumulative_probabilities(alphabet::Any, factor::Any = 1.0)::Tuple
     probabilities = tuple(accumulate((p * factor for (_, p) in alphabet)))
     table = maketrans(
         bytearray,
@@ -79,7 +83,13 @@ function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
     return (probabilities, table)
 end
 
-function copy_from_sequence(header, sequence, n, width, locks = nothing)
+function copy_from_sequence(
+    header::Any,
+    sequence::Any,
+    n::Any,
+    width::Any,
+    locks::Any = nothing,
+)
     sequence = Vector{UInt8}(sequence)
     while length(sequence) < n
         extend(sequence, sequence)
@@ -90,7 +100,7 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
     end
 end
 
-function lcg(seed, im, ia, ic)
+function lcg(seed::Any, im::Any, ia::Any, ic::Any)
     Channel() do ch_lcg
         local_seed = value(seed)
         try
@@ -104,7 +114,7 @@ function lcg(seed, im, ia, ic)
     end
 end
 
-function lookup(probabilities, values)
+function lookup(probabilities::Any, values::Any)
     Channel() do ch_lookup
         for value in values
             put!(ch_lookup, bisect_right(probabilities, value))
@@ -112,14 +122,14 @@ function lookup(probabilities, values)
     end
 end
 
-function lcg_lookup_slow(probabilities, seed, im, ia, ic)
+function lcg_lookup_slow(probabilities::Any, seed::Any, im::Any, ia::Any, ic::Any)
     lcg(seed, im, ia, ic) do prng
         # Unsupported
         @yield_from lookup(probabilities, prng)
     end
 end
 
-function lcg_lookup_fast(probabilities, seed, im, ia, ic)
+function lcg_lookup_fast(probabilities::Any, seed::Any, im::Any, ia::Any, ic::Any)
     Channel() do ch_lcg_lookup_fast
         local_seed = value(seed)
         try
@@ -134,14 +144,14 @@ function lcg_lookup_fast(probabilities, seed, im, ia, ic)
 end
 
 function lookup_and_write(
-    header,
-    probabilities,
-    table,
-    values,
-    start,
-    stop,
-    width,
-    locks = nothing,
+    header::Any,
+    probabilities::Any,
+    table::Any,
+    values::Any,
+    start::Any,
+    stop::Any,
+    width::Any,
+    locks::Any = nothing,
 )
     if isa(values, bytearray)
         output = values
@@ -157,7 +167,14 @@ function lookup_and_write(
     end
 end
 
-function random_selection(header, alphabet, n, width, seed, locks = nothing)
+function random_selection(
+    header::Any,
+    alphabet::Any,
+    n::Any,
+    width::Any,
+    seed::Any,
+    locks::Any = nothing,
+)
     im = 139968.0
     ia = 3877.0
     ic = 29573.0
@@ -204,7 +221,7 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
     end
 end
 
-function fasta(n)
+function fasta(n::Any)
     alu = replace(
         "\nGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA\nTCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT\nAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG\nGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG\nCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA\n",
         r"\\s+" => s"",

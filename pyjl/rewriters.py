@@ -3,6 +3,8 @@ import ast
 import sys
 from typing import Any, Dict
 
+from numpy import isin
+
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
@@ -315,8 +317,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                                 isinstance(lower, int))) or \
                             isinstance(lower, ast.Num):
                         lower = ast.Constant(value = int(lower.value) + 1)
-                    else:
-                        lower.splice_increment = True
+                    # else:
+                    #     lower.splice_increment = True
                     new_slice = ast.Slice(
                         lower = lower,
                         upper = upper
@@ -586,32 +588,122 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                 col_offset = node.test.col_offset
             )
 
-class JuliaSliceRewriter(ast.NodeTransformer):
+class JuliaIndexingRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self._curr_slice_val = None
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
+        # Don't rewrite nodes that are annotations
+        if hasattr(node, "is_annotation"):
+            return node
+
+        self._curr_slice_val = node.value
         self.generic_visit(node)
-        if lower := getattr(node.slice, "lower", None):
-            if isinstance(lower, ast.UnaryOp) \
-                    and isinstance(lower.op, ast.USub):
-                node.slice.lower = ast.BinOp(
-                    left = ast.Call(
-                        func = ast.Name(
-                            id = "length",
-                            lineno = node.lineno,
-                            col_offset = node.col_offset),
-                        args = [node.value],
-                        keywords = [],
-                        annotation = ast.Name(id="int"),
+        self._curr_slice_val = None
+        value_id = get_id(node.value)
+
+        if not getattr(node, "range_optimization", None) and \
+                not getattr(node, "using_offset_arrays", None) and \
+                not self._is_dict(node, value_id) and \
+                not isinstance(node.slice, ast.Slice):
+            # Shortcut if index is a numeric value
+            if isinstance(node.slice, ast.UnaryOp) and \
+                    isinstance(node.slice.op, ast.USub) and \
+                    isinstance(node.slice.operand, ast.Constant):
+                if node.slice.operand.value == 1:
+                    node.slice = ast.Name(
+                        id = "end",
                         lineno = node.lineno,
-                        col_offset = node.col_offset),
-                    op = ast.Sub(),
-                    right = lower.operand,
-                    lineno = node.lineno,
-                    col_offset = node.col_offset)
+                        col_offset = node.col_offset,
+                        annotation = ast.Name(id="int"),
+                        preserve_keyword = True)
+            elif isinstance(node.slice, ast.Constant) \
+                    and isinstance(node.slice.value, int):
+                node.slice.value += 1 
+            else:
+                # Default, just add 1
+                node.slice = self._sum_one(node.slice, node.lineno, node.col_offset)
 
         return node
+
+    def visit_Slice(self, node: ast.Slice) -> Any:
+        self.generic_visit(node)
+
+        if isinstance(node.lower, ast.UnaryOp) \
+                and isinstance(node.lower.op, ast.USub) \
+                and self._curr_slice_val:
+            node.lower = ast.BinOp(
+                left = ast.Call(
+                    func = ast.Name(
+                        id = "length",
+                        lineno = node.lineno,
+                        col_offset = node.col_offset,
+                        annotation = ast.Name(id = "int")),
+                    args = [self._curr_slice_val],
+                    keywords = [],
+                    annotation = ast.Name(id="int"),
+                    lineno = node.lineno,
+                    col_offset = node.col_offset),
+                op = ast.Sub(),
+                right = node.lower.operand,
+                lineno = node.lineno,
+                col_offset = node.col_offset)
+
+        # Julia array indices start at 1
+        if isinstance(node.lower, ast.Constant) and node.lower.value == -1:
+            node.lower = ast.Name(
+                id = "end",
+                lineno = node.lineno,
+                col_offset = node.col_offset,
+                annotation = ast.Name(id="int"))
+        elif not getattr(node, "range_optimization", None) and \
+                not getattr(node, "using_offset_arrays", None):
+            if isinstance(node.lower, ast.Constant) and isinstance(node.lower.value, int):
+                node.lower.value += 1
+            elif node.lower:
+                node.lower = self._sum_one(node.lower, node.lineno, node.col_offset)
+
+        if hasattr(node, "step"):
+            # Cover Python list reverse
+            if isinstance(node.step, ast.Constant) \
+                    and node.step.value == -1:
+                if (not node.lower and not node.upper) or \
+                        (not node.upper and isinstance(node.lower, ast.Constant) \
+                            and node.lower.value == -1):
+                    node.lower = ast.Name(id="end", annotation = ast.Name(id = "int"))
+                    node.upper = ast.Name(id="begin", annotation = ast.Name(id = "int"))
+                elif not node.upper:
+                    node.upper = ast.Name(id = "end", annotation = ast.Name(id = "int"))
+
+        return node
+
+    def _sum_one(self, node, lineno, col_offset):
+        if isinstance(node, ast.BinOp):
+            if isinstance(node.right, ast.Constant):
+                if isinstance(node.op, ast.Sub) and node.right.value == 1:
+                    return node.left
+                else:
+                    node.right.value += 1
+                return node
+        left = node
+        left.annotation = ast.Name(id="int")
+        return ast.BinOp(
+                    left = left,
+                    op = ast.Add(),
+                    right = ast.Constant(value = 1),
+                    lineno = lineno,
+                    col_offset = col_offset
+                )
+
+    def _is_dict(self, node, value_id):
+        val = node.scopes.find(value_id)
+        annotation = getattr(val, "annotation", None)
+        return (isinstance(annotation, ast.Subscript) and
+                    get_id(annotation.value) == "Dict") or \
+                (isinstance(annotation, ast.Name)
+                    and get_id(annotation) == "Dict")
+
 
 ###########################################################
 ################## Conditional Rewriters ##################

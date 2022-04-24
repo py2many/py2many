@@ -1,4 +1,4 @@
-function mandelbrot(limit, c)::Int64
+function mandelbrot(limit::Any, c::Any)::Int64
     z = 0 + 0im
     for i = 0:limit+1-1
         if abs(z) > 2

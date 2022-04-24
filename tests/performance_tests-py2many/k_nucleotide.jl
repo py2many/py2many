@@ -6,7 +6,7 @@ using Distributed
 
 abstract type Abstractlean_call end
 lean_buffer = Dict()
-function lean_args(sequence, reading_frames, i, j)::Tuple
+function lean_args(sequence::Any, reading_frames::Any, i::Any, j::Any)::Tuple
     global lean_buffer
     lean_key = length(lean_buffer)
     lean_buffer[lean_key] = sequence
@@ -16,7 +16,13 @@ end
 mutable struct lean_call <: Abstractlean_call
     func::Any
 end
-function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vector
+function __call__(
+    self::Abstractlean_call,
+    lean_key::Any,
+    reading_frames::Any,
+    i::Any,
+    j::Any,
+)::Vector
     global lean_buffer
     sequence = lean_buffer[lean_key]
     results = func(self, sequence, reading_frames, i, j)
@@ -35,7 +41,7 @@ function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vect
     return lean_results
 end
 
-function count_frequencies(sequence, reading_frames, i, j)
+function count_frequencies(sequence::Any, reading_frames::Any, i::Any, j::Any)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
     frequences_mask_list =
         tuple(((defaultdict(int), (1 << repeat([frame...], 2)) - 1) for frame in frames))
@@ -46,7 +52,7 @@ function count_frequencies(sequence, reading_frames, i, j)
     frame_tail = length(frames) - 1
     if frame_tail >= 0 && frames[frame_tail+1] == 1
         freq = frequences_mask_list[frame_tail+1][1]
-        worklist = sequence[(i+1):j]
+        worklist = sequence[i+1:j]
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
@@ -60,7 +66,7 @@ function count_frequencies(sequence, reading_frames, i, j)
     end
     if frame_tail >= 0 && frames[frame_tail+1] == 2 && mono_nucleotides
         freq = frequences_mask_list[frame_tail+1][1]
-        worklist = sequence[(i+1):min(j + 1, length(sequence))]
+        worklist = sequence[i+1:min(j + 1, length(sequence))]
         overlaps = []
         for v in (n + m for n in mono_nucleotides for m in mono_nucleotides)
             bits = v[1] * 4 + v[2]
@@ -97,7 +103,7 @@ function count_frequencies(sequence, reading_frames, i, j)
                 bits = bits * 4 + sequence[k+1]
             end
         end
-        for byte in sequence[(k+1+1):j]
+        for byte in sequence[k+2:j]
             bits = (bits * 4 + byte) & mask
             frequences[bits+1] += 1
             for (f, m) in short_frame_frequences
@@ -111,7 +117,7 @@ function count_frequencies(sequence, reading_frames, i, j)
     ]
 end
 
-function read_sequence(file, header, translation)
+function read_sequence(file::Any, header::Any, translation::Any)
     for line in file
         if line[1] == ord(">")
             if line[2:length(header)+1] == header
@@ -129,7 +135,7 @@ function read_sequence(file, header, translation)
     return replace!(translation, b"\n\r\t ")
 end
 
-function lookup_frequency(results, frame, bits)::Tuple
+function lookup_frequency(results::Any, frame::Any, bits::Any)::Tuple
     n = 1
     frequency = 0
     for (_, n, frequencies) in filter((r) -> r[1] == frame, results)
@@ -138,7 +144,13 @@ function lookup_frequency(results, frame, bits)::Tuple
     return (frequency, n > 0 ? (n) : (1))
 end
 
-function display(results, display_list, sort = false, relative = false, end_ = "\n")
+function display(
+    results::Any,
+    display_list::Any,
+    sort::Any = false,
+    relative::Any = false,
+    end_::Any = "\n",
+)
     lines = [
         (k_nucleotide, lookup_frequency(results, frame, bits)) for
         (k_nucleotide, frame, bits) in display_list
@@ -167,7 +179,7 @@ function main_func()
         b"c" => b"0",
         b"a" => b"1",
     )
-    function str_to_bits(text)::Int64
+    function str_to_bits(text::Any)::Int64
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k = 0:length(buffer)-1
@@ -176,7 +188,7 @@ function main_func()
         return bits
     end
 
-    function display_list(k_nucleotides)
+    function display_list(k_nucleotides::Any)
         return [(n, length(n), str_to_bits(n)) for n in k_nucleotides]
     end
 
@@ -198,7 +210,7 @@ function main_func()
     end
     partitions = [length(sequence) * i ÷ n for i = 0:n+1-1]
     count_jobs = [
-        (sequence, reading_frames, partitions[i+1], partitions[i+1+1]) for
+        (sequence, reading_frames, partitions[i+1], partitions[i+2]) for
         i = 0:length(partitions)-1-1
     ]
     if n == 1
