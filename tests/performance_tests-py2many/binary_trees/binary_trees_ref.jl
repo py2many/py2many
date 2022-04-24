@@ -77,11 +77,11 @@ function binary_trees(io, n::Int)
     write(io, "long lived tree of depth $n\t check: $(check(long_tree))\n")
 end#function
 
-# isinteractive() || binary_trees(stdout, parse(Int, ARGS[1])) 
+isinteractive() || binary_trees(stdout, parse(Int, ARGS[1])) 
 
 # Benchmarks
-ARGS = ["21"]
-BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
-BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
-BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150
-@benchmark binary_trees(stdout, parse(Int, ARGS[1])) # @benchmark 
+# ARGS = ["21"]
+# BenchmarkTools.DEFAULT_PARAMETERS.samples = 10
+# BenchmarkTools.DEFAULT_PARAMETERS.evals = 2
+# BenchmarkTools.DEFAULT_PARAMETERS.seconds = 150
+# @benchmark binary_trees(stdout, parse(Int, ARGS[1])) # @benchmark 
