@@ -6,9 +6,9 @@ function comb_sort(seq::Vector{Int64})::Vector{Int64}
     while gap > 1 || swap
         gap = max(1, Int64(floor(gap / 1.25)))
         swap = false
-        for i = 1:length(seq)-gap
-            if seq[i] > seq[i+gap]
-                seq[i], seq[i+gap] = (seq[i+gap], seq[i])
+        for i = 0:length(seq)-gap-1
+            if seq[i+1] > seq[i+gap+1]
+                seq[i+1], seq[i+gap+1] = (seq[i+gap+1], seq[i+1])
                 swap = true
             end
         end

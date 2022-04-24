@@ -1,8 +1,6 @@
 function mandelbrot(limit, c)::Int64
     z = 0 + 0im
-    i = nothing
-    for _i = 0:limit+1-1
-        i = _i
+    for i = 0:limit+1-1
         if abs(z) > 2
             return i
         end

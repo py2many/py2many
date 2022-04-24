@@ -42,7 +42,7 @@ function repeatFasta(src::String, n::Int64)
     s = src * src * src[begin:n%r]
     for j = 0:n÷width-1
         i = j * width % r
-        println(s[i:i+width])
+        println(s[(i+1):i+width])
     end
     if (n % width) != 0
         println(s[(length(s)-n%width+1):end])
@@ -56,8 +56,8 @@ function randomFasta(table, n::Int64)
     bb = bisect_right
     jn = x -> join(x, "")
     probs, chars = makeCumulative(table)
-    for j = 1:n÷width
-        x = jn([chars[bb(probs, gR())] for i in r])
+    for j = 0:n÷width-1
+        x = jn([chars[bb(probs, gR())+1] for i in r])
         println(x)
     end
     if (n % width) != 0

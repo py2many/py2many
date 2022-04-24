@@ -26,7 +26,7 @@ end
 end
 
 @resumable function generator_func_nested_loop()
-    for n = 1:2
+    for n = 0:1
         for i = 0:1
             @yield (n, i)
         end
@@ -101,7 +101,7 @@ function main()
     @assert(arr6 == ["test\n", "test\n", "test"])
     arr7 = []
     res = fib()
-    for i = 1:6
+    for i = 0:5
         push!(arr7, next(res))
     end
     @assert(arr7 == [0, 1, 1, 2, 3, 5])

@@ -87,8 +87,8 @@ end
 function for_cycle_vars()
     seq::Vector = [1, 2, 3, 4, 5]
     seq_copy::Vector = collect(seq)
-    for i = 1:length(seq)-1
-        @assert(seq[i] == seq_copy[i])
+    for i = 0:length(seq)-1-1
+        @assert(seq[i+1] == seq_copy[i+1])
     end
     complex_list = [([1, 2], 3, 4)]
     for ((a1, a2), b, c) in complex_list
@@ -98,7 +98,7 @@ function for_cycle_vars()
         @assert(c == 4)
         arr = []
         a = 1
-        for j = 1:2
+        for j = 0:1
             push!(arr, a)
             a += 1
         end

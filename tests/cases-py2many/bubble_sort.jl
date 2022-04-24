@@ -1,10 +1,10 @@
 
 function bubble_sort(seq::Vector{Int64})::Vector{Int64}
     L = length(seq)
-    for _ = 1:L
-        for n = 2:L
-            if seq[n] < seq[n-1]
-                seq[n-1], seq[n] = (seq[n], seq[n-1])
+    for _ = 0:L-1
+        for n = 1:L-1
+            if seq[n+1] < seq[n-1+1]
+                seq[n-1+1], seq[n+1] = (seq[n+1], seq[n-1+1])
             end
         end
     end

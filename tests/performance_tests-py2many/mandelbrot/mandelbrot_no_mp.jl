@@ -45,7 +45,7 @@ function compute_rows(n, f)
 end
 
 function mandelbrot(n)
-    write = x -> write(stdout, x)
+    write = x -> Base.write(stdout, x)
     compute_rows(n, compute_row) do rows
         write(Vector{UInt8}("P4\n$n $n\n"))
         for row in rows

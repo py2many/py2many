@@ -25,7 +25,7 @@ end
 function main_func()
     n = 10
     u = repeat([1], n)
-    for _ = 1:10
+    for _ = 0:9
         v = multiply_AtAv(u)
         u = multiply_AtAv(v)
     end

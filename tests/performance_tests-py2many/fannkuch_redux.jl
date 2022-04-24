@@ -10,7 +10,7 @@ function permutations(n, start, size)
         remainder = start
         for v = -1:-1:n-1
             count[v+1], remainder = div(remainder)
-            for _ = 1:count[v+1]
+            for _ = 0:count[v+1]-1
                 p[begin:v], p[v+1] = (p[2:v+1], p[1])
             end
         end
@@ -20,10 +20,10 @@ function permutations(n, start, size)
             put!(ch_permutations, p[begin:end])
         else
             rotation_swaps = [nothing] * n
-            for i = 2:n
+            for i = 1:n-1
                 r = collect(0:n-1)
-                for v = 2:i+1
-                    r[begin:v], r[v] = (r[1:v+1], r[0])
+                for v = 1:i+1-1
+                    r[begin:v], r[v+1] = (r[2:v+1], r[1])
                 end
                 swaps = []
                 for (dst, src) in enumerate(r)

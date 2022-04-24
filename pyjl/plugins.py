@@ -486,6 +486,28 @@ class JuliaTranspilerPlugins:
     def _generic_bisect_visit(t_self):
         t_self._usings.add("BisectPy")
 
+    def visit_write(t_self, node, vargs: list[str]):
+        func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "write")
+
+        if not vargs:
+            # TODO: Is there a better way to name the variable?
+            return f"x -> {func_name}(stdout, x)"
+        return f"{func_name}(stdout, {vargs[0]})"
+
+    def visit_flush(t_self, node, vargs: list[str]):
+        func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "flush")
+
+        if not vargs:
+            return f"{func_name}(stdout)"
+        return f"{func_name}({vargs[0]})"        
+
+    def _handle_base_funcs(node, func_name):
+        new_func_name = func_name
+        # Searches for a variable with the functions name
+        if node.scopes.find(func_name):
+            new_func_name = f"Base.{func_name}"
+        return new_func_name
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -676,9 +698,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-    sys.stdout.buffer.write: (lambda self, node, vargs: f"write(stdout, {vargs[0]})" \
-        if vargs else "x -> write(stdout, x)", True), # TODO: Is there a better way to name the variable?
-    sys.stdout.buffer.flush: (lambda self, node, vargs: "flush(stdout)", True),
+    sys.stdout.buffer.write: (JuliaTranspilerPlugins.visit_write, True),
+    sys.stdout.buffer.flush: (JuliaTranspilerPlugins.visit_flush, True),
     open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),

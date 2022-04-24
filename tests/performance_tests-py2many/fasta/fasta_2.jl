@@ -7,7 +7,7 @@ using ResumableFunctions
 
 
 
-write = x -> write(stdout, x)
+write = x -> Base.write(stdout, x)
 function acquired_lock()
     lock = Lock()
     acquire(lock)
@@ -42,10 +42,10 @@ function write_lines(
     i = 0
     blocks = ((n - width) ÷ width) ÷ lines_per_block
     if blocks
-        for _ = 1:blocks
+        for _ = 0:blocks-1
             output = Vector{UInt8}()
-            for i = i+1:width:i+width*lines_per_block
-                output += sequence[i:i+width] + newline
+            for i = i:width:i+width*lines_per_block-1
+                output += sequence[(i+1):i+width] + newline
             end
             if table
                 write(translate(output, table))
@@ -56,8 +56,8 @@ function write_lines(
     end
     output = Vector{UInt8}()
     if i < (n - width)
-        for i = i+1:width:n-width
-            output += sequence[i:i+width] + newline
+        for i = i:width:n-width-1
+            output += sequence[(i+1):i+width] + newline
         end
     end
     output += sequence[(i+1):n] + newline

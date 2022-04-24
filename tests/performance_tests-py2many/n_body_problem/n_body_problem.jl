@@ -2,10 +2,10 @@ using Printf
 
 function combinations(l)::Vector
     result = []
-    for x = 1:length(l)-1
-        ls = l[x+1:end]
+    for x = 0:length(l)-1-1
+        ls = l[(x+1+1):end]
         for y in ls
-            push!(result, (l[x], y))
+            push!(result, (l[x+1], y))
         end
     end
     return result
@@ -56,7 +56,7 @@ BODIES = Dict(
 SYSTEM = collect(values(BODIES))
 PAIRS = combinations(SYSTEM)
 function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
-    for i = 1:n
+    for i = 0:n-1
         for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
             dx = x1 - x2
             dy = y1 - y2
