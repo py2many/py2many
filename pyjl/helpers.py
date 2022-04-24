@@ -58,8 +58,8 @@ def get_ann_repr(node, parse_func = None, default = None):
         if parse_func:
             return parse_func(id)
         return id
-    if isinstance(node, ast.Call):
-        return get_ann_repr(node.func, parse_func, default)
+    # if isinstance(node, ast.Call):
+    #     return get_ann_repr(node.func, parse_func, default)
     if isinstance(node, ast.Attribute):
         return f"{get_ann_repr(node.value, parse_func, default)}.\
             {get_ann_repr(node.attr, parse_func, default)}"

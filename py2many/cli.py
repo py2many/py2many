@@ -390,8 +390,8 @@ def julia_settings(args, env=os.environ):
         rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
-            JuliaAugAssignRewriter(), JuliaConditionRewriter(), JuliaIndexingRewriter(), 
-            ForLoopTargetRewriter(), JuliaOffsetArrayRewriter()],
+            JuliaAugAssignRewriter(), JuliaConditionRewriter(), ForLoopTargetRewriter(), 
+            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter()],
     )
 
 
