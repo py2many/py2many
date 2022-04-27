@@ -662,8 +662,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     list.append: (lambda self, node, vargs: f"push!({vargs[0]}, {vargs[1]})", True),
     list.clear: (lambda self, node, vargs: f"empty!({vargs[0]})", True),
     list.remove: (lambda self, node, vargs: \
-                  f"{vargs[0]} = deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
-    list.extend: (lambda self, node, vargs: f"{vargs[0]} = append!({vargs[0]}, {vargs[1]})", True),
+                  f"deleteat!({vargs[0]}, findfirst(isequal({vargs[1]}), {vargs[0]}))", True),
+    list.extend: (lambda self, node, vargs: f"append!({vargs[0]}, {vargs[1]})", True),
     list.count: (lambda self, node, vargs: f"count(isequal({vargs[1]}), {vargs[0]})", True),
     list.index: (lambda self, node, vargs: f"findfirst(isequal({vargs[1]}), {vargs[0]})", True),
     list: (lambda self, node, vargs: f"Vector()" if len(vargs) == 0 else f"collect({vargs[0]})", True),

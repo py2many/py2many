@@ -2,10 +2,11 @@ import ast
 import sys
 from typing import Any, Dict
 
-from numpy import isin
+from numpy import True_, isin
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
+from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
@@ -419,7 +420,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                                     col_offset = node.col_offset),
                                 args = [],
                                 keywords = [],
-                                scopes = [],
+                                scopes = ScopeList(),
                                 lineno = node.lineno,
                                 col_offset = node.col_offset),
                             optional_vars = ast.Name(
@@ -764,53 +765,78 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
         
         return node
 
-# TODO: Still requires changes
+# TODO: Still preliminary
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._offset_array_func = False
-        self._list_calls = set()
-        self._subscript_vals = set()
+        # Scoping information
+        self._list_assigns = []
+        self._subscript_vals = []
+        self._list_assign_idxs: list[int] = []
+        self._subscript_val_idxs: list[int] = []
+        self._last_scopes: list[ScopeList] = []
+        self._current_scope = ScopeList()
+        # Flags
+        self._use_offset_array = False
         self._using_offset_arrays = False
-        self._is_return = False
+        self._require_parent = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         if getattr(node, "offset_arrays", False):
             self._using_offset_arrays = True
-            self._generic_scope_visit(node)
-            self.generic_visit(node)
+        self._enter_scope(node)
+        self.generic_visit(node)
+        self._leave_scope(node)
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         parsed_decorators: Dict[str, Dict[str, str]] = node.parsed_decorators
-        if not (OFFSET_ARRAYS in parsed_decorators or self._using_offset_arrays):
+        if not ((OFFSET_ARRAYS in parsed_decorators) or self._using_offset_arrays):
             return node
 
-        self._generic_scope_visit(node)
-
-        # Get list args
-        list_args = set()
-        for a in node.args.args:
-            annotation: str = get_ann_repr(a.annotation)
-            if annotation and annotation.startswith("List"):
-                list_args.add(a)
+        self._enter_scope(node)
 
         # Visit body 
-        return_node = None
+        return_node: ast.Return = None
+        self._use_offset_array = True
+
+        body_range = None
+        if isinstance(node.body[-1], ast.Return):
+            return_node = node.body[-1]
+            body_range = node.body[:-1]
+        else:
+            body_range = node.body
+
         body = []
-        self._offset_array_func = True
-        for n in node.body:
+        func_assingments = []
+        for n in body_range:
             self.visit(n)
-            if isinstance(n, ast.Return):
-                return_node = n
-            else:
-                body.append(n)
+            if return_node:
+                if isinstance(n, ast.Assign):
+                    target_ids = [get_id(t) for t in n.targets]
+                    if get_id(return_node.value) in target_ids:
+                        func_assingments.append(n)
+                        continue
+                elif isinstance(n, ast.AnnAssign):
+                    if get_id(n.target) == get_id(return_node.value):
+                        func_assingments.append(n)
+                        continue
+            body.append(n)
 
-        self._offset_array_func = False
+        if return_node:
+            self.visit(return_node)
 
-        assignments = []
-        for arg in list_args:
+        self._use_offset_array = False
+
+        # Visit args
+        let_assignments = []
+        for arg in node.args.args:
             arg_id = arg.arg
+            annotation: str = get_ann_repr(arg.annotation)
+            # TODO: Optimize: "arg_id not in self._subscript_vals" (This is O(n^2))
+            if not annotation or (annotation and not annotation.startswith("List"))\
+                    or arg_id not in self._subscript_vals:
+                continue
             arg_name = ast.Name(id=arg_id)
             val = self._build_offset_array_call(
                         arg_name, arg.annotation, node.lineno, 
@@ -823,80 +849,113 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset,
                     scopes = node.scopes # TODO: Remove the return statement form scopes
                 )
-            assignments.append(assign)
+            let_assignments.append(assign)
         
-        if assignments:
+        # Construct new body
+        if let_assignments:
             let_stmt = juliaAst.LetStmt(
-                    args = assignments,
+                    args = let_assignments,
                     body = body,
                     ctx = ast.Load(),
                     lineno = node.lineno + 1,
                     col_offset = node.col_offset
                 )
-            node.body = [let_stmt, return_node]
+            node.body = []
+            if func_assingments:
+                node.body.extend(func_assingments)
+            node.body.append(let_stmt)
+            if return_node:
+                node.body.append(return_node)
 
         # Add to decorators
-        if (not OFFSET_ARRAYS in parsed_decorators) and (list_args or self._list_calls):
+        if not (OFFSET_ARRAYS in parsed_decorators) and (let_assignments or self._list_assigns):
             node.decorator_list.append(ast.Name(id="offset_arrays"))
             parsed_decorators["offset_arrays"] = {}
 
+        self._leave_scope(node)
+
         return node
 
-    def _generic_scope_visit(self, node):
-        self._list_calls = set()
-        self._subscript_vals = set()       
+    def visit_For(self, node: ast.For) -> Any:
+        self.generic_visit(node)
+        if self._use_offset_array:
+            node.iter.using_offset_arrays = True
+        return node
 
-    def visit_Name(self, node: ast.Name) -> Any:
-        if self._is_return and get_id(node.value) in self._list_calls:
-            return self._create_parent(node.scopes, node.value, node.value.annotation)
-        return node 
+    def _enter_scope(self, node):
+        self._list_assign_idxs.append(len(self._list_assigns))
+        self._subscript_val_idxs.append(len(self._subscript_vals))
+        self._last_scopes.append(self._current_scope.copy())
+        self._current_scope = node.scopes
+
+    def _leave_scope(self, node):
+        del self._list_assigns[self._list_assign_idxs.pop():]
+        del self._subscript_vals[self._subscript_val_idxs.pop():]
+        self._current_scope = ScopeList(self._last_scopes.pop())
 
     def visit_Assign(self, node: ast.Assign) -> Any:
+        self._require_parent = False
         self.generic_visit(node)
-        if self._offset_array_func:
+        self._require_parent = True
+        if self._use_offset_array:
             ann = getattr(node.value, "annotation", None)
-            ann_str:str = get_ann_repr(ann)
-            if ann_str and ann_str.startswith("List"):
+            if self._is_list(ann):
                 for n in node.targets:
                     if id := get_id(n):
-                        self._list_calls.add(id)
+                        self._list_assigns.append(id)
                 node.value = self._build_offset_array_call(
                     node.value, ann, node.lineno, node.col_offset, 
                     node.scopes)
         return node
     
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        self._require_parent = False
         self.generic_visit(node)
-        if self._offset_array_func:
-            ann: str = get_ann_repr(node.annotation)
-            if ann and ann.startswith("List") and \
+        self._require_parent = True
+        if self._use_offset_array:
+            if self._is_list(node.annotation) and \
                     (id := get_id(node.target)):
-                self._list_calls.add(id)
+                self._list_assigns.append(id)
                 node.value = self._build_offset_array_call(
                     node.value, node.annotation, node.lineno, 
                     node.col_offset, node.scopes)
         return node
 
+    def _is_list(self, annotation):
+        ann_str:str = get_ann_repr(annotation)
+        return ann_str and (ann_str.startswith("List") \
+            or ann_str.startswith("list"))
+
     def visit_Subscript(self, node: ast.Subscript) -> Any:
+        self._require_parent = False
         self.generic_visit(node)
-        if self._offset_array_func and (id := get_id(node.value)):
-            self._subscript_vals.add(id)
+        self._require_parent = True
+        if self._use_offset_array and (id := get_id(node.value)):
+            self._subscript_vals.append(id)
             node.using_offset_arrays = True
             if isinstance(node.slice, ast.Slice):
                 node.slice.using_offset_arrays = True
         return node
 
-    def visit_Return(self, node: ast.Return) -> Any:
-        self._is_return = True
+    def visit_Call(self, node: ast.Call) -> Any:
+        # Accounts for JuliaMethodCallRewriter
+        args = getattr(node, "args", None)
+        if args and get_id(args[0]) == "sys":
+            if get_id(node.func) == "argv":
+                curr_val = self._use_offset_array
+                self._use_offset_array = False
+                self.generic_visit(node)
+                self._use_offset_array = curr_val
+                return node
+
         self.generic_visit(node)
-        self._is_return = False
         return node
 
-    def visit_For(self, node: ast.For) -> Any:
-        self.generic_visit(node)
-        if self._offset_array_func:
-            node.iter.using_offset_arrays = True
-        return node
+    def visit_Name(self, node: ast.Name) -> Any:
+        if self._require_parent and get_id(node) in self._list_assigns:
+            return self._create_parent(node, node.lineno, 
+                getattr(node, "col_offset", None))
+        return self.generic_visit(node)
 
     def _build_offset_array_call(self, list_arg, annotation, lineno, col_offset, scopes):
         annotation.is_offset_array = True
@@ -909,13 +968,16 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
                 col_offset = col_offset, 
                 scopes = scopes
             )
-        
-    def _create_parent(self, scopes, arg, annotation):
-        arg_id = get_id(arg)
+
+    def _create_parent(self, node, lineno, col_offset):
         # TODO: Unreliable annotations when calling parent
-        annotation = getattr(scopes.find(arg_id), "annotation")
+        arg_id = get_id(node)
+        new_annotation = getattr(self._current_scope.find(arg_id), "annotation", None)
         return ast.Call(
             func=ast.Name(id = "parent"),
-            args = [arg],
+            args = [node],
             keywords = [],
-            annotation = annotation)
+            annotation = new_annotation,
+            lineno = lineno,
+            col_offset = col_offset if col_offset else 0,
+            scopes = self._current_scope)

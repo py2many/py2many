@@ -372,14 +372,17 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                         return dispatch_func
 
             # Account for JuliaMethodCallRewriter
+            annotation = None
             if v := node.scopes.find(var):
                 annotation = getattr(v, "annotation", None)
-                if ann := self._generic_typename_from_type_node(annotation):
-                    # Temporary (NOT WORKING)
-                    ann: str = re.split(r"\s+[*]", ann)[0]
-                    dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
-                    if dispatch_func:
-                        return dispatch_func
+            elif ann := getattr(node.args[0], "annotation", None):
+                annotation = ann
+            if ann := self._generic_typename_from_type_node(annotation):
+                # Temporary (NOT WORKING)
+                ann: str = re.split(r"\s+[*]", ann)[0]
+                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
+                if dispatch_func:
+                    return dispatch_func
 
             dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:])
             if dispatch_func:
