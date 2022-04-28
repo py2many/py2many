@@ -6,7 +6,7 @@ using Distributed
 
 abstract type Abstractlean_call end
 lean_buffer = Dict()
-function lean_args(sequence::Any, reading_frames::Any, i::Any, j::Any)::Tuple
+function lean_args(sequence, reading_frames, i, j)::Tuple
     global lean_buffer
     lean_key = length(lean_buffer)
     lean_buffer[lean_key] = sequence
@@ -16,13 +16,7 @@ end
 mutable struct lean_call <: Abstractlean_call
     func::Any
 end
-function __call__(
-    self::Abstractlean_call,
-    lean_key::Any,
-    reading_frames::Any,
-    i::Any,
-    j::Any,
-)::Vector
+function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vector
     global lean_buffer
     sequence = lean_buffer[lean_key]
     results = func(self, sequence, reading_frames, i, j)
@@ -41,7 +35,7 @@ function __call__(
     return lean_results
 end
 
-function count_frequencies(sequence::Any, reading_frames::Any, i::Any, j::Any)
+function count_frequencies(sequence, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
     frequences_mask_list =
         tuple(((defaultdict(int), (1 << repeat([frame...], 2)) - 1) for frame in frames))
@@ -117,7 +111,7 @@ function count_frequencies(sequence::Any, reading_frames::Any, i::Any, j::Any)
     ]
 end
 
-function read_sequence(file::Any, header::Any, translation::Any)
+function read_sequence(file, header, translation)
     for line in file
         if line[1] == ord(">")
             if line[2:length(header)+1] == header
@@ -135,7 +129,7 @@ function read_sequence(file::Any, header::Any, translation::Any)
     return replace!(translation, b"\n\r\t ")
 end
 
-function lookup_frequency(results::Any, frame::Any, bits::Any)::Tuple
+function lookup_frequency(results, frame, bits)::Tuple
     n = 1
     frequency = 0
     for (_, n, frequencies) in filter((r) -> r[1] == frame, results)
@@ -144,13 +138,7 @@ function lookup_frequency(results::Any, frame::Any, bits::Any)::Tuple
     return (frequency, n > 0 ? (n) : (1))
 end
 
-function display(
-    results::Any,
-    display_list::Any,
-    sort::Any = false,
-    relative::Any = false,
-    end_::Any = "\n",
-)
+function display(results, display_list, sort = false, relative = false, end_ = "\n")
     lines = [
         (k_nucleotide, lookup_frequency(results, frame, bits)) for
         (k_nucleotide, frame, bits) in display_list
@@ -179,7 +167,7 @@ function main_func()
         b"c" => b"0",
         b"a" => b"1",
     )
-    function str_to_bits(text::Any)::Int64
+    function str_to_bits(text)::Int64
         buffer = translate(Vector{UInt8}(text), translation)
         bits = 0
         for k = 0:length(buffer)-1
@@ -188,7 +176,7 @@ function main_func()
         return bits
     end
 
-    function display_list(k_nucleotides::Any)
+    function display_list(k_nucleotides)
         return [(n, length(n), str_to_bits(n)) for n in k_nucleotides]
     end
 

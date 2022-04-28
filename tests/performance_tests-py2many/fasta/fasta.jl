@@ -14,7 +14,7 @@ homosapiens = [
     ("g", 0.1975473066391),
     ("t", 0.3015094502008),
 ]
-@resumable function genRandom(ia::Any = 3877, ic::Any = 29573, im::Any = 139968)
+@resumable function genRandom(ia = 3877, ic = 29573, im = 139968)
     seed = 42
     imf = float(im)
     while true
@@ -24,7 +24,7 @@ homosapiens = [
 end
 
 Random = genRandom()
-function makeCumulative(table::Any)::Tuple
+function makeCumulative(table)::Tuple
     P = []
     C = []
     prob = 0.0
@@ -49,7 +49,7 @@ function repeatFasta(src::String, n::Int64)
     end
 end
 
-function randomFasta(table::Any, n::Int64)
+function randomFasta(table, n::Int64)
     width = 60
     r = 0:width-1
     gR = next(Random)

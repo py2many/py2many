@@ -35,7 +35,7 @@ reverse_translation = Dict(
     b"w" => b"W",
     b"y" => b"R",
 )
-function reverse_complement(header::Any, sequence::Any)::Tuple
+function reverse_complement(header, sequence)::Tuple
     t = replace!(reverse_translation, b"\n\r ")
     output = Vector{UInt8}()
     trailing_length = length(t) % 60
@@ -48,7 +48,7 @@ function reverse_complement(header::Any, sequence::Any)::Tuple
     return (header, output[end:-1:begin])
 end
 
-function read_sequences(file::Any)
+function read_sequences(file)
     Channel() do ch_read_sequences
         for line in file
             if line[1] == ord(">")

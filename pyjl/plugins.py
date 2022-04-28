@@ -338,11 +338,12 @@ class JuliaTranspilerPlugins:
             is_float = False
             for arg in node.args:
                 arg_type = t_self._typename_from_annotation(arg)
-                if arg_type is not None and arg_type.startswith("Float"):
-                    is_float = True
-                elif not arg_type.startswith("Int"):
-                    needs_parsing = True
-                    break
+                if arg_type:
+                    if arg_type.startswith("Float"):
+                        is_float = True
+                    elif not arg_type.startswith("Int"):
+                        needs_parsing = True
+                        break
 
             if needs_parsing:
                 return f"parse(Int, {vargs[0]})"

@@ -7,7 +7,7 @@ function make_tree(depth::Int64)::Tuple
            ((make_tree(depth - 1), make_tree(depth - 1)))
 end
 
-function check_node(left::Union{Tuple,nothing}, right::Union{Tuple,nothing})::Int64
+function check_node(left::Union{Tuple,Any}, right::Union{Tuple,Any})::Int64
     return left === nothing ? (1) : ((1 + check_node(left...)) + check_node(right...))
 end
 
@@ -15,7 +15,7 @@ function run(depth::Int64)::Int64
     return check_node(make_tree(depth)...)
 end
 
-function main_func(requested_max_depth::Any, min_depth::Any = 4)
+function main_func(requested_max_depth, min_depth = 4)
     max_depth = max(min_depth + 2, requested_max_depth)
     stretch_depth = max_depth + 1
     println("stretch tree of depth $(stretch_depth)\t check: $(run(stretch_depth))")

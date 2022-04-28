@@ -1,6 +1,6 @@
 using Printf
 
-function extract_Digit(nth::Any)::Any
+function extract_Digit(nth)::Any
     global tmp1, tmp2, acc, den, num
     tmp1 = num * nth
     tmp2 = tmp1 + acc
@@ -8,14 +8,14 @@ function extract_Digit(nth::Any)::Any
     return tmp1
 end
 
-function eliminate_Digit(d::Any)
+function eliminate_Digit(d)
     global acc, den, num
     acc = acc - den * d
     acc = acc * 10
     num = num * 10
 end
 
-function next_Term(k::Any)
+function next_Term(k)
     global acc, den, num
     k2 = k * 2 + 1
     acc = acc + num * 2

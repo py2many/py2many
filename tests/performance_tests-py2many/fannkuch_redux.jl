@@ -3,7 +3,7 @@ using Distributed
 
 
 
-function permutations(n::Any, start::Any, size::Any)
+function permutations(n, start, size)
     Channel() do ch_permutations
         p = Vector{UInt8}(0:n-1)
         count = Vector{UInt8}(n)
@@ -47,7 +47,7 @@ function permutations(n::Any, start::Any, size::Any)
     end
 end
 
-function alternating_flips_generator(n::Any, start::Any, size::Any)
+function alternating_flips_generator(n, start, size)
     Channel() do ch_alternating_flips_generator
         maximum_flips = 0
         alternating_factor = 1
@@ -76,12 +76,12 @@ function alternating_flips_generator(n::Any, start::Any, size::Any)
     end
 end
 
-function task(n::Any, start::Any, size::Any)::Tuple
+function task(n, start, size)::Tuple
     alternating_flips = alternating_flips_generator(n, start, size)
     return (sum((alternating_flips for _ in (0:size))), next(alternating_flips))
 end
 
-function fannkuch(n::Any)
+function fannkuch(n)
     if n < 0
         for data in (permutations(-(n), 0, factorial(-(n))) for _ in (0:factorial(-(n))))
             println(join(map((n) -> string(n + 1), data), ""))

@@ -148,9 +148,12 @@ class JuliaTranspiler(CLikeTranspiler):
         len_defaults = len(defaults)
         len_args = len(args)
         for i in range(len_args):
-            arg_typename = typenames[i]
             arg = args[i]
-            if arg_typename != None and arg_typename != "T":
+            arg_typename = typenames[i]
+            if arg_typename == self._default_type:
+                arg_typename = None
+
+            if arg_typename and arg_typename != "T":
                 arg_typename = super()._map_type(arg_typename)
 
             # Get default parameter values
@@ -227,7 +230,7 @@ class JuliaTranspiler(CLikeTranspiler):
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
                 declared_type = self._typename_from_annotation(fnarg)
-                if declared_type != None and actual_type != None and declared_type != self._default_type \
+                if declared_type and actual_type and declared_type != self._default_type \
                         and actual_type != self._default_type and actual_type != declared_type and \
                         not getattr(actual_type, "container_type", None): # TODO: Container types are source of conflict
                     converted.append(f"convert({declared_type}, {varg})")
@@ -350,8 +353,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_BinOp(self, node: ast.BinOp) -> str:
-        left_jl_ann: str = self._typename_from_type_node(node.left.annotation)
-        right_jl_ann: str = self._typename_from_type_node(node.right.annotation)
+        left_jl_ann: str = self._typename_from_type_node(node.left.annotation, 
+            default=self._default_type)
+        right_jl_ann: str = self._typename_from_type_node(node.right.annotation, 
+            default=self._default_type)
 
         is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
         is_tuple = lambda x: x.startswith("Tuple")
@@ -791,7 +796,7 @@ class JuliaTranspiler(CLikeTranspiler):
         )
         if node_assign and hasattr(node_assign, "annotation"):
             type_ann = self._typename_from_annotation(node_assign)
-            if isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann):
+            if type_ann and (isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann)):
                 return f"empty!({target_name})"
         return f"{target_name}!"
         # raise AstTypeNotSupported(

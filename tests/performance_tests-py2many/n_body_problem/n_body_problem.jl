@@ -1,6 +1,6 @@
 using Printf
 
-function combinations(l::Any)::Vector
+function combinations(l)::Vector
     result = []
     for x = 0:length(l)-1-1
         ls = l[x+2:end]
@@ -55,7 +55,7 @@ BODIES = Dict(
 )
 SYSTEM = collect(values(BODIES))
 PAIRS = combinations(SYSTEM)
-function advance(dt::Any, n::Any, bodies::Any = SYSTEM, pairs::Any = PAIRS)
+function advance(dt, n, bodies = SYSTEM, pairs = PAIRS)
     for i = 0:n-1
         for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
             dx = x1 - x2
@@ -79,7 +79,7 @@ function advance(dt::Any, n::Any, bodies::Any = SYSTEM, pairs::Any = PAIRS)
     end
 end
 
-function report_energy(bodies::Any = SYSTEM, pairs::Any = PAIRS, e::Any = 0.0)
+function report_energy(bodies = SYSTEM, pairs = PAIRS, e = 0.0)
     for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
         dx = x1 - x2
         dy = y1 - y2
@@ -92,13 +92,7 @@ function report_energy(bodies::Any = SYSTEM, pairs::Any = PAIRS, e::Any = 0.0)
     @printf("%.9f", e)
 end
 
-function offset_momentum(
-    ref::Any,
-    bodies::Any = SYSTEM,
-    px::Any = 0.0,
-    py::Any = 0.0,
-    pz::Any = 0.0,
-)
+function offset_momentum(ref, bodies = SYSTEM, px = 0.0, py = 0.0, pz = 0.0)
     for (r, (vx, vy, vz), m) in bodies
         px -= vx * m
         py -= vy * m
@@ -110,7 +104,7 @@ function offset_momentum(
     v[3] = pz / m
 end
 
-function main_func(n::Any, ref::Any = "sun")
+function main_func(n, ref = "sun")
     offset_momentum(BODIES[ref])
     report_energy()
     advance(0.01, n)

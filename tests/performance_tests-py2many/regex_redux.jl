@@ -2,12 +2,12 @@ using Distributed
 
 
 
-function init(arg::Any)
+function init(arg)
     global seq
     seq = arg
 end
 
-function var_find(f::Any)::Int64
+function var_find(f)::Int64
     return length(findall(f, seq))
 end
 

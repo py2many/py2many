@@ -227,7 +227,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         typename = self._default_type
         if hasattr(node, attr):
             type_node = getattr(node, attr)
-            typename = self._typename_from_type_node(type_node)
+            typename = self._typename_from_type_node(type_node, default=self._default_type)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
                 try:
@@ -260,12 +260,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
                 map(lambda x: 
-                        get_ann_repr(x, self._map_type, self._none_type), 
+                        get_ann_repr(x, self._map_type, default), 
                     (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
-        return get_ann_repr(node, self._map_type, self._default_type)
+        return get_ann_repr(node, self._map_type, default)
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
