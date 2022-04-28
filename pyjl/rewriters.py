@@ -591,6 +591,14 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         super().__init__()
         self._curr_slice_val = None
 
+    def visit_LetStmt(self, node: juliaAst.LetStmt):
+        # Introduced in JuliaOffsetArrayRewriter
+        for a in node.args:
+            self.visit(a)
+        for n in node.body:
+            self.visit(n)
+        return node
+
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         # Don't rewrite nodes that are annotations
         if hasattr(node, "is_annotation"):
@@ -689,8 +697,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         call_id = get_id(node.func)
         if (call_id == "range" or call_id == "xrange"):
             # args order: start, stop, step
-            if getattr(node, "range_optimization", False) and \
-                    not getattr(node, "using_offset_arrays", False):
+            if getattr(node, "range_optimization", None) and \
+                    not getattr(node, "using_offset_arrays", None):
                 if len(node.args) > 1:
                     # increment start
                     node.args[0] = self._do_bin_op(node.args[0], ast.Add(), 1,

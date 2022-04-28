@@ -4,7 +4,7 @@ function foo()
     @assert(b == 10)
 end
 
-function fibonacci(n::Any)::Int64
+function fibonacci(n)::Int64
     if n == 0
         return 0
     elseif n == 1
@@ -22,7 +22,7 @@ function mul_list()
     return repeat(a, 2)
 end
 
-function combinations(array::Any)::Vector
+function combinations(array)::Vector
     result = []
     for x in array
         for y in array
@@ -39,7 +39,7 @@ function mul_recvd_list(a::Vector)
     return repeat(a, 2)
 end
 
-function plus_test(x::Any, y::Any)::Any
+function plus_test(x, y)::Any
     return x + y
 end
 

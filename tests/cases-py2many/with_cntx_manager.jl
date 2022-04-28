@@ -13,9 +13,9 @@ end
 
 function __exit__(
     self::AbstractFileOp,
-    type_::Any = nothing,
-    value::Any = nothing,
-    traceback::Any = nothing,
+    type_ = nothing,
+    value = nothing,
+    traceback = nothing,
 )
     close(self.file)
 end

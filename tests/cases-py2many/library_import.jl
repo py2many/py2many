@@ -11,7 +11,7 @@ function calendar_test()
     return isoformat(utcnow(dt.datetime))
 end
 
-function date_to_json(objDate::Any)::js
+function date_to_json(objDate)::js
     return Dict(
         "__type__" => "datetime",
         "year" => year(objDate),
