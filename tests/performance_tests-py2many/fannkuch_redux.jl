@@ -22,7 +22,7 @@ function permutations(n::Any, start::Any, size::Any)
             rotation_swaps = [nothing] * n
             for i = 1:n-1
                 r = collect(0:n-1)
-                for v = 1:i+1-1
+                for v = 1:i
                     r[begin:v], r[v+1] = (r[2:v+1], r[1])
                 end
                 swaps = []
@@ -105,7 +105,7 @@ function fannkuch(n::Any)
             checksums, maximums = zip(starmap(task, task_args)...)
         end
         checksum, maximum = (sum(checksums), max(maximums))
-        println("$checksum\nPfannkuchen($n) = $maximum")
+        println(test)
     end
 end
 

@@ -90,7 +90,7 @@ function count_frequencies(sequence::Any, reading_frames::Any, i::Any, j::Any)
     if length(short_frame_frequences) != 0
         bits = 0
         if i == 0
-            for k = i:(i+frame)-1-1
+            for k = i:(i+frame)-2
                 bits = bits * 4 + sequence[k+1]
                 for (t, (f, m)) in enumerate(short_frame_frequences)
                     if ((k - i) + 1) >= frames[t+1]
@@ -160,9 +160,9 @@ function display(
     end
     for (k_nucleotide, (frequency, n)) in lines
         if relative
-            println("$k_nucleotide {1:.3f}")
+            println(test)
         else
-            println("$frequency\t$k_nucleotide")
+            println(test)
         end
     end
     println(end_)
@@ -208,7 +208,7 @@ function main_func()
     else
         n = 1
     end
-    partitions = [length(sequence) * i ÷ n for i = 0:n+1-1]
+    partitions = [length(sequence) * i ÷ n for i = 0:n]
     count_jobs = [
         (sequence, reading_frames, partitions[i+1], partitions[i+2]) for
         i = 0:length(partitions)-1-1

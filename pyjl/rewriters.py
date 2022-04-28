@@ -3,6 +3,7 @@ import sys
 from typing import Any, Dict
 
 from jinja2 import pass_eval_context
+from pyrsistent import v
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
@@ -312,10 +313,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     old_slice: ast.Slice = node.target.slice
                     lower = old_slice.lower
                     upper = old_slice.upper
-                    if (isinstance(lower, ast.Constant) and 
-                                ((isinstance(lower, str) and lower.value.isdigit()) or
-                                isinstance(lower, int))) or \
-                            isinstance(lower, ast.Num):
+                    if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
                         lower = ast.Constant(value = int(lower.value) + 1)
                     # else:
                     #     lower.splice_increment = True
@@ -622,13 +620,19 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     and isinstance(node.slice.value, int):
                 node.slice.value += 1 
             else:
-                # Default, just add 1
-                node.slice = self._sum_one(node.slice, node.lineno, node.col_offset)
+                # Default: add 1
+                node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
+                    node.lineno, node.col_offset)
 
         return node
 
     def visit_Slice(self, node: ast.Slice) -> Any:
         self.generic_visit(node)
+
+        # Might need this later
+        # elif getattr(node.lower, "splice_increment", None):
+        #     # From JuliaAugAssignRewriter
+        #     lower = f"({lower} + 2)"
 
         if isinstance(node.lower, ast.UnaryOp) \
                 and isinstance(node.lower.op, ast.USub) \
@@ -662,7 +666,9 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
             if isinstance(node.lower, ast.Constant) and isinstance(node.lower.value, int):
                 node.lower.value += 1
             elif node.lower:
-                node.lower = self._sum_one(node.lower, node.lineno, node.col_offset)
+                # Default: add 1
+                node.lower = self._do_bin_op(node.lower, ast.Add(), 1,
+                    node.lineno, node.col_offset)
 
         if hasattr(node, "step"):
             # Cover Python list reverse
@@ -678,24 +684,41 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 
         return node
 
-    def _sum_one(self, node, lineno, col_offset):
-        if isinstance(node, ast.BinOp):
-            if isinstance(node.right, ast.Constant):
-                if isinstance(node.op, ast.Sub):
-                    if node.right.value == 1:
-                        return node.left
-                    else:
-                        node.right.value -= 1
-                else:
-                    node.right.value += 1
-                return node
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        call_id = get_id(node.func)
+        if (call_id == "range" or call_id == "xrange"):
+            # args order: start, stop, step
+            if getattr(node, "range_optimization", False) and \
+                    not getattr(node, "using_offset_arrays", False):
+                if len(node.args) > 1:
+                    # increment start
+                    node.args[0] = self._do_bin_op(node.args[0], ast.Add(), 1,
+                        node.lineno, node.col_offset)
+            else:
+                # decrement stop
+                if len(node.args) == 1:
+                    node.args[0] = self._do_bin_op(node.args[0], ast.Sub(), 1,
+                        node.lineno, node.col_offset)
+                elif len(node.args) > 1:
+                    node.args[1] = self._do_bin_op(node.args[1], ast.Sub(), 1,
+                        node.lineno, node.col_offset)
+            if len(node.args) == 3:
+                # Cover reverse lookup
+                if isinstance(node.args[2], ast.UnaryOp) and \
+                        isinstance(node.args[2].op, ast.USub):
+                    # Switch args
+                    node.args[0], node.args[1] = node.args[1], node.args[0]
+        return node
+
+    def _do_bin_op(self, node, op, val, lineno, col_offset):
         left = node
         left.annotation = ast.Name(id="int")
         return ast.BinOp(
                     left = left,
-                    op = ast.Add(),
+                    op = op,
                     right = ast.Constant(
-                        value = 1, 
+                        value = val, 
                         annotation = ast.Name(id= "int")),
                     lineno = lineno,
                     col_offset = col_offset

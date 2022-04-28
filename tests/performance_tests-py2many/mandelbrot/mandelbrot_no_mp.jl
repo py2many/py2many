@@ -47,7 +47,7 @@ end
 function mandelbrot(n::Any)
     write = x -> Base.write(stdout, x)
     compute_rows(n, compute_row) do rows
-        write(Vector{UInt8}("P4\n$n $n\n"))
+        write(Vector{UInt8}(test))
         for row in rows
             write(row[2])
         end

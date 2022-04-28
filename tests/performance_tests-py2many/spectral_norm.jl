@@ -36,7 +36,7 @@ function main_func()
         vv += ve * ve
     end
     result = √(vBv / vv)
-    println("{0:.9f}")
+    println(test)
 end
 
 function main()
