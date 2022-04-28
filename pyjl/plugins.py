@@ -611,7 +611,7 @@ SMALL_DISPATCH_MAP = {
     # default is false
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
-    "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
+    # "floor": lambda n, vargs: f"floor({vargs[0]})",
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
     "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})"
@@ -690,6 +690,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     operator.floordiv: (lambda self, node, vargs: f"div({vargs[0]}, {vargs[1]})" if vargs else "div", True),
     int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
     float.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
+    math.floor:  (lambda self, node, vargs: f"floor(Int, {vargs[0]})" if vargs else "floor", True),
     divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),

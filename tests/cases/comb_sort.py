@@ -3,9 +3,9 @@
 from math import floor
 from typing import List
 
-
+# @offset_arrays
 def comb_sort(seq: List[int]) -> List[int]:
-    gap, swap = len(seq)
+    gap = len(seq)
     swap = True
     while gap > 1 or swap:
         gap = max(1, floor(gap / 1.25))

@@ -2,6 +2,8 @@ import ast
 import sys
 from typing import Any, Dict
 
+from jinja2 import pass_eval_context
+
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
@@ -715,6 +717,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 class ForLoopTargetRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self._targets_out_of_scope = False
+        self._target_vals: list[tuple] = []
     
     def visit_Module(self, node: ast.Module) -> Any:
         if getattr(node, "optimize_loop_target", False):
@@ -727,41 +731,59 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
     
     def _generic_scope_visit(self, node):
         body = []
+        target_state = self._targets_out_of_scope
+        self._targets_out_of_scope = getattr(node, "targets_out_of_scope", None)
         for n in node.body:
             self.visit(n)
-            if isinstance(n, ast.For):
-                # TODO: Change to visit_For
-                if getattr(node, "targets_out_of_scope", None):
-                    target_id = get_id(n.target)
-                    annotation = getattr(n.scopes.find(n.target), "annotation", None)
-                    target = ast.Name(
-                                id = target_id,
-                                annotation = annotation)
+            if self._target_vals:
+                for target, default in self._target_vals:
                     assign = ast.Assign(
                         targets=[target],
-                        value = ast.Constant(value = None),
+                        value = ast.Constant(value = default),
                         # annotation = ast.Name(id= "int"),
-                        lineno = n.lineno - 1,
-                        col_offset = n.col_offset)
-                    body.append(assign)
-                    new_loop_id = f"_{target_id}"
-                    new_var_assign = ast.Assign(
-                        targets=[target],
-                        value = ast.Name(
-                            id = new_loop_id,
-                            annotation = annotation),
-                        # annotation = annotation,
-                        lineno = n.lineno + 1,
-                        col_offset = n.col_offset)
-                    n.target.id = new_loop_id
-                    n.body.insert(0, new_var_assign)
+                        lineno = node.lineno - 1,
+                        col_offset = node.col_offset)
+                body.append(assign)
+                self._target_vals = []
 
             body.append(n)
             
         # Update node body
         node.body = body
+        self._targets_out_of_scope = target_state
         
         return node
+    
+    def visit_For(self, node: ast.For) -> Any:
+        if self._targets_out_of_scope:
+            # Get target and its default value
+            target_id = get_id(node.target)
+            target_default = self._get_default_val_from_iter(node.iter)
+            self._target_vals.append((ast.Name(target_id), target_default))
+
+            annotation = getattr(node.scopes.find(target_id), "annotation", None)
+            target = ast.Name(
+                        id = target_id,
+                        annotation = annotation)
+            
+            new_loop_id = f"_{target_id}"
+            new_var_assign = ast.Assign(
+                targets=[target],
+                value = ast.Name(
+                    id = new_loop_id,
+                    annotation = annotation),
+                # annotation = annotation,
+                lineno = node.lineno + 1,
+                col_offset = node.col_offset)
+            node.target.id = new_loop_id
+            node.body.insert(0, new_var_assign)
+        return node
+
+    # TODO: get more use-cases
+    def _get_default_val_from_iter(self, iter):
+        if isinstance(iter, ast.Call) and get_id(iter.func) == "range":
+            return 0
+        return None
 
 # TODO: Still preliminary
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):
