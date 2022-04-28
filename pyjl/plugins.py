@@ -318,9 +318,9 @@ class JuliaTranspilerPlugins:
 
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
-        # TODO: Revisit
         if node.args:
-            if isinstance(node.args[0], ast.BinOp):
+            if isinstance(node.args[0], ast.BinOp) and \
+                    isinstance(node.args[0].op, ast.Mod):
                 args_str, args_vals = [], []
                 for arg in vargs:
                     arg_str, arg_val = re.split(r"\s\%\s", arg)
