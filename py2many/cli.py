@@ -16,6 +16,7 @@ from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
+from pyjl.optimizations import AlgebraicSimplification
 
 
 from .analysis import add_imports
@@ -130,6 +131,7 @@ def _transpile(
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
+    optimization_rewriters = settings.optimization_rewriters
     tree_list = []
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
@@ -171,7 +173,8 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, config_handler, args
+                trees, tree, transpiler, rewriters, transformers, 
+                post_rewriters, optimization_rewriters, config_handler, args
             )
 
             successful.append(filename)
@@ -197,7 +200,7 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, config_handler, args
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, optimization_rewriters, config_handler, args
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -216,6 +219,9 @@ def _transpile_one(
     # Language specific rewriters that depend on previous steps
     for rewriter in post_rewriters:
         tree = rewriter.visit(tree)
+    # Language specific optimizations
+    for opt_rewriter in optimization_rewriters:
+        tree = opt_rewriter.visit(tree)
 
     # Rerun core transformers
     tree, infer_meta = core_transformers(tree, trees, args)
@@ -392,6 +398,7 @@ def julia_settings(args, env=os.environ):
         post_rewriters=[JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), ForLoopTargetRewriter(), 
             JuliaOffsetArrayRewriter(), JuliaIndexingRewriter()],
+        optimization_rewriters=[AlgebraicSimplification()]
     )
 
 

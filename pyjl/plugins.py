@@ -300,9 +300,9 @@ class JuliaTranspilerPlugins:
         return "NamedTempFile::new()"
 
     def visit_range(t_self, node, vargs: List[str]) -> str:
-        is_number = lambda x: ((isinstance(x, str) 
-                                    and x.lstrip("-").isnumeric())
-                                or isinstance(x, int))
+        # is_number = lambda x: ((isinstance(x, str) 
+        #                             and x.lstrip("-").isnumeric())
+        #                         or isinstance(x, int))
 
         start = 0
         stop = 0
@@ -315,22 +315,22 @@ class JuliaTranspilerPlugins:
             if len(node.args) == 3:
                 step = vargs[2]
 
-        if getattr(node, "range_optimization", False) and \
-                not getattr(node, "using_offset_arrays", False):
-            if is_number(start):
-                start = int(start) + 1
-            else:
-                start = f"{start} + 1"
-        else:
-            if is_number(stop):
-                stop = int(stop) - 1
-            else:
-                stop = f"{stop} - 1"
+        # if getattr(node, "range_optimization", False) and \
+        #         not getattr(node, "using_offset_arrays", False):
+        #     if is_number(start):
+        #         start = int(start) + 1
+        #     else:
+        #         start = f"{start} + 1"
+        # else:
+        #     if is_number(stop):
+        #         stop = int(stop) - 1
+        #     else:
+        #         stop = f"{stop} - 1"
 
         if step:
-            if step == "-1":
-                # Fails with negative indices other than -1 
-                return f"{stop}:{step}:{start}"
+            # if step == "-1":
+            #     # Fails with negative indices other than -1 
+            #     return f"{stop}:{step}:{start}"
             return f"{start}:{step}:{stop}"
 
         return f"{start}:{stop}"
