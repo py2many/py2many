@@ -16,7 +16,6 @@ import sys
 import unittest
 import bisect
 
-from libcst import FunctionDef
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import get_ann_repr

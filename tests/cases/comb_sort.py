@@ -5,7 +5,7 @@ from typing import List
 
 
 def comb_sort(seq: List[int]) -> List[int]:
-    gap = len(seq)
+    gap, swap = len(seq)
     swap = True
     while gap > 1 or swap:
         gap = max(1, floor(gap / 1.25))

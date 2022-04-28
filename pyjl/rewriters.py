@@ -2,8 +2,6 @@ import ast
 import sys
 from typing import Any, Dict
 
-from numpy import True_, isin
-
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
