@@ -85,8 +85,8 @@ function loop_element_test()
 end
 
 function for_cycle_vars()
-    seq::Vector = [1, 2, 3, 4, 5]
-    seq_copy::Vector = collect(seq)
+    seq = [1, 2, 3, 4, 5]
+    seq_copy = collect(seq)
     for i = 0:length(seq)-1-1
         @assert(seq[i+1] == seq_copy[i+1])
     end

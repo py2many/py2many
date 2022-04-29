@@ -1,9 +1,8 @@
+from __future__ import annotations
 import ast
+from ctypes import Union
 import sys
 from typing import Any, Dict
-
-from jinja2 import pass_eval_context
-from pyrsistent import v
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
@@ -609,28 +608,39 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         self._curr_slice_val = None
         value_id = get_id(node.value)
 
+        # Handle negative indexing 
+        if isinstance(node.slice, ast.UnaryOp) and \
+                isinstance(node.slice.op, ast.USub) and \
+                isinstance(node.slice.operand, ast.Constant):
+            end_val = ast.Name(
+                    id = "end",
+                    lineno = node.lineno,
+                    col_offset = node.col_offset,
+                    annotation = ast.Name(id="int"),
+                    preserve_keyword = True)
+            if node.slice.operand.value == 1:
+                node.slice = end_val
+            else:
+                node.slice = ast.BinOp(
+                    left = end_val,
+                    op = ast.Sub(),
+                    right = ast.Constant(value = node.slice.operand.value - 1),
+                    annotation = ast.Name(id = "int")
+                )
+
         if not getattr(node, "range_optimization", None) and \
                 not getattr(node, "using_offset_arrays", None) and \
                 not self._is_dict(node, value_id) and \
                 not isinstance(node.slice, ast.Slice):
-            # Shortcut if index is a numeric value
-            if isinstance(node.slice, ast.UnaryOp) and \
-                    isinstance(node.slice.op, ast.USub) and \
-                    isinstance(node.slice.operand, ast.Constant):
-                if node.slice.operand.value == 1:
-                    node.slice = ast.Name(
-                        id = "end",
-                        lineno = node.lineno,
-                        col_offset = node.col_offset,
-                        annotation = ast.Name(id="int"),
-                        preserve_keyword = True)
-            elif isinstance(node.slice, ast.Constant) \
+            if isinstance(node.slice, ast.Constant) \
                     and isinstance(node.slice.value, int):
+                # Shortcut if index is a numeric value
                 node.slice.value += 1 
             else:
                 # Default: add 1
-                node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
-                    node.lineno, node.col_offset)
+                if get_id(node.slice) != "end":
+                    node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
+                        node.lineno, node.col_offset)
 
         return node
 
@@ -818,6 +828,15 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
 
 # TODO: Still preliminary
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):
+
+    SUPPORTED_OPERATIONS = set([
+        "append", 
+        "clear",
+        "extend",
+        "len",
+        "range"
+    ])
+
     def __init__(self) -> None:
         super().__init__()
         # Scoping information
@@ -830,7 +849,11 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         # Flags
         self._use_offset_array = False
         self._using_offset_arrays = False
-        self._require_parent = False
+        self._is_assign_val = False
+
+    ##########################################
+    ############## Visit Scopes ##############
+    ##########################################
 
     def visit_Module(self, node: ast.Module) -> Any:
         if getattr(node, "offset_arrays", False):
@@ -928,9 +951,27 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         return node
 
     def visit_For(self, node: ast.For) -> Any:
+        self._last_scopes.append(self._current_scope.copy())
+        self._current_scope = node.scopes
         self.generic_visit(node)
         if self._use_offset_array:
             node.iter.using_offset_arrays = True
+            node.iter.require_parent = False
+        self._current_scope = ScopeList(self._last_scopes.pop())
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        self._last_scopes.append(self._current_scope.copy())
+        self._current_scope = node.scopes
+        self.generic_visit(node)
+        self._current_scope = ScopeList(self._last_scopes.pop())
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        self._last_scopes.append(self._current_scope.copy())
+        self._current_scope = node.scopes
+        self.generic_visit(node)
+        self._current_scope = ScopeList(self._last_scopes.pop())
         return node
 
     def _enter_scope(self, node):
@@ -944,32 +985,47 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         del self._subscript_vals[self._subscript_val_idxs.pop():]
         self._current_scope = ScopeList(self._last_scopes.pop())
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        self._require_parent = False
+    ##########################################
+    ##########################################
+    ##########################################
+
+    def visit_List(self, node: ast.List) -> Any:
         self.generic_visit(node)
-        self._require_parent = True
-        if self._use_offset_array:
-            ann = getattr(node.value, "annotation", None)
-            if self._is_list(ann):
-                for n in node.targets:
-                    if id := get_id(n):
-                        self._list_assigns.append(id)
-                node.value = self._build_offset_array_call(
-                    node.value, ann, node.lineno, node.col_offset, 
-                    node.scopes)
+        if self._is_assign_val:
+            return self._build_offset_array_call(
+                node, node.annotation,  node.lineno, 
+                node.col_offset, node.scopes)
         return node
-    
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        self._require_parent = False
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        for t in node.targets:
+            t.require_parent = False
+        ann = getattr(node.value, "annotation", None)
+        if self._use_offset_array and self._is_list(ann):
+            for n in node.targets:
+                if id := get_id(n):
+                    self._list_assigns.append(id)
+            if not isinstance(node.value, ast.List):
+                node.value = self._build_offset_array_call(
+                    node.value, ann, node.lineno, 
+                    node.col_offset, node.scopes)
+        self._is_assign_val = True
         self.generic_visit(node)
-        self._require_parent = True
-        if self._use_offset_array:
-            if self._is_list(node.annotation) and \
-                    (id := get_id(node.target)):
-                self._list_assigns.append(id)
+        self._is_assign_val = False
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        node.target.require_parent = False
+        if self._use_offset_array and self._is_list(node.annotation):
+            # node.annotation = ast.Name(id="OffsetArray")
+            self._list_assigns.append(get_id(node.target))
+            if not isinstance(node.value, ast.List):
                 node.value = self._build_offset_array_call(
                     node.value, node.annotation, node.lineno, 
                     node.col_offset, node.scopes)
+        self._is_assign_val = True
+        self.generic_visit(node)
+        self._is_assign_val = False
         return node
 
     def _is_list(self, annotation):
@@ -978,38 +1034,47 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
             or ann_str.startswith("list"))
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
-        self._require_parent = False
+        node.value.require_parent = False
         self.generic_visit(node)
-        self._require_parent = True
+
+        # Cover nested subscripts
+        if isinstance(node.value, ast.Subscript):
+            node.using_offset_arrays = node.value.using_offset_arrays
+
         if self._use_offset_array and (id := get_id(node.value)):
             self._subscript_vals.append(id)
             node.using_offset_arrays = True
             if isinstance(node.slice, ast.Slice):
                 node.slice.using_offset_arrays = True
+
         return node
 
     def visit_Call(self, node: ast.Call) -> Any:
         # Accounts for JuliaMethodCallRewriter
         args = getattr(node, "args", None)
-        if args and get_id(args[0]) == "sys":
-            if get_id(node.func) == "argv":
-                curr_val = self._use_offset_array
-                self._use_offset_array = False
-                self.generic_visit(node)
-                self._use_offset_array = curr_val
-                return node
+        if (args and get_id(args[0]) == "sys" 
+                and get_id(node.func) == "argv"):
+            curr_val = self._use_offset_array
+            self._use_offset_array = False
+            self.generic_visit(node)
+            self._use_offset_array = curr_val
+            return node
+        if get_id(node.func) in self.SUPPORTED_OPERATIONS:
+            for arg in node.args:
+                arg.require_parent = False
 
         self.generic_visit(node)
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
-        if self._require_parent and get_id(node) in self._list_assigns:
+        self.generic_visit(node)
+        require_parent = getattr(node, "require_parent", True)
+        if require_parent and get_id(node) in self._list_assigns:
             return self._create_parent(node, node.lineno, 
                 getattr(node, "col_offset", None))
-        return self.generic_visit(node)
+        return node
 
     def _build_offset_array_call(self, list_arg, annotation, lineno, col_offset, scopes):
-        annotation.is_offset_array = True
         return ast.Call(
                 func = ast.Name(id="OffsetArray"),
                 args = [list_arg, ast.Constant(-1)],

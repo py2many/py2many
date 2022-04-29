@@ -720,7 +720,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
         target = self.visit(node.target)
-        type_str = self._map_type(self.visit(node.annotation))
+        type_str = self._typename_from_type_node(node.annotation)
 
         val = None
         if node.value is not None:

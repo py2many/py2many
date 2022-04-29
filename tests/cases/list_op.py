@@ -83,8 +83,8 @@ def loop_element_test():
     assert res_2 == [3,4]
 
 def for_cycle_vars():
-    seq: list = [1,2,3,4,5] 
-    seq_copy: list = list(seq)
+    seq = [1,2,3,4,5] 
+    seq_copy = list(seq)
     for i in range(len(seq) - 1):
         # Assert that the list has not changed
         assert seq[i] == seq_copy[i]
