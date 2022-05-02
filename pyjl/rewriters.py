@@ -4,10 +4,12 @@ from ctypes import Union
 import sys
 from typing import Any, Dict
 
+from libcst import Call
+
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_in_scope, is_class_or_module, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import get_id
@@ -586,9 +588,28 @@ class JuliaConditionRewriter(ast.NodeTransformer):
             )
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
+
+    SPECIAL_FUNCTIONS = set([
+        "bisect",
+        "bisect_right",
+        "bisect_left",
+        "find_ge",
+        "find_gt",
+        "find_le",
+        "find_lt",
+        "index",
+    ])
+
     def __init__(self) -> None:
         super().__init__()
         self._curr_slice_val = None
+        self._imports = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        imports = getattr(node, "imports", [])
+        self._imports = [get_id(a) for a in imports]
+        self.generic_visit(node)
+        return node
 
     def visit_LetStmt(self, node: juliaAst.LetStmt):
         # Introduced in JuliaOffsetArrayRewriter
@@ -628,21 +649,43 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     annotation = ast.Name(id = "int")
                 )
 
-        if not getattr(node, "range_optimization", None) and \
-                not getattr(node, "using_offset_arrays", None) and \
-                not self._is_dict(node, value_id) and \
+        if not self._is_dict(node, value_id) and \
                 not isinstance(node.slice, ast.Slice):
-            if isinstance(node.slice, ast.Constant) \
-                    and isinstance(node.slice.value, int):
-                # Shortcut if index is a numeric value
-                node.slice.value += 1 
+            call_id = self._get_func_name(node)
+            if not getattr(node, "range_optimization", None) and \
+                    not getattr(node, "using_offset_arrays", None):
+                # Ignore special functions, as they already return the correct indices
+                if call_id in self.SPECIAL_FUNCTIONS and \
+                        call_id in self._imports:
+                    return node
+
+                if isinstance(node.slice, ast.Constant) \
+                        and isinstance(node.slice.value, int):
+                    # Shortcut if index is a numeric value
+                    node.slice.value += 1 
+                else:
+                    # Default: add 1
+                    if get_id(node.slice) != "end":
+                        node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
+                            node.lineno, node.col_offset)
             else:
-                # Default: add 1
-                if get_id(node.slice) != "end":
+                if call_id in self.SPECIAL_FUNCTIONS:
                     node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
                         node.lineno, node.col_offset)
 
         return node
+
+    def _get_func_name(self, node: ast.Subscript):
+        call_id = None
+        if isinstance(node.slice, ast.Call):
+            call_id = get_id(node.slice.func)
+            assign_node = find_node_by_name_and_type(call_id, ast.Assign, node.scopes)[0]
+            if assign_node:
+                if isinstance(assign_node.value, ast.Call):
+                    call_id = get_id(assign_node.value.func)
+                elif id := get_id(assign_node.value):
+                    call_id = id 
+        return call_id
 
     def visit_Slice(self, node: ast.Slice) -> Any:
         self.generic_visit(node)
@@ -991,10 +1034,11 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
     def visit_List(self, node: ast.List) -> Any:
         self.generic_visit(node)
-        if self._is_assign_val:
-            return self._build_offset_array_call(
-                node, node.annotation,  node.lineno, 
-                node.col_offset, node.scopes)
+        if self._use_offset_array:
+            if self._is_assign_val:
+                return self._build_offset_array_call(
+                    node, node.annotation,  node.lineno, 
+                    node.col_offset, node.scopes)
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:

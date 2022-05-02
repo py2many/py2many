@@ -52,16 +52,16 @@ end
 function randomFasta(table, n::Int64)
     width = 60
     r = 0:width-1
-    gR = next(Random)
+    gR = Random
     bb = bisect_right
     jn = x -> join(x, "")
     probs, chars = makeCumulative(table)
     for j = 0:n÷width-1
-        x = jn([chars[bb(probs, gR())+1] for i in r])
+        x = jn([chars[bb(probs, gR())] for i in r])
         println(x)
     end
     if (n % width) != 0
-        println(jn([chars[bb(probs, gR())+1] for i = 0:n%width-1]))
+        println(jn([chars[bb(probs, gR())] for i = 0:n%width-1]))
     end
 end
 

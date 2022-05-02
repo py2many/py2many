@@ -418,16 +418,11 @@ class JuliaTranspilerPlugins:
         return f"(x for x in {vargs[0]})"
 
     def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
-        varg = node.scopes.find(vargs[0])
-        annotation = get_id(getattr(varg, "annotation", None))
-
-        if annotation == "Generator":
-            func_scope = None
-            v_node = find_node_by_name(get_id(varg), node.scopes)
-            if isinstance(v_node, ast.Assign) and isinstance(v_node.value, ast.Call):
-                func_scope = node.scopes.find(get_id(v_node.value.func))
-            if func_scope:
-                decs = getattr(func_scope, "parsed_decorators", None)
+        func_def = JuliaTranspilerPlugins._get_func_def(node, vargs[0])
+        if func_def:
+            annotation = get_id(func_def.annotation)
+            if annotation == "Generator":
+                decs = getattr(func_def, "parsed_decorators", None)
                 if RESUMABLE in decs:
                     return f"{vargs[0]}({', '.split(vargs[1:])})" \
                         if len(vargs) > 1 \
@@ -439,6 +434,22 @@ class JuliaTranspilerPlugins:
         #     getattr(node, "is_gen_expr", None)
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
+
+
+    def _get_func_def(node, name):
+        func_def = find_node_by_name_and_type(name, ast.FunctionDef, node.scopes)[0]
+        if func_def:
+            return func_def
+
+        assign = find_node_by_name_and_type(name, ast.Assign, node.scopes)[0]
+        if assign and (assign_val := assign.value):
+            assign_id = None
+            if assign_val and isinstance(assign_val, ast.Call):
+                assign_id = get_id(assign_val.func)
+            elif id:= get_id(assign_val):
+                assign_id = id
+            return find_node_by_name_and_type(assign_id, ast.FunctionDef, node.scopes)[0]
+        return None
 
     def visit_zip(t_self, node, vargs: list[str]):
         ls1 = node.args[0]

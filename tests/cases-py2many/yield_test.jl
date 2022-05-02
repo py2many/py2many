@@ -102,7 +102,7 @@ function main()
     arr7 = []
     res = fib()
     for i = 0:5
-        push!(arr7, next(res))
+        push!(arr7, res)
     end
     @assert(arr7 == [0, 1, 1, 2, 3, 5])
     for i in testgen()
