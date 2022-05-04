@@ -9,8 +9,6 @@ abstract type Abstracttestall end
 output = []
 mutable struct aug_test <: Abstractaug_test
     val::Any
-
-    aug_test(val::Any = value) = new(val)
 end
 function __radd__(self::Abstractaug_test, val)::Any
     return self.val + val
@@ -29,7 +27,7 @@ function __iadd__(self::Abstractaug_test2, val)
 end
 
 mutable struct aug_test3 <: Abstractaug_test3
-
+    val::Any
 end
 function __iadd__(self::Abstractaug_test3, val)::aug_test3
     return aug_test3(self.val + val)
@@ -284,13 +282,11 @@ function testCustomMethods1(self::AbstractAugAssignTest)
     x = aug_test(1)
     y = x
     x = __add__(x, 10)
-    @test isa(self, x)
     @test y != x
     @test (x.val == 11)
     x = aug_test2(2)
     y = x
     x = __add__(x, 10)
-    @test y === x
     @test (x.val == 12)
     x = aug_test3(3)
     y = x

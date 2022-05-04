@@ -278,7 +278,7 @@ class SmtTranspiler(CLikeTranspiler):
         variants = []
         for member, var in node.class_assignments.items():
             member_id = get_id(member)
-            declaration, (typename, default, parent) = node.declarations_with_defaults.get(member_id, None)
+            declaration, typename = node.declarations_with_defaults.get(member_id, None)
             if typename == self._default_type:
                 variants.append("(None)")
             else:

@@ -523,28 +523,52 @@ class JuliaTranspilerPlugins:
 
 
 class JuliaRewriterPlugins:
-    def visit_init(t_self, node: ast.FunctionDef):
+    def visit_init(t_self, node: ast.FunctionDef): 
         # Visit Args
         arg_values = JuliaRewriterPlugins._get_args(t_self, node.args)
+        arg_names = []
         for (name, type, default) in arg_values:
-            if name not in t_self._class_fields and default:
+            arg_names.append(name)
+            if name not in t_self._class_fields and name != "self" and default:
                 # TODO: Deal with linenumber (and col_offset)
+                target = ast.Name(id=name, ctx=ast.Store())
                 if type:
                     t_self._class_fields[name] = ast.AnnAssign(
-                        target=ast.Name(id=name, ctx=ast.Store()),
+                        target=target,
                         annotation = type,
                         value = default,
                         lineno=1)
                 else:
                     t_self._class_fields[name] = ast.Assign(
-                        targets=[ast.Name(id=name, ctx=ast.Store())],
+                        targets=[target],
                         value = default,
                         lineno=1)
 
+        _id = lambda x: x.attr if isinstance(x, ast.Attribute) else get_id(x)
         constructor_body = []
         for n in node.body:
-            if not (isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign)):
-                constructor_body.append(n)
+            if isinstance(n, ast.Assign):
+                target_id = _id(n.targets[0])
+                if target_id not in arg_names:
+                    t_self._class_fields[target_id] = n
+                else:
+                    annotation = n.value.annotation \
+                        if hasattr(n.value, "annotation") \
+                        else ast.Name(id = "Any")
+                    t_self._class_fields[target_id] = ast.AnnAssign(
+                        target=n.targets[0],
+                        annotation = annotation,
+                        lineno=1)
+            elif isinstance(n, ast.AnnAssign):
+                if _id(n.target) in arg_names:
+                    t_self._class_fields[_id(n.target)] = ast.AnnAssign(
+                        target=n.target,
+                        annotation = n.annotation,
+                        lineno=1)
+                else:
+                    t_self._class_fields[_id(n.target)] = n
+            else:
+                constructor_body.append(n)   
 
         if constructor_body:
             parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)

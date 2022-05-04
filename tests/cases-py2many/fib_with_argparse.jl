@@ -1,14 +1,14 @@
 abstract type AbstractOptions end
 
 mutable struct Options <: AbstractOptions
-    v::Bool
     n::Int64
+    v::Bool
 
-    Options(v::Bool = false, n::Int64 = 0) = new(v, n)
+    Options(n::Int64 = 0, v::Bool = false) = new(n, v)
 end
 
 function __repr__(self::AbstractOptions)::String
-    return AbstractOptions(self.v, self.n)
+    return AbstractOptions(self.n, self.v)
 end
 
 
@@ -18,7 +18,7 @@ end
 
 
 function __key(self::AbstractOptions)
-    (self.v, self.n)
+    (self.n, self.v)
 end
 
 function fib(i::Int64)::Int64

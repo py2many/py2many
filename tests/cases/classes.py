@@ -27,7 +27,7 @@ class Student(Person):
         self.student_number = student_number
 
     def get_name(self):
-        return f"{self.student_number} - {self.name}"
+        return f"{self.name} - {self.student_number}"
 
 class Student2(Person):
     def __init__(self, 

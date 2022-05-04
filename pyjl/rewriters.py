@@ -220,33 +220,26 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         return node
 
-    # TODO: Rewrite special method calls
-    # def visit_Call(self, node: ast.Call) -> Any:
-    #     fname = node.func
-    #     if fname in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-    #         pass
+    # def visit_Assign(self, node: ast.Assign) -> Any:
+    #     target = node.targets[0]
+    #     self._generic_assign_visit(node, target)
     #     return node
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        target = node.targets[0]
-        self._generic_assign_visit(node, target)
-        return node
+    # def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+    #     target = node.target
+    #     self._generic_assign_visit(node, target)
+    #     return node
 
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        target = node.target
-        self._generic_assign_visit(node, target)
-        return node
-
-    def _generic_assign_visit(self, node, target):
-        self.generic_visit(node)
-        if isinstance(target, ast.Attribute) and \
-                get_id(target.value) == "self":
-            if target.attr not in self._class_fields:
-                self._class_fields[target.attr] = node
-            else:
-                class_field = self._class_fields[target.attr]
-                if not getattr(class_field, "value", None) and node.value:
-                    self._class_fields[target.attr] = node
+    # def _generic_assign_visit(self, node, target):
+    #     self.generic_visit(node)
+    #     if isinstance(target, ast.Attribute) and \
+    #             get_id(target.value) == "self":
+    #         if target.attr not in self._class_fields:
+    #             self._class_fields[target.attr] = node
+    #         else:
+    #             class_field = self._class_fields[target.attr]
+    #             if not getattr(class_field, "value", None) and node.value:
+    #                 self._class_fields[target.attr] = node
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):

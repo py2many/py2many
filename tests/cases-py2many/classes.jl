@@ -18,27 +18,27 @@ function bar_str(self::AbstractFoo)::String
 end
 
 mutable struct Person <: AbstractPerson
-    name::Any
+    name::String
 end
 function get_name(self::AbstractPerson)
     return self.name
 end
 
 mutable struct Student <: AbstractStudent
-    student_number::Any
-    name::Any
+    name::String
+    student_number::Int64
     domain::String
 
-    Student(student_number::Any, name::Any, domain::String = "school.student.pt") =
-        new(student_number, name, domain)
+    Student(name::String, student_number::Int64, domain::String = "school.student.pt") =
+        new(name, student_number, domain)
 end
 function get_name(self::AbstractStudent)
-    return "$(self.student_number) - $(self.name)"
+    return "$(self.name) - $(self.student_number)"
 end
 
 mutable struct Student2 <: AbstractStudent2
-    student_number::Any
-    name::Any
+    name::String
+    student_number::Int64
     domain::String
 
     Student2(name::String, student_number::Int64, domain::String = "school.student.pt") =

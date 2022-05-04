@@ -485,20 +485,18 @@ class JuliaTranspiler(CLikeTranspiler):
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
         
-        declarations: dict[str, (str, Any, Any)] = node.declarations_with_defaults
-        has_defaults = any(list(map(
-            lambda x: x[1][1] is not None and isinstance(x[1][2], ast.ClassDef), 
-            declarations.items())))
+        declarations: dict[str, (str, Any)] = node.declarations_with_defaults
+        has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
 
         # Reorganize fields, so that defaults are last
-        dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] is None, x), reverse=True) \
+        dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
             if has_defaults \
             else declarations.items()
 
         decs = []
         fields = []
         fields_str = []
-        for declaration, (typename, default, parent) in dec_items:
+        for declaration, (typename, default) in dec_items:
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
@@ -509,9 +507,7 @@ class JuliaTranspiler(CLikeTranspiler):
             fields_str.append(declaration if typename == "" else f"{declaration}::{typename}")
             
             # Default field values
-            default_value = self.visit(default) \
-                if (default and isinstance(parent, ast.ClassDef)) \
-                else None
+            default_value = self.visit(default) if default else None
             fields.append((declaration, typename, default_value) \
                 if typename == "" else (declaration, typename, default_value))
 
@@ -556,10 +552,10 @@ class JuliaTranspiler(CLikeTranspiler):
         extractor = DeclarationExtractor(JuliaTranspiler())
         extractor.visit(node)
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
-        declarations: dict[str, (str, Any, Any)] = node.declarations_with_defaults
+        declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         fields = []
-        for i, (declaration, (t_name, default, parent)) in enumerate(declarations.items()):
+        for i, (declaration, (t_name, default)) in enumerate(declarations.items()):
             val = self.visit(default)
             if val == _AUTO_INVOKED:
                 if caller_type == IntFlag:
