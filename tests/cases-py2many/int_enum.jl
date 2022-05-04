@@ -1,7 +1,7 @@
 using PyEnum
-
 abstract type AbstractColors <: AbstractIntEnum end
 abstract type AbstractPermissions <: AbstractIntFlag end
+
 @pyenum Colors::Int64 begin
     RED = 0
     GREEN = 1

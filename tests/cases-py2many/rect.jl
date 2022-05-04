@@ -1,6 +1,6 @@
 #= This file implements a rectangle class  =#
-
 abstract type AbstractRectangle end
+
 mutable struct Rectangle <: AbstractRectangle
     height::Int64
     length::Int64
@@ -29,8 +29,8 @@ function show()
     @assert(is_square(r))
     r = Rectangle(1, 2)
     @assert(!is_square(r))
-    println(height(r))
-    println(length(r))
+    println(r.height)
+    println(r.length)
 end
 
 function main()

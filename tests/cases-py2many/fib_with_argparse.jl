@@ -1,5 +1,5 @@
-
 abstract type AbstractOptions end
+
 mutable struct Options <: AbstractOptions
     v::Bool
     n::Int64

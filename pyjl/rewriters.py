@@ -80,19 +80,20 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map = {}
-        self._import_list = []
         self._import_count = 0
         self._ignored_module_set = \
             self._ignored_module_set = IGNORED_MODULE_SET.copy()\
                 .union(JL_IGNORED_MODULE_SET.copy())
         self._class_fields: Dict[str, Any] = {}
         self._nested_classes = []
+        self._class_scopes = []
+        self._current_class_scope = None
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._hierarchy_map = {}
-        self._import_list = []
         self._import_count = 0
         self._nested_classes = []
+        self._class_scopes = []
 
         node.lineno = 0
         node.col_offset = 0
@@ -100,39 +101,19 @@ class JuliaClassRewriter(ast.NodeTransformer):
         # Visit body nodes
         body = []
         for n in node.body:
-            self._class_fields = {}
-            if isinstance(n, ast.ClassDef):
-                class_body = []
-                for d in n.body:
-                    if isinstance(d, ast.FunctionDef):
-                        if d.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-                            JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[d.name](
-                                self, d)
-                        else:
-                            d.self_type = n.name
-                            class_body.append(self.visit(d))
-                    else:
-                        class_body.append(self.visit(d))
-                fields = []
-                for f in self._class_fields.values():
-                    if f is not None:
-                        fields.append(f)
-                n.body = fields + class_body
-
-            b_node = self.visit(n)
-
-            if self._nested_classes:                    
+            self.visit(n)
+            if self._nested_classes:
+                # Add nested classes to top scope                 
                 for cls in self._nested_classes:
                     body.append(self.visit(cls))
                 self._nested_classes = []
 
-            body.append(b_node)
+            body.append(n)
 
         # Create abstract types
         abstract_types = []
         l_no = self._import_count
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
-            # node.class_names.append(class_name)
             if not is_jlClass:
                 core_module = extends_lst[0].split(
                     ".")[0] if extends_lst else None
@@ -158,6 +139,10 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name: str = get_id(node)
 
+        # Get new class scope
+        self._class_scopes.append(self._current_class_scope)
+        self._current_class_scope = class_name
+
         decorator_list = list(map(get_id, node.decorator_list))
         is_jlClass = "jl_class" in decorator_list
 
@@ -175,7 +160,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
             new_bases = []
             for base in node.bases:
                 name = get_id(base)
-                if is_class_or_module(name, node.scopes) or name in self._import_list:
+                if is_class_or_module(name, node.scopes):
                     b = ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)
                     if b not in new_bases:
                         new_bases.append(b)
@@ -186,11 +171,32 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 
-        return self.generic_visit(node)
+        self._class_fields = {}
+        self.generic_visit(node)
+
+        # Get new class fields
+        fields = []
+        for f in self._class_fields.values():
+            if f is not None:
+                fields.append(f)
+        node.body = fields + node.body
+
+        # Go back to old scope
+        self._current_class_scope = self._class_scopes.pop()
+
+        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        args = node.args
+        self.generic_visit(node)
 
+        func_name = get_id(node)
+        if func_name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
+            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[func_name](self, node)
+        
+        # Add self type
+        node.self_type = self._current_class_scope
+
+        args = node.args
         for arg in args.args:
             if ((annotation := getattr(arg, "annotation", None)) and
                     is_class_or_module(annotation, node.scopes)):
@@ -212,7 +218,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         node.body = body
 
-        return self.generic_visit(node)
+        return node
 
     # TODO: Rewrite special method calls
     # def visit_Call(self, node: ast.Call) -> Any:
@@ -220,13 +226,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
     #     if fname in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
     #         pass
     #     return node
-
-    def visit_Expr(self, node: ast.Expr) -> Any:
-        parent = node.scopes[-1]
-        # Initialize class expression with None type
-        if isinstance(parent, ast.ClassDef) and (id := get_id(node.value)):
-            self._class_fields[id] = None
-        return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         target = node.targets[0]
@@ -249,28 +248,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def _is_member(self, node):
         return hasattr(node, "value") and get_id(node.value) == "self"
-
-    def visit_Import(self, node: ast.Import) -> Any:
-        self._generic_import_visit(node)
-        return self.generic_visit(node)
-
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-        self._generic_import_visit(node)
-        return self.generic_visit(node)
-
-    def _generic_import_visit(self, node):
-        is_visit = False
-        for alias in node.names:
-            alias_id = alias.name
-            if alias_id not in self._ignored_module_set:
-                is_visit = True
-                if asname := getattr(alias, "asname", None):
-                    self._import_list.append(asname)
-                elif name := getattr(alias, "name", None):
-                    self._import_list.append(name)
-
-        if is_visit:
-            self._import_count += 1
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):

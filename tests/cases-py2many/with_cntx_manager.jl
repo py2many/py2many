@@ -1,6 +1,6 @@
+abstract type AbstractFileOp end
 using tempfile: NamedTemporaryFile
 using textwrap: wrap
-abstract type AbstractFileOp end
 mutable struct FileOp <: AbstractFileOp
     file_name::Any
     method::Any

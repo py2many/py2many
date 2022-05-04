@@ -15,6 +15,7 @@ import re
 import sys
 import unittest
 import bisect
+import copy
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -544,10 +545,9 @@ class JuliaRewriterPlugins:
         for n in node.body:
             if not (isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign)):
                 constructor_body.append(n)
-            t_self.visit(n)
 
         if constructor_body:
-            parent: ast.ClassDef = node.scopes[-2]
+            parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
             constructor_args = node.args
             # Remove self
             constructor_args.args = constructor_args.args[1:]
@@ -559,6 +559,8 @@ class JuliaRewriterPlugins:
                                     ctx=ast.Load(), 
                                     lineno=node.lineno + len(constructor_args.args), 
                                     col_offset=4)
+
+        return None
 
     def _get_args(t_self, args: ast.arguments):
         defaults = args.defaults

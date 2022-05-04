@@ -1,6 +1,6 @@
-
 abstract type AbstractIntListNonEmpty end
 abstract type AbstractIntList end
+
 
 mutable struct IntListNonEmpty <: AbstractIntListNonEmpty
     first::Int64

@@ -1,7 +1,7 @@
-
 abstract type AbstractPacket end
 abstract type AbstractRegister end
 abstract type AbstractValueHolder end
+
 mutable struct Packet <: AbstractPacket
     val::Float64
 end

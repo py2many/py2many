@@ -9,23 +9,21 @@ abstract type Abstracttestall end
 output = []
 mutable struct aug_test <: Abstractaug_test
     val::Any
-end
-function __init__(self, value)
-    self.val = value
-end
 
-function __radd__(self, val)::Any
+    aug_test(val::Any = value) = new(val)
+end
+function __radd__(self::Abstractaug_test, val)::Any
     return self.val + val
 end
 
-function __add__(self, val)::aug_test
+function __add__(self::Abstractaug_test, val)::aug_test
     return aug_test(self.val + val)
 end
 
 mutable struct aug_test2 <: Abstractaug_test2
     val::Any
 end
-function __iadd__(self, val)
+function __iadd__(self::Abstractaug_test2, val)
     self.val = self.val + val
     return self
 end
@@ -33,7 +31,7 @@ end
 mutable struct aug_test3 <: Abstractaug_test3
 
 end
-function __iadd__(self, val)::aug_test3
+function __iadd__(self::Abstractaug_test3, val)::aug_test3
     return aug_test3(self.val + val)
 end
 
@@ -46,175 +44,175 @@ end
 mutable struct testall <: Abstracttestall
 
 end
-function __add__(self, val)
+function __add__(self::Abstracttestall, val)
     push!(output, "__add__ called")
 end
 
-function __radd__(self, val)
+function __radd__(self::Abstracttestall, val)
     push!(output, "__radd__ called")
 end
 
-function __iadd__(self, val)
+function __iadd__(self::Abstracttestall, val)
     push!(output, "__iadd__ called")
     return self
 end
 
-function __sub__(self, val)
+function __sub__(self::Abstracttestall, val)
     push!(output, "__sub__ called")
 end
 
-function __rsub__(self, val)
+function __rsub__(self::Abstracttestall, val)
     push!(output, "__rsub__ called")
 end
 
-function __isub__(self, val)
+function __isub__(self::Abstracttestall, val)
     push!(output, "__isub__ called")
     return self
 end
 
-function __mul__(self, val)
+function __mul__(self::Abstracttestall, val)
     push!(output, "__mul__ called")
 end
 
-function __rmul__(self, val)
+function __rmul__(self::Abstracttestall, val)
     push!(output, "__rmul__ called")
 end
 
-function __imul__(self, val)
+function __imul__(self::Abstracttestall, val)
     push!(output, "__imul__ called")
     return self
 end
 
-function __matmul__(self, val)
+function __matmul__(self::Abstracttestall, val)
     push!(output, "__matmul__ called")
 end
 
-function __rmatmul__(self, val)
+function __rmatmul__(self::Abstracttestall, val)
     push!(output, "__rmatmul__ called")
 end
 
-function __imatmul__(self, val)
+function __imatmul__(self::Abstracttestall, val)
     push!(output, "__imatmul__ called")
     return self
 end
 
-function __floordiv__(self, val)
+function __floordiv__(self::Abstracttestall, val)
     push!(output, "__floordiv__ called")
     return self
 end
 
-function __ifloordiv__(self, val)
+function __ifloordiv__(self::Abstracttestall, val)
     push!(output, "__ifloordiv__ called")
     return self
 end
 
-function __rfloordiv__(self, val)
+function __rfloordiv__(self::Abstracttestall, val)
     push!(output, "__rfloordiv__ called")
     return self
 end
 
-function __truediv__(self, val)
+function __truediv__(self::Abstracttestall, val)
     push!(output, "__truediv__ called")
     return self
 end
 
-function __rtruediv__(self, val)
+function __rtruediv__(self::Abstracttestall, val)
     push!(output, "__rtruediv__ called")
     return self
 end
 
-function __itruediv__(self, val)
+function __itruediv__(self::Abstracttestall, val)
     push!(output, "__itruediv__ called")
     return self
 end
 
-function __mod__(self, val)
+function __mod__(self::Abstracttestall, val)
     push!(output, "__mod__ called")
 end
 
-function __rmod__(self, val)
+function __rmod__(self::Abstracttestall, val)
     push!(output, "__rmod__ called")
 end
 
-function __imod__(self, val)
+function __imod__(self::Abstracttestall, val)
     push!(output, "__imod__ called")
     return self
 end
 
-function __pow__(self, val)
+function __pow__(self::Abstracttestall, val)
     push!(output, "__pow__ called")
 end
 
-function __rpow__(self, val)
+function __rpow__(self::Abstracttestall, val)
     push!(output, "__rpow__ called")
 end
 
-function __ipow__(self, val)
+function __ipow__(self::Abstracttestall, val)
     push!(output, "__ipow__ called")
     return self
 end
 
-function __or__(self, val)
+function __or__(self::Abstracttestall, val)
     push!(output, "__or__ called")
 end
 
-function __ror__(self, val)
+function __ror__(self::Abstracttestall, val)
     push!(output, "__ror__ called")
 end
 
-function __ior__(self, val)
+function __ior__(self::Abstracttestall, val)
     push!(output, "__ior__ called")
     return self
 end
 
-function __and__(self, val)
+function __and__(self::Abstracttestall, val)
     push!(output, "__and__ called")
 end
 
-function __rand__(self, val)
+function __rand__(self::Abstracttestall, val)
     push!(output, "__rand__ called")
 end
 
-function __iand__(self, val)
+function __iand__(self::Abstracttestall, val)
     push!(output, "__iand__ called")
     return self
 end
 
-function __xor__(self, val)
+function __xor__(self::Abstracttestall, val)
     push!(output, "__xor__ called")
 end
 
-function __rxor__(self, val)
+function __rxor__(self::Abstracttestall, val)
     push!(output, "__rxor__ called")
 end
 
-function __ixor__(self, val)
+function __ixor__(self::Abstracttestall, val)
     push!(output, "__ixor__ called")
     return self
 end
 
-function __rshift__(self, val)
+function __rshift__(self::Abstracttestall, val)
     push!(output, "__rshift__ called")
 end
 
-function __rrshift__(self, val)
+function __rrshift__(self::Abstracttestall, val)
     push!(output, "__rrshift__ called")
 end
 
-function __irshift__(self, val)
+function __irshift__(self::Abstracttestall, val)
     push!(output, "__irshift__ called")
     return self
 end
 
-function __lshift__(self, val)
+function __lshift__(self::Abstracttestall, val)
     push!(output, "__lshift__ called")
 end
 
-function __rlshift__(self, val)
+function __rlshift__(self::Abstracttestall, val)
     push!(output, "__rlshift__ called")
 end
 
-function __ilshift__(self, val)
+function __ilshift__(self::Abstracttestall, val)
     push!(output, "__ilshift__ called")
     return self
 end
@@ -285,9 +283,9 @@ end
 function testCustomMethods1(self::AbstractAugAssignTest)
     x = aug_test(1)
     y = x
-    print(x)
     x = __add__(x, 10)
-    # @test y != x
+    @test (typeof(self) <: typeof(x))
+    @test y != x
     @test (x.val == 11)
     x = aug_test2(2)
     y = x

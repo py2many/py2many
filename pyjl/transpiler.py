@@ -35,11 +35,18 @@ SPECIAL_CHARACTER_MAP = {
     "\r": "\\r", 
     "\v": "\\v", 
     "\t": "\\t",
+    "\xe9":"\\xe9",
+}
+
+STR_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {
     "\"": "\\\"",
     "\'": "\\\'",
     "\\": "\\\\",
-    "\xe9":"\\xe9",
     "$": "\\$"
+}
+
+BYTES_SPECIAL_CHARACTER_MAP = {
+    "\"": "\\\"",
 }
 
 class JuliaTranspiler(CLikeTranspiler):
@@ -74,7 +81,8 @@ class JuliaTranspiler(CLikeTranspiler):
         # Added
         self._julia_num_types = JULIA_NUM_TYPES
         self._julia_integer_types = JULIA_INTEGER_TYPES
-        self._special_character_map = SPECIAL_CHARACTER_MAP
+        self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
+        self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
         self._special_method_table = self.SPECIAL_METHOD_TABLE
         self._nested_if_cnt = 0
         self._modules = []
@@ -114,6 +122,20 @@ class JuliaTranspiler(CLikeTranspiler):
             )
         else:
             return super().visit_Constant(node)
+
+    def visit_Str(self, node: ast.Str) -> str:
+        # Escape special characters
+        node_str = node.value.translate(str.maketrans(self._str_special_character_map))
+        return f'"{node_str}"'
+
+    def visit_Bytes(self, node: ast.Bytes) -> str:
+        bytes_str: str = str(node.s)
+        byte_name = bytes_str[0]
+        content = bytes_str[2:-1]
+        bytes_str = content.translate(str.maketrans(self._bytes_special_character_map))
+        # Decoding does not give representative value
+        # return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
+        return f"{byte_name}\"{bytes_str}\""
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []
@@ -274,23 +296,6 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.append("end")
 
         return "\n".join(buf)
-
-    def visit_Str(self, node: ast.Str) -> str:
-        # Escape special characters
-        translation_map = self._special_character_map
-        # translation_map["$"] = "\\$" # Special for strings
-        node_str = node.value.translate(str.maketrans(self._special_character_map))
-        return f'"{node_str}"'
-
-    def visit_Bytes(self, node: ast.Bytes) -> str:
-        bytes_str: str = str(node.s)
-        # Replace ['] by ["]
-        byte_name = bytes_str[0]
-        content = bytes_str[2:-1]
-        bytes_str = content.translate(str.maketrans(self._special_character_map))
-        # Decoding does not give representative value
-        # return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
-        return f"{byte_name}\"{bytes_str}\""
 
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
