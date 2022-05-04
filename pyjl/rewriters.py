@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 import copy
+import pickle
 import sys
 from typing import Any, Dict
 
@@ -9,7 +10,7 @@ from libcst import Call
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import get_id
@@ -60,6 +61,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 and value_id not in self._ignored_module_set \
                 and (is_enum(value_id, node.scopes) or
                      is_class_or_module(value_id, node.scopes) or
+                     is_class_type(value_id, node.scopes) or
                      # is_class_type(value_id, node.scopes) or
                      value_id.startswith("self")):
             return node
@@ -276,7 +278,10 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_AugAssign(self, node: ast.AugAssign) -> Any:
+        is_class = is_class_type(get_id(node.target), node.scopes) or \
+            is_class_type(get_id(node.value), node.scopes)
         requires_lowering = (
+            is_class or
             isinstance(node.op, ast.BitXor) or
             isinstance(node.op, ast.BitAnd) or
             ((isinstance(node.op, ast.Add) or
@@ -288,11 +293,16 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         if requires_lowering:
             # New binary operation
             value = ast.BinOp(
-                    left=copy.deepcopy(node.target),
+                    left=node.target,
                     op=node.op,
-                    right=copy.deepcopy(node.value),
+                    right=node.value,
                     lineno=node.lineno,
                     col_offset=node.col_offset)
+
+            node_target = node.target
+            if isinstance(node.target, ast.Subscript):
+                # TODO: This is an expensive operation
+                node_target = copy.deepcopy(node.target)
 
             if isinstance(node.target, ast.Subscript) and \
                     isinstance(node.target.slice, ast.Slice):
@@ -308,10 +318,10 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset)
 
                 if self._is_number(node.value) and isinstance(node.op, ast.Mult):
-                    call.args.extend([node.target.value, node.target.slice, value])
+                    call.args.extend([node_target.value, node_target.slice, value])
                     return call
                 elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
-                    old_slice: ast.Slice = copy.deepcopy(node.target.slice)
+                    old_slice: ast.Slice = copy.deepcopy(node_target.slice)
                     lower = old_slice.lower
                     upper = old_slice.upper
                     if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
@@ -322,11 +332,12 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                         lower = lower,
                         upper = upper
                     )
-                    call.args.extend([node.target.value, new_slice, node.value])
+                    call.args.extend([node_target.value, new_slice, node.value])
                     return call
 
+
             return ast.Assign(
-                targets=[copy.deepcopy(node.target)],
+                targets=[node_target],
                 value = value,
                 lineno=node.lineno,
                 col_offset=node.col_offset

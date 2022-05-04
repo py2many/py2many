@@ -93,7 +93,9 @@ JL_IGNORED_MODULE_SET = set([
     "contextlib",
     "time",
     "argparse_dataclass",
-    "bisect"
+    "bisect",
+    "base64",
+    "binascii"
 ])
 
 JULIA_TYPE_MAP = {
@@ -366,7 +368,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
                 for base in class_node.bases:
                     base_str = get_ann_repr(base)
-                    print(base_str)
                     dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
                     if dispatch_func:
                         return dispatch_func

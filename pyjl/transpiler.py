@@ -23,9 +23,9 @@ from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_closest_scope, find_node_by_name_and_type, \
-    get_class_scope, is_class_or_module
+    get_class_scope, is_class_or_module, is_class_type
 
-from typing import Any, Dict, List
+from typing import Any, List
 
 SPECIAL_CHARACTER_MAP = {
     "\a": "\\a", 
@@ -36,12 +36,31 @@ SPECIAL_CHARACTER_MAP = {
     "\v": "\\v", 
     "\t": "\\t",
     "\"": "\\\"",
+    "\'": "\\\'",
     "\\": "\\\\",
     "\xe9":"\\xe9",
+    "$": "\\$"
 }
 
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
+
+    SPECIAL_METHOD_TABLE = {
+        ast.Add: "__add__",
+        ast.Sub: "__sub__",
+        ast.Mult: "__mul__",
+        ast.Div: "__div__",
+        ast.MatMult: "__matmul__",
+        ast.Div: "__div__",
+        ast.RShift: "__rshift__",
+        ast.LShift: "__lshift__",
+        ast.Mod: "__mod__",
+        ast.FloorDiv: "__floordiv__",
+        ast.BitOr: "__or__",
+        ast.BitAnd: "__and__",
+        ast.BitXor: "__xor__",
+        ast.Pow: "__pow__"
+    }
 
     def __init__(self):
         super().__init__()
@@ -56,6 +75,7 @@ class JuliaTranspiler(CLikeTranspiler):
         self._julia_num_types = JULIA_NUM_TYPES
         self._julia_integer_types = JULIA_INTEGER_TYPES
         self._special_character_map = SPECIAL_CHARACTER_MAP
+        self._special_method_table = self.SPECIAL_METHOD_TABLE
         self._nested_if_cnt = 0
         self._modules = []
 
@@ -256,18 +276,21 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node: ast.Str) -> str:
-        node_str = node.value
         # Escape special characters
-        node_str = node_str.translate(str.maketrans(self._special_character_map))
+        translation_map = self._special_character_map
+        # translation_map["$"] = "\\$" # Special for strings
+        node_str = node.value.translate(str.maketrans(self._special_character_map))
         return f'"{node_str}"'
 
     def visit_Bytes(self, node: ast.Bytes) -> str:
         bytes_str: str = str(node.s)
         # Replace ['] by ["]
-        bytes_str = f"{bytes_str[0]}\"{bytes_str[2:-1]}\""
+        byte_name = bytes_str[0]
+        content = bytes_str[2:-1]
+        bytes_str = content.translate(str.maketrans(self._special_character_map))
         # Decoding does not give representative value
         # return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
-        return f"{bytes_str}"
+        return f"{byte_name}\"{bytes_str}\""
 
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
@@ -364,6 +387,13 @@ class JuliaTranspiler(CLikeTranspiler):
         # Visit left and right
         left = self.visit(node.left)
         right = self.visit(node.right)
+
+        if is_class_type(left, node.scopes) or \
+                is_class_type(right, node.scopes):
+            op_type = type(node.op)
+            if op_type in self._special_method_table:
+                new_op: str = self._special_method_table[op_type]
+                return f"{new_op}({left}, {right})"
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List/Tuple and Int

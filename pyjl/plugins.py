@@ -278,6 +278,10 @@ class JuliaTranspilerPlugins:
         values = ", ".join(vargs[3:])
         return f"@test_throws {exception} {func}({values})"
 
+    def visit_assertIsInstance(t_self, node, vargs):
+        JuliaTranspilerPlugins._generic_test_visit(t_self)
+        return f"@test (typeof({vargs[0]}) <: typeof({vargs[1]}))"
+
     def _generic_test_visit(t_self):
         t_self._usings.add("Test")
 
@@ -736,6 +740,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
     unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
+    unittest.TestCase.assertIsInstance: (JuliaTranspilerPlugins.visit_assertIsInstance, True),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
 }
