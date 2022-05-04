@@ -58,8 +58,12 @@ def get_ann_repr(node, parse_func = None, default = None):
         if parse_func:
             return parse_func(id)
         return id
-    # if isinstance(node, ast.Call):
-    #     return get_ann_repr(node.func, parse_func, default)
+    if isinstance(node, ast.Call):
+        func = get_ann_repr(node.func, parse_func, default)
+        args = []
+        for arg in node.args:
+            args.append(get_ann_repr(arg, parse_func, default))
+        return f"{'.'.join(args)}.{func}"
     if isinstance(node, ast.Attribute):
         return f"{get_ann_repr(node.value, parse_func, default)}.\
             {get_ann_repr(node.attr, parse_func, default)}"
@@ -81,10 +85,6 @@ def get_ann_repr(node, parse_func = None, default = None):
         for e in node.elts:
             elts.append(get_ann_repr(e, parse_func, default))
         return ", ".join(elts)
-    if isinstance(node, ast.Subscript):
-        id = get_ann_repr(node.value, parse_func, default)
-        slice_val = get_ann_repr(node.slice, parse_func, default)
-        return f"{id}{{{slice_val}}}"
 
     return default
 

@@ -111,7 +111,7 @@ JULIA_TYPE_MAP = {
     c_uint32: "UInt32",
     c_uint64: "UInt64",
     Integral: "Integer",
-    complex: "complex",
+    complex: "Complex",
     Complex: "Complex",
     Rational: "Rational",
     Real: "Real",
@@ -365,7 +365,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if var == "self":
                 class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
                 for base in class_node.bases:
-                    base_str = get_id(base)
+                    base_str = get_ann_repr(base)
+                    print(base_str)
                     dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
                     if dispatch_func:
                         return dispatch_func

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import ast
-from ctypes import Union
+import copy
 import sys
 from typing import Any, Dict
 
@@ -288,9 +288,9 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
         if requires_lowering:
             # New binary operation
             value = ast.BinOp(
-                    left=node.target,
+                    left=copy.deepcopy(node.target),
                     op=node.op,
-                    right=node.value,
+                    right=copy.deepcopy(node.value),
                     lineno=node.lineno,
                     col_offset=node.col_offset)
 
@@ -311,7 +311,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     call.args.extend([node.target.value, node.target.slice, value])
                     return call
                 elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
-                    old_slice: ast.Slice = node.target.slice
+                    old_slice: ast.Slice = copy.deepcopy(node.target.slice)
                     lower = old_slice.lower
                     upper = old_slice.upper
                     if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
@@ -326,7 +326,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     return call
 
             return ast.Assign(
-                targets=[node.target],
+                targets=[copy.deepcopy(node.target)],
                 value = value,
                 lineno=node.lineno,
                 col_offset=node.col_offset
