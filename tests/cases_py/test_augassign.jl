@@ -284,7 +284,7 @@ function testCustomMethods1(self::AbstractAugAssignTest)
     x = aug_test(1)
     y = x
     x = __add__(x, 10)
-    @test (typeof(self) <: typeof(x))
+    @test isa(self, x)
     @test y != x
     @test (x.val == 11)
     x = aug_test2(2)
@@ -295,7 +295,7 @@ function testCustomMethods1(self::AbstractAugAssignTest)
     x = aug_test3(3)
     y = x
     x = __add__(x, 10)
-    @test (typeof(self) <: typeof(x))
+    @test isa(self, x)
     @test y != x
     @test (x.val == 13)
     x = aug_test4(4)
@@ -345,12 +345,10 @@ function testCustomMethods2(test_self)
     __lshift__(x, 1)
     __lshift__(1, x)
     x = __lshift__(x, 1)
-    assertEqual(
-        test_self,
-        output,
-        splitlines(
+    @test (
+        output == splitlines(
             "__add__ called\n__radd__ called\n__iadd__ called\n__sub__ called\n__rsub__ called\n__isub__ called\n__mul__ called\n__rmul__ called\n__imul__ called\n__matmul__ called\n__rmatmul__ called\n__imatmul__ called\n__truediv__ called\n__rtruediv__ called\n__itruediv__ called\n__floordiv__ called\n__rfloordiv__ called\n__ifloordiv__ called\n__mod__ called\n__rmod__ called\n__imod__ called\n__pow__ called\n__rpow__ called\n__ipow__ called\n__or__ called\n__ror__ called\n__ior__ called\n__and__ called\n__rand__ called\n__iand__ called\n__xor__ called\n__rxor__ called\n__ixor__ called\n__rshift__ called\n__rrshift__ called\n__irshift__ called\n__lshift__ called\n__rlshift__ called\n__ilshift__ called\n",
-        ),
+        )
     )
 end
 

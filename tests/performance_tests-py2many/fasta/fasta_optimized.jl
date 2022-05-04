@@ -23,7 +23,11 @@ homosapiens = [
 #         cont(seed / imf)
 #     end
 # end
-@resumable function genRandom(ia::Int64 = 3877, ic::Int64 = 29573, im::Int64 = 139968)::Float64
+@resumable function genRandom(
+    ia::Int64 = 3877,
+    ic::Int64 = 29573,
+    im::Int64 = 139968,
+)::Float64
     seed = 42
     imf = float(im)
     while true
@@ -34,8 +38,8 @@ end
 
 Random = genRandom()
 function makeCumulative(
-        table::Vector{Tuple{String,Float64}},
-      )::Tuple{Vector{Float64},Vector{String}}
+    table::Vector{Tuple{String,Float64}},
+)::Tuple{Vector{Float64},Vector{String}}
     P::Vector{Float64} = []
     C::Vector{String} = []
     prob = 0.0

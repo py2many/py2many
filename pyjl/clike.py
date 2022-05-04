@@ -364,8 +364,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             var = vargs[0]
 
             # Self argument type lookup
-            if var == "self":
-                class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+            class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+            if class_node:
                 for base in class_node.bases:
                     base_str = get_ann_repr(base)
                     dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)

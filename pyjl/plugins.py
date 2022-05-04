@@ -281,7 +281,7 @@ class JuliaTranspilerPlugins:
 
     def visit_assertIsInstance(t_self, node, vargs):
         JuliaTranspilerPlugins._generic_test_visit(t_self)
-        return f"@test (typeof({vargs[0]}) <: typeof({vargs[1]}))"
+        return f"@test isa({vargs[0]}, {vargs[1]})"
 
     def _generic_test_visit(t_self):
         t_self._usings.add("Test")
@@ -363,10 +363,10 @@ class JuliaTranspilerPlugins:
         replacement_lst = [vargs[1][i] for i in range(2, len(vargs[1]) - 1)]
         element_lst = []
         for o, r in zip(original_lst, replacement_lst):
-            if o in t_self._special_character_map:
-                o = t_self._special_character_map[o]
-            if r in t_self._special_character_map:
-                r = t_self._special_character_map[r]
+            if o in t_self._str_special_character_map:
+                o = t_self._str_special_character_map[o]
+            if r in t_self._str_special_character_map:
+                r = t_self._str_special_character_map[r]
             element_lst.append(f'b"{o}" => b"{r}"')
         element_lst_str = ", ".join(element_lst)
         return f"Dict({element_lst_str})"

@@ -230,24 +230,23 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def visit_Assign(self, node: ast.Assign) -> Any:
         target = node.targets[0]
         self._generic_assign_visit(node, target)
-        return self.generic_visit(node)
+        return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
         target = node.target
         self._generic_assign_visit(node, target)
-        return self.generic_visit(node)
+        return node
 
     def _generic_assign_visit(self, node, target):
-        if self._is_member(target):
+        self.generic_visit(node)
+        if isinstance(target, ast.Attribute) and \
+                get_id(target.value) == "self":
             if target.attr not in self._class_fields:
                 self._class_fields[target.attr] = node
             else:
                 class_field = self._class_fields[target.attr]
-                if class_field.value is None and node.value:
+                if not getattr(class_field, "value", None) and node.value:
                     self._class_fields[target.attr] = node
-
-    def _is_member(self, node):
-        return hasattr(node, "value") and get_id(node.value) == "self"
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
