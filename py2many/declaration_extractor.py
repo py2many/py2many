@@ -134,16 +134,6 @@ class DeclarationExtractor(ast.NodeVisitor):
         if self._is_member(target) or isinstance(parent, ast.ClassDef):
             if (id := self._get_target_id(target)) not in self.member_assignments:
                 self.member_assignments[id] = val
-        # if self._is_member(target):
-        #     if target.attr not in self.member_assignments:
-        #         if self.transpiler.visit(node.value) == target.attr:
-        #             # Avoid things like: self.attr_name = attr_name
-        #             self.member_assignments[target.attr] = None
-        #         else:
-        #             self.member_assignments[target.attr] = val
-        # elif isinstance(parent, ast.ClassDef):
-        #     if (target_id := get_id(target)) not in self.member_assignments:
-        #         self.member_assignments[target_id] = val
         else:
             node.class_assignment = True
             target = get_id(target)
