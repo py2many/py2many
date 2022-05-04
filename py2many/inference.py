@@ -3,14 +3,14 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
-from typing import cast, Set, Optional
+from typing import cast, Any, Optional, Set
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.tracer import is_enum
+from py2many.tracer import find_in_body, is_enum
 
 
 try:
@@ -161,6 +161,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.has_fixed_width_ints = False
         # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
+        self._self_types = []
 
     @staticmethod
     def _infer_primitive(value) -> Optional[ast.AST]:
@@ -490,14 +491,36 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._self_types = []
+        self.generic_visit(node)
+        return node
+
     def visit_ClassDef(self, node):
         node.annotation = ast.Name(id=node.name)
+        self._self_types.append(node.annotation)
         self.generic_visit(node)
+        self._self_types.pop()
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        if find_in_body(
+            node.body,
+            lambda x: isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom),
+        ):
+            node.annotation = ast.Name(id="Generator")
+
+        if self._self_types:
+            node.self_type = get_id(self._self_types[-1])
+
         return node
 
     def visit_Attribute(self, node):
         value_id = get_id(node.value)
-        if value_id is not None and hasattr(node, "scopes"):
+        if value_id == "self" and self._self_types:
+            node.annotation = self._self_types[-1]
+        elif value_id is not None and hasattr(node, "scopes"):
             if is_enum(value_id, node.scopes):
                 node.annotation = node.scopes.find(value_id)
         return node

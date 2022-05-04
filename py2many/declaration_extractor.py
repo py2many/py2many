@@ -73,6 +73,8 @@ class DeclarationExtractor(ast.NodeVisitor):
         self.visit_FunctionDef(node)
 
     def visit_FunctionDef(self, node):
+        self.generic_visit(node)
+
         types, names = self.transpiler.visit(node.args)
 
         for i in range(len(names)):
@@ -81,11 +83,23 @@ class DeclarationExtractor(ast.NodeVisitor):
                 if names[i] not in self.typed_function_args:
                     self.typed_function_args[names[i]] = typename
 
+    def visit_Call(self, node: ast.Call) -> Any:
+        # Only visit arguments to avoid function
+        # calls with the syntax: self.<func_name>
+        for arg in node.args:
+            self.visit(arg)
+        return node
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
+        if node.attr not in self.member_assignments and get_id(node.value) == "self":
+            self.member_assignments[node.attr] = None
 
     def visit_AnnAssign(self, node, dataclass=False):
+        val = self._get_assign_val(node)
+        parent = node.scopes[-1]
         target = node.target
-        target_id = get_id(target)
+        target_id = self._get_target_id(target)
         if target_id is None:
             return
 
@@ -97,31 +111,60 @@ class DeclarationExtractor(ast.NodeVisitor):
         if type_str is None:
             type_str = self.transpiler._typename_from_annotation(node)
         if target_id not in self.annotated_members:
-            self.annotated_members[target_id] = (type_str, node.value)
-
-        if not self.is_member(target):
-            node.class_assignment = True
-            if target not in self.class_assignments:
-                self.class_assignments[target] = node.value
+            self.annotated_members[target_id] = (type_str, val)
 
         if dataclass:
             type_str = self.transpiler._typename_from_annotation(node)
             if target_id not in self.annotated_members:
-                self.annotated_members[target_id] = (type_str, node.value)
+                self.annotated_members[target_id] = (type_str, val)
+
+        if self._is_member(target):  # or isinstance(parent, ast.ClassDef):
+            id = self._get_target_id(target)
+            if id not in self.member_assignments:
+                self.member_assignments[id] = val
+        else:
+            node.class_assignment = True
+            if target_id not in self.class_assignments:
+                self.class_assignments[target] = val
 
     def visit_Assign(self, node):
+        val = self._get_assign_val(node)
+        parent = node.scopes[-1]
         target = node.targets[0]
-        if self.is_member(target):
-            if target.attr not in self.member_assignments:
-                self.member_assignments[target.attr] = node.value
+        if self._is_member(target):  # Wrong or isinstance(parent, ast.ClassDef):
+            target_id = self._get_target_id(target)
+            if target_id and (
+                target_id not in self.member_assignments
+                or (
+                    target_id in self.member_assignments
+                    and not self.member_assignments[target_id]
+                )
+            ):
+                self.member_assignments[target_id] = val
         else:
             node.class_assignment = True
             target = get_id(target)
             if target not in self.class_assignments:
-                self.class_assignments[target] = node.value
+                self.class_assignments[target] = val
 
-    def is_member(self, node):
-        if hasattr(node, "value"):
-            if self.transpiler.visit(node.value) == "self":
-                return True
-        return False
+    def _get_target_id(self, target):
+        if isinstance(target, ast.Attribute):
+            return target.attr
+        else:
+            return get_id(target)
+
+    def _is_member(self, node):
+        """Checks if an attribute is a class field"""
+        return isinstance(node, ast.Attribute) and get_id(node.value) == "self"
+
+    def _get_assign_val(self, node):
+        """Gets the assignment value for the class fields.
+        Assignment values are only considered if assignments
+        belong to the classes body or to the __init__ method"""
+        parent = node.scopes[-1]
+        if isinstance(parent, ast.ClassDef):
+            return node.value
+
+        is_init = isinstance(parent, ast.FunctionDef) and parent.name == "__init__"
+        if is_init:
+            return node.value

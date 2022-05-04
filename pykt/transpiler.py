@@ -322,10 +322,6 @@ class KotlinTranspiler(CLikeTranspiler):
             mut = "var" if mut else "val"
             fields.append(f"{mut} {declaration}: {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         if node.is_dataclass:
             fields = ", ".join(fields)
             body = [self.visit(b) for b in node.body]

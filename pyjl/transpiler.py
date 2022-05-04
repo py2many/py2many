@@ -343,9 +343,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         fields = "\n".join(fields)
         struct_def = f"struct {node.name}\n{fields}\nend\n"
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
+
         body = "\n".join([self.visit(b) for b in node.body])
         return f"{struct_def}\n{body}"
 

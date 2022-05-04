@@ -329,9 +329,6 @@ class SmtTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{declaration}: {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
         return ""
 
     def visit_IntEnum(self, node):

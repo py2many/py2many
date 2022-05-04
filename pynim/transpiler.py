@@ -319,10 +319,6 @@ class NimTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{declaration}: {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         object_def = "type\n"
         object_def += self.indent(f"{node.name} = object\n", level=node.level + 1)
         object_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])

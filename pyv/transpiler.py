@@ -422,10 +422,6 @@ class VTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{declaration} {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
             node.name, "\n".join(fields)
         )
