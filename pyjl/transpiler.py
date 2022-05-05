@@ -84,7 +84,6 @@ class JuliaTranspiler(CLikeTranspiler):
         self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
         self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
         self._special_method_table = self.SPECIAL_METHOD_TABLE
-        self._nested_if_cnt = 0
         self._modules = []
 
     def visit_Module(self, node) -> str:
@@ -351,16 +350,14 @@ class JuliaTranspiler(CLikeTranspiler):
         node.common_vars = body_vars.intersection(orelse_vars)
 
         buf = []
-        cond = "if" if self._nested_if_cnt == 0 else "elseif"
+        cond = "if" if not getattr(node, "is_orelse", None) else "elseif"
         buf.append(f"{cond} {self.visit(node.test)}")
         buf.extend([self.visit(child) for child in node.body])
 
         orelse = node.orelse
-
         if len(orelse) == 1 and isinstance(orelse[0], ast.If):
-            self._nested_if_cnt += 1
+            orelse[0].is_orelse = True
             buf.append(self.visit(orelse[0]))
-            self._nested_if_cnt -= 1
         else:
             if len(orelse) >= 1:
                 buf.append("else")
@@ -368,7 +365,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 orelse = "\n".join(orelse)
                 buf.append(orelse)
 
-        if self._nested_if_cnt == 0:
+        if not getattr(node, "is_orelse", None):
             buf.append("end")
 
         return "\n".join(buf)
