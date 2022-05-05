@@ -273,17 +273,24 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             key_types = set([typename(e) for e in node.keys])
             only_key_type = next(iter(key_types))
+            if only_key_type == None:
+                only_key_type = "Any"
             if len(key_types) == 1:
                 key_type = only_key_type
             else:
                 key_type = "Any"
             value_types = set([typename(e) for e in node.values])
             only_value_type = next(iter(value_types))
+            if only_value_type == None:
+                only_value_type = "Any"
             if len(value_types) == 1:
                 value_type = only_value_type
             else:
                 value_type = "Any"
-            self._annotate(node, f"Dict[{key_type}, {value_type}]")
+            if key_type == "Any" and value_type == "Any":
+                self._annotate(node, f"Dict")
+            else:
+                self._annotate(node, f"Dict[{key_type}, {value_type}]")
             lifetimes = set(
                 [
                     getattr(e.annotation, "lifetime", None)

@@ -568,7 +568,7 @@ class JuliaRewriterPlugins:
                 else:
                     t_self._class_fields[_id(n.target)] = n
             else:
-                constructor_body.append(n)   
+                constructor_body.append(n)
 
         if constructor_body:
             parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)

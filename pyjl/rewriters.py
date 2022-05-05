@@ -66,12 +66,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                      value_id.startswith("self")):
             return node
 
+        annotation = node.scopes.find(get_id(node.value))
         return ast.Call(
             func=ast.Name(id=node.attr, ctx=ast.Load()),
             args=[node.value],
             keywords=[],
             lineno=node.lineno,
-            col_offset=node.col_offset)
+            col_offset=node.col_offset,
+            annotation = annotation)
 
 
 class JuliaClassRewriter(ast.NodeTransformer):
@@ -559,6 +561,10 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         "index",
     ])
 
+    RESERVED_FUNCTIONS = set([
+        "__dict__"
+    ])
+
     def __init__(self) -> None:
         super().__init__()
         self._curr_slice_val = None
@@ -617,11 +623,14 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 if call_id in self.SPECIAL_FUNCTIONS and \
                         call_id in self._imports:
                     return node
+                if isinstance(node.value, ast.Attribute) and \
+                        node.value.attr in self.RESERVED_FUNCTIONS:
+                    return node
 
                 if isinstance(node.slice, ast.Constant) \
                         and isinstance(node.slice.value, int):
                     # Shortcut if index is a numeric value
-                    node.slice.value += 1 
+                    node.slice.value += 1
                 else:
                     # Default: add 1
                     if get_id(node.slice) != "end":

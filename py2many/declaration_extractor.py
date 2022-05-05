@@ -6,7 +6,7 @@ from py2many.ast_helpers import get_id
 class DeclarationExtractor(ast.NodeVisitor):
     def __init__(self, transpiler):
         self.transpiler = transpiler
-        # maps name -> (type, default_value)
+        # maps: name -> (type, default_value)
         self.annotated_members: Dict[str, Tuple[str, Any]] = {}
         self.class_assignments = {}
         self.member_assignments = {}
@@ -119,8 +119,9 @@ class DeclarationExtractor(ast.NodeVisitor):
                 self.annotated_members[target_id] = (type_str, val)
 
         if self._is_member(target) or isinstance(parent, ast.ClassDef):
-            if (id := self._get_target_id(target)) not in self.member_assignments:
-                self.member_assignments[id] = val
+            id = self._get_target_id(target)
+            if id and id not in self.annotated_members:
+                self.annotated_members[id] = (type_str, val)
         else:
             node.class_assignment = True
             if target_id not in self.class_assignments:
@@ -132,7 +133,8 @@ class DeclarationExtractor(ast.NodeVisitor):
         parent = node.scopes[-1]
         target = node.targets[0]
         if self._is_member(target) or isinstance(parent, ast.ClassDef):
-            if (id := self._get_target_id(target)) not in self.member_assignments:
+            id = self._get_target_id(target)
+            if id and id not in self.member_assignments:
                 self.member_assignments[id] = val
         else:
             node.class_assignment = True
@@ -142,7 +144,9 @@ class DeclarationExtractor(ast.NodeVisitor):
 
 
     def _get_target_id(self, target):
-        if isinstance(target, ast.Attribute):
+        if isinstance(target, ast.Subscript):
+            return self._get_target_id(target.value)
+        elif isinstance(target, ast.Attribute):
             return target.attr
         else:
             return get_id(target)

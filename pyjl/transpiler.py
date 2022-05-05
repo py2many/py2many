@@ -579,11 +579,16 @@ class JuliaTranspiler(CLikeTranspiler):
             )
 
     def _import(self, name: str) -> str:
-        return f"import {name}"  # import or using?
+        return f"import {name}" 
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         if module_name in self._modules:
             return f"include(\"{module_name}.jl\")"
+        elif module_name == ".":
+            import_names = []
+            for n in names:
+                import_names.append(f"include(\"{n}.jl\")")
+            return "\n".join(import_names)
 
         jl_module_name = module_name
         imports = []
@@ -653,6 +658,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if value_type == "Tuple":
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
+        
 
         return f"{value}[{index}]"
 
@@ -778,22 +784,24 @@ class JuliaTranspiler(CLikeTranspiler):
         #     f"{expr};"
         return expr
 
-    def visit_Delete(self, node) -> str:
-        target = node.targets[0]
-        target_name = self.visit(target)
-        node_assign = (
-            find_node_by_name_and_type(target_name,
-                                             (ast.Assign, ast.AnnAssign, ast.AugAssign), node.scopes)[0]
-            if not hasattr(target, "annotation") else target
-        )
-        if node_assign and hasattr(node_assign, "annotation"):
-            type_ann = self._typename_from_annotation(node_assign)
-            if type_ann and (isinstance(type_ann, ast.List) or re.match(r"Vector{\S*}", type_ann)):
-                return f"empty!({target_name})"
-        return f"{target_name}!"
-        # raise AstTypeNotSupported(
-        #     f"{target_name} does not support del", node
-        # )
+    def visit_Delete(self, node: ast.Delete) -> str:
+        del_targets = []
+        for t in node.targets:
+            node_name = self.visit(t)
+            if isinstance(t, ast.Subscript):
+                node_name = self.visit(t.value)
+
+            n_val = node.scopes.find(node_name)
+            if type_ann := getattr(n_val, "annotation", None):
+                ann_str = self.visit(type_ann)
+                if isinstance(t, ast.Subscript) and re.match(r"Dict{\S*}", ann_str):
+                    del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
+                if re.match(r"Vector{\S*}", ann_str) or re.match(r"Dict{\S*}", ann_str):
+                    del_targets.append(f"empty!({node_name})")
+
+            del_targets.append(f"#Delete Unsupported\ndel({node_name})")
+        
+        return "\n".join(del_targets)
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:

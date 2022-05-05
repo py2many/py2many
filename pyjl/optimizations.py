@@ -25,7 +25,8 @@ class AlgebraicSimplification(ast.NodeTransformer):
         if self._optimize:
             if isinstance(node.left, ast.BinOp) and \
                     isinstance(node.right, ast.Constant):
-                if isinstance(node.left.right, ast.Constant):
+                if isinstance(node.left.right, ast.Constant) and \
+                        isinstance(node.left.right.value, int):
                     # Deal with subtraction and addition
                     left_op = node.left.op
                     if isinstance(node.op, ast.Sub):
