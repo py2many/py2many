@@ -157,12 +157,14 @@ function CastTo(ob, target, typelib = nothing)
             )
         end
     elseif hasattr(target, "index")
-    elseif "CLSID"
-        not in __dict__(ob.__class__)
-        ob = EnsureDispatch(gencache, ob)
-    elseif "CLSID"
-        not in __dict__(ob.__class__)
-        throw(ValueError("Must be a makepy-able object for this to work"))
+        if "CLSID"
+            not in __dict__(ob.__class__)
+            ob = EnsureDispatch(gencache, ob)
+        end
+        if "CLSID"
+            not in __dict__(ob.__class__)
+            throw(ValueError("Must be a makepy-able object for this to work"))
+        end
         clsid = CLSID(ob)
         mod = GetModuleForCLSID(gencache, clsid)
         mod = GetModuleForTypelib(
@@ -173,13 +175,14 @@ function CastTo(ob, target, typelib = nothing)
             MinorVersion(mod),
         )
         target_clsid = get(mod.NamesToIIDMap, target)
-    elseif target_clsid === nothing
-        throw(
-            ValueError(
-                "The interface name \'%s\' does not appear in the same library as object \'%r\'" %
-                (target, ob),
-            ),
-        )
+        if target_clsid === nothing
+            throw(
+                ValueError(
+                    "The interface name \'%s\' does not appear in the same library as object \'%r\'" %
+                    (target, ob),
+                ),
+            )
+        end
         mod = GetModuleForCLSID(gencache, target_clsid)
     end
     if mod != nothing
@@ -326,7 +329,7 @@ function WithEvents(disp, user_event_class)
     return instance
 end
 
-function getevents(clsid)
+function getevents(clsid)::klass
     clsid = string(IID(pywintypes, clsid))
     klass = GetClassForCLSID(gencache, clsid)
     try
@@ -394,8 +397,9 @@ mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
                 let details = exn
                     if details isa pythoncom.com_error
                         import winerror
-                    elseif details.hresult != winerror.E_NOINTERFACE
-                        error()
+                        if details.hresult != winerror.E_NOINTERFACE
+                            error()
+                        end
                         oobj = oobj._oleobj_
                     end
                 end
@@ -621,7 +625,8 @@ function _set_value(self::AbstractVARIANT, newval)
 end
 
 function _del_value(self::AbstractVARIANT)
-    self._value!
+    #Delete Unsupported
+    del(self._value)
 end
 
 function __repr__(self::AbstractVARIANT)

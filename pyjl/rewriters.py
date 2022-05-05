@@ -1,6 +1,7 @@
 from __future__ import annotations
 import ast
 import copy
+from lib2to3.pytree import Node
 import pickle
 import sys
 from typing import Any, Dict
@@ -632,6 +633,11 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     # Shortcut if index is a numeric value
                     node.slice.value += 1
                 else:
+                    # Don't add 1 to string constants
+                    if isinstance(node.slice, ast.Constant) and \
+                            isinstance(node.slice.value, str):
+                        return node
+
                     # Default: add 1
                     if get_id(node.slice) != "end":
                         node.slice = self._do_bin_op(node.slice, ast.Add(), 1,

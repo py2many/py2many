@@ -324,16 +324,32 @@ class JuliaTranspilerPlugins:
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
         if node.args:
-            if isinstance(node.args[0], ast.BinOp) and \
-                    isinstance(node.args[0].op, ast.Mod):
                 args_str, args_vals = [], []
-                for arg in vargs:
-                    arg_str, arg_val = re.split(r"\s\%\s", arg)
-                    args_str.append(arg_str)
-                    args_vals.append(arg_val)
+                for arg in node.args:
+                    if isinstance(arg, ast.BinOp) and \
+                            isinstance(arg.op, ast.Mod):
+                        args_str.append(t_self.visit(arg.left))
+                        args_vals.append(t_self.visit(arg.right))
+                    else:
+                        args_str.append(t_self.visit(arg))
+
+                if args_vals and len(args_str) != len(args_vals):
+                    raise Exception("Unsupported print operation")
+
+                if node.keywords:
+                    kwds = []
+                    for k in node.keywords:
+                        if "file" == k.arg:
+                            kwds.append(f'write({t_self.visit(k.value)}, {" ".join(args_str)}, {", ".join(args_vals)})') \
+                                if args_vals \
+                                else kwds.append(f'write({t_self.visit(k.value)}, {", ".join(args_str)})')
+                        if "flush" == k.arg:
+                            kwds.append(f"flush({t_self.visit(k.value)})")
+                    return "\n".join(kwds)
 
                 t_self._usings.add("Printf")
-                return f'@printf({", ".join(args_str)}, {", ".join(args_vals)})'
+                # + " ".join(kw_args)
+                return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
 
         return f"println({', '.join(vargs)})"
 
