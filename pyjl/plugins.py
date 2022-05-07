@@ -330,11 +330,6 @@ class JuliaTranspilerPlugins:
                             isinstance(arg.op, ast.Mod):
                         args_str.append(t_self.visit(arg.left))
                         args_vals.append(t_self.visit(arg.right))
-                    else:
-                        args_str.append(t_self.visit(arg))
-
-                if args_vals and len(args_str) != len(args_vals):
-                    raise Exception("Unsupported print operation")
 
                 if node.keywords:
                     kwds = []
@@ -347,9 +342,10 @@ class JuliaTranspilerPlugins:
                             kwds.append(f"flush({t_self.visit(k.value)})")
                     return "\n".join(kwds)
 
-                t_self._usings.add("Printf")
-                # + " ".join(kw_args)
-                return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
+                if args_str:
+                    t_self._usings.add("Printf")
+                    # + " ".join(kw_args)
+                    return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
 
         return f"println({', '.join(vargs)})"
 
@@ -586,8 +582,8 @@ class JuliaRewriterPlugins:
             else:
                 constructor_body.append(n)
 
-        if constructor_body:
-            parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+        parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+        if constructor_body and parent:
             constructor_args = node.args
             # Remove self
             constructor_args.args = constructor_args.args[1:]

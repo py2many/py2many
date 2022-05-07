@@ -253,8 +253,9 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
 
     def _visit_documentable(self, node):
         doc_node = self._get_doc_node(node)
-        self._docstrings.add(doc_node)
-        self._docstring_parent[doc_node] = node
+        if doc_node:
+            self._docstrings.add(doc_node)
+            self._docstring_parent[doc_node] = node
         self.generic_visit(node)
         return node
 
@@ -488,8 +489,8 @@ class UnitTestRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        l_no = node.body[-1].lineno + 1
         if node.name == "main":
+            l_no = node.body[-1].lineno + 1
             body = []
             for n in node.body:
                 # Remove "unittest.main"

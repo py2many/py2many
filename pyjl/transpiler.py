@@ -947,6 +947,10 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{cntx_data} do {optional}"
         return f"{cntx_data} do"
 
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> str:
+        names = ", ".join(node.names)
+        return f"# Not Supported\n# nonlocal {names}"
+
     ######################################################
     #################### Julia Nodes #####################
     ######################################################
