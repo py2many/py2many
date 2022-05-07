@@ -237,6 +237,9 @@ def _transpile_one(
     usings = transpiler.usings()
     if usings:
         out.append(usings)
+    globals = transpiler.globals()
+    if globals:
+        out.append(globals)
     out.append(code)
     if transpiler.extension:
         out.append(transpiler.extension_module(tree))

@@ -452,7 +452,6 @@ class JuliaTranspilerPlugins:
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
 
-
     def _get_func_def(node, name):
         func_def = find_node_by_name_and_type(name, ast.FunctionDef, node.scopes)[0]
         if func_def:
@@ -649,7 +648,7 @@ SMALL_DISPATCH_MAP = {
     # "floor": lambda n, vargs: f"floor({vargs[0]})",
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
-    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})"
+    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})",
 }
 
 SMALL_USINGS_MAP = {

@@ -88,18 +88,15 @@ class JuliaTranspiler(CLikeTranspiler):
         self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
         self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
         self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
-        self._special_method_table = self.SPECIAL_METHOD_TABLE
-        self._modules = []
-
-    def visit_Module(self, node) -> str:
-        self._modules = list(path.name.split(
-            ".")[0] for path in node.__files__)
-        return super().visit_Module(node)
+        self._special_method_table = self.SPECIAL_METHOD_TABLE    
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"using {mod}" for mod in usings)
         return uses
+
+    def globals(self):
+        return "\n".join(self._globals)
 
     def comment(self, text: str) -> str:
         return f"#= {text} =#"

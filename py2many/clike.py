@@ -122,6 +122,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
+        self._globals = set([])
+        self._modules = []
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
         self._container_type_map = {}
@@ -214,6 +216,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         return self.comment("pass")
 
     def visit_Module(self, node) -> str:
+        # Update module list
+        self._modules = list(path.name.split(
+            ".")[0] for path in node.__files__)
+
         docstring = self._get_docstring(node)
         buf = [docstring] if docstring is not None else []
         filename = getattr(node, "__file__", None)
