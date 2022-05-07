@@ -7,6 +7,7 @@ import commctrl
 import pythoncom
 using pywin.mfc: dialog
 mutable struct TLBrowserException <: AbstractTLBrowserException
+    #= TypeLib browser internal error =#
 
 end
 
@@ -30,6 +31,7 @@ typekindmap = Dict(
 )
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
+    #= Browse a type library =#
     IDC_LISTVIEW::Any
     IDC_MEMBERLIST::Any
     IDC_PARAMLIST::Any
@@ -257,6 +259,7 @@ function CmdMemberListbox(self::AbstractTypeBrowseDialog, id, code)::Int64
 end
 
 function GetTemplate(self::AbstractTypeBrowseDialog)
+    #= Return the template used to create this dialog =#
     w = 272
     h = 192
     style =

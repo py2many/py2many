@@ -5,6 +5,7 @@ import win32com.server.util
 import win32com.server.util
 import pythoncom
 mutable struct SimpleConnection <: AbstractSimpleConnection
+    #= A simple, single connection object =#
     cookie::Any
     cp::Any
     debug::Any

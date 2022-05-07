@@ -10,6 +10,12 @@ import pythoncom
 using win32com.client: Dispatch, _get_good_object_
 PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
+    #= Wrap an object in a VARIANT enumerator.
+
+        All VT_DISPATCHs returned by the enumerator are converted to wrapper objects
+        (which may be either a class instance, or a dynamic.Dispatch type object).
+
+         =#
     if type_(ob) != pythoncom.TypeIIDs[pythoncom.IID_IEnumVARIANT+1]
         ob = QueryInterface(ob, pythoncom.IID_IEnumVARIANT)
     end
@@ -17,6 +23,16 @@ function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
 end
 
 mutable struct Enumerator <: AbstractEnumerator
+    #= A class that provides indexed access into an Enumerator
+
+        By wrapping a PyIEnum* object in this class, you can perform
+        natural looping and indexing into the Enumerator.
+
+        Looping is very efficient, but it should be noted that although random
+        access is supported, the underlying object is still an enumerator, so
+        this will force many reset-and-seek operations to find the requested index.
+
+         =#
     index::Any
     resultCLSID::Any
     _oleobj_::Any

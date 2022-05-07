@@ -18,17 +18,38 @@ Access.
  =#
 mapCLSIDToClass = Dict()
 function RegisterCLSID(clsid, pythonClass)
+    #= Register a class that wraps a CLSID
+
+        This function allows a CLSID to be globally associated with a class.
+        Certain module will automatically convert an IDispatch object to an
+        instance of the associated class.
+         =#
     mapCLSIDToClass[string(clsid)] = pythonClass
 end
 
 function RegisterCLSIDsFromDict(dict)
+    #= Register a dictionary of CLSID's and classes.
+
+        This module performs the same function as @RegisterCLSID@, but for
+        an entire dictionary of associations.
+
+        Typically called by makepy generated modules at import time.
+         =#
     update(mapCLSIDToClass, dict)
 end
 
 function GetClass(clsid)::Dict
+    #= Given a CLSID, return the globally associated class.
+
+        clsid -- a string CLSID representation to check.
+         =#
     return mapCLSIDToClass[clsid]
 end
 
 function HasClass(clsid)::Bool
+    #= Determines if the CLSID has an associated class.
+
+        clsid -- the string CLSID to check
+         =#
     return clsid in mapCLSIDToClass
 end

@@ -31,22 +31,26 @@ SPECIAL_CHARACTER_MAP = {
     "\a": "\\a", 
     "\b": "\\b",
     "\f": "\\f", 
-    "\n": "\\n", 
     "\r": "\\r", 
     "\v": "\\v", 
     "\t": "\\t",
     "\xe9":"\\xe9",
 }
 
+# For now just includes SPECIAL_CHARACTER_MAP
+DOCSTRING_TRANSLATION_MAP = SPECIAL_CHARACTER_MAP | {} 
+
 STR_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {
     "\"": "\\\"",
     "\'": "\\\'",
     "\\": "\\\\",
-    "$": "\\$"
+    "$": "\\$",
+    "\n": "\\n"
 }
 
 BYTES_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {
     "\"": "\\\"",
+    "\n": "\\n"
 }
 
 class JuliaTranspiler(CLikeTranspiler):
@@ -83,6 +87,7 @@ class JuliaTranspiler(CLikeTranspiler):
         self._julia_integer_types = JULIA_INTEGER_TYPES
         self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
         self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
+        self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
         self._special_method_table = self.SPECIAL_METHOD_TABLE
         self._modules = []
 
@@ -96,13 +101,13 @@ class JuliaTranspiler(CLikeTranspiler):
         uses = "\n".join(f"using {mod}" for mod in usings)
         return uses
 
-    def comment(self, text):
+    def comment(self, text: str) -> str:
         return f"#= {text} =#"
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
-    def visit_Constant(self, node: ast.Constant) -> str:
+    def visit_Constant(self, node: ast.Constant, is_comment_str = False) -> str:
         if node.value is True:
             return "true"
         elif node.value is False:
@@ -110,7 +115,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is None:
             return self._none_type
         elif isinstance(node.value, str):
-            return self.visit_Str(node)
+            return self.visit_Str(node, is_comment_str)
         elif isinstance(node.value, bytes):
             return self.visit_Bytes(node)
         elif isinstance(node.value, complex):
@@ -122,10 +127,13 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_Str(self, node: ast.Str) -> str:
+    def visit_Str(self, node: ast.Str, is_comment_str = False) -> str:
         # Escape special characters
-        node_str = node.value.translate(str.maketrans(self._str_special_character_map))
-        return f'"{node_str}"'
+        trs_map = str.maketrans(self._str_special_character_map) \
+            if not is_comment_str \
+            else self._docstr_special_character_map
+        node_str = node.value.translate(str.maketrans(trs_map))
+        return f'"{node_str}"' if not is_comment_str else node_str
 
     def visit_Bytes(self, node: ast.Bytes) -> str:
         bytes_str: str = str(node.s)
@@ -158,7 +166,10 @@ class JuliaTranspiler(CLikeTranspiler):
         node.template = template
 
         # Visit function body
-        body = "\n".join(self.visit(n) for n in node.body)
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
         if body == "...":
             body = ""
 
@@ -470,10 +481,11 @@ class JuliaTranspiler(CLikeTranspiler):
                 body.append(self.visit(b))
         body = "\n".join(body)
 
-        if hasattr(node, "constructor_str"):
-            return f"{struct_def}\n{node.fields_str}\n{node.constructor_str}\nend\n{body}"
+        docstring = self._get_docstring(node)
+        maybe_docstring = f"{docstring}\n" if docstring else ""
+        maybe_constructor = f"\n{node.constructor_str}" if hasattr(node, "constructor_str") else ""
 
-        return f"{struct_def}\n{node.fields_str}\nend\n{body}"
+        return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
     def _visit_class_fields(self, node):
         extractor = DeclarationExtractor(JuliaTranspiler())

@@ -67,6 +67,7 @@ for v in NoTranslateTypes
     NoTranslateMap[v] = nothing
 end
 mutable struct MapEntry <: AbstractMapEntry
+    #= Simple holder for named attibutes - items in a map. =#
     doc::Any
     hidden::Any
     names::Any
@@ -335,6 +336,7 @@ function Build(self::AbstractDispatchItem, typeinfo, attr, bForUser = 1)
 end
 
 function CountInOutOptArgs(self::AbstractDispatchItem, argTuple)::Tuple
+    #= Return tuple counting in/outs/OPTS.  Sum of result may not be len(argTuple), as some args may be in/out. =#
     ins = 0
     out = 0
     opts = 0
@@ -614,6 +616,7 @@ function _ResolveType(typerepr, itypeinfo)::Tuple
 end
 
 function _BuildArgList(fdesc, names)::Union[str, Any]
+    #= Builds list of args to the underlying Invoke method. =#
     numArgs = max(fdesc[7], length(fdesc[3]))
     names = collect(names)
     while nothing in names
@@ -700,6 +703,7 @@ function BuildCallList(
     defOutArg,
     is_comment = false,
 )::String
+    #= Builds a Python declaration for a method. =#
     numArgs = length(fdesc[3])
     numOptArgs = fdesc[7]
     strval = ""

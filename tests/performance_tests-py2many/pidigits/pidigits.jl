@@ -44,7 +44,7 @@ function main()
         if d != extract_Digit(4)
             continue
         end
-        println(chr(48 + d), "")
+
         i += 1
         if (i % 10) == 0
             @printf("\t:%d", i)

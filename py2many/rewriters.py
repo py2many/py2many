@@ -242,13 +242,13 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         self._docstring_parent = {}
 
     def _get_doc_node(self, node) -> Optional[ast.AST]:
-        if not (node.body and isinstance(node.body[0], ast.Expr)):
-            return None
-        node = node.body[0].value
-        if isinstance(node, ast.Str):
-            return node
-        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            return node
+        body = getattr(node, "body", None)
+        if body:
+            if not isinstance(body[0], ast.Expr):
+                return None
+            node_val = node.body[0].value
+            if node_val and isinstance(node_val, ast.Constant) and isinstance(node_val.value, str):
+                return node_val
         return None
 
     def _visit_documentable(self, node):
@@ -271,7 +271,10 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
     def visit_Constant(self, node):
         if node in self._docstrings:
             parent = self._docstring_parent[node]
-            parent.docstring_comment = ast.Constant(value=node.value)
+            parent.docstring_comment = ast.Constant(
+                value = node.value,
+                lineno = node.lineno,
+                col_offset = node.col_offset)
             return None
         return node
 

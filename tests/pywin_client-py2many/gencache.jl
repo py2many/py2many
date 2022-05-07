@@ -104,14 +104,21 @@ function _LoadDicts()
 end
 
 function GetGeneratedFileName(clsid, lcid, major, minor)
+    #= Given the clsid, lcid, major and  minor for a type lib, return
+        the file name (no extension) providing this support.
+         =#
     return upper(string(clsid))[2:-1] + ("x%sx%sx%s" % (lcid, major, minor))
 end
 
 function SplitGeneratedFileName(fname)::Tuple
+    #= Reverse of GetGeneratedFileName() =#
     return tuple(split(fname, "x", 4))
 end
 
 function GetGeneratePath()
+    #= Returns the name of the path to generate to.
+        Checks the directory is OK.
+         =#
     @assert(!(is_readonly))
     try
         makedirs(os, win32com.__gen_path__)
@@ -142,11 +149,29 @@ function GetGeneratePath()
 end
 
 function GetClassForProgID(progid)
+    #= Get a Python class for a Program ID
+
+        Given a Program ID, return a Python class which wraps the COM object
+
+        Returns the Python class, or None if no module is available.
+
+        Params
+        progid -- A COM ProgramID or IID (eg, "Word.Application")
+         =#
     clsid = IID(pywintypes, progid)
     return GetClassForCLSID(clsid)
 end
 
 function GetClassForCLSID(clsid)
+    #= Get a Python class for a CLSID
+
+        Given a CLSID, return a Python class which wraps the COM object
+
+        Returns the Python class, or None if no module is available.
+
+        Params
+        clsid -- A COM CLSID (or string repr of one)
+         =#
     clsid = string(clsid)
     if HasClass(CLSIDToClass, clsid)
         return GetClass(CLSIDToClass, clsid)
@@ -165,6 +190,16 @@ function GetClassForCLSID(clsid)
 end
 
 function GetModuleForProgID(progid)
+    #= Get a Python module for a Program ID
+
+        Given a Program ID, return a Python module which contains the
+        class which wraps the COM object.
+
+        Returns the Python module, or None if no module is available.
+
+        Params
+        progid -- A COM ProgramID or IID (eg, "Word.Application")
+         =#
     try
         iid = IID(pywintypes, progid)
     catch exn
@@ -176,6 +211,16 @@ function GetModuleForProgID(progid)
 end
 
 function GetModuleForCLSID(clsid)
+    #= Get a Python module for a CLSID
+
+        Given a CLSID, return a Python module which contains the
+        class which wraps the COM object.
+
+        Returns the Python module, or None if no module is available.
+
+        Params
+        progid -- A COM CLSID (ie, not the description)
+         =#
     clsid_str = string(clsid)
     try
         typelibCLSID, lcid, major, minor = clsidToTypelib[clsid_str]
@@ -217,6 +262,17 @@ function GetModuleForCLSID(clsid)
 end
 
 function GetModuleForTypelib(typelibCLSID, lcid, major, minor)
+    #= Get a Python module for a type library ID
+
+        Given the CLSID of a typelibrary, return an imported Python module,
+        else None
+
+        Params
+        typelibCLSID -- IID of the type library.
+        major -- Integer major version.
+        minor -- Integer minor version
+        lcid -- Integer LCID for the library.
+         =#
     modName = GetGeneratedFileName(typelibCLSID, lcid, major, minor)
     mod = _GetModule(modName)
     if "_in_gencache_"
@@ -236,6 +292,21 @@ function MakeModuleForTypelib(
     bForDemand = bForDemandDefault,
     bBuildHidden = 1,
 )
+    #= Generate support for a type library.
+
+        Given the IID, LCID and version information for a type library, generate
+        and import the necessary support files.
+
+        Returns the Python module.  No exceptions are caught.
+
+        Params
+        typelibCLSID -- IID of the type library.
+        major -- Integer major version.
+        minor -- Integer minor version.
+        lcid -- Integer LCID for the library.
+        progressInstance -- Instance to use as progress indicator, or None to
+                            use the GUI progress bar.
+         =#
     include("makepy.jl")
     GenerateFromTypeLibSpec(
         makepy,
@@ -253,6 +324,19 @@ function MakeModuleForTypelibInterface(
     bForDemand = bForDemandDefault,
     bBuildHidden = 1,
 )
+    #= Generate support for a type library.
+
+        Given a PyITypeLib interface generate and import the necessary support files.  This is useful
+        for getting makepy support for a typelibrary that is not registered - the caller can locate
+        and load the type library itself, rather than relying on COM to find it.
+
+        Returns the Python module.
+
+        Params
+        typelib_ob -- The type library itself
+        progressInstance -- Instance to use as progress indicator, or None to
+                            use the GUI progress bar.
+         =#
     include("makepy.jl")
     try
         GenerateFromTypeLibSpec(
@@ -281,6 +365,20 @@ function EnsureModuleForTypelibInterface(
     bForDemand = bForDemandDefault,
     bBuildHidden = 1,
 )
+    #= Check we have support for a type library, generating if not.
+
+        Given a PyITypeLib interface generate and import the necessary
+        support files if necessary. This is useful for getting makepy support
+        for a typelibrary that is not registered - the caller can locate and
+        load the type library itself, rather than relying on COM to find it.
+
+        Returns the Python module.
+
+        Params
+        typelib_ob -- The type library itself
+        progressInstance -- Instance to use as progress indicator, or None to
+                            use the GUI progress bar.
+         =#
     tla = GetLibAttr(typelib_ob)
     guid = tla[1]
     lcid = tla[2]
@@ -305,6 +403,7 @@ function EnsureModuleForTypelibInterface(
 end
 
 function ForgetAboutTypelibInterface(typelib_ob)
+    #= Drop any references to a typelib previously added with EnsureModuleForTypelibInterface and forDemand =#
     tla = GetLibAttr(typelib_ob)
     guid = tla[1]
     lcid = tla[2]
@@ -340,6 +439,27 @@ function EnsureModule(
     bForDemand = bForDemandDefault,
     bBuildHidden = 1,
 )::Dict
+    #= Ensure Python support is loaded for a type library, generating if necessary.
+
+        Given the IID, LCID and version information for a type library, check and if
+        necessary (re)generate, then import the necessary support files. If we regenerate the file, there
+        is no way to totally snuff out all instances of the old module in Python, and thus we will regenerate the file more than necessary,
+        unless makepy/genpy is modified accordingly.
+
+
+        Returns the Python module.  No exceptions are caught during the generate process.
+
+        Params
+        typelibCLSID -- IID of the type library.
+        major -- Integer major version.
+        minor -- Integer minor version
+        lcid -- Integer LCID for the library.
+        progressInstance -- Instance to use as progress indicator, or None to
+                            use the GUI progress bar.
+        bValidateFile -- Whether or not to perform cache validation or not
+        bForDemand -- Should a complete generation happen now, or on demand?
+        bBuildHidden -- Should hidden members/attributes etc be generated?
+         =#
     bReloadNeeded = 0
     try
         try
@@ -511,6 +631,7 @@ function EnsureModule(
 end
 
 function EnsureDispatch(prog_id, bForDemand = 1)
+    #= Given a COM prog_id, return an object that is using makepy support, building if necessary =#
     disp = Dispatch(win32com.client, prog_id)
     if !get(disp.__dict__, "CLSID")
         try
@@ -544,6 +665,7 @@ function AddModuleToCache(
     verbose = 1,
     bFlushNow = !(is_readonly),
 )
+    #= Add a newly generated file to the cache dictionary. =#
     fname = GetGeneratedFileName(typelibclsid, lcid, major, minor)
     mod = _GetModule(fname)
     _in_gencache_(mod) = 1
@@ -633,12 +755,14 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
 end
 
 function _GetModule(fname)
+    #= Given the name of a module in the gen_py directory, import and return it. =#
     mod_name = "win32com.gen_py.%s" % fname
     mod = __import__(mod_name)
     return modules(sys)[mod_name+1]
 end
 
 function Rebuild(verbose = 1)
+    #= Rebuild the cache indexes from the file system. =#
     clear(clsidToTypelib)
     infos = GetGeneratedInfos()
     if verbose && length(infos)

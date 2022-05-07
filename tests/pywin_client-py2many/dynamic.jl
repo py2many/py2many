@@ -185,6 +185,7 @@ function DumbDispatch(
     UnicodeToString = nothing,
     clsctx = pythoncom.CLSCTX_SERVER,
 )
+    #= Dispatch with no type info =#
     @assert(UnicodeToString === nothing)
     IDispatch, userName = _GetGoodDispatchAndUserName(IDispatch, userName, clsctx)
     if createClass === nothing
@@ -227,6 +228,7 @@ mutable struct CDispatch <: AbstractCDispatch
     end
 end
 function __call__(self::AbstractCDispatch)::Tuple
+    #= Provide 'default dispatch' COM functionality - allow instance to be called =#
     if self._olerepr_.defaultDispatchName
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
@@ -469,6 +471,9 @@ function _get_good_object_(
     userName = nothing,
     ReturnCLSID = nothing,
 )::Tuple
+    #= Given an object (usually the retval from a method), make it a good object to return.
+            Basically checks if it is a COM object, and wraps it up.
+            Also handles the fact that a retval may be a tuple of retvals =#
     if ob === nothing
         return nothing
     elseif isa(ob, tuple)
@@ -479,6 +484,7 @@ function _get_good_object_(
 end
 
 function _make_method_(self::AbstractCDispatch, name)
+    #= Make a method object - Assumes in olerepr funcmap =#
     methodName = MakePublicAttributeName(build, name)
     methodCodeList =
         MakeFuncMethod(self._olerepr_, self._olerepr_.mapFuncs[name+1], methodName, 0)
@@ -502,6 +508,8 @@ function _make_method_(self::AbstractCDispatch, name)
 end
 
 function _Release_(self::AbstractCDispatch)
+    #= Cleanup object - like a close - to force cleanup when you dont
+            want to rely on Python's reference counting. =#
     for childCont in values(self._mapCachedItems_)
         _Release_(childCont)
     end
@@ -517,6 +525,8 @@ function _Release_(self::AbstractCDispatch)
 end
 
 function _proc_(self::AbstractCDispatch, name)::Tuple
+    #= Call the named method as a procedure, rather than function.
+            Mainly used by Word.Basic, which whinges about such things. =#
     try
         item = self._olerepr_.mapFuncs[name+1]
         dispId = dispid(item)
@@ -532,6 +542,7 @@ function _proc_(self::AbstractCDispatch, name)::Tuple
 end
 
 function _print_details_(self::AbstractCDispatch)
+    #= Debug routine - dumps what it knows about an object. =#
     println("AxDispatch container", self._username_)
     try
         println("Methods:")
@@ -606,6 +617,17 @@ function _LazyAddAttr_(self::AbstractCDispatch, attr)::Int64
 end
 
 function _FlagAsMethod(self::AbstractCDispatch)
+    #= Flag these attribute names as being methods.
+            Some objects do not correctly differentiate methods and
+            properties, leading to problems when calling these methods.
+
+            Specifically, trying to say: ob.SomeFunc()
+            may yield an exception "None object is not callable"
+            In this case, an attempt to fetch the *property* has worked
+            and returned None, rather than indicating it is really a method.
+            Calling: ob._FlagAsMethod("SomeFunc")
+            should then allow this to work.
+             =#
     for name in methodNames
         details = MapEntry(build, __AttrToID__(self, name), (name,))
         self._olerepr_.mapFuncs[name+1] = details

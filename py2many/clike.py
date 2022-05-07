@@ -190,6 +190,13 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._default_type
         return self._combine_value_index(value_type, index_type)
 
+    def _get_docstring(self, node) -> str:
+        docstring_comment = getattr(node, "docstring_comment", None)
+        comment = self.visit_Constant(docstring_comment, 
+                is_comment_str = True) \
+            if docstring_comment else None
+        return self.comment(comment) if comment else None
+
     def visit(self, node) -> str:
         if node is None:
             raise AstEmptyNodeFound
@@ -207,8 +214,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         return self.comment("pass")
 
     def visit_Module(self, node) -> str:
-        docstring = getattr(node, "docstring_comment", None)
-        buf = [self.comment(docstring.value)] if docstring is not None else []
+        docstring = self._get_docstring(node)
+        buf = [docstring] if docstring is not None else []
         filename = getattr(node, "__file__", None)
         if filename is not None:
             self._module = Path(filename).stem
@@ -512,6 +519,12 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self.visit_IntEnum(node)
         if bases == ["IntFlag"]:
             return self.visit_IntFlag(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        docstring = self._get_docstring(node)
+        buf = [docstring] if docstring else []
+        buf.extend([self.visit(n) for n in node.body])
+        return "\n".join(buf)
 
     def visit_StrEnum(self, node) -> str:
         raise Exception("Unimplemented")

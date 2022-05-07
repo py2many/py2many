@@ -149,6 +149,7 @@ function GetSubList(self::AbstractHLI_IMoniker)::Vector
 end
 
 mutable struct HLIHeadingCategory <: AbstractHLIHeadingCategory
+    #= A tree heading for registered categories =#
 
 end
 function GetText(self::AbstractHLIHeadingCategory)::String
@@ -178,6 +179,7 @@ function GetSubList(self::AbstractHLIHeadingCategory)::Vector
 end
 
 mutable struct HLICategory <: AbstractHLICategory
+    #= An actual Registered Category =#
 
 end
 function GetText(self::AbstractHLICategory)
@@ -606,6 +608,7 @@ function GetSubList(self::AbstractHLITypeLib)::Vector
 end
 
 mutable struct HLIHeadingRegisterdTypeLibs <: AbstractHLIHeadingRegisterdTypeLibs
+    #= A tree heading for registered type libraries =#
 
 end
 function GetText(self::AbstractHLIHeadingRegisterdTypeLibs)::String

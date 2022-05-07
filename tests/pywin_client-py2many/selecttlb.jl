@@ -83,6 +83,7 @@ FLAG_RESTRICTED = 1
 FLAG_CONTROL = 2
 FLAG_HIDDEN = 4
 function EnumTlbs(excludeFlags = 0)::Vector
+    #= Return a list of TypelibSpec objects, one for each registered library. =#
     key = RegOpenKey(win32api, win32con.HKEY_CLASSES_ROOT, "Typelib")
     iids = EnumKeys(key)
     results = []
@@ -154,6 +155,7 @@ function EnumTlbs(excludeFlags = 0)::Vector
 end
 
 function FindTlbsWithDescription(desc)::Vector
+    #= Find all installed type libraries with the specified description =#
     ret = []
     items = EnumTlbs()
     for item in items
@@ -165,6 +167,7 @@ function FindTlbsWithDescription(desc)::Vector
 end
 
 function SelectTlb(title = "Select Library", excludeFlags = 0)::Vector
+    #= Display a list of all the type libraries, and select one.   Returns None if cancelled =#
     import pywin.dialogs.list
     import pywin.dialogs.list
     import pywin.dialogs.list

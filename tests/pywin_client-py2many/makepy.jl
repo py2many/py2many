@@ -72,6 +72,7 @@ function ShowInfo(spec)
 end
 
 mutable struct SimpleProgress <: AbstractSimpleProgress
+    #= A simple progress class prints its output to stderr =#
     verboseLevel::Any
 end
 function Close(self::AbstractSimpleProgress)
@@ -150,6 +151,9 @@ function Tick(self::AbstractGUIProgress, desc = nothing)
 end
 
 function GetTypeLibsForSpec(arg)::Vector
+    #= Given an argument on the command line (either a file name, library
+        description, or ProgID of an object) return a list of actual typelibs
+        to use. =#
     typelibs = []
     try
         try

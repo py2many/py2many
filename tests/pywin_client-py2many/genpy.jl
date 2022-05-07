@@ -127,27 +127,30 @@ mutable struct GeneratorProgress <: AbstractGeneratorProgress
     end
 end
 function Starting(self::AbstractGeneratorProgress, tlb_desc)
+    #= Called when the process starts. =#
     self.tlb_desc = tlb_desc
 end
 
 function Finished(self::AbstractGeneratorProgress)
-
+    #= Called when the process is complete. =#
 end
 
 function SetDescription(self::AbstractGeneratorProgress, desc, maxticks = nothing)
-
+    #= We are entering a major step.  If maxticks, then this
+            is how many ticks we expect to make until finished
+             =#
 end
 
 function Tick(self::AbstractGeneratorProgress, desc = nothing)
-
+    #= Minor progress step.  Can provide new description if necessary =#
 end
 
 function VerboseProgress(self::AbstractGeneratorProgress, desc)
-
+    #= Verbose/Debugging output. =#
 end
 
 function LogWarning(self::AbstractGeneratorProgress, desc)
-
+    #= If a warning is generated =#
 end
 
 function LogBeginGenerate(self::AbstractGeneratorProgress, filename)
@@ -549,6 +552,7 @@ function do_generate(self::AbstractGenerator)
 end
 
 function generate_child(self::AbstractGenerator, child, dir)
+    #= Generate a single child.  May force a few children to be built as we generate deps =#
     self.generate_type = GEN_DEMAND_CHILD
     la = GetLibAttr(self.typelib)
     lcid = la[2]

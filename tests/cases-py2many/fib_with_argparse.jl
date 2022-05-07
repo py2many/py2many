@@ -33,7 +33,7 @@ function main()
     if n(args) == 0
         n(args) = 5
     end
-    println(fib(n(args)))
+    println(fib(convert(Int64, n(args))))
 end
 
 main()
