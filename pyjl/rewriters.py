@@ -83,7 +83,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._hierarchy_map = {}
-        self._import_count = 0
         self._ignored_module_set = \
             self._ignored_module_set = IGNORED_MODULE_SET.copy()\
                 .union(JL_IGNORED_MODULE_SET.copy())
@@ -94,7 +93,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._hierarchy_map = {}
-        self._import_count = 0
         self._nested_classes = []
         self._class_scopes = []
 
@@ -115,7 +113,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         # Create abstract types
         abstract_types = []
-        l_no = self._import_count
+        l_no = len(node.imports)
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             if not is_jlClass:
                 core_module = extends_lst[0].split(
@@ -132,8 +130,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 l_no += 1
 
         if abstract_types:
-            body = body[:self._import_count] + \
-                abstract_types + body[self._import_count:]
+            body = body[:len(node.imports)] + \
+                abstract_types + body[len(node.imports):]
 
         node.body = body
 

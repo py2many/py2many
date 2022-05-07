@@ -1,6 +1,5 @@
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
-abstract type AbstractTypelibSpec end
 import win32api
 import win32con
 import pythoncom
@@ -79,6 +78,7 @@ function EnumKeys(root)::Vector
     return ret
 end
 
+abstract type AbstractTypelibSpec end
 FLAG_RESTRICTED = 1
 FLAG_CONTROL = 2
 FLAG_HIDDEN = 4

@@ -9,12 +9,6 @@ This include parameter and return type information, the COM dispid and CLSID, et
 Other modules may use this information to generate .py files, use the information
 dynamically, or possibly even generate .html documentation for objects.
  =#
-abstract type AbstractNotSupportedException <: AbstractException end
-abstract type AbstractMapEntry end
-abstract type AbstractOleItem end
-abstract type AbstractDispatchItem <: AbstractOleItem end
-abstract type AbstractVTableItem <: AbstractDispatchItem end
-abstract type AbstractLazyDispatchItem <: AbstractDispatchItem end
 
 import string
 using keyword: iskeyword
@@ -22,6 +16,12 @@ import pythoncom
 using pywintypes: TimeType
 import winerror
 import Dates
+abstract type AbstractNotSupportedException <: AbstractException end
+abstract type AbstractMapEntry end
+abstract type AbstractOleItem end
+abstract type AbstractDispatchItem <: AbstractOleItem end
+abstract type AbstractVTableItem <: AbstractDispatchItem end
+abstract type AbstractLazyDispatchItem <: AbstractDispatchItem end
 function _makeDocString(s)
     if version_info(sys) < (3,)
         s = Vector{UInt8}(s)

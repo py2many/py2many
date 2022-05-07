@@ -3,12 +3,12 @@
 This module contains utility functions, used primarily by advanced COM
 programmers, or other COM modules.
  =#
-abstract type AbstractEnumerator end
-abstract type AbstractEnumVARIANT <: AbstractEnumerator end
-abstract type AbstractIterator end
 import pythoncom
 using win32com.client: Dispatch, _get_good_object_
 PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
+abstract type AbstractEnumerator end
+abstract type AbstractEnumVARIANT <: AbstractEnumerator end
+abstract type AbstractIterator end
 function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
     #= Wrap an object in a VARIANT enumerator.
 

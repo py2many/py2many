@@ -1,14 +1,14 @@
+import pythoncom
+include("dynamic.jl")
+include("gencache.jl")
+
+import pywintypes
 abstract type AbstractCDispatch <: Abstractdynamic.CDispatch end
 abstract type AbstractConstants end
 abstract type AbstractEventsProxy end
 abstract type AbstractDispatchBaseClass end
 abstract type AbstractCoClassBaseClass end
 abstract type AbstractVARIANT <: Abstractobject end
-import pythoncom
-include("dynamic.jl")
-include("gencache.jl")
-
-import pywintypes
 _PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function __WrapDispatch(
     dispatch,

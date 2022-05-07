@@ -1,11 +1,11 @@
-abstract type AbstractTLBrowserException <: AbstractException end
-abstract type AbstractTypeBrowseDialog <: AbstractTypeBrowseDialog_Parent end
 import win32ui
 import win32con
 import win32api
 import commctrl
 import pythoncom
 using pywin.mfc: dialog
+abstract type AbstractTLBrowserException <: AbstractException end
+abstract type AbstractTypeBrowseDialog <: AbstractTypeBrowseDialog_Parent end
 mutable struct TLBrowserException <: AbstractTLBrowserException
     #= TypeLib browser internal error =#
 

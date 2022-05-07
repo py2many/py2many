@@ -16,8 +16,6 @@ Example
  >>> xl.Visible = 1 # The Excel window becomes visible.
 
  =#
-abstract type AbstractCDispatch end
-abstract type AbstractFactory end
 
 import traceback
 import types
@@ -27,6 +25,8 @@ include("build.jl")
 using pywintypes: IIDType
 import win32com.client
 import win32com.client
+abstract type AbstractCDispatch end
+abstract type AbstractFactory end
 debugging = 0
 debugging_attr = 0
 LCID = 0

@@ -23,25 +23,6 @@ using Printf
    work.
 
  =#
-abstract type AbstractHLIRoot <: Abstractbrowser.HLIPythonObject end
-abstract type AbstractHLICOM <: Abstractbrowser.HLIPythonObject end
-abstract type AbstractHLICLSID <: AbstractHLICOM end
-abstract type AbstractHLI_Interface <: AbstractHLICOM end
-abstract type AbstractHLI_Enum <: AbstractHLI_Interface end
-abstract type AbstractHLI_IEnumMoniker <: AbstractHLI_Enum end
-abstract type AbstractHLI_IMoniker <: AbstractHLI_Interface end
-abstract type AbstractHLIHeadingCategory <: AbstractHLICOM end
-abstract type AbstractHLICategory <: AbstractHLICOM end
-abstract type AbstractHLIHelpFile <: AbstractHLICOM end
-abstract type AbstractHLIRegisteredTypeLibrary <: AbstractHLICOM end
-abstract type AbstractHLITypeLibEntry <: AbstractHLICOM end
-abstract type AbstractHLICoClass <: AbstractHLITypeLibEntry end
-abstract type AbstractHLITypeLibMethod <: AbstractHLITypeLibEntry end
-abstract type AbstractHLITypeLibEnum <: AbstractHLITypeLibEntry end
-abstract type AbstractHLITypeLibProperty <: AbstractHLICOM end
-abstract type AbstractHLITypeLibFunction <: AbstractHLICOM end
-abstract type AbstractHLITypeLib <: AbstractHLICOM end
-abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
 import win32con
 import win32api
 import win32ui
@@ -64,6 +45,25 @@ function __cmp__(self::AbstractHLIRoot, other)
     return cmp(self.name, name(other))
 end
 
+abstract type AbstractHLIRoot <: Abstractbrowser.HLIPythonObject end
+abstract type AbstractHLICOM <: Abstractbrowser.HLIPythonObject end
+abstract type AbstractHLICLSID <: AbstractHLICOM end
+abstract type AbstractHLI_Interface <: AbstractHLICOM end
+abstract type AbstractHLI_Enum <: AbstractHLI_Interface end
+abstract type AbstractHLI_IEnumMoniker <: AbstractHLI_Enum end
+abstract type AbstractHLI_IMoniker <: AbstractHLI_Interface end
+abstract type AbstractHLIHeadingCategory <: AbstractHLICOM end
+abstract type AbstractHLICategory <: AbstractHLICOM end
+abstract type AbstractHLIHelpFile <: AbstractHLICOM end
+abstract type AbstractHLIRegisteredTypeLibrary <: AbstractHLICOM end
+abstract type AbstractHLITypeLibEntry <: AbstractHLICOM end
+abstract type AbstractHLICoClass <: AbstractHLITypeLibEntry end
+abstract type AbstractHLITypeLibMethod <: AbstractHLITypeLibEntry end
+abstract type AbstractHLITypeLibEnum <: AbstractHLITypeLibEntry end
+abstract type AbstractHLITypeLibProperty <: AbstractHLICOM end
+abstract type AbstractHLITypeLibFunction <: AbstractHLICOM end
+abstract type AbstractHLITypeLib <: AbstractHLICOM end
+abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
 mutable struct HLICOM <: AbstractHLICOM
     name::Any
 end

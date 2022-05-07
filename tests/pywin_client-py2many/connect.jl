@@ -1,5 +1,4 @@
 #= Utilities for working with Connections =#
-abstract type AbstractSimpleConnection end
 import win32com.server.util
 import win32com.server.util
 import win32com.server.util
@@ -75,3 +74,5 @@ function Disconnect(self::AbstractSimpleConnection)
         self.cp = nothing
     end
 end
+
+abstract type AbstractSimpleConnection end
