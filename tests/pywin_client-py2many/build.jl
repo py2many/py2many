@@ -16,7 +16,7 @@ import string
 using keyword: iskeyword
 
 using pywintypes: TimeType
-import winerror
+include("winerror.jl")
 import Dates
 abstract type AbstractNotSupportedException <: AbstractException end
 abstract type AbstractMapEntry end

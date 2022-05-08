@@ -1,9 +1,9 @@
 using PyCall
 pythoncom = pyimport("pythoncom")
 #= Utilities for working with Connections =#
+using win32com.server: dispatcher
 import win32com.server.util
-import win32com.server.util
-import win32com.server.util
+abstract type AbstractSimpleConnection end
 mutable struct SimpleConnection <: AbstractSimpleConnection
     #= A simple, single connection object =#
     debug::Any
@@ -40,7 +40,6 @@ end
 function _wrap(self::SimpleConnection, obj)
     useDispatcher = nothing
     if self.debug
-        using win32com.server: dispatcher
         useDispatcher = DefaultDebugDispatcher(dispatcher)
     end
     return wrap(win32com.server.util, obj, useDispatcher)
@@ -73,4 +72,3 @@ function Disconnect(self::SimpleConnection)
     end
 end
 
-abstract type AbstractSimpleConnection end

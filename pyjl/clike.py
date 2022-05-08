@@ -326,8 +326,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         for name, alias in names:
             n_import = name.split(".")
             for i in range(len(n_import)):
-                if ".".join(n_import[0:i+1]) in self._ignored_module_set:
+                import_name = ".".join(n_import[0:i+1])
+                if import_name in self._ignored_module_set:
                     break
+            else:
                 imports.append(self._import_str(name, alias))
 
         return "\n".join(imports)

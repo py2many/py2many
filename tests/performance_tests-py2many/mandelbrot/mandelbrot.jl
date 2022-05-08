@@ -4,6 +4,7 @@ using ResumableFunctions
 
 
 
+
 function pixels(y, n, abs)
     Channel() do ch_pixels
         range7 = Vector{UInt8}(0:6)
@@ -64,7 +65,6 @@ end
             @yield v
         end
     else
-
         default_worker_pool() do pool
             unordered_rows = imap_unordered(pool, f, row_jobs)
             for v in ordered_rows(unordered_rows, n)

@@ -18,17 +18,18 @@ Example
  >>> xl.Visible = 1 # The Excel window becomes visible.
 
  =#
+include("util.jl")
+import win32com.client.util
 
 
 
 
-import winerror
+include("winerror.jl")
 include("build.jl")
-using pywintypes: IIDType
-import win32com.client
-import win32com.client
 abstract type AbstractCDispatch end
 abstract type AbstractFactory end
+using pywintypes: IIDType
+import win32com.client
 debugging = 0
 debugging_attr = 0
 LCID = 0
@@ -354,7 +355,6 @@ function _NewEnum(self::CDispatch)
             return nothing
         end
     end
-    include("util.jl")
     return WrapEnum(util, enum, nothing)
 end
 
@@ -656,9 +656,6 @@ function __getattr__(self::CDispatch, attr)::Tuple
             ob::Any
         end
         function __call__(self::Factory)::Factory
-            import win32com.client.util
-            import win32com.client.util
-            import win32com.client.util
             return Iterator(win32com.client.util, self.ob)
         end
 

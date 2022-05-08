@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations, nested_scopes
 import ast
 import copy
 import sys
@@ -747,6 +747,52 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         if hasattr(annotation_node, "container_type"):
             annotation_node = getattr(annotation_node, "container_type", None)
         return get_id(annotation_node) == "Dict"
+
+
+class ImportRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        # The default module represents all import nodes
+        # import from nodes have module as key
+        self._import_names: Dict[str, list[str]] = {"default": []}
+        self._nested_imports = []
+        self._import_lst = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._import_names = {}
+        self._nested_imports = []
+        self._import_lst = node.imports
+        self.generic_visit(node)
+        node.body = self._nested_imports + node.body
+        return node
+    
+    def visit_Import(self, node: ast.Import) -> Any:
+        return self._generic_import_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+        return self._generic_import_visit(node, node.module)
+
+    def _generic_import_visit(self, node, key = "default"):
+        if key not in self._import_names:
+            self._import_names[key] = []
+        aliases = []
+        for alias in node.names:
+            name = alias.name
+            if name not in self._import_names[key]:
+                self._import_names[key].append(name)
+                aliases.append(alias)
+            else:
+                if name in self._import_lst:
+                    self._import_lst.remove(name)
+        if not aliases:
+            return None
+        node.names = aliases
+        self.generic_visit(node)
+        parent = node.scopes[-1]
+        if not isinstance(parent, ast.Module):
+            self._nested_imports.append(node)
+            return None
+        return node
 
 
 ###########################################################

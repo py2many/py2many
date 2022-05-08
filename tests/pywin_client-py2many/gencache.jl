@@ -23,10 +23,15 @@ Hacks, to do, etc
   Currently just uses a pickled dictionary, but should used some sort of indexed file.
   Maybe an OLE2 compound file, or a bsddb file?
  =#
+import io as io
+include("makepy.jl")
+include("genpy.jl")
+import shutil
+import zipfile
+import getopt
 import pywintypes
 
 import win32com
-import win32com.client
 import win32com.client
 import glob
 
@@ -71,7 +76,6 @@ end
 
 function _LoadDicts()
     if is_zip
-        import io as io
         loader = win32com.__loader__
         arc_path = archive(loader)
         dicts_path = join
@@ -253,7 +257,6 @@ function GetModuleForCLSID(clsid)
                     if info in demandGeneratedTypeLibraries
                         info = demandGeneratedTypeLibraries[info+1]
                     end
-                    include("makepy.jl")
                     GenerateChildFromTypeLibSpec(makepy, sub_mod, info)
                 end
             end
@@ -309,7 +312,6 @@ function MakeModuleForTypelib(
         progressInstance -- Instance to use as progress indicator, or None to
                             use the GUI progress bar.
          =#
-    include("makepy.jl")
     GenerateFromTypeLibSpec(
         makepy,
         (typelibCLSID, lcid, major, minor),
@@ -339,7 +341,6 @@ function MakeModuleForTypelibInterface(
         progressInstance -- Instance to use as progress indicator, or None to
                             use the GUI progress bar.
          =#
-    include("makepy.jl")
     try
         GenerateFromTypeLibSpec(
             makepy,
@@ -532,7 +533,6 @@ function EnsureModule(
             else
                 filePathPyc = filePathPyc * "o"
             end
-            include("genpy.jl")
             if MinorVersion(module_) != tlbAttributes[5] ||
                makepy_version(genpy) != makepy_version(module_)
                 try
@@ -550,7 +550,6 @@ function EnsureModule(
                     end
                 end
                 if isdir(os.path, filePathPrefix)
-                    import shutil
                     rmtree(shutil, filePathPrefix)
                 end
                 minor = tlbAttributes[5]
@@ -643,7 +642,6 @@ function EnsureDispatch(prog_id, bForDemand = 1)
             tla = GetLibAttr(tlb)
             mod = EnsureModule(tla[1], tla[2], tla[4], tla[5])
             GetModuleForCLSID(disp_clsid)
-            include("CLSIDToClass.jl")
             disp_class = GetClass(CLSIDToClass, string(disp_clsid))
             disp = disp_class(_oleobj_(disp))
         catch exn
@@ -700,7 +698,6 @@ end
 function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
     zip_pos = find(win32com.__gen_path__, ".zip\\")
     if zip_pos >= 0
-        import zipfile
         zip_file = win32com.__gen_path__[begin:zip_pos+4]
         zip_path = replace(win32com.__gen_path__[zip_pos+6:end], "\\", "/")
         zf = ZipFile(zipfile, zip_file)
@@ -810,7 +807,6 @@ function usage()
 end
 
 function main()
-    import getopt
     try
         opts, args = getopt(getopt, append!([PROGRAM_FILE], ARGS)[2:end], "qrd")
     catch exn

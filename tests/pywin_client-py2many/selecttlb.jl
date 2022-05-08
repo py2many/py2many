@@ -2,6 +2,7 @@ using PyCall
 pythoncom = pyimport("pythoncom")
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
+import pywin.dialogs.list
 import win32api
 import win32con
 mutable struct TypelibSpec <: AbstractTypelibSpec
@@ -66,6 +67,7 @@ function FromTypelib(self::TypelibSpec, typelib, dllName = nothing)
     end
 end
 
+abstract type AbstractTypelibSpec end
 function EnumKeys(root)::Vector
     index = 0
     ret = []
@@ -90,7 +92,6 @@ function EnumKeys(root)::Vector
     return ret
 end
 
-abstract type AbstractTypelibSpec end
 FLAG_RESTRICTED = 1
 FLAG_CONTROL = 2
 FLAG_HIDDEN = 4
@@ -180,9 +181,6 @@ end
 
 function SelectTlb(title = "Select Library", excludeFlags = 0)::Vector
     #= Display a list of all the type libraries, and select one.   Returns None if cancelled =#
-    import pywin.dialogs.list
-    import pywin.dialogs.list
-    import pywin.dialogs.list
     items = EnumTlbs(excludeFlags)
     for i in items
         major(i) = parse(Int, major(i))

@@ -1,16 +1,18 @@
 using PyCall
 pythoncom = pyimport("pythoncom")
 
+include("winerror.jl")
+
 include("dynamic.jl")
 include("gencache.jl")
-
-import pywintypes
 abstract type AbstractCDispatch <: Abstractdynamic.CDispatch end
 abstract type AbstractConstants end
 abstract type AbstractEventsProxy end
 abstract type AbstractDispatchBaseClass end
 abstract type AbstractCoClassBaseClass end
 abstract type AbstractVARIANT <: Abstractobject end
+
+import pywintypes
 _PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
 function __WrapDispatch(
     dispatch,
@@ -39,7 +41,6 @@ function __WrapDispatch(
         end
     end
     if resultCLSID != nothing
-        include("gencache.jl")
         klass = GetClassForCLSID(gencache, resultCLSID)
         if klass != nothing
             return klass(dispatch)
@@ -341,7 +342,6 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
     end
     clsid = CLSID(disp_class)
     try
-
     catch exn
         if exn isa ImportError
             new_type = type_
@@ -411,7 +411,6 @@ function WithEvents(disp, user_event_class)
     end
     clsid = CLSID(disp_class)
     try
-
     catch exn
         if exn isa ImportError
             new_type = type_
@@ -498,7 +497,6 @@ function Record(name, object)
           point.y = 0
           app.MoveTo(point)
          =#
-    include("gencache.jl")
     object = EnsureDispatch(gencache, object)
     module_ = modules(sys)[__module__(object.__class__)+1]
     package = GetModuleForTypelib(
@@ -546,7 +544,6 @@ mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
             catch exn
                 let details = exn
                     if details isa pythoncom.com_error
-                        include("winerror.jl")
                         if details.hresult != winerror.E_NOINTERFACE
                             error()
                         end

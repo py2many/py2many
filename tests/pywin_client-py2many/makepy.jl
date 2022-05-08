@@ -9,10 +9,17 @@ pythoncom = pyimport("pythoncom")
  the knowledge of a COM interface.
 
  =#
+import win32ui
+import pywin
+using pywin.dialogs: status
+import getopt
+import codecs
 usageHelp = " \nUsage:\n\n  makepy.py [-i] [-v|q] [-h] [-u] [-o output_file] [-d] [typelib, ...]\n\n  -i    -- Show information for the specified typelib.\n\n  -v    -- Verbose output.\n\n  -q    -- Quiet output.\n\n  -h    -- Do not generate hidden methods.\n\n  -u    -- Python 1.5 and earlier: Do NOT convert all Unicode objects to\n           strings.\n\n           Python 1.6 and later: Convert all Unicode objects to strings.\n\n  -o    -- Create output in a specified output file.  If the path leading\n           to the file does not exist, any missing directories will be\n           created.\n           NOTE: -o cannot be used with -d.  This will generate an error.\n\n  -d    -- Generate the base code now and the class code on demand.\n           Recommended for large type libraries.\n\n  typelib -- A TLB, DLL, OCX or anything containing COM type information.\n             If a typelib is not specified, a window containing a textbox\n             will open from which you can select a registered type\n             library.\n\nExamples:\n\n  makepy.py -d\n\n    Presents a list of registered type libraries from which you can make\n    a selection.\n\n  makepy.py -d \"Microsoft Excel 8.0 Object Library\"\n\n    Generate support for the type library with the specified description\n    (in this case, the MS Excel object model).\n\n"
 import importlib
 using win32com.client: genpy, selecttlb, gencache
 using win32com.client: Dispatch
+abstract type AbstractSimpleProgress <: Abstractgenpy.GeneratorProgress end
+abstract type AbstractGUIProgress <: AbstractSimpleProgress end
 bForDemandDefault = 0
 error = "makepy.error"
 function usage()
@@ -70,8 +77,6 @@ function ShowInfo(spec)
     end
 end
 
-abstract type AbstractSimpleProgress <: Abstractgenpy.GeneratorProgress end
-abstract type AbstractGUIProgress <: AbstractSimpleProgress end
 mutable struct SimpleProgress <: AbstractSimpleProgress
     #= A simple progress class prints its output to stderr =#
     verboseLevel::Any
@@ -114,8 +119,6 @@ mutable struct GUIProgress <: AbstractGUIProgress
     dialog::Any
 
     GUIProgress(verboseLevel, dialog = nothing) = begin
-        import win32ui
-        import pywin
         SimpleProgress.__init__(self, verboseLevel)
         new(verboseLevel, dialog)
     end
@@ -130,7 +133,6 @@ end
 function Starting(self::GUIProgress, tlb_desc)
     Starting(SimpleProgress, self, tlb_desc)
     if self.dialog === nothing
-        using pywin.dialogs: status
         self.dialog = ThreadedStatusProgressDialog(status, tlb_desc)
     else
         SetTitle(self.dialog, tlb_desc)
@@ -379,7 +381,6 @@ function GenerateChildFromTypeLibSpec(
 end
 
 function main_func()::Int64
-    import getopt
     hiddenSpec = 1
     outputName = nothing
     verboseLevel = 1
@@ -439,7 +440,6 @@ function main_func()::Int64
         if version_info(sys) > (3, 0)
             f = readline(outputName)
         else
-            import codecs
             f = readline(codecs)
         end
     else

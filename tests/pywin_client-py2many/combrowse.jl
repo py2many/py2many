@@ -25,30 +25,14 @@ pythoncom = pyimport("pythoncom")
    work.
 
  =#
+
+using pywin.tools: hierlist
 import win32con
 import win32api
 import win32ui
 
 
 using win32com.client: util
-using pywin.tools: browser
-mutable struct HLIRoot <: AbstractHLIRoot
-    name::Any
-
-    HLIRoot(name::Any = title) = new(name)
-end
-function GetSubList(self::HLIRoot)
-    return [
-        HLIHeadingCategory(),
-        HLI_IEnumMoniker(EnumRunning(GetRunningObjectTable(pythoncom)), "Running Objects"),
-        HLIHeadingRegisterdTypeLibs(),
-    ]
-end
-
-function __cmp__(self::HLIRoot, other)
-    return cmp(self.name, name(other))
-end
-
 abstract type AbstractHLIRoot <: Abstractbrowser.HLIPythonObject end
 abstract type AbstractHLICOM <: Abstractbrowser.HLIPythonObject end
 abstract type AbstractHLICLSID <: AbstractHLICOM end
@@ -68,6 +52,24 @@ abstract type AbstractHLITypeLibProperty <: AbstractHLICOM end
 abstract type AbstractHLITypeLibFunction <: AbstractHLICOM end
 abstract type AbstractHLITypeLib <: AbstractHLICOM end
 abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
+using pywin.tools: browser
+mutable struct HLIRoot <: AbstractHLIRoot
+    name::Any
+
+    HLIRoot(name::Any = title) = new(name)
+end
+function GetSubList(self::HLIRoot)
+    return [
+        HLIHeadingCategory(),
+        HLI_IEnumMoniker(EnumRunning(GetRunningObjectTable(pythoncom)), "Running Objects"),
+        HLIHeadingRegisterdTypeLibs(),
+    ]
+end
+
+function __cmp__(self::HLIRoot, other)
+    return cmp(self.name, name(other))
+end
+
 mutable struct HLICOM <: AbstractHLICOM
     name::Any
 end
@@ -220,7 +222,6 @@ function CalculateIsExpandable(self::HLIHelpFile)::Int64
 end
 
 function GetText(self::HLIHelpFile)::String
-
     fname, ctx = self.myobject
     base = split(os.path, fname)[2]
     return "Help reference in %s" % base
@@ -244,7 +245,6 @@ mutable struct HLIRegisteredTypeLibrary <: AbstractHLIRegisteredTypeLibrary
 
 end
 function GetSubList(self::HLIRegisteredTypeLibrary)::Vector
-
     clsidstr, versionStr = self.myobject
     collected = []
     helpPath = ""
@@ -759,7 +759,6 @@ function GetSubList(self::HLIHeadingRegisterdTypeLibs)::Vector
 end
 
 function main_func(modal = false)
-    using pywin.tools: hierlist
     root = HLIRoot("COM Browser")
     if "app" in modules(sys)
         MakeTemplate(browser)

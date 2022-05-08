@@ -9,16 +9,16 @@ abstract type Abstractlean_call end
 function lean_args(sequence, reading_frames, i, j)::Tuple
     global lean_buffer
     lean_key = length(lean_buffer)
-    lean_buffer[lean_key] = sequence
+    lean_buffer[lean_key+1] = sequence
     return (lean_key, reading_frames, i, j)
 end
 
 mutable struct lean_call <: Abstractlean_call
     func::Any
 end
-function __call__(self::Abstractlean_call, lean_key, reading_frames, i, j)::Vector
+function __call__(self::lean_call, lean_key, reading_frames, i, j)::Vector
     global lean_buffer
-    sequence = lean_buffer[lean_key]
+    sequence = lean_buffer[lean_key+1]
     results = func(self, sequence, reading_frames, i, j)
     lean_results = []
     for (frame, n, frequences) in results

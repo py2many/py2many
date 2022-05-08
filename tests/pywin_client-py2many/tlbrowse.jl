@@ -1,13 +1,14 @@
 using PyCall
 pythoncom = pyimport("pythoncom")
+
 import win32ui
 import win32con
 import win32api
 import commctrl
 
-using pywin.mfc: dialog
 abstract type AbstractTLBrowserException <: AbstractException end
 abstract type AbstractTypeBrowseDialog <: AbstractTypeBrowseDialog_Parent end
+using pywin.mfc: dialog
 mutable struct TLBrowserException <: AbstractTLBrowserException
     #= TypeLib browser internal error =#
 
@@ -292,7 +293,6 @@ function GetTemplate(self::TypeBrowseDialog)
 end
 
 function main()
-
     fname = nothing
     try
         fname = append!([PROGRAM_FILE], ARGS)[2]
