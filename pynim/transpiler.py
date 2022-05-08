@@ -70,6 +70,9 @@ class NimTranspiler(CLikeTranspiler):
         uses = "\n".join(f"import {mod}" for mod in usings)
         return uses
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
 

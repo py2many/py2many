@@ -105,6 +105,9 @@ class KotlinTranspiler(CLikeTranspiler):
         uses = "\n".join(f"import {mod}" for mod in usings)
         return uses
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def visit_FunctionDef(self, node) -> str:
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit_arguments(node.args)

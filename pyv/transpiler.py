@@ -166,6 +166,9 @@ class VTranspiler(CLikeTranspiler):
         # but V expects the module statement to be at the top.
         return f"module main\n{uses}"
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def _combine_value_index(self, value_type: str, index_type: str) -> str:
         return f"{value_type}{index_type}"
 

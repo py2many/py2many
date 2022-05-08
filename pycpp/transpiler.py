@@ -141,6 +141,9 @@ class CppTranspiler(CLikeTranspiler):
         uses = "\n".join(f"#include {mod}{lint_exception}" for mod in usings)
         return uses
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def headers(self, meta: InferMeta):
         lint_exception = (
             "  // NOLINT(build/include_order)" if not self._no_prologue else ""

@@ -154,6 +154,9 @@ class GoTranspiler(CLikeTranspiler):
             buf += ")\n"
         return buf + "\n\n"
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{index_type}"
 

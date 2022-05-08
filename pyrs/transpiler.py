@@ -161,6 +161,9 @@ class RustTranspiler(CLikeTranspiler):
         )
         return f"{cargo_toml}\n{lint_ignores}\n\n{externs}\n{uses}\n"
 
+    def globals(self):
+        return "\n".join(self._globals)
+
     def features(self):
         if self._features:
             features = ", ".join(sorted(list(set(self._features))))
