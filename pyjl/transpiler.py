@@ -22,7 +22,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, \
+from py2many.tracer import find_closest_scope, \
     get_class_scope, is_class_or_module, is_class_type
 
 from typing import Any, List

@@ -31,10 +31,3 @@ FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 }
-
-##################################
-## clike
-
-JL_IGNORED_MODULE_SET = set([
-    "pythoncomm"
-])
