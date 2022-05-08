@@ -743,12 +743,10 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 )
 
     def _is_dict(self, node, value_id):
-        val = node.scopes.find(value_id)
-        annotation = getattr(val, "annotation", None)
-        return (isinstance(annotation, ast.Subscript) and
-                    get_id(annotation.value) == "Dict") or \
-                (isinstance(annotation, ast.Name)
-                    and get_id(annotation) == "Dict")
+        annotation_node = getattr(node, "container_type", node.scopes.find(value_id))
+        if hasattr(annotation_node, "container_type"):
+            annotation_node = getattr(annotation_node, "container_type", None)
+        return get_id(annotation_node) == "Dict"
 
 
 ###########################################################

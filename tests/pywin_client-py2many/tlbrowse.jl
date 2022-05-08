@@ -34,10 +34,6 @@ typekindmap = Dict(
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
     #= Browse a type library =#
-    IDC_LISTVIEW::Any
-    IDC_MEMBERLIST::Any
-    IDC_PARAMLIST::Any
-    IDC_TYPELIST::Any
     OnFileOpen::Any
     attr::Any
     listview::Any
@@ -46,9 +42,19 @@ mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
     tlb::Any
     typeinfo::Any
     typelb::Any
+    IDC_LISTVIEW::Int64
+    IDC_MEMBERLIST::Int64
+    IDC_PARAMLIST::Int64
+    IDC_TYPELIST::Int64
     typefile::Any
 
-    TypeBrowseDialog(typefile = nothing) = begin
+    TypeBrowseDialog(
+        typefile = nothing,
+        IDC_LISTVIEW::Int64 = 1003,
+        IDC_MEMBERLIST::Int64 = 1001,
+        IDC_PARAMLIST::Int64 = 1002,
+        IDC_TYPELIST::Int64 = 1000,
+    ) = begin
         TypeBrowseDialog_Parent.__init__(self, self.GetTemplate())
         try
             if typefile
@@ -64,17 +70,17 @@ mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
         end
         self.HookCommand(self.CmdTypeListbox, self.IDC_TYPELIST)
         self.HookCommand(self.CmdMemberListbox, self.IDC_MEMBERLIST)
-        new(typefile = nothing)
+        new(typefile, IDC_LISTVIEW, IDC_MEMBERLIST, IDC_PARAMLIST, IDC_TYPELIST)
     end
 end
-function OnAttachedObjectDeath(self::AbstractTypeBrowseDialog)
+function OnAttachedObjectDeath(self::TypeBrowseDialog)
     self.tlb = nothing
     self.typeinfo = nothing
     self.attr = nothing
     return OnAttachedObjectDeath(TypeBrowseDialog_Parent)
 end
 
-function _SetupMenu(self::AbstractTypeBrowseDialog)
+function _SetupMenu(self::TypeBrowseDialog)
     menu = CreateMenu(win32ui)
     flags = win32con.MF_STRING | win32con.MF_ENABLED
     AppendMenu(menu, flags, win32ui.ID_FILE_OPEN, "&Open...")
@@ -85,7 +91,7 @@ function _SetupMenu(self::AbstractTypeBrowseDialog)
     HookCommand(self, self.OnFileOpen, win32ui.ID_FILE_OPEN)
 end
 
-function OnFileOpen(self::AbstractTypeBrowseDialog, id, code)
+function OnFileOpen(self::TypeBrowseDialog, id, code)
     openFlags = win32con.OFN_OVERWRITEPROMPT | win32con.OFN_FILEMUSTEXIST
     fspec = "Type Libraries (*.tlb, *.olb)|*.tlb;*.olb|OCX Files (*.ocx)|*.ocx|DLL\'s (*.dll)|*.dll|All Files (*.*)|*.*||"
     dlg = CreateFileDialog(win32ui, 1, nothing, nothing, openFlags, fspec)
@@ -102,7 +108,7 @@ function OnFileOpen(self::AbstractTypeBrowseDialog, id, code)
     end
 end
 
-function OnInitDialog(self::AbstractTypeBrowseDialog)
+function OnInitDialog(self::TypeBrowseDialog)
     _SetupMenu(self)
     self.typelb = GetDlgItem(self, self.IDC_TYPELIST)
     self.memberlb = GetDlgItem(self, self.IDC_MEMBERLIST)
@@ -120,7 +126,7 @@ function OnInitDialog(self::AbstractTypeBrowseDialog)
     return OnInitDialog(TypeBrowseDialog_Parent)
 end
 
-function _SetupTLB(self::AbstractTypeBrowseDialog)
+function _SetupTLB(self::TypeBrowseDialog)
     ResetContent(self.typelb)
     ResetContent(self.memberlb)
     ResetContent(self.paramlb)
@@ -135,7 +141,7 @@ function _SetupTLB(self::AbstractTypeBrowseDialog)
     end
 end
 
-function _SetListviewTextItems(self::AbstractTypeBrowseDialog, items)
+function _SetListviewTextItems(self::TypeBrowseDialog, items)
     DeleteAllItems(self.listview)
     index = -1
     for item in items
@@ -148,12 +154,12 @@ function _SetListviewTextItems(self::AbstractTypeBrowseDialog, items)
     end
 end
 
-function SetupAllInfoTypes(self::AbstractTypeBrowseDialog)
+function SetupAllInfoTypes(self::TypeBrowseDialog)
     infos = append!(_GetMainInfoTypes(self), _GetMethodInfoTypes(self))
     _SetListviewTextItems(self, infos)
 end
 
-function _GetMainInfoTypes(self::AbstractTypeBrowseDialog)::Vector
+function _GetMainInfoTypes(self::TypeBrowseDialog)::Vector
     pos = GetCurSel(self.typelb)
     if pos < 0
         return []
@@ -189,7 +195,7 @@ function _GetMainInfoTypes(self::AbstractTypeBrowseDialog)::Vector
     return infos
 end
 
-function _GetMethodInfoTypes(self::AbstractTypeBrowseDialog)::Vector
+function _GetMethodInfoTypes(self::TypeBrowseDialog)::Vector
     pos = GetCurSel(self.memberlb)
     if pos < 0
         return []
@@ -209,7 +215,7 @@ function _GetMethodInfoTypes(self::AbstractTypeBrowseDialog)::Vector
     return ret
 end
 
-function CmdTypeListbox(self::AbstractTypeBrowseDialog, id, code)::Int64
+function CmdTypeListbox(self::TypeBrowseDialog, id, code)::Int64
     if code == win32con.LBN_SELCHANGE
         pos = GetCurSel(self.typelb)
         if pos >= 0
@@ -230,7 +236,7 @@ function CmdTypeListbox(self::AbstractTypeBrowseDialog, id, code)::Int64
     end
 end
 
-function _GetRealMemberPos(self::AbstractTypeBrowseDialog, pos)::Tuple
+function _GetRealMemberPos(self::TypeBrowseDialog, pos)::Tuple
     pos = GetCurSel(self.memberlb)
     if pos >= self.attr[8]
         return (pos - self.attr[8], 1)
@@ -241,7 +247,7 @@ function _GetRealMemberPos(self::AbstractTypeBrowseDialog, pos)::Tuple
     end
 end
 
-function CmdMemberListbox(self::AbstractTypeBrowseDialog, id, code)::Int64
+function CmdMemberListbox(self::TypeBrowseDialog, id, code)::Int64
     if code == win32con.LBN_SELCHANGE
         ResetContent(self.paramlb)
         pos = GetCurSel(self.memberlb)
@@ -260,7 +266,7 @@ function CmdMemberListbox(self::AbstractTypeBrowseDialog, id, code)::Int64
     end
 end
 
-function GetTemplate(self::AbstractTypeBrowseDialog)
+function GetTemplate(self::TypeBrowseDialog)
     #= Return the template used to create this dialog =#
     w = 272
     h = 192

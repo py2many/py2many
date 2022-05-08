@@ -66,7 +66,7 @@ NoTranslateTypes = [
 ]
 NoTranslateMap = Dict()
 for v in NoTranslateTypes
-    NoTranslateMap[v] = nothing
+    NoTranslateMap[v+1] = nothing
 end
 mutable struct MapEntry <: AbstractMapEntry
     #= Simple holder for named attibutes - items in a map. =#
@@ -74,8 +74,8 @@ mutable struct MapEntry <: AbstractMapEntry
     hidden::Any
     names::Any
     resultCLSID::Any
-    resultDocumentation::Any
     resultDoc::Any
+    resultDocumentation::Any
     wasProperty::Int64
 
     MapEntry(
@@ -85,6 +85,8 @@ mutable struct MapEntry <: AbstractMapEntry
         resultCLSID = pythoncom.IID_NULL,
         resultDoc = nothing,
         hidden = 0,
+        resultDocumentation = resultDoc,
+        wasProperty::Int64 = 0,
     ) = begin
         if type_(desc_or_id) == type_(0)
             self.dispid = desc_or_id
@@ -95,19 +97,21 @@ mutable struct MapEntry <: AbstractMapEntry
         end
         new(
             desc_or_id,
-            names = nothing,
-            doc = nothing,
-            resultCLSID = pythoncom.IID_NULL,
-            resultDoc = nothing,
-            hidden = 0,
+            names,
+            doc,
+            resultCLSID,
+            resultDoc,
+            hidden,
+            resultDocumentation,
+            wasProperty,
         )
     end
 end
-function __repr__(self::AbstractMapEntry)
+function __repr__(self::MapEntry)
     return test
 end
 
-function GetResultCLSID(self::AbstractMapEntry)
+function GetResultCLSID(self::MapEntry)::MapEntry
     rc = self.resultCLSID
     if rc == IID_NULL(pythoncom)
         return nothing
@@ -115,7 +119,7 @@ function GetResultCLSID(self::AbstractMapEntry)
     return rc
 end
 
-function GetResultCLSIDStr(self::AbstractMapEntry)::String
+function GetResultCLSIDStr(self::MapEntry)::String
     rc = GetResultCLSID(self)
     if rc === nothing
         return "None"
@@ -123,7 +127,7 @@ function GetResultCLSIDStr(self::AbstractMapEntry)::String
     return repr(string(rc))
 end
 
-function GetResultName(self::AbstractMapEntry)
+function GetResultName(self::MapEntry)
     if self.resultDocumentation === nothing
         return nothing
     end
@@ -139,40 +143,72 @@ mutable struct OleItem <: AbstractOleItem
     co_class::Any
     typename::String
 
-    OleItem(doc = nothing) = begin
+    OleItem(
+        doc = nothing,
+        bIsDispatch::Int64 = 0,
+        bIsSink::Int64 = 0,
+        bWritten::Int64 = 0,
+        clsid = nothing,
+        co_class = nothing,
+        typename::String = "OleItem",
+    ) = begin
         if self.doc
             self.python_name = MakePublicAttributeName(self.doc[0])
         else
             self.python_name = nothing
         end
-        new(doc = nothing)
+        new(doc, bIsDispatch, bIsSink, bWritten, clsid, co_class, typename)
     end
 end
 
 mutable struct DispatchItem <: AbstractDispatchItem
     bIsDispatch::Any
     clsid::Any
-    mapFuncs::Any
-    propMapGet::Any
-    propMapPut::Any
     attr::Any
     bForUser::Int64
     defaultDispatchName::Any
     doc::Any
     hidden::Int64
+    mapFuncs::Dict
     propMap::Dict
+    propMapGet::Dict
+    propMapPut::Dict
     typeinfo::Any
     typename::String
 
-    DispatchItem(typeinfo = nothing, attr = nothing, doc = nothing, bForUser = 1) = begin
+    DispatchItem(
+        typeinfo = nothing,
+        attr = nothing,
+        doc = nothing,
+        bForUser = 1,
+        defaultDispatchName = nothing,
+        hidden::Int64 = 0,
+        mapFuncs::Dict = Dict(),
+        propMap::Dict = Dict(),
+        propMapGet::Dict = Dict(),
+        propMapPut::Dict = Dict(),
+        typename::String = "DispatchItem",
+    ) = begin
         OleItem.__init__(self, doc)
         if typeinfo
             self.Build(typeinfo, attr, bForUser)
         end
-        new(typeinfo = nothing, attr = nothing, doc = nothing, bForUser = 1)
+        new(
+            typeinfo,
+            attr,
+            doc,
+            bForUser,
+            defaultDispatchName,
+            hidden,
+            mapFuncs,
+            propMap,
+            propMapGet,
+            propMapPut,
+            typename,
+        )
     end
 end
-function _propMapPutCheck_(self::AbstractDispatchItem, key, item)
+function _propMapPutCheck_(self::DispatchItem, key, item)
     ins, outs, opts = CountInOutOptArgs(self, desc(item)[3])
     if ins > 1
         if (opts + 1) === ins || ins == (desc(item)[7] + 1)
@@ -195,7 +231,7 @@ function _propMapPutCheck_(self::AbstractDispatchItem, key, item)
     end
 end
 
-function _propMapGetCheck_(self::AbstractDispatchItem, key, item)
+function _propMapGetCheck_(self::DispatchItem, key, item)
     ins, outs, opts = CountInOutOptArgs(self, desc(item)[3])
     if ins > 0
         if desc(item)[7] === ins || ins === opts
@@ -218,7 +254,7 @@ function _propMapGetCheck_(self::AbstractDispatchItem, key, item)
     end
 end
 
-function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
+function _AddFunc_(self::DispatchItem, typeinfo, fdesc, bForUser)::Tuple
     @assert(desckind(fdesc) == DESCKIND_FUNCDESC(pythoncom))
     id = memid(fdesc)
     funcflags = wFuncFlags(fdesc)
@@ -288,7 +324,7 @@ function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
     return nothing
 end
 
-function _AddVar_(self::AbstractDispatchItem, typeinfo, vardesc, bForUser)::Tuple
+function _AddVar_(self::DispatchItem, typeinfo, vardesc, bForUser)::Tuple
     @assert(desckind(vardesc) == DESCKIND_VARDESC(pythoncom))
     if varkind(vardesc) == VAR_DISPATCH(pythoncom)
         id = memid(vardesc)
@@ -315,7 +351,7 @@ function _AddVar_(self::AbstractDispatchItem, typeinfo, vardesc, bForUser)::Tupl
     end
 end
 
-function Build(self::AbstractDispatchItem, typeinfo, attr, bForUser = 1)
+function Build(self::DispatchItem, typeinfo, attr, bForUser = 1)
     self.clsid = attr[1]
     self.bIsDispatch = (wTypeFlags(attr) & TYPEFLAG_FDISPATCHABLE(pythoncom)) != 0
     if typeinfo === nothing
@@ -337,7 +373,7 @@ function Build(self::AbstractDispatchItem, typeinfo, attr, bForUser = 1)
     end
 end
 
-function CountInOutOptArgs(self::AbstractDispatchItem, argTuple)::Tuple
+function CountInOutOptArgs(self::DispatchItem, argTuple)::Tuple
     #= Return tuple counting in/outs/OPTS.  Sum of result may not be len(argTuple), as some args may be in/out. =#
     ins = 0
     out = 0
@@ -362,7 +398,7 @@ function CountInOutOptArgs(self::AbstractDispatchItem, argTuple)::Tuple
     return (ins, out, opts)
 end
 
-function MakeFuncMethod(self::AbstractDispatchItem, entry, name, bMakeClass = 1)::Vector
+function MakeFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1)::Vector
     if desc(entry) != nothing && length(desc(entry)) < 6 || desc(entry)[7] != -1
         return MakeDispatchFuncMethod(self, entry, name, bMakeClass)
     else
@@ -370,12 +406,7 @@ function MakeFuncMethod(self::AbstractDispatchItem, entry, name, bMakeClass = 1)
     end
 end
 
-function MakeDispatchFuncMethod(
-    self::AbstractDispatchItem,
-    entry,
-    name,
-    bMakeClass = 1,
-)::Vector
+function MakeDispatchFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1)::Vector
     fdesc = desc(entry)
     doc = doc(entry)
     names = names(entry)
@@ -492,12 +523,7 @@ function MakeDispatchFuncMethod(
     return ret
 end
 
-function MakeVarArgsFuncMethod(
-    self::AbstractDispatchItem,
-    entry,
-    name,
-    bMakeClass = 1,
-)::Vector
+function MakeVarArgsFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1)::Vector
     fdesc = desc(entry)
     names = names(entry)
     doc = doc(entry)
@@ -529,7 +555,7 @@ end
 mutable struct VTableItem <: AbstractVTableItem
     vtableFuncs::Any
 end
-function Build(self::AbstractVTableItem, typeinfo, attr, bForUser = 1)
+function Build(self::VTableItem, typeinfo, attr, bForUser = 1)
     Build(DispatchItem, self, typeinfo, attr)
     @assert(typeinfo != nothing)
     meth_list = append!(
@@ -547,10 +573,11 @@ mutable struct LazyDispatchItem <: AbstractLazyDispatchItem
     clsid::Any
     typename::String
 
-    LazyDispatchItem(attr, doc) = begin
-        DispatchItem.__init__(self, nothing, attr, doc, 0)
-        new(attr, doc)
-    end
+    LazyDispatchItem(attr, doc, clsid = attr[1], typename::String = "LazyDispatchItem") =
+        begin
+            DispatchItem.__init__(self, nothing, attr, doc, 0)
+            new(attr, doc, clsid, typename)
+        end
 end
 
 typeSubstMap = Dict(

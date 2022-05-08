@@ -34,8 +34,10 @@ using win32com.client: util
 using pywin.tools: browser
 mutable struct HLIRoot <: AbstractHLIRoot
     name::Any
+
+    HLIRoot(name::Any = title) = new(name)
 end
-function GetSubList(self::AbstractHLIRoot)
+function GetSubList(self::HLIRoot)
     return [
         HLIHeadingCategory(),
         HLI_IEnumMoniker(EnumRunning(GetRunningObjectTable(pythoncom)), "Running Objects"),
@@ -43,7 +45,7 @@ function GetSubList(self::AbstractHLIRoot)
     ]
 end
 
-function __cmp__(self::AbstractHLIRoot, other)
+function __cmp__(self::HLIRoot, other)
     return cmp(self.name, name(other))
 end
 
@@ -69,11 +71,11 @@ abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
 mutable struct HLICOM <: AbstractHLICOM
     name::Any
 end
-function GetText(self::AbstractHLICOM)
+function GetText(self::HLICOM)::HLICOM
     return self.name
 end
 
-function CalculateIsExpandable(self::AbstractHLICOM)::Int64
+function CalculateIsExpandable(self::HLICOM)::Int64
     return 1
 end
 
@@ -95,14 +97,14 @@ mutable struct HLICLSID <: AbstractHLICLSID
             name = "IID: " + name
         end
         HLICOM.__init__(self, myobject, name)
-        new(myobject, name = nothing)
+        new(myobject, name)
     end
 end
-function CalculateIsExpandable(self::AbstractHLICLSID)::Int64
+function CalculateIsExpandable(self::HLICLSID)::Int64
     return 0
 end
 
-function GetSubList(self::AbstractHLICLSID)::Vector
+function GetSubList(self::HLICLSID)::Vector
     return []
 end
 
@@ -113,11 +115,11 @@ end
 mutable struct HLI_Enum <: AbstractHLI_Enum
     myobject::Any
 end
-function GetBitmapColumn(self::AbstractHLI_Enum)::Int64
+function GetBitmapColumn(self::HLI_Enum)::Int64
     return 0
 end
 
-function CalculateIsExpandable(self::AbstractHLI_Enum)
+function CalculateIsExpandable(self::HLI_Enum)
     if self.myobject != nothing
         rc = length(Next(self.myobject, 1)) > 0
         Reset(self.myobject)
@@ -130,7 +132,7 @@ end
 mutable struct HLI_IEnumMoniker <: AbstractHLI_IEnumMoniker
     myobject::Any
 end
-function GetSubList(self::AbstractHLI_IEnumMoniker)::Vector
+function GetSubList(self::HLI_IEnumMoniker)::Vector
     ctx = CreateBindCtx(pythoncom)
     ret = []
     for mon in Enumerator(util, self.myobject)
@@ -142,7 +144,7 @@ end
 mutable struct HLI_IMoniker <: AbstractHLI_IMoniker
 
 end
-function GetSubList(self::AbstractHLI_IMoniker)::Vector
+function GetSubList(self::HLI_IMoniker)::Vector
     ret = []
     push!(ret, MakeHLI(browser, Hash(self.myobject), "Hash Value"))
     subenum = Enum(self.myobject, 1)
@@ -154,11 +156,11 @@ mutable struct HLIHeadingCategory <: AbstractHLIHeadingCategory
     #= A tree heading for registered categories =#
 
 end
-function GetText(self::AbstractHLIHeadingCategory)::String
+function GetText(self::HLIHeadingCategory)::String
     return "Registered Categories"
 end
 
-function GetSubList(self::AbstractHLIHeadingCategory)::Vector
+function GetSubList(self::HLIHeadingCategory)::Vector
     catinf = CoCreateInstance(
         pythoncom,
         CLSID_StdComponentCategoriesMgr(pythoncom),
@@ -184,7 +186,7 @@ mutable struct HLICategory <: AbstractHLICategory
     #= An actual Registered Category =#
 
 end
-function GetText(self::AbstractHLICategory)
+function GetText(self::HLICategory)
     desc = self.myobject[3]
     if !(desc)
         desc = "(unnamed category)"
@@ -192,7 +194,7 @@ function GetText(self::AbstractHLICategory)
     return desc
 end
 
-function GetSubList(self::AbstractHLICategory)::Vector
+function GetSubList(self::HLICategory)::Vector
     DoWaitCursor(win32ui, 1)
     catid, lcid, desc = self.myobject
     catinf = CoCreateInstance(
@@ -213,18 +215,18 @@ end
 mutable struct HLIHelpFile <: AbstractHLIHelpFile
 
 end
-function CalculateIsExpandable(self::AbstractHLIHelpFile)::Int64
+function CalculateIsExpandable(self::HLIHelpFile)::Int64
     return 0
 end
 
-function GetText(self::AbstractHLIHelpFile)::String
+function GetText(self::HLIHelpFile)::String
 
     fname, ctx = self.myobject
     base = split(os.path, fname)[2]
     return "Help reference in %s" % base
 end
 
-function TakeDefaultAction(self::AbstractHLIHelpFile)
+function TakeDefaultAction(self::HLIHelpFile)
     fname, ctx = self.myobject
     if ctx
         cmd = win32con.HELP_CONTEXT
@@ -234,14 +236,14 @@ function TakeDefaultAction(self::AbstractHLIHelpFile)
     WinHelp(win32api, GetSafeHwnd(GetMainFrame(win32ui)), fname, cmd, ctx)
 end
 
-function GetBitmapColumn(self::AbstractHLIHelpFile)::Int64
+function GetBitmapColumn(self::HLIHelpFile)::Int64
     return 6
 end
 
 mutable struct HLIRegisteredTypeLibrary <: AbstractHLIRegisteredTypeLibrary
 
 end
-function GetSubList(self::AbstractHLIRegisteredTypeLibrary)::Vector
+function GetSubList(self::HLIRegisteredTypeLibrary)::Vector
 
     clsidstr, versionStr = self.myobject
     collected = []
@@ -340,11 +342,11 @@ end
 mutable struct HLITypeLibEntry <: AbstractHLITypeLibEntry
 
 end
-function GetText(self::AbstractHLITypeLibEntry)::String
+function GetText(self::HLITypeLibEntry)::String
     tlb, index = self.myobject
     name, doc, ctx, helpFile = GetDocumentation(tlb, index)
     try
-        typedesc = HLITypeKinds[GetTypeInfoType(tlb, index)][2]
+        typedesc = HLITypeKinds[GetTypeInfoType(tlb, index)+1][2]
     catch exn
         if exn isa KeyError
             typedesc = "Unknown!"
@@ -353,7 +355,7 @@ function GetText(self::AbstractHLITypeLibEntry)::String
     return (name + " - ") + typedesc
 end
 
-function GetSubList(self::AbstractHLITypeLibEntry)::Vector
+function GetSubList(self::HLITypeLibEntry)::Vector
     tlb, index = self.myobject
     name, doc, ctx, helpFile = GetDocumentation(tlb, index)
     ret = []
@@ -369,7 +371,7 @@ end
 mutable struct HLICoClass <: AbstractHLICoClass
 
 end
-function GetSubList(self::AbstractHLICoClass)
+function GetSubList(self::HLICoClass)
     ret = GetSubList(HLITypeLibEntry)
     tlb, index = self.myobject
     typeinfo = GetTypeInfo(tlb, index)
@@ -390,12 +392,12 @@ mutable struct HLITypeLibMethod <: AbstractHLITypeLibMethod
     entry_type::String
     name::Any
 
-    HLITypeLibMethod(ob, name = nothing) = begin
+    HLITypeLibMethod(ob, name = nothing, entry_type::String = "Method") = begin
         HLITypeLibEntry.__init__(self, ob, name)
-        new(ob, name = nothing)
+        new(ob, name, entry_type)
     end
 end
-function GetSubList(self::AbstractHLITypeLibMethod)
+function GetSubList(self::HLITypeLibMethod)
     ret = GetSubList(HLITypeLibEntry)
     tlb, index = self.myobject
     typeinfo = GetTypeInfo(tlb, index)
@@ -410,20 +412,25 @@ function GetSubList(self::AbstractHLITypeLibMethod)
 end
 
 mutable struct HLITypeLibEnum <: AbstractHLITypeLibEnum
-    name::Any
     id::Any
+    name::Any
     typeinfo::Any
 
-    HLITypeLibEnum(myitem) = begin
+    HLITypeLibEnum(
+        myitem,
+        id = GetVarDesc(typeinfo, index)[1],
+        name = GetNames(typeinfo, self.id)[1],
+        typeinfo = GetTypeInfo(typelib, index),
+    ) = begin
         HLITypeLibEntry.__init__(self, myitem, name)
-        new(myitem)
+        new(myitem, id, name, typeinfo)
     end
 end
-function GetText(self::AbstractHLITypeLibEnum)::String
+function GetText(self::HLITypeLibEnum)
     return self.name + " - Enum/Module"
 end
 
-function GetSubList(self::AbstractHLITypeLibEnum)::Vector
+function GetSubList(self::HLITypeLibEnum)::Vector
     ret = []
     typelib, index = self.myobject
     typeinfo = GetTypeInfo(typelib, index)
@@ -440,16 +447,20 @@ mutable struct HLITypeLibProperty <: AbstractHLITypeLibProperty
     id::Any
     name::Any
 
-    HLITypeLibProperty(myitem) = begin
+    HLITypeLibProperty(
+        myitem,
+        id = GetVarDesc(typeinfo, index)[1],
+        name = GetNames(typeinfo, self.id)[1],
+    ) = begin
         HLICOM.__init__(self, myitem, name)
-        new(myitem)
+        new(myitem, id, name)
     end
 end
-function GetText(self::AbstractHLITypeLibProperty)::String
+function GetText(self::HLITypeLibProperty)
     return self.name + " - Property"
 end
 
-function GetSubList(self::AbstractHLITypeLibProperty)::Vector
+function GetSubList(self::HLITypeLibProperty)::Vector
     ret = []
     typeinfo, index = self.myobject
     names = GetNames(typeinfo, self.id)
@@ -466,24 +477,98 @@ function GetSubList(self::AbstractHLITypeLibProperty)::Vector
 end
 
 mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
-    funcflags::Any
-    id::Any
-    name::Any
-    type_flags::Any
+    funcflags::Vector{Tuple}
     funckinds::Dict{auto,String}
+    id::Any
     invokekinds::Dict{auto,String}
+    name::Any
+    type_flags::Vector{Tuple}
     vartypes::Dict{auto,String}
 
-    HLITypeLibFunction(myitem) = begin
+    HLITypeLibFunction(
+        myitem,
+        funcflags::Vector{Tuple} = [
+            (FUNCFLAG_FRESTRICTED(pythoncom), "Restricted"),
+            (FUNCFLAG_FSOURCE(pythoncom), "Source"),
+            (FUNCFLAG_FBINDABLE(pythoncom), "Bindable"),
+            (FUNCFLAG_FREQUESTEDIT(pythoncom), "Request Edit"),
+            (FUNCFLAG_FDISPLAYBIND(pythoncom), "Display Bind"),
+            (FUNCFLAG_FDEFAULTBIND(pythoncom), "Default Bind"),
+            (FUNCFLAG_FHIDDEN(pythoncom), "Hidden"),
+            (FUNCFLAG_FUSESGETLASTERROR(pythoncom), "Uses GetLastError"),
+        ],
+        funckinds::Dict{auto,String} = Dict(
+            FUNC_VIRTUAL(pythoncom) => "Virtual",
+            FUNC_PUREVIRTUAL(pythoncom) => "Pure Virtual",
+            FUNC_STATIC(pythoncom) => "Static",
+            FUNC_DISPATCH(pythoncom) => "Dispatch",
+        ),
+        id = GetFuncDesc(typeinfo, index)[1],
+        invokekinds::Dict{auto,String} = Dict(
+            INVOKE_FUNC(pythoncom) => "Function",
+            INVOKE_PROPERTYGET(pythoncom) => "Property Get",
+            INVOKE_PROPERTYPUT(pythoncom) => "Property Put",
+            INVOKE_PROPERTYPUTREF(pythoncom) => "Property Put by reference",
+        ),
+        name = GetNames(typeinfo, self.id)[1],
+        type_flags::Vector{Tuple} = [
+            (VT_VECTOR(pythoncom), "Vector"),
+            (VT_ARRAY(pythoncom), "Array"),
+            (VT_BYREF(pythoncom), "ByRef"),
+            (VT_RESERVED(pythoncom), "Reserved"),
+        ],
+        vartypes::Dict{auto,String} = Dict(
+            VT_EMPTY(pythoncom) => "Empty",
+            VT_NULL(pythoncom) => "NULL",
+            VT_I2(pythoncom) => "Integer 2",
+            VT_I4(pythoncom) => "Integer 4",
+            VT_R4(pythoncom) => "Real 4",
+            VT_R8(pythoncom) => "Real 8",
+            VT_CY(pythoncom) => "CY",
+            VT_DATE(pythoncom) => "Date",
+            VT_BSTR(pythoncom) => "String",
+            VT_DISPATCH(pythoncom) => "IDispatch",
+            VT_ERROR(pythoncom) => "Error",
+            VT_BOOL(pythoncom) => "BOOL",
+            VT_VARIANT(pythoncom) => "Variant",
+            VT_UNKNOWN(pythoncom) => "IUnknown",
+            VT_DECIMAL(pythoncom) => "Decimal",
+            VT_I1(pythoncom) => "Integer 1",
+            VT_UI1(pythoncom) => "Unsigned integer 1",
+            VT_UI2(pythoncom) => "Unsigned integer 2",
+            VT_UI4(pythoncom) => "Unsigned integer 4",
+            VT_I8(pythoncom) => "Integer 8",
+            VT_UI8(pythoncom) => "Unsigned integer 8",
+            VT_INT(pythoncom) => "Integer",
+            VT_UINT(pythoncom) => "Unsigned integer",
+            VT_VOID(pythoncom) => "Void",
+            VT_HRESULT(pythoncom) => "HRESULT",
+            VT_PTR(pythoncom) => "Pointer",
+            VT_SAFEARRAY(pythoncom) => "SafeArray",
+            VT_CARRAY(pythoncom) => "C Array",
+            VT_USERDEFINED(pythoncom) => "User Defined",
+            VT_LPSTR(pythoncom) => "Pointer to string",
+            VT_LPWSTR(pythoncom) => "Pointer to Wide String",
+            VT_FILETIME(pythoncom) => "File time",
+            VT_BLOB(pythoncom) => "Blob",
+            VT_STREAM(pythoncom) => "IStream",
+            VT_STORAGE(pythoncom) => "IStorage",
+            VT_STORED_OBJECT(pythoncom) => "Stored object",
+            VT_STREAMED_OBJECT(pythoncom) => "Streamed object",
+            VT_BLOB_OBJECT(pythoncom) => "Blob object",
+            VT_CF(pythoncom) => "CF",
+            VT_CLSID(pythoncom) => "CLSID",
+        ),
+    ) = begin
         HLICOM.__init__(self, myitem, name)
-        new(myitem)
+        new(myitem, funcflags, funckinds, id, invokekinds, name, type_flags, vartypes)
     end
 end
-function GetText(self::AbstractHLITypeLibFunction)::String
+function GetText(self::HLITypeLibFunction)
     return self.name + " - Function"
 end
 
-function MakeReturnTypeName(self::AbstractHLITypeLibFunction, typ)
+function MakeReturnTypeName(self::HLITypeLibFunction, typ)
     justtyp = typ & VT_TYPEMASK(pythoncom)
     try
         typname = self.vartypes[justtyp+1]
@@ -500,7 +585,7 @@ function MakeReturnTypeName(self::AbstractHLITypeLibFunction, typ)
     return typname
 end
 
-function MakeReturnType(self::AbstractHLITypeLibFunction, returnTypeDesc)
+function MakeReturnType(self::HLITypeLibFunction, returnTypeDesc)
     if type_(returnTypeDesc) == type_(())
         first = returnTypeDesc[1]
         result = MakeReturnType(self, first)
@@ -513,7 +598,7 @@ function MakeReturnType(self::AbstractHLITypeLibFunction, returnTypeDesc)
     end
 end
 
-function GetSubList(self::AbstractHLITypeLibFunction)::Vector
+function GetSubList(self::HLITypeLibFunction)::Vector
     ret = []
     typeinfo, index = self.myobject
     names = GetNames(typeinfo, self.id)
@@ -586,7 +671,7 @@ HLITypeKinds = Dict(
 mutable struct HLITypeLib <: AbstractHLITypeLib
     myobject::Any
 end
-function GetSubList(self::AbstractHLITypeLib)::Vector
+function GetSubList(self::HLITypeLib)::Vector
     ret = []
     push!(ret, MakeHLI(browser, self.myobject, "Filename"))
     try
@@ -613,11 +698,11 @@ mutable struct HLIHeadingRegisterdTypeLibs <: AbstractHLIHeadingRegisterdTypeLib
     #= A tree heading for registered type libraries =#
 
 end
-function GetText(self::AbstractHLIHeadingRegisterdTypeLibs)::String
+function GetText(self::HLIHeadingRegisterdTypeLibs)::String
     return "Registered Type Libraries"
 end
 
-function GetSubList(self::AbstractHLIHeadingRegisterdTypeLibs)::Vector
+function GetSubList(self::HLIHeadingRegisterdTypeLibs)::Vector
     ret = []
     key = RegOpenKey(win32api, win32con.HKEY_CLASSES_ROOT, "TypeLib")
     DoWaitCursor(win32ui, 1)

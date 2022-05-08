@@ -198,7 +198,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-
     ######################################################
     ################# Inference Methods ##################
     ######################################################

@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_in_body, find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_node_by_name_and_type, find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -339,7 +339,6 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
-        self.visit(node.value)
 
         annotation = getattr(node.value, "annotation", None)
         if annotation is None:
@@ -609,19 +608,26 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Subscript(self, node: ast.Subscript):
         definition = node.scopes.find(get_id(node.value))
-        if hasattr(definition, "annotation"):
+        self.generic_visit(node)
+        if isinstance(node.value, ast.Attribute) and \
+                get_id(node.value.value) == "self":
+            attr = node.value.attr
+            ann = getattr(node.scopes.find(attr), "annotation", None)
+            if ann:
+                node.annotation = ann
+        elif hasattr(definition, "annotation"):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type") and \
                     not isinstance(node.slice, ast.Slice):
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
-                node.annotation = ast.Name(id=element_type)
+                node.annotation = ast.Name(id = element_type)
+                node.container_type = ast.Name(id=container_type)
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
             else:
                 node.annotation = definition.annotation
-        self.generic_visit(node)
         return node
 
     def visit_For(self, node):

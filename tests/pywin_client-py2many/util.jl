@@ -35,22 +35,22 @@ mutable struct Enumerator <: AbstractEnumerator
         this will force many reset-and-seek operations to find the requested index.
 
          =#
-    index::Any
     resultCLSID::Any
     _oleobj_::Any
+    index::Int64
 
-    Enumerator(index::Any, resultCLSID::Any, _oleobj_::Any = enum) =
-        new(index, resultCLSID, _oleobj_)
+    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::Int64 = -1) =
+        new(resultCLSID, _oleobj_, index)
 end
-function __getitem__(self::AbstractEnumerator, index)
+function __getitem__(self::Enumerator, index)
     return __GetIndex(self, index)
 end
 
-function __call__(self::AbstractEnumerator, index)
+function __call__(self::Enumerator, index)
     return __GetIndex(self, index)
 end
 
-function __GetIndex(self::AbstractEnumerator, index)
+function __GetIndex(self::Enumerator, index)
     if type_(index) != type_(0)
         throw(TypeError("Only integer indexes are supported for enumerators"))
     end
@@ -68,7 +68,7 @@ function __GetIndex(self::AbstractEnumerator, index)
     throw(IndexError("list index out of range"))
 end
 
-function Next(self::AbstractEnumerator, count = 1)::Tuple
+function Next(self::Enumerator, count = 1)::Tuple
     ret = Next(self._oleobj_, count)
     realRets = []
     for r in ret
@@ -77,15 +77,15 @@ function Next(self::AbstractEnumerator, count = 1)::Tuple
     return tuple(realRets)
 end
 
-function Reset(self::AbstractEnumerator)
+function Reset(self::Enumerator)
     return Reset(self._oleobj_)
 end
 
-function Clone(self::AbstractEnumerator)
+function Clone(self::Enumerator)
     return __class__(self, Clone(self._oleobj_), self.resultCLSID)
 end
 
-function _make_retval_(self::AbstractEnumerator, result)
+function _make_retval_(self::Enumerator, result)
     return result
 end
 
@@ -94,22 +94,27 @@ mutable struct EnumVARIANT <: AbstractEnumVARIANT
 
     EnumVARIANT(enum, resultCLSID = nothing) = begin
         Enumerator.__init__(self, enum)
-        new(enum, resultCLSID = nothing)
+        new(enum, resultCLSID)
     end
 end
-function _make_retval_(self::AbstractEnumVARIANT, result)
+function _make_retval_(self::EnumVARIANT, result)
     return _get_good_object_(result, self.resultCLSID)
 end
 
 mutable struct Iterator <: AbstractIterator
     resultCLSID::Any
     _iter_::Any
+
+    Iterator(
+        resultCLSID::Any,
+        _iter_::Any = (x for x in QueryInterface(enum, IID_IEnumVARIANT(pythoncom))),
+    ) = new(resultCLSID, _iter_)
 end
-function __iter__(self::AbstractIterator)
+function __iter__(self::Iterator)
     return self
 end
 
-function __next__(self)
+function __next__(self::Iterator)
     return _get_good_object_(next(self._iter_), self.resultCLSID)
 end
 

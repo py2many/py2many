@@ -92,7 +92,7 @@ mutable struct WritableItem <: AbstractWritableItem
     doc::Any
     order::Any
 end
-function __cmp__(self::AbstractWritableItem, other)
+function __cmp__(self::WritableItem, other)
     #= Compare for sorting =#
     ret = cmp(self.order, order(other))
     if ret == 0 && self.doc
@@ -101,14 +101,14 @@ function __cmp__(self::AbstractWritableItem, other)
     return ret
 end
 
-function __lt__(self::AbstractWritableItem, other)::Bool
+function __lt__(self::WritableItem, other)::Bool
     if self.order == order(other)
         return self.doc < doc(other)
     end
     return self.order < order(other)
 end
 
-function __repr__(self::AbstractWritableItem)
+function __repr__(self::WritableItem)
     return "OleItem: doc=%s, order=%d" % (repr(self.doc), self.order)
 end
 
@@ -119,12 +119,20 @@ mutable struct RecordItem <: build.OleItem
     order::Int64
     typename::String
 
-    RecordItem(typeInfo, typeAttr, doc = nothing, bForUser = 1) = begin
+    RecordItem(
+        typeInfo,
+        typeAttr,
+        doc = nothing,
+        bForUser = 1,
+        clsid = typeAttr[1],
+        order::Int64 = 9,
+        typename::String = "RECORD",
+    ) = begin
         build.OleItem.__init__(self, doc)
-        new(typeInfo, typeAttr, doc = nothing, bForUser = 1)
+        new(typeInfo, typeAttr, doc, bForUser, clsid, order, typename)
     end
 end
-function WriteClass(self::AbstractRecordItem, generator)
+function WriteClass(self::RecordItem, generator)
     #= pass =#
 end
 
@@ -140,13 +148,21 @@ mutable struct AliasItem <: build.OleItem
     aliasDoc::Any
     attr::Any
     bWritten::Any
-    doc::Any
     ai::Any
     bForUser::Int64
+    doc::Any
     order::Int64
     typename::String
 
-    AliasItem(typeinfo, attr, doc = nothing, bForUser = 1) = begin
+    AliasItem(
+        typeinfo,
+        attr,
+        doc = nothing,
+        bForUser = 1,
+        ai = attr[15],
+        order::Int64 = 2,
+        typename::String = "ALIAS",
+    ) = begin
         build.OleItem.__init__(self, doc)
         if type_(ai) == type_(()) && type_(ai[1]) == type_(0)
             href = ai[1]
@@ -157,10 +173,10 @@ mutable struct AliasItem <: build.OleItem
             self.aliasDoc = nothing
             self.aliasAttr = nothing
         end
-        new(typeinfo, attr, doc = nothing, bForUser = 1)
+        new(typeinfo, attr, doc, bForUser, ai, order, typename)
     end
 end
-function WriteAliasItem(self::AbstractAliasItem, aliasDict, stream)
+function WriteAliasItem(self::AliasItem, aliasDict, stream)
     if self.bWritten
         return
     end
@@ -197,17 +213,40 @@ mutable struct EnumerationItem <: build.OleItem
     typeFlags::Any
     typename::String
 
-    EnumerationItem(typeinfo, attr, doc = nothing, bForUser = 1) = begin
+    EnumerationItem(
+        typeinfo,
+        attr,
+        doc = nothing,
+        bForUser = 1,
+        clsid = attr[1],
+        hidden = typeFlags & TYPEFLAG_FHIDDEN(pythoncom) ||
+                 typeFlags & TYPEFLAG_FRESTRICTED(pythoncom),
+        mapVars::Dict = Dict(),
+        order::Int64 = 1,
+        typeFlags = attr[12],
+        typename::String = "ENUMERATION",
+    ) = begin
         build.OleItem.__init__(self, doc)
         for j = 0:attr[7]
             vdesc = typeinfo.GetVarDesc(j)
             name = typeinfo.GetNames(vdesc[0])[0]
             self.mapVars[name] = build.MapEntry(vdesc)
         end
-        new(typeinfo, attr, doc = nothing, bForUser = 1)
+        new(
+            typeinfo,
+            attr,
+            doc,
+            bForUser,
+            clsid,
+            hidden,
+            mapVars,
+            order,
+            typeFlags,
+            typename,
+        )
     end
 end
-function WriteEnumerationItems(self::AbstractEnumerationItem, stream)::Int64
+function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
     num = 0
     enumName = self.doc[1]
     names = collect(keys(self.mapVars))
@@ -255,12 +294,12 @@ mutable struct VTableItem <: build.VTableItem
         order::Int64 = 4,
     ) = new(bIsDispatch, bWritten, python_name, vtableFuncs, order)
 end
-function WriteClass(self::AbstractVTableItem, generator)
+function WriteClass(self::VTableItem, generator)
     WriteVTableMap(self, generator)
     self.bWritten = 1
 end
 
-function WriteVTableMap(self::AbstractVTableItem, generator)
+function WriteVTableMap(self::VTableItem, generator)
     stream = file(generator)
     write(stream, "%s_vtables_dispatch_ = %d", (self.python_name, self.bIsDispatch))
     write(stream, "%s_vtables_ = [", (self.python_name,))
@@ -310,19 +349,26 @@ mutable struct DispatchItem <: build.DispatchItem
     bIsSink::Any
     bWritten::Any
     clsid::Any
-    coclass_clsid::Any
     mapFuncs::Any
     python_name::Any
-    type_attr::Any
+    coclass_clsid::Any
     doc::Any
     order::Int64
+    type_attr::Any
 
-    DispatchItem(typeinfo, attr, doc = nothing) = begin
+    DispatchItem(
+        typeinfo,
+        attr,
+        doc = nothing,
+        coclass_clsid = nothing,
+        order::Int64 = 3,
+        type_attr = attr,
+    ) = begin
         build.DispatchItem.__init__(self, typeinfo, attr, doc)
-        new(typeinfo, attr, doc = nothing)
+        new(typeinfo, attr, doc, coclass_clsid, order, type_attr)
     end
 end
-function WriteClass(self::AbstractDispatchItem, generator)
+function WriteClass(self::DispatchItem, generator)
     if !(self.bIsDispatch) && !(self.type_attr.typekind == TKIND_DISPATCH(pythoncom))
         return
     end
@@ -337,7 +383,7 @@ function WriteClass(self::AbstractDispatchItem, generator)
     self.bWritten = 1
 end
 
-function WriteClassHeader(self::AbstractDispatchItem, generator)
+function WriteClassHeader(self::DispatchItem, generator)
     checkWriteDispatchBaseClass(generator)
     doc = self.doc
     stream = file(generator)
@@ -363,7 +409,7 @@ function WriteClassHeader(self::AbstractDispatchItem, generator)
     self.bWritten = 1
 end
 
-function WriteEventSinkClassHeader(self::AbstractDispatchItem, generator)
+function WriteEventSinkClassHeader(self::DispatchItem, generator)
     checkWriteEventBaseClass(generator)
     doc = self.doc
     stream = file(generator)
@@ -414,7 +460,7 @@ function WriteEventSinkClassHeader(self::AbstractDispatchItem, generator)
     self.bWritten = 1
 end
 
-function WriteCallbackClassBody(self::AbstractDispatchItem, generator)
+function WriteCallbackClassBody(self::DispatchItem, generator)
     stream = file(generator)
     write(stream)
     write(stream)
@@ -433,7 +479,7 @@ function WriteCallbackClassBody(self::AbstractDispatchItem, generator)
     self.bWritten = 1
 end
 
-function WriteClassBody(self::AbstractDispatchItem, generator)
+function WriteClassBody(self::DispatchItem, generator)
     stream = file(generator)
     names = collect(keys(self.mapFuncs))
     sort(names)
@@ -699,12 +745,12 @@ end
 
 mutable struct CoClassItem <: build.OleItem
     bWritten::Any
-    clsid::Any
     interfaces::Any
     python_name::Any
     sources::Any
     bForUser::Int64
     bIsDispatch::Int64
+    clsid::Any
     doc::Any
     order::Int64
     typename::String
@@ -716,12 +762,27 @@ mutable struct CoClassItem <: build.OleItem
         sources = [],
         interfaces = [],
         bForUser = 1,
+        bIsDispatch::Int64 = 1,
+        clsid = attr[1],
+        order::Int64 = 5,
+        typename::String = "COCLASS",
     ) = begin
         build.OleItem.__init__(self, doc)
-        new(typeinfo, attr, doc = nothing, sources = [], interfaces = [], bForUser = 1)
+        new(
+            typeinfo,
+            attr,
+            doc,
+            sources,
+            interfaces,
+            bForUser,
+            bIsDispatch,
+            clsid,
+            order,
+            typename,
+        )
     end
 end
-function WriteClass(self::AbstractCoClassItem, generator)
+function WriteClass(self::CoClassItem, generator)
     checkWriteCoClassBaseClass(generator)
     doc = self.doc
     stream = file(generator)
@@ -822,52 +883,52 @@ mutable struct GeneratorProgress <: AbstractGeneratorProgress
         new()
     end
 end
-function Starting(self::AbstractGeneratorProgress, tlb_desc)
+function Starting(self::GeneratorProgress, tlb_desc)
     #= Called when the process starts. =#
     self.tlb_desc = tlb_desc
 end
 
-function Finished(self::AbstractGeneratorProgress)
+function Finished(self::GeneratorProgress)
     #= Called when the process is complete. =#
 end
 
-function SetDescription(self::AbstractGeneratorProgress, desc, maxticks = nothing)
+function SetDescription(self::GeneratorProgress, desc, maxticks = nothing)
     #= We are entering a major step.  If maxticks, then this
             is how many ticks we expect to make until finished
              =#
 end
 
-function Tick(self::AbstractGeneratorProgress, desc = nothing)
+function Tick(self::GeneratorProgress, desc = nothing)
     #= Minor progress step.  Can provide new description if necessary =#
 end
 
-function VerboseProgress(self::AbstractGeneratorProgress, desc)
+function VerboseProgress(self::GeneratorProgress, desc)
     #= Verbose/Debugging output. =#
 end
 
-function LogWarning(self::AbstractGeneratorProgress, desc)
+function LogWarning(self::GeneratorProgress, desc)
     #= If a warning is generated =#
 end
 
-function LogBeginGenerate(self::AbstractGeneratorProgress, filename)
+function LogBeginGenerate(self::GeneratorProgress, filename)
     #= pass =#
 end
 
-function Close(self::AbstractGeneratorProgress)
+function Close(self::GeneratorProgress)
     #= pass =#
 end
 
 mutable struct Generator <: AbstractGenerator
     bBuildHidden::Any
-    bHaveWrittenCoClassBaseClass::Any
-    bHaveWrittenDispatchBaseClass::Any
-    bHaveWrittenEventBaseClass::Any
     base_mod_name::Any
-    file::Any
     generate_type::Any
     sourceFilename::Any
     typelib::Any
+    bHaveWrittenCoClassBaseClass::Int64
+    bHaveWrittenDispatchBaseClass::Int64
+    bHaveWrittenEventBaseClass::Int64
     bUnicodeToString::Any
+    file::Any
     progress::Any
 
     Generator(
@@ -876,18 +937,28 @@ mutable struct Generator <: AbstractGenerator
         progressObject,
         bBuildHidden = 1,
         bUnicodeToString = nothing,
+        bHaveWrittenCoClassBaseClass::Int64 = 0,
+        bHaveWrittenDispatchBaseClass::Int64 = 0,
+        bHaveWrittenEventBaseClass::Int64 = 0,
+        file = nothing,
+        progress = progressObject,
     ) = begin
         @assert(bUnicodeToString === nothing)
         new(
             typelib,
             sourceFilename,
             progressObject,
-            bBuildHidden = 1,
-            bUnicodeToString = nothing,
+            bBuildHidden,
+            bUnicodeToString,
+            bHaveWrittenCoClassBaseClass,
+            bHaveWrittenDispatchBaseClass,
+            bHaveWrittenEventBaseClass,
+            file,
+            progress,
         )
     end
 end
-function CollectOleItemInfosFromType(self::AbstractGenerator)::Vector
+function CollectOleItemInfosFromType(self::Generator)::Vector
     ret = []
     for i = 0:GetTypeInfoCount(self.typelib)-1
         info = GetTypeInfo(self.typelib, i)
@@ -899,7 +970,7 @@ function CollectOleItemInfosFromType(self::AbstractGenerator)::Vector
     return ret
 end
 
-function _Build_CoClass(self::AbstractGenerator, type_info_tuple)::Tuple
+function _Build_CoClass(self::Generator, type_info_tuple)::Tuple
     info, infotype, doc, attr = type_info_tuple
     child_infos = []
     for j = 0:attr[9]-1
@@ -929,7 +1000,7 @@ function _Build_CoClass(self::AbstractGenerator, type_info_tuple)::Tuple
 end
 
 function _Build_CoClassChildren(
-    self::AbstractGenerator,
+    self::Generator,
     coclass,
     coclass_info,
     oleItems,
@@ -951,9 +1022,9 @@ function _Build_CoClassChildren(
             coclass_clsid(dispItem) = clsid(coclass)
             if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
                 bIsSink(dispItem) = 1
-                sources[clsid(dispItem)] = (dispItem, flags)
+                sources[clsid(dispItem)+1] = (dispItem, flags)
             else
-                interfaces[clsid(dispItem)] = (dispItem, flags)
+                interfaces[clsid(dispItem)+1] = (dispItem, flags)
             end
             if clsid
                 not in vtableItems && refAttr[12] & TYPEFLAG_FDUAL(pythoncom)
@@ -969,7 +1040,7 @@ function _Build_CoClassChildren(
     interfaces(coclass) = collect(values(interfaces))
 end
 
-function _Build_Interface(self::AbstractGenerator, type_info_tuple)::Tuple
+function _Build_Interface(self::Generator, type_info_tuple)::Tuple
     info, infotype, doc, attr = type_info_tuple
     oleItem = nothing
     vtableItem = nothing
@@ -993,7 +1064,7 @@ function _Build_Interface(self::AbstractGenerator, type_info_tuple)::Tuple
     return (oleItem, vtableItem)
 end
 
-function BuildOleItemsFromType(self::AbstractGenerator)::Tuple
+function BuildOleItemsFromType(self::Generator)::Tuple
     @assert(self.bBuildHidden)
     oleItems = Dict()
     enumItems = Dict()
@@ -1004,25 +1075,25 @@ function BuildOleItemsFromType(self::AbstractGenerator)::Tuple
         clsid = attr[1]
         if infotype == TKIND_ENUM(pythoncom) || infotype == TKIND_MODULE(pythoncom)
             newItem = EnumerationItem(info, attr, doc)
-            enumItems[newItem.doc[1]] = newItem
+            enumItems[newItem.doc[1]+1] = newItem
         elseif infotype in [TKIND_DISPATCH(pythoncom), TKIND_INTERFACE(pythoncom)]
             if clsid
                 not in oleItems
                 oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
-                oleItems[clsid] = oleItem
+                oleItems[clsid+1] = oleItem
                 if vtableItem != nothing
-                    vtableItems[clsid] = vtableItem
+                    vtableItems[clsid+1] = vtableItem
                 end
             end
         elseif infotype == TKIND_RECORD(pythoncom) || infotype == TKIND_UNION(pythoncom)
             newItem = RecordItem(info, attr, doc)
-            recordItems[newItem.clsid] = newItem
+            recordItems[newItem.clsid+1] = newItem
         elseif infotype == TKIND_ALIAS(pythoncom)
             continue
         elseif infotype == TKIND_COCLASS(pythoncom)
             newItem, child_infos = _Build_CoClass(self, type_info_tuple)
             _Build_CoClassChildren(self, newItem, child_infos, oleItems, vtableItems)
-            oleItems[newItem.clsid] = newItem
+            oleItems[newItem.clsid+1] = newItem
         else
             LogWarning(self.progress, "Unknown TKIND found: %d" % infotype)
         end
@@ -1030,12 +1101,12 @@ function BuildOleItemsFromType(self::AbstractGenerator)::Tuple
     return (oleItems, enumItems, recordItems, vtableItems)
 end
 
-function open_writer(self::AbstractGenerator, filename, encoding = "mbcs")
+function open_writer(self::Generator, filename, encoding = "mbcs")
     temp_filename = get_temp_filename(self, filename)
     return readline(temp_filename)
 end
 
-function finish_writer(self::AbstractGenerator, filename, f, worked)
+function finish_writer(self::Generator, filename, f, worked)
     close(f)
     try
         std::fs::remove_file(filename)
@@ -1065,11 +1136,11 @@ function finish_writer(self::AbstractGenerator, filename, f, worked)
     end
 end
 
-function get_temp_filename(self::AbstractGenerator, filename)
+function get_temp_filename(self::Generator, filename)
     return "%s.%d.temp" % (filename, getpid(os))
 end
 
-function generate(self::AbstractGenerator, file, is_for_demand = 0)
+function generate(self::Generator, file, is_for_demand = 0)
     if is_for_demand
         self.generate_type = GEN_DEMAND_BASE
     else
@@ -1081,7 +1152,7 @@ function generate(self::AbstractGenerator, file, is_for_demand = 0)
     Finished(self.progress)
 end
 
-function do_gen_file_header(self::AbstractGenerator)
+function do_gen_file_header(self::Generator)
     la = GetLibAttr(self.typelib)
     moduleDoc = GetDocumentation(self.typelib, -1)
     docDesc = ""
@@ -1127,7 +1198,7 @@ function do_gen_file_header(self::AbstractGenerator)
     println(self.file)
 end
 
-function do_generate(self::AbstractGenerator)
+function do_generate(self::Generator)
     moduleDoc = GetDocumentation(self.typelib, -1)
     stream = self.file
     docDesc = ""
@@ -1229,11 +1300,11 @@ function do_generate(self::AbstractGenerator)
     map = Dict()
     for item in values(oleItems)
         if item != nothing && !isa(item, CoClassItem)
-            map[python_name(item)] = clsid(item)
+            map[python_name(item)+1] = clsid(item)
         end
     end
     for item in values(vtableItems)
-        map[python_name(item)] = clsid(item)
+        map[python_name(item)+1] = clsid(item)
     end
     write(stream)
     for (name, iid) in items(map)
@@ -1247,7 +1318,7 @@ function do_generate(self::AbstractGenerator)
     println(stream)
 end
 
-function generate_child(self::AbstractGenerator, child, dir)
+function generate_child(self::Generator, child, dir)
     #= Generate a single child.  May force a few children to be built as we generate deps =#
     self.generate_type = GEN_DEMAND_CHILD
     la = GetLibAttr(self.typelib)
@@ -1276,7 +1347,7 @@ function generate_child(self::AbstractGenerator, child, dir)
                     end
                 end
                 if found
-                    oleItems[clsid(coClassItem)] = coClassItem
+                    oleItems[clsid(coClassItem)+1] = coClassItem
                     _Build_CoClassChildren(
                         self,
                         coClassItem,
@@ -1295,9 +1366,9 @@ function generate_child(self::AbstractGenerator, child, dir)
                     if MakePublicAttributeName(build, doc[1]) == child
                         found = 1
                         oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
-                        oleItems[clsid] = oleItem
+                        oleItems[clsid+1] = oleItem
                         if vtableItem != nothing
-                            vtableItems[clsid] = vtableItem
+                            vtableItems[clsid+1] = vtableItem
                         end
                     end
                 end
@@ -1306,7 +1377,7 @@ function generate_child(self::AbstractGenerator, child, dir)
         @assert(found)
         items = Dict()
         for (key, value) in items(oleItems)
-            items[key] = (value, nothing)
+            items[key+1] = (value, nothing)
         end
         for (key, value) in items(vtableItems)
             existing = get(items, key, nothing)
@@ -1315,7 +1386,7 @@ function generate_child(self::AbstractGenerator, child, dir)
             else
                 new_val = (nothing, value)
             end
-            items[key] = new_val
+            items[key+1] = new_val
         end
         SetDescription(self.progress, "Generating...", length(items))
         for (oleitem, vtableitem) in values(items)
@@ -1343,7 +1414,7 @@ function generate_child(self::AbstractGenerator, child, dir)
     end
 end
 
-function do_gen_child_item(self::AbstractGenerator, oleitem)
+function do_gen_child_item(self::Generator, oleitem)
     moduleDoc = GetDocumentation(self.typelib, -1)
     docDesc = ""
     if moduleDoc[2]
@@ -1362,21 +1433,21 @@ function do_gen_child_item(self::AbstractGenerator, oleitem)
     end
 end
 
-function checkWriteDispatchBaseClass(self::AbstractGenerator)
+function checkWriteDispatchBaseClass(self::Generator)
     if !(self.bHaveWrittenDispatchBaseClass)
         write(self.file)
         self.bHaveWrittenDispatchBaseClass = 1
     end
 end
 
-function checkWriteCoClassBaseClass(self::AbstractGenerator)
+function checkWriteCoClassBaseClass(self::Generator)
     if !(self.bHaveWrittenCoClassBaseClass)
         write(self.file)
         self.bHaveWrittenCoClassBaseClass = 1
     end
 end
 
-function checkWriteEventBaseClass(self::AbstractGenerator)
+function checkWriteEventBaseClass(self::Generator)
     if !(self.bHaveWrittenEventBaseClass)
         self.bHaveWrittenEventBaseClass = 1
     end

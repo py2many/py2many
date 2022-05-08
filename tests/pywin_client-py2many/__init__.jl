@@ -159,7 +159,7 @@ mutable struct CDispatch <: AbstractCDispatch
 
 end
 function _wrap_dispatch_(
-    self::AbstractCDispatch,
+    self::CDispatch,
     ob,
     userName = nothing,
     returnCLSID = nothing,
@@ -169,7 +169,7 @@ function _wrap_dispatch_(
     return Dispatch(ob, userName, returnCLSID, nothing)
 end
 
-function __dir__(self::AbstractCDispatch)
+function __dir__(self::CDispatch)
     return __dir__(dynamic.CDispatch)
 end
 
@@ -231,9 +231,11 @@ end
 
 mutable struct Constants <: AbstractConstants
     #= A container for generated COM constants. =#
-    __dicts__::Any
+    __dicts__::Vector
+
+    Constants(__dicts__::Vector = []) = new(__dicts__)
 end
-function __getattr__(self::AbstractConstants, a)
+function __getattr__(self::Constants, a)
     for d in self.__dicts__
         if a in d
             return d[a+1]
@@ -259,7 +261,7 @@ mutable struct EventsProxy <: AbstractEventsProxy
 
     EventsProxy(_obj_::Any, __dict__::Any = ob) = new(_obj_, __dict__)
 end
-function __del__(self::AbstractEventsProxy)
+function __del__(self::EventsProxy)
     try
         close(self._obj_)
     catch exn
@@ -269,11 +271,11 @@ function __del__(self::AbstractEventsProxy)
     end
 end
 
-function __getattr__(self::AbstractEventsProxy, attr)
+function __getattr__(self::EventsProxy, attr)
     return getattr(self._obj_, attr)
 end
 
-function __setattr__(self::AbstractEventsProxy, attr, val)
+function __setattr__(self::EventsProxy, attr, val)
     setattr(self._obj_, attr, val)
 end
 
@@ -531,11 +533,11 @@ end
 mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
     Properties_::Any
     __class__::Any
-    __dict__::Any
     _oleobj_::Any
+    __dict__::Any
     oobj::Any
 
-    DispatchBaseClass(oobj = nothing) = begin
+    DispatchBaseClass(oobj = nothing, __dict__ = oobj) = begin
         if oobj === nothing
             oobj = pythoncom.new(self.CLSID)
         elseif isa(oobj, DispatchBaseClass)
@@ -553,10 +555,10 @@ mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
                 end
             end
         end
-        new(oobj = nothing)
+        new(oobj, __dict__)
     end
 end
-function __dir__(self::AbstractDispatchBaseClass)::Vector
+function __dir__(self::DispatchBaseClass)::Vector
     lst =
         (
             (collect(keys(self.__dict__)) + dir(self.__class__)) +
@@ -572,7 +574,7 @@ function __dir__(self::AbstractDispatchBaseClass)::Vector
     return collect(set(lst))
 end
 
-function __repr__(self::AbstractDispatchBaseClass)
+function __repr__(self::DispatchBaseClass)
     try
         mod_doc = __doc__(sys.modules[self.__class__.__module__+1])
         if mod_doc
@@ -588,18 +590,18 @@ function __repr__(self::AbstractDispatchBaseClass)
     return "<%s.%s instance at 0x%s>" % (mod_name, self.__class__.__name__, id(self))
 end
 
-function __eq__(self::AbstractDispatchBaseClass, other)::Bool
+function __eq__(self::DispatchBaseClass, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::AbstractDispatchBaseClass, other)::Bool
+function __ne__(self::DispatchBaseClass, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
 
 function _ApplyTypes_(
-    self::AbstractDispatchBaseClass,
+    self::DispatchBaseClass,
     dispid,
     wFlags,
     retType,
@@ -615,7 +617,7 @@ function _ApplyTypes_(
     )
 end
 
-function __getattr__(self::AbstractDispatchBaseClass, attr)
+function __getattr__(self::DispatchBaseClass, attr)
     args = get(self._prop_map_get_, attr)
     if args === nothing
         throw(AttributeError("\'%s\' object has no attribute \'%s\'" % (repr(self), attr)))
@@ -623,7 +625,7 @@ function __getattr__(self::AbstractDispatchBaseClass, attr)
     return _ApplyTypes_(self, args...)
 end
 
-function __setattr__(self::AbstractDispatchBaseClass, attr, value)
+function __setattr__(self::DispatchBaseClass, attr, value)
     if attr in self.__dict__
         self.__dict__[attr] = value
         return
@@ -643,7 +645,7 @@ function __setattr__(self::AbstractDispatchBaseClass, attr, value)
 end
 
 function _get_good_single_object_(
-    self::AbstractDispatchBaseClass,
+    self::DispatchBaseClass,
     obj,
     obUserName = nothing,
     resultCLSID = nothing,
@@ -652,7 +654,7 @@ function _get_good_single_object_(
 end
 
 function _get_good_object_(
-    self::AbstractDispatchBaseClass,
+    self::DispatchBaseClass,
     obj,
     obUserName = nothing,
     resultCLSID = nothing,
@@ -685,7 +687,7 @@ mutable struct CoClassBaseClass <: AbstractCoClassBaseClass
     dispobj::Any
     oobj::Any
 
-    CoClassBaseClass(oobj = nothing) = begin
+    CoClassBaseClass(oobj = nothing, dispobj = default_interface(self, oobj)) = begin
         if oobj === nothing
             oobj = pythoncom.new(self.CLSID)
         end
@@ -695,14 +697,14 @@ mutable struct CoClassBaseClass <: AbstractCoClassBaseClass
                 setattr(self, maybe, getattr(self, "__maybe" + maybe))
             end
         end
-        new(oobj = nothing)
+        new(oobj, dispobj)
     end
 end
-function __repr__(self::AbstractCoClassBaseClass)
+function __repr__(self::CoClassBaseClass)
     return "<win32com.gen_py.%s.%s>" % (__doc__, self.__class__.__name__)
 end
 
-function __getattr__(self::AbstractCoClassBaseClass, attr)
+function __getattr__(self::CoClassBaseClass, attr)
     d = self.__dict__["_dispobj_"]
     if d != nothing
         return getattr(d, attr)
@@ -710,7 +712,7 @@ function __getattr__(self::AbstractCoClassBaseClass, attr)
     throw(AttributeError(attr))
 end
 
-function __setattr__(self::AbstractCoClassBaseClass, attr, value)
+function __setattr__(self::CoClassBaseClass, attr, value)
     if attr in self.__dict__
         self.__dict__[attr] = value
         return
@@ -729,55 +731,55 @@ function __setattr__(self::AbstractCoClassBaseClass, attr, value)
     self.__dict__[attr] = value
 end
 
-function __maybe__call__(self::AbstractCoClassBaseClass)
+function __maybe__call__(self::CoClassBaseClass)
     return __call__(self.__dict__["_dispobj_"], args..., kwargs)
 end
 
-function __maybe__str__(self::AbstractCoClassBaseClass)
+function __maybe__str__(self::CoClassBaseClass)
     return __str__(self.__dict__["_dispobj_"], args...)
 end
 
-function __maybe__int__(self::AbstractCoClassBaseClass)
+function __maybe__int__(self::CoClassBaseClass)
     return __int__(self.__dict__["_dispobj_"], args...)
 end
 
-function __maybe__iter__(self::AbstractCoClassBaseClass)
+function __maybe__iter__(self::CoClassBaseClass)
     return __iter__(self.__dict__["_dispobj_"])
 end
 
-function __maybe__len__(self::AbstractCoClassBaseClass)
+function __maybe__len__(self::CoClassBaseClass)
     return __len__(self.__dict__["_dispobj_"])
 end
 
-function __maybe__nonzero__(self::AbstractCoClassBaseClass)
+function __maybe__nonzero__(self::CoClassBaseClass)
     return __nonzero__(self.__dict__["_dispobj_"])
 end
 
 mutable struct VARIANT <: AbstractVARIANT
     _value::Any
-    varianttype::Any
     value::Any
+    varianttype::Any
 
     VARIANT(
-        _value::Any,
-        varianttype::Any,
+        _value::Any = value,
         value::Any = property(_get_value, _set_value, _del_value),
-    ) = new(_value, varianttype, value)
+        varianttype::Any = vt,
+    ) = new(_value, value, varianttype)
 end
-function _get_value(self::AbstractVARIANT)
+function _get_value(self::VARIANT)::VARIANT
     return self._value
 end
 
-function _set_value(self::AbstractVARIANT, newval)
+function _set_value(self::VARIANT, newval)
     self._value = _get_good_object_(newval)
 end
 
-function _del_value(self::AbstractVARIANT)
+function _del_value(self::VARIANT)
     #Delete Unsupported
     del(self._value)
 end
 
-function __repr__(self::AbstractVARIANT)
+function __repr__(self::VARIANT)
     return "win32com.client.VARIANT(%r, %r)" % (self.varianttype, self._value)
 end
 

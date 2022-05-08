@@ -82,6 +82,17 @@ symbols = {
     ast.In: "in",
 }
 
+DEFAULT_CONTAINER_MAP = {
+    "list": "list",
+    "List": "List",
+    "Dict": "Dict",
+    "Set": "Set",
+    "Tuple": "Tuple",
+    "tuple": "tuple",
+    "Optional": "Optional",
+    "bytearray": "bytearray",
+}
+
 _AUTO = "auto"
 _AUTO_INVOKED = "auto()"
 
@@ -127,7 +138,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._modules = []
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
-        self._container_type_map = {}
+        self._container_type_map = DEFAULT_CONTAINER_MAP
         self._default_type = _AUTO
         self._statement_separator = ";"
         self._main_signature_arg_names = []

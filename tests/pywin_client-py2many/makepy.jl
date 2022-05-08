@@ -76,58 +76,58 @@ mutable struct SimpleProgress <: AbstractSimpleProgress
     #= A simple progress class prints its output to stderr =#
     verboseLevel::Any
 end
-function Close(self::AbstractSimpleProgress)
+function Close(self::SimpleProgress)
     #= pass =#
 end
 
-function Finished(self::AbstractSimpleProgress)
+function Finished(self::SimpleProgress)
     if self.verboseLevel > 1
         write(sys.stderr, "Generation complete..\n")
     end
 end
 
-function SetDescription(self::AbstractSimpleProgress, desc, maxticks = nothing)
+function SetDescription(self::SimpleProgress, desc, maxticks = nothing)
     if self.verboseLevel
         write(sys.stderr, desc + "\n")
     end
 end
 
-function Tick(self::AbstractSimpleProgress, desc = nothing)
+function Tick(self::SimpleProgress, desc = nothing)
     #= pass =#
 end
 
-function VerboseProgress(self::AbstractSimpleProgress, desc, verboseLevel = 2)
+function VerboseProgress(self::SimpleProgress, desc, verboseLevel = 2)
     if self.verboseLevel >= verboseLevel
         write(sys.stderr, desc + "\n")
     end
 end
 
-function LogBeginGenerate(self::AbstractSimpleProgress, filename)
+function LogBeginGenerate(self::SimpleProgress, filename)
     VerboseProgress(self, "Generating to %s" % filename, 1)
 end
 
-function LogWarning(self::AbstractSimpleProgress, desc)
+function LogWarning(self::SimpleProgress, desc)
     VerboseProgress(self, "WARNING: " + desc, 1)
 end
 
 mutable struct GUIProgress <: AbstractGUIProgress
     dialog::Any
 
-    GUIProgress(verboseLevel) = begin
+    GUIProgress(verboseLevel, dialog = nothing) = begin
         import win32ui
         import pywin
         SimpleProgress.__init__(self, verboseLevel)
-        new(verboseLevel)
+        new(verboseLevel, dialog)
     end
 end
-function Close(self::AbstractGUIProgress)
+function Close(self::GUIProgress)
     if self.dialog != nothing
         Close(self.dialog)
         self.dialog = nothing
     end
 end
 
-function Starting(self::AbstractGUIProgress, tlb_desc)
+function Starting(self::GUIProgress, tlb_desc)
     Starting(SimpleProgress, self, tlb_desc)
     if self.dialog === nothing
         using pywin.dialogs: status
@@ -137,14 +137,14 @@ function Starting(self::AbstractGUIProgress, tlb_desc)
     end
 end
 
-function SetDescription(self::AbstractGUIProgress, desc, maxticks = nothing)
+function SetDescription(self::GUIProgress, desc, maxticks = nothing)
     SetText(self.dialog, desc)
     if maxticks
         SetMaxTicks(self.dialog, maxticks)
     end
 end
 
-function Tick(self::AbstractGUIProgress, desc = nothing)
+function Tick(self::GUIProgress, desc = nothing)
     Tick(self.dialog)
     if desc != nothing
         SetText(self.dialog, desc)

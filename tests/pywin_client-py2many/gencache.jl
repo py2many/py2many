@@ -225,7 +225,7 @@ function GetModuleForCLSID(clsid)
          =#
     clsid_str = string(clsid)
     try
-        typelibCLSID, lcid, major, minor = clsidToTypelib[clsid_str]
+        typelibCLSID, lcid, major, minor = clsidToTypelib[clsid_str+1]
     catch exn
         if exn isa KeyError
             return nothing
@@ -251,7 +251,7 @@ function GetModuleForCLSID(clsid)
                 if exn isa ImportError
                     info = (typelibCLSID, lcid, major, minor)
                     if info in demandGeneratedTypeLibraries
-                        info = demandGeneratedTypeLibraries[info]
+                        info = demandGeneratedTypeLibraries[info+1]
                     end
                     include("makepy.jl")
                     GenerateChildFromTypeLibSpec(makepy, sub_mod, info)
@@ -387,7 +387,7 @@ function EnsureModuleForTypelibInterface(
     major = tla[4]
     minor = tla[5]
     if bForDemand
-        demandGeneratedTypeLibraries[(string(guid), lcid, major, minor)] = typelib_ob
+        demandGeneratedTypeLibraries[(string(guid), lcid, major, minor)+1] = typelib_ob
     end
     try
         return GetModuleForTypelib(guid, lcid, major, minor)
@@ -601,7 +601,7 @@ function EnsureModule(
         if is_readonly
             key = (string(typelibCLSID), lcid, major, minor)
             try
-                return versionRedirectMap[key]
+                return versionRedirectMap[key+1]
             catch exn
                 if exn isa KeyError
                     #= pass =#
@@ -620,7 +620,7 @@ function EnsureModule(
             else
                 ret = nothing
             end
-            versionRedirectMap[key] = ret
+            versionRedirectMap[key+1] = ret
             return ret
         end
         module_ = MakeModuleForTypelib(typelibCLSID, lcid, major, minor, progressInstance)
@@ -678,7 +678,7 @@ function AddModuleToCache(
         # nonlocal dict_modified
         for (clsid, cls) in items(dict)
             if get(clsidToTypelib, clsid) != info
-                clsidToTypelib[clsid] = info
+                clsidToTypelib[clsid+1] = info
                 dict_modified = true
             end
         end
@@ -724,7 +724,7 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
                     continue
                 end
             end
-            infos[(iid, lcid, major, minor)] = 1
+            infos[(iid, lcid, major, minor)+1] = 1
         end
         close(zf)
         return collect(keys(infos))
@@ -794,7 +794,7 @@ function _Dump()
     println("Cache is in directory", win32com.__gen_path__)
     d = Dict()
     for (clsid, (typelibCLSID, lcid, major, minor)) in items(clsidToTypelib)
-        d[(typelibCLSID, lcid, major, minor)] = nothing
+        d[(typelibCLSID, lcid, major, minor)+1] = nothing
     end
     for (typelibCLSID, lcid, major, minor) in keys(d)
         mod = GetModuleForTypelib(typelibCLSID, lcid, major, minor)

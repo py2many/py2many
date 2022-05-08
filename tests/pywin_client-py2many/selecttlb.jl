@@ -5,37 +5,48 @@ pythoncom = pyimport("pythoncom")
 import win32api
 import win32con
 mutable struct TypelibSpec <: AbstractTypelibSpec
-    flags::Any
     clsid::String
+    flags::Any
     lcid::Int64
     major::Any
     minor::Any
-    dll::Any
     desc::Any
+    dll::Any
     ver_desc::Any
+
+    TypelibSpec(
+        clsid::String,
+        flags::Any,
+        lcid::Int64,
+        major::Any,
+        minor::Any,
+        desc::Any = nothing,
+        dll::Any = nothing,
+        ver_desc::Any = nothing,
+    ) = new(clsid, flags, lcid, major, minor, desc, dll, ver_desc)
 end
-function __getitem__(self::AbstractTypelibSpec, item)
+function __getitem__(self::TypelibSpec, item)::TypelibSpec
     if item == 0
         return self.ver_desc
     end
     throw(IndexError("Cant index me!"))
 end
 
-function __lt__(self::AbstractTypelibSpec, other)::Bool
+function __lt__(self::TypelibSpec, other)::Bool
     me = (lower(self.ver_desc || ""), lower(self.desc || ""), self.major, self.minor)
     them =
         (lower(ver_desc(other) || ""), lower(desc(other) || ""), major(other), minor(other))
     return me < them
 end
 
-function __eq__(self::AbstractTypelibSpec, other)
+function __eq__(self::TypelibSpec, other)
     return lower(self.ver_desc || "") == lower(ver_desc(other) || "") &&
            lower(self.desc || "") == lower(desc(other) || "") &&
            self.major == major(other) &&
            self.minor == minor(other)
 end
 
-function Resolve(self::AbstractTypelibSpec)::Int64
+function Resolve(self::TypelibSpec)::Int64
     if self.dll === nothing
         return 0
     end
@@ -44,7 +55,7 @@ function Resolve(self::AbstractTypelibSpec)::Int64
     return 1
 end
 
-function FromTypelib(self::AbstractTypelibSpec, typelib, dllName = nothing)
+function FromTypelib(self::TypelibSpec, typelib, dllName = nothing)
     la = GetLibAttr(typelib)
     self.clsid = string(la[1])
     self.lcid = la[2]

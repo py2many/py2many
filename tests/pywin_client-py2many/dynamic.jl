@@ -220,16 +220,10 @@ mutable struct CDispatch <: AbstractCDispatch
         if userName === nothing
             userName = "<unknown>"
         end
-        new(
-            IDispatch,
-            olerepr,
-            userName = nothing,
-            UnicodeToString = nothing,
-            lazydata = nothing,
-        )
+        new(IDispatch, olerepr, userName, UnicodeToString, lazydata)
     end
 end
-function __call__(self::AbstractCDispatch)::Tuple
+function __call__(self::CDispatch)::Tuple
     #= Provide 'default dispatch' COM functionality - allow instance to be called =#
     if self._olerepr_.defaultDispatchName
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
@@ -251,15 +245,15 @@ function __call__(self::AbstractCDispatch)::Tuple
     throw(TypeError("This dispatch object does not define a default method"))
 end
 
-function __bool__(self::AbstractCDispatch)::Bool
+function __bool__(self::CDispatch)::Bool
     return true
 end
 
-function __repr__(self::AbstractCDispatch)::String
+function __repr__(self::CDispatch)
     return "<COMObject %s>" % self._username_
 end
 
-function __str__(self::AbstractCDispatch)::String
+function __str__(self::CDispatch)::String
     try
         return string(__call__(self))
     catch exn
@@ -275,7 +269,7 @@ function __str__(self::AbstractCDispatch)::String
     end
 end
 
-function __dir__(self::AbstractCDispatch)::Vector
+function __dir__(self::CDispatch)::Vector
     lst = (collect(keys(self.__dict__)) + dir(self.__class__)) + _dir_ole_(self)
     try
         lst += [Name(p) for p in self.Properties_]
@@ -287,7 +281,7 @@ function __dir__(self::AbstractCDispatch)::Vector
     return collect(set(lst))
 end
 
-function _dir_ole_(self::AbstractCDispatch)::Vector
+function _dir_ole_(self::CDispatch)::Vector
     items_dict = Dict()
     for iTI = 0:GetTypeInfoCount(self._oleobj_)-1
         typeInfo = GetTypeInfo(self._oleobj_, iTI)
@@ -296,7 +290,7 @@ function _dir_ole_(self::AbstractCDispatch)::Vector
     return collect(keys(items_dict))
 end
 
-function _UpdateWithITypeInfo_(self::AbstractCDispatch, items_dict, typeInfo)
+function _UpdateWithITypeInfo_(self::CDispatch, items_dict, typeInfo)
     typeInfos = [typeInfo]
     inspectedIIDs = Dict(IID_IDispatch(pythoncom) => nothing)
     while length(typeInfos) > 0
@@ -304,7 +298,7 @@ function _UpdateWithITypeInfo_(self::AbstractCDispatch, items_dict, typeInfo)
         typeAttr = GetTypeAttr(typeInfo)
         if iid(typeAttr)
             not in keys(inspectedIIDs)
-            inspectedIIDs[iid(typeAttr)] = nothing
+            inspectedIIDs[iid(typeAttr)+1] = nothing
             for iFun = 0:cFuncs(typeAttr)-1
                 funDesc = GetFuncDesc(typeInfo, iFun)
                 funName = GetNames(typeInfo, memid(funDesc))[1]
@@ -322,21 +316,21 @@ function _UpdateWithITypeInfo_(self::AbstractCDispatch, items_dict, typeInfo)
     end
 end
 
-function __eq__(self::AbstractCDispatch, other)::Bool
+function __eq__(self::CDispatch, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::AbstractCDispatch, other)::Bool
+function __ne__(self::CDispatch, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
 
-function __int__(self::AbstractCDispatch)::Int64
+function __int__(self::CDispatch)::Int64
     return parse(Int, __call__(self))
 end
 
-function __len__(self::AbstractCDispatch)
+function __len__(self::CDispatch)
     invkind, dispid = _find_dispatch_type_(self, "Count")
     if invkind
         return Invoke(self._oleobj_, dispid, LCID, invkind, 1)
@@ -344,7 +338,7 @@ function __len__(self::AbstractCDispatch)
     throw(TypeError("This dispatch object does not define a Count method"))
 end
 
-function _NewEnum(self::AbstractCDispatch)
+function _NewEnum(self::CDispatch)
     try
         invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
         enum = InvokeTypes(
@@ -364,7 +358,7 @@ function _NewEnum(self::AbstractCDispatch)
     return WrapEnum(util, enum, nothing)
 end
 
-function __getitem__(self::AbstractCDispatch, index)::Tuple
+function __getitem__(self::CDispatch, index)::Tuple
     if isa(index, int)
         if self.__dict__["_enum_"] === nothing
             self.__dict__["_enum_"] = _NewEnum(self)
@@ -383,7 +377,7 @@ function __getitem__(self::AbstractCDispatch, index)::Tuple
     throw(TypeError("This object does not support enumeration"))
 end
 
-function __setitem__(self::AbstractCDispatch, index)::Tuple
+function __setitem__(self::CDispatch, index)::Tuple
     if self._olerepr_.defaultDispatchName
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
@@ -404,7 +398,7 @@ function __setitem__(self::AbstractCDispatch, index)::Tuple
     throw(TypeError("This dispatch object does not define a default method"))
 end
 
-function _find_dispatch_type_(self::AbstractCDispatch, methodName)::Tuple
+function _find_dispatch_type_(self::CDispatch, methodName)::Tuple
     if methodName in self._olerepr_.mapFuncs
         item = self._olerepr_.mapFuncs[methodName+1]
         return (desc(item)[5], dispid(item))
@@ -422,7 +416,7 @@ function _find_dispatch_type_(self::AbstractCDispatch, methodName)::Tuple
 end
 
 function _ApplyTypes_(
-    self::AbstractCDispatch,
+    self::CDispatch,
     dispid,
     wFlags,
     retType,
@@ -435,7 +429,7 @@ function _ApplyTypes_(
 end
 
 function _wrap_dispatch_(
-    self::AbstractCDispatch,
+    self::CDispatch,
     ob,
     userName = nothing,
     returnCLSID = nothing,
@@ -446,7 +440,7 @@ function _wrap_dispatch_(
 end
 
 function _get_good_single_object_(
-    self::AbstractCDispatch,
+    self::CDispatch,
     ob,
     userName = nothing,
     ReturnCLSID = nothing,
@@ -468,7 +462,7 @@ function _get_good_single_object_(
 end
 
 function _get_good_object_(
-    self::AbstractCDispatch,
+    self::CDispatch,
     ob,
     userName = nothing,
     ReturnCLSID = nothing,
@@ -485,7 +479,7 @@ function _get_good_object_(
     end
 end
 
-function _make_method_(self::AbstractCDispatch, name)
+function _make_method_(self::CDispatch, name)
     #= Make a method object - Assumes in olerepr funcmap =#
     methodName = MakePublicAttributeName(build, name)
     methodCodeList =
@@ -498,8 +492,8 @@ function _make_method_(self::AbstractCDispatch, name)
         globNameSpace["Dispatch"] = win32com.client.Dispatch
         exec(codeObject, globNameSpace, tempNameSpace)
         name = methodName
-        fn = tempNameSpace[name]
-        self._builtMethods_[name+1] = tempNameSpace[name]
+        fn = tempNameSpace[name+1]
+        self._builtMethods_[name+1] = tempNameSpace[name+1]
         newMeth = MakeMethod(fn, self, self.__class__)
         return newMeth
     catch exn
@@ -509,7 +503,7 @@ function _make_method_(self::AbstractCDispatch, name)
     return nothing
 end
 
-function _Release_(self::AbstractCDispatch)
+function _Release_(self::CDispatch)
     #= Cleanup object - like a close - to force cleanup when you dont
             want to rely on Python's reference counting. =#
     for childCont in values(self._mapCachedItems_)
@@ -526,7 +520,7 @@ function _Release_(self::AbstractCDispatch)
     self._enum_ = nothing
 end
 
-function _proc_(self::AbstractCDispatch, name)::Tuple
+function _proc_(self::CDispatch, name)::Tuple
     #= Call the named method as a procedure, rather than function.
             Mainly used by Word.Basic, which whinges about such things. =#
     try
@@ -543,7 +537,7 @@ function _proc_(self::AbstractCDispatch, name)::Tuple
     end
 end
 
-function _print_details_(self::AbstractCDispatch)
+function _print_details_(self::CDispatch)
     #= Debug routine - dumps what it knows about an object. =#
     println("AxDispatch container", self._username_)
     try
@@ -568,7 +562,7 @@ function _print_details_(self::AbstractCDispatch)
     end
 end
 
-function __LazyMap__(self::AbstractCDispatch, attr)::Int64
+function __LazyMap__(self::CDispatch, attr)::Int64
     try
         if _LazyAddAttr_(self, attr)
             debug_attr_print()
@@ -581,7 +575,7 @@ function __LazyMap__(self::AbstractCDispatch, attr)::Int64
     end
 end
 
-function _LazyAddAttr_(self::AbstractCDispatch, attr)::Int64
+function _LazyAddAttr_(self::CDispatch, attr)::Int64
     if self._lazydata_ === nothing
         return 0
     end
@@ -618,7 +612,7 @@ function _LazyAddAttr_(self::AbstractCDispatch, attr)::Int64
     return res
 end
 
-function _FlagAsMethod(self::AbstractCDispatch)
+function _FlagAsMethod(self::CDispatch)
     #= Flag these attribute names as being methods.
             Some objects do not correctly differentiate methods and
             properties, leading to problems when calling these methods.
@@ -636,12 +630,12 @@ function _FlagAsMethod(self::AbstractCDispatch)
     end
 end
 
-function __AttrToID__(self::AbstractCDispatch, attr)
+function __AttrToID__(self::CDispatch, attr)
     debug_attr_print()
     return GetIDsOfNames(self._oleobj_, 0, attr)
 end
 
-function __getattr__(self::AbstractCDispatch, attr)::Tuple
+function __getattr__(self::CDispatch, attr)::Tuple
     if attr == "__iter__"
         try
             invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
@@ -661,7 +655,7 @@ function __getattr__(self::AbstractCDispatch, attr)::Tuple
         mutable struct Factory <: AbstractFactory
             ob::Any
         end
-        function __call__(self::AbstractFactory)::Factory
+        function __call__(self::Factory)::Factory
             import win32com.client.util
             import win32com.client.util
             import win32com.client.util
@@ -743,7 +737,7 @@ function __getattr__(self::AbstractCDispatch, attr)::Tuple
     throw(AttributeError("%s.%s" % (self._username_, attr)))
 end
 
-function __setattr__(self::AbstractCDispatch, attr, value)
+function __setattr__(self::CDispatch, attr, value)
     if attr in self.__dict__
         self.__dict__[attr] = value
         return

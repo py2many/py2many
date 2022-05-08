@@ -24,7 +24,7 @@ function RegisterCLSID(clsid, pythonClass)
         Certain module will automatically convert an IDispatch object to an
         instance of the associated class.
          =#
-    mapCLSIDToClass[string(clsid)] = pythonClass
+    mapCLSIDToClass[string(clsid)+1] = pythonClass
 end
 
 function RegisterCLSIDsFromDict(dict)
@@ -43,7 +43,7 @@ function GetClass(clsid)::Dict
 
         clsid -- a string CLSID representation to check.
          =#
-    return mapCLSIDToClass[clsid]
+    return mapCLSIDToClass[clsid+1]
 end
 
 function HasClass(clsid)::Bool

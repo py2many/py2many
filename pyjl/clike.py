@@ -240,6 +240,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             # Default if no type is found
             return typename
 
+    def _map_container_type(self, typename) -> str:
+        typeclass = self._func_for_lookup(typename)
+        return self._container_type_map.get(typeclass, self._default_type)
+
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if hasattr(node, attr):
