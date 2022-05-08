@@ -1,11 +1,13 @@
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= General client side utilities.
 
 This module contains utility functions, used primarily by advanced COM
 programmers, or other COM modules.
  =#
-import pythoncom
+
 using win32com.client: Dispatch, _get_good_object_
-PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
+PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
 abstract type AbstractEnumerator end
 abstract type AbstractEnumVARIANT <: AbstractEnumerator end
 abstract type AbstractIterator end
@@ -16,8 +18,8 @@ function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
         (which may be either a class instance, or a dynamic.Dispatch type object).
 
          =#
-    if type_(ob) != pythoncom.TypeIIDs[pythoncom.IID_IEnumVARIANT+1]
-        ob = QueryInterface(ob, pythoncom.IID_IEnumVARIANT)
+    if type_(ob) != TypeIIDs(pythoncom)[IID_IEnumVARIANT(pythoncom)+1]
+        ob = QueryInterface(ob, IID_IEnumVARIANT(pythoncom))
     end
     return EnumVARIANT(ob, resultCLSID)
 end
@@ -110,3 +112,4 @@ end
 function __next__(self)
     return _get_good_object_(next(self._iter_), self.resultCLSID)
 end
+

@@ -1,7 +1,7 @@
+
+
 abstract type AbstractIntListNonEmpty end
 abstract type AbstractIntList end
-
-
 mutable struct IntListNonEmpty <: AbstractIntListNonEmpty
     first::Int64
     rest::AbstractIntList
@@ -25,3 +25,4 @@ mutable struct IntList <: AbstractIntList
     NONE::Any
     REST::AbstractIntListNonEmpty
 end
+

@@ -53,3 +53,4 @@ function HasClass(clsid)::Bool
          =#
     return clsid in mapCLSIDToClass
 end
+

@@ -231,16 +231,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"return {self.visit(node.value)}"
         return "return"
 
-    def visit_arg(self, node):
-        id = get_id(node)
-        if id == "self":
-            return (None, "self")
-        # typename = "T"
-        typename = ""
-        if hasattr(node, "annotation"):
-            typename = self._typename_from_annotation(node)
-        return (typename, id)
-
     def visit_Lambda(self, node) -> str:
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
@@ -510,25 +500,24 @@ class JuliaTranspiler(CLikeTranspiler):
                 typename = f"Abstract{typename}"
 
             decs.append(declaration)
-            fields_str.append(declaration if typename == "" else f"{declaration}::{typename}")
+            fields_str.append(declaration if not typename else f"{declaration}::{typename}")
             
             # Default field values
-            default_value = self.visit(default) if default else None
-            fields.append((declaration, typename, default_value) \
-                if typename == "" else (declaration, typename, default_value))
+            fields.append((declaration, typename, default))
 
         if not hasattr(node, "constructor"):
             if has_defaults:
                 decs_str = ", ".join(decs)
                 default_fields = []
-                for (declaration, typename, default_value) in fields:
+                for (declaration, typename, default) in fields:
                     field = []
                     if typename:
                         field.append(f"{declaration}::{typename}")
                     else:
                         field.append(declaration)
-                    
-                    if default_value:
+
+                    if default:
+                        default_value = self.visit(default)
                         field.append(f" = {default_value}")
                     field = "".join(field)
                     default_fields.append(field)
@@ -540,7 +529,17 @@ class JuliaTranspiler(CLikeTranspiler):
                         new({decs_str})"""
         else:
             # Case where __init__ has custom implementation
+            args: ast.arguments= node.constructor.args
+            arg_ids = [arg.arg for arg in args.args]
+            for (declaration, typename, default) in fields:
+                if default and declaration not in arg_ids:
+                    args.args.append(ast.arg(
+                        arg = declaration,
+                        annotation = ast.Name(id=typename),
+                    ))
+                    args.defaults.append(default)
             node.constructor_str = self.visit(node.constructor)
+
 
         node.fields = fields
         node.fields_str = "\n".join(fields_str)
@@ -664,7 +663,6 @@ class JuliaTranspiler(CLikeTranspiler):
             if value_type == "Tuple":
                 return f"({index})"
             return f"{value_type}{{{index_type}}}"
-        
 
         return f"{value}[{index}]"
 
@@ -976,7 +974,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Constructor(self, node: juliaAst.Constructor) -> Any:
         # Get constructor arguments
         args = self._get_args(node, is_constructor=True)
-        decls = list(map(lambda x: x.split("::")[0], args))
+        args_no_defaults = list(map(lambda x: x.split("=")[0], args))
+        decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
 
         args_str = ", ".join(args)
         decls_str = ", ".join(decls)

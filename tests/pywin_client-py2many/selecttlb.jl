@@ -1,8 +1,9 @@
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
 import win32api
 import win32con
-import pythoncom
 mutable struct TypelibSpec <: AbstractTypelibSpec
     flags::Any
     clsid::String

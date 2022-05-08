@@ -97,8 +97,10 @@ JL_IGNORED_MODULE_SET = set([
     "bisect",
     "base64",
     "binascii",
+    "traceback",
+    "types",
     ########################################################
-    "pythoncom"
+    "pythoncom",
 ])
 
 JULIA_TYPE_MAP = {
@@ -180,6 +182,16 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return f"{node.id}_"
         
         return super().visit_Name(node)
+
+    def visit_arg(self, node):
+        id = get_id(node)
+        if id == "self":
+            return (None, "self")
+        # typename = "T"
+        typename = ""
+        if hasattr(node, "annotation"):
+            typename = self._typename_from_annotation(node)
+        return (typename, id)
 
     def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]

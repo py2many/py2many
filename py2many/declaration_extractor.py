@@ -92,7 +92,8 @@ class DeclarationExtractor(ast.NodeVisitor):
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
-        if get_id(node.value) == "self":
+        if node.attr not in self.member_assignments and \
+                get_id(node.value) == "self":
             self.member_assignments[node.attr] = None
 
     def visit_AnnAssign(self, node: ast.AnnAssign, dataclass=False):
@@ -129,12 +130,14 @@ class DeclarationExtractor(ast.NodeVisitor):
 
 
     def visit_Assign(self, node: ast.Assign):
-        val = self._get_assign_val(node)
+        val = self._get_assign_val(node)   
         parent = node.scopes[-1]
         target = node.targets[0]
         if self._is_member(target) or isinstance(parent, ast.ClassDef):
             id = self._get_target_id(target)
-            if id and id not in self.member_assignments:
+            if id and (id not in self.member_assignments or \
+                    (id in self.member_assignments and 
+                        not self.member_assignments[id])):
                 self.member_assignments[id] = val
         else:
             node.class_assignment = True

@@ -186,6 +186,30 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.has_fixed_width_ints = False
         # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
+        self._self_types = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._self_types = []
+        self.generic_visit(node)
+        return node
+
+    def visit_ClassDef(self, node):
+        node.annotation = ast.Name(id=node.name)
+        self._self_types.append(node.annotation)
+        self.generic_visit(node)
+        self._self_types.pop()
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        if find_in_body(node.body, lambda x: 
+                isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+            node.annotation = ast.Name(id="Generator")
+
+        if self._self_types:
+            node.self_type = get_id(self._self_types[-1])
+
+        return node
 
     @staticmethod
     def _infer_primitive(value) -> Optional[ast.AST]:
@@ -538,24 +562,13 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         return node
 
-    def visit_ClassDef(self, node):
-        node.annotation = ast.Name(id=node.name)
-        self.generic_visit(node)
-        return node
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self.generic_visit(node)
-        if find_in_body(node.body, lambda x: 
-                isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
-            node.annotation = ast.Name(id="Generator")
-
-        return node
-
     def visit_Attribute(self, node):
         value_id = get_id(node.value)
-        if value_id is not None and hasattr(node, "scopes"):
+        if value_id == "self" and self._self_types:
+            node.annotation = self._self_types[-1]
+        elif value_id is not None and hasattr(node, "scopes"):
             if is_enum(value_id, node.scopes):
-                node.annotation = node.scopes.find(value_id)
+                node.annotation = node.scopes.find(value_id)        
         return node
 
     def visit_Call(self, node):

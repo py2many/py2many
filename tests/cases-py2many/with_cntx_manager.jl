@@ -1,22 +1,17 @@
-abstract type AbstractFileOp end
 using tempfile: NamedTemporaryFile
 using textwrap: wrap
+abstract type AbstractFileOp end
 mutable struct FileOp <: AbstractFileOp
     file_name::Any
     method::Any
     file::Any
 end
-function __enter__(self::AbstractFileOp)
+function __enter__(self::FileOp)::FileOp
     self.file = open(self.file_name, self.method)
     return self.file
 end
 
-function __exit__(
-    self::AbstractFileOp,
-    type_ = nothing,
-    value = nothing,
-    traceback = nothing,
-)
+function __exit__(self::FileOp, type_ = nothing, value = nothing, traceback = nothing)
     close(self.file)
 end
 

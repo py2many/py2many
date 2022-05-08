@@ -1,8 +1,6 @@
 import ast
 from ctypes import c_int64
 
-from typing import Any
-
 from py2many.inference import InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp

@@ -13,6 +13,7 @@ import ast
 import random
 import re
 import sys
+import traceback
 import unittest
 import bisect
 import copy
@@ -625,8 +626,11 @@ class JuliaExternalModulePlugins():
     ########################################################
     # External modules
     def visit_pycomm(t_self, node: ast.Call):
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "pythoncom")
+    
+    def _pycall_import(t_self, node: ast.Call, mod_name: str):
         t_self._usings.add("PyCall")
-        import_stmt = "pythoncom = pyimport(\"pythoncom\")"
+        import_stmt = f"{mod_name} = pyimport(\"{mod_name}\")"
         t_self._globals.add(import_stmt)
 
 
@@ -686,6 +690,7 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 ########################################################
 IMPORT_DISPATCH_TABLE = {
     "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
+
 }
 
 DECORATOR_DISPATCH_TABLE = {
@@ -782,7 +787,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     multiprocessing.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     multiprocessing.Pool: (JuliaTranspilerPlugins.visit_Pool, True),
     "starmap": (JuliaTranspilerPlugins.visit_starmap, True), # TODO: remove string-based fallback
-    Pool().map: (JuliaTranspilerPlugins.visit_map, True), # TODO: Does not work, Pool is an instance
     # Time
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     # Regex
@@ -796,6 +800,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertIsInstance: (JuliaTranspilerPlugins.visit_assertIsInstance, True),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
+    # Traceback
+    traceback.print_exc: (lambda self, node, vargs: "current_exceptions() != [] ? "\
+        "current_exceptions()[end] : nothing", False),
 }
 
 # Dispatches special Functions

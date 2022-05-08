@@ -1,8 +1,9 @@
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= Utilities for working with Connections =#
 import win32com.server.util
 import win32com.server.util
 import win32com.server.util
-import pythoncom
 mutable struct SimpleConnection <: AbstractSimpleConnection
     #= A simple, single connection object =#
     cookie::Any
@@ -28,7 +29,7 @@ function __del__(self::AbstractSimpleConnection)
     try
         Disconnect(self)
     catch exn
-        if exn isa pythoncom.error
+        if exn isa error(pythoncom)
             #= pass =#
         end
     end
@@ -56,7 +57,7 @@ function Connect(
             oleobj = coInstance
         end
     end
-    cpc = QueryInterface(oleobj, pythoncom.IID_IConnectionPointContainer)
+    cpc = QueryInterface(oleobj, IID_IConnectionPointContainer(pythoncom))
     if eventCLSID === nothing
         eventCLSID = CLSID(eventInstance)
     end

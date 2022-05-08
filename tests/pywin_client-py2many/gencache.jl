@@ -1,4 +1,6 @@
 using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= Manages the cache of generated Python code.
 
 Description
@@ -22,12 +24,12 @@ Hacks, to do, etc
   Maybe an OLE2 compound file, or a bsddb file?
  =#
 import pywintypes
-import pythoncom
+
 import win32com
 import win32com.client
 import win32com.client
 import glob
-import traceback
+
 include("CLSIDToClass.jl")
 
 using importlib: reload
@@ -486,7 +488,7 @@ function EnsureModule(
                         end
                     end
                 catch exn
-                    if exn isa pythoncom.com_error
+                    if exn isa com_error(pythoncom)
                         #= pass =#
                     end
                 end
@@ -513,7 +515,7 @@ function EnsureModule(
                 tlbAttributes =
                     GetLibAttr(LoadRegTypeLib(pythoncom, typelibCLSID, major, minor, lcid))
             catch exn
-                if exn isa pythoncom.com_error
+                if exn isa com_error(pythoncom)
                     bValidateFile = 0
                 end
             end
@@ -645,7 +647,7 @@ function EnsureDispatch(prog_id, bForDemand = 1)
             disp_class = GetClass(CLSIDToClass, string(disp_clsid))
             disp = disp_class(_oleobj_(disp))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",

@@ -5,22 +5,22 @@ abstract type AbstractStudent2 <: AbstractPerson end
 mutable struct Foo <: AbstractFoo
 
 end
-function bar(self::AbstractFoo)::Int64
+function bar(self::Foo)::Int64
     return baz(self)
 end
 
-function baz(self::AbstractFoo)::Int64
+function baz(self::Foo)::Int64
     return 10
 end
 
-function bar_str(self::AbstractFoo)::String
+function bar_str(self::Foo)::String
     return "a"
 end
 
 mutable struct Person <: AbstractPerson
     name::String
 end
-function get_name(self::AbstractPerson)
+function get_name(self::Person)::Person
     return self.name
 end
 
@@ -32,7 +32,7 @@ mutable struct Student <: AbstractStudent
     Student(name::String, student_number::Int64, domain::String = "school.student.pt") =
         new(name, student_number, domain)
 end
-function get_name(self::AbstractStudent)
+function get_name(self::Student)
     return "$(self.name) - $(self.student_number)"
 end
 

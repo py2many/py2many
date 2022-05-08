@@ -583,10 +583,6 @@ class RustTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"pub {declaration}: {typename},")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         extension = "#[pyclass]\n" if self.extension else ""
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
             node.name, "\n".join(fields)

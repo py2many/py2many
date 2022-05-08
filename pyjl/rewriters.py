@@ -1,12 +1,8 @@
 from __future__ import annotations
 import ast
 import copy
-from lib2to3.pytree import Node
-import pickle
 import sys
 from typing import Any, Dict
-
-from libcst import Call
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
@@ -89,7 +85,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._class_fields: Dict[str, Any] = {}
         self._nested_classes = []
         self._class_scopes = []
-        self._current_class_scope = None
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._hierarchy_map = {}
@@ -140,10 +135,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         class_name: str = get_id(node)
 
-        # Get new class scope
-        self._class_scopes.append(self._current_class_scope)
-        self._current_class_scope = class_name
-
         decorator_list = list(map(get_id, node.decorator_list))
         is_jlClass = "jl_class" in decorator_list
 
@@ -182,9 +173,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 fields.append(f)
         node.body = fields + node.body
 
-        # Go back to old scope
-        self._current_class_scope = self._class_scopes.pop()
-
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
@@ -193,9 +181,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
         func_name = get_id(node)
         if func_name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
             return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[func_name](self, node)
-        
-        # Add self type
-        node.self_type = self._current_class_scope
 
         args = node.args
         for arg in args.args:

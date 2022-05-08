@@ -92,6 +92,7 @@ logger = logging.Logger("py2many")
 def class_for_typename(typename: str, default_type, locals=None) -> Union[str, object]:
     if typename is None:
         return None
+    # print(typename)
     if typename == "super" or typename.startswith("super()"):
         # Cant eval super; causes RuntimeError
         return None

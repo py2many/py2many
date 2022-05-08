@@ -1,6 +1,4 @@
 using PyEnum
-abstract type AbstractColors <: AbstractIntEnum end
-abstract type AbstractPermissions <: AbstractIntFlag end
 
 @pyenum Colors::Int64 begin
     RED = 0
@@ -12,6 +10,8 @@ end
     W = 2
     X = 16
 end
+abstract type AbstractColors <: AbstractIntEnum end
+abstract type AbstractPermissions <: AbstractIntFlag end
 function show()
     color_map = Dict(Colors.RED => "red", Colors.GREEN => "green", Colors.BLUE => "blue")
     a = Colors.GREEN

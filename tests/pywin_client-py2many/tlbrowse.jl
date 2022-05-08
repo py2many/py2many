@@ -1,8 +1,10 @@
+using PyCall
+pythoncom = pyimport("pythoncom")
 import win32ui
 import win32con
 import win32api
 import commctrl
-import pythoncom
+
 using pywin.mfc: dialog
 abstract type AbstractTLBrowserException <: AbstractException end
 abstract type AbstractTypeBrowseDialog <: AbstractTypeBrowseDialog_Parent end
@@ -20,14 +22,14 @@ LBS_STD =
     ((ES_STD | win32con.LBS_NOTIFY) | win32con.LBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 CBS_STD = (ES_STD | win32con.CBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 typekindmap = Dict(
-    pythoncom.TKIND_ENUM => "Enumeration",
-    pythoncom.TKIND_RECORD => "Record",
-    pythoncom.TKIND_MODULE => "Module",
-    pythoncom.TKIND_INTERFACE => "Interface",
-    pythoncom.TKIND_DISPATCH => "Dispatch",
-    pythoncom.TKIND_COCLASS => "CoClass",
-    pythoncom.TKIND_ALIAS => "Alias",
-    pythoncom.TKIND_UNION => "Union",
+    TKIND_ENUM(pythoncom) => "Enumeration",
+    TKIND_RECORD(pythoncom) => "Record",
+    TKIND_MODULE(pythoncom) => "Module",
+    TKIND_INTERFACE(pythoncom) => "Interface",
+    TKIND_DISPATCH(pythoncom) => "Dispatch",
+    TKIND_COCLASS(pythoncom) => "CoClass",
+    TKIND_ALIAS(pythoncom) => "Alias",
+    TKIND_UNION(pythoncom) => "Union",
 )
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
@@ -91,7 +93,7 @@ function OnFileOpen(self::AbstractTypeBrowseDialog, id, code)
         try
             self.tlb = LoadTypeLib(pythoncom, GetPathName(dlg))
         catch exn
-            if exn isa pythoncom.ole_error
+            if exn isa ole_error(pythoncom)
                 MessageBox(self, "The file does not contain type information")
                 self.tlb = nothing
             end
@@ -179,7 +181,7 @@ function _GetMainInfoTypes(self::AbstractTypeBrowseDialog)::Vector
         desc =
             desc +
             (", Flags=0x%x, typeKind=0x%x, typeFlags=0x%x" % (flags, typeKind, typeFlags))
-        if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
+        if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
             desc = desc * "(Source)"
         end
         push!(infos, ("Implements", desc))

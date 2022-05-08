@@ -1,11 +1,11 @@
 #= This file implements a rectangle class  =#
-abstract type AbstractRectangle end
 
+abstract type AbstractRectangle end
 mutable struct Rectangle <: AbstractRectangle
     height::Int64
     length::Int64
 end
-function is_square(self::AbstractRectangle)::Bool
+function is_square(self::Rectangle)::Bool
     #= Go likes this to be camel case =#
     return self.height == self.length
 end

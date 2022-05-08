@@ -6,7 +6,7 @@ end
 mutable struct TestClass <: AbstractTestClass
 
 end
-function func(self::AbstractTestClass)::String
+function func(self::TestClass)::String
     return "test2"
 end
 

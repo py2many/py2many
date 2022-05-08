@@ -1,11 +1,11 @@
 using Distributed
-abstract type Abstractlean_call end
 
 
 
 
 
 lean_buffer = Dict()
+abstract type Abstractlean_call end
 function lean_args(sequence, reading_frames, i, j)::Tuple
     global lean_buffer
     lean_key = length(lean_buffer)

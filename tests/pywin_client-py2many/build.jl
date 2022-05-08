@@ -1,3 +1,5 @@
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= Contains knowledge to build a COM object definition.
 
 This module is used by both the @dynamic@ and @makepy@ modules to build
@@ -12,7 +14,7 @@ dynamically, or possibly even generate .html documentation for objects.
 
 import string
 using keyword: iskeyword
-import pythoncom
+
 using pywintypes: TimeType
 import winerror
 import Dates
@@ -36,31 +38,31 @@ end
 
 DropIndirection = "DropIndirection"
 NoTranslateTypes = [
-    pythoncom.VT_BOOL,
-    pythoncom.VT_CLSID,
-    pythoncom.VT_CY,
-    pythoncom.VT_DATE,
-    pythoncom.VT_DECIMAL,
-    pythoncom.VT_EMPTY,
-    pythoncom.VT_ERROR,
-    pythoncom.VT_FILETIME,
-    pythoncom.VT_HRESULT,
-    pythoncom.VT_I1,
-    pythoncom.VT_I2,
-    pythoncom.VT_I4,
-    pythoncom.VT_I8,
-    pythoncom.VT_INT,
-    pythoncom.VT_NULL,
-    pythoncom.VT_R4,
-    pythoncom.VT_R8,
-    pythoncom.VT_NULL,
-    pythoncom.VT_STREAM,
-    pythoncom.VT_UI1,
-    pythoncom.VT_UI2,
-    pythoncom.VT_UI4,
-    pythoncom.VT_UI8,
-    pythoncom.VT_UINT,
-    pythoncom.VT_VOID,
+    VT_BOOL(pythoncom),
+    VT_CLSID(pythoncom),
+    VT_CY(pythoncom),
+    VT_DATE(pythoncom),
+    VT_DECIMAL(pythoncom),
+    VT_EMPTY(pythoncom),
+    VT_ERROR(pythoncom),
+    VT_FILETIME(pythoncom),
+    VT_HRESULT(pythoncom),
+    VT_I1(pythoncom),
+    VT_I2(pythoncom),
+    VT_I4(pythoncom),
+    VT_I8(pythoncom),
+    VT_INT(pythoncom),
+    VT_NULL(pythoncom),
+    VT_R4(pythoncom),
+    VT_R8(pythoncom),
+    VT_NULL(pythoncom),
+    VT_STREAM(pythoncom),
+    VT_UI1(pythoncom),
+    VT_UI2(pythoncom),
+    VT_UI4(pythoncom),
+    VT_UI8(pythoncom),
+    VT_UINT(pythoncom),
+    VT_VOID(pythoncom),
 ]
 NoTranslateMap = Dict()
 for v in NoTranslateTypes
@@ -107,7 +109,7 @@ end
 
 function GetResultCLSID(self::AbstractMapEntry)
     rc = self.resultCLSID
-    if rc == pythoncom.IID_NULL
+    if rc == IID_NULL(pythoncom)
         return nothing
     end
     return rc
@@ -217,14 +219,14 @@ function _propMapGetCheck_(self::AbstractDispatchItem, key, item)
 end
 
 function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
-    @assert(desckind(fdesc) == pythoncom.DESCKIND_FUNCDESC)
+    @assert(desckind(fdesc) == DESCKIND_FUNCDESC(pythoncom))
     id = memid(fdesc)
     funcflags = wFuncFlags(fdesc)
     try
         names = GetNames(typeinfo, id)
         name = names[1]
     catch exn
-        if exn isa pythoncom.ole_error
+        if exn isa ole_error(pythoncom)
             name = ""
             names = nothing
         end
@@ -235,7 +237,7 @@ function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
             doc = GetDocumentation(typeinfo, id)
         end
     catch exn
-        if exn isa pythoncom.ole_error
+        if exn isa ole_error(pythoncom)
             #= pass =#
         end
     end
@@ -254,13 +256,13 @@ function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
         push!(argList, argDesc)
     end
     args(fdesc) = tuple(argList)
-    hidden = (funcflags & pythoncom.FUNCFLAG_FHIDDEN) != 0
-    if invkind == pythoncom.INVOKE_PROPERTYGET
+    hidden = (funcflags & FUNCFLAG_FHIDDEN(pythoncom)) != 0
+    if invkind == INVOKE_PROPERTYGET(pythoncom)
         map = self.propMapGet
-    elseif invkind in (pythoncom.INVOKE_PROPERTYPUT, pythoncom.INVOKE_PROPERTYPUTREF)
+    elseif invkind in (INVOKE_PROPERTYPUT(pythoncom), INVOKE_PROPERTYPUTREF(pythoncom))
         existing = get(self.propMapPut, name, nothing)
         if existing != nothing
-            if desc(existing)[5] == pythoncom.INVOKE_PROPERTYPUT
+            if desc(existing)[5] == INVOKE_PROPERTYPUT(pythoncom)
                 map = self.mapFuncs
                 name = "Set" * name
             else
@@ -271,14 +273,14 @@ function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
         else
             map = self.propMapPut
         end
-    elseif invkind == pythoncom.INVOKE_FUNC
+    elseif invkind == INVOKE_FUNC(pythoncom)
         map = self.mapFuncs
     else
         map = nothing
     end
     if !(map === nothing)
         map[name+1] = MapEntry(fdesc, names, doc, resultCLSID, resultDoc, hidden)
-        if funckind(fdesc) != pythoncom.FUNC_DISPATCH
+        if funckind(fdesc) != FUNC_DISPATCH(pythoncom)
             return nothing
         end
         return (name, map)
@@ -287,8 +289,8 @@ function _AddFunc_(self::AbstractDispatchItem, typeinfo, fdesc, bForUser)::Tuple
 end
 
 function _AddVar_(self::AbstractDispatchItem, typeinfo, vardesc, bForUser)::Tuple
-    @assert(desckind(vardesc) == pythoncom.DESCKIND_VARDESC)
-    if varkind(vardesc) == pythoncom.VAR_DISPATCH
+    @assert(desckind(vardesc) == DESCKIND_VARDESC(pythoncom))
+    if varkind(vardesc) == VAR_DISPATCH(pythoncom)
         id = memid(vardesc)
         names = GetNames(typeinfo, id)
         typerepr, flags, defval = elemdescVar(vardesc)
@@ -300,7 +302,7 @@ function _AddVar_(self::AbstractDispatchItem, typeinfo, vardesc, bForUser)::Tupl
                 doc = GetDocumentation(typeinfo, id)
             end
         catch exn
-            if exn isa pythoncom.ole_error
+            if exn isa ole_error(pythoncom)
                 #= pass =#
             end
         end
@@ -315,7 +317,7 @@ end
 
 function Build(self::AbstractDispatchItem, typeinfo, attr, bForUser = 1)
     self.clsid = attr[1]
-    self.bIsDispatch = (wTypeFlags(attr) & pythoncom.TYPEFLAG_FDISPATCHABLE) != 0
+    self.bIsDispatch = (wTypeFlags(attr) & TYPEFLAG_FDISPATCHABLE(pythoncom)) != 0
     if typeinfo === nothing
         return
     end
@@ -346,13 +348,13 @@ function CountInOutOptArgs(self::AbstractDispatchItem, argTuple)::Tuple
             ins = ins + 1
             out = out + 1
         else
-            if inOut & pythoncom.PARAMFLAG_FIN
+            if inOut & PARAMFLAG_FIN(pythoncom)
                 ins = ins + 1
             end
-            if inOut & pythoncom.PARAMFLAG_FOPT
+            if inOut & PARAMFLAG_FOPT(pythoncom)
                 opts = opts + 1
             end
-            if inOut & pythoncom.PARAMFLAG_FOUT
+            if inOut & PARAMFLAG_FOUT(pythoncom)
                 out = out + 1
             end
         end
@@ -418,7 +420,7 @@ function MakeDispatchFuncMethod(
     param_flags = [what[2] for what in fdesc[3]]
     bad_params = [
         flag for flag in param_flags if
-        (flag & (pythoncom.PARAMFLAG_FOUT | pythoncom.PARAMFLAG_FRETVAL)) != 0
+        (flag & (PARAMFLAG_FOUT(pythoncom) | PARAMFLAG_FRETVAL(pythoncom))) != 0
     ]
     s = nothing
     if length(bad_params) == 0 && length(retDesc) == 2 && retDesc[2] == 0
@@ -427,7 +429,7 @@ function MakeDispatchFuncMethod(
             s =
                 "%s\treturn self._oleobj_.InvokeTypes(%d, LCID, %s, %s, %s%s)" %
                 (linePrefix, id, fdesc[5], retDesc, argsDesc, _BuildArgList(fdesc, names))
-        elseif rd in [pythoncom.VT_DISPATCH, pythoncom.VT_UNKNOWN]
+        elseif rd in [VT_DISPATCH(pythoncom), VT_UNKNOWN(pythoncom)]
             s =
                 "%s\tret = self._oleobj_.InvokeTypes(%d, LCID, %s, %s, %s%s)\n" % (
                     linePrefix,
@@ -438,7 +440,7 @@ function MakeDispatchFuncMethod(
                     _BuildArgList(fdesc, names),
                 )
             s = s + ("%s\tif ret is not None:\n" % (linePrefix,))
-            if rd == pythoncom.VT_UNKNOWN
+            if rd == VT_UNKNOWN(pythoncom)
                 s =
                     s + (
                         "%s\t\t# See if this IUnknown is really an IDispatch\n" %
@@ -457,7 +459,7 @@ function MakeDispatchFuncMethod(
                 s +
                 ("%s\t\tret = Dispatch(ret, %s, %s)\n" % (linePrefix, repr(name), resclsid))
             s = s + ("%s\treturn ret" % linePrefix)
-        elseif rd == pythoncom.VT_BSTR
+        elseif rd == VT_BSTR(pythoncom)
             s = "%s\t# Result is a Unicode object\n" % (linePrefix,)
             s =
                 s + (
@@ -513,7 +515,7 @@ function MakeVarArgsFuncMethod(
     if fdesc
         invoketype = fdesc[5]
     else
-        invoketype = pythoncom.DISPATCH_METHOD
+        invoketype = DISPATCH_METHOD(pythoncom)
     end
     s = linePrefix + "\treturn self._get_good_object_(self._oleobj_.Invoke(*(("
     push!(
@@ -552,40 +554,40 @@ mutable struct LazyDispatchItem <: AbstractLazyDispatchItem
 end
 
 typeSubstMap = Dict(
-    pythoncom.VT_INT => pythoncom.VT_I4,
-    pythoncom.VT_UINT => pythoncom.VT_UI4,
-    pythoncom.VT_HRESULT => pythoncom.VT_I4,
+    VT_INT(pythoncom) => VT_I4(pythoncom),
+    VT_UINT(pythoncom) => VT_UI4(pythoncom),
+    VT_HRESULT(pythoncom) => VT_I4(pythoncom),
 )
 function _ResolveType(typerepr, itypeinfo)::Tuple
     if type_(typerepr) == tuple
         indir_vt, subrepr = typerepr
-        if indir_vt == pythoncom.VT_PTR
-            was_user = type_(subrepr) == tuple && subrepr[1] == pythoncom.VT_USERDEFINED
+        if indir_vt == VT_PTR(pythoncom)
+            was_user = type_(subrepr) == tuple && subrepr[1] == VT_USERDEFINED(pythoncom)
             subrepr, sub_clsid, sub_doc = _ResolveType(subrepr, itypeinfo)
-            if was_user &&
-               subrepr in [pythoncom.VT_DISPATCH, pythoncom.VT_UNKNOWN, pythoncom.VT_RECORD]
+            if was_user && subrepr in
+               [VT_DISPATCH(pythoncom), VT_UNKNOWN(pythoncom), VT_RECORD(pythoncom)]
                 return (subrepr, sub_clsid, sub_doc)
             end
-            return (subrepr | pythoncom.VT_BYREF, sub_clsid, sub_doc)
+            return (subrepr | VT_BYREF(pythoncom), sub_clsid, sub_doc)
         end
-        if indir_vt == pythoncom.VT_SAFEARRAY
+        if indir_vt == VT_SAFEARRAY(pythoncom)
             subrepr, sub_clsid, sub_doc = _ResolveType(subrepr, itypeinfo)
-            return (pythoncom.VT_ARRAY | subrepr, sub_clsid, sub_doc)
+            return (VT_ARRAY(pythoncom) | subrepr, sub_clsid, sub_doc)
         end
-        if indir_vt == pythoncom.VT_CARRAY
-            return (pythoncom.VT_CARRAY, nothing, nothing)
+        if indir_vt == VT_CARRAY(pythoncom)
+            return (VT_CARRAY(pythoncom), nothing, nothing)
         end
-        if indir_vt == pythoncom.VT_USERDEFINED
+        if indir_vt == VT_USERDEFINED(pythoncom)
             try
                 resultTypeInfo = GetRefTypeInfo(itypeinfo, subrepr)
             catch exn
                 let details = exn
-                    if details isa pythoncom.com_error
+                    if details isa com_error(pythoncom)
                         if hresult(details) in [
                             winerror.TYPE_E_CANTLOADLIBRARY,
                             winerror.TYPE_E_LIBNOTREGISTERED,
                         ]
-                            return (pythoncom.VT_UNKNOWN, nothing, nothing)
+                            return (VT_UNKNOWN(pythoncom), nothing, nothing)
                         end
                         error()
                     end
@@ -593,21 +595,21 @@ function _ResolveType(typerepr, itypeinfo)::Tuple
             end
             resultAttr = GetTypeAttr(resultTypeInfo)
             typeKind = typekind(resultAttr)
-            if typeKind == pythoncom.TKIND_ALIAS
+            if typeKind == TKIND_ALIAS(pythoncom)
                 tdesc = tdescAlias(resultAttr)
                 return _ResolveType(tdesc, resultTypeInfo)
-            elseif typeKind in [pythoncom.TKIND_ENUM, pythoncom.TKIND_MODULE]
-                return (pythoncom.VT_I4, nothing, nothing)
-            elseif typeKind == pythoncom.TKIND_DISPATCH
+            elseif typeKind in [TKIND_ENUM(pythoncom), TKIND_MODULE(pythoncom)]
+                return (VT_I4(pythoncom), nothing, nothing)
+            elseif typeKind == TKIND_DISPATCH(pythoncom)
                 clsid = GetTypeAttr(resultTypeInfo)[1]
                 retdoc = GetDocumentation(resultTypeInfo, -1)
-                return (pythoncom.VT_DISPATCH, clsid, retdoc)
-            elseif typeKind in [pythoncom.TKIND_INTERFACE, pythoncom.TKIND_COCLASS]
+                return (VT_DISPATCH(pythoncom), clsid, retdoc)
+            elseif typeKind in [TKIND_INTERFACE(pythoncom), TKIND_COCLASS(pythoncom)]
                 clsid = GetTypeAttr(resultTypeInfo)[1]
                 retdoc = GetDocumentation(resultTypeInfo, -1)
-                return (pythoncom.VT_UNKNOWN, clsid, retdoc)
-            elseif typeKind == pythoncom.TKIND_RECORD
-                return (pythoncom.VT_RECORD, nothing, nothing)
+                return (VT_UNKNOWN(pythoncom), clsid, retdoc)
+            elseif typeKind == TKIND_RECORD(pythoncom)
+                return (VT_RECORD(pythoncom), nothing, nothing)
             end
             throw(NotSupportedException("Can not resolve alias or user-defined type"))
         end
@@ -670,10 +672,10 @@ function MakeDefaultArgRepr(defArgVal)::Union[str, Any]
         inOut = defArgVal[2]
     catch exn
         if exn isa IndexError
-            inOut = pythoncom.PARAMFLAG_FIN
+            inOut = PARAMFLAG_FIN(pythoncom)
         end
     end
-    if inOut & pythoncom.PARAMFLAG_FHASDEFAULT
+    if inOut & PARAMFLAG_FHASDEFAULT(pythoncom)
         val = defArgVal[3]
         if isa(val, datetime.datetime)
             return repr(tuple(utctimetuple(val)))
@@ -728,8 +730,8 @@ function BuildCallList(
         thisdesc = fdesc[3][arg+1]
         defArgVal = MakeDefaultArgRepr(thisdesc)
         if defArgVal === nothing
-            if (thisdesc[2] & (pythoncom.PARAMFLAG_FOUT | pythoncom.PARAMFLAG_FIN)) ==
-               pythoncom.PARAMFLAG_FOUT
+            if (thisdesc[2] & (PARAMFLAG_FOUT(pythoncom) | PARAMFLAG_FIN(pythoncom))) ==
+               PARAMFLAG_FOUT(pythoncom)
                 defArgVal = defOutArg
             elseif namedArg
                 if arg >= firstOptArg

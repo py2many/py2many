@@ -1,4 +1,6 @@
 using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 #= A utility for browsing COM objects.
 
  Usage:
@@ -27,7 +29,7 @@ import win32con
 import win32api
 import win32ui
 
-import pythoncom
+
 using win32com.client: util
 using pywin.tools: browser
 mutable struct HLIRoot <: AbstractHLIRoot
@@ -159,10 +161,10 @@ end
 function GetSubList(self::AbstractHLIHeadingCategory)::Vector
     catinf = CoCreateInstance(
         pythoncom,
-        pythoncom.CLSID_StdComponentCategoriesMgr,
+        CLSID_StdComponentCategoriesMgr(pythoncom),
         nothing,
-        pythoncom.CLSCTX_INPROC,
-        pythoncom.IID_ICatInformation,
+        CLSCTX_INPROC(pythoncom),
+        IID_ICatInformation(pythoncom),
     )
     enum = Enumerator(util, EnumCategories(catinf))
     ret = []
@@ -171,7 +173,7 @@ function GetSubList(self::AbstractHLIHeadingCategory)::Vector
             push!(ret, HLICategory((catid, lcid, desc)))
         end
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             #= pass =#
         end
     end
@@ -195,10 +197,10 @@ function GetSubList(self::AbstractHLICategory)::Vector
     catid, lcid, desc = self.myobject
     catinf = CoCreateInstance(
         pythoncom,
-        pythoncom.CLSID_StdComponentCategoriesMgr,
+        CLSID_StdComponentCategoriesMgr(pythoncom),
         nothing,
-        pythoncom.CLSCTX_INPROC,
-        pythoncom.IID_ICatInformation,
+        CLSCTX_INPROC(pythoncom),
+        IID_ICatInformation(pythoncom),
     )
     ret = []
     for clsid in Enumerator(util, EnumClassesOfCategories(catinf, (catid,), ()))
@@ -468,9 +470,9 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
     id::Any
     name::Any
     type_flags::Any
-    funckinds::Dict{Any,String}
-    invokekinds::Dict{Any,String}
-    vartypes::Dict{Any,String}
+    funckinds::Dict{auto,String}
+    invokekinds::Dict{auto,String}
+    vartypes::Dict{auto,String}
 
     HLITypeLibFunction(myitem) = begin
         HLICOM.__init__(self, myitem, name)
@@ -482,7 +484,7 @@ function GetText(self::AbstractHLITypeLibFunction)::String
 end
 
 function MakeReturnTypeName(self::AbstractHLITypeLibFunction, typ)
-    justtyp = typ & pythoncom.VT_TYPEMASK
+    justtyp = typ & VT_TYPEMASK(pythoncom)
     try
         typname = self.vartypes[justtyp+1]
     catch exn
@@ -502,7 +504,7 @@ function MakeReturnType(self::AbstractHLITypeLibFunction, returnTypeDesc)
     if type_(returnTypeDesc) == type_(())
         first = returnTypeDesc[1]
         result = MakeReturnType(self, first)
-        if first != pythoncom.VT_USERDEFINED
+        if first != VT_USERDEFINED(pythoncom)
             result = result * " " + MakeReturnType(self, returnTypeDesc[2])
         end
         return result
@@ -572,14 +574,14 @@ function GetSubList(self::AbstractHLITypeLibFunction)::Vector
 end
 
 HLITypeKinds = Dict(
-    pythoncom.TKIND_ENUM => (HLITypeLibEnum, "Enumeration"),
-    pythoncom.TKIND_RECORD => (HLITypeLibEntry, "Record"),
-    pythoncom.TKIND_MODULE => (HLITypeLibEnum, "Module"),
-    pythoncom.TKIND_INTERFACE => (HLITypeLibMethod, "Interface"),
-    pythoncom.TKIND_DISPATCH => (HLITypeLibMethod, "Dispatch"),
-    pythoncom.TKIND_COCLASS => (HLICoClass, "CoClass"),
-    pythoncom.TKIND_ALIAS => (HLITypeLibEntry, "Alias"),
-    pythoncom.TKIND_UNION => (HLITypeLibEntry, "Union"),
+    TKIND_ENUM(pythoncom) => (HLITypeLibEnum, "Enumeration"),
+    TKIND_RECORD(pythoncom) => (HLITypeLibEntry, "Record"),
+    TKIND_MODULE(pythoncom) => (HLITypeLibEnum, "Module"),
+    TKIND_INTERFACE(pythoncom) => (HLITypeLibMethod, "Interface"),
+    TKIND_DISPATCH(pythoncom) => (HLITypeLibMethod, "Dispatch"),
+    TKIND_COCLASS(pythoncom) => (HLICoClass, "CoClass"),
+    TKIND_ALIAS(pythoncom) => (HLITypeLibEntry, "Alias"),
+    TKIND_UNION(pythoncom) => (HLITypeLibEntry, "Union"),
 )
 mutable struct HLITypeLib <: AbstractHLITypeLib
     myobject::Any
@@ -590,7 +592,7 @@ function GetSubList(self::AbstractHLITypeLib)::Vector
     try
         tlb = LoadTypeLib(pythoncom, self.myobject)
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             return [MakeHLI(browser, "%s can not be loaded" % self.myobject)]
         end
     end
@@ -598,7 +600,7 @@ function GetSubList(self::AbstractHLITypeLib)::Vector
         try
             push!(ret, HLITypeKinds[GetTypeInfoType(tlb, i)][1]((tlb, i)))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 push!(ret, MakeHLI(browser, "The type info can not be loaded!"))
             end
         end
