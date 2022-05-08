@@ -12,7 +12,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_ty
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import MODULE_DISPATCH_TABLE
+from pyjl.plugins import IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 from pyjl.global_vars import NONE_TYPE
 from pyjl.global_vars import DEFAULT_TYPE
 import importlib
@@ -96,7 +96,9 @@ JL_IGNORED_MODULE_SET = set([
     "argparse_dataclass",
     "bisect",
     "base64",
-    "binascii"
+    "binascii",
+    ########################################################
+    "pythoncom"
 ])
 
 JULIA_TYPE_MAP = {
@@ -283,18 +285,22 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     ################# For Julia Imports ##################
     ######################################################
 
-    def visit_Import(self, node) -> str:
+    def visit_Import(self, node: ast.Import) -> str:
         '''Adds extra function call to _import_str to add 
         Julia import syntax'''
 
-        # Add imports to _imported_names
         names = [self.visit(n) for n in node.names]
         for name, asname in names:
             try:
                 imported_name = importlib.import_module(name)
             except ImportError:
                 imported_name = name
+
+            #  Handle external modules
+            if name in IMPORT_DISPATCH_TABLE:
+                IMPORT_DISPATCH_TABLE[name](self, node)
                 
+            # Add imports to _imported_names
             if asname:
                 self._imported_names[asname] = imported_name
             else:
@@ -310,9 +316,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
         return "\n".join(imports)
 
-    def visit_ImportFrom(self, node) -> str:
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> str:
         '''Adds to import map even if it is ignored. 
         This ensures that dispatch is correct'''
+
+        # Handle external modules
+        if node.module in IMPORT_DISPATCH_TABLE:
+            IMPORT_DISPATCH_TABLE[node.module](self, node)
 
         imported_name = MODULE_DISPATCH_TABLE[node.module] if node.module in MODULE_DISPATCH_TABLE else node.module
         imported_module = None

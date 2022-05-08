@@ -3,13 +3,15 @@ import os
 
 MOD_DIR = "pyjl/external/modules"
 
-
+# Alternative: ("plugins", [(_small_dispatch_map, "SMALL_DISPATCH_MAP"), ...]
+# This accounts for the self names (or just add "_" and lowercase)
 EXTENSION_EXTRACT_MAP = [
     ("plugins", ["SMALL_DISPATCH_MAP", "MODULE_DISPATCH_TABLE", "FUNC_DISPATCH_TABLE"]),
     ("clike", ["JL_IGNORED_MODULE_SET"])
 ]
 
 
+# TODO: change self arguments instead of global lists (Just add to clike)
 def import_external_modules(t_self, external_mods: list[str]):
     """Updates all the dispatch maps to account for external modules"""
     for mod_name in external_mods:

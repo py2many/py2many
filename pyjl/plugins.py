@@ -621,6 +621,15 @@ class JuliaRewriterPlugins:
         return node
 
 
+class JuliaExternalModulePlugins():
+    ########################################################
+    # External modules
+    def visit_pycomm(t_self, node: ast.Call):
+        t_self._usings.add("PyCall")
+        import_stmt = "pythoncom = pyimport(\"pythoncom\")"
+        t_self._globals.add(import_stmt)
+
+
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -649,6 +658,8 @@ SMALL_DISPATCH_MAP = {
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
     "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})",
+    ########################################################
+    
 }
 
 SMALL_USINGS_MAP = {
@@ -670,6 +681,11 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "dataclass": "DataClass",
     "json": "JSON",
     "datetime": "Dates",
+}
+
+########################################################
+IMPORT_DISPATCH_TABLE = {
+    "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
 }
 
 DECORATOR_DISPATCH_TABLE = {
