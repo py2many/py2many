@@ -1,4 +1,6 @@
 import ast
+from importlib.resources import path
+import os
 from pathlib import Path
 import re
 from py2many.analysis import IGNORED_MODULE_SET

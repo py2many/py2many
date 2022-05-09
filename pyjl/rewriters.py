@@ -1,6 +1,7 @@
 from __future__ import annotations, nested_scopes
 import ast
 import copy
+import os
 import sys
 from typing import Any, Dict
 
@@ -31,7 +32,12 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            new_func_name = fname.attr
+            # Bypass init module calls
+            func_repr = get_id(fname)
+            path = os.sep.join(func_repr.split(".")[:-1])
+            if os.path.isdir(f"{os.path.curdir}/{path}"):
+                self._insert_init(fname)
+                return node
 
             if get_id(fname.value):
                 node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
@@ -40,6 +46,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
             args = [node0] + node.args
 
+            new_func_name = fname.attr
             node.func = ast.Name(
                 id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
@@ -71,6 +78,17 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             lineno=node.lineno,
             col_offset=node.col_offset,
             annotation = annotation)
+
+    def _insert_init(self, node):
+        if isinstance(node.value, ast.Attribute):
+            self._insert_init(node.value)
+        else:
+            node.value = ast.Attribute(
+                value = node.value,
+                attr = node.attr,
+                ctx = ast.Load()
+            )
+            node.attr = "__init__"
 
 
 class JuliaClassRewriter(ast.NodeTransformer):

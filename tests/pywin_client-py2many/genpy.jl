@@ -49,7 +49,7 @@ mapVTToTypeString = Dict(
 function MakeDefaultArgsForPropertyPut(argsDesc)::Tuple
     ret = []
     for desc in argsDesc[2:end]
-        default = MakeDefaultArgRepr(build, desc)
+        default = build.MakeDefaultArgRepr.__init__(desc)
         if default === nothing
             break
         end
@@ -271,7 +271,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
             write(
                 stream,
                 "\t%-30s=%-10s # from enum %s",
-                (MakePublicAttributeName(build, name, true), use, enumName),
+                (__init__(build.MakePublicAttributeName, name, true), use, enumName),
             )
             num += 1
         end
@@ -322,7 +322,7 @@ function WriteVTableMap(self::VTableItem, generator)
             if (item_num % 5) == 0
                 write(stream)
             end
-            defval = MakeDefaultArgRepr(build, arg)
+            defval = build.MakeDefaultArgRepr.__init__(arg)
             if arg[4] === nothing
                 arg3_repr = nothing
             else
@@ -523,7 +523,7 @@ function WriteClassBody(self::DispatchItem, generator)
                     name,
                 )
             end
-            ret = MakeFuncMethod(self, entry, MakePublicAttributeName(build, name))
+            ret = MakeFuncMethod(self, entry, __init__(build.MakePublicAttributeName, name))
             for line in ret
                 write(stream)
             end
@@ -571,7 +571,7 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": %s,",
-                (MakePublicAttributeName(build, key), mapEntry),
+                (__init__(build.MakePublicAttributeName, key), mapEntry),
             )
         end
     end
@@ -616,7 +616,7 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": %s,",
-                (MakePublicAttributeName(build, key), mapEntry),
+                (__init__(build.MakePublicAttributeName, key), mapEntry),
             )
         end
     end
@@ -629,7 +629,7 @@ function WriteClassBody(self::DispatchItem, generator)
         if bBuildHidden(generator) || !hidden(entry)
             lkey = lower(key)
             details = desc(entry)
-            defArgDesc = MakeDefaultArgRepr(build, details[3])
+            defArgDesc = build.MakeDefaultArgRepr.__init__(details[3])
             if defArgDesc === nothing
                 defArgDesc = ""
             else
@@ -639,7 +639,7 @@ function WriteClassBody(self::DispatchItem, generator)
                 stream,
                 "\t\t\"%s\" : ((%s, LCID, %d, 0),(%s)),",
                 (
-                    MakePublicAttributeName(build, key),
+                    __init__(build.MakePublicAttributeName, key),
                     details[1],
                     DISPATCH_PROPERTYPUT(pythoncom),
                     defArgDesc,
@@ -657,7 +657,12 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": ((%s, LCID, %d, 0),%s),",
-                (MakePublicAttributeName(build, key), details[1], details[5], defArgDesc),
+                (
+                    __init__(build.MakePublicAttributeName, key),
+                    details[1],
+                    details[5],
+                    defArgDesc,
+                ),
             )
         end
     end
@@ -1337,10 +1342,10 @@ function generate_child(self::Generator, child, dir)
             info, infotype, doc, attr = type_info_tuple
             if infotype == TKIND_COCLASS(pythoncom)
                 coClassItem, child_infos = _Build_CoClass(self, type_info_tuple)
-                found = MakePublicAttributeName(build, doc[1]) == child
+                found = build.MakePublicAttributeName.__init__(doc[1]) == child
                 if !(found)
                     for (info, info_type, refType, doc, refAttr, flags) in child_infos
-                        if MakePublicAttributeName(build, doc[1]) == child
+                        if build.MakePublicAttributeName.__init__(doc[1]) == child
                             found = 1
                             break
                         end
@@ -1363,7 +1368,7 @@ function generate_child(self::Generator, child, dir)
             for type_info_tuple in infos
                 info, infotype, doc, attr = type_info_tuple
                 if infotype in [TKIND_INTERFACE(pythoncom), TKIND_DISPATCH(pythoncom)]
-                    if MakePublicAttributeName(build, doc[1]) == child
+                    if build.MakePublicAttributeName.__init__(doc[1]) == child
                         found = 1
                         oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
                         oleItems[clsid+1] = oleItem

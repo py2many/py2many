@@ -165,9 +165,9 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
                 attr = GetTypeAttr(typeinfo)
             end
             if typecomp === nothing
-                olerepr = DispatchItem(build, typeinfo, attr, nothing, 0)
+                olerepr = build.DispatchItem.__init__(typeinfo, attr, nothing, 0)
             else
-                olerepr = LazyDispatchItem(build, attr, nothing)
+                olerepr = build.LazyDispatchItem.__init__(attr, nothing)
             end
         catch exn
             if exn isa ole_error(pythoncom)
@@ -176,7 +176,7 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
         end
     end
     if olerepr === nothing
-        olerepr = DispatchItem(build)
+        olerepr = build.DispatchItem.__init__()
     end
     return olerepr
 end
@@ -194,7 +194,7 @@ function DumbDispatch(
     if createClass === nothing
         createClass = CDispatch
     end
-    return createClass(IDispatch, DispatchItem(build), userName)
+    return createClass(IDispatch, __init__(build.DispatchItem), userName)
 end
 
 mutable struct CDispatch <: AbstractCDispatch
@@ -481,7 +481,7 @@ end
 
 function _make_method_(self::CDispatch, name)
     #= Make a method object - Assumes in olerepr funcmap =#
-    methodName = MakePublicAttributeName(build, name)
+    methodName = build.MakePublicAttributeName.__init__(name)
     methodCodeList =
         MakeFuncMethod(self._olerepr_, self._olerepr_.mapFuncs[name+1], methodName, 0)
     methodCode = join(methodCodeList, "\n")
@@ -625,7 +625,7 @@ function _FlagAsMethod(self::CDispatch)
             should then allow this to work.
              =#
     for name in methodNames
-        details = MapEntry(build, __AttrToID__(self, name), (name,))
+        details = build.MapEntry.__init__(__AttrToID__(self, name), (name,))
         self._olerepr_.mapFuncs[name+1] = details
     end
 end
@@ -692,7 +692,7 @@ function __getattr__(self::CDispatch, attr)::Tuple
                     end
                 end
                 if retEntry === nothing
-                    retEntry = MapEntry(build, __AttrToID__(self, attr), (attr,))
+                    retEntry = build.MapEntry.__init__(__AttrToID__(self, attr), (attr,))
                 end
             catch exn
                 if exn isa ole_error(pythoncom)
@@ -770,7 +770,7 @@ function __setattr__(self::CDispatch, attr, value)
             end
         end
         try
-            entry = MapEntry(build, __AttrToID__(self, attr), (attr,))
+            entry = build.MapEntry.__init__(__AttrToID__(self, attr), (attr,))
         catch exn
             if exn isa com_error(pythoncom)
                 entry = nothing
