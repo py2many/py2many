@@ -1,6 +1,4 @@
-using Printf
-using PyCall
-pythoncom = pyimport("pythoncom")
+module combrowse
 #= A utility for browsing COM objects.
 
  Usage:
@@ -25,6 +23,9 @@ pythoncom = pyimport("pythoncom")
    work.
 
  =#
+using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 
 using pywin.tools: hierlist
 import win32con
@@ -165,10 +166,10 @@ end
 function GetSubList(self::HLIHeadingCategory)::Vector
     catinf = CoCreateInstance(
         pythoncom,
-        CLSID_StdComponentCategoriesMgr(pythoncom),
+        pythoncom.CLSID_StdComponentCategoriesMgr,
         nothing,
-        CLSCTX_INPROC(pythoncom),
-        IID_ICatInformation(pythoncom),
+        pythoncom.CLSCTX_INPROC,
+        pythoncom.IID_ICatInformation,
     )
     enum = Enumerator(util, EnumCategories(catinf))
     ret = []
@@ -177,7 +178,7 @@ function GetSubList(self::HLIHeadingCategory)::Vector
             push!(ret, HLICategory((catid, lcid, desc)))
         end
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             #= pass =#
         end
     end
@@ -201,10 +202,10 @@ function GetSubList(self::HLICategory)::Vector
     catid, lcid, desc = self.myobject
     catinf = CoCreateInstance(
         pythoncom,
-        CLSID_StdComponentCategoriesMgr(pythoncom),
+        pythoncom.CLSID_StdComponentCategoriesMgr,
         nothing,
-        CLSCTX_INPROC(pythoncom),
-        IID_ICatInformation(pythoncom),
+        pythoncom.CLSCTX_INPROC,
+        pythoncom.IID_ICatInformation,
     )
     ret = []
     for clsid in Enumerator(util, EnumClassesOfCategories(catinf, (catid,), ()))
@@ -478,86 +479,86 @@ end
 
 mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
     funcflags::Vector{Tuple}
-    funckinds::Dict{auto,String}
+    funckinds::Dict{Any,String}
     id::Any
-    invokekinds::Dict{auto,String}
+    invokekinds::Dict{Any,String}
     name::Any
     type_flags::Vector{Tuple}
-    vartypes::Dict{auto,String}
+    vartypes::Dict{Any,String}
 
     HLITypeLibFunction(
         myitem,
         funcflags::Vector{Tuple} = [
-            (FUNCFLAG_FRESTRICTED(pythoncom), "Restricted"),
-            (FUNCFLAG_FSOURCE(pythoncom), "Source"),
-            (FUNCFLAG_FBINDABLE(pythoncom), "Bindable"),
-            (FUNCFLAG_FREQUESTEDIT(pythoncom), "Request Edit"),
-            (FUNCFLAG_FDISPLAYBIND(pythoncom), "Display Bind"),
-            (FUNCFLAG_FDEFAULTBIND(pythoncom), "Default Bind"),
-            (FUNCFLAG_FHIDDEN(pythoncom), "Hidden"),
-            (FUNCFLAG_FUSESGETLASTERROR(pythoncom), "Uses GetLastError"),
+            (pythoncom.FUNCFLAG_FRESTRICTED, "Restricted"),
+            (pythoncom.FUNCFLAG_FSOURCE, "Source"),
+            (pythoncom.FUNCFLAG_FBINDABLE, "Bindable"),
+            (pythoncom.FUNCFLAG_FREQUESTEDIT, "Request Edit"),
+            (pythoncom.FUNCFLAG_FDISPLAYBIND, "Display Bind"),
+            (pythoncom.FUNCFLAG_FDEFAULTBIND, "Default Bind"),
+            (pythoncom.FUNCFLAG_FHIDDEN, "Hidden"),
+            (pythoncom.FUNCFLAG_FUSESGETLASTERROR, "Uses GetLastError"),
         ],
-        funckinds::Dict{auto,String} = Dict(
-            FUNC_VIRTUAL(pythoncom) => "Virtual",
-            FUNC_PUREVIRTUAL(pythoncom) => "Pure Virtual",
-            FUNC_STATIC(pythoncom) => "Static",
-            FUNC_DISPATCH(pythoncom) => "Dispatch",
+        funckinds::Dict{Any,String} = Dict(
+            pythoncom.FUNC_VIRTUAL => "Virtual",
+            pythoncom.FUNC_PUREVIRTUAL => "Pure Virtual",
+            pythoncom.FUNC_STATIC => "Static",
+            pythoncom.FUNC_DISPATCH => "Dispatch",
         ),
         id = GetFuncDesc(typeinfo, index)[1],
-        invokekinds::Dict{auto,String} = Dict(
-            INVOKE_FUNC(pythoncom) => "Function",
-            INVOKE_PROPERTYGET(pythoncom) => "Property Get",
-            INVOKE_PROPERTYPUT(pythoncom) => "Property Put",
-            INVOKE_PROPERTYPUTREF(pythoncom) => "Property Put by reference",
+        invokekinds::Dict{Any,String} = Dict(
+            pythoncom.INVOKE_FUNC => "Function",
+            pythoncom.INVOKE_PROPERTYGET => "Property Get",
+            pythoncom.INVOKE_PROPERTYPUT => "Property Put",
+            pythoncom.INVOKE_PROPERTYPUTREF => "Property Put by reference",
         ),
         name = GetNames(typeinfo, self.id)[1],
         type_flags::Vector{Tuple} = [
-            (VT_VECTOR(pythoncom), "Vector"),
-            (VT_ARRAY(pythoncom), "Array"),
-            (VT_BYREF(pythoncom), "ByRef"),
-            (VT_RESERVED(pythoncom), "Reserved"),
+            (pythoncom.VT_VECTOR, "Vector"),
+            (pythoncom.VT_ARRAY, "Array"),
+            (pythoncom.VT_BYREF, "ByRef"),
+            (pythoncom.VT_RESERVED, "Reserved"),
         ],
-        vartypes::Dict{auto,String} = Dict(
-            VT_EMPTY(pythoncom) => "Empty",
-            VT_NULL(pythoncom) => "NULL",
-            VT_I2(pythoncom) => "Integer 2",
-            VT_I4(pythoncom) => "Integer 4",
-            VT_R4(pythoncom) => "Real 4",
-            VT_R8(pythoncom) => "Real 8",
-            VT_CY(pythoncom) => "CY",
-            VT_DATE(pythoncom) => "Date",
-            VT_BSTR(pythoncom) => "String",
-            VT_DISPATCH(pythoncom) => "IDispatch",
-            VT_ERROR(pythoncom) => "Error",
-            VT_BOOL(pythoncom) => "BOOL",
-            VT_VARIANT(pythoncom) => "Variant",
-            VT_UNKNOWN(pythoncom) => "IUnknown",
-            VT_DECIMAL(pythoncom) => "Decimal",
-            VT_I1(pythoncom) => "Integer 1",
-            VT_UI1(pythoncom) => "Unsigned integer 1",
-            VT_UI2(pythoncom) => "Unsigned integer 2",
-            VT_UI4(pythoncom) => "Unsigned integer 4",
-            VT_I8(pythoncom) => "Integer 8",
-            VT_UI8(pythoncom) => "Unsigned integer 8",
-            VT_INT(pythoncom) => "Integer",
-            VT_UINT(pythoncom) => "Unsigned integer",
-            VT_VOID(pythoncom) => "Void",
-            VT_HRESULT(pythoncom) => "HRESULT",
-            VT_PTR(pythoncom) => "Pointer",
-            VT_SAFEARRAY(pythoncom) => "SafeArray",
-            VT_CARRAY(pythoncom) => "C Array",
-            VT_USERDEFINED(pythoncom) => "User Defined",
-            VT_LPSTR(pythoncom) => "Pointer to string",
-            VT_LPWSTR(pythoncom) => "Pointer to Wide String",
-            VT_FILETIME(pythoncom) => "File time",
-            VT_BLOB(pythoncom) => "Blob",
-            VT_STREAM(pythoncom) => "IStream",
-            VT_STORAGE(pythoncom) => "IStorage",
-            VT_STORED_OBJECT(pythoncom) => "Stored object",
-            VT_STREAMED_OBJECT(pythoncom) => "Streamed object",
-            VT_BLOB_OBJECT(pythoncom) => "Blob object",
-            VT_CF(pythoncom) => "CF",
-            VT_CLSID(pythoncom) => "CLSID",
+        vartypes::Dict{Any,String} = Dict(
+            pythoncom.VT_EMPTY => "Empty",
+            pythoncom.VT_NULL => "NULL",
+            pythoncom.VT_I2 => "Integer 2",
+            pythoncom.VT_I4 => "Integer 4",
+            pythoncom.VT_R4 => "Real 4",
+            pythoncom.VT_R8 => "Real 8",
+            pythoncom.VT_CY => "CY",
+            pythoncom.VT_DATE => "Date",
+            pythoncom.VT_BSTR => "String",
+            pythoncom.VT_DISPATCH => "IDispatch",
+            pythoncom.VT_ERROR => "Error",
+            pythoncom.VT_BOOL => "BOOL",
+            pythoncom.VT_VARIANT => "Variant",
+            pythoncom.VT_UNKNOWN => "IUnknown",
+            pythoncom.VT_DECIMAL => "Decimal",
+            pythoncom.VT_I1 => "Integer 1",
+            pythoncom.VT_UI1 => "Unsigned integer 1",
+            pythoncom.VT_UI2 => "Unsigned integer 2",
+            pythoncom.VT_UI4 => "Unsigned integer 4",
+            pythoncom.VT_I8 => "Integer 8",
+            pythoncom.VT_UI8 => "Unsigned integer 8",
+            pythoncom.VT_INT => "Integer",
+            pythoncom.VT_UINT => "Unsigned integer",
+            pythoncom.VT_VOID => "Void",
+            pythoncom.VT_HRESULT => "HRESULT",
+            pythoncom.VT_PTR => "Pointer",
+            pythoncom.VT_SAFEARRAY => "SafeArray",
+            pythoncom.VT_CARRAY => "C Array",
+            pythoncom.VT_USERDEFINED => "User Defined",
+            pythoncom.VT_LPSTR => "Pointer to string",
+            pythoncom.VT_LPWSTR => "Pointer to Wide String",
+            pythoncom.VT_FILETIME => "File time",
+            pythoncom.VT_BLOB => "Blob",
+            pythoncom.VT_STREAM => "IStream",
+            pythoncom.VT_STORAGE => "IStorage",
+            pythoncom.VT_STORED_OBJECT => "Stored object",
+            pythoncom.VT_STREAMED_OBJECT => "Streamed object",
+            pythoncom.VT_BLOB_OBJECT => "Blob object",
+            pythoncom.VT_CF => "CF",
+            pythoncom.VT_CLSID => "CLSID",
         ),
     ) = begin
         HLICOM.__init__(self, myitem, name)
@@ -569,7 +570,7 @@ function GetText(self::HLITypeLibFunction)
 end
 
 function MakeReturnTypeName(self::HLITypeLibFunction, typ)
-    justtyp = typ & VT_TYPEMASK(pythoncom)
+    justtyp = typ & pythoncom.VT_TYPEMASK
     try
         typname = self.vartypes[justtyp+1]
     catch exn
@@ -589,7 +590,7 @@ function MakeReturnType(self::HLITypeLibFunction, returnTypeDesc)
     if type_(returnTypeDesc) == type_(())
         first = returnTypeDesc[1]
         result = MakeReturnType(self, first)
-        if first != VT_USERDEFINED(pythoncom)
+        if first != pythoncom.VT_USERDEFINED
             result = result * " " + MakeReturnType(self, returnTypeDesc[2])
         end
         return result
@@ -659,14 +660,14 @@ function GetSubList(self::HLITypeLibFunction)::Vector
 end
 
 HLITypeKinds = Dict(
-    TKIND_ENUM(pythoncom) => (HLITypeLibEnum, "Enumeration"),
-    TKIND_RECORD(pythoncom) => (HLITypeLibEntry, "Record"),
-    TKIND_MODULE(pythoncom) => (HLITypeLibEnum, "Module"),
-    TKIND_INTERFACE(pythoncom) => (HLITypeLibMethod, "Interface"),
-    TKIND_DISPATCH(pythoncom) => (HLITypeLibMethod, "Dispatch"),
-    TKIND_COCLASS(pythoncom) => (HLICoClass, "CoClass"),
-    TKIND_ALIAS(pythoncom) => (HLITypeLibEntry, "Alias"),
-    TKIND_UNION(pythoncom) => (HLITypeLibEntry, "Union"),
+    pythoncom.TKIND_ENUM => (HLITypeLibEnum, "Enumeration"),
+    pythoncom.TKIND_RECORD => (HLITypeLibEntry, "Record"),
+    pythoncom.TKIND_MODULE => (HLITypeLibEnum, "Module"),
+    pythoncom.TKIND_INTERFACE => (HLITypeLibMethod, "Interface"),
+    pythoncom.TKIND_DISPATCH => (HLITypeLibMethod, "Dispatch"),
+    pythoncom.TKIND_COCLASS => (HLICoClass, "CoClass"),
+    pythoncom.TKIND_ALIAS => (HLITypeLibEntry, "Alias"),
+    pythoncom.TKIND_UNION => (HLITypeLibEntry, "Union"),
 )
 mutable struct HLITypeLib <: AbstractHLITypeLib
     myobject::Any
@@ -677,7 +678,7 @@ function GetSubList(self::HLITypeLib)::Vector
     try
         tlb = LoadTypeLib(pythoncom, self.myobject)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             return [MakeHLI(browser, "%s can not be loaded" % self.myobject)]
         end
     end
@@ -685,7 +686,7 @@ function GetSubList(self::HLITypeLib)::Vector
         try
             push!(ret, HLITypeKinds[GetTypeInfoType(tlb, i)][1]((tlb, i)))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 push!(ret, MakeHLI(browser, "The type info can not be loaded!"))
             end
         end
@@ -760,7 +761,7 @@ end
 
 function main_func(modal = false)
     root = HLIRoot("COM Browser")
-    if "app" in modules(sys)
+    if "app" in sys.modules
         MakeTemplate(browser)
         OpenObject(browser.template, root)
     else
@@ -784,3 +785,4 @@ function main()
 end
 
 main()
+end

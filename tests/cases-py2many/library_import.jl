@@ -33,7 +33,7 @@ end
 function main()
     b = typing_test()
     @assert(b == 2)
-    @assert(match(re, "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{6}", calendar_test()))
+    @assert(re.match("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{6}", calendar_test()))
     res = calendar_json_test()
     println(res)
     println("OK")

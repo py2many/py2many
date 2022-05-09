@@ -24,6 +24,13 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._ignored_module_set = JL_IGNORED_MODULE_SET
+        self._imports = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        imports = getattr(node, "imports", [])
+        self._imports = [get_id(import_alias) for import_alias in imports]
+        self.generic_visit(node)
+        return node
 
     def visit_Call(self, node):
         args = []
@@ -32,12 +39,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            # Bypass init module calls
-            func_repr = get_id(fname)
-            path = os.sep.join(func_repr.split(".")[:-1])
-            if os.path.isdir(f"{os.path.curdir}/{path}"):
-                self._insert_init(fname)
-                return node
+            self._handle_special_cases(fname)
 
             if get_id(fname.value):
                 node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
@@ -54,6 +56,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        if ret := self._handle_special_cases(node):
+            return ret
+
         value_id = None
         if node_id := get_id(node.value):
             value_id = node_id
@@ -78,6 +83,23 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             lineno=node.lineno,
             col_offset=node.col_offset,
             annotation = annotation)
+
+    def _handle_special_cases(self, node):
+        # Bypass init module calls
+        func_repr = get_id(node)
+        split_repr = func_repr.split(".")
+        path = os.sep.join(split_repr[:-1])
+        if os.path.isdir(f"{os.path.curdir}/{path}"):
+            self._insert_init(node)
+            return node
+
+        # Bypass imports
+        for i in range(1,len(split_repr)):
+            import_name = ".".join(split_repr[:i])
+            if import_name in self._imports:
+                return node
+
+        return None
 
     def _insert_init(self, node):
         if isinstance(node.value, ast.Attribute):
@@ -1160,3 +1182,28 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
             lineno = lineno,
             col_offset = col_offset if col_offset else 0,
             scopes = self._current_scope)
+
+
+class JuliaModuleRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        if getattr(node, "use_modules", None):
+            name = node.__file__.name.split(".")[0]
+            julia_module = juliaAst.JuliaModule(
+                body = node.body,
+                name = ast.Name(id = name),
+                context = ast.Load(),
+                scopes = node.scopes,
+                lineno = 0,
+                col_offset = 0
+            )
+
+            # Populate remaining fields
+            for key, elem in node.__dict__.items():
+                if key not in julia_module.__dict__:
+                    julia_module.__dict__[key] = elem
+
+            return julia_module
+        return node

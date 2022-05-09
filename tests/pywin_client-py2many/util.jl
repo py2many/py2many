@@ -1,13 +1,14 @@
-using PyCall
-pythoncom = pyimport("pythoncom")
+module util
 #= General client side utilities.
 
 This module contains utility functions, used primarily by advanced COM
 programmers, or other COM modules.
  =#
+using PyCall
+pythoncom = pyimport("pythoncom")
 
 using win32com.client: Dispatch, _get_good_object_
-PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
+PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 abstract type AbstractEnumerator end
 abstract type AbstractEnumVARIANT <: AbstractEnumerator end
 abstract type AbstractIterator end
@@ -18,8 +19,8 @@ function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
         (which may be either a class instance, or a dynamic.Dispatch type object).
 
          =#
-    if type_(ob) != TypeIIDs(pythoncom)[IID_IEnumVARIANT(pythoncom)+1]
-        ob = QueryInterface(ob, IID_IEnumVARIANT(pythoncom))
+    if type_(ob) != pythoncom.TypeIIDs[pythoncom.IID_IEnumVARIANT+1]
+        ob = QueryInterface(ob, pythoncom.IID_IEnumVARIANT)
     end
     return EnumVARIANT(ob, resultCLSID)
 end
@@ -107,7 +108,7 @@ mutable struct Iterator <: AbstractIterator
 
     Iterator(
         resultCLSID::Any,
-        _iter_::Any = (x for x in QueryInterface(enum, IID_IEnumVARIANT(pythoncom))),
+        _iter_::Any = (x for x in QueryInterface(enum, pythoncom.IID_IEnumVARIANT)),
     ) = new(resultCLSID, _iter_)
 end
 function __iter__(self::Iterator)
@@ -118,3 +119,4 @@ function __next__(self::Iterator)
     return _get_good_object_(next(self._iter_), self.resultCLSID)
 end
 
+end

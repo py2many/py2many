@@ -1,7 +1,8 @@
-using PyCall
-pythoncom = pyimport("pythoncom")
+module selecttlb
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
+using PyCall
+pythoncom = pyimport("pythoncom")
 import pywin.dialogs.list
 import win32api
 import win32con
@@ -199,3 +200,4 @@ function main()
 end
 
 main()
+end

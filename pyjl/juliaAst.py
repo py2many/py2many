@@ -5,15 +5,13 @@
     Helps with the conversion of Python's ast to Julia
 """
 
-from ast import NodeVisitor, expr, expr_context, stmt
+from ast import AST, NodeVisitor, expr, expr_context, stmt
 import ast
 from typing import Any
 
 ######################################
 ############### Types ################
 ######################################
-
-
 class AbstractType(stmt):
     value: expr
     extends: expr
@@ -30,27 +28,41 @@ class LetStmt(stmt):
     body: list[expr]
     ctx: expr_context
 
+class JuliaModule(ast.Module):
+    name: ast.Name
+    body: list[expr]
+    ctx: expr_context
+
 ######################################
 ############### Parser ###############
 ######################################
-
 
 class JuliaNodeVisitor(NodeVisitor):
 
     def visit_AbstractType(self, node: AbstractType) -> Any:
         """Visit abstract type node."""
-        method = 'visit_' + node.__class__.__name__
-        visitor = getattr(self, method, self.generic_visit)
-        return visitor(node)
+        self.visit(node.value)
+        self.visit(node.extends)
+        return node
 
     def visit_Constructor(self, node: Constructor) -> Any:
         """Visit Julia constructor"""
-        method = 'visit_' + node.__class__.__name__
-        visitor = getattr(self, method, self.generic_visit)
-        return visitor(node)
+        self.visit(node.name)
+        for a in node.args:
+            self.visit(a)
+        for n in node.body:
+            self.visit(n)
+        return node
 
     def visit_LetStmt(self, node: LetStmt) -> Any:
-        """Visit Julia constructor"""
-        method = 'visit_' + node.__class__.__name__
-        visitor = getattr(self, method, self.generic_visit)
-        return visitor(node)
+        """Visit Julia let statement"""
+        for a in node.args:
+            self.visit(a)
+        for n in node.body:
+            self.visit(n)
+        return node
+
+    def visit_JuliaModule(self, node: JuliaModule) -> Any:
+        """Visit Julia Module (a wrapper arround ast.Module)"""
+        self.visit_Module(node)
+        return node

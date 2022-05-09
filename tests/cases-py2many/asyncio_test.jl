@@ -21,8 +21,8 @@ end
     end
 end
 function main()::Int64
-    run(asyncio, async_main())
-    run(asyncio, echo_server())
+    asyncio.run(async_main())
+    asyncio.run(echo_server())
 end
 
 main()

@@ -1,6 +1,4 @@
-using Printf
-using PyCall
-pythoncom = pyimport("pythoncom")
+module makepy
 #= Generate a .py file from an OLE TypeLibrary file.
 
 
@@ -9,6 +7,9 @@ pythoncom = pyimport("pythoncom")
  the knowledge of a COM interface.
 
  =#
+using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 import win32ui
 import pywin
 using pywin.dialogs: status
@@ -42,7 +43,7 @@ function ShowInfo(spec)
                 lcid(tlbSpec),
             )
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 write(
                     sys.stderr,
                     "Warning - could not load registered typelib \'%s\'\n" % clsid(tlbSpec),
@@ -165,7 +166,7 @@ function GetTypeLibsForSpec(arg)::Vector
             FromTypelib(spec, tlb, arg)
             push!(typelibs, (tlb, spec))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 tlbs = FindTlbsWithDescription(selecttlb, arg)
                 if length(tlbs) == 0
                     try
@@ -175,7 +176,7 @@ function GetTypeLibsForSpec(arg)::Vector
                         FromTypelib(spec, tlb)
                         append(tlbs, spec)
                     catch exn
-                        if exn isa com_error(pythoncom)
+                        if exn isa pythoncom.com_error
                             #= pass =#
                         end
                     end
@@ -205,7 +206,7 @@ function GetTypeLibsForSpec(arg)::Vector
         end
         return typelibs
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             t, v, tb = exc_info(sys)
             write(sys.stderr, "Unable to load type library from \'%s\' - %s\n" % (arg, v))
             tb = nothing
@@ -387,7 +388,7 @@ function main_func()::Int64
     doit = 1
     bForDemand = bForDemandDefault
     try
-        opts, args = getopt(getopt, append!([PROGRAM_FILE], ARGS)[2:end], "vo:huiqd")
+        opts, args = getopt(getopt, sys.argv[2:end], "vo:huiqd")
         for (o, v) in opts
             if o == "-h"
                 hiddenSpec = 0
@@ -437,7 +438,7 @@ function main_func()::Int64
         if path != "" && !exists(os.path, path)
             makedirs(os, path)
         end
-        if version_info(sys) > (3, 0)
+        if sys.version_info > (3, 0)
             f = readline(outputName)
         else
             f = readline(codecs)
@@ -462,3 +463,4 @@ function main()
 end
 
 main()
+end

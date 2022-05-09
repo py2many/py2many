@@ -1,3 +1,4 @@
+module __init__
 using PyCall
 pythoncom = pyimport("pythoncom")
 
@@ -13,14 +14,14 @@ abstract type AbstractCoClassBaseClass end
 abstract type AbstractVARIANT <: Abstractobject end
 
 import pywintypes
-_PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
+_PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function __WrapDispatch(
     dispatch,
     userName = nothing,
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
     WrapperClass = nothing,
 )
     #= 
@@ -35,7 +36,7 @@ function __WrapDispatch(
                 resultCLSID = string(GetTypeAttr(typeinfo)[1])
             end
         catch exn
-            if exn isa (com_error(pythoncom), AttributeError)
+            if exn isa (pythoncom.com_error, AttributeError)
                 #= pass =#
             end
         end
@@ -69,7 +70,7 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
         This will most likely throw pythoncom.com_error if anything fails.
          =#
     if clsctx === nothing
-        clsctx = CLSCTX_ALL(pythoncom)
+        clsctx = pythoncom.CLSCTX_ALL
     end
     if Pathname === nothing && Class === nothing || Pathname != nothing && Class != nothing
         throw(ValueError("You must specify a value for Pathname or Class, but not both."))
@@ -81,22 +82,22 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
     end
 end
 
-function GetActiveObject(Class, clsctx = CLSCTX_ALL(pythoncom))
+function GetActiveObject(Class, clsctx = pythoncom.CLSCTX_ALL)
     #= 
         Python friendly version of GetObject's ProgID/CLSID functionality.
          =#
     resultCLSID = IID(pywintypes, Class)
     dispatch = GetActiveObject(pythoncom, resultCLSID)
-    dispatch = QueryInterface(dispatch, IID_IDispatch(pythoncom))
+    dispatch = QueryInterface(dispatch, pythoncom.IID_IDispatch)
     return __WrapDispatch(dispatch, Class)
 end
 
-function Moniker(Pathname, clsctx = CLSCTX_ALL(pythoncom))
+function Moniker(Pathname, clsctx = pythoncom.CLSCTX_ALL)
     #= 
         Python friendly version of GetObject's moniker functionality.
          =#
     moniker, i, bindCtx = MkParseDisplayName(pythoncom, Pathname)
-    dispatch = BindToObject(moniker, bindCtx, nothing, IID_IDispatch(pythoncom))
+    dispatch = BindToObject(moniker, bindCtx, nothing, pythoncom.IID_IDispatch)
     return __WrapDispatch(dispatch, Pathname)
 end
 
@@ -106,7 +107,7 @@ function Dispatch(
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
 )
     #= Creates a Dispatch based COM object. =#
     @assert(UnicodeToString === nothing)
@@ -126,9 +127,9 @@ function DispatchEx(
     #= Creates a Dispatch based COM object on a specific machine. =#
     @assert(UnicodeToString === nothing)
     if clsctx === nothing
-        clsctx = CLSCTX_SERVER(pythoncom)
+        clsctx = pythoncom.CLSCTX_SERVER
         if machine != nothing
-            clsctx = clsctx & ~CLSCTX_INPROC(pythoncom)
+            clsctx = clsctx & ~(pythoncom.CLSCTX_INPROC)
         end
     end
     if machine === nothing
@@ -145,7 +146,7 @@ function DispatchEx(
         nothing,
         clsctx,
         serverInfo,
-        (IID_IDispatch(pythoncom),),
+        (pythoncom.IID_IDispatch,),
     )[1]
     return Dispatch(dispatch, userName, resultCLSID, typeinfo)
 end
@@ -266,7 +267,7 @@ function __del__(self::EventsProxy)
     try
         close(self._obj_)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             #= pass =#
         end
     end
@@ -329,7 +330,7 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -398,7 +399,7 @@ function WithEvents(disp, user_event_class)
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -498,7 +499,7 @@ function Record(name, object)
           app.MoveTo(point)
          =#
     object = EnsureDispatch(gencache, object)
-    module_ = modules(sys)[__module__(object.__class__)+1]
+    module_ = sys.modules[__module__(object.__class__)+1]
     package = GetModuleForTypelib(
         gencache,
         CLSID(module_),
@@ -780,3 +781,4 @@ function __repr__(self::VARIANT)
     return "win32com.client.VARIANT(%r, %r)" % (self.varianttype, self._value)
 end
 
+end
