@@ -627,6 +627,13 @@ class JuliaExternalModulePlugins():
     # External modules
     def visit_pycomm(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "pythoncom")
+
+    def visit_pywintypes(t_self, node: ast.Call):
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
+
+    def visit_datetime(t_self, node: ast.Call):
+        # https://github.com/JuliaPy/PyCall.jl/issues/341
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "datetime")
     
     def _pycall_import(t_self, node: ast.Call, mod_name: str):
         t_self._usings.add("PyCall")
@@ -684,13 +691,13 @@ DISPATCH_MAP = {
 MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "dataclass": "DataClass",
     "json": "JSON",
-    "datetime": "Dates",
 }
 
 ########################################################
 IMPORT_DISPATCH_TABLE = {
     "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
-
+    "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
+    "datetime": JuliaExternalModulePlugins.visit_datetime,
 }
 
 DECORATOR_DISPATCH_TABLE = {

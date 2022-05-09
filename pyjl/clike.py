@@ -103,6 +103,8 @@ JL_IGNORED_MODULE_SET = set([
     "types",
     ########################################################
     "pythoncom",
+    "pywintypes",
+    "datetime",
 ])
 
 JULIA_TYPE_MAP = {
@@ -349,7 +351,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         if node.module in IMPORT_DISPATCH_TABLE:
             IMPORT_DISPATCH_TABLE[node.module](self, node)
 
-        imported_name = MODULE_DISPATCH_TABLE[node.module] if node.module in MODULE_DISPATCH_TABLE else node.module
+        imported_name = MODULE_DISPATCH_TABLE[node.module] \
+            if node.module in MODULE_DISPATCH_TABLE else node.module
         imported_module = None
         if node.module:
             try:
@@ -379,6 +382,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         '''Formatting Julia Imports'''
 
         import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
+        if import_str.startswith("include"):
+            if alias:
+                mod_name = name.split(".")[-1]
+                return f"{import_str}\nimport Main.{mod_name} as {alias}" 
+            else:
+                return import_str
         return f"{import_str} as {alias}" if alias else import_str
 
     ################################################

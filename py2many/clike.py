@@ -103,7 +103,6 @@ logger = logging.Logger("py2many")
 def class_for_typename(typename: str, default_type, locals=None) -> Union[str, object]:
     if typename is None:
         return None
-    # print(typename)
     if typename == "super" or typename.startswith("super()"):
         # Cant eval super; causes RuntimeError
         return None
@@ -137,6 +136,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._globals = set([])
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
+        self._module = None
+        self._path = None
         self._modules = []
         self._container_type_map = DEFAULT_CONTAINER_MAP
         self._default_type = _AUTO
@@ -144,7 +145,6 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._main_signature_arg_names = []
         self._extension = False
         self._ignored_module_set = IGNORED_MODULE_SET.copy()
-        self._module = None
         self._dispatch_map = {}
         self._small_dispatch_map = {}
         self._small_usings_map = {}
@@ -228,10 +228,6 @@ class CLikeTranspiler(ast.NodeVisitor):
                 raise AstNotImplementedError(e, node) from e
 
     def visit_Module(self, node) -> str:
-        # Update module list
-        self._modules = list(path.name.split(
-            ".")[0] for path in node.__files__)
-
         # Reset state
         self._usings.clear()
         self._type_map.clear()
@@ -241,10 +237,20 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._imported_names.clear()
         self._features.clear()
 
+        # Get attributes
         filename = getattr(node, "__file__", None)
-        if filename is not None:
+        if filename:
             self._module = Path(filename).stem
+        path = getattr(node, "__path__", None)
+        if path:
+            self._path = path
+        modules = node.__files__
+        if modules:
+            # Update module list
+            self._modules = list(path.name.split(
+                ".")[0] for path in modules)
         
+        # Visit non-function nodes
         body_dict: Dict[ast.AST, str] = OrderedDict()
         for b in node.body:
             if not isinstance(b, ast.FunctionDef):

@@ -18,6 +18,7 @@ Example
  =#
 using Printf
 using PyCall
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 include("util.jl")
 import win32com.client.util
@@ -25,9 +26,10 @@ import win32com.client.util
 
 
 
-include("winerror.jl")
+include("ext_modules/winerror.jl")
+import Main.winerror as winerror
 include("build.jl")
-using pywintypes: IIDType
+
 import win32com.client
 abstract type AbstractCDispatch end
 abstract type AbstractFactory end
@@ -35,11 +37,11 @@ debugging = 0
 debugging_attr = 0
 LCID = 0
 ERRORS_BAD_CONTEXT = [
-    winerror.DISP_E_MEMBERNOTFOUND,
-    winerror.DISP_E_BADPARAMCOUNT,
-    winerror.DISP_E_PARAMNOTOPTIONAL,
-    winerror.DISP_E_TYPEMISMATCH,
-    winerror.E_INVALIDARG,
+    DISP_E_MEMBERNOTFOUND(winerror),
+    DISP_E_BADPARAMCOUNT(winerror),
+    DISP_E_PARAMNOTOPTIONAL(winerror),
+    DISP_E_TYPEMISMATCH(winerror),
+    E_INVALIDARG(winerror),
 ]
 ALL_INVOKE_TYPES = [
     pythoncom.INVOKE_PROPERTYGET,

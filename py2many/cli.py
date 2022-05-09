@@ -124,6 +124,7 @@ def _transpile(
     settings: LanguageSettings,
     args: Optional[argparse.Namespace] = None,
     _suppress_exceptions=Exception,
+    outdir = None,
 ):
     """
     Transpile a single python translation unit (a python script) into
@@ -138,6 +139,7 @@ def _transpile(
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
+        tree.__path__ = outdir
         # information of all files (for import distiction)
         tree.__files__ = filenames
         tree_list.append(tree)
@@ -240,8 +242,8 @@ def _transpile_one(
 
 
 @lru_cache(maxsize=100)
-def _process_one_data(source_data, filename, settings, args):
-    return _transpile([filename], [source_data], settings, args)[0][0]
+def _process_one_data(source_data, filename, settings, args, outdir):
+    return _transpile([filename], [source_data], settings, args, outdir=outdir)[0][0]
 
 
 def _create_cmd(parts, filename, **kw):
@@ -538,7 +540,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if filename.name == STDIN:
         # special case for simple pipes
         output = _process_one_data(
-            sys.stdin.read(), Path("test.py"), settings, args)
+            sys.stdin.read(), Path("test.py"), settings, args, outdir)
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
@@ -564,7 +566,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
-    result = _transpile([filename], [source_data], settings, args)
+    result = _transpile([filename], [source_data], settings, args, outdir=outdir)
     with open(output_path, "w") as f:
         f.write(result[0][0])
 
@@ -633,7 +635,8 @@ def _process_many(
             source_data.append(f.read())
 
     outputs, successful = _transpile(
-        filenames, source_data, settings, args, _suppress_exceptions=_suppress_exceptions
+        filenames, source_data, settings, args, 
+        _suppress_exceptions=_suppress_exceptions, outdir=outdir
     )
 
     output_paths = [

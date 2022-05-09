@@ -17,12 +17,12 @@ dynamically, or possibly even generate .html documentation for objects.
 #        OleItem, DispatchItem, MapEntry, BuildCallList() is used by makepy
 
 import sys
-import string
+import ext_modules.string as string
 from keyword import iskeyword
 
 import pythoncom
 from pywintypes import TimeType
-import winerror
+import ext_modules.winerror as winerror
 import datetime
 
 # It isn't really clear what the quoting rules are in a C/IDL string and

@@ -20,7 +20,7 @@ import traceback
 import types
 
 import pythoncom
-import winerror
+import ext_modules.winerror as winerror
 from . import build
 
 from pywintypes import IIDType

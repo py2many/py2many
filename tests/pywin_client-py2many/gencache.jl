@@ -23,6 +23,7 @@ Hacks, to do, etc
  =#
 using Printf
 using PyCall
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 import io as io
 include("makepy.jl")
@@ -30,7 +31,7 @@ include("genpy.jl")
 import shutil
 import zipfile
 import getopt
-import pywintypes
+
 
 import win32com
 import win32com.client

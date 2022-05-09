@@ -11,14 +11,18 @@ Other modules may use this information to generate .py files, use the informatio
 dynamically, or possibly even generate .html documentation for objects.
  =#
 using PyCall
+datetime = pyimport("datetime")
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 
-import string
+include("ext_modules/string.jl")
+import Main.string as string
 using keyword: iskeyword
 
-using pywintypes: TimeType
-include("winerror.jl")
-import Dates
+
+include("ext_modules/winerror.jl")
+import Main.winerror as winerror
+
 abstract type AbstractNotSupportedException <: AbstractException end
 abstract type AbstractMapEntry end
 abstract type AbstractOleItem end
@@ -610,8 +614,8 @@ function _ResolveType(typerepr, itypeinfo)::Tuple
                 let details = exn
                     if details isa pythoncom.com_error
                         if hresult(details) in [
-                            winerror.TYPE_E_CANTLOADLIBRARY,
-                            winerror.TYPE_E_LIBNOTREGISTERED,
+                            TYPE_E_CANTLOADLIBRARY(winerror),
+                            TYPE_E_LIBNOTREGISTERED(winerror),
                         ]
                             return (pythoncom.VT_UNKNOWN, nothing, nothing)
                         end
@@ -662,7 +666,7 @@ function _BuildArgList(fdesc, names)::Union[str, Any]
     return "," + join(names, ", ")
 end
 
-valid_identifier_chars = (string.ascii_letters + string.digits) + "_"
+valid_identifier_chars = (ascii_letters(string) + digits(string)) + "_"
 function demunge_leading_underscores(className)::Any
     i = 0
     while className[i+1] == "_"

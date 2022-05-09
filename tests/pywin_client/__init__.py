@@ -518,7 +518,7 @@ class DispatchBaseClass:
                     self.CLSID, pythoncom.IID_IDispatch
                 )  # Must be a valid COM instance
             except pythoncom.com_error as details:
-                import winerror
+                import ext_modules.winerror as winerror
 
                 # Some stupid objects fail here, even tho it is _already_ IDispatch!!??
                 # Eg, Lotus notes.

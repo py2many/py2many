@@ -1,13 +1,15 @@
 module __init__
 using PyCall
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 
-include("winerror.jl")
+include("ext_modules/winerror.jl")
+import Main.winerror as winerror
 
 include("dynamic.jl")
 include("gencache.jl")
 
-import pywintypes
+
 _PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function __WrapDispatch(
     dispatch,

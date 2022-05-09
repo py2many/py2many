@@ -1,5 +1,6 @@
 from enum import IntFlag
 import ast
+import os
 
 import textwrap
 import re
@@ -576,18 +577,28 @@ class JuliaTranspiler(CLikeTranspiler):
             )
 
     def _import(self, name: str) -> str:
-        if name in self._modules:
-            return f"include(\"{name}.jl\")"
+        path = name.split(".")
+        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{os.sep.join(path)}.jl")
+        if is_file and path[-1] in self._modules:
+            sep = "/"
+            path_str = sep.join(path)
+            return f'include(\"{path_str}.jl\")'
         return f"import {name}" 
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        if module_name in self._modules:
-            return f"include(\"{module_name}.jl\")"
-        elif module_name == ".":
+        if module_name == ".":
             import_names = []
             for n in names:
                 import_names.append(f"include(\"{n}.jl\")")
             return "\n".join(import_names)
+        elif module_name in self._modules:
+            import_names = []
+            path = os.path.curdir
+            sep = "/"
+            return f"include(\"{path}{sep}{module_name}.jl\")"
+            # TODO: Review
+            # for n in names:
+            #     import_names.append()
 
         jl_module_name = module_name
         imports = []
