@@ -18,9 +18,9 @@ import codecs
 usageHelp = " \nUsage:\n\n  makepy.py [-i] [-v|q] [-h] [-u] [-o output_file] [-d] [typelib, ...]\n\n  -i    -- Show information for the specified typelib.\n\n  -v    -- Verbose output.\n\n  -q    -- Quiet output.\n\n  -h    -- Do not generate hidden methods.\n\n  -u    -- Python 1.5 and earlier: Do NOT convert all Unicode objects to\n           strings.\n\n           Python 1.6 and later: Convert all Unicode objects to strings.\n\n  -o    -- Create output in a specified output file.  If the path leading\n           to the file does not exist, any missing directories will be\n           created.\n           NOTE: -o cannot be used with -d.  This will generate an error.\n\n  -d    -- Generate the base code now and the class code on demand.\n           Recommended for large type libraries.\n\n  typelib -- A TLB, DLL, OCX or anything containing COM type information.\n             If a typelib is not specified, a window containing a textbox\n             will open from which you can select a registered type\n             library.\n\nExamples:\n\n  makepy.py -d\n\n    Presents a list of registered type libraries from which you can make\n    a selection.\n\n  makepy.py -d \"Microsoft Excel 8.0 Object Library\"\n\n    Generate support for the type library with the specified description\n    (in this case, the MS Excel object model).\n\n"
 import importlib
 using win32com.client: genpy, selecttlb, gencache
-using win32com.client: Dispatch
 abstract type AbstractSimpleProgress <: Abstractgenpy.GeneratorProgress end
 abstract type AbstractGUIProgress <: AbstractSimpleProgress end
+using win32com.client: Dispatch
 bForDemandDefault = 0
 error = "makepy.error"
 function usage()
@@ -376,12 +376,12 @@ function GenerateChildFromTypeLibSpec(
         generate_child(gen, child, dir_path_name)
         SetDescription(progress, "Importing module")
         invalidate_caches(importlib)
-        __import__(("win32com.gen_py." + dir_name) * "." + child)
+        __import__((("win32com.gen_py." + dir_name) + ".") + child)
     end
     Close(progress)
 end
 
-function main_func()::Int64
+function main_func()::int
     hiddenSpec = 1
     outputName = nothing
     verboseLevel = 1
@@ -413,8 +413,8 @@ function main_func()::Int64
         end
     catch exn
         let msg = exn
-            if msg isa (error(getopt), error)
-                write(sys.stderr, string(msg) * "\n")
+            if msg isa (getopt.error, error)
+                write(sys.stderr, string(msg) + "\n")
                 usage()
             end
         end

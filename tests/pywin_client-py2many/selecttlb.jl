@@ -6,10 +6,11 @@ pythoncom = pyimport("pythoncom")
 import pywin.dialogs.list
 import win32api
 import win32con
+abstract type AbstractTypelibSpec end
 mutable struct TypelibSpec <: AbstractTypelibSpec
-    clsid::String
+    clsid::str
     flags::Any
-    lcid::Int64
+    lcid::int
     major::Any
     minor::Any
     desc::Any
@@ -17,9 +18,9 @@ mutable struct TypelibSpec <: AbstractTypelibSpec
     ver_desc::Any
 
     TypelibSpec(
-        clsid::String,
+        clsid::str,
         flags::Any,
-        lcid::Int64,
+        lcid::int,
         major::Any,
         minor::Any,
         desc::Any = nothing,
@@ -34,7 +35,7 @@ function __getitem__(self::TypelibSpec, item)::TypelibSpec
     throw(IndexError("Cant index me!"))
 end
 
-function __lt__(self::TypelibSpec, other)::Bool
+function __lt__(self::TypelibSpec, other)::bool
     me = (lower(self.ver_desc || ""), lower(self.desc || ""), self.major, self.minor)
     them =
         (lower(ver_desc(other) || ""), lower(desc(other) || ""), major(other), minor(other))
@@ -48,7 +49,7 @@ function __eq__(self::TypelibSpec, other)
            self.minor == minor(other)
 end
 
-function Resolve(self::TypelibSpec)::Int64
+function Resolve(self::TypelibSpec)::int
     if self.dll === nothing
         return 0
     end
@@ -68,7 +69,6 @@ function FromTypelib(self::TypelibSpec, typelib, dllName = nothing)
     end
 end
 
-abstract type AbstractTypelibSpec end
 function EnumKeys(root)::Vector
     index = 0
     ret = []
@@ -159,7 +159,7 @@ function EnumTlbs(excludeFlags = 0)::Vector
                     spec = TypelibSpec(iid, lcid, major, minor, flags)
                     spec.dll = dll
                     spec.desc = tlbdesc
-                    spec.ver_desc = ((tlbdesc + " (") + version) * ")"
+                    spec.ver_desc = ((tlbdesc + " (") + version) + ")"
                     push!(results, spec)
                 end
             end

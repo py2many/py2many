@@ -77,7 +77,7 @@ mutable struct MapEntry <: AbstractMapEntry
     resultCLSID::Any
     resultDoc::Any
     resultDocumentation::Any
-    wasProperty::Int64
+    wasProperty::int
 
     MapEntry(
         desc_or_id,
@@ -87,7 +87,7 @@ mutable struct MapEntry <: AbstractMapEntry
         resultDoc = nothing,
         hidden = 0,
         resultDocumentation = resultDoc,
-        wasProperty::Int64 = 0,
+        wasProperty::int = 0,
     ) = begin
         if type_(desc_or_id) == type_(0)
             self.dispid = desc_or_id
@@ -120,7 +120,7 @@ function GetResultCLSID(self::MapEntry)::MapEntry
     return rc
 end
 
-function GetResultCLSIDStr(self::MapEntry)::String
+function GetResultCLSIDStr(self::MapEntry)::str
     rc = GetResultCLSID(self)
     if rc === nothing
         return "None"
@@ -137,21 +137,21 @@ end
 
 mutable struct OleItem <: AbstractOleItem
     doc::Any
-    bIsDispatch::Int64
-    bIsSink::Int64
-    bWritten::Int64
+    bIsDispatch::int
+    bIsSink::int
+    bWritten::int
     clsid::Any
     co_class::Any
-    typename::String
+    typename::str
 
     OleItem(
         doc = nothing,
-        bIsDispatch::Int64 = 0,
-        bIsSink::Int64 = 0,
-        bWritten::Int64 = 0,
+        bIsDispatch::int = 0,
+        bIsSink::int = 0,
+        bWritten::int = 0,
         clsid = nothing,
         co_class = nothing,
-        typename::String = "OleItem",
+        typename::str = "OleItem",
     ) = begin
         if self.doc
             self.python_name = MakePublicAttributeName(self.doc[0])
@@ -166,16 +166,16 @@ mutable struct DispatchItem <: AbstractDispatchItem
     bIsDispatch::Any
     clsid::Any
     attr::Any
-    bForUser::Int64
+    bForUser::int
     defaultDispatchName::Any
     doc::Any
-    hidden::Int64
+    hidden::int
     mapFuncs::Dict
     propMap::Dict
     propMapGet::Dict
     propMapPut::Dict
     typeinfo::Any
-    typename::String
+    typename::str
 
     DispatchItem(
         typeinfo = nothing,
@@ -183,12 +183,12 @@ mutable struct DispatchItem <: AbstractDispatchItem
         doc = nothing,
         bForUser = 1,
         defaultDispatchName = nothing,
-        hidden::Int64 = 0,
+        hidden::int = 0,
         mapFuncs::Dict = Dict(),
         propMap::Dict = Dict(),
         propMapGet::Dict = Dict(),
         propMapPut::Dict = Dict(),
-        typename::String = "DispatchItem",
+        typename::str = "DispatchItem",
     ) = begin
         OleItem.__init__(self, doc)
         if typeinfo
@@ -301,10 +301,10 @@ function _AddFunc_(self::DispatchItem, typeinfo, fdesc, bForUser)::Tuple
         if existing != nothing
             if desc(existing)[5] == pythoncom.INVOKE_PROPERTYPUT
                 map = self.mapFuncs
-                name = "Set" * name
+                name = "Set" + name
             else
                 wasProperty(existing) = 1
-                self.mapFuncs["Set"*name+1] = existing
+                self.mapFuncs["Set"+name+1] = existing
                 map = self.propMapPut
             end
         else
@@ -426,17 +426,16 @@ function MakeDispatchFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1)
     defOutArg = "pythoncom.Missing"
     id = fdesc[1]
     s =
-        ((linePrefix + "def ") + name) *
-        "(self" *
-        BuildCallList(
-            fdesc,
-            names,
-            defNamedOptArg,
-            defNamedNotOptArg,
-            defUnnamedArg,
-            defOutArg,
-        ) *
-        "):"
+        (
+            (((linePrefix + "def ") + name) + "(self") + BuildCallList(
+                fdesc,
+                names,
+                defNamedOptArg,
+                defNamedNotOptArg,
+                defUnnamedArg,
+                defOutArg,
+            )
+        ) + "):"
     push!(ret, s)
     if doc && doc[2]
         push!(ret, (linePrefix + "\t") + _makeDocString(doc[2]))
@@ -535,7 +534,7 @@ function MakeVarArgsFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1):
     else
         linePrefix = ""
     end
-    push!(ret, ((linePrefix + "def ") + name) * "(" * argPrefix * ", *args):")
+    push!(ret, ((((linePrefix + "def ") + name) + "(") + argPrefix) + ", *args):")
     if doc && doc[2]
         push!(ret, (linePrefix + "\t") + _makeDocString(doc[2]))
     end
@@ -547,7 +546,7 @@ function MakeVarArgsFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1):
     s = linePrefix + "\treturn self._get_good_object_(self._oleobj_.Invoke(*(("
     push!(
         ret,
-        s * string(dispid(entry)) + (",0,%d,1)+args)),\'%s\')" % (invoketype, names[1])),
+        (s + string(dispid(entry))) + (",0,%d,1)+args)),\'%s\')" % (invoketype, names[1])),
     )
     push!(ret, "")
     return ret
@@ -572,13 +571,12 @@ end
 
 mutable struct LazyDispatchItem <: AbstractLazyDispatchItem
     clsid::Any
-    typename::String
+    typename::str
 
-    LazyDispatchItem(attr, doc, clsid = attr[1], typename::String = "LazyDispatchItem") =
-        begin
-            DispatchItem.__init__(self, nothing, attr, doc, 0)
-            new(attr, doc, clsid, typename)
-        end
+    LazyDispatchItem(attr, doc, clsid = attr[1], typename::str = "LazyDispatchItem") = begin
+        DispatchItem.__init__(self, nothing, attr, doc, 0)
+        new(attr, doc, clsid, typename)
+    end
 end
 
 typeSubstMap = Dict(
@@ -732,7 +730,7 @@ function BuildCallList(
     defUnnamedArg,
     defOutArg,
     is_comment = false,
-)::String
+)::str
     #= Builds a Python declaration for a method. =#
     numArgs = length(fdesc[3])
     numOptArgs = fdesc[7]
@@ -773,19 +771,19 @@ function BuildCallList(
         end
         argName = MakePublicAttributeName(argName)
         if ((arg + 1) % 5) == 0
-            strval = strval * "\n"
+            strval = strval + "\n"
             if is_comment
-                strval = strval * "#"
+                strval = strval + "#"
             end
-            strval = strval * "\t\t\t"
+            strval = strval + "\t\t\t"
         end
-        strval = strval * ", " + argName
+        strval = (strval + ", ") + argName
         if defArgVal
-            strval = strval * "=" + defArgVal
+            strval = (strval + "=") + defArgVal
         end
     end
     if numOptArgs == -1
-        strval = strval * ", *" + names[end]
+        strval = (strval + ", *") + names[end]
     end
     return strval
 end

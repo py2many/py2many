@@ -135,9 +135,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._headers = set([])
         self._usings = set([])
         self._globals = set([])
-        self._modules = []
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
+        self._modules = []
         self._container_type_map = DEFAULT_CONTAINER_MAP
         self._default_type = _AUTO
         self._statement_separator = ";"
@@ -233,8 +233,13 @@ class CLikeTranspiler(ast.NodeVisitor):
             ".")[0] for path in node.__files__)
 
         # Reset state
-        self._imported_names = {}
         self._usings.clear()
+        self._type_map.clear()
+        self._headers.clear()
+        self._usings.clear()
+        self._globals.clear()
+        self._imported_names.clear()
+        self._features.clear()
 
         filename = getattr(node, "__file__", None)
         if filename is not None:

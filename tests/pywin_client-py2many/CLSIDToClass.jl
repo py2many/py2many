@@ -47,7 +47,7 @@ function GetClass(clsid)::Dict
     return mapCLSIDToClass[clsid+1]
 end
 
-function HasClass(clsid)::Bool
+function HasClass(clsid)::bool
     #= Determines if the CLSID has an associated class.
 
         clsid -- the string CLSID to check

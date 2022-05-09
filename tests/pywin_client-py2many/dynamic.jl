@@ -27,10 +27,10 @@ import win32com.client.util
 
 include("winerror.jl")
 include("build.jl")
-abstract type AbstractCDispatch end
-abstract type AbstractFactory end
 using pywintypes: IIDType
 import win32com.client
+abstract type AbstractCDispatch end
+abstract type AbstractFactory end
 debugging = 0
 debugging_attr = 0
 LCID = 0
@@ -247,7 +247,7 @@ function __call__(self::CDispatch)::Tuple
     throw(TypeError("This dispatch object does not define a default method"))
 end
 
-function __bool__(self::CDispatch)::Bool
+function __bool__(self::CDispatch)::bool
     return true
 end
 
@@ -255,7 +255,7 @@ function __repr__(self::CDispatch)
     return "<COMObject %s>" % self._username_
 end
 
-function __str__(self::CDispatch)::String
+function __str__(self::CDispatch)::str
     try
         return string(__call__(self))
     catch exn
@@ -318,17 +318,17 @@ function _UpdateWithITypeInfo_(self::CDispatch, items_dict, typeInfo)
     end
 end
 
-function __eq__(self::CDispatch, other)::Bool
+function __eq__(self::CDispatch, other)::bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::CDispatch, other)::Bool
+function __ne__(self::CDispatch, other)::bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
 
-function __int__(self::CDispatch)::Int64
+function __int__(self::CDispatch)::int
     return parse(Int, __call__(self))
 end
 
@@ -563,7 +563,7 @@ function _print_details_(self::CDispatch)
     end
 end
 
-function __LazyMap__(self::CDispatch, attr)::Int64
+function __LazyMap__(self::CDispatch, attr)::int
     try
         if _LazyAddAttr_(self, attr)
             debug_attr_print()
@@ -576,7 +576,7 @@ function __LazyMap__(self::CDispatch, attr)::Int64
     end
 end
 
-function _LazyAddAttr_(self::CDispatch, attr)::Int64
+function _LazyAddAttr_(self::CDispatch, attr)::int
     if self._lazydata_ === nothing
         return 0
     end

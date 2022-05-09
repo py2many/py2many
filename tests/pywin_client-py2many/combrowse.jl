@@ -34,6 +34,24 @@ import win32ui
 
 
 using win32com.client: util
+using pywin.tools: browser
+mutable struct HLIRoot <: AbstractHLIRoot
+    name::Any
+
+    HLIRoot(name::Any = title) = new(name)
+end
+function GetSubList(self::HLIRoot)
+    return [
+        HLIHeadingCategory(),
+        HLI_IEnumMoniker(EnumRunning(GetRunningObjectTable(pythoncom)), "Running Objects"),
+        HLIHeadingRegisterdTypeLibs(),
+    ]
+end
+
+function __cmp__(self::HLIRoot, other)
+    return cmp(self.name, name(other))
+end
+
 abstract type AbstractHLIRoot <: Abstractbrowser.HLIPythonObject end
 abstract type AbstractHLICOM <: Abstractbrowser.HLIPythonObject end
 abstract type AbstractHLICLSID <: AbstractHLICOM end
@@ -53,24 +71,6 @@ abstract type AbstractHLITypeLibProperty <: AbstractHLICOM end
 abstract type AbstractHLITypeLibFunction <: AbstractHLICOM end
 abstract type AbstractHLITypeLib <: AbstractHLICOM end
 abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
-using pywin.tools: browser
-mutable struct HLIRoot <: AbstractHLIRoot
-    name::Any
-
-    HLIRoot(name::Any = title) = new(name)
-end
-function GetSubList(self::HLIRoot)
-    return [
-        HLIHeadingCategory(),
-        HLI_IEnumMoniker(EnumRunning(GetRunningObjectTable(pythoncom)), "Running Objects"),
-        HLIHeadingRegisterdTypeLibs(),
-    ]
-end
-
-function __cmp__(self::HLIRoot, other)
-    return cmp(self.name, name(other))
-end
-
 mutable struct HLICOM <: AbstractHLICOM
     name::Any
 end
@@ -78,7 +78,7 @@ function GetText(self::HLICOM)::HLICOM
     return self.name
 end
 
-function CalculateIsExpandable(self::HLICOM)::Int64
+function CalculateIsExpandable(self::HLICOM)::int
     return 1
 end
 
@@ -103,7 +103,7 @@ mutable struct HLICLSID <: AbstractHLICLSID
         new(myobject, name)
     end
 end
-function CalculateIsExpandable(self::HLICLSID)::Int64
+function CalculateIsExpandable(self::HLICLSID)::int
     return 0
 end
 
@@ -118,7 +118,7 @@ end
 mutable struct HLI_Enum <: AbstractHLI_Enum
     myobject::Any
 end
-function GetBitmapColumn(self::HLI_Enum)::Int64
+function GetBitmapColumn(self::HLI_Enum)::int
     return 0
 end
 
@@ -159,7 +159,7 @@ mutable struct HLIHeadingCategory <: AbstractHLIHeadingCategory
     #= A tree heading for registered categories =#
 
 end
-function GetText(self::HLIHeadingCategory)::String
+function GetText(self::HLIHeadingCategory)::str
     return "Registered Categories"
 end
 
@@ -218,11 +218,11 @@ end
 mutable struct HLIHelpFile <: AbstractHLIHelpFile
 
 end
-function CalculateIsExpandable(self::HLIHelpFile)::Int64
+function CalculateIsExpandable(self::HLIHelpFile)::int
     return 0
 end
 
-function GetText(self::HLIHelpFile)::String
+function GetText(self::HLIHelpFile)::str
     fname, ctx = self.myobject
     base = split(os.path, fname)[2]
     return "Help reference in %s" % base
@@ -238,7 +238,7 @@ function TakeDefaultAction(self::HLIHelpFile)
     WinHelp(win32api, GetSafeHwnd(GetMainFrame(win32ui)), fname, cmd, ctx)
 end
 
-function GetBitmapColumn(self::HLIHelpFile)::Int64
+function GetBitmapColumn(self::HLIHelpFile)::int
     return 6
 end
 
@@ -334,7 +334,7 @@ function GetSubList(self::HLIRegisteredTypeLibrary)::Vector
         if extraDescs
             extraDesc = " (%s)" % join(extraDescs, ", ")
         end
-        push!(ret, HLITypeLib(fname, "Type Library" * extraDesc))
+        push!(ret, HLITypeLib(fname, "Type Library" + extraDesc))
     end
     sort(ret)
     return ret
@@ -343,7 +343,7 @@ end
 mutable struct HLITypeLibEntry <: AbstractHLITypeLibEntry
 
 end
-function GetText(self::HLITypeLibEntry)::String
+function GetText(self::HLITypeLibEntry)::str
     tlb, index = self.myobject
     name, doc, ctx, helpFile = GetDocumentation(tlb, index)
     try
@@ -390,10 +390,10 @@ function GetSubList(self::HLICoClass)
 end
 
 mutable struct HLITypeLibMethod <: AbstractHLITypeLibMethod
-    entry_type::String
+    entry_type::str
     name::Any
 
-    HLITypeLibMethod(ob, name = nothing, entry_type::String = "Method") = begin
+    HLITypeLibMethod(ob, name = nothing, entry_type::str = "Method") = begin
         HLITypeLibEntry.__init__(self, ob, name)
         new(ob, name, entry_type)
     end
@@ -479,12 +479,12 @@ end
 
 mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
     funcflags::Vector{Tuple}
-    funckinds::Dict{Any,String}
+    funckinds::Dict{Any,str}
     id::Any
-    invokekinds::Dict{Any,String}
+    invokekinds::Dict{Any,str}
     name::Any
     type_flags::Vector{Tuple}
-    vartypes::Dict{Any,String}
+    vartypes::Dict{Any,str}
 
     HLITypeLibFunction(
         myitem,
@@ -498,14 +498,14 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
             (pythoncom.FUNCFLAG_FHIDDEN, "Hidden"),
             (pythoncom.FUNCFLAG_FUSESGETLASTERROR, "Uses GetLastError"),
         ],
-        funckinds::Dict{Any,String} = Dict(
+        funckinds::Dict{Any,str} = Dict(
             pythoncom.FUNC_VIRTUAL => "Virtual",
             pythoncom.FUNC_PUREVIRTUAL => "Pure Virtual",
             pythoncom.FUNC_STATIC => "Static",
             pythoncom.FUNC_DISPATCH => "Dispatch",
         ),
         id = GetFuncDesc(typeinfo, index)[1],
-        invokekinds::Dict{Any,String} = Dict(
+        invokekinds::Dict{Any,str} = Dict(
             pythoncom.INVOKE_FUNC => "Function",
             pythoncom.INVOKE_PROPERTYGET => "Property Get",
             pythoncom.INVOKE_PROPERTYPUT => "Property Put",
@@ -518,7 +518,7 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
             (pythoncom.VT_BYREF, "ByRef"),
             (pythoncom.VT_RESERVED, "Reserved"),
         ],
-        vartypes::Dict{Any,String} = Dict(
+        vartypes::Dict{Any,str} = Dict(
             pythoncom.VT_EMPTY => "Empty",
             pythoncom.VT_NULL => "NULL",
             pythoncom.VT_I2 => "Integer 2",
@@ -591,7 +591,7 @@ function MakeReturnType(self::HLITypeLibFunction, returnTypeDesc)
         first = returnTypeDesc[1]
         result = MakeReturnType(self, first)
         if first != pythoncom.VT_USERDEFINED
-            result = result * " " + MakeReturnType(self, returnTypeDesc[2])
+            result = (result + " ") + MakeReturnType(self, returnTypeDesc[2])
         end
         return result
     else
@@ -699,7 +699,7 @@ mutable struct HLIHeadingRegisterdTypeLibs <: AbstractHLIHeadingRegisterdTypeLib
     #= A tree heading for registered type libraries =#
 
 end
-function GetText(self::HLIHeadingRegisterdTypeLibs)::String
+function GetText(self::HLIHeadingRegisterdTypeLibs)::str
     return "Registered Type Libraries"
 end
 

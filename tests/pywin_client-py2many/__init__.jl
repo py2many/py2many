@@ -6,12 +6,6 @@ include("winerror.jl")
 
 include("dynamic.jl")
 include("gencache.jl")
-abstract type AbstractCDispatch <: Abstractdynamic.CDispatch end
-abstract type AbstractConstants end
-abstract type AbstractEventsProxy end
-abstract type AbstractDispatchBaseClass end
-abstract type AbstractCoClassBaseClass end
-abstract type AbstractVARIANT <: Abstractobject end
 
 import pywintypes
 _PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
@@ -82,6 +76,12 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
     end
 end
 
+abstract type AbstractCDispatch <: Abstractdynamic.CDispatch end
+abstract type AbstractConstants end
+abstract type AbstractEventsProxy end
+abstract type AbstractDispatchBaseClass end
+abstract type AbstractCoClassBaseClass end
+abstract type AbstractVARIANT <: Abstractobject end
 function GetActiveObject(Class, clsctx = pythoncom.CLSCTX_ALL)
     #= 
         Python friendly version of GetObject's ProgID/CLSID functionality.
@@ -588,12 +588,12 @@ function __repr__(self::DispatchBaseClass)
     return "<%s.%s instance at 0x%s>" % (mod_name, self.__class__.__name__, id(self))
 end
 
-function __eq__(self::DispatchBaseClass, other)::Bool
+function __eq__(self::DispatchBaseClass, other)::bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::DispatchBaseClass, other)::Bool
+function __ne__(self::DispatchBaseClass, other)::bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
@@ -671,8 +671,8 @@ function _get_good_object_(obj, obUserName = nothing, resultCLSID = nothing)::Tu
     if obj === nothing
         return nothing
     elseif isa(obj, tuple)
-        obUserNameTuple = repeat([(obUserName,)...], length(obj))
-        resultCLSIDTuple = repeat([(resultCLSID,)...], length(obj))
+        obUserNameTuple = (obUserName,) * length(obj)
+        resultCLSIDTuple = (resultCLSID,) * length(obj)
         return tuple(map(_get_good_object_, obj, obUserNameTuple, resultCLSIDTuple))
     else
         return _get_good_single_object_(obj, obUserName, resultCLSID)

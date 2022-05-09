@@ -8,10 +8,10 @@ using PyCall
 pythoncom = pyimport("pythoncom")
 
 using win32com.client: Dispatch, _get_good_object_
-PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 abstract type AbstractEnumerator end
 abstract type AbstractEnumVARIANT <: AbstractEnumerator end
 abstract type AbstractIterator end
+PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
     #= Wrap an object in a VARIANT enumerator.
 
@@ -38,9 +38,9 @@ mutable struct Enumerator <: AbstractEnumerator
          =#
     resultCLSID::Any
     _oleobj_::Any
-    index::Int64
+    index::int
 
-    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::Int64 = -1) =
+    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::int = -1) =
         new(resultCLSID, _oleobj_, index)
 end
 function __getitem__(self::Enumerator, index)

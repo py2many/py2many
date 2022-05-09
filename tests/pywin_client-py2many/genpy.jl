@@ -65,7 +65,7 @@ function MakeMapLineEntry(dispid, wFlags, retType, argTypes, user, resultCLSID)
            (dispid, wFlags, retType[begin:2], argTypes, user, resultCLSID)
 end
 
-function MakeEventMethodName(eventName)::String
+function MakeEventMethodName(eventName)::str
     if eventName[begin:2] == "On"
         return eventName
     else
@@ -102,7 +102,7 @@ function __cmp__(self::WritableItem, other)
     return ret
 end
 
-function __lt__(self::WritableItem, other)::Bool
+function __lt__(self::WritableItem, other)::bool
     if self.order == order(other)
         return self.doc < doc(other)
     end
@@ -114,11 +114,11 @@ function __repr__(self::WritableItem)
 end
 
 mutable struct RecordItem <: build.OleItem.__init__
-    bForUser::Int64
+    bForUser::int
     clsid::Any
     doc::Any
-    order::Int64
-    typename::String
+    order::int
+    typename::str
 
     RecordItem(
         typeInfo,
@@ -126,8 +126,8 @@ mutable struct RecordItem <: build.OleItem.__init__
         doc = nothing,
         bForUser = 1,
         clsid = typeAttr[1],
-        order::Int64 = 9,
-        typename::String = "RECORD",
+        order::int = 9,
+        typename::str = "RECORD",
     ) = begin
         build.OleItem.__init__(self, doc)
         new(typeInfo, typeAttr, doc, bForUser, clsid, order, typename)
@@ -150,10 +150,10 @@ mutable struct AliasItem <: build.OleItem.__init__
     attr::Any
     bWritten::Any
     ai::Any
-    bForUser::Int64
+    bForUser::int
     doc::Any
-    order::Int64
-    typename::String
+    order::int
+    typename::str
 
     AliasItem(
         typeinfo,
@@ -161,8 +161,8 @@ mutable struct AliasItem <: build.OleItem.__init__
         doc = nothing,
         bForUser = 1,
         ai = attr[15],
-        order::Int64 = 2,
-        typename::String = "ALIAS",
+        order::int = 2,
+        typename::str = "ALIAS",
     ) = begin
         build.OleItem.__init__(self, doc)
         if type_(ai) == type_(()) && type_(ai[1]) == type_(0)
@@ -205,14 +205,14 @@ function WriteAliasItem(self::AliasItem, aliasDict, stream)
 end
 
 mutable struct EnumerationItem <: build.OleItem.__init__
-    bForUser::Int64
+    bForUser::int
     clsid::Any
     doc::Any
     hidden::Any
     mapVars::Dict
-    order::Int64
+    order::int
     typeFlags::Any
-    typename::String
+    typename::str
 
     EnumerationItem(
         typeinfo,
@@ -223,9 +223,9 @@ mutable struct EnumerationItem <: build.OleItem.__init__
         hidden = typeFlags & pythoncom.TYPEFLAG_FHIDDEN ||
                  typeFlags & pythoncom.TYPEFLAG_FRESTRICTED,
         mapVars::Dict = Dict(),
-        order::Int64 = 1,
+        order::int = 1,
         typeFlags = attr[12],
-        typename::String = "ENUMERATION",
+        typename::str = "ENUMERATION",
     ) = begin
         build.OleItem.__init__(self, doc)
         for j = 0:attr[7]
@@ -247,7 +247,7 @@ mutable struct EnumerationItem <: build.OleItem.__init__
         )
     end
 end
-function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
+function WriteEnumerationItems(self::EnumerationItem, stream)::int
     num = 0
     enumName = self.doc[1]
     names = collect(keys(self.mapVars))
@@ -264,8 +264,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
                 if exn isa SyntaxError
                     use = replace(use, "\"", "\'")
                     use =
-                        ("\"" + use) *
-                        "\"" *
+                        (("\"" + use) + "\"") +
                         " # This VARIANT type cannot be converted automatically"
                 end
             end
@@ -285,14 +284,14 @@ mutable struct VTableItem <: build.VTableItem.__init__
     bWritten::Any
     python_name::Any
     vtableFuncs::Any
-    order::Int64
+    order::int
 
     VTableItem(
         bIsDispatch::Any,
         bWritten::Any,
         python_name::Any,
         vtableFuncs::Any,
-        order::Int64 = 4,
+        order::int = 4,
     ) = new(bIsDispatch, bWritten, python_name, vtableFuncs, order)
 end
 function WriteClass(self::VTableItem, generator)
@@ -354,7 +353,7 @@ mutable struct DispatchItem <: build.DispatchItem.__init__
     python_name::Any
     coclass_clsid::Any
     doc::Any
-    order::Int64
+    order::int
     type_attr::Any
 
     DispatchItem(
@@ -362,7 +361,7 @@ mutable struct DispatchItem <: build.DispatchItem.__init__
         attr,
         doc = nothing,
         coclass_clsid = nothing,
-        order::Int64 = 3,
+        order::int = 3,
         type_attr = attr,
     ) = begin
         build.DispatchItem.__init__(self, typeinfo, attr, doc)
@@ -634,7 +633,7 @@ function WriteClassBody(self::DispatchItem, generator)
             if defArgDesc === nothing
                 defArgDesc = ""
             else
-                defArgDesc = defArgDesc * ","
+                defArgDesc = defArgDesc + ","
             end
             write(
                 stream,
@@ -754,12 +753,12 @@ mutable struct CoClassItem <: build.OleItem.__init__
     interfaces::Any
     python_name::Any
     sources::Any
-    bForUser::Int64
-    bIsDispatch::Int64
+    bForUser::int
+    bIsDispatch::int
     clsid::Any
     doc::Any
-    order::Int64
-    typename::String
+    order::int
+    typename::str
 
     CoClassItem(
         typeinfo,
@@ -768,10 +767,10 @@ mutable struct CoClassItem <: build.OleItem.__init__
         sources = [],
         interfaces = [],
         bForUser = 1,
-        bIsDispatch::Int64 = 1,
+        bIsDispatch::int = 1,
         clsid = attr[1],
-        order::Int64 = 5,
-        typename::String = "COCLASS",
+        order::int = 5,
+        typename::str = "COCLASS",
     ) = begin
         build.OleItem.__init__(self, doc)
         new(
@@ -930,9 +929,9 @@ mutable struct Generator <: AbstractGenerator
     generate_type::Any
     sourceFilename::Any
     typelib::Any
-    bHaveWrittenCoClassBaseClass::Int64
-    bHaveWrittenDispatchBaseClass::Int64
-    bHaveWrittenEventBaseClass::Int64
+    bHaveWrittenCoClassBaseClass::int
+    bHaveWrittenDispatchBaseClass::int
+    bHaveWrittenEventBaseClass::int
     bUnicodeToString::Any
     file::Any
     progress::Any
@@ -943,9 +942,9 @@ mutable struct Generator <: AbstractGenerator
         progressObject,
         bBuildHidden = 1,
         bUnicodeToString = nothing,
-        bHaveWrittenCoClassBaseClass::Int64 = 0,
-        bHaveWrittenDispatchBaseClass::Int64 = 0,
-        bHaveWrittenEventBaseClass::Int64 = 0,
+        bHaveWrittenCoClassBaseClass::int = 0,
+        bHaveWrittenDispatchBaseClass::int = 0,
+        bHaveWrittenEventBaseClass::int = 0,
         file = nothing,
         progress = progressObject,
     ) = begin

@@ -144,14 +144,14 @@ class ImportTransformer(ast.NodeTransformer):
     """Adds imports to scope block"""
 
     def visit_ImportFrom(self, node) -> ast.ImportFrom:
-        self._generic_import_visit(node)
+        self._generic_import_visit(node, key=node.module)
         return node
 
     def visit_Import(self, node: ast.Import) -> ast.ImportFrom:
         self._generic_import_visit(node)
         return node
 
-    def _generic_import_visit(self, node) -> Any:
+    def _generic_import_visit(self, node, key = "default") -> Any:
         for name in node.names:
             name.imported_from = node
             scope = name.scopes[-1]
@@ -159,6 +159,15 @@ class ImportTransformer(ast.NodeTransformer):
                 scope.imports.append(name)
 
     def visit_Module(self, node):
+        return self._generic_import_scope_visit(node)
+
+    def visit_If(self, node: ast.If) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def visit_With(self, node: ast.With) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def _generic_import_scope_visit(self, node):
         node.imports = []
         self.generic_visit(node)
         return node

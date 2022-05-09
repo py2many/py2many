@@ -7,9 +7,9 @@ import win32con
 import win32api
 import commctrl
 
+using pywin.mfc: dialog
 abstract type AbstractTLBrowserException <: AbstractException end
 abstract type AbstractTypeBrowseDialog <: AbstractTypeBrowseDialog_Parent end
-using pywin.mfc: dialog
 mutable struct TLBrowserException <: AbstractTLBrowserException
     #= TypeLib browser internal error =#
 
@@ -44,18 +44,18 @@ mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
     tlb::Any
     typeinfo::Any
     typelb::Any
-    IDC_LISTVIEW::Int64
-    IDC_MEMBERLIST::Int64
-    IDC_PARAMLIST::Int64
-    IDC_TYPELIST::Int64
+    IDC_LISTVIEW::int
+    IDC_MEMBERLIST::int
+    IDC_PARAMLIST::int
+    IDC_TYPELIST::int
     typefile::Any
 
     TypeBrowseDialog(
         typefile = nothing,
-        IDC_LISTVIEW::Int64 = 1003,
-        IDC_MEMBERLIST::Int64 = 1001,
-        IDC_PARAMLIST::Int64 = 1002,
-        IDC_TYPELIST::Int64 = 1000,
+        IDC_LISTVIEW::int = 1003,
+        IDC_MEMBERLIST::int = 1001,
+        IDC_PARAMLIST::int = 1002,
+        IDC_TYPELIST::int = 1000,
     ) = begin
         TypeBrowseDialog_Parent.__init__(self, self.GetTemplate())
         try
@@ -190,7 +190,7 @@ function _GetMainInfoTypes(self::TypeBrowseDialog)::Vector
             desc +
             (", Flags=0x%x, typeKind=0x%x, typeFlags=0x%x" % (flags, typeKind, typeFlags))
         if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
-            desc = desc * "(Source)"
+            desc = desc + "(Source)"
         end
         push!(infos, ("Implements", desc))
     end
@@ -217,7 +217,7 @@ function _GetMethodInfoTypes(self::TypeBrowseDialog)::Vector
     return ret
 end
 
-function CmdTypeListbox(self::TypeBrowseDialog, id, code)::Int64
+function CmdTypeListbox(self::TypeBrowseDialog, id, code)::int
     if code == win32con.LBN_SELCHANGE
         pos = GetCurSel(self.typelb)
         if pos >= 0
@@ -249,7 +249,7 @@ function _GetRealMemberPos(self::TypeBrowseDialog, pos)::Tuple
     end
 end
 
-function CmdMemberListbox(self::TypeBrowseDialog, id, code)::Int64
+function CmdMemberListbox(self::TypeBrowseDialog, id, code)::int
     if code == win32con.LBN_SELCHANGE
         ResetContent(self.paramlb)
         pos = GetCurSel(self.memberlb)
@@ -296,7 +296,7 @@ end
 function main()
     fname = nothing
     try
-        fname = append!([PROGRAM_FILE], ARGS)[2]
+        fname = sys.argv[2]
     catch exn
         #= pass =#
     end

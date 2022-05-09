@@ -148,7 +148,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         # Create abstract types
         abstract_types = []
-        l_no = len(node.imports)
+        l_no = node.import_cnt
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             if not is_jlClass:
                 core_module = extends_lst[0].split(
@@ -165,8 +165,8 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 l_no += 1
 
         if abstract_types:
-            body = body[:len(node.imports)] + \
-                abstract_types + body[len(node.imports):]
+            body = body[:node.import_cnt] + \
+                abstract_types + body[node.import_cnt:]
 
         node.body = body
 
@@ -789,21 +789,38 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         return get_id(annotation_node) == "Dict"
 
 
-class ImportRewriter(ast.NodeTransformer):
+class JuliaImportRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        # The default module represents all import nodes
-        # import from nodes have module as key
-        self._import_names: Dict[str, list[str]] = {"default": []}
+        # The default module represents all Import nodes.
+        # ImportFrom nodes have the module as key.
+        self._import_names: Dict[str, list[str]] = {}
         self._nested_imports = []
-        self._import_lst = []
+        self._import_cnt = 0
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._import_names = {}
         self._nested_imports = []
-        self._import_lst = node.imports
+        self._import_cnt = 0
         self.generic_visit(node)
         node.body = self._nested_imports + node.body
+        node.import_cnt = self._import_cnt
+        # Update imports
+        for imp in self._nested_imports:
+            for name in imp.names:
+                if name not in node.imports:
+                    node.imports.append(name)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def visit_With(self, node: ast.With) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def _generic_import_scope_visit(self, node):
+        del node.imports
+        self.generic_visit(node)
         return node
     
     def visit_Import(self, node: ast.Import) -> Any:
@@ -813,6 +830,7 @@ class ImportRewriter(ast.NodeTransformer):
         return self._generic_import_visit(node, node.module)
 
     def _generic_import_visit(self, node, key = "default"):
+        self._import_cnt += 1
         if key not in self._import_names:
             self._import_names[key] = []
         aliases = []
@@ -821,13 +839,10 @@ class ImportRewriter(ast.NodeTransformer):
             if name not in self._import_names[key]:
                 self._import_names[key].append(name)
                 aliases.append(alias)
-            else:
-                if name in self._import_lst:
-                    self._import_lst.remove(name)
         if not aliases:
             return None
         node.names = aliases
-        self.generic_visit(node)
+        # self.generic_visit(node)
         parent = node.scopes[-1]
         if not isinstance(parent, ast.Module):
             self._nested_imports.append(node)

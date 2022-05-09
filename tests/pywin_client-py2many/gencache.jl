@@ -530,12 +530,12 @@ function EnsureModule(
             filePath = filePathPrefix + ".py"
             filePathPyc = filePathPrefix + ".py"
             if __debug__
-                filePathPyc = filePathPyc * "c"
+                filePathPyc = filePathPyc + "c"
             else
-                filePathPyc = filePathPyc * "o"
+                filePathPyc = filePathPyc + "o"
             end
             if MinorVersion(module_) != tlbAttributes[5] ||
-               makepy_version(genpy) != makepy_version(module_)
+               genpy.makepy_version != makepy_version(module_)
                 try
                     std::fs::remove_file(filePath)
                 catch exn
@@ -710,10 +710,10 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
             base = split(n[length(zip_path)+1+1:end], "/")[1]
             try
                 iid, lcid, major, minor = split(base, "x")
-                lcid = Int(lcid)
-                major = Int(major)
-                minor = Int(minor)
-                iid = IID(pywintypes, ("{" + iid) * "}")
+                lcid = parse(Int, lcid)
+                major = parse(Int, major)
+                minor = parse(Int, minor)
+                iid = IID(pywintypes, ("{" + iid) + "}")
             catch exn
                 if exn isa ValueError
                     continue
@@ -736,10 +736,10 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
             name = splitext(os.path, split(os.path, file)[2])[1]
             try
                 iid, lcid, major, minor = split(name, "x")
-                iid = IID(pywintypes, ("{" + iid) * "}")
-                lcid = Int(lcid)
-                major = Int(major)
-                minor = Int(minor)
+                iid = IID(pywintypes, ("{" + iid) + "}")
+                lcid = parse(Int, lcid)
+                major = parse(Int, major)
+                minor = parse(Int, minor)
             catch exn
                 if exn isa ValueError
                     continue
@@ -812,7 +812,7 @@ function main()
         opts, args = getopt(getopt, sys.argv[2:end], "qrd")
     catch exn
         let message = exn
-            if message isa error(getopt)
+            if message isa getopt.error
                 println(message)
                 usage()
             end
