@@ -92,7 +92,7 @@ sudo ./setup.py install  # installs systemwide
 ### Transpiling
 To run Py2Many, you can use the following command
 ```
-py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>] [--expected=<exp_path>]
+py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comment-unsupported=<True|False>] [--extension=<True|False>] [--suffix=<suffix_val>] [--force=<True|False>] [--typpete=<True|False>] [--project=<True|False>] [--expected=<exp_path>] [--input-config=<config_path>]
 ```
 - __lang__: The language we want to use (See examples in section below)
 - __path__: Is either a path to a Python module or a folder containing Python modules.
@@ -105,7 +105,20 @@ py2many --<lang>=1 <path> [--outdir=<out_path>] [--indent=<indent_val>] [--comme
 - __typpete__: Use typpete for inference. The default is `False`
 - __project__: Create a project when using directory mode. The default is `True`
 - __expected__: Location of output files to compare. Can either be a directory containing the expected file or a file. The file must have the same name as the input file.
-- __input-config__: Input configuration files for the transpiler. They can be usd to add external annotations to the Python source code or inject flags for the transpiler
+- __input-config__: Input configuration files for the transpiler. They can be used to add external annotations to the Python source code or inject flags for the transpiler
+
+### Configuration files
+We provide the layout of a possible configuration file below:
+```
+[DEFAULT]
+<default_param> = <val>
+
+[FLAGS]
+<flag> = True | False
+
+[ANNOTATIONS]
+<annotation_file_name>.yaml
+```
 
 ### Dependencies
 Please install the following dependencies before running Py2Many:
