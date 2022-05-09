@@ -1,6 +1,4 @@
-using Printf
-using PyCall
-pythoncom = pyimport("pythoncom")
+module dynamic
 #= Support for dynamic COM client support.
 
 Introduction
@@ -18,6 +16,9 @@ Example
  >>> xl.Visible = 1 # The Excel window becomes visible.
 
  =#
+using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 include("util.jl")
 import win32com.client.util
 
@@ -41,10 +42,10 @@ ERRORS_BAD_CONTEXT = [
     winerror.E_INVALIDARG,
 ]
 ALL_INVOKE_TYPES = [
-    INVOKE_PROPERTYGET(pythoncom),
-    INVOKE_PROPERTYPUT(pythoncom),
-    INVOKE_PROPERTYPUTREF(pythoncom),
-    INVOKE_FUNC(pythoncom),
+    pythoncom.INVOKE_PROPERTYGET,
+    pythoncom.INVOKE_PROPERTYPUT,
+    pythoncom.INVOKE_PROPERTYPUTREF,
+    pythoncom.INVOKE_FUNC,
 ]
 function debug_print()
     if debugging != 0
@@ -68,11 +69,11 @@ function MakeMethod(func, inst, cls)
     return MethodType(types, func, inst)
 end
 
-PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
-PyIUnknownType = TypeIIDs(pythoncom)[IID_IUnknown(pythoncom)+1]
+PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
+PyIUnknownType = pythoncom.TypeIIDs[pythoncom.IID_IUnknown+1]
 _GoodDispatchTypes = (str, IIDType)
-_defaultDispatchItem = build.DispatchItem
-function _GetGoodDispatch(IDispatch, clsctx = CLSCTX_SERVER(pythoncom))
+_defaultDispatchItem = build.DispatchItem.__init__
+function _GetGoodDispatch(IDispatch, clsctx = pythoncom.CLSCTX_SERVER)
     if isa(IDispatch, PyIDispatchType)
         return IDispatch
     end
@@ -80,13 +81,13 @@ function _GetGoodDispatch(IDispatch, clsctx = CLSCTX_SERVER(pythoncom))
         try
             IDispatch = connect(pythoncom, IDispatch)
         catch exn
-            if exn isa ole_error(pythoncom)
+            if exn isa pythoncom.ole_error
                 IDispatch = CoCreateInstance(
                     pythoncom,
                     IDispatch,
                     nothing,
                     clsctx,
-                    IID_IDispatch(pythoncom),
+                    pythoncom.IID_IDispatch,
                 )
             end
         end
@@ -111,7 +112,7 @@ function _GetDescInvokeType(entry, invoke_type)
     if !(entry) || !desc(entry)
         return invoke_type
     end
-    if desckind(entry.desc) == DESCKIND_VARDESC(pythoncom)
+    if desckind(entry.desc) == pythoncom.DESCKIND_VARDESC
         return invoke_type
     end
     return invkind(entry.desc)
@@ -123,7 +124,7 @@ function Dispatch(
     createClass = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
 )
     @assert(UnicodeToString === nothing)
     IDispatch, userName = _GetGoodDispatchAndUserName(IDispatch, userName, clsctx)
@@ -140,13 +141,13 @@ function Dispatch(
                 typecomp = GetTypeComp(typeinfo)
                 lazydata = (typeinfo, typecomp)
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     #= pass =#
                 end
             end
         end
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             typeinfo = nothing
         end
     end
@@ -159,24 +160,24 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
     if typeinfo != nothing
         try
             attr = GetTypeAttr(typeinfo)
-            if attr[6] == TKIND_INTERFACE(pythoncom) && attr[12] & TYPEFLAG_FDUAL(pythoncom)
+            if attr[6] == pythoncom.TKIND_INTERFACE && attr[12] & pythoncom.TYPEFLAG_FDUAL
                 href = GetRefTypeOfImplType(typeinfo, -1)
                 typeinfo = GetRefTypeInfo(typeinfo, href)
                 attr = GetTypeAttr(typeinfo)
             end
             if typecomp === nothing
-                olerepr = build.DispatchItem.__init__(typeinfo, attr, nothing, 0)
+                olerepr = __init__(build.DispatchItem, typeinfo, attr, nothing, 0)
             else
-                olerepr = build.LazyDispatchItem.__init__(attr, nothing)
+                olerepr = __init__(build.LazyDispatchItem, attr, nothing)
             end
         catch exn
-            if exn isa ole_error(pythoncom)
+            if exn isa pythoncom.ole_error
                 #= pass =#
             end
         end
     end
     if olerepr === nothing
-        olerepr = build.DispatchItem.__init__()
+        olerepr = __init__(build.DispatchItem)
     end
     return olerepr
 end
@@ -186,7 +187,7 @@ function DumbDispatch(
     userName = nothing,
     createClass = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
 )
     #= Dispatch with no type info =#
     @assert(UnicodeToString === nothing)
@@ -230,8 +231,8 @@ function __call__(self::CDispatch)::Tuple
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
         invkind, dispid = (
-            DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom),
-            DISPID_VALUE(pythoncom),
+            pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET,
+            pythoncom.DISPID_VALUE,
         )
     end
     if invkind != nothing
@@ -259,7 +260,7 @@ function __str__(self::CDispatch)::String
         return string(__call__(self))
     catch exn
         let details = exn
-            if details isa com_error(pythoncom)
+            if details isa pythoncom.com_error
                 if hresult(details)
                     not in ERRORS_BAD_CONTEXT
                     error()
@@ -293,12 +294,12 @@ end
 
 function _UpdateWithITypeInfo_(self::CDispatch, items_dict, typeInfo)
     typeInfos = [typeInfo]
-    inspectedIIDs = Dict(IID_IDispatch(pythoncom) => nothing)
+    inspectedIIDs = Dict(pythoncom.IID_IDispatch => nothing)
     while length(typeInfos) > 0
         typeInfo = pop(typeInfos)
         typeAttr = GetTypeAttr(typeInfo)
         if iid(typeAttr)
-            not in keys(inspectedIIDs)
+            not in inspectedIIDs
             inspectedIIDs[iid(typeAttr)+1] = nothing
             for iFun = 0:cFuncs(typeAttr)-1
                 funDesc = GetFuncDesc(typeInfo, iFun)
@@ -341,17 +342,17 @@ end
 
 function _NewEnum(self::CDispatch)
     try
-        invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
+        invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
         enum = InvokeTypes(
             self._oleobj_,
-            DISPID_NEWENUM(pythoncom),
+            pythoncom.DISPID_NEWENUM,
             LCID,
             invkind,
             (13, 10),
             (),
         )
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             return nothing
         end
     end
@@ -382,8 +383,8 @@ function __setitem__(self::CDispatch, index)::Tuple
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
         invkind, dispid = (
-            DISPATCH_PROPERTYPUT(pythoncom) | DISPATCH_PROPERTYPUTREF(pythoncom),
-            DISPID_VALUE(pythoncom),
+            pythoncom.DISPATCH_PROPERTYPUT | pythoncom.DISPATCH_PROPERTYPUTREF,
+            pythoncom.DISPID_VALUE,
         )
     end
     if invkind != nothing
@@ -412,7 +413,7 @@ function _find_dispatch_type_(self::CDispatch, methodName)::Tuple
     catch exn
         return (nothing, nothing)
     end
-    return (DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom), dispid)
+    return (pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET, dispid)
 end
 
 function _ApplyTypes_(
@@ -450,9 +451,9 @@ function _get_good_single_object_(
     end
     if isa(ob, PyIUnknownType)
         try
-            ob = QueryInterface(ob, IID_IDispatch(pythoncom))
+            ob = QueryInterface(ob, pythoncom.IID_IDispatch)
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 return ob
             end
         end
@@ -481,7 +482,7 @@ end
 
 function _make_method_(self::CDispatch, name)
     #= Make a method object - Assumes in olerepr funcmap =#
-    methodName = build.MakePublicAttributeName.__init__(name)
+    methodName = __init__(build.MakePublicAttributeName, name)
     methodCodeList =
         MakeFuncMethod(self._olerepr_, self._olerepr_.mapFuncs[name+1], methodName, 0)
     methodCode = join(methodCodeList, "\n")
@@ -588,9 +589,9 @@ function _LazyAddAttr_(self::CDispatch, attr)::Int64
             if x == 0 && attr[begin:3] in ("Set", "Get")
                 x, t = Bind(typecomp, attr[4:end], i)
             end
-            if x == DESCKIND_FUNCDESC(pythoncom)
+            if x == pythoncom.DESCKIND_FUNCDESC
                 r = _AddFunc_(olerepr, typeinfo, t, 0)
-            elseif x == DESCKIND_VARDESC(pythoncom)
+            elseif x == pythoncom.DESCKIND_VARDESC
                 r = _AddVar_(olerepr, typeinfo, t, 0)
             else
                 r = nothing
@@ -625,7 +626,7 @@ function _FlagAsMethod(self::CDispatch)
             should then allow this to work.
              =#
     for name in methodNames
-        details = build.MapEntry.__init__(__AttrToID__(self, name), (name,))
+        details = __init__(build.MapEntry, __AttrToID__(self, name), (name,))
         self._olerepr_.mapFuncs[name+1] = details
     end
 end
@@ -638,17 +639,17 @@ end
 function __getattr__(self::CDispatch, attr)::Tuple
     if attr == "__iter__"
         try
-            invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
+            invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
             enum = InvokeTypes(
                 self._oleobj_,
-                DISPID_NEWENUM(pythoncom),
+                pythoncom.DISPID_NEWENUM,
                 LCID,
                 invkind,
                 (13, 10),
                 (),
             )
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(AttributeError("This object can not function as an iterator"))
             end
         end
@@ -692,10 +693,10 @@ function __getattr__(self::CDispatch, attr)::Tuple
                     end
                 end
                 if retEntry === nothing
-                    retEntry = build.MapEntry.__init__(__AttrToID__(self, attr), (attr,))
+                    retEntry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
                 end
             catch exn
-                if exn isa ole_error(pythoncom)
+                if exn isa pythoncom.ole_error
                     #= pass =#
                 end
             end
@@ -713,13 +714,13 @@ function __getattr__(self::CDispatch, attr)::Tuple
         end
     end
     if retEntry != nothing
-        invoke_type = _GetDescInvokeType(retEntry, INVOKE_PROPERTYGET(pythoncom))
+        invoke_type = _GetDescInvokeType(retEntry, pythoncom.INVOKE_PROPERTYGET)
         debug_attr_print()
         try
             ret = Invoke(self._oleobj_, dispid(retEntry), 0, invoke_type, 1)
         catch exn
             let details = exn
-                if details isa com_error(pythoncom)
+                if details isa pythoncom.com_error
                     if hresult(details) in ERRORS_BAD_CONTEXT
                         self._olerepr_.mapFuncs[attr+1] = retEntry
                         return _make_method_(self, attr)
@@ -743,13 +744,13 @@ function __setattr__(self::CDispatch, attr, value)
     if self._olerepr_
         if attr in self._olerepr_.propMap
             entry = self._olerepr_.propMap[attr+1]
-            invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
+            invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
             Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
             return
         end
         if attr in self._olerepr_.propMapPut
             entry = self._olerepr_.propMapPut[attr+1]
-            invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
+            invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
             Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
             return
         end
@@ -758,33 +759,33 @@ function __setattr__(self::CDispatch, attr, value)
         if __LazyMap__(self, attr) != 0
             if attr in self._olerepr_.propMap
                 entry = self._olerepr_.propMap[attr+1]
-                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
+                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 return
             end
             if attr in self._olerepr_.propMapPut
                 entry = self._olerepr_.propMapPut[attr+1]
-                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
+                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 return
             end
         end
         try
-            entry = build.MapEntry.__init__(__AttrToID__(self, attr), (attr,))
+            entry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 entry = nothing
             end
         end
         if entry != nothing
             try
-                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
+                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 self._olerepr_.propMap[attr+1] = entry
                 debug_attr_print()
                 return
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     #= pass =#
                 end
             end
@@ -793,3 +794,4 @@ function __setattr__(self::CDispatch, attr, value)
     throw(AttributeError("Property \'%s.%s\' can not be set." % (self._username_, attr)))
 end
 
+end

@@ -52,6 +52,7 @@ from pyjl.rewriters import (
     JuliaConditionRewriter,
     JuliaIndexingRewriter, 
     JuliaMethodCallRewriter,
+    JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
 )
 from pyjl.transpiler import JuliaTranspiler
@@ -228,20 +229,11 @@ def _transpile_one(
     tree, infer_meta = core_transformers(tree, trees, args)
     out = []
 
-    code = transpiler.visit(tree) + "\n"
+    transpile_output = transpiler.visit(tree)
     headers = transpiler.headers(infer_meta)
-    features = transpiler.features()
-    if features:
-        out.append(features)
     if headers:
         out.append(headers)
-    usings = transpiler.usings()
-    if usings:
-        out.append(usings)
-    globals = transpiler.globals()
-    if globals:
-        out.append(globals)
-    out.append(code)
+    out.append(transpile_output)
     if transpiler.extension:
         out.append(transpiler.extension_module(tree))
     return "\n".join(out)
@@ -401,7 +393,7 @@ def julia_settings(args, env=os.environ):
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[ImportRewriter(), JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), ForLoopTargetRewriter(), 
-            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter()],
+            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), JuliaModuleRewriter()],
         optimization_rewriters=[AlgebraicSimplification()]
     )
 

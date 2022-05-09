@@ -90,14 +90,6 @@ class JuliaTranspiler(CLikeTranspiler):
         self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
         self._special_method_table = self.SPECIAL_METHOD_TABLE    
 
-    def usings(self):
-        usings = sorted(list(set(self._usings)))
-        uses = "\n".join(f"using {mod}" for mod in usings)
-        return uses
-
-    def globals(self):
-        return "\n".join(self._globals)
-
     def comment(self, text: str) -> str:
         return f"#= {text} =#"
 
@@ -1010,3 +1002,8 @@ class JuliaTranspiler(CLikeTranspiler):
         body = "\n".join(body)
 
         return f"let {args_str}\n{body}\nend"
+
+    def visit_JuliaModule(self, node: juliaAst.JuliaModule) -> Any:
+        body = self.visit_Module(node)
+        mod_name = self.visit(node.name)
+        return f"module {mod_name}\n{body}\nend"

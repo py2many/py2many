@@ -1,6 +1,4 @@
-using Printf
-using PyCall
-pythoncom = pyimport("pythoncom")
+module gencache
 #= Manages the cache of generated Python code.
 
 Description
@@ -23,6 +21,9 @@ Hacks, to do, etc
   Currently just uses a pickled dictionary, but should used some sort of indexed file.
   Maybe an OLE2 compound file, or a bsddb file?
  =#
+using Printf
+using PyCall
+pythoncom = pyimport("pythoncom")
 import io as io
 include("makepy.jl")
 include("genpy.jl")
@@ -260,7 +261,7 @@ function GetModuleForCLSID(clsid)
                     GenerateChildFromTypeLibSpec(makepy, sub_mod, info)
                 end
             end
-            mod = modules(sys)[sub_mod_name+1]
+            mod = sys.modules[sub_mod_name+1]
         end
     end
     return mod
@@ -489,7 +490,7 @@ function EnsureModule(
                         end
                     end
                 catch exn
-                    if exn isa com_error(pythoncom)
+                    if exn isa pythoncom.com_error
                         #= pass =#
                     end
                 end
@@ -516,7 +517,7 @@ function EnsureModule(
                 tlbAttributes =
                     GetLibAttr(LoadRegTypeLib(pythoncom, typelibCLSID, major, minor, lcid))
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     bValidateFile = 0
                 end
             end
@@ -645,7 +646,7 @@ function EnsureDispatch(prog_id, bForDemand = 1)
             disp_class = GetClass(CLSIDToClass, string(disp_clsid))
             disp = disp_class(_oleobj_(disp))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -757,7 +758,7 @@ function _GetModule(fname)
     #= Given the name of a module in the gen_py directory, import and return it. =#
     mod_name = "win32com.gen_py.%s" % fname
     mod = __import__(mod_name)
-    return modules(sys)[mod_name+1]
+    return sys.modules[mod_name+1]
 end
 
 function Rebuild(verbose = 1)
@@ -808,7 +809,7 @@ end
 
 function main()
     try
-        opts, args = getopt(getopt, append!([PROGRAM_FILE], ARGS)[2:end], "qrd")
+        opts, args = getopt(getopt, sys.argv[2:end], "qrd")
     catch exn
         let message = exn
             if message isa error(getopt)
@@ -817,7 +818,7 @@ function main()
             end
         end
     end
-    if length(append!([PROGRAM_FILE], ARGS)) == 1 || args
+    if length(sys.argv) == 1 || args
         println(usage())
     end
     verbose = 1
@@ -835,3 +836,4 @@ function main()
 end
 
 main()
+end

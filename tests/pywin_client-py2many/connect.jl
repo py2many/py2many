@@ -1,6 +1,7 @@
+module connect
+#= Utilities for working with Connections =#
 using PyCall
 pythoncom = pyimport("pythoncom")
-#= Utilities for working with Connections =#
 using win32com.server: dispatcher
 import win32com.server.util
 abstract type AbstractSimpleConnection end
@@ -31,7 +32,7 @@ function __del__(self::SimpleConnection)
     try
         Disconnect(self)
     catch exn
-        if exn isa error(pythoncom)
+        if exn isa pythoncom.error
             #= pass =#
         end
     end
@@ -53,7 +54,7 @@ function Connect(self::SimpleConnection, coInstance, eventInstance, eventCLSID =
             oleobj = coInstance
         end
     end
-    cpc = QueryInterface(oleobj, IID_IConnectionPointContainer(pythoncom))
+    cpc = QueryInterface(oleobj, pythoncom.IID_IConnectionPointContainer)
     if eventCLSID === nothing
         eventCLSID = CLSID(eventInstance)
     end
@@ -72,3 +73,4 @@ function Disconnect(self::SimpleConnection)
     end
 end
 
+end

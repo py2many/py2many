@@ -13,7 +13,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
-from pyjl.juliaAst import JuliaNodeVisitor
+from pyjl.juliaAst import JuliaModule, JuliaNodeVisitor
 from pyjl.plugins import IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 from pyjl.global_vars import NONE_TYPE
 from pyjl.global_vars import DEFAULT_TYPE
@@ -170,6 +170,11 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._none_type = NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
+
+    def usings(self):
+        usings = sorted(list(set(self._usings)))
+        uses = "\n".join(f"using {mod}" for mod in usings)
+        return uses
         
     def visit(self, node) -> str:
         if type(node) in jl_symbols:

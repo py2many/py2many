@@ -155,13 +155,16 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._throw_on_unimplemented = True
 
     def headers(self, meta=None):
-        return ""
+        return "\n".join(self._headers)
 
     def usings(self):
-        return ""
+        return "\n".join(self._usings)
+
+    def globals(self):
+        return "\n".join(self._globals)
 
     def features(self):
-        return ""
+        return "\n".join(self._features)
 
     @property
     def extension(self):
@@ -224,34 +227,74 @@ class CLikeTranspiler(ast.NodeVisitor):
             except Exception as e:
                 raise AstNotImplementedError(e, node) from e
 
-    def visit_Pass(self, node) -> str:
-        return self.comment("pass")
-
     def visit_Module(self, node) -> str:
         # Update module list
         self._modules = list(path.name.split(
             ".")[0] for path in node.__files__)
 
-        docstring = self._get_docstring(node)
-        buf = [docstring] if docstring is not None else []
+        # Reset state
+        self._imported_names = {}
+        self._usings.clear()
+
         filename = getattr(node, "__file__", None)
         if filename is not None:
             self._module = Path(filename).stem
-        # TODO: generalize this to reset all state that needs to be reset
-        self._imported_names = {}
-        self._usings.clear()
+        
         body_dict: Dict[ast.AST, str] = OrderedDict()
         for b in node.body:
             if not isinstance(b, ast.FunctionDef):
                 body_dict[b] = self.visit(b)
+
         # Second pass to handle functiondefs whose body
         # may refer to other members of node.body
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 body_dict[b] = self.visit(b)
 
-        buf += [body_dict[b] for b in node.body]
+        return self.join_module_body(node, body_dict)
+
+    def join_module_body(self, node, body_dict: Dict[ast.AST, str]):
+        """Join the module's body"""
+        docstring = self._get_docstring(node)
+        buf = [docstring] if docstring is not None else []
+
+        # Append code extras
+        features = self.features()
+        if features:
+            buf.append(features)
+        usings = self.usings()
+        if usings:
+            buf.append(usings)
+        globals = self.globals()
+        if globals:
+            buf.append(globals)
+
+        # Add body contents
+        buf.extend([body_dict[b] for b in node.body])
+
         return "\n".join(buf)
+
+    def visit_ClassDef(self, node):
+        bases = [get_id(base) for base in node.bases]
+        if set(bases) == {"Enum", "str"}:
+            return self.visit_StrEnum(node)
+        if len(bases) != 1:
+            return None
+        if not bases[0] in {"Enum", "IntEnum", "IntFlag"}:
+            return None
+        if bases == ["IntEnum"] or bases == ["Enum"]:
+            return self.visit_IntEnum(node)
+        if bases == ["IntFlag"]:
+            return self.visit_IntFlag(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        docstring = self._get_docstring(node)
+        buf = [docstring] if docstring else []
+        buf.extend([self.visit(n) for n in node.body])
+        return "\n".join(buf)
+
+    def visit_Pass(self, node) -> str:
+        return self.comment("pass")
 
     def visit_alias(self, node):
         return (node.name, node.asname)
@@ -524,25 +567,6 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_SetComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # by default, they are the same
-
-    def visit_ClassDef(self, node):
-        bases = [get_id(base) for base in node.bases]
-        if set(bases) == {"Enum", "str"}:
-            return self.visit_StrEnum(node)
-        if len(bases) != 1:
-            return None
-        if not bases[0] in {"Enum", "IntEnum", "IntFlag"}:
-            return None
-        if bases == ["IntEnum"] or bases == ["Enum"]:
-            return self.visit_IntEnum(node)
-        if bases == ["IntFlag"]:
-            return self.visit_IntFlag(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        docstring = self._get_docstring(node)
-        buf = [docstring] if docstring else []
-        buf.extend([self.visit(n) for n in node.body])
-        return "\n".join(buf)
 
     def visit_StrEnum(self, node) -> str:
         raise Exception("Unimplemented")

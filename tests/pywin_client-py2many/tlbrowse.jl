@@ -1,3 +1,4 @@
+module tlbrowse
 using PyCall
 pythoncom = pyimport("pythoncom")
 
@@ -23,14 +24,14 @@ LBS_STD =
     ((ES_STD | win32con.LBS_NOTIFY) | win32con.LBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 CBS_STD = (ES_STD | win32con.CBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 typekindmap = Dict(
-    TKIND_ENUM(pythoncom) => "Enumeration",
-    TKIND_RECORD(pythoncom) => "Record",
-    TKIND_MODULE(pythoncom) => "Module",
-    TKIND_INTERFACE(pythoncom) => "Interface",
-    TKIND_DISPATCH(pythoncom) => "Dispatch",
-    TKIND_COCLASS(pythoncom) => "CoClass",
-    TKIND_ALIAS(pythoncom) => "Alias",
-    TKIND_UNION(pythoncom) => "Union",
+    pythoncom.TKIND_ENUM => "Enumeration",
+    pythoncom.TKIND_RECORD => "Record",
+    pythoncom.TKIND_MODULE => "Module",
+    pythoncom.TKIND_INTERFACE => "Interface",
+    pythoncom.TKIND_DISPATCH => "Dispatch",
+    pythoncom.TKIND_COCLASS => "CoClass",
+    pythoncom.TKIND_ALIAS => "Alias",
+    pythoncom.TKIND_UNION => "Union",
 )
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
@@ -100,7 +101,7 @@ function OnFileOpen(self::TypeBrowseDialog, id, code)
         try
             self.tlb = LoadTypeLib(pythoncom, GetPathName(dlg))
         catch exn
-            if exn isa ole_error(pythoncom)
+            if exn isa pythoncom.ole_error
                 MessageBox(self, "The file does not contain type information")
                 self.tlb = nothing
             end
@@ -188,7 +189,7 @@ function _GetMainInfoTypes(self::TypeBrowseDialog)::Vector
         desc =
             desc +
             (", Flags=0x%x, typeKind=0x%x, typeFlags=0x%x" % (flags, typeKind, typeFlags))
-        if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
+        if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
             desc = desc * "(Source)"
         end
         push!(infos, ("Implements", desc))
@@ -309,3 +310,4 @@ function main()
 end
 
 main()
+end
