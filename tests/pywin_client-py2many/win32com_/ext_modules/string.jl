@@ -93,7 +93,7 @@ function _invalid(self::Template, mo)
         colno = 1
         lineno = 1
     else
-        colno = i - length(x -> join(x, lines[begin:-1]))
+        colno = i - length(join(lines[begin:-1], ""))
         lineno = length(lines)
     end
     throw(ValueError("Invalid placeholder in string: line %d, col %d" % (lineno, colno)))
@@ -181,7 +181,7 @@ function _vformat(
     result = []
     for (literal_text, field_name, format_spec, conversion) in parse(self, format_string)
         if literal_text
-            append(result, literal_text)
+            push!(result, literal_text)
         end
         if field_name != nothing
             if field_name == ""
@@ -209,10 +209,10 @@ function _vformat(
             obj = convert_field(self, obj, conversion)
             format_spec, auto_arg_index =
                 _vformat(self, format_spec, args, kwargs, used_args, recursion_depth - 1)
-            append(result, format_field(self, obj, format_spec))
+            push!(result, format_field(self, obj, format_spec))
         end
     end
-    return (x -> join(x, result), auto_arg_index)
+    return (join(result, ""), auto_arg_index)
 end
 
 function get_value(self::Formatter, key, args, kwargs)

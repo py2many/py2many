@@ -1,7 +1,7 @@
 module testDates
 using PyCall
-datetime = pyimport("datetime")
 pywintypes = pyimport("pywintypes")
+datetime = pyimport("datetime")
 
 
 

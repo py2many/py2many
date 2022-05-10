@@ -68,9 +68,9 @@ Error Handling
  
  =#
 using PyCall
+pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
 pywintypes = pyimport("pywintypes")
-pythoncom = pyimport("pythoncom")
 using win32com.util: IIDToInterfaceName
 using win32com: universal
 import win32com.client
@@ -399,13 +399,13 @@ function _getnextdispid_(self::BasicWrapPolicy, fdex, dispid)::Vector
 ids = collect(values(self._name_to_dispid_))
 sort(ids)
 if DISPID_STARTENUM in ids
-remove(ids, DISPID_STARTENUM)
+deleteat!(ids, findfirst(isequal(DISPID_STARTENUM), ids))
 end
 if dispid == DISPID_STARTENUM
 return ids[1]
 else
 try
-return ids[index(ids, dispid) + 1 + 1]
+return ids[findfirst(isequal(dispid), ids) + 1 + 1]
 catch exn
 if exn isa ValueError
 throw(COMException(winerror.E_UNEXPECTED))
@@ -718,7 +718,7 @@ if exn isa error(pythoncom)
 end
 end
 end
-append(ret, arg)
+push!(ret, arg)
 end
 return (tuple(ret), kwArgs)
 end

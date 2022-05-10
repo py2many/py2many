@@ -172,7 +172,7 @@ function _write_ifc_cpp(f, interface)
                 if HasAttribute(arg, "in")
                     val = GetFormatChar(argCvt)
                     if val
-                        write(f, ("\t" + GetAutoduckString(argCvt)) + "\n")
+                        write(f, ("\t" + GetAutoduckString(argCvt)) * "\n")
                         formatChars = formatChars + val
                         argsParseTuple = argsParseTuple * ", " + GetParseTupleArg(argCvt)
                         codePobjects =
@@ -371,11 +371,11 @@ function _write_gw_cpp(f, interface)
         write(f, "STDMETHODIMP %s::%s(\n" % (gname, name(method)))
         if args(method)
             for arg in args(method)[begin:-1]
-                inoutstr = x -> join(x, inout(arg))
+                inoutstr = join(inout(arg), "][")
                 write(f, "\t\t/* [%s] */ %s,\n" % (inoutstr, GetRawDeclaration(arg)))
             end
             arg = args(method)[end]
-            inoutstr = x -> join(x, inout(arg))
+            inoutstr = join(inout(arg), "][")
             write(f, "\t\t/* [%s] */ %s)\n" % (inoutstr, GetRawDeclaration(arg)))
         else
             write(f, "\t\tvoid)\n")

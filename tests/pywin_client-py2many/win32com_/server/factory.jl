@@ -18,7 +18,7 @@ for clsid in clsids
 if clsid[1] not in ["-", "/"]
 factory = MakePyFactory(pythoncom, clsid)
 regId = CoRegisterClassObject(pythoncom, clsid, factory, clsctx, flags)
-append(ret, (factory, regId))
+push!(ret, (factory, regId))
 end
 end
 return ret

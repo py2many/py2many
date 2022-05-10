@@ -18,8 +18,8 @@ Contribtions to this sample to make it a little "friendlier" welcome!
  =#
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import winreg
 
 using win32com: universal
@@ -102,7 +102,7 @@ function QueryStatus(self::IEButton, pguidCmdGroup, prgCmds, cmdtextf)::Tuple
     result = []
     for (id, flags) in prgCmds
         flags |= axcontrol.OLECMDF_SUPPORTED | axcontrol.OLECMDF_ENABLED
-        append(result, (id, flags))
+        push!(result, (id, flags))
     end
     if cmdtextf === nothing
         cmdtext = nothing

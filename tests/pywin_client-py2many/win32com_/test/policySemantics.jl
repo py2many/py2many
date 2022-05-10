@@ -60,7 +60,7 @@ dispid = -1
 while true
 try
 dispid = GetNextDispID(ob, 0, dispid)
-append(dispids, dispid)
+push!(dispids, dispid)
 catch exn
  let xxx_todo_changeme = exn
 if xxx_todo_changeme isa com_error(pythoncom)

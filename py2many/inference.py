@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_in_body, find_node_by_name_and_type, find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast

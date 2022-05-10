@@ -11,7 +11,7 @@ cses = InstancesOf(GetObject("WinMgMts:"), "Win32_Process")
 vals = []
 for cs in cses
 val = Value(cs.Properties_("Caption"))
-append(vals, val)
+push!(vals, val)
 end
 assertFalse(self, length(vals) < 5, "We only found %d processes!" % length(vals))
 end

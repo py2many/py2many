@@ -7,8 +7,8 @@ and it can be found at:
      http://msdn.microsoft.com/library/default.asp?url=/library/en-us/dnexcl2k2/html/odc_xlrtdfaq.asp
  =#
 using PyCall
-datetime = pyimport("datetime")
 pythoncom = pyimport("pythoncom")
+datetime = pyimport("datetime")
 import win32com.server.register
 
 import win32com.client

@@ -23,8 +23,8 @@ Hacks, to do, etc
  =#
 using Printf
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 import io as io
 include("makepy.jl")
 include("genpy.jl")
@@ -109,7 +109,7 @@ function _LoadDicts()
     end
 end
 
-function GetGeneratedFileName(clsid, lcid, major, minor)
+function GetGeneratedFileName(clsid, lcid, major, minor)::Any
     #= Given the clsid, lcid, major and  minor for a type lib, return
         the file name (no extension) providing this support.
          =#
@@ -609,7 +609,7 @@ function EnsureModule(
             items = []
             for desc in GetGeneratedInfos()
                 if key[1] == desc[1] && key[2] == desc[2] && key[3] == desc[3]
-                    append(items, desc)
+                    push!(items, desc)
                 end
             end
             if items
@@ -747,7 +747,7 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
                     continue
                 end
             end
-            append(ret, (iid, lcid, major, minor))
+            push!(ret, (iid, lcid, major, minor))
         end
         return ret
     end

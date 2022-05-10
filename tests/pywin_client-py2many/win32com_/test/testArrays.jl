@@ -20,7 +20,7 @@ return a
 end
 ret = []
 for i in a
-append(ret, _normalize_array(i))
+push!(ret, _normalize_array(i))
 end
 return ret
 end
@@ -38,7 +38,7 @@ end
 
 function _doTest(self::ArrayTest, array)
 self.arr.Array = array
-assertEqual(self, _normalize_array(self.arr.Array), array)
+@test (_normalize_array(self.arr.Array) == array)
 end
 
 function testZeroD(self::ArrayTest)

@@ -43,8 +43,8 @@ end
 
 function testResults(self::PippoTester)
 rc, out1 = Method2(self.object, 123, 111)
-assertEqual(self, rc, 123)
-assertEqual(self, out1, 222)
+@test (rc == 123)
+@test (out1 == 222)
 end
 
 function testPythonArrays(self::PippoTester)
@@ -71,7 +71,7 @@ end
 
 function _testArray(self::PippoTester, inArray)
 outArray = Method3(self.object, inArray)
-assertEqual(self, collect(outArray), collect(inArray))
+@test (collect(outArray) == collect(inArray))
 end
 
 function testLeaksGencache(self::PippoTester)

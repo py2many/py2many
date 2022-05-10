@@ -10,7 +10,7 @@ end
 function _CheckMatches(self::RegexTest, match, expected)
 found = []
 for imatch in match
-append(found, FirstIndex(imatch))
+push!(found, FirstIndex(imatch))
 end
 assertEqual(self, collect(found), collect(expected))
 end

@@ -54,7 +54,7 @@ function MakeDefaultArgsForPropertyPut(argsDesc)::Tuple
         if default === nothing
             break
         end
-        append(ret, default)
+        push!(ret, default)
     end
     return tuple(ret)
 end
@@ -795,10 +795,10 @@ function WriteClass(self::CoClassItem, generator)
     if generate_type(generator) == GEN_DEMAND_CHILD
         referenced_items = []
         for (ref, flag) in self.sources
-            append(referenced_items, ref)
+            push!(referenced_items, ref)
         end
         for (ref, flag) in self.interfaces
-            append(referenced_items, ref)
+            push!(referenced_items, ref)
         end
         write(stream)
         for ref in referenced_items
@@ -971,7 +971,7 @@ function CollectOleItemInfosFromType(self::Generator)::Vector
         infotype = GetTypeInfoType(self.typelib, i)
         doc = GetDocumentation(self.typelib, i)
         attr = GetTypeAttr(info)
-        append(ret, (info, infotype, doc, attr))
+        push!(ret, (info, infotype, doc, attr))
     end
     return ret
 end
@@ -989,7 +989,7 @@ function _Build_CoClass(self::Generator, type_info_tuple)::Tuple
             end
         end
         refAttr = GetTypeAttr(refType)
-        append(
+        push!(
             child_infos,
             (
                 info,

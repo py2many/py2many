@@ -32,8 +32,8 @@ the dictionary's keys. This allows for the following type of VB code:
     next
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 using win32com.server.register: UseCommandLine
 
 using win32com.server: util, policy

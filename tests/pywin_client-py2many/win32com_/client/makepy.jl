@@ -9,8 +9,8 @@ module makepy
  =#
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 pythoncom = pyimport("pythoncom")
+win32ui = pyimport("win32ui")
 import pywin
 using pywin.dialogs: status
 import getopt
@@ -164,7 +164,7 @@ function GetTypeLibsForSpec(arg)::Vector
             tlb = LoadTypeLib(pythoncom, arg)
             spec = TypelibSpec(selecttlb, nothing, 0, 0, 0)
             FromTypelib(spec, tlb, arg)
-            append(typelibs, (tlb, spec))
+            push!(typelibs, (tlb, spec))
         catch exn
             if exn isa com_error(pythoncom)
                 tlbs = FindTlbsWithDescription(selecttlb, arg)
@@ -200,7 +200,7 @@ function GetTypeLibsForSpec(arg)::Vector
                     major(spec) = attr[4]
                     minor(spec) = attr[5]
                     lcid(spec) = attr[2]
-                    append(typelibs, (tlb, spec))
+                    push!(typelibs, (tlb, spec))
                 end
             end
         end

@@ -266,7 +266,7 @@ return (("\tdbl" + self.arg.name) * " = " + self.arg.name) * ";\n"
 end
 
 function GetBuildForGatewayPreCode(self::ArgFormatterFloat)::String
-return ((("\tdbl%s = " % self.arg.name) + _IndirectPrefix(self, _GetDeclaredIndirection(self), 0)) + self.arg.name) + ";\n"
+return ((("\tdbl%s = " % self.arg.name) + _IndirectPrefix(self, _GetDeclaredIndirection(self), 0)) + self.arg.name) * ";\n"
 end
 
 function GetParsePostCode(self::ArgFormatterFloat)::String
@@ -308,7 +308,7 @@ return (("\ti" + self.arg.name) * " = " + self.arg.name) * ";\n"
 end
 
 function GetBuildForGatewayPreCode(self::ArgFormatterShort)::String
-return ((("\ti%s = " % self.arg.name) + _IndirectPrefix(self, _GetDeclaredIndirection(self), 0)) + self.arg.name) + ";\n"
+return ((("\ti%s = " % self.arg.name) + _IndirectPrefix(self, _GetDeclaredIndirection(self), 0)) + self.arg.name) * ";\n"
 end
 
 function GetParsePostCode(self::ArgFormatterShort)::String
@@ -413,7 +413,7 @@ notdirected = GetIndirectedArgName(self, nothing, 1)
 return "\tob%s = MakeBstrToObj(%s);\n" % (self.arg.name, notdirected)
 end
 
-function GetBuildForInterfacePostCode(self::ArgFormatterBSTR)
+function GetBuildForInterfacePostCode(self::ArgFormatterBSTR)::Any
 return ("\tSysFreeString(%s);\n" % (self.arg.name,)) + GetBuildForInterfacePostCode(ArgFormatterPythonCOM)
 end
 
@@ -428,7 +428,7 @@ function _GetPythonTypeDesc(self::ArgFormatterOLECHAR)::String
 return "<o unicode>"
 end
 
-function GetUnconstType(self::ArgFormatterOLECHAR)
+function GetUnconstType(self::ArgFormatterOLECHAR)::Any
 if self.arg.type[begin:3] == "LPC"
 return self.arg.type[begin:2] + self.arg.type[4:end]
 else
@@ -440,7 +440,7 @@ function GetParsePostCode(self::ArgFormatterOLECHAR)
 return "\tif (bPythonIsHappy && !PyWinObject_AsBstr(ob%s, %s)) bPythonIsHappy = FALSE;\n" % (self.arg.name, GetIndirectedArgName(self, nothing, 2))
 end
 
-function GetInterfaceArgCleanup(self::ArgFormatterOLECHAR)::Union[str,Any]
+function GetInterfaceArgCleanup(self::ArgFormatterOLECHAR)::String
 return "\tSysFreeString(%s);\n" % GetIndirectedArgName(self, nothing, 1)
 end
 
@@ -449,7 +449,7 @@ notdirected = GetIndirectedArgName(self, self.builtinIndirection, 1)
 return "\tob%s = MakeOLECHARToObj(%s);\n" % (self.arg.name, notdirected)
 end
 
-function GetBuildForInterfacePostCode(self::ArgFormatterOLECHAR)
+function GetBuildForInterfacePostCode(self::ArgFormatterOLECHAR)::Any
 return ("\tCoTaskMemFree(%s);\n" % (self.arg.name,)) + GetBuildForInterfacePostCode(ArgFormatterPythonCOM)
 end
 
@@ -464,7 +464,7 @@ function _GetPythonTypeDesc(self::ArgFormatterTCHAR)::String
 return "string/<o unicode>"
 end
 
-function GetUnconstType(self::ArgFormatterTCHAR)
+function GetUnconstType(self::ArgFormatterTCHAR)::Any
 if self.arg.type[begin:3] == "LPC"
 return self.arg.type[begin:2] + self.arg.type[4:end]
 else
@@ -476,7 +476,7 @@ function GetParsePostCode(self::ArgFormatterTCHAR)
 return "\tif (bPythonIsHappy && !PyWinObject_AsTCHAR(ob%s, %s)) bPythonIsHappy = FALSE;\n" % (self.arg.name, GetIndirectedArgName(self, nothing, 2))
 end
 
-function GetInterfaceArgCleanup(self::ArgFormatterTCHAR)::Union[str,Any]
+function GetInterfaceArgCleanup(self::ArgFormatterTCHAR)::String
 return "\tPyWinObject_FreeTCHAR(%s);\n" % GetIndirectedArgName(self, nothing, 1)
 end
 

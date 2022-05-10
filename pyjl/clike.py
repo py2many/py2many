@@ -1,7 +1,4 @@
 import ast
-from importlib.resources import path
-import os
-from pathlib import Path
 import re
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
@@ -13,7 +10,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
-from pyjl.juliaAst import JuliaModule, JuliaNodeVisitor
+from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
 from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
@@ -412,7 +409,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if class_node:
                 for base in class_node.bases:
                     base_str = get_ann_repr(base)
-                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs[1:])
+                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
                     if dispatch_func:
                         return dispatch_func
 
@@ -425,7 +422,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if ann := self._generic_typename_from_type_node(annotation):
                 # Temporary (NOT WORKING)
                 ann: str = re.split(r"\s+[*]", ann)[0]
-                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs[1:])
+                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
                 if dispatch_func:
                     return dispatch_func
 

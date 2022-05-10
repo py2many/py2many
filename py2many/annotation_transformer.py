@@ -1,6 +1,4 @@
 import ast
-from typing import Any
-
 
 def add_annotation_flags(node):
     return AnnotationTransformer().visit(node)

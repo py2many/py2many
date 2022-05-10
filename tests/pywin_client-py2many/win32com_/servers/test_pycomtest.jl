@@ -27,11 +27,11 @@ _typelib_version::Tuple
                         new(intval, longval, ulongval, _com_interfaces_, _reg_clsid_, _reg_progid_, _typelib_guid_, _typelib_version)
 end
 function DoubleString(self::PyCOMTest, str)::Int64
-return repeat(str,2)
+return str*2
 end
 
 function DoubleInOutString(self::PyCOMTest, str)::Int64
-return repeat(str,2)
+return str*2
 end
 
 function Fire(self::PyCOMTest, nID)

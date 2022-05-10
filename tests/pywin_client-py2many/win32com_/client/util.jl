@@ -73,7 +73,7 @@ function Next(self::Enumerator, count = 1)::Tuple
     ret = Next(self._oleobj_, count)
     realRets = []
     for r in ret
-        append(realRets, _make_retval_(self, r))
+        push!(realRets, _make_retval_(self, r))
     end
     return tuple(realRets)
 end

@@ -17,12 +17,10 @@ import sys
 import traceback
 import unittest
 import bisect
-import copy
 from build.lib.pyjl.plugins import JuliaRewriterPlugins
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_ann_repr
 
 import pyjl.juliaAst as juliaAst
 
@@ -31,7 +29,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name, find_node_by_name_and_type, find_node_by_type, get_class_scope, is_class_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_type
 
 try:
     from dataclasses import dataclass
@@ -844,9 +842,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     traceback.print_exc: (lambda self, node, vargs: "current_exceptions() != [] ? "\
         "current_exceptions()[end] : nothing", False),
     ########################################################
-    pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[0]})", False),
-    pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[0]})", False),
-    pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[0]})", False),
+    pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
+    pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),
+    pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[1]})", False),
     pandas.core.groupby.generic.DataFrameGroupBy.sum: (lambda self, node, vargs: f"sum({vargs[0]})", False),
 }
 

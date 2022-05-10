@@ -9,8 +9,8 @@ construct the necessary Python object, and dispatch COM events.
  =#
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32com.server
 using win32com.shell.shell: ShellExecuteEx
 using win32com.shell: shellcon
@@ -296,12 +296,12 @@ function GetUnregisterServerKeys(clsid, progID = nothing, verProgID = nothing, c
      =#
 ret = [("CLSID\\%s" % string(clsid), win32con.HKEY_CLASSES_ROOT)]
 if verProgID
-append(ret, (verProgID, win32con.HKEY_CLASSES_ROOT))
+push!(ret, (verProgID, win32con.HKEY_CLASSES_ROOT))
 end
 if progID
-append(ret, (progID, win32con.HKEY_CLASSES_ROOT))
+push!(ret, (progID, win32con.HKEY_CLASSES_ROOT))
 end
-append(ret, ("AppID\\%s" % string(clsid), win32con.HKEY_CLASSES_ROOT))
+push!(ret, ("AppID\\%s" % string(clsid), win32con.HKEY_CLASSES_ROOT))
 if customKeys
 ret = ret + customKeys
 end
@@ -468,7 +468,7 @@ function ReExecuteElevated(flags)
 if !(flags["quiet"])
 println("Requesting elevation and retrying...")
 end
-new_params = x -> join(x, [("\"" + a) * "\"" for a in append!([PROGRAM_FILE], ARGS)])
+new_params = join([("\"" + a) * "\"" for a in append!([PROGRAM_FILE], ARGS)], " ")
 if !(flags["unattended"])
 new_params += " --unattended"
 end

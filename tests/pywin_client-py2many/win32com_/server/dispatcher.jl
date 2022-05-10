@@ -4,8 +4,8 @@ module dispatcher
 Please see policy.py for a discussion on dispatchers and policies
  =#
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32traceutil
 
 
@@ -158,7 +158,7 @@ end
 
 function _trace_(self::DispatcherBase)
 if self.logger != nothing
-record = x -> join(x, map(str, args))
+record = join(map(str, args), " ")
 debug(self.logger, record)
 else
 for arg in args[begin:-1]
