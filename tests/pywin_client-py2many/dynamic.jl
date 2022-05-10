@@ -44,10 +44,10 @@ ERRORS_BAD_CONTEXT = [
     E_INVALIDARG(winerror),
 ]
 ALL_INVOKE_TYPES = [
-    pythoncom.INVOKE_PROPERTYGET,
-    pythoncom.INVOKE_PROPERTYPUT,
-    pythoncom.INVOKE_PROPERTYPUTREF,
-    pythoncom.INVOKE_FUNC,
+    INVOKE_PROPERTYGET(pythoncom),
+    INVOKE_PROPERTYPUT(pythoncom),
+    INVOKE_PROPERTYPUTREF(pythoncom),
+    INVOKE_FUNC(pythoncom),
 ]
 function debug_print()
     if debugging != 0
@@ -71,11 +71,11 @@ function MakeMethod(func, inst, cls)
     return MethodType(types, func, inst)
 end
 
-PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
-PyIUnknownType = pythoncom.TypeIIDs[pythoncom.IID_IUnknown+1]
+PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
+PyIUnknownType = TypeIIDs(pythoncom)[IID_IUnknown(pythoncom)+1]
 _GoodDispatchTypes = (str, IIDType)
 _defaultDispatchItem = build.DispatchItem.__init__
-function _GetGoodDispatch(IDispatch, clsctx = pythoncom.CLSCTX_SERVER)
+function _GetGoodDispatch(IDispatch, clsctx = CLSCTX_SERVER(pythoncom))
     if isa(IDispatch, PyIDispatchType)
         return IDispatch
     end
@@ -83,13 +83,13 @@ function _GetGoodDispatch(IDispatch, clsctx = pythoncom.CLSCTX_SERVER)
         try
             IDispatch = connect(pythoncom, IDispatch)
         catch exn
-            if exn isa pythoncom.ole_error
+            if exn isa ole_error(pythoncom)
                 IDispatch = CoCreateInstance(
                     pythoncom,
                     IDispatch,
                     nothing,
                     clsctx,
-                    pythoncom.IID_IDispatch,
+                    IID_IDispatch(pythoncom),
                 )
             end
         end
@@ -114,7 +114,7 @@ function _GetDescInvokeType(entry, invoke_type)
     if !(entry) || !desc(entry)
         return invoke_type
     end
-    if desckind(entry.desc) == pythoncom.DESCKIND_VARDESC
+    if desckind(entry.desc) == DESCKIND_VARDESC(pythoncom)
         return invoke_type
     end
     return invkind(entry.desc)
@@ -126,7 +126,7 @@ function Dispatch(
     createClass = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = pythoncom.CLSCTX_SERVER,
+    clsctx = CLSCTX_SERVER(pythoncom),
 )
     @assert(UnicodeToString === nothing)
     IDispatch, userName = _GetGoodDispatchAndUserName(IDispatch, userName, clsctx)
@@ -143,13 +143,13 @@ function Dispatch(
                 typecomp = GetTypeComp(typeinfo)
                 lazydata = (typeinfo, typecomp)
             catch exn
-                if exn isa pythoncom.com_error
+                if exn isa com_error(pythoncom)
                     #= pass =#
                 end
             end
         end
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             typeinfo = nothing
         end
     end
@@ -162,7 +162,7 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
     if typeinfo != nothing
         try
             attr = GetTypeAttr(typeinfo)
-            if attr[6] == pythoncom.TKIND_INTERFACE && attr[12] & pythoncom.TYPEFLAG_FDUAL
+            if attr[6] == TKIND_INTERFACE(pythoncom) && attr[12] & TYPEFLAG_FDUAL(pythoncom)
                 href = GetRefTypeOfImplType(typeinfo, -1)
                 typeinfo = GetRefTypeInfo(typeinfo, href)
                 attr = GetTypeAttr(typeinfo)
@@ -173,7 +173,7 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
                 olerepr = __init__(build.LazyDispatchItem, attr, nothing)
             end
         catch exn
-            if exn isa pythoncom.ole_error
+            if exn isa ole_error(pythoncom)
                 #= pass =#
             end
         end
@@ -189,7 +189,7 @@ function DumbDispatch(
     userName = nothing,
     createClass = nothing,
     UnicodeToString = nothing,
-    clsctx = pythoncom.CLSCTX_SERVER,
+    clsctx = CLSCTX_SERVER(pythoncom),
 )
     #= Dispatch with no type info =#
     @assert(UnicodeToString === nothing)
@@ -233,8 +233,8 @@ function __call__(self::CDispatch)::Tuple
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
         invkind, dispid = (
-            pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET,
-            pythoncom.DISPID_VALUE,
+            DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom),
+            DISPID_VALUE(pythoncom),
         )
     end
     if invkind != nothing
@@ -249,7 +249,7 @@ function __call__(self::CDispatch)::Tuple
     throw(TypeError("This dispatch object does not define a default method"))
 end
 
-function __bool__(self::CDispatch)::bool
+function __bool__(self::CDispatch)::Bool
     return true
 end
 
@@ -257,12 +257,12 @@ function __repr__(self::CDispatch)
     return "<COMObject %s>" % self._username_
 end
 
-function __str__(self::CDispatch)::str
+function __str__(self::CDispatch)::String
     try
         return string(__call__(self))
     catch exn
         let details = exn
-            if details isa pythoncom.com_error
+            if details isa com_error(pythoncom)
                 if hresult(details)
                     not in ERRORS_BAD_CONTEXT
                     error()
@@ -296,12 +296,12 @@ end
 
 function _UpdateWithITypeInfo_(self::CDispatch, items_dict, typeInfo)
     typeInfos = [typeInfo]
-    inspectedIIDs = Dict(pythoncom.IID_IDispatch => nothing)
+    inspectedIIDs = Dict(IID_IDispatch(pythoncom) => nothing)
     while length(typeInfos) > 0
         typeInfo = pop(typeInfos)
         typeAttr = GetTypeAttr(typeInfo)
         if iid(typeAttr)
-            not in inspectedIIDs
+            not in keys(inspectedIIDs)
             inspectedIIDs[iid(typeAttr)+1] = nothing
             for iFun = 0:cFuncs(typeAttr)-1
                 funDesc = GetFuncDesc(typeInfo, iFun)
@@ -320,17 +320,17 @@ function _UpdateWithITypeInfo_(self::CDispatch, items_dict, typeInfo)
     end
 end
 
-function __eq__(self::CDispatch, other)::bool
+function __eq__(self::CDispatch, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::CDispatch, other)::bool
+function __ne__(self::CDispatch, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
 
-function __int__(self::CDispatch)::int
+function __int__(self::CDispatch)::Int64
     return parse(Int, __call__(self))
 end
 
@@ -344,17 +344,17 @@ end
 
 function _NewEnum(self::CDispatch)
     try
-        invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+        invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
         enum = InvokeTypes(
             self._oleobj_,
-            pythoncom.DISPID_NEWENUM,
+            DISPID_NEWENUM(pythoncom),
             LCID,
             invkind,
             (13, 10),
             (),
         )
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             return nothing
         end
     end
@@ -385,8 +385,8 @@ function __setitem__(self::CDispatch, index)::Tuple
         invkind, dispid = _find_dispatch_type_(self, self._olerepr_.defaultDispatchName)
     else
         invkind, dispid = (
-            pythoncom.DISPATCH_PROPERTYPUT | pythoncom.DISPATCH_PROPERTYPUTREF,
-            pythoncom.DISPID_VALUE,
+            DISPATCH_PROPERTYPUT(pythoncom) | DISPATCH_PROPERTYPUTREF(pythoncom),
+            DISPID_VALUE(pythoncom),
         )
     end
     if invkind != nothing
@@ -415,7 +415,7 @@ function _find_dispatch_type_(self::CDispatch, methodName)::Tuple
     catch exn
         return (nothing, nothing)
     end
-    return (pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET, dispid)
+    return (DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom), dispid)
 end
 
 function _ApplyTypes_(
@@ -453,9 +453,9 @@ function _get_good_single_object_(
     end
     if isa(ob, PyIUnknownType)
         try
-            ob = QueryInterface(ob, pythoncom.IID_IDispatch)
+            ob = QueryInterface(ob, IID_IDispatch(pythoncom))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 return ob
             end
         end
@@ -565,7 +565,7 @@ function _print_details_(self::CDispatch)
     end
 end
 
-function __LazyMap__(self::CDispatch, attr)::int
+function __LazyMap__(self::CDispatch, attr)::Int64
     try
         if _LazyAddAttr_(self, attr)
             debug_attr_print()
@@ -578,7 +578,7 @@ function __LazyMap__(self::CDispatch, attr)::int
     end
 end
 
-function _LazyAddAttr_(self::CDispatch, attr)::int
+function _LazyAddAttr_(self::CDispatch, attr)::Int64
     if self._lazydata_ === nothing
         return 0
     end
@@ -591,9 +591,9 @@ function _LazyAddAttr_(self::CDispatch, attr)::int
             if x == 0 && attr[begin:3] in ("Set", "Get")
                 x, t = Bind(typecomp, attr[4:end], i)
             end
-            if x == pythoncom.DESCKIND_FUNCDESC
+            if x == DESCKIND_FUNCDESC(pythoncom)
                 r = _AddFunc_(olerepr, typeinfo, t, 0)
-            elseif x == pythoncom.DESCKIND_VARDESC
+            elseif x == DESCKIND_VARDESC(pythoncom)
                 r = _AddVar_(olerepr, typeinfo, t, 0)
             else
                 r = nothing
@@ -641,17 +641,17 @@ end
 function __getattr__(self::CDispatch, attr)::Tuple
     if attr == "__iter__"
         try
-            invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+            invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
             enum = InvokeTypes(
                 self._oleobj_,
-                pythoncom.DISPID_NEWENUM,
+                DISPID_NEWENUM(pythoncom),
                 LCID,
                 invkind,
                 (13, 10),
                 (),
             )
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 throw(AttributeError("This object can not function as an iterator"))
             end
         end
@@ -698,7 +698,7 @@ function __getattr__(self::CDispatch, attr)::Tuple
                     retEntry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
                 end
             catch exn
-                if exn isa pythoncom.ole_error
+                if exn isa ole_error(pythoncom)
                     #= pass =#
                 end
             end
@@ -716,13 +716,13 @@ function __getattr__(self::CDispatch, attr)::Tuple
         end
     end
     if retEntry != nothing
-        invoke_type = _GetDescInvokeType(retEntry, pythoncom.INVOKE_PROPERTYGET)
+        invoke_type = _GetDescInvokeType(retEntry, INVOKE_PROPERTYGET(pythoncom))
         debug_attr_print()
         try
             ret = Invoke(self._oleobj_, dispid(retEntry), 0, invoke_type, 1)
         catch exn
             let details = exn
-                if details isa pythoncom.com_error
+                if details isa com_error(pythoncom)
                     if hresult(details) in ERRORS_BAD_CONTEXT
                         self._olerepr_.mapFuncs[attr+1] = retEntry
                         return _make_method_(self, attr)
@@ -746,13 +746,13 @@ function __setattr__(self::CDispatch, attr, value)
     if self._olerepr_
         if attr in self._olerepr_.propMap
             entry = self._olerepr_.propMap[attr+1]
-            invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
+            invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
             Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
             return
         end
         if attr in self._olerepr_.propMapPut
             entry = self._olerepr_.propMapPut[attr+1]
-            invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
+            invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
             Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
             return
         end
@@ -761,13 +761,13 @@ function __setattr__(self::CDispatch, attr, value)
         if __LazyMap__(self, attr) != 0
             if attr in self._olerepr_.propMap
                 entry = self._olerepr_.propMap[attr+1]
-                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
+                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 return
             end
             if attr in self._olerepr_.propMapPut
                 entry = self._olerepr_.propMapPut[attr+1]
-                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
+                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 return
             end
@@ -775,19 +775,19 @@ function __setattr__(self::CDispatch, attr, value)
         try
             entry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 entry = nothing
             end
         end
         if entry != nothing
             try
-                invoke_type = _GetDescInvokeType(entry, pythoncom.INVOKE_PROPERTYPUT)
+                invoke_type = _GetDescInvokeType(entry, INVOKE_PROPERTYPUT(pythoncom))
                 Invoke(self._oleobj_, dispid(entry), 0, invoke_type, 0, value)
                 self._olerepr_.propMap[attr+1] = entry
                 debug_attr_print()
                 return
             catch exn
-                if exn isa pythoncom.com_error
+                if exn isa com_error(pythoncom)
                     #= pass =#
                 end
             end

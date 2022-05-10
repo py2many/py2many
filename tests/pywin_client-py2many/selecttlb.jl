@@ -8,9 +8,9 @@ import win32api
 import win32con
 abstract type AbstractTypelibSpec end
 mutable struct TypelibSpec <: AbstractTypelibSpec
-    clsid::str
+    clsid::String
     flags::Any
-    lcid::int
+    lcid::Int64
     major::Any
     minor::Any
     desc::Any
@@ -18,9 +18,9 @@ mutable struct TypelibSpec <: AbstractTypelibSpec
     ver_desc::Any
 
     TypelibSpec(
-        clsid::str,
+        clsid::String,
         flags::Any,
-        lcid::int,
+        lcid::Int64,
         major::Any,
         minor::Any,
         desc::Any = nothing,
@@ -35,7 +35,7 @@ function __getitem__(self::TypelibSpec, item)::TypelibSpec
     throw(IndexError("Cant index me!"))
 end
 
-function __lt__(self::TypelibSpec, other)::bool
+function __lt__(self::TypelibSpec, other)::Bool
     me = (lower(self.ver_desc || ""), lower(self.desc || ""), self.major, self.minor)
     them =
         (lower(ver_desc(other) || ""), lower(desc(other) || ""), major(other), minor(other))
@@ -49,7 +49,7 @@ function __eq__(self::TypelibSpec, other)
            self.minor == minor(other)
 end
 
-function Resolve(self::TypelibSpec)::int
+function Resolve(self::TypelibSpec)::Int64
     if self.dll === nothing
         return 0
     end
@@ -159,7 +159,7 @@ function EnumTlbs(excludeFlags = 0)::Vector
                     spec = TypelibSpec(iid, lcid, major, minor, flags)
                     spec.dll = dll
                     spec.desc = tlbdesc
-                    spec.ver_desc = ((tlbdesc + " (") + version) + ")"
+                    spec.ver_desc = ((tlbdesc + " (") + version) * ")"
                     push!(results, spec)
                 end
             end

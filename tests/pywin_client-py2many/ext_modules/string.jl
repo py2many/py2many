@@ -14,32 +14,30 @@ punctuation -- a string containing all ASCII punctuation characters
 printable -- a string containing all ASCII characters considered printable
 
  =#
-__all__ = [
-    "ascii_letters",
-    "ascii_lowercase",
-    "ascii_uppercase",
-    "capwords",
-    "digits",
-    "hexdigits",
-    "octdigits",
-    "printable",
-    "punctuation",
-    "whitespace",
-    "Formatter",
-    "Template",
-]
+export ascii_letters,
+    ascii_lowercase,
+    ascii_uppercase,
+    capwords,
+    digits,
+    hexdigits,
+    octdigits,
+    printable,
+    punctuation,
+    whitespace,
+    Formatter,
+    Template
 import _string
 whitespace = " \t\n\r\v\f"
 abstract type AbstractTemplate end
 abstract type AbstractFormatter end
 ascii_lowercase = "abcdefghijklmnopqrstuvwxyz"
 ascii_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-ascii_letters = ascii_lowercase + ascii_uppercase
+ascii_letters = ascii_lowercase * ascii_uppercase
 digits = "0123456789"
-hexdigits = (digits + "abcdef") + "ABCDEF"
+hexdigits = digits * "abcdef" * "ABCDEF"
 octdigits = "01234567"
 punctuation = "!\"#\$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
-printable = ((digits + ascii_letters) + punctuation) + whitespace
+printable = digits * ascii_letters * punctuation * whitespace
 function capwords(s, sep = nothing)
     #= capwords(s [,sep]) -> string
 
@@ -62,17 +60,17 @@ mutable struct Template <: AbstractTemplate
     pattern::Any
     template::Any
     braceidpattern::Any
-    delimiter::str
+    delimiter::String
     flags::Any
-    idpattern::str
+    idpattern::String
 
     Template(
         pattern::Any,
         template::Any,
         braceidpattern::Any = nothing,
-        delimiter::str = "\$",
+        delimiter::String = "\$",
         flags::Any = IGNORECASE(_re),
-        idpattern::str = "(?a:[_a-z][_a-z0-9]*)",
+        idpattern::String = "(?a:[_a-z][_a-z0-9]*)",
     ) = new(pattern, template, braceidpattern, delimiter, flags, idpattern)
 end
 function __init_subclass__(cls)
@@ -233,7 +231,7 @@ function format_field(self::Formatter, value, format_spec)
     return value
 end
 
-function convert_field(self::Formatter, value, conversion)::str
+function convert_field(self::Formatter, value, conversion)::String
     if conversion === nothing
         return value
     elseif conversion == "s"

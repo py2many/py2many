@@ -5,7 +5,7 @@
     Helps with the conversion of Python's ast to Julia
 """
 
-from ast import AST, NodeVisitor, expr, expr_context, stmt
+from ast import  NodeVisitor, expr, expr_context, stmt
 import ast
 from typing import Any
 

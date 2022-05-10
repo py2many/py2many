@@ -13,7 +13,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE
+from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
 from pyjl.helpers import generate_var_name, get_ann_repr
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
@@ -24,11 +24,12 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._ignored_module_set = JL_IGNORED_MODULE_SET
-        self._imports = []
+        self._modules = []
+        self._path = None
 
     def visit_Module(self, node: ast.Module) -> Any:
-        imports = getattr(node, "imports", [])
-        self._imports = [get_id(import_alias) for import_alias in imports]
+        self._modules = getattr(node, "__files__", [])
+        self._path = getattr(node, "__path__", ".")
         self.generic_visit(node)
         return node
 
@@ -95,8 +96,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         # Bypass imports
         for i in range(1,len(split_repr)):
-            import_name = ".".join(split_repr[:i])
-            if import_name in self._imports:
+            if self._is_module(split_repr[:i]):
                 return node
 
         return None
@@ -111,6 +111,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 ctx = ast.Load()
             )
             node.attr = "__init__"
+    
+    def _is_module(self, path: list[str]):
+        path_str = os.sep.join(path)
+        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{path_str}.jl")
+        return is_file and path[-1] in self._modules
 
 
 class JuliaClassRewriter(ast.NodeTransformer):
@@ -1204,7 +1209,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
-        if getattr(node, "use_modules", None):
+        if getattr(node, USE_MODULES, None):
             name = node.__file__.name.split(".")[0]
             julia_module = juliaAst.JuliaModule(
                 body = node.body,

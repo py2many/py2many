@@ -211,7 +211,7 @@ function GetModuleForProgID(progid)
     try
         iid = IID(pywintypes, progid)
     catch exn
-        if exn isa pywintypes.com_error
+        if exn isa com_error(pywintypes)
             return nothing
         end
     end
@@ -262,7 +262,7 @@ function GetModuleForCLSID(clsid)
                     GenerateChildFromTypeLibSpec(makepy, sub_mod, info)
                 end
             end
-            mod = sys.modules[sub_mod_name+1]
+            mod = modules(sys)[sub_mod_name+1]
         end
     end
     return mod
@@ -352,7 +352,7 @@ function MakeModuleForTypelibInterface(
             bBuildHidden,
         )
     catch exn
-        if exn isa pywintypes.com_error
+        if exn isa com_error(pywintypes)
             return nothing
         end
     end
@@ -491,7 +491,7 @@ function EnsureModule(
                         end
                     end
                 catch exn
-                    if exn isa pythoncom.com_error
+                    if exn isa com_error(pythoncom)
                         #= pass =#
                     end
                 end
@@ -518,7 +518,7 @@ function EnsureModule(
                 tlbAttributes =
                     GetLibAttr(LoadRegTypeLib(pythoncom, typelibCLSID, major, minor, lcid))
             catch exn
-                if exn isa pythoncom.com_error
+                if exn isa com_error(pythoncom)
                     bValidateFile = 0
                 end
             end
@@ -531,9 +531,9 @@ function EnsureModule(
             filePath = filePathPrefix + ".py"
             filePathPyc = filePathPrefix + ".py"
             if __debug__
-                filePathPyc = filePathPyc + "c"
+                filePathPyc = filePathPyc * "c"
             else
-                filePathPyc = filePathPyc + "o"
+                filePathPyc = filePathPyc * "o"
             end
             if MinorVersion(module_) != tlbAttributes[5] ||
                genpy.makepy_version != makepy_version(module_)
@@ -647,7 +647,7 @@ function EnsureDispatch(prog_id, bForDemand = 1)
             disp_class = GetClass(CLSIDToClass, string(disp_clsid))
             disp = disp_class(_oleobj_(disp))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -711,15 +711,15 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
             base = split(n[length(zip_path)+1+1:end], "/")[1]
             try
                 iid, lcid, major, minor = split(base, "x")
-                lcid = parse(Int, lcid)
-                major = parse(Int, major)
-                minor = parse(Int, minor)
-                iid = IID(pywintypes, ("{" + iid) + "}")
+                lcid = Int(lcid)
+                major = Int(major)
+                minor = Int(minor)
+                iid = IID(pywintypes, ("{" + iid) * "}")
             catch exn
                 if exn isa ValueError
                     continue
                 end
-                if exn isa pywintypes.com_error
+                if exn isa com_error(pywintypes)
                     continue
                 end
             end
@@ -737,15 +737,15 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
             name = splitext(os.path, split(os.path, file)[2])[1]
             try
                 iid, lcid, major, minor = split(name, "x")
-                iid = IID(pywintypes, ("{" + iid) + "}")
-                lcid = parse(Int, lcid)
-                major = parse(Int, major)
-                minor = parse(Int, minor)
+                iid = IID(pywintypes, ("{" + iid) * "}")
+                lcid = Int(lcid)
+                major = Int(major)
+                minor = Int(minor)
             catch exn
                 if exn isa ValueError
                     continue
                 end
-                if exn isa pywintypes.com_error
+                if exn isa com_error(pywintypes)
                     continue
                 end
             end
@@ -759,7 +759,7 @@ function _GetModule(fname)
     #= Given the name of a module in the gen_py directory, import and return it. =#
     mod_name = "win32com.gen_py.%s" % fname
     mod = __import__(mod_name)
-    return sys.modules[mod_name+1]
+    return modules(sys)[mod_name+1]
 end
 
 function Rebuild(verbose = 1)
@@ -810,7 +810,7 @@ end
 
 function main()
     try
-        opts, args = getopt(getopt, sys.argv[2:end], "qrd")
+        opts, args = getopt(getopt, append!([PROGRAM_FILE], ARGS)[2:end], "qrd")
     catch exn
         let message = exn
             if message isa getopt.error
@@ -819,7 +819,7 @@ function main()
             end
         end
     end
-    if length(sys.argv) == 1 || args
+    if length(append!([PROGRAM_FILE], ARGS)) == 1 || args
         println(usage())
     end
     verbose = 1

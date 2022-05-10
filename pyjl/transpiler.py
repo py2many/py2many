@@ -14,6 +14,7 @@ from .plugins import (
     ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
     FUNC_DISPATCH_TABLE,
+    JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
@@ -576,14 +577,21 @@ class JuliaTranspiler(CLikeTranspiler):
                 f"@pyenum {node.name}::{typename} begin\n{field_str}end"
             )
 
-    def _import(self, name: str) -> str:
-        path = name.split(".")
-        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{os.sep.join(path)}.jl")
-        if is_file and path[-1] in self._modules:
-            sep = "/"
-            path_str = sep.join(path)
-            return f'include(\"{path_str}.jl\")'
-        return f"import {name}" 
+    def _import(self, name: str, alias: str) -> str:
+        '''Formatting Julia Imports'''
+        if name in MODULE_DISPATCH_TABLE:
+            name = MODULE_DISPATCH_TABLE[name] 
+        import_str = self._get_import_str(name)
+        if import_str and self._use_modules:
+            # Module has the same name as file
+            mod_name = name.split(".")[-1]
+            if alias:
+                return f"{import_str}\nimport Main.{mod_name} as {alias}"
+            else:
+                return import_str
+
+        import_str = f"import {name}"
+        return f"{import_str} as {alias}" if alias else import_str
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         if module_name == ".":
@@ -591,14 +599,11 @@ class JuliaTranspiler(CLikeTranspiler):
             for n in names:
                 import_names.append(f"include(\"{n}.jl\")")
             return "\n".join(import_names)
-        elif module_name in self._modules:
-            import_names = []
-            path = os.path.curdir
-            sep = "/"
-            return f"include(\"{path}{sep}{module_name}.jl\")"
-            # TODO: Review
-            # for n in names:
-            #     import_names.append()
+        if self._use_modules:
+            import_str = self._get_import_str(module_name)
+            if import_str:
+                import_names = f"using {module_name}: {', '.join(names)}"
+                return "\n".join([import_str, import_names])
 
         jl_module_name = module_name
         imports = []
@@ -611,6 +616,15 @@ class JuliaTranspiler(CLikeTranspiler):
                 imports.append(name)
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
+
+    def _get_import_str(self, name: str):
+        path = name.split(".")
+        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{os.sep.join(path)}.jl")
+        if is_file and path[-1] in self._modules:
+            sep = "/"
+            path_str = sep.join(path)
+            return f'include(\"{path_str}.jl\")'
+        return None
 
     def visit_List(self, node:ast.List) -> str:
         elts = self._parse_elts(node)
@@ -787,6 +801,10 @@ class JuliaTranspiler(CLikeTranspiler):
                     value = oct(value)
                 if type_c == "HLiteral":
                     value = hex(value)
+
+        # Special assignments
+        if target_str in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
+            return JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE[target_str](self, node, value)
 
         expr = f"{target_str} = {value}"
         # if isinstance(target, ast.Name) and defined_before(definition, node):

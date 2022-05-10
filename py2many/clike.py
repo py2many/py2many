@@ -230,10 +230,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Module(self, node) -> str:
         # Reset state
         self._usings.clear()
-        self._type_map.clear()
-        self._headers.clear()
-        self._usings.clear()
         self._globals.clear()
+        self._headers.clear()
         self._imported_names.clear()
         self._features.clear()
 

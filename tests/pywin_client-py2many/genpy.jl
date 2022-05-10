@@ -30,22 +30,22 @@ GEN_FULL = "full"
 GEN_DEMAND_BASE = "demand(base)"
 GEN_DEMAND_CHILD = "demand(child)"
 mapVTToTypeString = Dict(
-    pythoncom.VT_I2 => "types.IntType",
-    pythoncom.VT_I4 => "types.IntType",
-    pythoncom.VT_R4 => "types.FloatType",
-    pythoncom.VT_R8 => "types.FloatType",
-    pythoncom.VT_BSTR => "types.StringType",
-    pythoncom.VT_BOOL => "types.IntType",
-    pythoncom.VT_VARIANT => "types.TypeType",
-    pythoncom.VT_I1 => "types.IntType",
-    pythoncom.VT_UI1 => "types.IntType",
-    pythoncom.VT_UI2 => "types.IntType",
-    pythoncom.VT_UI4 => "types.IntType",
-    pythoncom.VT_I8 => "types.LongType",
-    pythoncom.VT_UI8 => "types.LongType",
-    pythoncom.VT_INT => "types.IntType",
-    pythoncom.VT_DATE => "pythoncom.PyTimeType",
-    pythoncom.VT_UINT => "types.IntType",
+    VT_I2(pythoncom) => "types.IntType",
+    VT_I4(pythoncom) => "types.IntType",
+    VT_R4(pythoncom) => "types.FloatType",
+    VT_R8(pythoncom) => "types.FloatType",
+    VT_BSTR(pythoncom) => "types.StringType",
+    VT_BOOL(pythoncom) => "types.IntType",
+    VT_VARIANT(pythoncom) => "types.TypeType",
+    VT_I1(pythoncom) => "types.IntType",
+    VT_UI1(pythoncom) => "types.IntType",
+    VT_UI2(pythoncom) => "types.IntType",
+    VT_UI4(pythoncom) => "types.IntType",
+    VT_I8(pythoncom) => "types.LongType",
+    VT_UI8(pythoncom) => "types.LongType",
+    VT_INT(pythoncom) => "types.IntType",
+    VT_DATE(pythoncom) => "pythoncom.PyTimeType",
+    VT_UINT(pythoncom) => "types.IntType",
 )
 function MakeDefaultArgsForPropertyPut(argsDesc)::Tuple
     ret = []
@@ -65,7 +65,7 @@ function MakeMapLineEntry(dispid, wFlags, retType, argTypes, user, resultCLSID)
            (dispid, wFlags, retType[begin:2], argTypes, user, resultCLSID)
 end
 
-function MakeEventMethodName(eventName)::str
+function MakeEventMethodName(eventName)::String
     if eventName[begin:2] == "On"
         return eventName
     else
@@ -102,7 +102,7 @@ function __cmp__(self::WritableItem, other)
     return ret
 end
 
-function __lt__(self::WritableItem, other)::bool
+function __lt__(self::WritableItem, other)::Bool
     if self.order == order(other)
         return self.doc < doc(other)
     end
@@ -114,11 +114,11 @@ function __repr__(self::WritableItem)
 end
 
 mutable struct RecordItem <: build.OleItem.__init__
-    bForUser::int
+    bForUser::Int64
     clsid::Any
     doc::Any
-    order::int
-    typename::str
+    order::Int64
+    typename::String
 
     RecordItem(
         typeInfo,
@@ -126,8 +126,8 @@ mutable struct RecordItem <: build.OleItem.__init__
         doc = nothing,
         bForUser = 1,
         clsid = typeAttr[1],
-        order::int = 9,
-        typename::str = "RECORD",
+        order::Int64 = 9,
+        typename::String = "RECORD",
     ) = begin
         build.OleItem.__init__(self, doc)
         new(typeInfo, typeAttr, doc, bForUser, clsid, order, typename)
@@ -150,10 +150,10 @@ mutable struct AliasItem <: build.OleItem.__init__
     attr::Any
     bWritten::Any
     ai::Any
-    bForUser::int
+    bForUser::Int64
     doc::Any
-    order::int
-    typename::str
+    order::Int64
+    typename::String
 
     AliasItem(
         typeinfo,
@@ -161,8 +161,8 @@ mutable struct AliasItem <: build.OleItem.__init__
         doc = nothing,
         bForUser = 1,
         ai = attr[15],
-        order::int = 2,
-        typename::str = "ALIAS",
+        order::Int64 = 2,
+        typename::String = "ALIAS",
     ) = begin
         build.OleItem.__init__(self, doc)
         if type_(ai) == type_(()) && type_(ai[1]) == type_(0)
@@ -205,14 +205,14 @@ function WriteAliasItem(self::AliasItem, aliasDict, stream)
 end
 
 mutable struct EnumerationItem <: build.OleItem.__init__
-    bForUser::int
+    bForUser::Int64
     clsid::Any
     doc::Any
     hidden::Any
     mapVars::Dict
-    order::int
+    order::Int64
     typeFlags::Any
-    typename::str
+    typename::String
 
     EnumerationItem(
         typeinfo,
@@ -220,12 +220,12 @@ mutable struct EnumerationItem <: build.OleItem.__init__
         doc = nothing,
         bForUser = 1,
         clsid = attr[1],
-        hidden = typeFlags & pythoncom.TYPEFLAG_FHIDDEN ||
-                 typeFlags & pythoncom.TYPEFLAG_FRESTRICTED,
+        hidden = typeFlags & TYPEFLAG_FHIDDEN(pythoncom) ||
+                 typeFlags & TYPEFLAG_FRESTRICTED(pythoncom),
         mapVars::Dict = Dict(),
-        order::int = 1,
+        order::Int64 = 1,
         typeFlags = attr[12],
-        typename::str = "ENUMERATION",
+        typename::String = "ENUMERATION",
     ) = begin
         build.OleItem.__init__(self, doc)
         for j = 0:attr[7]
@@ -247,7 +247,7 @@ mutable struct EnumerationItem <: build.OleItem.__init__
         )
     end
 end
-function WriteEnumerationItems(self::EnumerationItem, stream)::int
+function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
     num = 0
     enumName = self.doc[1]
     names = collect(keys(self.mapVars))
@@ -255,7 +255,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::int
     for name in names
         entry = self.mapVars[name+1]
         vdesc = desc(entry)
-        if vdesc[5] == pythoncom.VAR_CONST
+        if vdesc[5] == VAR_CONST(pythoncom)
             val = vdesc[2]
             use = repr(val)
             try
@@ -264,7 +264,8 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::int
                 if exn isa SyntaxError
                     use = replace(use, "\"", "\'")
                     use =
-                        (("\"" + use) + "\"") +
+                        ("\"" + use) *
+                        "\"" *
                         " # This VARIANT type cannot be converted automatically"
                 end
             end
@@ -284,14 +285,14 @@ mutable struct VTableItem <: build.VTableItem.__init__
     bWritten::Any
     python_name::Any
     vtableFuncs::Any
-    order::int
+    order::Int64
 
     VTableItem(
         bIsDispatch::Any,
         bWritten::Any,
         python_name::Any,
         vtableFuncs::Any,
-        order::int = 4,
+        order::Int64 = 4,
     ) = new(bIsDispatch, bWritten, python_name, vtableFuncs, order)
 end
 function WriteClass(self::VTableItem, generator)
@@ -305,7 +306,7 @@ function WriteVTableMap(self::VTableItem, generator)
     write(stream, "%s_vtables_ = [", (self.python_name,))
     for v in self.vtableFuncs
         names, dispid, desc = v
-        @assert(desckind(desc) == pythoncom.DESCKIND_FUNCDESC)
+        @assert(desckind(desc) == DESCKIND_FUNCDESC(pythoncom))
         arg_reprs = []
         item_num = 0
         write(stream)
@@ -353,7 +354,7 @@ mutable struct DispatchItem <: build.DispatchItem.__init__
     python_name::Any
     coclass_clsid::Any
     doc::Any
-    order::int
+    order::Int64
     type_attr::Any
 
     DispatchItem(
@@ -361,7 +362,7 @@ mutable struct DispatchItem <: build.DispatchItem.__init__
         attr,
         doc = nothing,
         coclass_clsid = nothing,
-        order::int = 3,
+        order::Int64 = 3,
         type_attr = attr,
     ) = begin
         build.DispatchItem.__init__(self, typeinfo, attr, doc)
@@ -369,7 +370,7 @@ mutable struct DispatchItem <: build.DispatchItem.__init__
     end
 end
 function WriteClass(self::DispatchItem, generator)
-    if !(self.bIsDispatch) && !(self.type_attr.typekind == pythoncom.TKIND_DISPATCH)
+    if !(self.bIsDispatch) && !(self.type_attr.typekind == TKIND_DISPATCH(pythoncom))
         return
     end
     if self.bIsSink
@@ -395,7 +396,7 @@ function WriteClassHeader(self::DispatchItem, generator)
         progId = ProgIDFromCLSID(pythoncom, self.clsid)
         write(stream, "\t# This class is creatable by the name \'%s\'", progId)
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             #= pass =#
         end
     end
@@ -421,7 +422,7 @@ function WriteEventSinkClassHeader(self::DispatchItem, generator)
         progId = ProgIDFromCLSID(pythoncom, self.clsid)
         write(stream, "\t# This class is creatable by the name \'%s\'", progId)
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             #= pass =#
         end
     end
@@ -492,18 +493,18 @@ function WriteClassBody(self::DispatchItem, generator)
     itemCount = nothing
     for name in names
         entry = self.mapFuncs[name+1]
-        @assert(desckind(entry.desc) == pythoncom.DESCKIND_FUNCDESC)
+        @assert(desckind(entry.desc) == DESCKIND_FUNCDESC(pythoncom))
         dispid = memid(entry.desc)
-        if wFuncFlags(entry.desc) & pythoncom.FUNCFLAG_FRESTRICTED &&
-           dispid != pythoncom.DISPID_NEWENUM
+        if wFuncFlags(entry.desc) & FUNCFLAG_FRESTRICTED(pythoncom) &&
+           dispid != DISPID_NEWENUM(pythoncom)
             continue
         end
-        if funckind(entry.desc) != pythoncom.FUNC_DISPATCH
+        if funckind(entry.desc) != FUNC_DISPATCH(pythoncom)
             continue
         end
-        if dispid == pythoncom.DISPID_VALUE
+        if dispid == DISPID_VALUE(pythoncom)
             lkey = "value"
-        elseif dispid == pythoncom.DISPID_NEWENUM
+        elseif dispid == DISPID_NEWENUM(pythoncom)
             specialItems["_newenum"] = (entry, invkind(entry.desc), nothing)
             continue
         else
@@ -549,22 +550,22 @@ function WriteClassBody(self::DispatchItem, generator)
             argDesc = ()
             mapEntry = MakeMapLineEntry(
                 memid(details),
-                pythoncom.DISPATCH_PROPERTYGET,
+                DISPATCH_PROPERTYGET(pythoncom),
                 resultDesc,
                 argDesc,
                 key,
                 GetResultCLSIDStr(entry),
             )
-            if memid(details) == pythoncom.DISPID_VALUE
+            if memid(details) == DISPID_VALUE(pythoncom)
                 lkey = "value"
-            elseif memid(details) == pythoncom.DISPID_NEWENUM
+            elseif memid(details) == DISPID_NEWENUM(pythoncom)
                 lkey = "_newenum"
             else
                 lkey = lower(key)
             end
             if lkey in keys(specialItems) && specialItems[lkey] === nothing
-                specialItems[lkey] = (entry, pythoncom.DISPATCH_PROPERTYGET, mapEntry)
-                if memid(details) == pythoncom.DISPID_NEWENUM
+                specialItems[lkey] = (entry, DISPATCH_PROPERTYGET(pythoncom), mapEntry)
+                if memid(details) == DISPID_NEWENUM(pythoncom)
                     continue
                 end
             end
@@ -588,28 +589,28 @@ function WriteClassBody(self::DispatchItem, generator)
                 )
             end
             details = desc(entry)
-            @assert(desckind(details) == pythoncom.DESCKIND_FUNCDESC)
+            @assert(desckind(details) == DESCKIND_FUNCDESC(pythoncom))
             lkey = lower(key)
             argDesc = details[3]
             resultDesc = details[9]
             mapEntry = MakeMapLineEntry(
                 details[1],
-                pythoncom.DISPATCH_PROPERTYGET,
+                DISPATCH_PROPERTYGET(pythoncom),
                 resultDesc,
                 argDesc,
                 key,
                 GetResultCLSIDStr(entry),
             )
-            if memid(details) == pythoncom.DISPID_VALUE
+            if memid(details) == DISPID_VALUE(pythoncom)
                 lkey = "value"
-            elseif memid(details) == pythoncom.DISPID_NEWENUM
+            elseif memid(details) == DISPID_NEWENUM(pythoncom)
                 lkey = "_newenum"
             else
                 lkey = lower(key)
             end
             if lkey in keys(specialItems) && specialItems[lkey] === nothing
-                specialItems[lkey] = (entry, pythoncom.DISPATCH_PROPERTYGET, mapEntry)
-                if memid(details) == pythoncom.DISPID_NEWENUM
+                specialItems[lkey] = (entry, DISPATCH_PROPERTYGET(pythoncom), mapEntry)
+                if memid(details) == DISPID_NEWENUM(pythoncom)
                     continue
                 end
             end
@@ -633,7 +634,7 @@ function WriteClassBody(self::DispatchItem, generator)
             if defArgDesc === nothing
                 defArgDesc = ""
             else
-                defArgDesc = defArgDesc + ","
+                defArgDesc = defArgDesc * ","
             end
             write(
                 stream,
@@ -641,7 +642,7 @@ function WriteClassBody(self::DispatchItem, generator)
                 (
                     __init__(build.MakePublicAttributeName, key),
                     details[1],
-                    pythoncom.DISPATCH_PROPERTYPUT,
+                    DISPATCH_PROPERTYPUT(pythoncom),
                     defArgDesc,
                 ),
             )
@@ -691,11 +692,11 @@ function WriteClassBody(self::DispatchItem, generator)
     end
     if specialItems["_newenum"]
         enumEntry, invoketype, propArgs = specialItems["_newenum"]
-        @assert(desckind(enumEntry.desc) == pythoncom.DESCKIND_FUNCDESC)
+        @assert(desckind(enumEntry.desc) == DESCKIND_FUNCDESC(pythoncom))
         invkind = invkind(enumEntry.desc)
         resultCLSID = GetResultCLSIDStr(enumEntry)
     else
-        invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+        invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
         resultCLSID = "None"
     end
     if resultCLSID == "None" && "Item" in self.mapFuncs
@@ -707,7 +708,7 @@ function WriteClassBody(self::DispatchItem, generator)
     write(
         stream,
         "\t\t\tob = self._oleobj_.InvokeTypes(%d,LCID,%d,(13, 10),())",
-        (pythoncom.DISPID_NEWENUM, invkind),
+        (DISPID_NEWENUM(pythoncom), invkind),
     )
     write(stream)
     write(stream)
@@ -753,12 +754,12 @@ mutable struct CoClassItem <: build.OleItem.__init__
     interfaces::Any
     python_name::Any
     sources::Any
-    bForUser::int
-    bIsDispatch::int
+    bForUser::Int64
+    bIsDispatch::Int64
     clsid::Any
     doc::Any
-    order::int
-    typename::str
+    order::Int64
+    typename::String
 
     CoClassItem(
         typeinfo,
@@ -767,10 +768,10 @@ mutable struct CoClassItem <: build.OleItem.__init__
         sources = [],
         interfaces = [],
         bForUser = 1,
-        bIsDispatch::int = 1,
+        bIsDispatch::Int64 = 1,
         clsid = attr[1],
-        order::int = 5,
-        typename::str = "COCLASS",
+        order::Int64 = 5,
+        typename::String = "COCLASS",
     ) = begin
         build.OleItem.__init__(self, doc)
         new(
@@ -823,7 +824,7 @@ function WriteClass(self::CoClassItem, generator)
         progId = ProgIDFromCLSID(pythoncom, self.clsid)
         write(stream, "# This CoClass is known by the name \'%s\'", progId)
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             #= pass =#
         end
     end
@@ -835,7 +836,7 @@ function WriteClass(self::CoClassItem, generator)
     write(stream)
     defItem = nothing
     for (item, flag) in self.sources
-        if flag & pythoncom.IMPLTYPEFLAG_FDEFAULT
+        if flag & IMPLTYPEFLAG_FDEFAULT(pythoncom)
             defItem = item
         end
         if bWritten(item)
@@ -857,7 +858,7 @@ function WriteClass(self::CoClassItem, generator)
     write(stream)
     defItem = nothing
     for (item, flag) in self.interfaces
-        if flag & pythoncom.IMPLTYPEFLAG_FDEFAULT
+        if flag & IMPLTYPEFLAG_FDEFAULT(pythoncom)
             defItem = item
         end
         if bWritten(item)
@@ -929,9 +930,9 @@ mutable struct Generator <: AbstractGenerator
     generate_type::Any
     sourceFilename::Any
     typelib::Any
-    bHaveWrittenCoClassBaseClass::int
-    bHaveWrittenDispatchBaseClass::int
-    bHaveWrittenEventBaseClass::int
+    bHaveWrittenCoClassBaseClass::Int64
+    bHaveWrittenDispatchBaseClass::Int64
+    bHaveWrittenEventBaseClass::Int64
     bUnicodeToString::Any
     file::Any
     progress::Any
@@ -942,9 +943,9 @@ mutable struct Generator <: AbstractGenerator
         progressObject,
         bBuildHidden = 1,
         bUnicodeToString = nothing,
-        bHaveWrittenCoClassBaseClass::int = 0,
-        bHaveWrittenDispatchBaseClass::int = 0,
-        bHaveWrittenEventBaseClass::int = 0,
+        bHaveWrittenCoClassBaseClass::Int64 = 0,
+        bHaveWrittenDispatchBaseClass::Int64 = 0,
+        bHaveWrittenEventBaseClass::Int64 = 0,
         file = nothing,
         progress = progressObject,
     ) = begin
@@ -983,7 +984,7 @@ function _Build_CoClass(self::Generator, type_info_tuple)::Tuple
         try
             refType = GetRefTypeInfo(info, GetRefTypeOfImplType(info, j))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 continue
             end
         end
@@ -1014,9 +1015,9 @@ function _Build_CoClassChildren(
     sources = Dict()
     interfaces = Dict()
     for (info, info_type, refType, doc, refAttr, flags) in coclass_info
-        if typekind(refAttr) == pythoncom.TKIND_DISPATCH ||
-           typekind(refAttr) == pythoncom.TKIND_INTERFACE &&
-           refAttr[12] & pythoncom.TYPEFLAG_FDISPATCHABLE
+        if typekind(refAttr) == TKIND_DISPATCH(pythoncom) ||
+           typekind(refAttr) == TKIND_INTERFACE(pythoncom) &&
+           refAttr[12] & TYPEFLAG_FDISPATCHABLE(pythoncom)
             clsid = refAttr[1]
             if clsid in oleItems
                 dispItem = oleItems[clsid+1]
@@ -1025,17 +1026,17 @@ function _Build_CoClassChildren(
                 oleItems[clsid(dispItem)+1] = dispItem
             end
             coclass_clsid(dispItem) = clsid(coclass)
-            if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
+            if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
                 bIsSink(dispItem) = 1
                 sources[clsid(dispItem)+1] = (dispItem, flags)
             else
                 interfaces[clsid(dispItem)+1] = (dispItem, flags)
             end
             if clsid
-                not in vtableItems && refAttr[12] & pythoncom.TYPEFLAG_FDUAL
+                not in vtableItems && refAttr[12] & TYPEFLAG_FDUAL(pythoncom)
                 refType = GetRefTypeInfo(refType, GetRefTypeOfImplType(refType, -1))
                 refAttr = GetTypeAttr(refType)
-                @assert(typekind(refAttr) == pythoncom.TKIND_INTERFACE)
+                @assert(typekind(refAttr) == TKIND_INTERFACE(pythoncom))
                 vtableItem = VTableItem(refType, refAttr, doc)
                 vtableItems[clsid+1] = vtableItem
             end
@@ -1049,20 +1050,21 @@ function _Build_Interface(self::Generator, type_info_tuple)::Tuple
     info, infotype, doc, attr = type_info_tuple
     oleItem = nothing
     vtableItem = nothing
-    if infotype == pythoncom.TKIND_DISPATCH ||
-       infotype == pythoncom.TKIND_INTERFACE && attr[12] & pythoncom.TYPEFLAG_FDISPATCHABLE
+    if infotype == TKIND_DISPATCH(pythoncom) ||
+       infotype == TKIND_INTERFACE(pythoncom) &&
+       attr[12] & TYPEFLAG_FDISPATCHABLE(pythoncom)
         oleItem = DispatchItem(info, attr, doc)
-        if wTypeFlags(attr) & pythoncom.TYPEFLAG_FDUAL
+        if wTypeFlags(attr) & TYPEFLAG_FDUAL(pythoncom)
             refhtype = GetRefTypeOfImplType(info, -1)
             info = GetRefTypeInfo(info, refhtype)
             attr = GetTypeAttr(info)
-            infotype = pythoncom.TKIND_INTERFACE
+            infotype = TKIND_INTERFACE(pythoncom)
         else
             infotype = nothing
         end
     end
-    @assert(infotype in [nothing, pythoncom.TKIND_INTERFACE])
-    if infotype == pythoncom.TKIND_INTERFACE
+    @assert(infotype in [nothing, TKIND_INTERFACE(pythoncom)])
+    if infotype == TKIND_INTERFACE(pythoncom)
         vtableItem = VTableItem(info, attr, doc)
     end
     return (oleItem, vtableItem)
@@ -1077,10 +1079,10 @@ function BuildOleItemsFromType(self::Generator)::Tuple
     for type_info_tuple in CollectOleItemInfosFromType(self)
         info, infotype, doc, attr = type_info_tuple
         clsid = attr[1]
-        if infotype == pythoncom.TKIND_ENUM || infotype == pythoncom.TKIND_MODULE
+        if infotype == TKIND_ENUM(pythoncom) || infotype == TKIND_MODULE(pythoncom)
             newItem = EnumerationItem(info, attr, doc)
             enumItems[newItem.doc[1]+1] = newItem
-        elseif infotype in [pythoncom.TKIND_DISPATCH, pythoncom.TKIND_INTERFACE]
+        elseif infotype in [TKIND_DISPATCH(pythoncom), TKIND_INTERFACE(pythoncom)]
             if clsid
                 not in oleItems
                 oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
@@ -1089,12 +1091,12 @@ function BuildOleItemsFromType(self::Generator)::Tuple
                     vtableItems[clsid+1] = vtableItem
                 end
             end
-        elseif infotype == pythoncom.TKIND_RECORD || infotype == pythoncom.TKIND_UNION
+        elseif infotype == TKIND_RECORD(pythoncom) || infotype == TKIND_UNION(pythoncom)
             newItem = RecordItem(info, attr, doc)
             recordItems[newItem.clsid+1] = newItem
-        elseif infotype == pythoncom.TKIND_ALIAS
+        elseif infotype == TKIND_ALIAS(pythoncom)
             continue
-        elseif infotype == pythoncom.TKIND_COCLASS
+        elseif infotype == TKIND_COCLASS(pythoncom)
             newItem, child_infos = _Build_CoClass(self, type_info_tuple)
             _Build_CoClassChildren(self, newItem, child_infos, oleItems, vtableItems)
             oleItems[newItem.clsid+1] = newItem
@@ -1181,7 +1183,7 @@ function do_gen_file_header(self::Generator)
     write(self.file, "# On %s", ctime(time, pylib::time()))
     write(self.file)
     write(self.file)
-    write(self.file, "python_version = 0x%x", (sys.hexversion,))
+    write(self.file, "python_version = 0x%x", (hexversion(sys),))
     println(self.file)
     write(self.file)
     write(self.file)
@@ -1250,7 +1252,7 @@ function do_generate(self::Generator)
     end
     write(stream)
     for record in values(recordItems)
-        if clsid(record) == pythoncom.IID_NULL
+        if clsid(record) == IID_NULL(pythoncom)
             write(
                 stream,
                 "\t###%s: %s, # Record disabled because it doesn\'t have a non-null GUID",
@@ -1339,7 +1341,7 @@ function generate_child(self::Generator, child, dir)
         found = 0
         for type_info_tuple in infos
             info, infotype, doc, attr = type_info_tuple
-            if infotype == pythoncom.TKIND_COCLASS
+            if infotype == TKIND_COCLASS(pythoncom)
                 coClassItem, child_infos = _Build_CoClass(self, type_info_tuple)
                 found = __init__(build.MakePublicAttributeName, doc[1]) == child
                 if !(found)
@@ -1366,7 +1368,7 @@ function generate_child(self::Generator, child, dir)
         if !(found) != 0
             for type_info_tuple in infos
                 info, infotype, doc, attr = type_info_tuple
-                if infotype in [pythoncom.TKIND_INTERFACE, pythoncom.TKIND_DISPATCH]
+                if infotype in [TKIND_INTERFACE(pythoncom), TKIND_DISPATCH(pythoncom)]
                     if __init__(build.MakePublicAttributeName, doc[1]) == child
                         found = 1
                         oleItem, vtableItem = _Build_Interface(self, type_info_tuple)

@@ -17,6 +17,7 @@ import traceback
 import unittest
 import bisect
 import copy
+from build.lib.pyjl.plugins import JuliaRewriterPlugins
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -484,6 +485,11 @@ class JuliaTranspilerPlugins:
 
         return f"zip({vargs[0]}, {vargs[1]})"
 
+    def visit_frozenset(t_self, node, vargs):
+        lambda t_self, node: t_self._usings.add("FunctionalCollections")
+        return f"{vargs[1]} in {vargs[0]}" \
+            if len(vargs) == 2 else "x::pset, y -> y in x"
+
     def visit_bisect_right(t_self, node, vargs: list[str]):
         JuliaTranspilerPlugins._generic_bisect_visit(t_self)
         return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
@@ -516,6 +522,13 @@ class JuliaTranspilerPlugins:
         if node.scopes.find(func_name):
             new_func_name = f"Base.{func_name}"
         return new_func_name
+
+    def visit_all(t_self, node: ast.Assign, vargs):
+        assert isinstance(node.value, ast.List)
+        values = []
+        for value in node.value.elts:
+            values.append(value.value)
+        return f"export {', '.join(values)}"
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -618,13 +631,13 @@ class JuliaRewriterPlugins:
         return arg_values
 
     def visit_next(r_self, node: ast.FunctionDef):
+        # TODO: Implement __next__ translation
         r_self.generic_visit(node)
         return node
 
 
-class JuliaExternalModulePlugins():
-    ########################################################
-    # External modules
+########################################################
+class JuliaExternalModulePlugins:
     def visit_pycomm(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "pythoncom")
 
@@ -668,9 +681,7 @@ SMALL_DISPATCH_MAP = {
     # "floor": lambda n, vargs: f"floor({vargs[0]})",
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
-    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})",
-    ########################################################
-    
+    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})",    
 }
 
 SMALL_USINGS_MAP = {
@@ -693,8 +704,9 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "json": "JSON",
 }
 
-########################################################
 IMPORT_DISPATCH_TABLE = {
+    "bisect": lambda t_self, node: t_self._usings.add("BisectPy"),
+    ########################################################
     "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
     "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
     "datetime": JuliaExternalModulePlugins.visit_datetime,
@@ -734,6 +746,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     next: (JuliaTranspilerPlugins.visit_next, False),
     range: (JuliaTranspilerPlugins.visit_range, False),
     zip: (JuliaTranspilerPlugins.visit_zip, False),
+    frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset, False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
@@ -816,4 +829,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
     "__init__": JuliaRewriterPlugins.visit_init,
     "__next__": JuliaRewriterPlugins.visit_next,
+}
+
+JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {
+    "__all__": JuliaTranspilerPlugins.visit_all
 }

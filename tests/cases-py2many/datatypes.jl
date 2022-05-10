@@ -25,4 +25,3 @@ mutable struct IntList <: AbstractIntList
     NONE::Any
     REST::AbstractIntListNonEmpty
 end
-

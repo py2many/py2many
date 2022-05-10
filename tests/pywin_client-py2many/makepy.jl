@@ -43,7 +43,7 @@ function ShowInfo(spec)
                 lcid(tlbSpec),
             )
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 write(
                     sys.stderr,
                     "Warning - could not load registered typelib \'%s\'\n" % clsid(tlbSpec),
@@ -166,7 +166,7 @@ function GetTypeLibsForSpec(arg)::Vector
             FromTypelib(spec, tlb, arg)
             push!(typelibs, (tlb, spec))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 tlbs = FindTlbsWithDescription(selecttlb, arg)
                 if length(tlbs) == 0
                     try
@@ -176,7 +176,7 @@ function GetTypeLibsForSpec(arg)::Vector
                         FromTypelib(spec, tlb)
                         append(tlbs, spec)
                     catch exn
-                        if exn isa pythoncom.com_error
+                        if exn isa com_error(pythoncom)
                             #= pass =#
                         end
                     end
@@ -206,7 +206,7 @@ function GetTypeLibsForSpec(arg)::Vector
         end
         return typelibs
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             t, v, tb = exc_info(sys)
             write(sys.stderr, "Unable to load type library from \'%s\' - %s\n" % (arg, v))
             tb = nothing
@@ -376,19 +376,19 @@ function GenerateChildFromTypeLibSpec(
         generate_child(gen, child, dir_path_name)
         SetDescription(progress, "Importing module")
         invalidate_caches(importlib)
-        __import__((("win32com.gen_py." + dir_name) + ".") + child)
+        __import__(("win32com.gen_py." + dir_name) * "." + child)
     end
     Close(progress)
 end
 
-function main_func()::int
+function main_func()::Int64
     hiddenSpec = 1
     outputName = nothing
     verboseLevel = 1
     doit = 1
     bForDemand = bForDemandDefault
     try
-        opts, args = getopt(getopt, sys.argv[2:end], "vo:huiqd")
+        opts, args = getopt(getopt, append!([PROGRAM_FILE], ARGS)[2:end], "vo:huiqd")
         for (o, v) in opts
             if o == "-h"
                 hiddenSpec = 0
@@ -414,7 +414,7 @@ function main_func()::int
     catch exn
         let msg = exn
             if msg isa (getopt.error, error)
-                write(sys.stderr, string(msg) + "\n")
+                write(sys.stderr, string(msg) * "\n")
                 usage()
             end
         end
@@ -438,7 +438,7 @@ function main_func()::int
         if path != "" && !exists(os.path, path)
             makedirs(os, path)
         end
-        if sys.version_info > (3, 0)
+        if version_info(sys) > (3, 0)
             f = readline(outputName)
         else
             f = readline(codecs)

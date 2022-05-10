@@ -24,14 +24,14 @@ LBS_STD =
     ((ES_STD | win32con.LBS_NOTIFY) | win32con.LBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 CBS_STD = (ES_STD | win32con.CBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 typekindmap = Dict(
-    pythoncom.TKIND_ENUM => "Enumeration",
-    pythoncom.TKIND_RECORD => "Record",
-    pythoncom.TKIND_MODULE => "Module",
-    pythoncom.TKIND_INTERFACE => "Interface",
-    pythoncom.TKIND_DISPATCH => "Dispatch",
-    pythoncom.TKIND_COCLASS => "CoClass",
-    pythoncom.TKIND_ALIAS => "Alias",
-    pythoncom.TKIND_UNION => "Union",
+    TKIND_ENUM(pythoncom) => "Enumeration",
+    TKIND_RECORD(pythoncom) => "Record",
+    TKIND_MODULE(pythoncom) => "Module",
+    TKIND_INTERFACE(pythoncom) => "Interface",
+    TKIND_DISPATCH(pythoncom) => "Dispatch",
+    TKIND_COCLASS(pythoncom) => "CoClass",
+    TKIND_ALIAS(pythoncom) => "Alias",
+    TKIND_UNION(pythoncom) => "Union",
 )
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
@@ -44,18 +44,18 @@ mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
     tlb::Any
     typeinfo::Any
     typelb::Any
-    IDC_LISTVIEW::int
-    IDC_MEMBERLIST::int
-    IDC_PARAMLIST::int
-    IDC_TYPELIST::int
+    IDC_LISTVIEW::Int64
+    IDC_MEMBERLIST::Int64
+    IDC_PARAMLIST::Int64
+    IDC_TYPELIST::Int64
     typefile::Any
 
     TypeBrowseDialog(
         typefile = nothing,
-        IDC_LISTVIEW::int = 1003,
-        IDC_MEMBERLIST::int = 1001,
-        IDC_PARAMLIST::int = 1002,
-        IDC_TYPELIST::int = 1000,
+        IDC_LISTVIEW::Int64 = 1003,
+        IDC_MEMBERLIST::Int64 = 1001,
+        IDC_PARAMLIST::Int64 = 1002,
+        IDC_TYPELIST::Int64 = 1000,
     ) = begin
         TypeBrowseDialog_Parent.__init__(self, self.GetTemplate())
         try
@@ -101,7 +101,7 @@ function OnFileOpen(self::TypeBrowseDialog, id, code)
         try
             self.tlb = LoadTypeLib(pythoncom, GetPathName(dlg))
         catch exn
-            if exn isa pythoncom.ole_error
+            if exn isa ole_error(pythoncom)
                 MessageBox(self, "The file does not contain type information")
                 self.tlb = nothing
             end
@@ -189,8 +189,8 @@ function _GetMainInfoTypes(self::TypeBrowseDialog)::Vector
         desc =
             desc +
             (", Flags=0x%x, typeKind=0x%x, typeFlags=0x%x" % (flags, typeKind, typeFlags))
-        if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
-            desc = desc + "(Source)"
+        if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
+            desc = desc * "(Source)"
         end
         push!(infos, ("Implements", desc))
     end
@@ -217,7 +217,7 @@ function _GetMethodInfoTypes(self::TypeBrowseDialog)::Vector
     return ret
 end
 
-function CmdTypeListbox(self::TypeBrowseDialog, id, code)::int
+function CmdTypeListbox(self::TypeBrowseDialog, id, code)::Int64
     if code == win32con.LBN_SELCHANGE
         pos = GetCurSel(self.typelb)
         if pos >= 0
@@ -249,7 +249,7 @@ function _GetRealMemberPos(self::TypeBrowseDialog, pos)::Tuple
     end
 end
 
-function CmdMemberListbox(self::TypeBrowseDialog, id, code)::int
+function CmdMemberListbox(self::TypeBrowseDialog, id, code)::Int64
     if code == win32con.LBN_SELCHANGE
         ResetContent(self.paramlb)
         pos = GetCurSel(self.memberlb)
@@ -296,7 +296,7 @@ end
 function main()
     fname = nothing
     try
-        fname = sys.argv[2]
+        fname = append!([PROGRAM_FILE], ARGS)[2]
     catch exn
         #= pass =#
     end

@@ -11,7 +11,7 @@ using win32com.client: Dispatch, _get_good_object_
 abstract type AbstractEnumerator end
 abstract type AbstractEnumVARIANT <: AbstractEnumerator end
 abstract type AbstractIterator end
-PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
+PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
 function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
     #= Wrap an object in a VARIANT enumerator.
 
@@ -19,8 +19,8 @@ function WrapEnum(ob, resultCLSID = nothing)::EnumVARIANT
         (which may be either a class instance, or a dynamic.Dispatch type object).
 
          =#
-    if type_(ob) != pythoncom.TypeIIDs[pythoncom.IID_IEnumVARIANT+1]
-        ob = QueryInterface(ob, pythoncom.IID_IEnumVARIANT)
+    if type_(ob) != TypeIIDs(pythoncom)[IID_IEnumVARIANT(pythoncom)+1]
+        ob = QueryInterface(ob, IID_IEnumVARIANT(pythoncom))
     end
     return EnumVARIANT(ob, resultCLSID)
 end
@@ -38,9 +38,9 @@ mutable struct Enumerator <: AbstractEnumerator
          =#
     resultCLSID::Any
     _oleobj_::Any
-    index::int
+    index::Int64
 
-    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::int = -1) =
+    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::Int64 = -1) =
         new(resultCLSID, _oleobj_, index)
 end
 function __getitem__(self::Enumerator, index)
@@ -108,7 +108,7 @@ mutable struct Iterator <: AbstractIterator
 
     Iterator(
         resultCLSID::Any,
-        _iter_::Any = (x for x in QueryInterface(enum, pythoncom.IID_IEnumVARIANT)),
+        _iter_::Any = (x for x in QueryInterface(enum, IID_IEnumVARIANT(pythoncom))),
     ) = new(resultCLSID, _iter_)
 end
 function __iter__(self::Iterator)

@@ -15,7 +15,7 @@ from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaModule, JuliaNodeVisitor
 from pyjl.plugins import IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
-from pyjl.global_vars import NONE_TYPE
+from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 import importlib
 
@@ -151,6 +151,7 @@ CONTAINER_TYPE_MAP = {
     List: "Vector",
     Dict: "Dict",
     Set: "Set",
+    frozenset: "pset",
     Tuple: "Tuple",
     tuple: "Tuple",
     Optional: "nothing",
@@ -172,6 +173,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._none_type = NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
+        self._use_modules = None
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -183,6 +185,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return jl_symbol(node)
         else:
             return super().visit(node)
+
+    def visit_Module(self, node: ast.Module) -> str:
+        self._use_modules = getattr(node, USE_MODULES, None)
+        return super().visit_Module(node)
 
     def visit_Name(self, node) -> str:
         node_id = get_id(node)
@@ -339,7 +345,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 if import_name in self._ignored_module_set:
                     break
             else:
-                imports.append(self._import_str(name, alias))
+                imports.append(self._import(name, alias))
 
         return "\n".join(imports)
 
@@ -378,18 +384,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 
-    def _import_str(self, name, alias):
-        '''Formatting Julia Imports'''
-
-        import_str = self._import(MODULE_DISPATCH_TABLE[name]) if name in MODULE_DISPATCH_TABLE else self._import(name)
-        if import_str.startswith("include"):
-            if alias:
-                mod_name = name.split(".")[-1]
-                return f"{import_str}\nimport Main.{mod_name} as {alias}" 
-            else:
-                return import_str
-        return f"{import_str} as {alias}" if alias else import_str
-
     ################################################
     ######### For Type Inference Mechanism #########
     ################################################
@@ -404,9 +398,11 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return None
         return func
 
-    def _dispatch(self, node, fname: str, vargs: List[str]) -> Optional[str]:
+    def _dispatch(self, node: ast.Call, fname: str, vargs: List[str]) -> Optional[str]:
         if len(node.args) > 0:
             var = vargs[0]
+            if isinstance(node.args[0], ast.Call):
+                var = get_id(node.args[0].func)
 
             # Self argument type lookup
             class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)

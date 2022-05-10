@@ -32,7 +32,7 @@ function __del__(self::SimpleConnection)
     try
         Disconnect(self)
     catch exn
-        if exn isa pythoncom.error
+        if exn isa error(pythoncom)
             #= pass =#
         end
     end
@@ -54,7 +54,7 @@ function Connect(self::SimpleConnection, coInstance, eventInstance, eventCLSID =
             oleobj = coInstance
         end
     end
-    cpc = QueryInterface(oleobj, pythoncom.IID_IConnectionPointContainer)
+    cpc = QueryInterface(oleobj, IID_IConnectionPointContainer(pythoncom))
     if eventCLSID === nothing
         eventCLSID = CLSID(eventInstance)
     end

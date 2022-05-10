@@ -10,14 +10,14 @@ include("dynamic.jl")
 include("gencache.jl")
 
 
-_PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
+_PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
 function __WrapDispatch(
     dispatch,
     userName = nothing,
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = pythoncom.CLSCTX_SERVER,
+    clsctx = CLSCTX_SERVER(pythoncom),
     WrapperClass = nothing,
 )
     #= 
@@ -32,7 +32,7 @@ function __WrapDispatch(
                 resultCLSID = string(GetTypeAttr(typeinfo)[1])
             end
         catch exn
-            if exn isa (pythoncom.com_error, AttributeError)
+            if exn isa (com_error(pythoncom), AttributeError)
                 #= pass =#
             end
         end
@@ -66,7 +66,7 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
         This will most likely throw pythoncom.com_error if anything fails.
          =#
     if clsctx === nothing
-        clsctx = pythoncom.CLSCTX_ALL
+        clsctx = CLSCTX_ALL(pythoncom)
     end
     if Pathname === nothing && Class === nothing || Pathname != nothing && Class != nothing
         throw(ValueError("You must specify a value for Pathname or Class, but not both."))
@@ -84,22 +84,22 @@ abstract type AbstractEventsProxy end
 abstract type AbstractDispatchBaseClass end
 abstract type AbstractCoClassBaseClass end
 abstract type AbstractVARIANT <: Abstractobject end
-function GetActiveObject(Class, clsctx = pythoncom.CLSCTX_ALL)
+function GetActiveObject(Class, clsctx = CLSCTX_ALL(pythoncom))
     #= 
         Python friendly version of GetObject's ProgID/CLSID functionality.
          =#
     resultCLSID = IID(pywintypes, Class)
     dispatch = GetActiveObject(pythoncom, resultCLSID)
-    dispatch = QueryInterface(dispatch, pythoncom.IID_IDispatch)
+    dispatch = QueryInterface(dispatch, IID_IDispatch(pythoncom))
     return __WrapDispatch(dispatch, Class)
 end
 
-function Moniker(Pathname, clsctx = pythoncom.CLSCTX_ALL)
+function Moniker(Pathname, clsctx = CLSCTX_ALL(pythoncom))
     #= 
         Python friendly version of GetObject's moniker functionality.
          =#
     moniker, i, bindCtx = MkParseDisplayName(pythoncom, Pathname)
-    dispatch = BindToObject(moniker, bindCtx, nothing, pythoncom.IID_IDispatch)
+    dispatch = BindToObject(moniker, bindCtx, nothing, IID_IDispatch(pythoncom))
     return __WrapDispatch(dispatch, Pathname)
 end
 
@@ -109,7 +109,7 @@ function Dispatch(
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = pythoncom.CLSCTX_SERVER,
+    clsctx = CLSCTX_SERVER(pythoncom),
 )
     #= Creates a Dispatch based COM object. =#
     @assert(UnicodeToString === nothing)
@@ -129,9 +129,9 @@ function DispatchEx(
     #= Creates a Dispatch based COM object on a specific machine. =#
     @assert(UnicodeToString === nothing)
     if clsctx === nothing
-        clsctx = pythoncom.CLSCTX_SERVER
+        clsctx = CLSCTX_SERVER(pythoncom)
         if machine != nothing
-            clsctx = clsctx & ~(pythoncom.CLSCTX_INPROC)
+            clsctx = clsctx & ~CLSCTX_INPROC(pythoncom)
         end
     end
     if machine === nothing
@@ -148,7 +148,7 @@ function DispatchEx(
         nothing,
         clsctx,
         serverInfo,
-        (pythoncom.IID_IDispatch,),
+        (IID_IDispatch(pythoncom),),
     )[1]
     return Dispatch(dispatch, userName, resultCLSID, typeinfo)
 end
@@ -269,7 +269,7 @@ function __del__(self::EventsProxy)
     try
         close(self._obj_)
     catch exn
-        if exn isa pythoncom.com_error
+        if exn isa com_error(pythoncom)
             #= pass =#
         end
     end
@@ -332,7 +332,7 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -401,7 +401,7 @@ function WithEvents(disp, user_event_class)
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa pythoncom.com_error
+            if exn isa com_error(pythoncom)
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -501,7 +501,7 @@ function Record(name, object)
           app.MoveTo(point)
          =#
     object = EnsureDispatch(gencache, object)
-    module_ = sys.modules[__module__(object.__class__)+1]
+    module_ = modules(sys)[__module__(object.__class__)+1]
     package = GetModuleForTypelib(
         gencache,
         CLSID(module_),
@@ -590,12 +590,12 @@ function __repr__(self::DispatchBaseClass)
     return "<%s.%s instance at 0x%s>" % (mod_name, self.__class__.__name__, id(self))
 end
 
-function __eq__(self::DispatchBaseClass, other)::bool
+function __eq__(self::DispatchBaseClass, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ == other
 end
 
-function __ne__(self::DispatchBaseClass, other)::bool
+function __ne__(self::DispatchBaseClass, other)::Bool
     other = getattr(other, "_oleobj_", other)
     return self._oleobj_ != other
 end
@@ -673,8 +673,8 @@ function _get_good_object_(obj, obUserName = nothing, resultCLSID = nothing)::Tu
     if obj === nothing
         return nothing
     elseif isa(obj, tuple)
-        obUserNameTuple = (obUserName,) * length(obj)
-        resultCLSIDTuple = (resultCLSID,) * length(obj)
+        obUserNameTuple = repeat([(obUserName,)...], length(obj))
+        resultCLSIDTuple = repeat([(resultCLSID,)...], length(obj))
         return tuple(map(_get_good_object_, obj, obUserNameTuple, resultCLSIDTuple))
     else
         return _get_good_single_object_(obj, obUserName, resultCLSID)

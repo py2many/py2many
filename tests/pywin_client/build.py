@@ -18,7 +18,7 @@ dynamically, or possibly even generate .html documentation for objects.
 
 import sys
 import ext_modules.string as string
-from keyword import iskeyword
+from ext_modules.keyword import iskeyword
 
 import pythoncom
 from pywintypes import TimeType
