@@ -105,6 +105,9 @@ JL_IGNORED_MODULE_SET = set([
     "pythoncom",
     "pywintypes",
     "datetime",
+    "pandas",
+    "win32api",
+    "win32ui",
 ])
 
 JULIA_TYPE_MAP = {
@@ -409,7 +412,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if class_node:
                 for base in class_node.bases:
                     base_str = get_ann_repr(base)
-                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
+                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs[1:])
                     if dispatch_func:
                         return dispatch_func
 
@@ -422,7 +425,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             if ann := self._generic_typename_from_type_node(annotation):
                 # Temporary (NOT WORKING)
                 ann: str = re.split(r"\s+[*]", ann)[0]
-                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
+                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs[1:])
                 if dispatch_func:
                     return dispatch_func
 
@@ -440,6 +443,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):
         py_type = self._func_for_lookup(f"{class_name}.{fname}")
+        # print(f"{class_name}.{fname}  - {py_type}")
         if py_type in self._func_dispatch_table:
             ret, node.result_type = self._func_dispatch_table[py_type]
             try:

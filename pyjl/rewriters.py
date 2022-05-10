@@ -34,6 +34,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
+        # Don't parse annotations
+        if hasattr(node, "is_annotation"):
+            return node
+
         args = []
         if node.args:
             args += [self.visit(a) for a in node.args]
@@ -57,6 +61,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        # Don't parse annotations
+        if hasattr(node, "is_annotation"):
+            return node
+
         if ret := self._handle_special_cases(node):
             return ret
 

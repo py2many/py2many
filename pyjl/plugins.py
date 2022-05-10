@@ -7,6 +7,7 @@ import math
 from multiprocessing import Pool
 import multiprocessing
 import operator
+import pathlib
 import time
 import os
 import ast
@@ -37,6 +38,12 @@ try:
 except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
+
+########################################################
+# External imports
+import pandas
+import pandas.core.groupby.generic
+########################################################
 
 
 class JuliaTranspilerPlugins:
@@ -485,8 +492,8 @@ class JuliaTranspilerPlugins:
 
         return f"zip({vargs[0]}, {vargs[1]})"
 
-    def visit_frozenset(t_self, node, vargs):
-        lambda t_self, node: t_self._usings.add("FunctionalCollections")
+    def visit_frozenset_contains(t_self, node, vargs):
+        t_self._usings.add("FunctionalCollections")
         return f"{vargs[1]} in {vargs[0]}" \
             if len(vargs) == 2 else "x::pset, y -> y in x"
 
@@ -644,10 +651,19 @@ class JuliaExternalModulePlugins:
     def visit_pywintypes(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
 
+    def visit_pandas(t_self, node: ast.Call):
+        t_self._usings.add("Pandas")
+
     def visit_datetime(t_self, node: ast.Call):
         # https://github.com/JuliaPy/PyCall.jl/issues/341
         JuliaExternalModulePlugins._pycall_import(t_self, node, "datetime")
-    
+
+    def visit_win32api(t_self, node):
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32api")
+
+    def visit_win32ui(t_self, node):
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")
+
     def _pycall_import(t_self, node: ast.Call, mod_name: str):
         t_self._usings.add("PyCall")
         import_stmt = f"{mod_name} = pyimport(\"{mod_name}\")"
@@ -710,6 +726,9 @@ IMPORT_DISPATCH_TABLE = {
     "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
     "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
     "datetime": JuliaExternalModulePlugins.visit_datetime,
+    "pandas": JuliaExternalModulePlugins.visit_pandas,
+    "win32api": JuliaExternalModulePlugins.visit_win32api,
+    "win32ui": JuliaExternalModulePlugins.visit_win32ui,
 }
 
 DECORATOR_DISPATCH_TABLE = {
@@ -746,7 +765,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     next: (JuliaTranspilerPlugins.visit_next, False),
     range: (JuliaTranspilerPlugins.visit_range, False),
     zip: (JuliaTranspilerPlugins.visit_zip, False),
-    frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset, False),
+    frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset_contains, False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
@@ -780,6 +799,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    pathlib.Path.cwd: (lambda self, node, vargs: "pwd()", True),
     # Instance checks
     isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
     issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
@@ -823,6 +843,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Traceback
     traceback.print_exc: (lambda self, node, vargs: "current_exceptions() != [] ? "\
         "current_exceptions()[end] : nothing", False),
+    ########################################################
+    pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[0]})", False),
+    pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[0]})", False),
+    pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[0]})", False),
+    pandas.core.groupby.generic.DataFrameGroupBy.sum: (lambda self, node, vargs: f"sum({vargs[0]})", False),
 }
 
 # Dispatches special Functions

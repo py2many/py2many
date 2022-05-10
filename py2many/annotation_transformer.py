@@ -1,4 +1,5 @@
 import ast
+from typing import Any
 
 
 def add_annotation_flags(node):
@@ -35,16 +36,19 @@ class AnnotationTransformer(ast.NodeTransformer):
         return node
 
     # without this Dict[x,y] will be translated to HashMap<(x,y)>
-    def visit_Tuple(self, node):
+    def visit_Tuple(self, node: ast.Tuple) -> ast.Tuple:
         return self._visit_record_handling_annotation(node)
 
-    def visit_List(self, node):
+    def visit_List(self, node: ast.List) -> ast.List:
         return self._visit_record_handling_annotation(node)
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: ast.Name) -> ast.Name:
         return self._visit_record_handling_annotation(node)
 
-    def visit_Subscript(self, node):
+    def visit_Subscript(self, node: ast.Subscript) -> ast.Subscript:
+        return self._visit_record_handling_annotation(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:
         return self._visit_record_handling_annotation(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign):

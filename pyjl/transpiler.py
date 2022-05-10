@@ -586,7 +586,7 @@ class JuliaTranspiler(CLikeTranspiler):
             # Module has the same name as file
             mod_name = name.split(".")[-1]
             if alias:
-                return f"{import_str}\nimport Main.{mod_name} as {alias}"
+                return f"{import_str}\nimport {mod_name} as {alias}"
             else:
                 return import_str
 
