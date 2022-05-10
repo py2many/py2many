@@ -1,7 +1,7 @@
 module testExplorer
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 using win32com.client: gencache
 
 

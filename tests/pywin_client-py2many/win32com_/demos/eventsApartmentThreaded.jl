@@ -1,8 +1,8 @@
 module eventsApartmentThreaded
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 
 
 import win32com.client

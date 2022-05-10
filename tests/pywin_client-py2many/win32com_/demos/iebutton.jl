@@ -18,8 +18,8 @@ Contribtions to this sample to make it a little "friendlier" welcome!
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 import winreg
 
 using win32com: universal

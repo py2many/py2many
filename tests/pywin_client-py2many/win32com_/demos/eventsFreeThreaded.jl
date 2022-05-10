@@ -1,8 +1,8 @@
 module eventsFreeThreaded
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 
 coinit_flags(sys) = 0
 

@@ -1,8 +1,8 @@
 module excelAddin
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32ui = pyimport("win32ui")
+pythoncom = pyimport("pythoncom")
 
 import win32con
 import winreg

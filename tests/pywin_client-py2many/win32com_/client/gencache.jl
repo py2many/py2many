@@ -23,8 +23,8 @@ Hacks, to do, etc
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 import io as io
 include("makepy.jl")
 include("genpy.jl")

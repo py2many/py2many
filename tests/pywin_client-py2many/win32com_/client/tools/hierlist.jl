@@ -1,7 +1,7 @@
 module hierlist
 using PyCall
-win32api = pyimport("win32api")
 win32ui = pyimport("win32ui")
+win32api = pyimport("win32api")
 
 
 import win32con

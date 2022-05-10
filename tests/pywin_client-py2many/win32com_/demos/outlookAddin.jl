@@ -1,7 +1,7 @@
 module outlookAddin
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32ui = pyimport("win32ui")
+pythoncom = pyimport("pythoncom")
 
 import winreg
 import win32com.server.register

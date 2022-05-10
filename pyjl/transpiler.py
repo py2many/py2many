@@ -582,13 +582,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if name in MODULE_DISPATCH_TABLE:
             name = MODULE_DISPATCH_TABLE[name] 
         import_str = self._get_import_str(name)
-        if import_str and self._use_modules:
-            # Module has the same name as file
-            mod_name = name.split(".")[-1]
-            if alias:
-                return f"{import_str}\nimport {mod_name} as {alias}"
-            else:
-                return import_str
+        if import_str:
+            if self._use_modules:
+                # Module has the same name as file
+                mod_name = name.split(".")[-1]
+                if alias:
+                    return f"{import_str}\nimport {mod_name} as {alias}"
+            return import_str
 
         import_str = f"import {name}"
         return f"{import_str} as {alias}" if alias else import_str
@@ -599,11 +599,6 @@ class JuliaTranspiler(CLikeTranspiler):
             for n in names:
                 import_names.append(f"include(\"{n}.jl\")")
             return "\n".join(import_names)
-        if self._use_modules:
-            import_str = self._get_import_str(module_name)
-            if import_str:
-                import_names = f"using {module_name}: {', '.join(names)}"
-                return "\n".join([import_str, import_names])
 
         jl_module_name = module_name
         imports = []
@@ -614,6 +609,19 @@ class JuliaTranspiler(CLikeTranspiler):
                 imports.append(jl_name)
             else:
                 imports.append(name)
+
+        import_str = self._get_import_str(module_name)
+        if import_str:
+            if self._use_modules:
+                import_names = f"using {module_name}: {', '.join(names)}"
+                return "\n".join([import_str, import_names])
+            else:
+                # If we import a file that defines no module, we cannot use "using" statement
+                import_stmts = []
+                for imp in imports:
+                    import_stmts.append(f"import {imp}")
+                return "\n".join(import_stmts)
+
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
