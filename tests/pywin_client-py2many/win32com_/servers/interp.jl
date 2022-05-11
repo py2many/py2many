@@ -16,41 +16,56 @@ using win32com.server.exception: Exception
 import winerror
 abstract type AbstractInterpreter end
 mutable struct Interpreter <: AbstractInterpreter
-#= The interpreter object exposed via COM =#
-_public_methods_::Vector{String}
-_reg_class_spec_::String
-_reg_clsid_::String
-_reg_desc_::String
-_reg_progid_::String
-_reg_verprogid_::String
-dict::Dict
+    #= The interpreter object exposed via COM =#
+    _public_methods_::Vector{String}
+    _reg_class_spec_::String
+    _reg_clsid_::String
+    _reg_desc_::String
+    _reg_progid_::String
+    _reg_verprogid_::String
+    dict::Dict
 
-                    Interpreter(_public_methods_::Vector{String} = ["Exec", "Eval"], _reg_class_spec_::String = "win32com.servers.interp.Interpreter", _reg_clsid_::String = "{30BD3490-2632-11cf-AD5B-524153480001}", _reg_desc_::String = "Python Interpreter", _reg_progid_::String = "Python.Interpreter", _reg_verprogid_::String = "Python.Interpreter.2", dict::Dict = Dict()) =
-                        new(_public_methods_, _reg_class_spec_, _reg_clsid_, _reg_desc_, _reg_progid_, _reg_verprogid_, dict)
+    Interpreter(
+        _public_methods_::Vector{String} = ["Exec", "Eval"],
+        _reg_class_spec_::String = "win32com.servers.interp.Interpreter",
+        _reg_clsid_::String = "{30BD3490-2632-11cf-AD5B-524153480001}",
+        _reg_desc_::String = "Python Interpreter",
+        _reg_progid_::String = "Python.Interpreter",
+        _reg_verprogid_::String = "Python.Interpreter.2",
+        dict::Dict = Dict(),
+    ) = new(
+        _public_methods_,
+        _reg_class_spec_,
+        _reg_clsid_,
+        _reg_desc_,
+        _reg_progid_,
+        _reg_verprogid_,
+        dict,
+    )
 end
 function Eval(self::Interpreter, exp)
-#= Evaluate an expression. =#
-if type_(exp) != str
-throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
-end
-return eval(string(exp), self.dict)
+    #= Evaluate an expression. =#
+    if type_(exp) != str
+        throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
+    end
+    return eval(string(exp), self.dict)
 end
 
 function Exec(self::Interpreter, exp)
-#= Execute a statement. =#
-if type_(exp) != str
-throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
-end
-exec(string(exp), self.dict)
+    #= Execute a statement. =#
+    if type_(exp) != str
+        throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
+    end
+    exec(string(exp), self.dict)
 end
 
 function Register()
-return UseCommandLine(win32com.server.register, Interpreter)
+    return UseCommandLine(win32com.server.register, Interpreter)
 end
 
 function main()
-println("Registering COM server...")
-Register()
+    println("Registering COM server...")
+    Register()
 end
 
 main()

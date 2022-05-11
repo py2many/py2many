@@ -492,7 +492,7 @@ import win32con
 import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     cs::Any
-    dt::Vector{Vector{Union{Tuple,String,Any}}}
+    dt::Vector{Vector{Union{Any,Tuple,String}}}
     hier_list::Any
     style::Any
 
@@ -502,7 +502,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Tuple,String,Any}}} = [
+        dt::Vector{Vector{Union{Any,Tuple,String}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),
@@ -575,14 +575,14 @@ mutable struct BrowserTemplate <: AbstractBrowserTemplate
 end
 function OpenObject(self::BrowserTemplate, root)::BrowserDocument
     for doc in GetDocumentList(self)
-        if doc.root.__init__ == root
-            ActivateFrame(__init__(doc.GetFirstView))
+        if doc.root == root
+            ActivateFrame(GetFirstView(doc))
             return doc
         end
     end
     doc = BrowserDocument(self, root)
     frame = CreateNewFrame(self, doc)
-    __init__(doc.OnNewDocument)
+    OnNewDocument(doc)
     InitialUpdateFrame(self, frame, doc, 1)
     return doc
 end

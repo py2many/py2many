@@ -7,13 +7,13 @@ mutable struct Simple <: AbstractSimple
 
 end
 function testit(self::Simple)
-cses = InstancesOf(GetObject("WinMgMts:"), "Win32_Process")
-vals = []
-for cs in cses
-val = Value(cs.Properties_("Caption"))
-push!(vals, val)
-end
-assertFalse(self, length(vals) < 5, "We only found %d processes!" % length(vals))
+    cses = InstancesOf(GetObject("WinMgMts:"), "Win32_Process")
+    vals = []
+    for cs in cses
+        val = Value(cs.Properties_("Caption"))
+        push!(vals, val)
+    end
+    assertFalse(self, length(vals) < 5, "We only found %d processes!" % length(vals))
 end
 
 function main()

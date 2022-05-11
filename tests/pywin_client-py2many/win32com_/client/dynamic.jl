@@ -18,8 +18,8 @@ Example
  =#
 using Printf
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 include("win32com_/client/util.jl")
 import util
 
@@ -74,7 +74,7 @@ end
 PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
 PyIUnknownType = TypeIIDs(pythoncom)[IID_IUnknown(pythoncom)+1]
 _GoodDispatchTypes = (str, IIDType)
-_defaultDispatchItem = build.DispatchItem.__init__
+_defaultDispatchItem = build.DispatchItem
 function _GetGoodDispatch(IDispatch, clsctx = CLSCTX_SERVER(pythoncom))
     if isa(IDispatch, PyIDispatchType)
         return IDispatch
@@ -168,9 +168,9 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
                 attr = GetTypeAttr(typeinfo)
             end
             if typecomp === nothing
-                olerepr = __init__(build.DispatchItem, typeinfo, attr, nothing, 0)
+                olerepr = DispatchItem(build, typeinfo, attr, nothing, 0)
             else
-                olerepr = __init__(build.LazyDispatchItem, attr, nothing)
+                olerepr = LazyDispatchItem(build, attr, nothing)
             end
         catch exn
             if exn isa ole_error(pythoncom)
@@ -179,7 +179,7 @@ function MakeOleRepr(IDispatch, typeinfo, typecomp)
         end
     end
     if olerepr === nothing
-        olerepr = __init__(build.DispatchItem)
+        olerepr = DispatchItem(build)
     end
     return olerepr
 end
@@ -197,7 +197,7 @@ function DumbDispatch(
     if createClass === nothing
         createClass = CDispatch
     end
-    return createClass(IDispatch, __init__(build.DispatchItem), userName)
+    return createClass(IDispatch, DispatchItem(build), userName)
 end
 
 mutable struct CDispatch <: AbstractCDispatch
@@ -481,7 +481,7 @@ end
 
 function _make_method_(self::CDispatch, name)
     #= Make a method object - Assumes in olerepr funcmap =#
-    methodName = __init__(build.MakePublicAttributeName, name)
+    methodName = MakePublicAttributeName(build, name)
     methodCodeList =
         MakeFuncMethod(self._olerepr_, self._olerepr_.mapFuncs[name+1], methodName, 0)
     methodCode = join(methodCodeList, "\n")
@@ -625,7 +625,7 @@ function _FlagAsMethod(self::CDispatch)
             should then allow this to work.
              =#
     for name in methodNames
-        details = __init__(build.MapEntry, __AttrToID__(self, name), (name,))
+        details = MapEntry(build, __AttrToID__(self, name), (name,))
         self._olerepr_.mapFuncs[name+1] = details
     end
 end
@@ -692,7 +692,7 @@ function __getattr__(self::CDispatch, attr)::Tuple
                     end
                 end
                 if retEntry === nothing
-                    retEntry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
+                    retEntry = MapEntry(build, __AttrToID__(self, attr), (attr,))
                 end
             catch exn
                 if exn isa ole_error(pythoncom)
@@ -770,7 +770,7 @@ function __setattr__(self::CDispatch, attr, value)
             end
         end
         try
-            entry = __init__(build.MapEntry, __AttrToID__(self, attr), (attr,))
+            entry = MapEntry(build, __AttrToID__(self, attr), (attr,))
         catch exn
             if exn isa com_error(pythoncom)
                 entry = nothing

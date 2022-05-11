@@ -32,8 +32,8 @@ the dictionary's keys. This allows for the following type of VB code:
     next
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 using win32com.server.register: UseCommandLine
 
 using win32com.server: util, policy
@@ -45,99 +45,128 @@ import winerror
 using winerror: S_OK
 abstract type AbstractDictionaryPolicy <: Abstractpolicy.BasicWrapPolicy end
 mutable struct DictionaryPolicy <: AbstractDictionaryPolicy
-_obj_::Any
-_com_interfaces_::Vector
-_name_to_dispid_::Dict{String, Any}
-_reg_clsid_::String
-_reg_desc_::String
-_reg_policy_spec_::String
-_reg_progid_::String
-_reg_verprogid_::String
+    _obj_::Any
+    _com_interfaces_::Vector
+    _name_to_dispid_::Dict{String,Any}
+    _reg_clsid_::String
+    _reg_desc_::String
+    _reg_policy_spec_::String
+    _reg_progid_::String
+    _reg_verprogid_::String
 
-                    DictionaryPolicy(_obj_::Any, _com_interfaces_::Vector = [], _name_to_dispid_::Dict{String, Any} = Dict("item" => DISPID_VALUE(pythoncom), "_newenum" => DISPID_NEWENUM(pythoncom), "count" => 1), _reg_clsid_::String = "{39b61048-c755-11d0-86fa-00c04fc2e03e}", _reg_desc_::String = "Python Dictionary", _reg_policy_spec_::String = "win32com.servers.dictionary.DictionaryPolicy", _reg_progid_::String = "Python.Dictionary", _reg_verprogid_::String = "Python.Dictionary.1") =
-                        new(_obj_, _com_interfaces_, _name_to_dispid_, _reg_clsid_, _reg_desc_, _reg_policy_spec_, _reg_progid_, _reg_verprogid_)
+    DictionaryPolicy(
+        _obj_::Any,
+        _com_interfaces_::Vector = [],
+        _name_to_dispid_::Dict{String,Any} = Dict(
+            "item" => DISPID_VALUE(pythoncom),
+            "_newenum" => DISPID_NEWENUM(pythoncom),
+            "count" => 1,
+        ),
+        _reg_clsid_::String = "{39b61048-c755-11d0-86fa-00c04fc2e03e}",
+        _reg_desc_::String = "Python Dictionary",
+        _reg_policy_spec_::String = "win32com.servers.dictionary.DictionaryPolicy",
+        _reg_progid_::String = "Python.Dictionary",
+        _reg_verprogid_::String = "Python.Dictionary.1",
+    ) = new(
+        _obj_,
+        _com_interfaces_,
+        _name_to_dispid_,
+        _reg_clsid_,
+        _reg_desc_,
+        _reg_policy_spec_,
+        _reg_progid_,
+        _reg_verprogid_,
+    )
 end
 function _CreateInstance_(self::DictionaryPolicy, clsid, reqIID)
-_wrap_(self, Dict())
-return WrapObject(pythoncom, self, reqIID)
+    _wrap_(self, Dict())
+    return WrapObject(pythoncom, self, reqIID)
 end
 
 function _wrap_(self::DictionaryPolicy, ob)
-self._obj_ = ob
+    self._obj_ = ob
 end
 
-function _invokeex_(self::DictionaryPolicy, dispid, lcid, wFlags, args, kwargs, serviceProvider)::Int64
-if dispid == 0
-l = length(args)
-if l < 1
-throw(COMException("not enough parameters", winerror.DISP_E_BADPARAMCOUNT))
-end
-key = args[1]
-if type_(key) ∉ [str, str]
-throw(COMException("Key must be a string", winerror.DISP_E_TYPEMISMATCH))
-end
-key = lower(key)
-if wFlags & __or__(DISPATCH_METHOD, DISPATCH_PROPERTYGET)
-if l > 1
-throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
-end
-try
-return self._obj_[key + 1]
-catch exn
-if exn isa KeyError
-return nothing
-end
-end
-end
-if l != 2
-throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
-end
-if args[2] === nothing
-try
-#Delete Unsupported
-del(self._obj_)
-catch exn
-if exn isa KeyError
-#= pass =#
-end
-end
-else
-self._obj_[key + 1] = args[2]
-end
-return S_OK
-end
-if dispid == 1
-if !(__and__(wFlags, DISPATCH_PROPERTYGET))
-throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
-end
-if length(args) != 0
-throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
-end
-return length(self._obj_)
-end
-if dispid == DISPID_NEWENUM(pythoncom)
-return NewEnum(util, collect(keys(self._obj_)))
-end
-throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+function _invokeex_(
+    self::DictionaryPolicy,
+    dispid,
+    lcid,
+    wFlags,
+    args,
+    kwargs,
+    serviceProvider,
+)::Int64
+    if dispid == 0
+        l = length(args)
+        if l < 1
+            throw(COMException("not enough parameters", winerror.DISP_E_BADPARAMCOUNT))
+        end
+        key = args[1]
+        if type_(key) ∉ [str, str]
+            throw(COMException("Key must be a string", winerror.DISP_E_TYPEMISMATCH))
+        end
+        key = lower(key)
+        if wFlags & __or__(DISPATCH_METHOD, DISPATCH_PROPERTYGET)
+            if l > 1
+                throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+            end
+            try
+                return self._obj_[key+1]
+            catch exn
+                if exn isa KeyError
+                    return nothing
+                end
+            end
+        end
+        if l != 2
+            throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+        end
+        if args[2] === nothing
+            try
+                #Delete Unsupported
+                del(self._obj_)
+            catch exn
+                if exn isa KeyError
+                    #= pass =#
+                end
+            end
+        else
+            self._obj_[key+1] = args[2]
+        end
+        return S_OK
+    end
+    if dispid == 1
+        if !(__and__(wFlags, DISPATCH_PROPERTYGET))
+            throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+        end
+        if length(args) != 0
+            throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+        end
+        return length(self._obj_)
+    end
+    if dispid == DISPID_NEWENUM(pythoncom)
+        return NewEnum(util, collect(keys(self._obj_)))
+    end
+    throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
 end
 
 function _getidsofnames_(self::DictionaryPolicy, names, lcid)::Tuple
-name = lower(names[1])
-try
-return (self._name_to_dispid_[name + 1],)
-catch exn
-if exn isa KeyError
-throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
-end
-end
+    name = lower(names[1])
+    try
+        return (self._name_to_dispid_[name+1],)
+    catch exn
+        if exn isa KeyError
+            throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
+        end
+    end
 end
 
 function Register()
-return UseCommandLine(DictionaryPolicy)
+    return UseCommandLine(DictionaryPolicy)
 end
 
 function main()
-Register()
+    Register()
 end
 
 main()

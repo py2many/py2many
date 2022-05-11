@@ -4,8 +4,8 @@ module util
   This module contains a collection of general purpose utility functions.
  =#
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 
 import win32con
 function IIDToInterfaceName(iid)::String

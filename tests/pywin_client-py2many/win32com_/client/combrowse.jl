@@ -25,9 +25,9 @@ module combrowse
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 
 using pywin.tools: hierlist
 

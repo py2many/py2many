@@ -78,13 +78,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if value_id and value_id not in sys.builtin_module_names \
                 and value_id not in self._ignored_module_set \
                 and (is_enum(value_id, node.scopes) or
-                     is_class_or_module(value_id, node.scopes) or
-                     is_class_type(value_id, node.scopes) or
-                     # is_class_type(value_id, node.scopes) or
-                     value_id.startswith("self")):
+                    is_class_or_module(value_id, node.scopes) or
+                    is_class_type(value_id, node.scopes) or
+                    # is_class_type(value_id, node.scopes) or
+                    value_id.startswith("self")):
             return node
 
         annotation = node.scopes.find(get_id(node.value))
+
         return ast.Call(
             func=ast.Name(id=node.attr, ctx=ast.Load()),
             args=[node.value],
@@ -97,8 +98,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         # Bypass init module calls
         func_repr = get_id(node)
         split_repr = func_repr.split(".")
-        path = os.sep.join(split_repr[:-1])
-        if os.path.isdir(f"{os.path.curdir}/{path}"):
+        if self._is_dir(split_repr):
             self._insert_init(node)
             return node
 
@@ -113,16 +113,27 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if isinstance(node.value, ast.Attribute):
             self._insert_init(node.value)
         else:
+            # Avoid referencing the same object
+            value = copy.deepcopy(node.value)
             node.value = ast.Attribute(
-                value = node.value,
+                value = value,
                 attr = node.attr,
-                ctx = ast.Load()
+                ctx = ast.Load(),
+                scopes = node.scopes,
+                lineno = node.lineno,
+                col_offset = node.col_offset
             )
             node.attr = "__init__"
+            return node.value.value
     
     def _is_module(self, path: list[str]):
         path_str = os.sep.join(path)
         is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{path_str}.jl")
+        return is_file and path[-1] in self._modules
+
+    def _is_dir(self, path: list[str]):
+        path_str = os.sep.join(path)
+        is_file = os.path.isdir(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{path_str}")
         return is_file and path[-1] in self._modules
 
 

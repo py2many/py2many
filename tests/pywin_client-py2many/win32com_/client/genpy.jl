@@ -50,7 +50,7 @@ mapVTToTypeString = Dict(
 function MakeDefaultArgsForPropertyPut(argsDesc)::Tuple
     ret = []
     for desc in argsDesc[2:end]
-        default = __init__(build.MakeDefaultArgRepr, desc)
+        default = MakeDefaultArgRepr(build, desc)
         if default === nothing
             break
         end
@@ -113,7 +113,7 @@ function __repr__(self::WritableItem)
     return "OleItem: doc=%s, order=%d" % (repr(self.doc), self.order)
 end
 
-mutable struct RecordItem <: build.OleItem.__init__
+mutable struct RecordItem <: build.OleItem
     bForUser::Int64
     clsid::Any
     doc::Any
@@ -145,7 +145,7 @@ function WriteAliasesForItem(item, aliasItems, stream)
     end
 end
 
-mutable struct AliasItem <: build.OleItem.__init__
+mutable struct AliasItem <: build.OleItem
     aliasDoc::Any
     attr::Any
     bWritten::Any
@@ -204,7 +204,7 @@ function WriteAliasItem(self::AliasItem, aliasDict, stream)
     self.bWritten = 1
 end
 
-mutable struct EnumerationItem <: build.OleItem.__init__
+mutable struct EnumerationItem <: build.OleItem
     bForUser::Int64
     clsid::Any
     doc::Any
@@ -272,7 +272,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
             write(
                 stream,
                 "\t%-30s=%-10s # from enum %s",
-                (__init__(build.MakePublicAttributeName, name, true), use, enumName),
+                (MakePublicAttributeName(build, name, true), use, enumName),
             )
             num += 1
         end
@@ -280,7 +280,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
     return num
 end
 
-mutable struct VTableItem <: build.VTableItem.__init__
+mutable struct VTableItem <: build.VTableItem
     bIsDispatch::Any
     bWritten::Any
     python_name::Any
@@ -323,7 +323,7 @@ function WriteVTableMap(self::VTableItem, generator)
             if (item_num % 5) == 0
                 write(stream)
             end
-            defval = __init__(build.MakeDefaultArgRepr, arg)
+            defval = MakeDefaultArgRepr(build, arg)
             if arg[4] === nothing
                 arg3_repr = nothing
             else
@@ -345,7 +345,7 @@ function WriteVTableMap(self::VTableItem, generator)
     println(stream)
 end
 
-mutable struct DispatchItem <: build.DispatchItem.__init__
+mutable struct DispatchItem <: build.DispatchItem
     bIsDispatch::Any
     bIsSink::Any
     bWritten::Any
@@ -524,7 +524,7 @@ function WriteClassBody(self::DispatchItem, generator)
                     name,
                 )
             end
-            ret = MakeFuncMethod(self, entry, __init__(build.MakePublicAttributeName, name))
+            ret = MakeFuncMethod(self, entry, MakePublicAttributeName(build, name))
             for line in ret
                 write(stream)
             end
@@ -572,7 +572,7 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": %s,",
-                (__init__(build.MakePublicAttributeName, key), mapEntry),
+                (MakePublicAttributeName(build, key), mapEntry),
             )
         end
     end
@@ -617,7 +617,7 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": %s,",
-                (__init__(build.MakePublicAttributeName, key), mapEntry),
+                (MakePublicAttributeName(build, key), mapEntry),
             )
         end
     end
@@ -630,7 +630,7 @@ function WriteClassBody(self::DispatchItem, generator)
         if bBuildHidden(generator) || !hidden(entry)
             lkey = lower(key)
             details = desc(entry)
-            defArgDesc = __init__(build.MakeDefaultArgRepr, details[3])
+            defArgDesc = MakeDefaultArgRepr(build, details[3])
             if defArgDesc === nothing
                 defArgDesc = ""
             else
@@ -640,7 +640,7 @@ function WriteClassBody(self::DispatchItem, generator)
                 stream,
                 "\t\t\"%s\" : ((%s, LCID, %d, 0),(%s)),",
                 (
-                    __init__(build.MakePublicAttributeName, key),
+                    MakePublicAttributeName(build, key),
                     details[1],
                     DISPATCH_PROPERTYPUT(pythoncom),
                     defArgDesc,
@@ -658,12 +658,7 @@ function WriteClassBody(self::DispatchItem, generator)
             write(
                 stream,
                 "\t\t\"%s\": ((%s, LCID, %d, 0),%s),",
-                (
-                    __init__(build.MakePublicAttributeName, key),
-                    details[1],
-                    details[5],
-                    defArgDesc,
-                ),
+                (MakePublicAttributeName(build, key), details[1], details[5], defArgDesc),
             )
         end
     end
@@ -749,7 +744,7 @@ function WriteClassBody(self::DispatchItem, generator)
     end
 end
 
-mutable struct CoClassItem <: build.OleItem.__init__
+mutable struct CoClassItem <: build.OleItem
     bWritten::Any
     interfaces::Any
     python_name::Any
@@ -1341,10 +1336,10 @@ function generate_child(self::Generator, child, dir)
             info, infotype, doc, attr = type_info_tuple
             if infotype == TKIND_COCLASS(pythoncom)
                 coClassItem, child_infos = _Build_CoClass(self, type_info_tuple)
-                found = __init__(build.MakePublicAttributeName, doc[1]) == child
+                found = MakePublicAttributeName(build, doc[1]) == child
                 if !(found)
                     for (info, info_type, refType, doc, refAttr, flags) in child_infos
-                        if __init__(build.MakePublicAttributeName, doc[1]) == child
+                        if MakePublicAttributeName(build, doc[1]) == child
                             found = 1
                             break
                         end
@@ -1367,7 +1362,7 @@ function generate_child(self::Generator, child, dir)
             for type_info_tuple in infos
                 info, infotype, doc, attr = type_info_tuple
                 if infotype in [TKIND_INTERFACE(pythoncom), TKIND_DISPATCH(pythoncom)]
-                    if __init__(build.MakePublicAttributeName, doc[1]) == child
+                    if MakePublicAttributeName(build, doc[1]) == child
                         found = 1
                         oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
                         oleItems[clsid+1] = oleItem

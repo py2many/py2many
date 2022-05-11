@@ -2,8 +2,8 @@ module selecttlb
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 import pywin.dialogs.list
 
 include("win32com_/ext_modules/win32con.jl")

@@ -490,6 +490,9 @@ class JuliaTranspiler(CLikeTranspiler):
             dec = declaration.split(".")
             if dec[0] == "self":
                 declaration = dec[1]
+            if declaration in self._julia_keywords:
+                declaration = f"{declaration}_"
+
             if is_class_or_module(typename, node.scopes):
                 typename = f"Abstract{typename}"
 

@@ -174,6 +174,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         self._use_modules = None
+        self._julia_keywords = julia_keywords
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -192,11 +193,16 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def visit_Name(self, node) -> str:
         node_id = get_id(node)
-        if node_id in julia_keywords and \
+        if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
             return f"{node.id}_"
         
         return super().visit_Name(node)
+    
+    def visit_Constant(self, node) -> str:
+        if node.value in self._julia_keywords:
+            return f"{node.value}_"
+        return super().visit_Constant(node)
 
     def visit_arg(self, node):
         id = get_id(node)
@@ -214,7 +220,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return [], []
         typenames, args = map(list, zip(*args))
         # Replace julia keywords
-        args = [a if a not in julia_keywords else f"{a}_" for a in args]
+        args = [a if a not in self._julia_keywords else f"{a}_" for a in args]
         return typenames, args
 
     def visit_BinOp(self, node) -> str:
@@ -236,7 +242,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
     def visit_keyword(self, node: ast.keyword) -> Any:
-        arg_str = node.arg if node.arg not in julia_keywords else f"{node.arg}_"
+        arg_str = node.arg if node.arg not in self._julia_keywords else f"{node.arg}_"
         return f"{arg_str} = {self.visit(node.value)}"
 
     ######################################################

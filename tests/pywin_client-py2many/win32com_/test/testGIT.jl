@@ -23,118 +23,144 @@ this is a pain in the but!
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pythoncom = pyimport("pythoncom")
 import winerror
 import _thread
 import win32com.client
 import win32event
 
 function TestInterp(interp)
-if Eval(interp, "1+1") != 2
-throw(ValueError("The interpreter returned the wrong result."))
-end
-try
-Eval(interp, 2)
-throw(ValueError("The interpreter did not raise an exception"))
-catch exn
- let details = exn
-if details isa com_error(pythoncom)
-if details[1] != winerror.DISP_E_TYPEMISMATCH
-throw(ValueError("The interpreter exception was not winerror.DISP_E_TYPEMISMATCH."))
-end
-end
-end
-end
+    if Eval(interp, "1+1") != 2
+        throw(ValueError("The interpreter returned the wrong result."))
+    end
+    try
+        Eval(interp, 2)
+        throw(ValueError("The interpreter did not raise an exception"))
+    catch exn
+        let details = exn
+            if details isa com_error(pythoncom)
+                if details[1] != winerror.DISP_E_TYPEMISMATCH
+                    throw(
+                        ValueError(
+                            "The interpreter exception was not winerror.DISP_E_TYPEMISMATCH.",
+                        ),
+                    )
+                end
+            end
+        end
+    end
 end
 
 function TestInterpInThread(stopEvent, cookie)
-try
-DoTestInterpInThread(cookie)
-finally
-SetEvent(win32event, stopEvent)
-end
+    try
+        DoTestInterpInThread(cookie)
+    finally
+        SetEvent(win32event, stopEvent)
+    end
 end
 
 function CreateGIT()
-return CoCreateInstance(pythoncom, CLSID_StdGlobalInterfaceTable(pythoncom), nothing, CLSCTX_INPROC(pythoncom), IID_IGlobalInterfaceTable(pythoncom))
+    return CoCreateInstance(
+        pythoncom,
+        CLSID_StdGlobalInterfaceTable(pythoncom),
+        nothing,
+        CLSCTX_INPROC(pythoncom),
+        IID_IGlobalInterfaceTable(pythoncom),
+    )
 end
 
 function DoTestInterpInThread(cookie)
-try
-CoInitialize(pythoncom)
-myThread = GetCurrentThreadId(win32api)
-GIT = CreateGIT()
-interp = GetInterfaceFromGlobal(GIT, cookie, IID_IDispatch(pythoncom))
-interp = Dispatch(win32com.client, interp)
-TestInterp(interp)
-Exec(interp, "import win32api")
-@printf("The test thread id is %d, Python.Interpreter\'s thread ID is %d", (myThread, Eval(interp, "win32api.GetCurrentThreadId()")))
-interp = nothing
-CoUninitialize(pythoncom)
-catch exn
-current_exceptions() != [] ? current_exceptions()[end] : nothing
-end
+    try
+        CoInitialize(pythoncom)
+        myThread = GetCurrentThreadId(win32api)
+        GIT = CreateGIT()
+        interp = GetInterfaceFromGlobal(GIT, cookie, IID_IDispatch(pythoncom))
+        interp = Dispatch(win32com.client, interp)
+        TestInterp(interp)
+        Exec(interp, "import win32api")
+        @printf(
+            "The test thread id is %d, Python.Interpreter\'s thread ID is %d",
+            (myThread, Eval(interp, "win32api.GetCurrentThreadId()"))
+        )
+        interp = nothing
+        CoUninitialize(pythoncom)
+    catch exn
+        current_exceptions() != [] ? current_exceptions()[end] : nothing
+    end
 end
 
 function BeginThreadsSimpleMarshal(numThreads, cookie)::Vector
-#= Creates multiple threads using simple (but slower) marshalling.
+    #= Creates multiple threads using simple (but slower) marshalling.
 
-    Single interpreter object, but a new stream is created per thread.
+        Single interpreter object, but a new stream is created per thread.
 
-    Returns the handles the threads will set when complete.
-     =#
-ret = []
-for i in 0:numThreads - 1
-hEvent = CreateEvent(win32event, nothing, 0, 0, nothing)
-start_new(_thread, TestInterpInThread, (hEvent, cookie))
-push!(ret, hEvent)
-end
-return ret
+        Returns the handles the threads will set when complete.
+         =#
+    ret = []
+    for i = 0:numThreads-1
+        hEvent = CreateEvent(win32event, nothing, 0, 0, nothing)
+        start_new(_thread, TestInterpInThread, (hEvent, cookie))
+        push!(ret, hEvent)
+    end
+    return ret
 end
 
 function test(fn)
-@printf("The main thread is %d", GetCurrentThreadId(win32api))
-GIT = CreateGIT()
-interp = Dispatch(win32com.client, "Python.Interpreter")
-cookie = RegisterInterfaceInGlobal(GIT, _oleobj_(interp), IID_IDispatch(pythoncom))
-events = fn(4, cookie)
-numFinished = 0
-while true
-try
-rc = MsgWaitForMultipleObjects(win32event, events, 0, 2000, win32event.QS_ALLINPUT)
-if rc >= win32event.WAIT_OBJECT_0 && rc < (win32event.WAIT_OBJECT_0 + length(events))
-numFinished = numFinished + 1
-if numFinished >= length(events)
-break;
-end
-elseif rc == (win32event.WAIT_OBJECT_0 + length(events))
-PumpWaitingMessages(pythoncom)
-else
-@printf("Waiting for thread to stop with interfaces=%d, gateways=%d", (_GetInterfaceCount(pythoncom), _GetGatewayCount(pythoncom)))
-end
-catch exn
-if exn isa KeyboardInterrupt
-break;
-end
-end
-end
-RevokeInterfaceFromGlobal(GIT, cookie)
-#Delete Unsupported
-del(interp)
-#Delete Unsupported
-del(GIT)
+    @printf("The main thread is %d", GetCurrentThreadId(win32api))
+    GIT = CreateGIT()
+    interp = Dispatch(win32com.client, "Python.Interpreter")
+    cookie = RegisterInterfaceInGlobal(GIT, _oleobj_(interp), IID_IDispatch(pythoncom))
+    events = fn(4, cookie)
+    numFinished = 0
+    while true
+        try
+            rc = MsgWaitForMultipleObjects(
+                win32event,
+                events,
+                0,
+                2000,
+                win32event.QS_ALLINPUT,
+            )
+            if rc >= win32event.WAIT_OBJECT_0 &&
+               rc < (win32event.WAIT_OBJECT_0 + length(events))
+                numFinished = numFinished + 1
+                if numFinished >= length(events)
+                    break
+                end
+            elseif rc == (win32event.WAIT_OBJECT_0 + length(events))
+                PumpWaitingMessages(pythoncom)
+            else
+                @printf(
+                    "Waiting for thread to stop with interfaces=%d, gateways=%d",
+                    (_GetInterfaceCount(pythoncom), _GetGatewayCount(pythoncom))
+                )
+            end
+        catch exn
+            if exn isa KeyboardInterrupt
+                break
+            end
+        end
+    end
+    RevokeInterfaceFromGlobal(GIT, cookie)
+    #Delete Unsupported
+    del(interp)
+    #Delete Unsupported
+    del(GIT)
 end
 
 function main()
-test(BeginThreadsSimpleMarshal)
-Sleep(win32api, 500)
-CoUninitialize(pythoncom)
-if _GetInterfaceCount(pythoncom) != 0 || _GetGatewayCount(pythoncom) != 0
-@printf("Done with interfaces=%d, gateways=%d", (_GetInterfaceCount(pythoncom), _GetGatewayCount(pythoncom)))
-else
-println("Done.")
-end
+    test(BeginThreadsSimpleMarshal)
+    Sleep(win32api, 500)
+    CoUninitialize(pythoncom)
+    if _GetInterfaceCount(pythoncom) != 0 || _GetGatewayCount(pythoncom) != 0
+        @printf(
+            "Done with interfaces=%d, gateways=%d",
+            (_GetInterfaceCount(pythoncom), _GetGatewayCount(pythoncom))
+        )
+    else
+        println("Done.")
+    end
 end
 
 main()

@@ -11,9 +11,9 @@ Other modules may use this information to generate .py files, use the informatio
 dynamically, or possibly even generate .html documentation for objects.
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 
 import string
 

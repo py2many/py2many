@@ -9,8 +9,8 @@ module makepy
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32ui = pyimport("win32ui")
+pythoncom = pyimport("pythoncom")
 import pywin
 using pywin.dialogs: status
 import getopt

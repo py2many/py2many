@@ -1,7 +1,7 @@
 module __init__
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 
 import gencache
 include("win32com_/ext_modules/winerror.jl")
