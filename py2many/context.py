@@ -92,8 +92,9 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         names = [n.name for n in node.names]
         if module_path in self._trees:
             m = self._trees[module_path]
-            resolved_names = [m.scopes.find(n) for n in names]
-            node.scopes[-1].vars += resolved_names
+            if hasattr(m, "scopes"):
+                resolved_names = [m.scopes.find(n) for n in names]
+                node.scopes[-1].vars += resolved_names
         return node
 
     def visit_If(self, node):

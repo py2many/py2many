@@ -69,8 +69,8 @@ Error Handling
  =#
 using PyCall
 pywintypes = pyimport("pywintypes")
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 using win32com.util: IIDToInterfaceName
 using win32com: universal
 import win32com.client

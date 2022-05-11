@@ -14,7 +14,7 @@ output_name = mktemp(tempfile, "-pycom-test")
 cmd = "cscript //nologo testxslt.js doesnt_matter.xml testxslt.xsl " + output_name
 ExecuteShellCommand(win32com.test.util, cmd, self)
 try
-f = readline(output_name)
+f = open(output_name)
 try
 got = read(f)
 if got != expected_output

@@ -11,7 +11,7 @@ import win32com.test.util
 abstract type AbstractInterpCase <: Abstractwin32com.test.util.TestCase end
 abstract type AbstractConnectionsTestCase <: Abstractwin32com.test.util.TestCase end
 function TestConnections()
-test()
+test(win32com.demos.connect)
 end
 
 mutable struct InterpCase <: AbstractInterpCase

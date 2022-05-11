@@ -8,7 +8,6 @@ using win32com.client: gencache
 import win32com.client.dynamic
 using win32com.client: Dispatch
 
-import win32gui
 import win32con
 import winerror
 import glob

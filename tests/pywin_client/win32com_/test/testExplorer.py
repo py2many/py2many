@@ -5,7 +5,7 @@ import os
 import win32com.client.dynamic
 from win32com.client import Dispatch
 import win32api
-import win32gui
+# import win32gui
 import win32con
 import winerror
 import glob

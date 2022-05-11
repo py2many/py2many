@@ -492,7 +492,7 @@ import win32con
 import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     cs::Any
-    dt::Vector{Vector{Union{String,Any,Tuple}}}
+    dt::Vector{Vector{Union{Tuple,String,Any}}}
     hier_list::Any
     style::Any
 
@@ -502,7 +502,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{String,Any,Tuple}}} = [
+        dt::Vector{Vector{Union{Tuple,String,Any}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),
