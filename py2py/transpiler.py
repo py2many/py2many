@@ -1,19 +1,6 @@
-import ast
+from ast import unparse
 
-from .ast_helpers import create_ast_node, unparse
-from .clike import CLikeTranspiler
-
-
-class RestoreMainRewriter(ast.NodeTransformer):
-    def visit_FunctionDef(self, node):
-        is_python_main = getattr(node, "python_main", False)
-
-        if is_python_main:
-            if_block = create_ast_node("if __name__ == '__main__': True", node)
-            if_block.body = node.body
-            ast.fix_missing_locations(if_block)
-            return if_block
-        return node
+from py2many.clike import CLikeTranspiler
 
 
 class PythonTranspiler(CLikeTranspiler):

@@ -113,45 +113,6 @@ class RenameTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def visit_Call(self, node):
-        if isinstance(node.func, ast.Name) and node.func.id == self._old_name:
-            node.func.id = self._new_name
-        self.generic_visit(node)
-        return node
-
-
-class WithToBlockTransformer(ast.NodeTransformer):
-    def __init__(self, language):
-        super().__init__()
-        self._no_underscore = False
-        if language in {"nim"}:
-            self._no_underscore = True
-        self._temp = 0
-
-    def _get_temp(self):
-        self._temp += 1
-        if self._no_underscore:
-            return f"tmp{self._temp}"
-        return f"__tmp{self._temp}"
-
-    def visit_With(self, node):
-        self.generic_visit(node)
-        stmts = []
-        for i in node.items:
-            if i.optional_vars:
-                target = i.optional_vars
-            else:
-                target = ast.Name(id=self._get_temp(), lineno=node.lineno)
-            stmt = ast.Assign(
-                targets=[target], value=i.context_expr, lineno=node.lineno
-            )
-            stmts.append(stmt)
-        node.body = stmts + node.body
-        ret = create_ast_block(body=node.body, at_node=node)
-        # Hint to UnpackScopeRewriter below to leave the new scope alone
-        ret.unpack = False
-        return ret
-
 
 def capitalize_first(name):
     first = name[0].upper()
@@ -266,6 +227,8 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         return self._visit_documentable(node)
 
     def visit_Module(self, node):
+        self._docstrings = set()
+        self._docstring_parent = {}
         return self._visit_documentable(node)
 
     def visit_Constant(self, node):
@@ -457,13 +420,19 @@ class UnpackScopeRewriter(ast.NodeTransformer):
     def visit_While(self, node: ast.With) -> ast.With:
         return self._visit_assign_node_body(node)
 
+
 class UnitTestRewriter(ast.NodeTransformer):
-    """Converts unittest.main call and instead calls all the necessary functions"""
+
+    TEST_MODULE_SET = set([
+        "unittest.TestCase"
+    ])
+
+    """Converts unittests and calls all the necessary functions in the main function"""
     def __init__(self, language):
         super().__init__()
         self._language = language
         self._test_classes: list[str, list[str]] = []
-        self._test_modules = TEST_MODULE_SET
+        self._test_modules = self.TEST_MODULE_SET
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._test_classes = []
@@ -535,6 +504,13 @@ class UnitTestRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
 
-TEST_MODULE_SET = set([
-    "unittest.TestCase"
-])
+class RestoreMainRewriter(ast.NodeTransformer):
+    def visit_FunctionDef(self, node):
+        is_python_main = getattr(node, "python_main", False)
+
+        if is_python_main:
+            if_block = create_ast_node("if __name__ == '__main__': True", node)
+            if_block.body = node.body
+            ast.fix_missing_locations(if_block)
+            return if_block
+        return node

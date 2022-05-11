@@ -20,7 +20,7 @@ from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
-
+    """Converts Python calls and attribute calls to Julia compatible ones"""
     def __init__(self) -> None:
         super().__init__()
         self._ignored_module_set = JL_IGNORED_MODULE_SET
@@ -131,11 +131,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def __init__(self) -> None:
         super().__init__()
-        self._hierarchy_map = {}
         self._ignored_module_set = \
             self._ignored_module_set = IGNORED_MODULE_SET.copy()\
                 .union(JL_IGNORED_MODULE_SET.copy())
         self._class_fields: Dict[str, Any] = {}
+        self._hierarchy_map = {}
         self._nested_classes = []
         self._class_scopes = []
 
@@ -261,6 +261,9 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
+    """Rewrites augmented assignments into assignments with
+    binary operations. This is required in certain cases where
+    Python uses operator overloading"""
     def __init__(self) -> None:
         super().__init__()
 
@@ -348,11 +351,9 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
 
 
 class JuliaGeneratorRewriter(ast.NodeTransformer):
+    """A Rewriter for Generator functions"""
     def __init__(self):
-        self._generator_funcs = {}
-        self._assign_map = {}
         self._nested_funcs = []
-        self._resumables_assigns = []
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
@@ -385,13 +386,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                     self._nested_funcs.append(n)
                     continue
 
-            visit_node = self.visit(n)
-            if self._resumables_assigns:
-                for assert_node in self._resumables_assigns:
-                    body.append(assert_node)
-                self._resumables_assigns = []
-            
-            body.append(visit_node)
+            body.append(self.visit(n))
 
         node.body = body
 
@@ -402,7 +397,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 node)
 
         is_resumable = RESUMABLE in node.parsed_decorators
-        self._generator_funcs[node.name] = is_resumable
         if yield_node and not is_resumable:
             # Body contains yield and is not resumable function
             node.returns_channel = True
@@ -461,60 +455,11 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 
         return self.generic_visit(node)
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        self.generic_visit(node)
-        if isinstance(node.value, ast.List) or isinstance(node.value, ast.Tuple):
-            value_list = map(lambda x: get_id(x.func) if isinstance(x, ast.Call) else None, node.value.elts)
-            for target, value in zip(node.targets, value_list):
-                if value and (t_id := get_id(target)):
-                    self._assign_map[t_id] = value
-        else:
-            if isinstance(node.value, ast.Call):
-                for target in node.targets:
-                    if t_id := get_id(target):
-                        self._assign_map[t_id] = get_id(node.value.func)
-
-        return node
-
-    # TODO: Creating assignments for resumable func calls. Does not work
-    # def visit_Call(self, node: ast.Call) -> Any:
-    #     self.generic_visit(node)
-    #     parent = find_closest_scope(node.scopes)
-    #     if (id := get_id(node.func)) and len(node.args) > 0:
-    #         if id in self._generator_funcs \
-    #                 and self._generator_funcs[id]:
-    #             if not getattr(parent, "has_generator_assign", None):
-    #                 # Create new assignment node for resumable
-    #                 new_node = ast.Assign(
-    #                     targets = [
-    #                         ast.Name(
-    #                             id=f"{id}_var",
-    #                             lineno = node.lineno,
-    #                             col_offset = node.col_offset)
-    #                     ],
-    #                     value = ast.Call(
-    #                         func = node.func,
-    #                         args = node.args.copy(),
-    #                         keywords = node.keywords,
-    #                         scopes = node.scopes,
-    #                         lineno = node.lineno,
-    #                         col_offset = node.col_offset
-    #                     ),
-    #                     lineno = node.lineno,
-    #                     col_offset = node.col_offset)
-
-    #                 self._resumables_assigns.append(new_node)
-    #                 parent.has_generator_assign = True
-
-    #             node.func = ast.Name(
-    #                 id= f"{id}_var",
-    #                 lineno = node.lineno,
-    #                 col_offset = node.col_offset)
-    #             node.args = []
-    #     return node
 
 # TODO: More a transformer than a rewriter
 class JuliaDecoratorRewriter(ast.NodeTransformer):
+    """Parses decorators and adds them to functions 
+    and class scopes"""
     def __init__(self):
         super().__init__()
 
@@ -546,6 +491,10 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
 
 
 class JuliaConditionRewriter(ast.NodeTransformer):
+    """Rewrites condition checks to Julia compatible ones
+    All checks that perform equality checks with the literal '1'
+    have to be converted to equality checks with true"""
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -586,6 +535,8 @@ class JuliaConditionRewriter(ast.NodeTransformer):
             )
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
+    """Translates Python's 1-based indexing to Julia's 
+    0-based indexing for lists"""
 
     SPECIAL_FUNCTIONS = set([
         "bisect",
@@ -778,7 +729,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 # Cover reverse lookup
                 if isinstance(node.args[2], ast.UnaryOp) and \
                         isinstance(node.args[2].op, ast.USub):
-                    # Switch args
                     node.args[0], node.args[1] = node.args[1], node.args[0]
         return node
 
@@ -803,6 +753,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 
 
 class JuliaImportRewriter(ast.NodeTransformer):
+    """Rewrites nested imports to the module scope"""
     def __init__(self) -> None:
         super().__init__()
         # The default module represents all Import nodes.
@@ -868,12 +819,17 @@ class JuliaImportRewriter(ast.NodeTransformer):
 ###########################################################
 
 class ForLoopTargetRewriter(ast.NodeTransformer):
+    """Rewrites loop target variables in case they are used 
+    outside of the loops scope. This has to be executed after 
+    the JuliaLoopScopeAnalysis transformer """
     def __init__(self) -> None:
         super().__init__()
         self._targets_out_of_scope = False
         self._target_vals: list[tuple] = []
     
     def visit_Module(self, node: ast.Module) -> Any:
+        self._targets_out_of_scope = False
+        self._target_vals = []
         if getattr(node, "optimize_loop_target", False):
             self._generic_scope_visit(node)
         return node
@@ -892,7 +848,7 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                 for target, default in self._target_vals:
                     assign = ast.Assign(
                         targets=[target],
-                        value = ast.Constant(value = default),
+                        value = default,
                         # annotation = ast.Name(id= "int"),
                         lineno = node.lineno - 1,
                         col_offset = node.col_offset)
@@ -911,7 +867,7 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
         if self._targets_out_of_scope:
             # Get target and its default value
             target_id = get_id(node.target)
-            target_default = self._get_default_val_from_iter(node.iter)
+            target_default = self._get_default_val_from_iter(node)
             self._target_vals.append((ast.Name(target_id), target_default))
 
             annotation = getattr(node.scopes.find(target_id), "annotation", None)
@@ -932,14 +888,33 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
             node.body.insert(0, new_var_assign)
         return node
 
-    # TODO: get more use-cases
-    def _get_default_val_from_iter(self, iter):
+    def _get_default_val_from_iter(self, node: ast.For):
+        iter = node.iter
         if isinstance(iter, ast.Call) and get_id(iter.func) == "range":
-            return 0
+            return ast.Constant(value = 0)
+        if id := get_id(iter):
+            n = node.scopes.find[id]
+            ann = node.annotation if hasattr(node, "annotation") else getattr(n, "annotation", None)
+            if ann_id := get_id(ann):
+                if ann_id == "int":
+                    return ast.Constant(value = 0)
+                if ann_id == "float":
+                    return ast.Constant(value = 0.0)
+                if ann_id.startswith("list") or ann_id.startswith("List"):
+                    return ast.List(elts=[], ctx=ast.Load())
+                if ann_id.startswith("Dict"):
+                    return ast.Dict(keys=[], values = [], ctx=ast.Load())
+                if ann_id.startswith("set"):
+                    return ast.Call(
+                        func = ast.Name(id='set', ctx=ast.Load()),
+                        args = [],
+                        keywords = [])
         return None
 
-# TODO: Still preliminary
+
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):
+    """Converts array calls to OffsetArray calls. It is still
+    a preliminary feature"""
 
     SUPPORTED_OPERATIONS = set([
         "append", 
@@ -1213,6 +1188,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
 
 class JuliaModuleRewriter(ast.NodeTransformer):
+    """Wraps Python's modules into Julia Modules."""
     def __init__(self) -> None:
         super().__init__()
 

@@ -17,21 +17,20 @@ from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
 from pyjl.optimizations import AlgebraicSimplification
+from pynim.rewriters import WithToBlockRewriter
 
 
 from .analysis import add_imports
-from .annotation_transformer import add_annotation_flags
 
 from .context import add_assignment_context, add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
 from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
-from .mutability_transformer import detect_mutable_vars
-from .nesting_transformer import detect_nesting_levels
-from .python_transformer import PythonTranspiler, RestoreMainRewriter
+from .transformers import add_annotation_flags, detect_mutable_vars, detect_nesting_levels
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
+from py2py.transpiler import PythonTranspiler
 from pycpp.transpiler import CppTranspiler, CppListComparisonRewriter
 from pyrs.inference import infer_rust_types
 from pyrs.transpiler import (
@@ -89,9 +88,9 @@ from py2many.rewriters import (
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
+    RestoreMainRewriter,
     StrStrRewriter,
     UnitTestRewriter,
-    WithToBlockTransformer,
     IgnoredAssignRewriter,
     UnpackScopeRewriter,
 )
@@ -155,7 +154,6 @@ def _transpile(
 
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
-        generic_rewriters.append(WithToBlockTransformer(language))
 
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
@@ -425,7 +423,7 @@ def nim_settings(args, env=os.environ):
         "Nim",
         ["nimpretty", *nimpretty_args],
         None,
-        [NimNoneCompareRewriter()],
+        [NimNoneCompareRewriter(), WithToBlockRewriter],
         [infer_nim_types],
     )
 
