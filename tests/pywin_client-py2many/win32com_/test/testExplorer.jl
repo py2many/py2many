@@ -1,7 +1,7 @@
 module testExplorer
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 using win32com.client: gencache
 
 
@@ -33,7 +33,7 @@ iexplore = DispatchWithEvents(win32com.client, "InternetExplorer.Application", E
 catch exn
  let exc = exn
 if exc isa com_error(pythoncom)
-if hresult(exc) not in HRESULTS_IN_AUTOMATION
+if hresult(exc) ∉ HRESULTS_IN_AUTOMATION
 error()
 end
 println("IE events appear to not be available, so skipping this test")
@@ -101,7 +101,7 @@ iexplore = Dispatch(win32com.client.dynamic, "InternetExplorer.Application")
 catch exn
  let exc = exn
 if exc isa com_error(pythoncom)
-if hresult(exc) not in HRESULTS_IN_AUTOMATION
+if hresult(exc) ∉ HRESULTS_IN_AUTOMATION
 error()
 end
 println("IE appears to not be available, so skipping this test")

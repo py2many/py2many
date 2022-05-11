@@ -1,7 +1,7 @@
 module __init__
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32com.gen_py
 
 
@@ -96,8 +96,7 @@ if !(__gen_path__)
         end
     end
 end
-if "win32com.gen_py"
-    not in modules(sys)
+if "win32com.gen_py" ∉ modules(sys)
     gen_py = ModuleType(types, "win32com.gen_py")
     __path__(gen_py) = [__gen_path__]
     modules(sys)[__name__(gen_py)+1] = gen_py

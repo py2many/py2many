@@ -87,8 +87,7 @@ function GetSubList(self::HLIPythonObject)::Vector
     ret = []
     try
         for (key, ob) in items(self.myobject.__dict__)
-            if key
-                not in special_names
+            if key ∉ special_names
                 push!(ret, MakeHLI(ob, key))
             end
         end
@@ -135,8 +134,7 @@ function CalculateIsExpandable(self::HLIPythonObject)::Int64
     end
     try
         for key in keys(self.myobject.__dict__)
-            if key
-                not in special_names
+            if key ∉ special_names
                 return 1
             end
         end
@@ -155,8 +153,7 @@ function CalculateIsExpandable(self::HLIPythonObject)::Int64
     end
     try
         for item in self.myobject.__members__
-            if item
-                not in special_names
+            if item ∉ special_names
                 return 1
             end
         end
@@ -495,7 +492,7 @@ import win32con
 import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     cs::Any
-    dt::Vector{Vector{Union{Any,Tuple,String}}}
+    dt::Vector{Vector{Union{String,Any,Tuple}}}
     hier_list::Any
     style::Any
 
@@ -505,7 +502,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Any,Tuple,String}}} = [
+        dt::Vector{Vector{Union{String,Any,Tuple}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),

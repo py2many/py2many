@@ -4,8 +4,8 @@ module dispatcher
 Please see policy.py for a discussion on dispatchers and policies
  =#
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32traceutil
 
 

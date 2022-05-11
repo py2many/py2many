@@ -32,8 +32,8 @@ the dictionary's keys. This allows for the following type of VB code:
     next
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 using win32com.server.register: UseCommandLine
 
 using win32com.server: util, policy
@@ -73,7 +73,7 @@ if l < 1
 throw(COMException("not enough parameters", winerror.DISP_E_BADPARAMCOUNT))
 end
 key = args[1]
-if type_(key) not in [str, str]
+if type_(key) ∉ [str, str]
 throw(COMException("Key must be a string", winerror.DISP_E_TYPEMISMATCH))
 end
 key = lower(key)

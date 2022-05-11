@@ -1032,8 +1032,7 @@ function _Build_CoClassChildren(
             else
                 interfaces[clsid(dispItem)+1] = (dispItem, flags)
             end
-            if clsid
-                not in vtableItems && refAttr[12] & TYPEFLAG_FDUAL(pythoncom)
+            if clsid ∉ vtableItems && refAttr[12] & TYPEFLAG_FDUAL(pythoncom)
                 refType = GetRefTypeInfo(refType, GetRefTypeOfImplType(refType, -1))
                 refAttr = GetTypeAttr(refType)
                 @assert(typekind(refAttr) == TKIND_INTERFACE(pythoncom))
@@ -1083,8 +1082,7 @@ function BuildOleItemsFromType(self::Generator)::Tuple
             newItem = EnumerationItem(info, attr, doc)
             enumItems[newItem.doc[1]+1] = newItem
         elseif infotype in [TKIND_DISPATCH(pythoncom), TKIND_INTERFACE(pythoncom)]
-            if clsid
-                not in oleItems
+            if clsid ∉ oleItems
                 oleItem, vtableItem = _Build_Interface(self, type_info_tuple)
                 oleItems[clsid+1] = oleItem
                 if vtableItem != nothing

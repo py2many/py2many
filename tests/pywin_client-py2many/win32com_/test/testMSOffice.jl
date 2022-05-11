@@ -1,8 +1,8 @@
 module testMSOffice
 using PyCall
-pywintypes = pyimport("pywintypes")
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
+pywintypes = pyimport("pywintypes")
 import win32com.test.Generated4Test.msword8
 
 import xl5en32

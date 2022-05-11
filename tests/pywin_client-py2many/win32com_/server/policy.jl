@@ -110,7 +110,7 @@ function CreateInstance(clsid, reqIID)
 try
 addnPaths = split(RegQueryValue(win32api, win32con.HKEY_CLASSES_ROOT, regAddnPath % clsid), ";")
 for newPath in addnPaths
-if newPath not in path(sys)
+if newPath ∉ path(sys)
 insert(sys.path, 0, newPath)
 end
 end
@@ -580,7 +580,7 @@ self._name_to_dispid_[lower(name) + 1] = dispid
 next_dispid = _allocnextdispid(self, next_dispid)
 end
 self._dispid_to_get_[dispid + 1] = name
-if name not in readonly
+if name ∉ readonly
 self._dispid_to_put_[dispid + 1] = name
 end
 end
@@ -640,7 +640,7 @@ end
 function _allocnextdispid(self::DesignatedWrapPolicy, last_dispid)
 while true
 last_dispid = last_dispid + 1
-if last_dispid not in self._dispid_to_func_ && last_dispid not in self._dispid_to_get_ && last_dispid not in self._dispid_to_put_
+if last_dispid ∉ self._dispid_to_func_ && last_dispid ∉ self._dispid_to_get_ && last_dispid ∉ self._dispid_to_put_
 return last_dispid
 end
 end

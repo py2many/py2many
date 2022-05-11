@@ -280,8 +280,7 @@ function GetModuleForTypelib(typelibCLSID, lcid, major, minor)
          =#
     modName = GetGeneratedFileName(typelibCLSID, lcid, major, minor)
     mod = _GetModule(modName)
-    if "_in_gencache_"
-        not in __dict__(mod)
+    if "_in_gencache_" ∉ __dict__(mod)
         AddModuleToCache(typelibCLSID, lcid, major, minor)
         @assert("_in_gencache_" in __dict__(mod))
     end

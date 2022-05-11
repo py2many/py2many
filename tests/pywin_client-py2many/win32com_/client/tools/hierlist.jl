@@ -186,8 +186,7 @@ function OnTreeItemExpanding(self::HierList, info, extra)::Int64
     end
     action, itemOld, itemNew, pt = extra
     itemHandle = itemNew[1]
-    if itemHandle
-        not in self.filledItemHandlesMap
+    if itemHandle ∉ self.filledItemHandlesMap
         item = self.itemHandleMap[itemHandle+1]
         AddSubList(self, itemHandle, GetSubList(self, item))
         self.filledItemHandlesMap[itemHandle+1] = nothing
@@ -259,8 +258,7 @@ function Refresh(self::HierList, hparent = nothing)
     if hparent === nothing
         hparent = commctrl.TVI_ROOT
     end
-    if hparent
-        not in self.filledItemHandlesMap
+    if hparent ∉ self.filledItemHandlesMap
         return
     end
     root_item = self.itemHandleMap[hparent+1]

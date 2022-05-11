@@ -15,7 +15,7 @@ clsctx = CLSCTX_LOCAL_SERVER(pythoncom)
 end
 ret = []
 for clsid in clsids
-if clsid[1] not in ["-", "/"]
+if clsid[1] ∉ ["-", "/"]
 factory = MakePyFactory(pythoncom, clsid)
 regId = CoRegisterClassObject(pythoncom, clsid, factory, clsctx, flags)
 push!(ret, (factory, regId))

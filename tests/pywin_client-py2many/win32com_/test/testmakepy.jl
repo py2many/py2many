@@ -1,8 +1,8 @@
 module testmakepy
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 
 
 
@@ -25,7 +25,7 @@ num += 1
 catch exn
  let details = exn
 if details isa com_error(pythoncom)
-if hresult(details) not in [winerror.TYPE_E_CANTLOADLIBRARY, winerror.TYPE_E_LIBNOTREGISTERED]
+if hresult(details) ∉ [winerror.TYPE_E_CANTLOADLIBRARY, winerror.TYPE_E_LIBNOTREGISTERED]
 println("** COM error on", desc(info))
 println(details)
 end
@@ -56,7 +56,7 @@ CheckClean(win32com.test.util)
 end
 
 function main()
-TestAll("-q" not in append!([PROGRAM_FILE], ARGS))
+TestAll("-q" ∉ append!([PROGRAM_FILE], ARGS))
 end
 
 main()
