@@ -221,10 +221,14 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             left_default = defaults[0]
             right_default = defaults[1]
 
-            left_ann = getattr(node.scopes.find(get_id(node.left)),
-                "annotation", None)
-            right_ann = getattr(node.scopes.find(get_id(node.right)),
-                "annotation", None)
+            left_ann = None
+            right_ann = None
+            if get_id(node.left):
+                left_ann = getattr(node.scopes.find(get_id(node.left)),
+                    "annotation", None)
+            if get_id(node.right):
+                right_ann = getattr(node.scopes.find(get_id(node.right)),
+                    "annotation", None)
 
             # Assign left and right annotations
             node.left.annotation = (left_ann

@@ -95,9 +95,9 @@ function setUp(self::VBTestCase)
         for i in self.expected_data
             Add(ob, i)
         end
-        invkind = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
-        iter = InvokeTypes(ob._oleobj_, DISPID_NEWENUM(pythoncom), 0, invkind, (13, 10), ())
-        return (ob, QueryInterface(iter, IID_IEnumVARIANT(pythoncom)))
+        invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+        iter = InvokeTypes(ob._oleobj_, pythoncom.DISPID_NEWENUM, 0, invkind, (13, 10), ())
+        return (ob, QueryInterface(iter, pythoncom.IID_IEnumVARIANT))
     end
 
     self.object = EnsureDispatch("PyCOMVBTest.Tester")
@@ -128,9 +128,9 @@ end
 function setUp(self::WrappedPythonCOMServerTestCase)
     function factory()::Tuple
         ob = GetCollection(self.object)
-        flags = DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom)
-        enum = Invoke(ob._oleobj_, DISPID_NEWENUM(pythoncom), 0, flags, 1)
-        return (ob, QueryInterface(enum, IID_IEnumVARIANT(pythoncom)))
+        flags = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
+        enum = Invoke(ob._oleobj_, pythoncom.DISPID_NEWENUM, 0, flags, 1)
+        return (ob, QueryInterface(enum, pythoncom.IID_IEnumVARIANT))
     end
 
     self.expected_data = [1, "Two", 3]
@@ -146,8 +146,8 @@ end
 function suite()
     suite = TestSuite(unittest)
     for item in collect(values(globals()))
-        if type_(item) == type_(TestCase(unittest)) &&
-           item <: TestCase(unittest) &&
+        if type_(item) == type_(unittest.TestCase) &&
+           item <: unittest.TestCase &&
            item != _BaseTestCase
             addTest(suite, makeSuite(unittest, item))
         end

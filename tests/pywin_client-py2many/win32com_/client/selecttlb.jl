@@ -39,16 +39,15 @@ end
 
 function __lt__(self::TypelibSpec, other)::Bool
     me = (lower(self.ver_desc || ""), lower(self.desc || ""), self.major, self.minor)
-    them =
-        (lower(ver_desc(other) || ""), lower(desc(other) || ""), major(other), minor(other))
+    them = (lower(other.ver_desc || ""), lower(other.desc || ""), other.major, other.minor)
     return me < them
 end
 
 function __eq__(self::TypelibSpec, other)
-    return lower(self.ver_desc || "") == lower(ver_desc(other) || "") &&
-           lower(self.desc || "") == lower(desc(other) || "") &&
-           self.major == major(other) &&
-           self.minor == minor(other)
+    return lower(self.ver_desc || "") == lower(other.ver_desc || "") &&
+           lower(self.desc || "") == lower(other.desc || "") &&
+           self.major == other.major &&
+           self.minor == other.minor
 end
 
 function Resolve(self::TypelibSpec)::Int64
@@ -78,14 +77,14 @@ function EnumKeys(root)::Vector
         try
             item = RegEnumKey(win32api, root, index)
         catch exn
-            if exn isa error(win32api)
+            if exn isa win32api.error
                 break
             end
         end
         try
             val = RegQueryValue(win32api, root, item)
         catch exn
-            if exn isa error(win32api)
+            if exn isa win32api.error
                 val = ""
             end
         end
@@ -100,14 +99,14 @@ FLAG_CONTROL = 2
 FLAG_HIDDEN = 4
 function EnumTlbs(excludeFlags = 0)::Vector
     #= Return a list of TypelibSpec objects, one for each registered library. =#
-    key = RegOpenKey(win32api, HKEY_CLASSES_ROOT(win32con), "Typelib")
+    key = RegOpenKey(win32api, win32con.HKEY_CLASSES_ROOT, "Typelib")
     iids = EnumKeys(key)
     results = []
     for (iid, crap) in iids
         try
             key2 = RegOpenKey(win32api, key, string(iid))
         catch exn
-            if exn isa error(win32api)
+            if exn isa win32api.error
                 continue
             end
         end
@@ -122,7 +121,7 @@ function EnumTlbs(excludeFlags = 0)::Vector
             try
                 flags = parse(Int, RegQueryValue(win32api, key3, "FLAGS"))
             catch exn
-                if exn isa (error(win32api), ValueError)
+                if exn isa (win32api.error, ValueError)
                     flags = 0
                 end
             end
@@ -138,11 +137,11 @@ function EnumTlbs(excludeFlags = 0)::Vector
                     try
                         key4 = RegOpenKey(win32api, key3, "%s\\win32" % (lcid,))
                     catch exn
-                        if exn isa error(win32api)
+                        if exn isa win32api.error
                             try
                                 key4 = RegOpenKey(win32api, key3, "%s\\win64" % (lcid,))
                             catch exn
-                                if exn isa error(win32api)
+                                if exn isa win32api.error
                                     continue
                                 end
                             end
@@ -150,11 +149,11 @@ function EnumTlbs(excludeFlags = 0)::Vector
                     end
                     try
                         dll, typ = RegQueryValueEx(win32api, key4, nothing)
-                        if typ == REG_EXPAND_SZ(win32con)
+                        if typ == win32con.REG_EXPAND_SZ
                             dll = ExpandEnvironmentStrings(win32api, dll)
                         end
                     catch exn
-                        if exn isa error(win32api)
+                        if exn isa win32api.error
                             dll = nothing
                         end
                     end
@@ -175,7 +174,7 @@ function FindTlbsWithDescription(desc)::Vector
     ret = []
     items = EnumTlbs()
     for item in items
-        if desc(item) == desc
+        if item.desc == desc
             push!(ret, item)
         end
     end
@@ -186,8 +185,8 @@ function SelectTlb(title = "Select Library", excludeFlags = 0)::Vector
     #= Display a list of all the type libraries, and select one.   Returns None if cancelled =#
     items = EnumTlbs(excludeFlags)
     for i in items
-        major(i) = parse(Int, major(i))
-        minor(i) = parse(Int, minor(i))
+        i.major = parse(Int, i.major)
+        i.minor = parse(Int, i.minor)
     end
     sort(items)
     rc = SelectFromLists(pywin.dialogs.list, title, items, ["Type Library"])
@@ -198,7 +197,7 @@ function SelectTlb(title = "Select Library", excludeFlags = 0)::Vector
 end
 
 function main()
-    println(__dict__(SelectTlb()))
+    println(SelectTlb().__dict__)
 end
 
 main()

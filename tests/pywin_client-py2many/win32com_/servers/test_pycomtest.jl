@@ -11,7 +11,7 @@ using win32com.server.util: wrap
 
 abstract type AbstractPyCOMTest end
 abstract type AbstractPyCOMTestMI <: AbstractPyCOMTest end
-__future_currency__(pythoncom) = true
+pythoncom.__future_currency__ = true
 EnsureModule(gencache, "{6BCDCB60-5605-11D0-AE5F-CADD4C000000}", 0, 1, 1)
 mutable struct PyCOMTest <: AbstractPyCOMTest
     intval::Any
@@ -237,8 +237,8 @@ mutable struct PyCOMTestMI <: AbstractPyCOMTestMI
     PyCOMTestMI(
         _com_interfaces_::Vector{String} = [
             "IPyCOMTest",
-            IID_IStream(pythoncom),
-            string(IID_IStorage(pythoncom)),
+            pythoncom.IID_IStream,
+            string(pythoncom.IID_IStorage),
         ],
         _reg_clsid_::String = "{F506E9A1-FB46-4238-A597-FA4EB69787CA}",
         _reg_progid_::String = "Python.Test.PyCOMTestMI",

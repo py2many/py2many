@@ -28,7 +28,7 @@ mutable struct TestDataObject <: AbstractTestDataObject
 
     TestDataObject(
         bytesval,
-        _com_interfaces_::Vector = [IID_IDataObject(pythoncom)],
+        _com_interfaces_::Vector = [pythoncom.IID_IDataObject],
         _public_methods_ = IDataObject_Methods,
         supported_fe::Vector = [],
     ) = begin
@@ -47,7 +47,7 @@ function __del__(self::TestDataObject)
 end
 
 function _query_interface_(self::TestDataObject, iid)
-    if iid == IID_IEnumFORMATETC(pythoncom)
+    if iid == pythoncom.IID_IEnumFORMATETC
         return NewEnum(self.supported_fe, iid)
     end
 end
@@ -55,13 +55,13 @@ end
 function GetData(self::TestDataObject, fe)
     ret_stg = nothing
     cf, target, aspect, index, tymed = fe
-    if aspect & DVASPECT_CONTENT(pythoncom) && tymed == TYMED_HGLOBAL(pythoncom)
+    if aspect & pythoncom.DVASPECT_CONTENT && tymed == pythoncom.TYMED_HGLOBAL
         if cf == win32con.CF_TEXT
             ret_stg = STGMEDIUM(pythoncom)
-            set(ret_stg, TYMED_HGLOBAL(pythoncom), self.bytesval)
+            set(ret_stg, pythoncom.TYMED_HGLOBAL, self.bytesval)
         elseif cf == win32con.CF_UNICODETEXT
             ret_stg = STGMEDIUM(pythoncom)
-            set(ret_stg, TYMED_HGLOBAL(pythoncom), decode(self.bytesval, "latin1"))
+            set(ret_stg, pythoncom.TYMED_HGLOBAL, decode(self.bytesval, "latin1"))
         end
     end
     if ret_stg === nothing
@@ -76,10 +76,10 @@ end
 
 function QueryGetData(self::TestDataObject, fe)
     cf, target, aspect, index, tymed = fe
-    if (aspect & DVASPECT_CONTENT(pythoncom)) == 0
+    if (aspect & pythoncom.DVASPECT_CONTENT) == 0
         throw(COMException(winerror.DV_E_DVASPECT))
     end
-    if tymed != TYMED_HGLOBAL(pythoncom)
+    if tymed != pythoncom.TYMED_HGLOBAL
         throw(COMException(winerror.DV_E_TYMED))
     end
     return nothing
@@ -94,10 +94,10 @@ function SetData(self::TestDataObject, fe, medium)
 end
 
 function EnumFormatEtc(self::TestDataObject, direction)
-    if direction != DATADIR_GET(pythoncom)
+    if direction != pythoncom.DATADIR_GET
         throw(COMException(winerror.E_NOTIMPL))
     end
-    return NewEnum(self.supported_fe, IID_IEnumFORMATETC(pythoncom))
+    return NewEnum(self.supported_fe, pythoncom.IID_IEnumFORMATETC)
 end
 
 function DAdvise(self::TestDataObject, fe, flags, sink)
@@ -123,7 +123,7 @@ function tearDown(self::ClipboardTester)
     try
         OleFlushClipboard(pythoncom)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             #= pass =#
         end
     end
@@ -155,15 +155,10 @@ function testWin32ToCom(self::ClipboardTester)
     SetClipboardData(win32clipboard, win32con.CF_TEXT, val)
     CloseClipboard(win32clipboard)
     do_ = OleGetClipboard(pythoncom)
-    cf = (
-        win32con.CF_TEXT,
-        nothing,
-        DVASPECT_CONTENT(pythoncom),
-        -1,
-        TYMED_HGLOBAL(pythoncom),
-    )
+    cf =
+        (win32con.CF_TEXT, nothing, pythoncom.DVASPECT_CONTENT, -1, pythoncom.TYMED_HGLOBAL)
     stg = GetData(do_, cf)
-    got = data(stg)
+    got = stg.data
     @test got
 end
 

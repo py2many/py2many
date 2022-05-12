@@ -69,7 +69,7 @@ end
 
 function main()
     stdin = readline(0)
-    for (heading, sequence) in generate_sequences(buffer(stdin))
+    for (heading, sequence) in generate_sequences(stdin.buffer)
         write(stdout, heading)
         write(stdout, reverse_sequence(sequence))
         flush(stdout)

@@ -10,14 +10,14 @@ function DumpDB(db, bDeep = 1)
 end
 
 function DumpTables(db, bDeep = 1)
-    for tab in TableDefs(db)
-        tab = TableDefs(db, Name(tab))
+    for tab in db.TableDefs
+        tab = TableDefs(db, tab.Name)
         @printf(
             "Table %s - Fields: %d, Attributes:%d",
-            (Name(tab), length(Fields(tab)), Attributes(tab))
+            (tab.Name, length(tab.Fields), tab.Attributes)
         )
         if bDeep
-            DumpFields(Fields(tab))
+            DumpFields(tab.Fields)
         end
     end
 end
@@ -27,28 +27,28 @@ function DumpFields(fields)
         @printf(
             "  %s, size=%d, reqd=%d, type=%d, defVal=%s",
             (
-                Name(field),
-                Size(field),
-                Required(field),
-                Type(field),
-                string(DefaultValue(field)),
+                field.Name,
+                field.Size,
+                field.Required,
+                field.Type,
+                string(field.DefaultValue),
             )
         )
     end
 end
 
 function DumpRelations(db, bDeep = 1)
-    for relation in Relations(db)
+    for relation in db.Relations
         @printf(
             "Relation %s - %s->%s",
-            (Name(relation), Table(relation), ForeignTable(relation))
+            (relation.Name, relation.Table, relation.ForeignTable)
         )
     end
 end
 
 function DumpAllContainers(db, bDeep = 1)
-    for cont in Containers(db)
-        @printf("Container %s - %d documents", (Name(cont), length(Documents(cont))))
+    for cont in db.Containers
+        @printf("Container %s - %d documents", (cont.Name, length(cont.Documents)))
         if bDeep
             DumpContainerDocuments(cont)
         end
@@ -56,10 +56,10 @@ function DumpAllContainers(db, bDeep = 1)
 end
 
 function DumpContainerDocuments(container)
-    for doc in Documents(container)
-        timeStr = ctime(time, parse(Int, LastUpdated(doc)))
+    for doc in container.Documents
+        timeStr = ctime(time, parse(Int, doc.LastUpdated))
 
-        println(LastUpdated(doc), ")")
+        println(doc.LastUpdated, ")")
     end
 end
 
@@ -78,7 +78,7 @@ function test()
         try
             ob = EnsureDispatch(win32com.client.gencache, progid)
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 println(progid, "does not seem to be installed")
             end
         end

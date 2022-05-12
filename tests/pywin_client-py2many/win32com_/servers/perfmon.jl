@@ -41,7 +41,7 @@ function Query(self::PerfMonQuery, object, counter, instance = nothing, machine 
     catch exn
         let exc = exn
             if exc isa win32pdhutil.error
-                throw(Exception(exception, strerror(exc)))
+                throw(Exception(exception, exc.strerror))
             end
         end
         let desc = exn

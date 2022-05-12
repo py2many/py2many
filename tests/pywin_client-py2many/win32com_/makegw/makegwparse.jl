@@ -773,12 +773,12 @@ mutable struct ArgFormatterSimple <: AbstractArgFormatterSimple
     #= An arg formatter for simple integer etc types =#
     arg::Any
 end
-function GetFormatChar(self::ArgFormatterSimple)
-    return ConvertSimpleTypes[self.arg.type][3]
+function GetFormatChar(self::ArgFormatterSimple)::Tuple
+    return ConvertSimpleTypes[self.arg.type][2]
 end
 
-function _GetPythonTypeDesc(self::ArgFormatterSimple)
-    return ConvertSimpleTypes[self.arg.type][2]
+function _GetPythonTypeDesc(self::ArgFormatterSimple)::Tuple
+    return ConvertSimpleTypes[self.arg.type][1]
 end
 
 AllConverters = Dict(
@@ -845,21 +845,21 @@ for key in keys(ConvertSimpleTypes)
 end
 function make_arg_converter(arg)::ArgFormatterInterface
     try
-        clz = AllConverters[type_(arg)][1]
-        bin = AllConverters[type_(arg)][2]
+        clz = AllConverters[arg.type][0]
+        bin = AllConverters[arg.type][1]
         decl = 0
-        if length(AllConverters[type_(arg)]) > 2
-            decl = AllConverters[type_(arg)][3]
+        if length(AllConverters[arg.type]) > 2
+            decl = AllConverters[arg.type][2]
         end
         return clz(arg, bin, decl)
     catch exn
         if exn isa KeyError
-            if type_(arg)[1] == "I"
+            if arg.type[1] == "I"
                 return ArgFormatterInterface(arg, 0, 1)
             end
             throw(
                 error_not_supported(
-                    "The type \'%s\' (%s) is unknown." % (type_(arg), name(arg)),
+                    "The type \'%s\' (%s) is unknown." % (arg.type, arg.name),
                 ),
             )
         end
@@ -1119,7 +1119,7 @@ function parse_interface_info(interfaceName, file)
     try
         return find_interface(interfaceName, file)
     catch exn
-        if exn isa error(re)
+        if exn isa re.error
             current_exceptions() != [] ? current_exceptions()[end] : nothing
             println("The interface could not be built, as the regular expression failed!")
         end

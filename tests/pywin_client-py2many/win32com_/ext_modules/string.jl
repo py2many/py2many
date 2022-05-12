@@ -69,21 +69,21 @@ mutable struct Template <: AbstractTemplate
         template::Any,
         braceidpattern::Any = nothing,
         delimiter::String = "\$",
-        flags::Any = IGNORECASE(_re),
+        flags::Any = _re.IGNORECASE,
         idpattern::String = "(?a:[_a-z][_a-z0-9]*)",
     ) = new(pattern, template, braceidpattern, delimiter, flags, idpattern)
 end
 function __init_subclass__(cls)
     __init_subclass__(super())
-    if "pattern" in __dict__(cls)
-        pattern = pattern(cls)
+    if "pattern" in cls.__dict__
+        pattern = cls.pattern
     else
-        delim = escape(_re, delimiter(cls))
-        id = idpattern(cls)
-        bid = braceidpattern(cls) || idpattern(cls)
+        delim = escape(_re, cls.delimiter)
+        id = cls.idpattern
+        bid = cls.braceidpattern || cls.idpattern
         pattern = "\n            $(delim)(?:\n              (?P<escaped>$(delim))  |   # Escape sequence of two delimiters\n              (?P<named>$(id))       |   # delimiter and a Python identifier\n              {(?P<braced>$(bid))} |   # delimiter and a braced identifier\n              (?P<invalid>)             # Other ill-formed delimiter exprs\n            )\n            "
     end
-    pattern(cls) = compile(_re, pattern, flags(cls) | VERBOSE(_re))
+    cls.pattern = compile(_re, pattern, cls.flags | _re.VERBOSE)
 end
 
 function _invalid(self::Template, mo)

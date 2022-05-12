@@ -39,7 +39,7 @@ function wrap(ob, iid = nothing, usePolicy = nothing, useDispatcher = nothing)
     return ob
 end
 
-function unwrap(ob)::ob
+function unwrap(ob)
     #= Unwraps an interface.
 
         Given an interface which wraps up a Gateway, return the object behind
@@ -47,9 +47,9 @@ function unwrap(ob)::ob
          =#
     ob = UnwrapObject(pythoncom, ob)
     if hasattr(ob, "policy")
-        ob = policy(ob)
+        ob = ob.policy
     end
-    return _obj_(ob)
+    return ob._obj_
 end
 
 mutable struct ListEnumerator <: AbstractListEnumerator
@@ -73,7 +73,7 @@ mutable struct ListEnumerator <: AbstractListEnumerator
         _iid_::Any = iid,
         _list_::Any = data,
         _public_methods_::Vector{String} = ["Next", "Skip", "Reset", "Clone"],
-        iid::Any = IID_IEnumVARIANT(pythoncom),
+        iid::Any = pythoncom.IID_IEnumVARIANT,
     ) = new(index, _iid_, _list_, _public_methods_, iid)
 end
 function _query_interface_(self::ListEnumerator, iid)::Int64
@@ -128,7 +128,7 @@ end
 function NewEnum(
     seq,
     cls = ListEnumerator,
-    iid = IID_IEnumVARIANT(pythoncom),
+    iid = pythoncom.IID_IEnumVARIANT,
     usePolicy = nothing,
     useDispatcher = nothing,
 )
@@ -234,8 +234,8 @@ function NewCollection(seq, cls = Collection)
     return WrapObject(
         pythoncom,
         DefaultPolicy(policy, cls(seq)),
-        IID_IDispatch(pythoncom),
-        IID_IDispatch(pythoncom),
+        pythoncom.IID_IDispatch,
+        pythoncom.IID_IDispatch,
     )
 end
 
@@ -246,7 +246,7 @@ mutable struct FileStream <: AbstractFileStream
 
     FileStream(
         file::Any,
-        _com_interfaces_::Vector = [IID_IStream(pythoncom)],
+        _com_interfaces_::Vector = [pythoncom.IID_IStream],
         _public_methods_::Vector{String} = ["Read", "Write", "Clone", "CopyTo", "Seek"],
     ) = new(file, _com_interfaces_, _public_methods_)
 end

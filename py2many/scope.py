@@ -49,7 +49,8 @@ class ScopeList(list):
 
         def find_definition(scope, var_attr="vars"):
             for var in getattr(scope, var_attr):
-                if get_id(var) == lookup:
+                id = get_id(var)
+                if id and id == lookup:
                     return var
 
         for scope in reversed(self):

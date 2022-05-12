@@ -30,8 +30,8 @@ mutable struct ConnectableServer <: AbstractConnectableServer
     ConnectableServer(
         _connect_interfaces_::Any,
         _com_interfaces_::Vector = [
-            IID_IConnectionPoint(pythoncom),
-            IID_IConnectionPointContainer(pythoncom),
+            pythoncom.IID_IConnectionPoint,
+            pythoncom.IID_IConnectionPointContainer,
         ],
         _public_methods_::Vector{String} = append!(
             IConnectionPointContainer_methods,
@@ -56,9 +56,9 @@ end
 function Advise(self::ConnectableServer, pUnk)::ConnectableServer
     try
         interface =
-            QueryInterface(pUnk, self._connect_interfaces_[1], IID_IDispatch(pythoncom))
+            QueryInterface(pUnk, self._connect_interfaces_[1], pythoncom.IID_IDispatch)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             throw(Exception(olectl.CONNECT_E_NOCONNECTION))
         end
     end
@@ -94,7 +94,7 @@ function _BroadcastNotify(self::ConnectableServer, broadcaster, extraArgs)
             broadcaster((interface,) + extraArgs...)
         catch exn
             let details = exn
-                if details isa com_error(pythoncom)
+                if details isa pythoncom.com_error
                     _OnNotifyFail(self, interface, details)
                 end
             end

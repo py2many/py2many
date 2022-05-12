@@ -19,12 +19,12 @@ function testit(self::TestEnum)
         m,
         storagecon.STGFMT_FILE,
         0,
-        IID_IPropertySetStorage(pythoncom),
+        pythoncom.IID_IPropertySetStorage,
     )
     psuser = Create(
         pss,
-        FMTID_UserDefinedProperties(pythoncom),
-        IID_IPropertySetStorage(pythoncom),
+        pythoncom.FMTID_UserDefinedProperties,
+        pythoncom.IID_IPropertySetStorage,
         storagecon.PROPSETFLAG_DEFAULT,
         (storagecon.STGM_READWRITE | storagecon.STGM_CREATE) |
         storagecon.STGM_SHARE_EXCLUSIVE,
@@ -32,13 +32,13 @@ function testit(self::TestEnum)
     WriteMultiple(psuser, (3, 4), ("hey", "bubba"))
     WritePropertyNames(psuser, (3, 4), ("property3", "property4"))
     expected_summaries = []
-    push!(expected_summaries, ("property3", 3, VT_BSTR(pythoncom)))
-    push!(expected_summaries, ("property4", 4, VT_BSTR(pythoncom)))
+    push!(expected_summaries, ("property3", 3, pythoncom.VT_BSTR))
+    push!(expected_summaries, ("property4", 4, pythoncom.VT_BSTR))
     psuser = nothing
     pssum = Create(
         pss,
-        FMTID_SummaryInformation(pythoncom),
-        IID_IPropertySetStorage(pythoncom),
+        pythoncom.FMTID_SummaryInformation,
+        pythoncom.IID_IPropertySetStorage,
         storagecon.PROPSETFLAG_DEFAULT,
         (storagecon.STGM_READWRITE | storagecon.STGM_CREATE) |
         storagecon.STGM_SHARE_EXCLUSIVE,
@@ -56,7 +56,7 @@ function testit(self::TestEnum)
         storagecon.STGM_READ | storagecon.STGM_SHARE_EXCLUSIVE,
         storagecon.STGFMT_FILE,
         0,
-        IID_IPropertySetStorage(pythoncom),
+        pythoncom.IID_IPropertySetStorage,
     )
     found_summaries = []
     for psstat in pssread
@@ -72,10 +72,10 @@ function testit(self::TestEnum)
             end
         end
         ps = nothing
-        if psstat[1] == FMTID_DocSummaryInformation(pythoncom)
+        if psstat[1] == pythoncom.FMTID_DocSummaryInformation
             ps = Open(
                 pssread,
-                FMTID_UserDefinedProperties(pythoncom),
+                pythoncom.FMTID_UserDefinedProperties,
                 storagecon.STGM_READ | storagecon.STGM_SHARE_EXCLUSIVE,
             )
             for p in ps

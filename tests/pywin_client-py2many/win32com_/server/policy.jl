@@ -68,9 +68,9 @@ Error Handling
 
  =#
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 using win32com.util: IIDToInterfaceName
 using win32com: universal
 import win32com.client
@@ -83,13 +83,13 @@ import winerror
 import win32con
 
 S_OK = 0
-IDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
+IDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 abstract type AbstractBasicWrapPolicy end
 abstract type AbstractMappedWrapPolicy <: AbstractBasicWrapPolicy end
 abstract type AbstractDesignatedWrapPolicy <: AbstractMappedWrapPolicy end
 abstract type AbstractEventHandlerPolicy <: AbstractDesignatedWrapPolicy end
 abstract type AbstractDynamicPolicy <: AbstractBasicWrapPolicy end
-IUnknownType = TypeIIDs(pythoncom)[IID_IUnknown(pythoncom)+1]
+IUnknownType = pythoncom.TypeIIDs[pythoncom.IID_IUnknown+1]
 using exception: COMException
 error = __name__ + " error"
 regSpec = "CLSID\\%s\\PythonCOM"
@@ -113,12 +113,12 @@ function CreateInstance(clsid, reqIID)
             ";",
         )
         for newPath in addnPaths
-            if newPath ∉ path(sys)
+            if newPath ∉ sys.path
                 insert(sys.path, 0, newPath)
             end
         end
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             #= pass =#
         end
     end
@@ -126,7 +126,7 @@ function CreateInstance(clsid, reqIID)
         policy = RegQueryValue(win32api, win32con.HKEY_CLASSES_ROOT, regPolicy % clsid)
         policy = resolve_func(policy)
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             policy = DefaultPolicy
         end
     end
@@ -137,7 +137,7 @@ function CreateInstance(clsid, reqIID)
             dispatcher = resolve_func(dispatcher)
         end
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             dispatcher = nothing
         end
     end
@@ -207,7 +207,7 @@ function _CreateInstance_(self::BasicWrapPolicy, clsid, reqIID)
     try
         classSpec = RegQueryValue(win32api, win32con.HKEY_CLASSES_ROOT, regSpec % clsid)
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             throw(
                 error(
                     "The object is not correctly registered - %s key can not be read" %
@@ -222,8 +222,8 @@ function _CreateInstance_(self::BasicWrapPolicy, clsid, reqIID)
         return WrapObject(pythoncom, self, reqIID)
     catch exn
         let xxx_todo_changeme = exn
-            if xxx_todo_changeme isa com_error(pythoncom)
-                hr, desc, exc, arg = args(xxx_todo_changeme)
+            if xxx_todo_changeme isa pythoncom.com_error
+                hr, desc, exc, arg = xxx_todo_changeme.args
                 desc =
                     "The object \'%r\' was created, but does not support the interface \'%s\'(%s): %s" %
                     (myob, IIDToInterfaceName(reqIID), reqIID, desc)
@@ -243,26 +243,26 @@ function _wrap_(self::BasicWrapPolicy, object)
     ob = object
     self._obj_ = object
     if hasattr(ob, "_query_interface_")
-        self._query_interface_ = _query_interface_(ob)
+        self._query_interface_ = ob._query_interface_
     end
     if hasattr(ob, "_invoke_")
-        self._invoke_ = _invoke_(ob)
+        self._invoke_ = ob._invoke_
     end
     if hasattr(ob, "_invokeex_")
-        self._invokeex_ = _invokeex_(ob)
+        self._invokeex_ = ob._invokeex_
     end
     if hasattr(ob, "_getidsofnames_")
-        self._getidsofnames_ = _getidsofnames_(ob)
+        self._getidsofnames_ = ob._getidsofnames_
     end
     if hasattr(ob, "_getdispid_")
-        self._getdispid_ = _getdispid_(ob)
+        self._getdispid_ = ob._getdispid_
     end
     if hasattr(ob, "_com_interfaces_")
         self._com_interfaces_ = []
-        for i in _com_interfaces_(ob)
-            if type_(i) != IIDType(pywintypes)
+        for i in ob._com_interfaces_
+            if type_(i) != pywintypes.IIDType
                 if i[1] != "{"
-                    i = InterfaceNames(pythoncom)[i+1]
+                    i = pythoncom.InterfaceNames[i+1]
                 else
                     i = MakeIID(pythoncom, i)
                 end
@@ -478,17 +478,17 @@ function _wrap_(self::MappedWrapPolicy, object)
     _wrap_(BasicWrapPolicy, self)
     ob = self._obj_
     if hasattr(ob, "_dispid_to_func_")
-        self._dispid_to_func_ = _dispid_to_func_(ob)
+        self._dispid_to_func_ = ob._dispid_to_func_
     else
         self._dispid_to_func_ = Dict()
     end
     if hasattr(ob, "_dispid_to_get_")
-        self._dispid_to_get_ = _dispid_to_get_(ob)
+        self._dispid_to_get_ = ob._dispid_to_get_
     else
         self._dispid_to_get_ = Dict()
     end
     if hasattr(ob, "_dispid_to_put_")
-        self._dispid_to_put_ = _dispid_to_put_(ob)
+        self._dispid_to_put_ = ob._dispid_to_put_
     else
         self._dispid_to_put_ = Dict()
     end
@@ -552,7 +552,7 @@ function _wrap_(self::DesignatedWrapPolicy, ob)
         tlb_lcid = getattr(ob, "_typelib_lcid_", 0)
         interfaces = [
             i for i in getattr(ob, "_com_interfaces_", []) if
-            type_(i) != IIDType(pywintypes) && !startswith(i, "{")
+            type_(i) != pywintypes.IIDType && !startswith(i, "{")
         ]
         universal_data = RegisterInterfaces(
             universal,
@@ -609,11 +609,11 @@ function _wrap_(self::DesignatedWrapPolicy, ob)
     next_dispid = _allocnextdispid(self, 999)
     if hasattr(ob, "_public_attrs_")
         if hasattr(ob, "_readonly_attrs_")
-            readonly = _readonly_attrs_(ob)
+            readonly = ob._readonly_attrs_
         else
             readonly = []
         end
-        for name in _public_attrs_(ob)
+        for name in ob._public_attrs_
             dispid = get(self._name_to_dispid_, lower(name))
             if dispid === nothing
                 dispid = next_dispid
@@ -653,7 +653,7 @@ function _build_typeinfos_(self::DesignatedWrapPolicy)::Vector
                 return [type_info]
             end
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 #= pass =#
             end
         end
@@ -718,7 +718,7 @@ function _invokeex_(
             end
         end
         retob = getattr(self._obj_, name)
-        if type_(retob) == MethodType(types)
+        if type_(retob) == types.MethodType
             retob = retob(args...)
         end
         return retob
@@ -731,8 +731,8 @@ function _invokeex_(
                 throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
             end
         end
-        if type_(getattr(self._obj_, name, nothing)) == MethodType(types) &&
-           type_(getattr(self._obj_, "Set" + name, nothing)) == MethodType(types)
+        if type_(getattr(self._obj_, name, nothing)) == types.MethodType &&
+           type_(getattr(self._obj_, "Set" + name, nothing)) == types.MethodType
             fn = getattr(self._obj_, "Set" + name)
             fn(args...)
         else
@@ -772,9 +772,9 @@ function _transform_args_(
         elseif arg_type == IUnknownType
             try
                 arg =
-                    Dispatch(win32com.client, QueryInterface(arg, IID_IDispatch(pythoncom)))
+                    Dispatch(win32com.client, QueryInterface(arg, pythoncom.IID_IDispatch))
             catch exn
-                if exn isa error(pythoncom)
+                if exn isa pythoncom.error
                     #= pass =#
                 end
             end
@@ -904,7 +904,7 @@ function _import_module(mname)
         using the 'exec' keyword.  It is more efficient and obvious to the reader.
          =#
     __import__(mname)
-    return modules(sys)[mname+1]
+    return sys.modules[mname+1]
 end
 
 try

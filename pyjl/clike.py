@@ -272,8 +272,14 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             typename = self._typename_from_type_node(type_node, default=self._default_type)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
+            if isinstance(type_node, ast.Name):
+                id = get_id(node)
+                if self._func_for_lookup(id) in self._container_type_map:
+                    node.container_type = (id, "Any")
+
+            if cont_type := getattr(node, "container_type", None):
                 try:
-                    return self._visit_container_type(type_node.container_type)
+                    return self._visit_container_type(cont_type)
                 except TypeNotSupported as e:
                     raise AstTypeNotSupported(str(e), node)
             if self.not_inferable(node, type_node) and typename is None:
@@ -446,7 +452,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):
         py_type = self._func_for_lookup(f"{class_name}.{fname}")
-        # print(f"{class_name}.{fname}  - {py_type}")
         if py_type in self._func_dispatch_table:
             ret, node.result_type = self._func_dispatch_table[py_type]
             try:

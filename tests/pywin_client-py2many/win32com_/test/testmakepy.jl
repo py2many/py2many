@@ -17,17 +17,17 @@ function TestBuildAll(verbose = 1)::Int64
     tlbInfos = EnumTlbs(selecttlb)
     for info in tlbInfos
         if verbose
-            @printf("%s (%s)", (desc(info), dll(info)))
+            @printf("%s (%s)", (info.desc, info.dll))
         end
         try
             GenerateFromTypeLibSpec(makepy, info)
             num += 1
         catch exn
             let details = exn
-                if details isa com_error(pythoncom)
-                    if hresult(details) ∉
+                if details isa pythoncom.com_error
+                    if details.hresult ∉
                        [winerror.TYPE_E_CANTLOADLIBRARY, winerror.TYPE_E_LIBNOTREGISTERED]
-                        println("** COM error on", desc(info))
+                        println("** COM error on", info.desc)
                         println(details)
                     end
                 end
@@ -36,12 +36,12 @@ function TestBuildAll(verbose = 1)::Int64
                 println("Interrupted!")
                 throw(KeyboardInterrupt)
             end
-            println("Failed:", desc(info))
+            println("Failed:", info.desc)
             current_exceptions() != [] ? current_exceptions()[end] : nothing
         end
         if makepy.bForDemandDefault
-            tinfo = (clsid(info), lcid(info), major(info), minor(info))
-            mod = EnsureModule(gencache, clsid(info), lcid(info), major(info), minor(info))
+            tinfo = (info.clsid, info.lcid, info.major, info.minor)
+            mod = EnsureModule(gencache, info.clsid, info.lcid, info.major, info.minor)
             for name in keys(mod.NamesToIIDMap)
                 GenerateChildFromTypeLibSpec(makepy, name, tinfo)
             end

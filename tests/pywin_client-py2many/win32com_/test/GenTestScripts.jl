@@ -31,7 +31,7 @@ function GenerateFromRegistered(fname)
 
     fullModName = "win32com.test.%s.%s" % (genDir, fname)
     exec("import " + fullModName)
-    modules(sys)[fname+1] = modules(sys)[fullModName+1]
+    sys.modules[fname+1] = sys.modules[fullModName+1]
     println("done")
 end
 
@@ -44,7 +44,7 @@ function GenerateAll()
                 println("** Interrupted ***")
                 break
             end
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 println("** Could not generate test code for ", args[1])
             end
         end

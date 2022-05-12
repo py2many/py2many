@@ -22,8 +22,8 @@ function testit(self::TestROT)
             end
         catch exn
             let exc = exn
-                if exc isa com_error(pythoncom)
-                    if hresult(exc) != winerror.E_NOTIMPL
+                if exc isa pythoncom.com_error
+                    if exc.hresult != winerror.E_NOTIMPL
                         error()
                     end
                 end

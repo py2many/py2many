@@ -73,10 +73,10 @@ function IsCOMException(t = nothing)::Bool
         t = exc_info(sys)[1]
     end
     try
-        return t <: com_error(pythoncom)
+        return t <: pythoncom.com_error
     catch exn
         if exn isa TypeError
-            return t == com_error(pythoncon)
+            return t == pythoncon.com_error
         end
     end
 end

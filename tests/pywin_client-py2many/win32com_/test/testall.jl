@@ -83,7 +83,7 @@ end
 function testit(self::PyCOMTest)
     RegisterPythonServer(join, "Python.Test.PyCOMTest")
     fname = join
-    cmd = "%s \"%s\" -q 2>&1" % (executable(sys), fname)
+    cmd = "%s \"%s\" -q 2>&1" % (sys.executable, fname)
     data = ExecuteSilentlyIfOK(cmd, self)
 end
 
@@ -92,7 +92,7 @@ mutable struct PippoTest <: AbstractPippoTest
 end
 function testit(self::PippoTest)
     RegisterPythonServer(pippo_server.__file__, "Python.Test.Pippo")
-    python = executable(sys)
+    python = sys.executable
     fname = join
     cmd = "%s \"%s\" 2>&1" % (python, fname)
     ExecuteSilentlyIfOK(cmd, self)
@@ -132,7 +132,7 @@ function get_test_mod_and_func(test_name, import_failures)::Tuple
     fq_mod_name = "win32com.test." + mod_name
     try
         __import__(fq_mod_name)
-        mod = modules(sys)[fq_mod_name+1]
+        mod = sys.modules[fq_mod_name+1]
     catch exn
         append(import_failures, (mod_name, exc_info(sys)[begin:2]))
         return (nothing, nothing)
@@ -176,7 +176,7 @@ function make_test_suite(test_level = 1)::Tuple
                 push!(import_failures, (mod_name, exc_info(sys)[begin:2]))
                 continue
             end
-            mod = modules(sys)[mod_name+1]
+            mod = sys.modules[mod_name+1]
             if hasattr(mod, "suite")
                 test = suite(mod)
             else

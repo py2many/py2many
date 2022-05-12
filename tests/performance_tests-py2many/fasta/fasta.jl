@@ -57,11 +57,11 @@ function randomFasta(table, n::Int64)
     jn = x -> join(x, "")
     probs, chars = makeCumulative(table)
     for j = 0:n÷width-1
-        x = jn([chars[bb(probs, gR())] for i in r])
+        x = jn([chars[bb(probs, gR())+1] for i in r])
         println(x)
     end
     if (n % width) != 0
-        println(jn([chars[bb(probs, gR())] for i = 0:n%width-1]))
+        println(jn([chars[bb(probs, gR())+1] for i = 0:n%width-1]))
     end
 end
 

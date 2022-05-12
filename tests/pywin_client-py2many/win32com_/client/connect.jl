@@ -33,7 +33,7 @@ function __del__(self::SimpleConnection)
     try
         Disconnect(self)
     catch exn
-        if exn isa error(pythoncom)
+        if exn isa pythoncom.error
             #= pass =#
         end
     end
@@ -49,15 +49,15 @@ end
 
 function Connect(self::SimpleConnection, coInstance, eventInstance, eventCLSID = nothing)
     try
-        oleobj = _oleobj_(coInstance)
+        oleobj = coInstance._oleobj_
     catch exn
         if exn isa AttributeError
             oleobj = coInstance
         end
     end
-    cpc = QueryInterface(oleobj, IID_IConnectionPointContainer(pythoncom))
+    cpc = QueryInterface(oleobj, pythoncom.IID_IConnectionPointContainer)
     if eventCLSID === nothing
-        eventCLSID = CLSID(eventInstance)
+        eventCLSID = eventInstance.CLSID
     end
     comEventInstance = _wrap(self, eventInstance)
     self.cp = FindConnectionPoint(cpc, eventCLSID)

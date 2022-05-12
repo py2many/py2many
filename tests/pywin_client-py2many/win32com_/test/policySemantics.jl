@@ -57,7 +57,7 @@ function DispExTest(ob)
     @assert(GetDispID(ob, "Add", 0) == 10)
     @assert(GetDispID(ob, "Remove", 0) == 11)
     @assert(GetDispID(ob, "In", 0) == 1000)
-    @assert(GetDispID(ob, "_NewEnum", 0) == DISPID_NEWENUM(pythoncom))
+    @assert(GetDispID(ob, "_NewEnum", 0) == pythoncom.DISPID_NEWENUM)
     dispids = []
     dispid = -1
     while true
@@ -66,8 +66,8 @@ function DispExTest(ob)
             push!(dispids, dispid)
         catch exn
             let xxx_todo_changeme = exn
-                if xxx_todo_changeme isa com_error(pythoncom)
-                    hr, desc, exc, arg = args(xxx_todo_changeme)
+                if xxx_todo_changeme isa pythoncom.com_error
+                    hr, desc, exc, arg = xxx_todo_changeme.args
                     @assert(hr == winerror.S_FALSE)
                     break
                 end
@@ -75,7 +75,7 @@ function DispExTest(ob)
         end
     end
     sort(dispids)
-    if dispids != [DISPID_EVALUATE(pythoncom), DISPID_NEWENUM(pythoncom), 10, 11, 1000]
+    if dispids != [pythoncom.DISPID_EVALUATE, pythoncom.DISPID_NEWENUM, 10, 11, 1000]
         throw(Error("Got back the wrong dispids: %s" % dispids))
     end
 end
@@ -87,12 +87,12 @@ function SemanticTest(ob)
     if ob() != (1, 2, 3)
         throw(Error("Bad result - got %s" % repr(ob())))
     end
-    dispob = _oleobj_(ob)
+    dispob = ob._oleobj_
     rc = Invoke(
         dispob,
-        DISPID_EVALUATE(pythoncom),
+        pythoncom.DISPID_EVALUATE,
         0,
-        DISPATCH_METHOD(pythoncom) | DISPATCH_PROPERTYGET(pythoncom),
+        pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET,
         1,
     )
     if rc != 6
@@ -123,7 +123,7 @@ function testSemantics(self::Tester)
 end
 
 function testIDispatchEx(self::Tester)
-    dispexob = QueryInterface(self.ob._oleobj_, IID_IDispatchEx(pythoncom))
+    dispexob = QueryInterface(self.ob._oleobj_, pythoncom.IID_IDispatchEx)
     DispExTest(dispexob)
 end
 

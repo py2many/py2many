@@ -37,16 +37,16 @@ function ShowInfo(spec)
         try
             tlb = LoadRegTypeLib(
                 pythoncom,
-                clsid(tlbSpec),
-                major(tlbSpec),
-                minor(tlbSpec),
-                lcid(tlbSpec),
+                tlbSpec.clsid,
+                tlbSpec.major,
+                tlbSpec.minor,
+                tlbSpec.lcid,
             )
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 write(
                     sys.stderr,
-                    "Warning - could not load registered typelib \'%s\'\n" % clsid(tlbSpec),
+                    "Warning - could not load registered typelib \'%s\'\n" % tlbSpec.clsid,
                 )
                 tlb = nothing
             end
@@ -56,10 +56,10 @@ function ShowInfo(spec)
         infos = GetTypeLibsForSpec(spec)
     end
     for (tlb, tlbSpec) in infos
-        desc = desc(tlbSpec)
+        desc = tlbSpec.desc
         if desc === nothing
             if tlb === nothing
-                desc = "<Could not load typelib %s>" % dll(tlbSpec)
+                desc = "<Could not load typelib %s>" % tlbSpec.dll
             else
                 desc = GetDocumentation(tlb, -1)[1]
             end
@@ -67,13 +67,13 @@ function ShowInfo(spec)
         println(desc)
         @printf(
             " %s, lcid=%s, major=%s, minor=%s",
-            (clsid(tlbSpec), lcid(tlbSpec), major(tlbSpec), minor(tlbSpec))
+            (tlbSpec.clsid, tlbSpec.lcid, tlbSpec.major, tlbSpec.minor)
         )
         println(" >>> # Use these commands in Python code to auto generate .py support")
         println(" >>> from win32com.client import gencache")
         @printf(
             " >>> gencache.EnsureModule(\'%s\', %s, %s, %s)",
-            (clsid(tlbSpec), lcid(tlbSpec), major(tlbSpec), minor(tlbSpec))
+            (tlbSpec.clsid, tlbSpec.lcid, tlbSpec.major, tlbSpec.minor)
         )
     end
 end
@@ -166,7 +166,7 @@ function GetTypeLibsForSpec(arg)::Vector
             FromTypelib(spec, tlb, arg)
             push!(typelibs, (tlb, spec))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 tlbs = FindTlbsWithDescription(selecttlb, arg)
                 if length(tlbs) == 0
                     try
@@ -176,7 +176,7 @@ function GetTypeLibsForSpec(arg)::Vector
                         FromTypelib(spec, tlb)
                         append(tlbs, spec)
                     catch exn
-                        if exn isa com_error(pythoncom)
+                        if exn isa pythoncom.com_error
                             #= pass =#
                         end
                     end
@@ -185,28 +185,28 @@ function GetTypeLibsForSpec(arg)::Vector
                     @printf("Could not locate a type library matching \'%s\'", arg)
                 end
                 for spec in tlbs
-                    if dll(spec) === nothing
+                    if spec.dll === nothing
                         tlb = LoadRegTypeLib(
                             pythoncom,
-                            clsid(spec),
-                            major(spec),
-                            minor(spec),
-                            lcid(spec),
+                            spec.clsid,
+                            spec.major,
+                            spec.minor,
+                            spec.lcid,
                         )
                     else
-                        tlb = LoadTypeLib(pythoncom, dll(spec))
+                        tlb = LoadTypeLib(pythoncom, spec.dll)
                     end
                     attr = GetLibAttr(tlb)
-                    major(spec) = attr[4]
-                    minor(spec) = attr[5]
-                    lcid(spec) = attr[2]
+                    spec.major = attr[4]
+                    spec.minor = attr[5]
+                    spec.lcid = attr[2]
                     push!(typelibs, (tlb, spec))
                 end
             end
         end
         return typelibs
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             t, v, tb = exc_info(sys)
             write(sys.stderr, "Unable to load type library from \'%s\' - %s\n" % (arg, v))
             tb = nothing
@@ -242,16 +242,16 @@ function GenerateFromTypeLibSpec(
         FromTypelib(spec, tlb, string(typelibCLSID))
         typelibs = [(tlb, spec)]
     elseif isa(typelibInfo, selecttlb.TypelibSpec)
-        if dll(typelibInfo) === nothing
+        if typelibInfo.dll === nothing
             tlb = LoadRegTypeLib(
                 pythoncom,
-                clsid(typelibInfo),
-                major(typelibInfo),
-                minor(typelibInfo),
-                lcid(typelibInfo),
+                typelibInfo.clsid,
+                typelibInfo.major,
+                typelibInfo.minor,
+                typelibInfo.lcid,
             )
         else
-            tlb = LoadTypeLib(pythoncom, dll(typelibInfo))
+            tlb = LoadTypeLib(pythoncom, typelibInfo.dll)
         end
         typelibs = [(tlb, typelibInfo)]
     elseif hasattr(typelibInfo, "GetLibAttr")
@@ -271,14 +271,14 @@ function GenerateFromTypeLibSpec(
     progress = progressInstance
     bToGenDir = file === nothing
     for (typelib, info) in typelibs
-        gen = Generator(genpy, typelib, dll(info), progress, bBuildHidden)
+        gen = Generator(genpy, typelib, info.dll, progress, bBuildHidden)
         if file === nothing
             this_name = GetGeneratedFileName(
                 gencache,
-                clsid(info),
-                lcid(info),
-                major(info),
-                minor(info),
+                info.clsid,
+                info.lcid,
+                info.major,
+                info.minor,
             )
             full_name = join
             if bForDemand
@@ -327,7 +327,7 @@ function GenerateFromTypeLibSpec(
         invalidate_caches(importlib)
         if bToGenDir
             SetDescription(progress, "Importing module")
-            AddModuleToCache(gencache, clsid(info), lcid(info), major(info), minor(info))
+            AddModuleToCache(gencache, info.clsid, info.lcid, info.major, info.minor)
         end
     end
     Close(progress)
@@ -363,16 +363,11 @@ function GenerateChildFromTypeLibSpec(
     end
     progress = progressInstance
     for (typelib, info) in typelibs
-        dir_name = GetGeneratedFileName(
-            gencache,
-            clsid(info),
-            lcid(info),
-            major(info),
-            minor(info),
-        )
+        dir_name =
+            GetGeneratedFileName(gencache, info.clsid, info.lcid, info.major, info.minor)
         dir_path_name = join
         LogBeginGenerate(progress, dir_path_name)
-        gen = Generator(genpy, typelib, dll(info), progress)
+        gen = Generator(genpy, typelib, info.dll, progress)
         generate_child(gen, child, dir_path_name)
         SetDescription(progress, "Importing module")
         invalidate_caches(importlib)
@@ -438,7 +433,7 @@ function main_func()::Int64
         if path != "" && !exists(os.path, path)
             makedirs(os, path)
         end
-        if version_info(sys) > (3, 0)
+        if sys.version_info > (3, 0)
             f = readline(outputName)
         else
             f = readline(codecs)

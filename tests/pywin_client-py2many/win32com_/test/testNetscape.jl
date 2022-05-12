@@ -22,9 +22,9 @@ function main()
     println("Done!")
     #Delete Unsupported
     del(n)
-    last_type(sys) = nothing
-    last_value(sys) = nothing
-    last_traceback(sys) = nothing
+    sys.last_type = nothing
+    sys.last_value = nothing
+    sys.last_traceback = nothing
 end
 
 main()

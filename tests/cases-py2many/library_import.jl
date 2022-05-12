@@ -16,19 +16,19 @@ end
 function date_to_json(objDate::dt.datetime)::js
     return Dict(
         "__type__" => "datetime",
-        "year" => year(objDate),
-        "month" => month(objDate),
-        "day" => day(objDate),
-        "hour" => hour(objDate),
-        "minute" => minute(objDate),
-        "second" => second(objDate),
-        "microsecond" => microsecond(objDate),
+        "year" => objDate.year,
+        "month" => objDate.month,
+        "day" => objDate.day,
+        "hour" => objDate.hour,
+        "minute" => objDate.minute,
+        "second" => objDate.second,
+        "microsecond" => objDate.microsecond,
         "tz" => (tzname(objDate.tzinfo, objDate), total_seconds(utcoffset(objDate))),
     )
 end
 
 function calendar_json_test()::js
-    now = now(dt.datetime, utc(dt.timezone))
+    now = now(dt.datetime, dt.timezone.utc)
     return dumps(js, now, date_to_json)
 end
 

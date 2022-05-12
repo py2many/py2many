@@ -48,7 +48,7 @@ function _doTestInThread(self::ThreadInterpCase, interp)
     CoInitialize(pythoncom)
     myThread = GetCurrentThreadId(win32api)
     if freeThreaded != 0
-        interp = CoGetInterfaceAndReleaseStream(pythoncom, interp, IID_IDispatch(pythoncom))
+        interp = CoGetInterfaceAndReleaseStream(pythoncom, interp, pythoncom.IID_IDispatch)
         interp = Dispatch(win32com.client, interp)
     end
     Exec(interp, "import win32api")
@@ -70,8 +70,8 @@ function BeginThreadsSimpleMarshal(self::ThreadInterpCase, numThreads)::Tuple
         push!(events, hEvent)
         interpStream = CoMarshalInterThreadInterfaceInStream(
             pythoncom,
-            IID_IDispatch(pythoncom),
-            _oleobj_(interp),
+            pythoncom.IID_IDispatch,
+            interp._oleobj_,
         )
         t = Thread(threading, self._testInterpInThread, (hEvent, interpStream))
         setDaemon(t, 1)
@@ -93,8 +93,8 @@ function BeginThreadsFastMarshal(self::ThreadInterpCase, numThreads)::Tuple
     if freeThreaded != 0
         interp = CoMarshalInterThreadInterfaceInStream(
             pythoncom,
-            IID_IDispatch(pythoncom),
-            _oleobj_(interp),
+            pythoncom.IID_IDispatch,
+            interp._oleobj_,
         )
     end
     events = []

@@ -123,7 +123,7 @@ function HierInit(self::HierList, parent, listControl = nothing)
     self.imageList = CreateImageList(win32ui, self.bitmapID, 16, 0, bitmapMask)
     if listControl === nothing
         if self.listBoxId === nothing
-            self.listBoxId = IDC_LIST1(win32ui)
+            self.listBoxId = win32ui.IDC_LIST1
         end
         self.listControl = GetDlgItem(parent, self.listBoxId)
     else
@@ -133,7 +133,7 @@ function HierInit(self::HierList, parent, listControl = nothing)
         self.listBoxId = lbid
     end
     SetImageList(self.listControl, self.imageList, commctrl.LVSIL_NORMAL)
-    if version_info(sys)[1] < 3
+    if sys.version_info[1] < 3
         HookNotify(parent, self.OnTreeItemExpanding, commctrl.TVN_ITEMEXPANDINGA)
         HookNotify(parent, self.OnTreeItemSelChanged, commctrl.TVN_SELCHANGEDA)
     else
@@ -156,7 +156,7 @@ end
 
 function HierTerm(self::HierList)
     parent = self.notify_parent
-    if version_info(sys)[1] < 3
+    if sys.version_info[1] < 3
         HookNotify(parent, nothing, commctrl.TVN_ITEMEXPANDINGA)
         HookNotify(parent, nothing, commctrl.TVN_SELCHANGEDA)
     else
@@ -243,7 +243,7 @@ function _GetChildHandles(self::HierList, handle)::Vector
             handle = GetNextItem(self.listControl, handle, commctrl.TVGN_NEXT)
         end
     catch exn
-        if exn isa error(win32ui)
+        if exn isa win32ui.error
             #= pass =#
         end
     end
@@ -341,7 +341,7 @@ function PerformItemSelected(self::HierList, item)
     try
         SetStatusText(win32ui, "Selected " + GetText(self, item))
     catch exn
-        if exn isa error(win32ui)
+        if exn isa win32ui.error
             #= pass =#
         end
     end
@@ -371,7 +371,7 @@ function DelegateCall(self::HierListWithItems, fn)
 end
 
 function GetBitmapColumn(self::HierListWithItems, item)
-    rc = DelegateCall(self, GetBitmapColumn(item))
+    rc = DelegateCall(self, item.GetBitmapColumn)
     if rc === nothing
         rc = GetBitmapColumn(HierList, self)
     end
@@ -379,19 +379,19 @@ function GetBitmapColumn(self::HierListWithItems, item)
 end
 
 function GetSelectedBitmapColumn(self::HierListWithItems, item)
-    return DelegateCall(self, GetSelectedBitmapColumn(item))
+    return DelegateCall(self, item.GetSelectedBitmapColumn)
 end
 
 function IsExpandable(self::HierListWithItems, item)
-    return DelegateCall(self, IsExpandable(item))
+    return DelegateCall(self, item.IsExpandable)
 end
 
 function GetText(self::HierListWithItems, item)
-    return DelegateCall(self, GetText(item))
+    return DelegateCall(self, item.GetText)
 end
 
 function GetSubList(self::HierListWithItems, item)
-    return DelegateCall(self, GetSubList(item))
+    return DelegateCall(self, item.GetSubList)
 end
 
 function PerformItemSelected(self::HierListWithItems, item)

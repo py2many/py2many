@@ -15,7 +15,7 @@ function TestExcel()
 
     end
     function OnNewWorkbook(self::ExcelEvents, wb)
-        if type_(wb) != InstanceType(types)
+        if type_(wb) != types.InstanceType
             throw(
                 RuntimeError(
                     "The transformer doesnt appear to have translated this for us!",
@@ -26,7 +26,7 @@ function TestExcel()
     end
 
     function OnWindowActivate(self::ExcelEvents, wb, wn)
-        if type_(wb) != InstanceType(types) || type_(wn) != InstanceType(types)
+        if type_(wb) != types.InstanceType || type_(wn) != types.InstanceType
             throw(
                 RuntimeError(
                     "The transformer doesnt appear to have translated this for us!",
@@ -45,7 +45,7 @@ function TestExcel()
     end
 
     function OnSheetBeforeDoubleClick(self::ExcelEvents, Sh, Target, Cancel)::Int64
-        if (Column(Target) % 2) == 0
+        if (Target.Column % 2) == 0
             println("You can double-click there...")
         else
             println("You can not double-click there...")
@@ -124,11 +124,11 @@ function _WaitForFinish(ob, timeout)::Int64
             break
         end
         try
-            if !Visible(ob)
+            if !(ob.Visible)
                 return 0
             end
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 #= pass =#
             end
         end
@@ -142,7 +142,7 @@ end
 function _CheckSeenEvents(o, events)::Int64
     rc = 1
     for e in events
-        if e ∉ seen_events(o)
+        if e ∉ o.seen_events
             println("ERROR: Expected event did not trigger", e)
             rc = 0
         end

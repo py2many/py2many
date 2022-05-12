@@ -8,7 +8,7 @@ import win32com.gen_py
 
 _frozen = getattr(sys, "frozen", 1 == 0)
 if _frozen && !getattr(pythoncom, "frozen", 0)
-    frozen(pythoncom) = frozen(sys)
+    pythoncom.frozen = sys.frozen
 end
 __gen_path__ = ""
 __build_path__ = nothing
@@ -16,10 +16,10 @@ function SetupEnvironment()
     HKEY_LOCAL_MACHINE = -2147483646
     KEY_QUERY_VALUE = 1
     try
-        keyName = "SOFTWARE\\Python\\PythonCore\\%s\\PythonPath\\win32com" % winver(sys)
+        keyName = "SOFTWARE\\Python\\PythonCore\\%s\\PythonPath\\win32com" % sys.winver
         key = RegOpenKey(win32api, HKEY_LOCAL_MACHINE, keyName, 0, KEY_QUERY_VALUE)
     catch exn
-        if exn isa (error(win32api), AttributeError)
+        if exn isa (win32api.error, AttributeError)
             key = nothing
         end
     end
@@ -30,7 +30,7 @@ function SetupEnvironment()
                 append(__path__, RegQueryValue(win32api, key, "Extensions"))
                 found = 1
             catch exn
-                if exn isa error(win32api)
+                if exn isa win32api.error
                     #= pass =#
                 end
             end
@@ -42,7 +42,7 @@ function SetupEnvironment()
                     GetFullPathName(win32api, __path__[1] + "\\..\\win32comext"),
                 )
             catch exn
-                if exn isa error(win32api)
+                if exn isa win32api.error
                     #= pass =#
                 end
             end
@@ -54,7 +54,7 @@ function SetupEnvironment()
                 append(__path__, __build_path__)
             end
         catch exn
-            if exn isa error(win32api)
+            if exn isa win32api.error
                 #= pass =#
             end
         end
@@ -63,7 +63,7 @@ function SetupEnvironment()
             try
                 __gen_path__ = RegQueryValue(win32api, key, "GenPath")
             catch exn
-                if exn isa error(win32api)
+                if exn isa win32api.error
                     #= pass =#
                 end
             end
@@ -86,7 +86,7 @@ if !(_frozen)
 end
 if !(__gen_path__)
     try
-        __gen_path__ = next((x for x in __path__(modules(sys)["win32com.gen_py"])))
+        __gen_path__ = next((x for x in sys.modules["win32com.gen_py"].__path__))
     catch exn
         if exn isa ImportError
             __gen_path__ = abspath(os.path, join)
@@ -96,14 +96,14 @@ if !(__gen_path__)
         end
     end
 end
-if "win32com.gen_py" ∉ modules(sys)
+if "win32com.gen_py" ∉ sys.modules
     gen_py = ModuleType(types, "win32com.gen_py")
-    __path__(gen_py) = [__gen_path__]
-    modules(sys)[__name__(gen_py)+1] = gen_py
+    gen_py.__path__ = [__gen_path__]
+    sys.modules[gen_py.__name__+1] = gen_py
     #Delete Unsupported
     del(types)
 end
-gen_py = modules(sys)["win32com.gen_py"]
+gen_py = sys.modules["win32com.gen_py"]
 #Delete Unsupported
 del(os)
 #Delete Unsupported

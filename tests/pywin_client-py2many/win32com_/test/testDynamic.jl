@@ -14,10 +14,10 @@ mutable struct VeryPermissive <: AbstractVeryPermissive
 
 end
 function _dynamic_(self::VeryPermissive, name, lcid, wFlags, args)
-    if wFlags & DISPATCH_METHOD(pythoncom)
+    if wFlags & pythoncom.DISPATCH_METHOD
         return getattr(self, name)(args...)
     end
-    if wFlags & DISPATCH_PROPERTYGET(pythoncom)
+    if wFlags & pythoncom.DISPATCH_PROPERTYGET
         try
             ret = self.__dict__[name]
             if type_(ret) == type_(())
@@ -30,7 +30,7 @@ function _dynamic_(self::VeryPermissive, name, lcid, wFlags, args)
             end
         end
     end
-    if wFlags & (DISPATCH_PROPERTYPUT(pythoncom) | DISPATCH_PROPERTYPUTREF(pythoncom))
+    if wFlags & (pythoncom.DISPATCH_PROPERTYPUT | pythoncom.DISPATCH_PROPERTYPUTREF)
         setattr(self, name, args[1])
         return
     end
@@ -53,7 +53,7 @@ function Test()
         handle = RegisterActiveObject(pythoncom, ob, iid, 0)
     catch exn
         let details = exn
-            if details isa com_error(pythoncom)
+            if details isa pythoncom.com_error
                 println("Warning - could not register the object in the ROT:", details)
                 handle = nothing
             end
@@ -61,23 +61,23 @@ function Test()
     end
     try
         client = Dispatch(win32com.client.dynamic, iid)
-        ANewAttr(client) = "Hello"
-        if ANewAttr(client) != "Hello"
+        client.ANewAttr = "Hello"
+        if client.ANewAttr != "Hello"
             throw(error("Could not set dynamic property"))
         end
         v = ["Hello", "From", "Python", 1.4]
-        TestSequence(client) = v
-        if v != collect(TestSequence(client))
+        client.TestSequence = v
+        if v != collect(client.TestSequence)
             throw(
                 error(
                     "Dynamic sequences not working! %r/%r" %
-                    (repr(v), repr(testSequence(client))),
+                    (repr(v), repr(client.testSequence)),
                 ),
             )
         end
         write(client, "This", "output", "has", "come", "via", "testDynamic.py")
         _FlagAsMethod(client, "NotReallyAMethod")
-        if !callable(NotReallyAMethod(client))
+        if !callable(client.NotReallyAMethod)
             throw(error("Method I flagged as callable isn\'t!"))
         end
         client = nothing

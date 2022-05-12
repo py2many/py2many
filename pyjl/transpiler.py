@@ -235,6 +235,13 @@ class JuliaTranspiler(CLikeTranspiler):
         attr = node.attr
         value_id = self.visit(node.value)
 
+        if dispatch := getattr(node, "dispatch", None):
+            fname = self.visit(dispatch.func)
+            vargs = self._get_call_args(dispatch)
+            ret = self._dispatch(dispatch, fname, vargs)
+            if ret is not None:
+                return ret
+
         if not value_id:
             value_id = ""
 
@@ -242,11 +249,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node: ast.Call) -> str:
         fname = self.visit(node.func)
-        vargs = []
-        if node.args:
-            vargs += [self.visit(a) for a in node.args]
-        if node.keywords:
-            vargs += [self.visit(kw.value) for kw in node.keywords]
+        vargs = self._get_call_args(node)
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
@@ -274,6 +277,14 @@ class JuliaTranspiler(CLikeTranspiler):
 
         args = ", ".join(converted)
         return f"{fname}({args})"
+
+    def _get_call_args(self, node: ast.Call):
+        vargs = []
+        if node.args:
+            vargs += [self.visit(a) for a in node.args]
+        if node.keywords:
+            vargs += [self.visit(kw.value) for kw in node.keywords]
+        return vargs
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)

@@ -607,8 +607,14 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node: ast.Subscript):
-        definition = node.scopes.find(get_id(node.value))
         self.generic_visit(node)
+
+        definition = None
+        if isinstance(node.value, ast.Subscript):
+            definition = node.value
+        else:
+            definition = node.scopes.find(get_id(node.value))
+
         if isinstance(node.value, ast.Attribute) and \
                 get_id(node.value.value) == "self":
             attr = node.value.attr
@@ -620,10 +626,10 @@ class InferTypesTransformer(ast.NodeTransformer):
             if hasattr(definition, "container_type") and \
                     not isinstance(node.slice, ast.Slice):
                 container_type, element_type = definition.container_type
-                if container_type == "Dict" or isinstance(element_type, list):
+                if container_type[0] == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
                 node.annotation = ast.Name(id = element_type)
-                node.container_type = ast.Name(id=container_type)
+                node.container_type = definition.container_type
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
             else:

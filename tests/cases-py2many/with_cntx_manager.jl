@@ -17,7 +17,7 @@ end
 
 function main()
     NamedTempFile::new() do temp_file
-        file_path = name(temp_file)
+        file_path = temp_file.name
         FileOp(file_path, "w") do file
             write(file, "test")
         end

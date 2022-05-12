@@ -11,7 +11,7 @@ function test(serverName)
         println("You must specify a remote server name, not the local machine!")
         return
     end
-    clsctx = CLSCTX_SERVER(pythoncom) & ~CLSCTX_INPROC_SERVER(pythoncom)
+    clsctx = pythoncom.CLSCTX_SERVER & ~(pythoncom.CLSCTX_INPROC_SERVER)
     ob = DispatchEx(win32com.client, "Python.Interpreter", serverName, clsctx)
     Exec(ob, "import win32api")
     actualName = Eval(ob, "win32api.GetComputerName()")

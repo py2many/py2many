@@ -61,6 +61,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        self.generic_visit(node)
+        
         # Don't parse annotations
         if hasattr(node, "is_annotation"):
             return node
@@ -80,19 +82,21 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 and (is_enum(value_id, node.scopes) or
                     is_class_or_module(value_id, node.scopes) or
                     is_class_type(value_id, node.scopes) or
-                    # is_class_type(value_id, node.scopes) or
                     value_id.startswith("self")):
             return node
 
-        annotation = node.scopes.find(get_id(node.value))
+        annotation = getattr(node.scopes.find(get_id(node.value)), "annotation", None)
 
-        return ast.Call(
+        node.dispatch = ast.Call(
             func=ast.Name(id=node.attr, ctx=ast.Load()),
             args=[node.value],
             keywords=[],
             lineno=node.lineno,
             col_offset=node.col_offset,
-            annotation = annotation)
+            annotation = annotation,
+            scopes = node.scopes)
+
+        return node
 
     def _handle_special_cases(self, node):
         # Bypass init module calls
@@ -588,6 +592,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         if hasattr(node, "is_annotation"):
             return node
 
+
         self._curr_slice_val = node.value
         self.generic_visit(node)
         self._curr_slice_val = None
@@ -757,10 +762,21 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 )
 
     def _is_dict(self, node, value_id):
-        annotation_node = getattr(node, "container_type", node.scopes.find(value_id))
-        if hasattr(annotation_node, "container_type"):
-            annotation_node = getattr(annotation_node, "container_type", None)
-        return get_id(annotation_node) == "Dict"
+        ann = None
+        if hasattr(node, "container_type"):
+            ann = node.container_type
+        else:
+            val_node = node.scopes.find(value_id)
+            ann = getattr(val_node, "annotation", None)
+            if isinstance(ann, ast.Subscript):
+                ann = ann.value
+        
+        # Parse ann
+        if id := get_id(ann):
+            ann = id
+        elif isinstance(ann, tuple):
+            ann = ann[0]
+        return ann == "Dict" or ann == "dict"
 
 
 class JuliaImportRewriter(ast.NodeTransformer):

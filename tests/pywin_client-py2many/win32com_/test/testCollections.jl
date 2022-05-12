@@ -1,7 +1,7 @@
 module testCollections
 using PyCall
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 
 import win32com.server.util
 import win32com.test.util
@@ -10,7 +10,7 @@ import win32com.client
 
 
 import winerror
-L = Unicode(pywintypes)
+L = pywintypes.Unicode
 abstract type AbstractTestCase <: Abstractwin32com.test.util.TestCase end
 
 error = "collection test error"
@@ -105,8 +105,8 @@ function TestEnum(quiet = nothing)
         throw(error("default method with no args worked when it shouldnt have!"))
     catch exn
         let exc = exn
-            if exc isa com_error(pythoncom)
-                if hresult(exc) != winerror.DISP_E_BADPARAMCOUNT
+            if exc isa pythoncom.com_error
+                if exc.hresult != winerror.DISP_E_BADPARAMCOUNT
                     throw(error("Expected DISP_E_BADPARAMCOUNT - got %s" % (exc,)))
                 end
             end
@@ -117,8 +117,8 @@ function TestEnum(quiet = nothing)
         throw(error("Insert worked when it shouldnt have!"))
     catch exn
         let exc = exn
-            if exc isa com_error(pythoncom)
-                if hresult(exc) != winerror.DISP_E_TYPEMISMATCH
+            if exc isa pythoncom.com_error
+                if exc.hresult != winerror.DISP_E_TYPEMISMATCH
                     throw(error("Expected DISP_E_TYPEMISMATCH - got %s" % (exc,)))
                 end
             end
@@ -129,8 +129,8 @@ function TestEnum(quiet = nothing)
         throw(error("Remove worked when it shouldnt have!"))
     catch exn
         let exc = exn
-            if exc isa com_error(pythoncom)
-                if hresult(exc) != winerror.DISP_E_BADINDEX
+            if exc isa pythoncom.com_error
+                if exc.hresult != winerror.DISP_E_BADINDEX
                     throw(error("Expected DISP_E_BADINDEX - got %s" % (exc,)))
                 end
             end
@@ -164,8 +164,8 @@ function TestEnum(quiet = nothing)
         throw(error("Empty list could be indexed"))
     catch exn
         let exc = exn
-            if exc isa com_error(pythoncom)
-                if hresult(exc) != winerror.DISP_E_BADINDEX
+            if exc isa pythoncom.com_error
+                if exc.hresult != winerror.DISP_E_BADINDEX
                     throw(error("Expected DISP_E_BADINDEX - got %s" % (exc,)))
                 end
             end

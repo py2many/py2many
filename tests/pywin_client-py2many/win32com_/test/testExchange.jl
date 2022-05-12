@@ -23,15 +23,15 @@ function GetDefaultProfileName()
             Close(key)
         end
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             return nothing
         end
     end
 end
 
 function DumpFolder(folder, indent = 0)
-    println(" " * indent, Name(folder))
-    folders = Folders(folder)
+    println(" " * indent, folder.Name)
+    folders = folder.Folders
     folder = GetFirst(folders)
     while folder
         DumpFolder(folder, indent + 1)
@@ -41,25 +41,25 @@ end
 
 function DumpFolders(session)
     try
-        infostores = InfoStores(session)
+        infostores = session.InfoStores
     catch exn
         if exn isa AttributeError
-            store = DefaultStore(session)
+            store = session.DefaultStore
             folder = GetRootFolder(store)
             DumpFolder(folder)
             return
         end
     end
     println(infostores)
-    @printf("There are %d infostores", Count(infostores))
-    for i = 0:Count(infostores)-1
+    @printf("There are %d infostores", infostores.Count)
+    for i = 0:infostores.Count-1
         infostore = infostores[i+2]
-        println("Infostore = ", Name(infostore))
+        println("Infostore = ", infostore.Name)
         try
-            folder = RootFolder(infostore)
+            folder = infostore.RootFolder
         catch exn
             let details = exn
-                if details isa com_error(pythoncom)
+                if details isa pythoncom.com_error
                     hr, msg, exc, arg = details
                     if exc && exc[end] == -2147221219
                         println("This info store is currently not available")
@@ -75,7 +75,7 @@ end
 PropTagsById = Dict()
 if ammodule
     for (name, val) in items(ammodule.constants.__dict__)
-        PropTagsById[val+1] = name
+        PropTagsById[val] = name
     end
 end
 function TestAddress(session)
@@ -83,19 +83,19 @@ function TestAddress(session)
 end
 
 function TestUser(session)
-    ae = CurrentUser(session)
+    ae = session.CurrentUser
     fields = getattr(ae, "Fields", [])
     @printf("User has %d fields", length(fields))
     for f = 0:length(fields)-1
         field = fields[f+2]
         try
-            id = PropTagsById[ID(field)+1]
+            id = PropTagsById[field.ID]
         catch exn
             if exn isa KeyError
-                id = ID(field)
+                id = field.ID
             end
         end
-        @printf("%s/%s=%s", (Name(field), id, Value(field)))
+        @printf("%s/%s=%s", (field.Name, id, field.Value))
     end
 end
 
@@ -107,16 +107,16 @@ function test()
             Logon(session, GetDefaultProfileName())
         catch exn
             let details = exn
-                if details isa com_error(pythoncom)
+                if details isa pythoncom.com_error
                     println("Could not log on to MAPI:", details)
                     return
                 end
             end
         end
     catch exn
-        if exn isa error(pythoncom)
+        if exn isa pythoncom.error
             app = EnsureDispatch(gencache, "Outlook.Application")
-            session = Session(app)
+            session = app.Session
         end
     end
     try

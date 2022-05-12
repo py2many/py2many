@@ -1,7 +1,7 @@
 module __init__
 using PyCall
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 
 import gencache
 include("win32com_/ext_modules/winerror.jl")
@@ -11,14 +11,14 @@ import winerror as winerror
 
 include("dynamic.jl")
 include("gencache.jl")
-_PyIDispatchType = TypeIIDs(pythoncom)[IID_IDispatch(pythoncom)+1]
+_PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
 function __WrapDispatch(
     dispatch,
     userName = nothing,
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
     WrapperClass = nothing,
 )
     #= 
@@ -33,7 +33,7 @@ function __WrapDispatch(
                 resultCLSID = string(GetTypeAttr(typeinfo)[1])
             end
         catch exn
-            if exn isa (com_error(pythoncom), AttributeError)
+            if exn isa (pythoncom.com_error, AttributeError)
                 #= pass =#
             end
         end
@@ -73,7 +73,7 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
         This will most likely throw pythoncom.com_error if anything fails.
          =#
     if clsctx === nothing
-        clsctx = CLSCTX_ALL(pythoncom)
+        clsctx = pythoncom.CLSCTX_ALL
     end
     if Pathname === nothing && Class === nothing || Pathname != nothing && Class != nothing
         throw(ValueError("You must specify a value for Pathname or Class, but not both."))
@@ -85,22 +85,22 @@ function GetObject(Pathname = nothing, Class = nothing, clsctx = nothing)
     end
 end
 
-function GetActiveObject(Class, clsctx = CLSCTX_ALL(pythoncom))
+function GetActiveObject(Class, clsctx = pythoncom.CLSCTX_ALL)
     #= 
         Python friendly version of GetObject's ProgID/CLSID functionality.
          =#
     resultCLSID = IID(pywintypes, Class)
     dispatch = GetActiveObject(pythoncom, resultCLSID)
-    dispatch = QueryInterface(dispatch, IID_IDispatch(pythoncom))
+    dispatch = QueryInterface(dispatch, pythoncom.IID_IDispatch)
     return __WrapDispatch(dispatch, Class)
 end
 
-function Moniker(Pathname, clsctx = CLSCTX_ALL(pythoncom))
+function Moniker(Pathname, clsctx = pythoncom.CLSCTX_ALL)
     #= 
         Python friendly version of GetObject's moniker functionality.
          =#
     moniker, i, bindCtx = MkParseDisplayName(pythoncom, Pathname)
-    dispatch = BindToObject(moniker, bindCtx, nothing, IID_IDispatch(pythoncom))
+    dispatch = BindToObject(moniker, bindCtx, nothing, pythoncom.IID_IDispatch)
     return __WrapDispatch(dispatch, Pathname)
 end
 
@@ -110,7 +110,7 @@ function Dispatch(
     resultCLSID = nothing,
     typeinfo = nothing,
     UnicodeToString = nothing,
-    clsctx = CLSCTX_SERVER(pythoncom),
+    clsctx = pythoncom.CLSCTX_SERVER,
 )
     #= Creates a Dispatch based COM object. =#
     @assert(UnicodeToString === nothing)
@@ -130,9 +130,9 @@ function DispatchEx(
     #= Creates a Dispatch based COM object on a specific machine. =#
     @assert(UnicodeToString === nothing)
     if clsctx === nothing
-        clsctx = CLSCTX_SERVER(pythoncom)
+        clsctx = pythoncom.CLSCTX_SERVER
         if machine != nothing
-            clsctx = clsctx & ~CLSCTX_INPROC(pythoncom)
+            clsctx = clsctx & ~(pythoncom.CLSCTX_INPROC)
         end
     end
     if machine === nothing
@@ -149,7 +149,7 @@ function DispatchEx(
         nothing,
         clsctx,
         serverInfo,
-        (IID_IDispatch(pythoncom),),
+        (pythoncom.IID_IDispatch,),
     )[1]
     return Dispatch(dispatch, userName, resultCLSID, typeinfo)
 end
@@ -184,34 +184,34 @@ function CastTo(ob, target, typelib = nothing)
     if typelib != nothing
         mod = MakeModuleForTypelib(
             gencache,
-            clsid(typelib),
-            lcid(typelib),
-            parse(Int, major(typelib)),
-            parse(Int, minor(typelib)),
+            typelib.clsid,
+            typelib.lcid,
+            parse(Int, typelib.major),
+            parse(Int, typelib.minor),
         )
         if !hasattr(mod, target)
             throw(
                 ValueError(
                     "The interface name \'%s\' does not appear in the specified library %r" %
-                    (target, ver_desc(typelib)),
+                    (target, typelib.ver_desc),
                 ),
             )
         end
     elseif hasattr(target, "index")
-        if "CLSID" ∉ __dict__(ob.__class__)
+        if "CLSID" ∉ ob.__class__.__dict__
             ob = EnsureDispatch(gencache, ob)
         end
-        if "CLSID" ∉ __dict__(ob.__class__)
+        if "CLSID" ∉ ob.__class__.__dict__
             throw(ValueError("Must be a makepy-able object for this to work"))
         end
-        clsid = CLSID(ob)
+        clsid = ob.CLSID
         mod = GetModuleForCLSID(gencache, clsid)
         mod = GetModuleForTypelib(
             gencache,
-            CLSID(mod),
-            LCID(mod),
-            MajorVersion(mod),
-            MinorVersion(mod),
+            mod.CLSID,
+            mod.LCID,
+            mod.MajorVersion,
+            mod.MinorVersion,
         )
         target_clsid = get(mod.NamesToIIDMap, target)
         if target_clsid === nothing
@@ -268,7 +268,7 @@ function __del__(self::EventsProxy)
     try
         close(self._obj_)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             #= pass =#
         end
     end
@@ -331,7 +331,7 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -340,9 +340,9 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
             end
         end
     else
-        disp_class = __class__(disp)
+        disp_class = disp.__class__
     end
-    clsid = CLSID(disp_class)
+    clsid = disp_class.CLSID
     try
     catch exn
         if exn isa ImportError
@@ -358,7 +358,7 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
         (disp_class, events_class, user_event_class),
         Dict("__setattr__" => _event_setattr_),
     )
-    instance = result_class(_oleobj_(disp))
+    instance = result_class(disp._oleobj_)
     __init__(events_class, instance, instance)
     if hasattr(user_event_class, "__init__")
         __init__(user_event_class, instance)
@@ -400,7 +400,7 @@ function WithEvents(disp, user_event_class)
             EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -409,9 +409,9 @@ function WithEvents(disp, user_event_class)
             end
         end
     else
-        disp_class = __class__(disp)
+        disp_class = disp.__class__
     end
-    clsid = CLSID(disp_class)
+    clsid = disp_class.CLSID
     try
     catch exn
         if exn isa ImportError
@@ -430,7 +430,7 @@ function WithEvents(disp, user_event_class)
     return instance
 end
 
-function getevents(clsid)::klass
+function getevents(clsid)
     #= Determine the default outgoing interface for a class, given
         either a clsid or progid. It returns a class - you can
         conveniently derive your own handler from this class and implement
@@ -474,11 +474,11 @@ function getevents(clsid)::klass
     clsid = string(IID(pywintypes, clsid))
     klass = GetClassForCLSID(gencache, clsid)
     try
-        return default_source(klass)
+        return klass.default_source
     catch exn
         if exn isa AttributeError
             try
-                return default_source(gencache.GetClassForCLSID(klass.coclass_clsid))
+                return GetClassForCLSID(gencache, klass.coclass_clsid).default_source
             catch exn
                 if exn isa AttributeError
                     return nothing
@@ -500,16 +500,16 @@ function Record(name, object)
           app.MoveTo(point)
          =#
     object = EnsureDispatch(gencache, object)
-    module_ = modules(sys)[__module__(object.__class__)+1]
+    module_ = sys.modules[object.__class__.__module__+1]
     package = GetModuleForTypelib(
         gencache,
-        CLSID(module_),
-        LCID(module_),
-        MajorVersion(module_),
-        MinorVersion(module_),
+        module_.CLSID,
+        module_.LCID,
+        module_.MajorVersion,
+        module_.MinorVersion,
     )
     try
-        struct_guid = RecordMap(package)[name+1]
+        struct_guid = package.RecordMap[name+1]
     catch exn
         if exn isa KeyError
             throw(
@@ -522,10 +522,10 @@ function Record(name, object)
     end
     return GetRecordFromGuids(
         pythoncom,
-        CLSID(module_),
-        MajorVersion(module_),
-        MinorVersion(module_),
-        LCID(module_),
+        module_.CLSID,
+        module_.MajorVersion,
+        module_.MinorVersion,
+        module_.LCID,
         struct_guid,
     )
 end
@@ -566,7 +566,7 @@ function __dir__(self::DispatchBaseClass)::Vector
         collect(keys(self._prop_map_put_)),
     )
     try
-        lst += [Name(p) for p in self.Properties_]
+        lst += [p.Name for p in self.Properties_]
     catch exn
         if exn isa AttributeError
             #= pass =#
@@ -577,11 +577,11 @@ end
 
 function __repr__(self::DispatchBaseClass)
     try
-        mod_doc = __doc__(sys.modules[self.__class__.__module__+1])
+        mod_doc = sys.modules[self.__class__.__module__+1].__doc__
         if mod_doc
             mod_name = "win32com.gen_py." + mod_doc
         else
-            mod_name = __name__(sys.modules[self.__class__.__module__+1])
+            mod_name = sys.modules[self.__class__.__module__+1].__name__
         end
     catch exn
         if exn isa KeyError

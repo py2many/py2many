@@ -1,7 +1,7 @@
 module testDates
 using PyCall
-datetime = pyimport("datetime")
 pywintypes = pyimport("pywintypes")
+datetime = pyimport("datetime")
 
 
 
@@ -29,7 +29,7 @@ mutable struct TestCase <: AbstractTestCase
 
 end
 function check(self::TestCase, d, expected = nothing)
-    if !TimeType(pywintypes) <: datetime
+    if !pywintypes.TimeType <: datetime
         skipTest(self, "this is testing pywintypes and datetime")
     end
     got = TestDate(test_ob(), d)

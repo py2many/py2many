@@ -26,7 +26,7 @@ mutable struct TestServer <: AbstractTestServer
     _public_methods_::Vector{String}
 
     TestServer(
-        _com_interfaces_::Vector = [IID_IStream(pythoncom)],
+        _com_interfaces_::Vector = [pythoncom.IID_IStream],
         _public_methods_::Vector{String} = ["Clone", "Commit", "LockRegion", "Read"],
     ) = new(_com_interfaces_, _public_methods_)
 end
@@ -43,14 +43,14 @@ function Commit(self::TestServer, flags)
 end
 
 function test()
-    com_server = wrap(TestServer(), IID_IStream(pythoncom))
+    com_server = wrap(TestServer(), pythoncom.IID_IStream)
     try
         Clone(com_server)
         throw(error("Expecting this call to fail!"))
     catch exn
         let com_exc = exn
-            if com_exc isa com_error(pythoncom)
-                if hresult(com_exc) != winerror.E_UNEXPECTED
+            if com_exc isa pythoncom.com_error
+                if com_exc.hresult != winerror.E_UNEXPECTED
                     throw(
                         error(
                             "Calling the object natively did not yield the correct scode",
@@ -58,7 +58,7 @@ function test()
                         ),
                     )
                 end
-                exc = excepinfo(com_exc)
+                exc = com_exc.excepinfo
                 if !(exc) || exc[end] != winerror.E_UNEXPECTED
                     throw(
                         error(
@@ -89,13 +89,13 @@ function test()
         throw(error("Expecting this call to fail!"))
     catch exn
         let com_exc = exn
-            if com_exc isa com_error(pythoncom)
-                if hresult(com_exc) != winerror.E_FAIL
+            if com_exc isa pythoncom.com_error
+                if com_exc.hresult != winerror.E_FAIL
                     throw(
                         error("The hresult was not E_FAIL for an internal error", com_exc),
                     )
                 end
-                if excepinfo(com_exc)[2] != "Python COM Server Internal Error"
+                if com_exc.excepinfo[2] != "Python COM Server Internal Error"
                     throw(
                         error(
                             "The description in the exception tuple did not yield the correct string",
@@ -115,8 +115,8 @@ function test()
         throw(error("Expecting this call to fail!"))
     catch exn
         let com_exc = exn
-            if com_exc isa com_error(pythoncom)
-                if hresult(com_exc) != winerror.DISP_E_EXCEPTION
+            if com_exc isa pythoncom.com_error
+                if com_exc.hresult != winerror.DISP_E_EXCEPTION
                     throw(
                         error(
                             "Calling the object via IDispatch did not yield the correct scode",
@@ -124,7 +124,7 @@ function test()
                         ),
                     )
                 end
-                exc = excepinfo(com_exc)
+                exc = com_exc.excepinfo
                 if !(exc) || exc[end] != winerror.E_UNEXPECTED
                     throw(
                         error(
@@ -155,8 +155,8 @@ function test()
         throw(error("Expecting this call to fail!"))
     catch exn
         let com_exc = exn
-            if com_exc isa com_error(pythoncom)
-                if hresult(com_exc) != winerror.DISP_E_EXCEPTION
+            if com_exc isa pythoncom.com_error
+                if com_exc.hresult != winerror.DISP_E_EXCEPTION
                     throw(
                         error(
                             "Calling the object via IDispatch did not yield the correct scode",
@@ -164,7 +164,7 @@ function test()
                         ),
                     )
                 end
-                exc = excepinfo(com_exc)
+                exc = com_exc.excepinfo
                 if !(exc) || exc[end] != winerror.E_FAIL
                     throw(
                         error(
@@ -198,8 +198,8 @@ function test()
         throw(error("Expecting this call to fail!"))
     catch exn
         let com_exc = exn
-            if com_exc isa com_error(pythoncom)
-                if hresult(com_exc) != winerror.DISP_E_EXCEPTION
+            if com_exc isa pythoncom.com_error
+                if com_exc.hresult != winerror.DISP_E_EXCEPTION
                     throw(
                         error(
                             "Calling the object via IDispatch did not yield the correct scode",
@@ -207,7 +207,7 @@ function test()
                         ),
                     )
                 end
-                exc = excepinfo(com_exc)
+                exc = com_exc.excepinfo
                 if !(exc) || exc[end] != winerror.E_FAIL
                     throw(
                         error(
@@ -293,14 +293,14 @@ if logging != nothing
         log = getLogger(logging, "win32com_test")
         addHandler(log, handler)
         win32com.logger = log
-        com_server = wrap(TestServer(), IID_IStream(pythoncom))
+        com_server = wrap(TestServer(), pythoncom.IID_IStream)
         try
             Commit(com_server, 0)
             throw(RuntimeError("should have failed"))
         catch exn
             let exc = exn
-                if exc isa error(pythoncom)
-                    message = excepinfo(exc)[3]
+                if exc isa pythoncom.error
+                    message = exc.excepinfo[3]
                     @assert(endswith(message, "Exception: 😀\n"))
                 end
             end
@@ -319,8 +319,8 @@ if logging != nothing
             throw(RuntimeError("should have failed"))
         catch exn
             let exc = exn
-                if exc isa error(pythoncom)
-                    message = excepinfo(exc)[3]
+                if exc isa pythoncom.error
+                    message = exc.excepinfo[3]
                     @assert(endswith(message, "Exception: 😀\n"))
                 end
             end

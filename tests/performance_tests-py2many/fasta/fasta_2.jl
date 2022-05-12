@@ -92,14 +92,14 @@ end
 
 function lcg(seed, im, ia, ic)
     Channel() do ch_lcg
-        local_seed = value(seed)
+        local_seed = seed.value
         try
             while true
                 local_seed = (local_seed * ia + ic) % im
                 put!(ch_lcg, local_seed)
             end
         finally
-            value(seed) = local_seed
+            seed.value = local_seed
         end
     end
 end
@@ -121,14 +121,14 @@ end
 
 function lcg_lookup_fast(probabilities, seed, im, ia, ic)
     Channel() do ch_lcg_lookup_fast
-        local_seed = value(seed)
+        local_seed = seed.value
         try
             while true
                 local_seed = (local_seed * ia + ic) % im
                 put!(ch_lcg_lookup_fast, bisect_right(probabilities, local_seed))
             end
         finally
-            value(seed) = local_seed
+            seed.value = local_seed
         end
     end
 end

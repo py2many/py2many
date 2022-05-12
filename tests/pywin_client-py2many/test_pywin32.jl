@@ -13,7 +13,7 @@ out_file = pwd() / "tests/pywin_client/tax_summary.xlsx"
 df_summary::pandas.DataFrame = sum(groupby("category")[("ext price", "Tax amount")+1])
 to_excel(out_file)
 excel = EnsureDispatch(gencache, "Excel.Application")
-Visible(excel) = true
+excel.Visible = true
 Open(excel.Workbooks, out_file)
 _ = input("Press enter to close Excel")
 Quit(excel.Application)

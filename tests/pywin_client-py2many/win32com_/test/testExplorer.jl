@@ -35,8 +35,8 @@ function TestExplorerEvents()
         )
     catch exn
         let exc = exn
-            if exc isa com_error(pythoncom)
-                if hresult(exc) ∉ HRESULTS_IN_AUTOMATION
+            if exc isa pythoncom.com_error
+                if exc.hresult ∉ HRESULTS_IN_AUTOMATION
                     error()
                 end
                 println("IE events appear to not be available, so skipping this test")
@@ -44,7 +44,7 @@ function TestExplorerEvents()
             end
         end
     end
-    Visible(iexplore) = 1
+    iexplore.Visible = 1
     if !(bVisibleEventFired)
         throw(RuntimeError("The IE event did not appear to fire!"))
     end
@@ -72,7 +72,7 @@ function TestObjectFromWindow()
     msg = RegisterWindowMessage(win32gui, "WM_HTML_GETOBJECT")
     rc, result =
         SendMessageTimeout(win32gui, hwnd, msg, 0, 0, win32con.SMTO_ABORTIFHUNG, 1000)
-    ob = ObjectFromLresult(pythoncom, result, IID_IDispatch(pythoncom), 0)
+    ob = ObjectFromLresult(pythoncom, result, pythoncom.IID_IDispatch, 0)
     doc = Dispatch(ob)
     for color in split("red green blue orange white")
         doc.bgColor = color
@@ -81,8 +81,8 @@ function TestObjectFromWindow()
 end
 
 function TestExplorer(iexplore)
-    if !Visible(iexplore)
-        Visible(iexplore) = -1
+    if !(iexplore.Visible)
+        iexplore.Visible = -1
     end
     filename = join
     Navigate(iexplore, GetFullPathName(win32api, filename))
@@ -92,7 +92,7 @@ function TestExplorer(iexplore)
     try
         Quit(iexplore)
     catch exn
-        if exn isa (AttributeError, com_error(pythoncom))
+        if exn isa (AttributeError, pythoncom.com_error)
             #= pass =#
         end
     end
@@ -105,8 +105,8 @@ function TestAll()
                 iexplore = Dispatch(win32com.client.dynamic, "InternetExplorer.Application")
             catch exn
                 let exc = exn
-                    if exc isa com_error(pythoncom)
-                        if hresult(exc) ∉ HRESULTS_IN_AUTOMATION
+                    if exc isa pythoncom.com_error
+                        if exc.hresult ∉ HRESULTS_IN_AUTOMATION
                             error()
                         end
                         println("IE appears to not be available, so skipping this test")
@@ -124,8 +124,8 @@ function TestAll()
             TestExplorer(iexplore)
         catch exn
             let exc = exn
-                if exc isa com_error(pythoncom)
-                    if hresult(exc) != winerror.RPC_E_DISCONNECTED
+                if exc isa pythoncom.com_error
+                    if exc.hresult != winerror.RPC_E_DISCONNECTED
                         error()
                     end
                 end

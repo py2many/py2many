@@ -1,9 +1,9 @@
 module util
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 using win32com.shell.shell: IsUserAnAdmin
 
 
@@ -53,12 +53,12 @@ function RegisterPythonServer(filename, progids = nothing, verbose = 0)
             try
                 clsid = IID(pywintypes, progid)
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     break
                 end
             end
             try
-                HKCR = HKEY_CLASSES_ROOT(winreg)
+                HKCR = winreg.HKEY_CLASSES_ROOT
                 hk = OpenKey(winreg, HKCR, "CLSID\\%s" % clsid)
                 dll = QueryValue(winreg, hk, "InprocServer32")
             catch exn
@@ -67,8 +67,8 @@ function RegisterPythonServer(filename, progids = nothing, verbose = 0)
                 end
             end
             ok_files = [
-                basename(os.path, __file__(pythoncom)),
-                "pythoncomloader%d%d.dll" % (version_info(sys)[1], version_info(sys)[2]),
+                basename(os.path, pythoncom.__file__),
+                "pythoncomloader%d%d.dll" % (sys.version_info[1], sys.version_info[2]),
             ]
             if basename(os.path, dll) ∉ ok_files
                 why_not =
@@ -146,8 +146,8 @@ function assertRaisesCOM_HRESULT(testcase, hresult, func)
         func(args..., kw)
     catch exn
         let details = exn
-            if details isa com_error(pythoncom)
-                if hresult(details) == hresult
+            if details isa pythoncom.com_error
+                if details.hresult == hresult
                     return
                 end
             end
@@ -168,19 +168,19 @@ mutable struct CaptureWriter <: AbstractCaptureWriter
 end
 function capture(self::CaptureWriter)
     clear(self)
-    self.old_out = stdout(sys)
-    self.old_err = stderr(sys)
-    stdout(sys) = self
-    stderr(sys) = self
+    self.old_out = sys.stdout
+    self.old_err = sys.stderr
+    sys.stdout = self
+    sys.stderr = self
 end
 
 function release(self::CaptureWriter)
     if self.old_out
-        stdout(sys) = self.old_out
+        sys.stdout = self.old_out
         self.old_out = nothing
     end
     if self.old_err
-        stderr(sys) = self.old_err
+        sys.stderr = self.old_err
         self.old_err = nothing
     end
 end
@@ -223,9 +223,9 @@ function setup_test_logger()::Tuple
         addHandler(_win32com_logger, handler)
     end
     win32com.logger = _win32com_logger
-    handler = handlers(_win32com_logger)[1]
-    emitted(handler) = []
-    return (emitted(handler), old_log)
+    handler = _win32com_logger.handlers[1]
+    handler.emitted = []
+    return (handler.emitted, old_log)
 end
 
 function restore_test_logger(prev_logger)
@@ -238,7 +238,7 @@ function restore_test_logger(prev_logger)
     end
 end
 
-TestCase = TestCase(unittest)
+TestCase = unittest.TestCase
 function CapturingFunctionTestCase()
     real_test = _CapturingFunctionTestCase(args..., kw)
     return LeakTestCase(real_test)
@@ -263,7 +263,7 @@ function __call__(self::_CapturingFunctionTestCase, result = nothing)
     end
     output = get_captured(writer)
     checkOutput(self, output, result)
-    if showAll(result)
+    if result.showAll
         println(output)
     end
 end

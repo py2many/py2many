@@ -21,7 +21,7 @@ function IIDToInterfaceName(iid)::String
         Result -- Always a string - either an interface name, or '<Unregistered interface>'
          =#
     try
-        return ServerInterfaces(pythoncom)[iid+1]
+        return pythoncom.ServerInterfaces[iid+1]
     catch exn
         if exn isa KeyError
             try
@@ -32,7 +32,7 @@ function IIDToInterfaceName(iid)::String
                         "Interface\\%s" % iid,
                     )
                 catch exn
-                    if exn isa error(win32api)
+                    if exn isa win32api.error
                         #= pass =#
                     end
                 end

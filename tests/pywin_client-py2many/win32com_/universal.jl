@@ -8,8 +8,8 @@ using win32com.client: gencache
 abstract type AbstractArg end
 abstract type AbstractMethod end
 abstract type AbstractDefinition end
-com_error = com_error(pythoncom)
-_univgw = _univgw(pythoncom)
+com_error = pythoncom.com_error
+_univgw = pythoncom._univgw
 function RegisterInterfaces(
     typelibGUID,
     lcid,
@@ -34,9 +34,9 @@ function RegisterInterfaces(
                 info = GetTypeInfo(tlb, i)
                 doc = GetDocumentation(tlb, i)
                 attr = GetTypeAttr(info)
-                if typekind(attr) == TKIND_INTERFACE(pythoncom) ||
-                   typekind(attr) == TKIND_DISPATCH(pythoncom) &&
-                   wTypeFlags(attr) & TYPEFLAG_FDUAL(pythoncom)
+                if attr.typekind == pythoncom.TKIND_INTERFACE ||
+                   attr.typekind == pythoncom.TKIND_DISPATCH &&
+                   attr.wTypeFlags & pythoncom.TYPEFLAG_FDUAL
                     push!(interface_names, doc[1])
                 end
             end
@@ -47,7 +47,7 @@ function RegisterInterfaces(
                 throw(ValueError("The interface \'%s\' can not be located" % (name,)))
             end
             attr = GetTypeAttr(type_info)
-            if typekind(attr) == TKIND_DISPATCH(pythoncom)
+            if attr.typekind == pythoncom.TKIND_DISPATCH
                 refhtype = GetRefTypeOfImplType(type_info, -1)
                 type_info = GetRefTypeInfo(type_info, refhtype)
                 attr = GetTypeAttr(type_info)
@@ -59,12 +59,12 @@ function RegisterInterfaces(
                 GetDocumentation(type_info, -1),
             )
             _doCreateVTable(
-                clsid(item),
-                python_name(item),
-                bIsDispatch(item),
-                vtableFuncs(item),
+                item.clsid,
+                item.python_name,
+                item.bIsDispatch,
+                item.vtableFuncs,
             )
-            for info in vtableFuncs(item)
+            for info in item.vtableFuncs
                 names, dispid, desc = info
                 invkind = desc[5]
                 push!(ret, (dispid, invkind, names[1]))
@@ -76,7 +76,7 @@ function RegisterInterfaces(
         end
         for name in interface_names
             try
-                iid = NamesToIIDMap(mod)[name+1]
+                iid = mod.NamesToIIDMap[name+1]
             catch exn
                 if exn isa KeyError
                     throw(
@@ -112,10 +112,10 @@ end
 
 function _CalcTypeSize(typeTuple)
     t = typeTuple[1]
-    if t & (VT_BYREF(pythoncom) | VT_ARRAY(pythoncom))
-        cb = SizeOfVT(_univgw, VT_PTR(pythoncom))[2]
-    elseif t == VT_RECORD(pythoncom)
-        cb = SizeOfVT(_univgw, VT_PTR(pythoncom))[2]
+    if t & (pythoncom.VT_BYREF | pythoncom.VT_ARRAY)
+        cb = SizeOfVT(_univgw, pythoncom.VT_PTR)[2]
+    elseif t == pythoncom.VT_RECORD
+        cb = SizeOfVT(_univgw, pythoncom.VT_PTR)[2]
     else
         cb = SizeOfVT(_univgw, t)[2]
     end
@@ -186,8 +186,8 @@ end
 function _GenerateInArgTuple(self::Method)::Tuple
     l = []
     for arg in self.args
-        if inOut(arg) & PARAMFLAG_FIN(pythoncom) || inOut(arg) == 0
-            push!(l, (vt(arg), offset(arg), size(arg)))
+        if arg.inOut & pythoncom.PARAMFLAG_FIN || arg.inOut == 0
+            push!(l, (arg.vt, arg.offset, arg.size))
         end
     end
     return tuple(l)
@@ -196,10 +196,10 @@ end
 function _GenerateOutArgTuple(self::Method)::Tuple
     l = []
     for arg in self.args
-        if inOut(arg) & PARAMFLAG_FOUT(pythoncom) ||
-           inOut(arg) & PARAMFLAG_FRETVAL(pythoncom) ||
-           inOut(arg) == 0
-            push!(l, (vt(arg), offset(arg), size(arg), clsid(arg)))
+        if arg.inOut & pythoncom.PARAMFLAG_FOUT ||
+           arg.inOut & pythoncom.PARAMFLAG_FRETVAL ||
+           arg.inOut == 0
+            push!(l, (arg.vt, arg.offset, arg.size, arg.clsid))
         end
     end
     return tuple(l)
@@ -230,11 +230,11 @@ function iid(self::Definition)::Definition
 end
 
 function vtbl_argsizes(self::Definition)
-    return [cbArgs(m) for m in self._methods]
+    return [m.cbArgs for m in self._methods]
 end
 
 function vtbl_argcounts(self::Definition)
-    return [length(args(m)) for m in self._methods]
+    return [length(m.args) for m in self._methods]
 end
 
 function dispatch(
@@ -242,34 +242,34 @@ function dispatch(
     ob,
     index,
     argPtr,
-    ReadFromInTuple = ReadFromInTuple(_univgw),
-    WriteFromOutTuple = WriteFromOutTuple(_univgw),
+    ReadFromInTuple = _univgw.ReadFromInTuple,
+    WriteFromOutTuple = _univgw.WriteFromOutTuple,
 )::Int64
     #= Dispatch a call to an interface method. =#
     meth = self._methods[index+1]
     hr = 0
-    args = ReadFromInTuple(_gw_in_args(meth), argPtr)
+    args = ReadFromInTuple(meth._gw_in_args, argPtr)
     ob = getattr(ob, "policy", ob)
-    _dispid_to_func_(ob)[dispid(meth)+1] = name(meth)
-    retVal = _InvokeEx_(ob, dispid(meth), 0, invkind(meth), args, nothing, nothing)
+    ob._dispid_to_func_[meth.dispid+1] = meth.name
+    retVal = _InvokeEx_(ob, meth.dispid, 0, meth.invkind, args, nothing, nothing)
     if type_(retVal) == tuple
-        if length(retVal) == (length(_gw_out_args(meth)) + 1)
+        if length(retVal) == (length(meth._gw_out_args) + 1)
             hr = retVal[1]
             retVal = retVal[2:end]
         else
             throw(
                 TypeError(
                     "Expected %s return values, got: %s" %
-                    (length(_gw_out_args(meth)) + 1, length(retVal)),
+                    (length(meth._gw_out_args) + 1, length(retVal)),
                 ),
             )
         end
     else
         retVal = [retVal]
-        append!(retVal, repeat([nothing], (length(_gw_out_args(meth)) - 1)))
+        append!(retVal, repeat([nothing], (length(meth._gw_out_args) - 1)))
         retVal = tuple(retVal)
     end
-    WriteFromOutTuple(retVal, _gw_out_args(meth), argPtr)
+    WriteFromOutTuple(retVal, meth._gw_out_args, argPtr)
     return hr
 end
 

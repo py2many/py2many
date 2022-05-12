@@ -93,7 +93,7 @@ function Test()
     try
         GenerateSupport(testAccess)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             println("*** Can not import the MSAccess type libraries - tests skipped")
             return
         end

@@ -1,7 +1,7 @@
 using tempfile: NamedTemporaryFile
 function main()
     NamedTempFile::new() do temp_file
-        file_path = name(temp_file)
+        file_path = temp_file.name
         open(file_path, "w") do f
             write(f, "hello")
         end

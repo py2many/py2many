@@ -8,10 +8,10 @@ function RegisterClassFactories(clsids, flags = nothing, clsctx = nothing)::Vect
         Returns a list, which should be passed to RevokeClassFactories
          =#
     if flags === nothing
-        flags = REGCLS_MULTIPLEUSE(pythoncom) | REGCLS_SUSPENDED(pythoncom)
+        flags = pythoncom.REGCLS_MULTIPLEUSE | pythoncom.REGCLS_SUSPENDED
     end
     if clsctx === nothing
-        clsctx = CLSCTX_LOCAL_SERVER(pythoncom)
+        clsctx = pythoncom.CLSCTX_LOCAL_SERVER
     end
     ret = []
     for clsid in clsids

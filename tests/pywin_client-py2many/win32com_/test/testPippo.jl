@@ -21,7 +21,7 @@ end
 
 function testLeaks(self::PippoTester)
     try
-        gtrc = gettotalrefcount(sys)
+        gtrc = sys.gettotalrefcount
     catch exn
         if exn isa AttributeError
             println("Please run this with python_d for leak tests")
@@ -76,7 +76,7 @@ end
 
 function testLeaksGencache(self::PippoTester)
     try
-        gtrc = gettotalrefcount(sys)
+        gtrc = sys.gettotalrefcount
     catch exn
         if exn isa AttributeError
             println("Please run this with python_d for leak tests")

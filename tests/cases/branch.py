@@ -1,7 +1,7 @@
 def something():
     return "test"
 
-def lookup_and_write(values):
+def lookup_and_write(values: list):
     output = None
     if len(values) == 1:
          output = values[0]
@@ -14,7 +14,7 @@ def lookup_and_write(values):
         
     return output
 
-def lookup_and_write_without_else(values):
+def lookup_and_write_without_else(values: list):
     output = None
     if len(values) == 1:
          output = values[0]

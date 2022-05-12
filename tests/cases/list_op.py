@@ -115,7 +115,6 @@ def for_cycle_vars():
     x = 1
     assert seq[x] == 2
 
-# Failing in Julia
 def reversed_array():
     x = [1,2,3]
     x = x[::-1]

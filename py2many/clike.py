@@ -671,8 +671,13 @@ class CLikeTranspiler(ast.NodeVisitor):
             typename = self._typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
+            if isinstance(type_node, ast.Name) and \
+                    (id := get_id(node)) in self._container_type_map:
+                node.container_type = (id, "Any")
+
+            if cont_type := getattr(node, "container_type", None):
                 try:
-                    return self._visit_container_type(type_node.container_type)
+                    return self._visit_container_type(cont_type)
                 except TypeNotSupported as e:
                     raise AstTypeNotSupported(str(e), node)
             if typename is None:

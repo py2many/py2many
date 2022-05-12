@@ -2,7 +2,7 @@ function something()::String
     return "test"
 end
 
-function lookup_and_write(values)
+function lookup_and_write(values::Vector)
     output = nothing
     if length(values) == 1
         output = values[1]
@@ -16,7 +16,7 @@ function lookup_and_write(values)
     return output
 end
 
-function lookup_and_write_without_else(values)
+function lookup_and_write_without_else(values::Vector)
     output = nothing
     if length(values) == 1
         output = values[1]
@@ -30,15 +30,15 @@ end
 
 function main()
     @assert(lookup_and_write([]) == [])
-    @assert(lookup_and_write([1]) == 1)
-    @assert(lookup_and_write([1, 2]) == 2)
-    @assert(lookup_and_write([1, 2, 3]) == 3)
-    @assert(lookup_and_write([1, 2, 3, 4]) == [1, 2, 3, 4])
+    @assert(lookup_and_write(convert(Vector, [1])) == 1)
+    @assert(lookup_and_write(convert(Vector, [1, 2])) == 2)
+    @assert(lookup_and_write(convert(Vector, [1, 2, 3])) == 3)
+    @assert(lookup_and_write(convert(Vector, [1, 2, 3, 4])) == [1, 2, 3, 4])
     @assert(lookup_and_write_without_else([]) === nothing)
-    @assert(lookup_and_write_without_else([1]) == 1)
-    @assert(lookup_and_write_without_else([1, 2]) == 2)
-    @assert(lookup_and_write_without_else([1, 2, 3]) == 3)
-    @assert(lookup_and_write_without_else([1, 2, 3, 4]) === nothing)
+    @assert(lookup_and_write_without_else(convert(Vector, [1])) == 1)
+    @assert(lookup_and_write_without_else(convert(Vector, [1, 2])) == 2)
+    @assert(lookup_and_write_without_else(convert(Vector, [1, 2, 3])) == 3)
+    @assert(lookup_and_write_without_else(convert(Vector, [1, 2, 3, 4])) === nothing)
 end
 
 main()

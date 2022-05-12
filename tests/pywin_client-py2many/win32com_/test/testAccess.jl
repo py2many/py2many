@@ -32,7 +32,7 @@ function CreateTestAccessDatabase(dbname = nothing)
     index = CreateIndex(table, "UniqueIndex")
     Append(index.Fields, CreateField(index, "First Name"))
     Append(index.Fields, CreateField(index, "Last Name"))
-    Unique(index) = -1
+    index.Unique = -1
     Append(table.Indexes, index)
     Append(newdb.TableDefs, table)
     table = CreateTableDef(newdb, "Test Table 2")
@@ -40,37 +40,37 @@ function CreateTestAccessDatabase(dbname = nothing)
     Append(table.Fields, CreateField(table, "Last Name", constants.dbText))
     Append(newdb.TableDefs, table)
     relation = CreateRelation(newdb, "TestRelationship")
-    Table(relation) = "Test Table 1"
-    ForeignTable(relation) = "Test Table 2"
+    relation.Table = "Test Table 1"
+    relation.ForeignTable = "Test Table 2"
     field = CreateField(relation, "First Name")
-    ForeignName(field) = "First Name"
+    field.ForeignName = "First Name"
     Append(relation.Fields, field)
     field = CreateField(relation, "Last Name")
-    ForeignName(field) = "Last Name"
+    field.ForeignName = "Last Name"
     Append(relation.Fields, field)
-    Attributes(relation) =
+    relation.Attributes =
         constants.dbRelationDeleteCascade + constants.dbRelationUpdateCascade
     Append(newdb.Relations, relation)
     tab1 = OpenRecordset(newdb, "Test Table 1")
     AddNew(tab1)
-    Value(tab1.Fields("First Name")) = "Mark"
-    Value(tab1.Fields("Last Name")) = "Hammond"
+    Fields(tab1, "First Name").Value = "Mark"
+    Fields(tab1, "Last Name").Value = "Hammond"
     Update(tab1)
     MoveFirst(tab1)
-    bk = Bookmark(tab1)
+    bk = tab1.Bookmark
     AddNew(tab1)
-    Value(tab1.Fields("First Name")) = "Second"
-    Value(tab1.Fields("Last Name")) = "Person"
+    Fields(tab1, "First Name").Value = "Second"
+    Fields(tab1, "Last Name").Value = "Person"
     Update(tab1)
     MoveLast(tab1)
-    if Value(tab1.Fields("First Name")) != "Second"
+    if Fields(tab1, "First Name").Value != "Second"
         throw(RuntimeError("Unexpected record is last - makes bookmark test pointless!"))
     end
-    Bookmark(tab1) = bk
-    if Bookmark(tab1) != bk
+    tab1.Bookmark = bk
+    if tab1.Bookmark != bk
         throw(RuntimeError("The bookmark data is not the same"))
     end
-    if Value(tab1.Fields("First Name")) != "Mark"
+    if Fields(tab1, "First Name").Value != "Mark"
         throw(RuntimeError("The bookmark did not reset the record pointer correctly"))
     end
     return dbname
@@ -86,9 +86,9 @@ function DoDumpAccessInfo(dbname)
         OpenCurrentDatabase(a, dbname)
         db = CurrentDb(a)
         DumpDB(daodump, db, 1)
-        forms = Forms(a)
+        forms = a.Forms
         @printf("There are %d forms open.", length(forms))
-        reports = Reports(a)
+        reports = a.Reports
         @printf("There are %d reports open", length(reports))
     finally
         if !(a === nothing)
@@ -96,7 +96,7 @@ function DoDumpAccessInfo(dbname)
             try
                 CloseCurrentDatabase(a)
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     #= pass =#
                 end
             end
@@ -129,7 +129,7 @@ function test(dbname = nothing)
         try
             GenerateSupport()
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 println("*** Can not import the MSAccess type libraries - tests skipped")
                 return
             end

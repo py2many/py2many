@@ -1,8 +1,8 @@
 module testMSOffice
 using PyCall
 win32api = pyimport("win32api")
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 import win32com.test.Generated4Test.msword8
 
 import xl5en32
@@ -32,7 +32,7 @@ function TestWord()
         olerepr = nothing
         TestWord8(word)
     catch exn
-        if exn isa com_error(pythoncom)
+        if exn isa pythoncom.com_error
             println("Starting Word 7 for dynamic test")
             word = Dispatch(win32com.client, "Word.Basic")
             TestWord7(word)
@@ -71,17 +71,17 @@ function TestWord7(word)
 end
 
 function TestWord8(word)
-    Visible(word) = 1
+    word.Visible = 1
     doc = Add(word.Documents)
     wrange = Range(doc)
     for i = 0:9
         InsertAfter(wrange, "Hello from Python %d\n" % i)
     end
-    paras = Paragraphs(doc)
+    paras = doc.Paragraphs
     for i = 0:length(paras)-1
         p = paras(i + 1)
-        ColorIndex(p.Font) = i + 1
-        Size(p.Font) = 12 + 4 * i
+        p.Font.ColorIndex = i + 1
+        p.Font.Size = 12 + 4 * i
     end
     Close(doc, 0)
     Quit(word)
@@ -98,51 +98,51 @@ function TestWord8OldStyle()
 end
 
 function TextExcel(xl)
-    Visible(xl) = 0
-    if Visible(xl)
+    xl.Visible = 0
+    if xl.Visible
         throw(error("Visible property is true."))
     end
-    Visible(xl) = 1
-    if !Visible(xl)
+    xl.Visible = 1
+    if !(xl.Visible)
         throw(error("Visible property not true."))
     end
-    if parse(Int, Version(xl)[1]) >= 8
+    if parse(Int, xl.Version[1]) >= 8
         Add(xl.Workbooks)
     else
         Add(Workbooks(xl))
     end
-    Value(xl.Range("A1:C1")) = (1, 2, 3)
-    Value(xl.Range("A2:C2")) = ("x", "y", "z")
-    Value(xl.Range("A3:C3")) = ("3", "2", "1")
+    Range(xl, "A1:C1").Value = (1, 2, 3)
+    Range(xl, "A2:C2").Value = ("x", "y", "z")
+    Range(xl, "A3:C3").Value = ("3", "2", "1")
     for i = 0:19
-        Value(xl.Cells(i + 1, i + 1)) = "Hi %d" % i
+        Cells(xl, i + 1, i + 1).Value = "Hi %d" % i
     end
-    if Value(xl.Range("A1")) != "Hi 0"
+    if Range(xl, "A1").Value != "Hi 0"
         throw(error("Single cell range failed"))
     end
-    if Value(xl.Range("A1:B1")) != ((Unicode("Hi 0"), 2),)
+    if Range(xl, "A1:B1").Value != ((Unicode("Hi 0"), 2),)
         throw(error("flat-horizontal cell range failed"))
     end
-    if Value(xl.Range("A1:A2")) != ((Unicode("Hi 0"),), (Unicode("x"),))
+    if Range(xl, "A1:A2").Value != ((Unicode("Hi 0"),), (Unicode("x"),))
         throw(error("flat-vertical cell range failed"))
     end
-    if Value(xl.Range("A1:C3")) != (
+    if Range(xl, "A1:C3").Value != (
         (Unicode("Hi 0"), 2, 3),
         (Unicode("x"), Unicode("Hi 1"), Unicode("z")),
         (3, 2, Unicode("Hi 2")),
     )
         throw(error("square cell range failed"))
     end
-    Value(xl.Range("A1:C3")) = ((3, 2, 1), ("x", "y", "z"), (1, 2, 3))
-    if Value(xl.Range("A1:C3")) !=
+    Range(xl, "A1:C3").Value = ((3, 2, 1), ("x", "y", "z"), (1, 2, 3))
+    if Range(xl, "A1:C3").Value !=
        ((3, 2, 1), (Unicode("x"), Unicode("y"), Unicode("z")), (1, 2, 3))
         throw(error("Range was not what I set it to!"))
     end
-    Value(xl.Cells(5, 1)) = "Excel time"
-    Formula(xl.Cells(5, 2)) = "=Now()"
-    Value(xl.Cells(6, 1)) = "Python time"
-    Value(xl.Cells(6, 2)) = MakeTime(pythoncom, pylib::time())
-    NumberFormat(xl.Cells(6, 2)) = "d/mm/yy h:mm"
+    Cells(xl, 5, 1).Value = "Excel time"
+    Cells(xl, 5, 2).Formula = "=Now()"
+    Cells(xl, 6, 1).Value = "Python time"
+    Cells(xl, 6, 2).Value = MakeTime(pythoncom, pylib::time())
+    Cells(xl, 6, 2).NumberFormat = "d/mm/yy h:mm"
     AutoFit(None.EntireColumn)
     Close(Workbooks(xl, 1), 0)
     Quit(xl)

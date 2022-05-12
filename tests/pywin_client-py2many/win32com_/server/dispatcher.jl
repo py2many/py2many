@@ -324,7 +324,7 @@ function _HandleException_(self::DispatcherWin32dbg)
         if exn isa Exception
             debug = get_option(
                 GetDebugger(pywin.debugger),
-                OPT_STOP_EXCEPTIONS(pywin.debugger.dbgcon),
+                pywin.debugger.dbgcon.OPT_STOP_EXCEPTIONS,
             )
         end
         debug = 1

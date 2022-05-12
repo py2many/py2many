@@ -46,7 +46,7 @@ function _get_string(path, base = win32con.HKEY_CLASSES_ROOT)
     try
         return RegQueryValue(win32api, base, path)
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             return nothing
         end
     end
@@ -58,8 +58,8 @@ function _remove_key(path, base = win32con.HKEY_CLASSES_ROOT)
         RegDeleteKey(win32api, base, path)
     catch exn
         let xxx_todo_changeme1 = exn
-            if xxx_todo_changeme1 isa error(win32api)
-                code, fn, msg = args(xxx_todo_changeme1)
+            if xxx_todo_changeme1 isa win32api.error
+                code, fn, msg = xxx_todo_changeme1.args
                 if code != winerror.ERROR_FILE_NOT_FOUND
                     throw(error(win32api, code, fn, msg))
                 end
@@ -77,8 +77,8 @@ function recurse_delete_key(path, base = win32con.HKEY_CLASSES_ROOT)
         h = RegOpenKey(win32api, base, path)
     catch exn
         let xxx_todo_changeme2 = exn
-            if xxx_todo_changeme2 isa error(win32api)
-                code, fn, msg = args(xxx_todo_changeme2)
+            if xxx_todo_changeme2 isa win32api.error
+                code, fn, msg = xxx_todo_changeme2.args
                 if code != winerror.ERROR_FILE_NOT_FOUND
                     throw(error(win32api, code, fn, msg))
                 end
@@ -90,16 +90,16 @@ end
 function _cat_registrar()
     return CoCreateInstance(
         pythoncom,
-        CLSID_StdComponentCategoriesMgr(pythoncom),
+        pythoncom.CLSID_StdComponentCategoriesMgr,
         nothing,
-        CLSCTX_INPROC_SERVER(pythoncom),
-        IID_ICatRegister(pythoncom),
+        pythoncom.CLSCTX_INPROC_SERVER,
+        pythoncom.IID_ICatRegister,
     )
 end
 
 function _find_localserver_exe(mustfind)
     if !startswith(sys.platform, "win32")
-        return executable(sys)
+        return sys.executable
     end
     if find(pythoncom.__file__, "_d") < 0
         exeBaseName = "pythonw.exe"
@@ -111,7 +111,7 @@ function _find_localserver_exe(mustfind)
         exeName = join
     end
     if !exists(os.path, exeName)
-        if "64 bit" in version(sys)
+        if "64 bit" in sys.version
             exeName = join
         else
             exeName = join
@@ -119,11 +119,11 @@ function _find_localserver_exe(mustfind)
     end
     if !exists(os.path, exeName)
         try
-            key = "SOFTWARE\\Python\\PythonCore\\%s\\InstallPath" % winver(sys)
+            key = "SOFTWARE\\Python\\PythonCore\\%s\\InstallPath" % sys.winver
             path = RegQueryValue(win32api, win32con.HKEY_LOCAL_MACHINE, key)
             exeName = join
         catch exn
-            if exn isa (AttributeError, error(win32api))
+            if exn isa (AttributeError, win32api.error)
                 #= pass =#
             end
         end
@@ -218,20 +218,20 @@ function RegisterServer(
     _set_string(keyNameRoot, desc)
     _set_string("AppID\\%s" % clsid, progID)
     if !(clsctx)
-        clsctx = CLSCTX_INPROC_SERVER(pythoncom) | CLSCTX_LOCAL_SERVER(pythoncom)
+        clsctx = pythoncom.CLSCTX_INPROC_SERVER | pythoncom.CLSCTX_LOCAL_SERVER
     end
-    if frozen(pythoncom)
-        @assert(frozen(sys))
-        if frozen(sys) == "dll"
-            clsctx = clsctx & CLSCTX_INPROC_SERVER(pythoncom)
+    if pythoncom.frozen
+        @assert(sys.frozen)
+        if sys.frozen == "dll"
+            clsctx = clsctx & pythoncom.CLSCTX_INPROC_SERVER
         else
-            clsctx = clsctx & CLSCTX_LOCAL_SERVER(pythoncom)
+            clsctx = clsctx & pythoncom.CLSCTX_LOCAL_SERVER
         end
     end
-    if clsctx & CLSCTX_INPROC_SERVER(pythoncom)
-        if frozen(pythoncom)
+    if clsctx & pythoncom.CLSCTX_INPROC_SERVER
+        if pythoncom.frozen
             if hasattr(sys, "frozendllhandle")
-                dllName = GetModuleFileName(win32api, frozendllhandle(sys))
+                dllName = GetModuleFileName(win32api, sys.frozendllhandle)
             else
                 throw(
                     RuntimeError(
@@ -240,10 +240,10 @@ function RegisterServer(
                 )
             end
         else
-            pythoncom_dir = dirname(os.path, __file__(pythoncom))
-            suffix = "_d" in __file__(pythoncom) ? ("_d") : ("")
+            pythoncom_dir = dirname(os.path, pythoncom.__file__)
+            suffix = "_d" in pythoncom.__file__ ? ("_d") : ("")
             loadername = join
-            dllName = isfile(os.path, loadername) ? (loadername) : (__file__(pythoncom))
+            dllName = isfile(os.path, loadername) ? (loadername) : (pythoncom.__file__)
         end
         _set_subkeys(
             keyNameRoot * "\\InprocServer32",
@@ -252,9 +252,9 @@ function RegisterServer(
     else
         _remove_key(keyNameRoot * "\\InprocServer32")
     end
-    if clsctx & CLSCTX_LOCAL_SERVER(pythoncom)
-        if frozen(pythoncom)
-            exeName = GetShortPathName(win32api, executable(sys))
+    if clsctx & pythoncom.CLSCTX_LOCAL_SERVER
+        if pythoncom.frozen
+            exeName = GetShortPathName(win32api, sys.executable)
             command = "%s /Automate" % (exeName,)
         else
             exeName = _find_localserver_exe(1)
@@ -292,7 +292,7 @@ function RegisterServer(
         _remove_key(keyNameRoot * "\\PythonCOMPath")
     end
     if addPyComCat === nothing
-        addPyComCat = frozen(pythoncom) == 0
+        addPyComCat = pythoncom.frozen == 0
     end
     if addPyComCat
         catids = append!(catids, [CATID_PythonCOMServer])
@@ -377,7 +377,7 @@ function _get(ob, attr, default = nothing)
         end
     end
     try
-        bases = __bases__(ob)
+        bases = ob.__bases__
     catch exn
         if exn isa AttributeError
             return default
@@ -396,7 +396,7 @@ function RegisterClasses()
     quiet = "quiet" in flags && flags["quiet"]
     debugging = "debug" in flags && flags["debug"]
     for cls in classes
-        clsid = _reg_clsid_(cls)
+        clsid = cls._reg_clsid_
         progID = _get(cls, "_reg_progid_")
         desc = _get(cls, "_reg_desc_", progID)
         spec = _get(cls, "_reg_class_spec_")
@@ -408,7 +408,7 @@ function RegisterClasses()
         policySpec = _get(cls, "_reg_policy_spec_")
         clsctx = _get(cls, "_reg_clsctx_")
         tlb_filename = _get(cls, "_reg_typelib_filename_")
-        addPyComCat = !_get(cls, "_reg_disable_pycomcat_", frozen(pythoncom) != 0)
+        addPyComCat = !_get(cls, "_reg_disable_pycomcat_", pythoncom.frozen != 0)
         addnPath = nothing
         if debugging
             dispatcherSpec = _get(cls, "_reg_debug_dispatcher_spec_")
@@ -423,7 +423,7 @@ function RegisterClasses()
             options["Debugging"] = "0"
         end
         if spec === nothing
-            moduleName = __module__(cls)
+            moduleName = cls.__module__
             if moduleName == "__main__"
                 try
                     moduleName = splitext(
@@ -431,7 +431,7 @@ function RegisterClasses()
                         FindFiles(win32api, append!([PROGRAM_FILE], ARGS)[1])[1][9],
                     )[1]
                 catch exn
-                    if exn isa (IndexError, error(win32api))
+                    if exn isa (IndexError, win32api.error)
                         throw(
                             TypeError(
                                 "Can\'t locate the script hosting the COM object - please set _reg_class_spec_ in your object",
@@ -440,8 +440,8 @@ function RegisterClasses()
                     end
                 end
             end
-            spec = (moduleName + ".") + __name__(cls)
-            if !frozen(pythoncom)
+            spec = (moduleName + ".") + cls.__name__
+            if !(pythoncom.frozen)
                 scriptDir = split(os.path, append!([PROGRAM_FILE], ARGS)[1])[1]
                 if !(scriptDir)
                     scriptDir = "."
@@ -486,7 +486,7 @@ end
 function UnregisterClasses()
     quiet = "quiet" in flags && flags["quiet"]
     for cls in classes
-        clsid = _reg_clsid_(cls)
+        clsid = cls._reg_clsid_
         progID = _get(cls, "_reg_progid_")
         verProgID = _get(cls, "_reg_verprogid_")
         customKeys = _get(cls, "_reg_remove_keys_")
@@ -508,7 +508,7 @@ function UnregisterClasses()
                         println("Unregistered type library")
                     end
                 catch exn
-                    if exn isa com_error(pythoncom)
+                    if exn isa pythoncom.com_error
                         #= pass =#
                     end
                 end
@@ -524,7 +524,7 @@ end
 function UnregisterInfoClasses()::Vector
     ret = []
     for cls in classes
-        clsid = _reg_clsid_(cls)
+        clsid = cls._reg_clsid_
         progID = _get(cls, "_reg_progid_")
         verProgID = _get(cls, "_reg_verprogid_")
         customKeys = _get(cls, "_reg_remove_keys_")
@@ -554,7 +554,7 @@ function ReExecuteElevated(flags)
     tempbase = mktemp(tempfile, "pycomserverreg")
     outfile = tempbase + ".out"
     batfile = tempbase + ".bat"
-    current_exe = lower(split(os.path, executable(sys))[2])
+    current_exe = lower(split(os.path, sys.executable)[2])
     exe_to_run = nothing
     if current_exe == "pythonwin.exe"
         exe_to_run = join
@@ -562,7 +562,7 @@ function ReExecuteElevated(flags)
         exe_to_run = join
     end
     if !(exe_to_run) || !exists(os.path, exe_to_run)
-        exe_to_run = executable(sys)
+        exe_to_run = sys.executable
     end
     try
         batf = readline(batfile)
@@ -635,9 +635,9 @@ function UseCommandLine()::Vector
         end
     catch exn
         let exc = exn
-            if exc isa error(win32api)
+            if exc isa win32api.error
                 if flags["unattended"] ||
-                   winerror(exc) != winerror.ERROR_ACCESS_DENIED ||
+                   exc.winerror != winerror.ERROR_ACCESS_DENIED ||
                    getwindowsversion(sys)[1] < 5
                     error()
                 end
@@ -653,7 +653,7 @@ function RegisterPyComCategory()
     RegisterCategories(regCat, [(CATID_PythonCOMServer, 1033, "Python COM Server")])
 end
 
-if !frozen(pythoncom)
+if !(pythoncom.frozen)
     try
         RegQueryValue(
             win32api,
@@ -661,11 +661,11 @@ if !frozen(pythoncom)
             "Component Categories\\%s" % CATID_PythonCOMServer,
         )
     catch exn
-        if exn isa error(win32api)
+        if exn isa win32api.error
             try
                 RegisterPyComCategory()
             catch exn
-                if exn isa error(pythoncom)
+                if exn isa pythoncom.error
                     #= pass =#
                 end
             end

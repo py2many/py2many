@@ -11,8 +11,8 @@ mutable struct Tools <: AbstractTools
         new(_public_methods_)
 end
 function reload(self::Tools, module_)::String
-    if module_ in modules(sys)
-        reload(modules(sys)[module_+1])
+    if module_ in sys.modules
+        reload(sys.modules[module_+1])
         return "reload succeeded."
     end
     return "no reload performed."
@@ -22,7 +22,7 @@ function adddir(self::Tools, dir)::String
     if type_(dir) == type_("")
         append(sys.path, dir)
     end
-    return string(path(sys))
+    return string(sys.path)
 end
 
 function echo(self::Tools, arg)

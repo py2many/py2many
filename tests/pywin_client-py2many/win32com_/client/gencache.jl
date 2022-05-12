@@ -23,8 +23,8 @@ Hacks, to do, etc
  =#
 using Printf
 using PyCall
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 import io as io
 include("makepy.jl")
 include("genpy.jl")
@@ -77,7 +77,7 @@ end
 function _LoadDicts()
     if is_zip
         loader = win32com_.__loader__
-        arc_path = archive(loader)
+        arc_path = loader.archive
         dicts_path = join
         if startswith(dicts_path, arc_path)
             dicts_path = dicts_path[length(arc_path)+1+1:end]
@@ -209,7 +209,7 @@ function GetModuleForProgID(progid)
     try
         iid = IID(pywintypes, progid)
     catch exn
-        if exn isa com_error(pywintypes)
+        if exn isa pywintypes.com_error
             return nothing
         end
     end
@@ -229,7 +229,7 @@ function GetModuleForCLSID(clsid)
          =#
     clsid_str = string(clsid)
     try
-        typelibCLSID, lcid, major, minor = clsidToTypelib[clsid_str+1]
+        typelibCLSID, lcid, major, minor = clsidToTypelib[clsid_str]
     catch exn
         if exn isa KeyError
             return nothing
@@ -248,19 +248,19 @@ function GetModuleForCLSID(clsid)
             sub_mod = get(mod.VTablesToPackageMap, clsid_str)
         end
         if sub_mod != nothing
-            sub_mod_name = (__name__(mod) + ".") + sub_mod
+            sub_mod_name = (mod.__name__ + ".") + sub_mod
             try
                 __import__(sub_mod_name)
             catch exn
                 if exn isa ImportError
                     info = (typelibCLSID, lcid, major, minor)
                     if info in demandGeneratedTypeLibraries
-                        info = demandGeneratedTypeLibraries[info+1]
+                        info = demandGeneratedTypeLibraries[info]
                     end
                     GenerateChildFromTypeLibSpec(makepy, sub_mod, info)
                 end
             end
-            mod = modules(sys)[sub_mod_name+1]
+            mod = sys.modules[sub_mod_name+1]
         end
     end
     return mod
@@ -280,9 +280,9 @@ function GetModuleForTypelib(typelibCLSID, lcid, major, minor)
          =#
     modName = GetGeneratedFileName(typelibCLSID, lcid, major, minor)
     mod = _GetModule(modName)
-    if "_in_gencache_" ∉ __dict__(mod)
+    if "_in_gencache_" ∉ mod.__dict__
         AddModuleToCache(typelibCLSID, lcid, major, minor)
-        @assert("_in_gencache_" in __dict__(mod))
+        @assert("_in_gencache_" in mod.__dict__)
     end
     return mod
 end
@@ -349,7 +349,7 @@ function MakeModuleForTypelibInterface(
             bBuildHidden,
         )
     catch exn
-        if exn isa com_error(pywintypes)
+        if exn isa pywintypes.com_error
             return nothing
         end
     end
@@ -387,7 +387,7 @@ function EnsureModuleForTypelibInterface(
     major = tla[4]
     minor = tla[5]
     if bForDemand
-        demandGeneratedTypeLibraries[(string(guid), lcid, major, minor)+1] = typelib_ob
+        demandGeneratedTypeLibraries[(string(guid), lcid, major, minor)] = typelib_ob
     end
     try
         return GetModuleForTypelib(guid, lcid, major, minor)
@@ -488,7 +488,7 @@ function EnsureModule(
                         end
                     end
                 catch exn
-                    if exn isa com_error(pythoncom)
+                    if exn isa pythoncom.com_error
                         #= pass =#
                     end
                 end
@@ -515,7 +515,7 @@ function EnsureModule(
                 tlbAttributes =
                     GetLibAttr(LoadRegTypeLib(pythoncom, typelibCLSID, major, minor, lcid))
             catch exn
-                if exn isa com_error(pythoncom)
+                if exn isa pythoncom.com_error
                     bValidateFile = 0
                 end
             end
@@ -532,8 +532,8 @@ function EnsureModule(
             else
                 filePathPyc = filePathPyc * "o"
             end
-            if MinorVersion(module_) != tlbAttributes[5] ||
-               genpy.makepy_version != makepy_version(module_)
+            if module_.MinorVersion != tlbAttributes[5] ||
+               genpy.makepy_version != module_.makepy_version
                 try
                     std::fs::remove_file(filePath)
                 catch exn
@@ -555,7 +555,7 @@ function EnsureModule(
                 module_ = nothing
                 bReloadNeeded = 1
             else
-                minor = MinorVersion(module_)
+                minor = module_.MinorVersion
                 filePathPrefix =
                     "%s\\%s" % (
                         GetGeneratePath(),
@@ -599,7 +599,7 @@ function EnsureModule(
         if is_readonly
             key = (string(typelibCLSID), lcid, major, minor)
             try
-                return versionRedirectMap[key+1]
+                return versionRedirectMap[key]
             catch exn
                 if exn isa KeyError
                     #= pass =#
@@ -618,7 +618,7 @@ function EnsureModule(
             else
                 ret = nothing
             end
-            versionRedirectMap[key+1] = ret
+            versionRedirectMap[key] = ret
             return ret
         end
         module_ = MakeModuleForTypelib(typelibCLSID, lcid, major, minor, progressInstance)
@@ -642,9 +642,9 @@ function EnsureDispatch(prog_id, bForDemand = 1)
             mod = EnsureModule(tla[1], tla[2], tla[4], tla[5])
             GetModuleForCLSID(disp_clsid)
             disp_class = GetClass(CLSIDToClass, string(disp_clsid))
-            disp = disp_class(_oleobj_(disp))
+            disp = disp_class(disp._oleobj_)
         catch exn
-            if exn isa com_error(pythoncom)
+            if exn isa pythoncom.com_error
                 throw(
                     TypeError(
                         "This COM object can not automate the makepy process - please run makepy manually for this object",
@@ -667,7 +667,7 @@ function AddModuleToCache(
     #= Add a newly generated file to the cache dictionary. =#
     fname = GetGeneratedFileName(typelibclsid, lcid, major, minor)
     mod = _GetModule(fname)
-    _in_gencache_(mod) = 1
+    mod._in_gencache_ = 1
     info = (string(typelibclsid), lcid, major, minor)
     dict_modified = false
     function SetTypelibForAllClsids(dict)
@@ -675,16 +675,16 @@ function AddModuleToCache(
         # nonlocal dict_modified
         for (clsid, cls) in items(dict)
             if get(clsidToTypelib, clsid) != info
-                clsidToTypelib[clsid+1] = info
+                clsidToTypelib[clsid] = info
                 dict_modified = true
             end
         end
     end
 
-    SetTypelibForAllClsids(CLSIDToClassMap(mod))
-    SetTypelibForAllClsids(CLSIDToPackageMap(mod))
-    SetTypelibForAllClsids(VTablesToClassMap(mod))
-    SetTypelibForAllClsids(VTablesToPackageMap(mod))
+    SetTypelibForAllClsids(mod.CLSIDToClassMap)
+    SetTypelibForAllClsids(mod.CLSIDToPackageMap)
+    SetTypelibForAllClsids(mod.VTablesToClassMap)
+    SetTypelibForAllClsids(mod.VTablesToPackageMap)
     if info in versionRedirectMap
         #Delete Unsupported
         del(versionRedirectMap)
@@ -716,11 +716,11 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
                 if exn isa ValueError
                     continue
                 end
-                if exn isa com_error(pywintypes)
+                if exn isa pywintypes.com_error
                     continue
                 end
             end
-            infos[(iid, lcid, major, minor)+1] = 1
+            infos[(iid, lcid, major, minor)] = 1
         end
         close(zf)
         return collect(keys(infos))
@@ -742,7 +742,7 @@ function GetGeneratedInfos()::Union[Union[Union[list, List], list], List]
                 if exn isa ValueError
                     continue
                 end
-                if exn isa com_error(pywintypes)
+                if exn isa pywintypes.com_error
                     continue
                 end
             end
@@ -756,7 +756,7 @@ function _GetModule(fname)
     #= Given the name of a module in the gen_py directory, import and return it. =#
     mod_name = "win32com.gen_py.%s" % fname
     mod = __import__(mod_name)
-    return modules(sys)[mod_name+1]
+    return sys.modules[mod_name+1]
 end
 
 function Rebuild(verbose = 1)
@@ -790,11 +790,11 @@ function _Dump()
     println("Cache is in directory", win32com_.__gen_path__)
     d = Dict()
     for (clsid, (typelibCLSID, lcid, major, minor)) in items(clsidToTypelib)
-        d[(typelibCLSID, lcid, major, minor)+1] = nothing
+        d[(typelibCLSID, lcid, major, minor)] = nothing
     end
     for (typelibCLSID, lcid, major, minor) in keys(d)
         mod = GetModuleForTypelib(typelibCLSID, lcid, major, minor)
-        @printf("%s - %s", (__doc__(mod), typelibCLSID))
+        @printf("%s - %s", (mod.__doc__, typelibCLSID))
     end
 end
 

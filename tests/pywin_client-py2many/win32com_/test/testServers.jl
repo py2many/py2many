@@ -34,7 +34,7 @@ end
 
 function testInproc(self::InterpCase)
     interp =
-        Dispatch(win32com.client.dynamic, "Python.Interpreter", CLSCTX_INPROC(pythoncom))
+        Dispatch(win32com.client.dynamic, "Python.Interpreter", pythoncom.CLSCTX_INPROC)
     _testInterp(self, interp)
 end
 
@@ -42,7 +42,7 @@ function testLocalServer(self::InterpCase)
     interp = Dispatch(
         win32com.client.dynamic,
         "Python.Interpreter",
-        CLSCTX_LOCAL_SERVER(pythoncom),
+        pythoncom.CLSCTX_LOCAL_SERVER,
     )
     _testInterp(self, interp)
 end

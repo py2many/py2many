@@ -14,7 +14,7 @@ function is_interface_enum(enumtype)
 end
 
 function _write_enumifc_cpp(f, interface)
-    enumtype = name(interface)[6:end]
+    enumtype = interface.name[6:end]
     if is_interface_enum(enumtype)
         enum_interface = "I" + enumtype[begin:-1]
         converter =
@@ -34,7 +34,7 @@ function _write_enumifc_cpp(f, interface)
 end
 
 function _write_enumgw_cpp(f, interface)
-    enumtype = name(interface)[6:end]
+    enumtype = interface.name[6:end]
     if is_interface_enum(enumtype)
         enum_interface = "I" + enumtype[begin:-1]
         converter =

@@ -42,11 +42,11 @@ mutable struct HLIPythonObject <: AbstractHLIPythonObject
     end
 end
 function __lt__(self::HLIPythonObject, other)::Bool
-    return self.name < name(other)
+    return self.name < other.name
 end
 
 function __eq__(self::HLIPythonObject, other)::Bool
-    return self.name == name(other)
+    return self.name == other.name
 end
 
 function __repr__(self::HLIPythonObject)::String
@@ -248,7 +248,7 @@ end
 function GetSubList(self::HLIClass)::Vector
     ret = []
     for base in self.myobject.__bases__
-        push!(ret, MakeHLI(base, "Base class: " + __name__(base)))
+        push!(ret, MakeHLI(base, "Base class: " + base.__name__))
     end
     ret = append!(ret, GetSubList(HLIPythonObject))
     return ret
@@ -429,15 +429,15 @@ end
 
 TypeMap = Dict(
     type_ => HLIClass,
-    FunctionType(types) => HLIFunction,
+    types.FunctionType => HLIFunction,
     tuple => HLITuple,
     dict => HLIDict,
     list => HLIList,
-    ModuleType(types) => HLIModule,
-    CodeType(types) => HLICode,
-    BuiltinFunctionType(types) => HLIBuiltinFunction,
-    FrameType(types) => HLIFrame,
-    TracebackType(types) => HLITraceback,
+    types.ModuleType => HLIModule,
+    types.CodeType => HLICode,
+    types.BuiltinFunctionType => HLIBuiltinFunction,
+    types.FrameType => HLIFrame,
+    types.TracebackType => HLITraceback,
     str => HLIString,
     int => HLIPythonObject,
     bool => HLIPythonObject,
@@ -445,7 +445,7 @@ TypeMap = Dict(
 )
 function MakeHLI(ob, name = nothing)
     try
-        cls = TypeMap[type_(ob)+1]
+        cls = TypeMap[type_(ob)]
     catch exn
         if exn isa KeyError
             if hasattr(ob, "__class__")
@@ -470,7 +470,7 @@ mutable struct DialogShowObject <: AbstractDialogShowObject
 end
 function OnInitDialog(self::DialogShowObject)
     SetWindowText(self, self.title)
-    self.edit = GetDlgItem(self, IDC_EDIT1(win32ui))
+    self.edit = GetDlgItem(self, win32ui.IDC_EDIT1)
     try
         strval = string(self.object)
     catch exn
@@ -492,7 +492,7 @@ import win32con
 import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     cs::Any
-    dt::Vector{Vector{Union{Any,Tuple,String}}}
+    dt::Vector{Vector{Union{Any,String,Tuple}}}
     hier_list::Any
     style::Any
 
@@ -502,7 +502,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Any,Tuple,String}}} = [
+        dt::Vector{Vector{Union{Any,String,Tuple}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),
@@ -510,9 +510,9 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
                 nothing,
                 (8, "MS Sans Serif"),
             ],
-            ["SysTreeView32", nothing, IDC_LIST1(win32ui), (0, 0, 200, 200), cs],
+            ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs],
         ],
-        hier_list = HierListWithItems(hierlist, hli_root, IDB_BROWSER_HIER(win32ui)),
+        hier_list = HierListWithItems(hierlist, hli_root, win32ui.IDB_BROWSER_HIER),
         style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE,
     ) = begin
         dialog.Dialog.__init__(self, self.dt)
@@ -541,7 +541,7 @@ function on_size(self::dynamic_browser, params)
     lparam = params[4]
     w = LOWORD(win32api, lparam)
     h = HIWORD(win32api, lparam)
-    MoveWindow(GetDlgItem(self, IDC_LIST1(win32ui)), (0, 0, w, h))
+    MoveWindow(GetDlgItem(self, win32ui.IDC_LIST1), (0, 0, w, h))
 end
 
 function Browse(ob = __main__)
@@ -608,9 +608,9 @@ function OnInitialUpdate(self::BrowserView)
     rc = OnInitialUpdate(self._obj_)
     list = HierListWithItems(
         hierlist,
-        self.GetDocument().root,
-        IDB_BROWSER_HIER(win32ui),
-        AFX_IDW_PANE_FIRST(win32ui),
+        GetDocument(self).root,
+        win32ui.IDB_BROWSER_HIER,
+        win32ui.AFX_IDW_PANE_FIRST,
     )
     HierInit(list, GetParent(self))
     SetStyle(

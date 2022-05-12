@@ -73,16 +73,16 @@ function UnregisterTypelib()
     try
         UnRegisterTypeLib(
             pythoncom,
-            _typelib_guid_(k),
-            _typelib_version_(k)[1],
-            _typelib_version_(k)[2],
+            k._typelib_guid_,
+            k._typelib_version_[1],
+            k._typelib_version_[2],
             0,
-            SYS_WIN32(pythoncom),
+            pythoncom.SYS_WIN32,
         )
         println("Unregistered typelib")
     catch exn
         let details = exn
-            if details isa error(pythoncom)
+            if details isa pythoncom.error
                 if details[1] == winerror.TYPE_E_REGISTRYACCESS
                     #= pass =#
                 else

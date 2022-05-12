@@ -3,7 +3,7 @@ using PyCall
 win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
 
-coinit_flags(sys) = 2
+sys.coinit_flags = 2
 
 
 using win32com.server: factory

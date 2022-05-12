@@ -10,20 +10,20 @@ end
 function _CheckMatches(self::RegexTest, match, expected)
     found = []
     for imatch in match
-        push!(found, FirstIndex(imatch))
+        push!(found, imatch.FirstIndex)
     end
     assertEqual(self, collect(found), collect(expected))
 end
 
 function _TestVBScriptRegex(self::RegexTest, re)
     StringToSearch = "Python python pYthon Python"
-    Pattern(re) = "Python"
-    Global(re) = true
-    IgnoreCase(re) = true
+    re.Pattern = "Python"
+    re.Global = true
+    re.IgnoreCase = true
     match = Execute(re, StringToSearch)
     expected = (0, 7, 14, 21)
     _CheckMatches(self, match, expected)
-    IgnoreCase(re) = false
+    re.IgnoreCase = false
     match = Execute(re, StringToSearch)
     expected = (0, 21)
     _CheckMatches(self, match, expected)

@@ -39,7 +39,7 @@ function TestInterp(interp)
         throw(ValueError("The interpreter did not raise an exception"))
     catch exn
         let details = exn
-            if details isa com_error(pythoncom)
+            if details isa pythoncom.com_error
                 if details[1] != winerror.DISP_E_TYPEMISMATCH
                     throw(
                         ValueError(
@@ -63,10 +63,10 @@ end
 function CreateGIT()
     return CoCreateInstance(
         pythoncom,
-        CLSID_StdGlobalInterfaceTable(pythoncom),
+        pythoncom.CLSID_StdGlobalInterfaceTable,
         nothing,
-        CLSCTX_INPROC(pythoncom),
-        IID_IGlobalInterfaceTable(pythoncom),
+        pythoncom.CLSCTX_INPROC,
+        pythoncom.IID_IGlobalInterfaceTable,
     )
 end
 
@@ -75,7 +75,7 @@ function DoTestInterpInThread(cookie)
         CoInitialize(pythoncom)
         myThread = GetCurrentThreadId(win32api)
         GIT = CreateGIT()
-        interp = GetInterfaceFromGlobal(GIT, cookie, IID_IDispatch(pythoncom))
+        interp = GetInterfaceFromGlobal(GIT, cookie, pythoncom.IID_IDispatch)
         interp = Dispatch(win32com.client, interp)
         TestInterp(interp)
         Exec(interp, "import win32api")
@@ -110,7 +110,7 @@ function test(fn)
     @printf("The main thread is %d", GetCurrentThreadId(win32api))
     GIT = CreateGIT()
     interp = Dispatch(win32com.client, "Python.Interpreter")
-    cookie = RegisterInterfaceInGlobal(GIT, _oleobj_(interp), IID_IDispatch(pythoncom))
+    cookie = RegisterInterfaceInGlobal(GIT, interp._oleobj_, pythoncom.IID_IDispatch)
     events = fn(4, cookie)
     numFinished = 0
     while true

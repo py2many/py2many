@@ -32,8 +32,8 @@ the dictionary's keys. This allows for the following type of VB code:
     next
  =#
 using PyCall
-pythoncom = pyimport("pythoncom")
 pywintypes = pyimport("pywintypes")
+pythoncom = pyimport("pythoncom")
 using win32com.server.register: UseCommandLine
 
 using win32com.server: util, policy
@@ -58,8 +58,8 @@ mutable struct DictionaryPolicy <: AbstractDictionaryPolicy
         _obj_::Any,
         _com_interfaces_::Vector = [],
         _name_to_dispid_::Dict{String,Any} = Dict(
-            "item" => DISPID_VALUE(pythoncom),
-            "_newenum" => DISPID_NEWENUM(pythoncom),
+            "item" => pythoncom.DISPID_VALUE,
+            "_newenum" => pythoncom.DISPID_NEWENUM,
             "count" => 1,
         ),
         _reg_clsid_::String = "{39b61048-c755-11d0-86fa-00c04fc2e03e}",
@@ -144,7 +144,7 @@ function _invokeex_(
         end
         return length(self._obj_)
     end
-    if dispid == DISPID_NEWENUM(pythoncom)
+    if dispid == pythoncom.DISPID_NEWENUM
         return NewEnum(util, collect(keys(self._obj_)))
     end
     throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))

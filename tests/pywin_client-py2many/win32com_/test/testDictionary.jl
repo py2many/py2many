@@ -1,8 +1,8 @@
 module testDictionary
 using PyCall
+pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
 pythoncom = pyimport("pythoncom")
-pywintypes = pyimport("pywintypes")
 import win32com.servers.dictionary
 using win32com.test.util: RegisterPythonServer
 
@@ -58,7 +58,7 @@ function TestDict(quiet = nothing)
     del(checkDict)
     TestDictAgainst(dict, checkDict)
     now = now(win32timezone)
-    now = replace(now, round(microsecond(now) / 1000) * 1000)
+    now = replace(now, round(now.microsecond / 1000) * 1000)
     dict["Now"] = now
     checkDict["Now"] = now
     TestDictAgainst(dict, checkDict)
@@ -70,8 +70,8 @@ function TestDict(quiet = nothing)
         throw(Exception("default method with no args worked when it shouldnt have!"))
     catch exn
         let xxx_todo_changeme = exn
-            if xxx_todo_changeme isa com_error(pythoncom)
-                hr, desc, exc, argErr = args(xxx_todo_changeme)
+            if xxx_todo_changeme isa pythoncom.com_error
+                hr, desc, exc, argErr = xxx_todo_changeme.args
                 if hr != winerror.DISP_E_BADPARAMCOUNT
                     throw(
                         Exception(
@@ -87,8 +87,8 @@ function TestDict(quiet = nothing)
         throw(Exception("multiple args worked when it shouldnt have!"))
     catch exn
         let xxx_todo_changeme1 = exn
-            if xxx_todo_changeme1 isa com_error(pythoncom)
-                hr, desc, exc, argErr = args(xxx_todo_changeme1)
+            if xxx_todo_changeme1 isa pythoncom.com_error
+                hr, desc, exc, argErr = xxx_todo_changeme1.args
                 if hr != winerror.DISP_E_BADPARAMCOUNT
                     throw(
                         Exception(
@@ -104,8 +104,8 @@ function TestDict(quiet = nothing)
         throw(Exception("int key worked when it shouldnt have!"))
     catch exn
         let xxx_todo_changeme2 = exn
-            if xxx_todo_changeme2 isa com_error(pythoncom)
-                hr, desc, exc, argErr = args(xxx_todo_changeme2)
+            if xxx_todo_changeme2 isa pythoncom.com_error
+                hr, desc, exc, argErr = xxx_todo_changeme2.args
                 if hr != winerror.DISP_E_TYPEMISMATCH
                     throw(
                         Exception(

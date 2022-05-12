@@ -19,23 +19,22 @@ mutable struct TLBrowserException <: AbstractTLBrowserException
 end
 
 error = TLBrowserException
-FRAMEDLG_STD = WS_CAPTION(win32con) | WS_SYSMENU(win32con)
-SS_STD = WS_CHILD(win32con) | WS_VISIBLE(win32con)
-BS_STD = SS_STD | WS_TABSTOP(win32con)
-ES_STD = BS_STD | WS_BORDER(win32con)
+FRAMEDLG_STD = win32con.WS_CAPTION | win32con.WS_SYSMENU
+SS_STD = win32con.WS_CHILD | win32con.WS_VISIBLE
+BS_STD = SS_STD | win32con.WS_TABSTOP
+ES_STD = BS_STD | win32con.WS_BORDER
 LBS_STD =
-    ((ES_STD | LBS_NOTIFY(win32con)) | LBS_NOINTEGRALHEIGHT(win32con)) |
-    WS_VSCROLL(win32con)
-CBS_STD = (ES_STD | CBS_NOINTEGRALHEIGHT(win32con)) | WS_VSCROLL(win32con)
+    ((ES_STD | win32con.LBS_NOTIFY) | win32con.LBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
+CBS_STD = (ES_STD | win32con.CBS_NOINTEGRALHEIGHT) | win32con.WS_VSCROLL
 typekindmap = Dict(
-    TKIND_ENUM(pythoncom) => "Enumeration",
-    TKIND_RECORD(pythoncom) => "Record",
-    TKIND_MODULE(pythoncom) => "Module",
-    TKIND_INTERFACE(pythoncom) => "Interface",
-    TKIND_DISPATCH(pythoncom) => "Dispatch",
-    TKIND_COCLASS(pythoncom) => "CoClass",
-    TKIND_ALIAS(pythoncom) => "Alias",
-    TKIND_UNION(pythoncom) => "Union",
+    pythoncom.TKIND_ENUM => "Enumeration",
+    pythoncom.TKIND_RECORD => "Record",
+    pythoncom.TKIND_MODULE => "Module",
+    pythoncom.TKIND_INTERFACE => "Interface",
+    pythoncom.TKIND_DISPATCH => "Dispatch",
+    pythoncom.TKIND_COCLASS => "CoClass",
+    pythoncom.TKIND_ALIAS => "Alias",
+    pythoncom.TKIND_UNION => "Union",
 )
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
@@ -88,24 +87,24 @@ end
 
 function _SetupMenu(self::TypeBrowseDialog)
     menu = CreateMenu(win32ui)
-    flags = MF_STRING(win32con) | MF_ENABLED(win32con)
-    AppendMenu(menu, flags, ID_FILE_OPEN(win32ui), "&Open...")
-    AppendMenu(menu, flags, IDCANCEL(win32con), "&Close")
+    flags = win32con.MF_STRING | win32con.MF_ENABLED
+    AppendMenu(menu, flags, win32ui.ID_FILE_OPEN, "&Open...")
+    AppendMenu(menu, flags, win32con.IDCANCEL, "&Close")
     mainMenu = CreateMenu(win32ui)
-    AppendMenu(mainMenu, flags | MF_POPUP(win32con), GetHandle(menu), "&File")
+    AppendMenu(mainMenu, flags | win32con.MF_POPUP, GetHandle(menu), "&File")
     SetMenu(self, mainMenu)
-    HookCommand(self, self.OnFileOpen, ID_FILE_OPEN(win32ui))
+    HookCommand(self, self.OnFileOpen, win32ui.ID_FILE_OPEN)
 end
 
 function OnFileOpen(self::TypeBrowseDialog, id, code)
-    openFlags = OFN_OVERWRITEPROMPT(win32con) | OFN_FILEMUSTEXIST(win32con)
+    openFlags = win32con.OFN_OVERWRITEPROMPT | win32con.OFN_FILEMUSTEXIST
     fspec = "Type Libraries (*.tlb, *.olb)|*.tlb;*.olb|OCX Files (*.ocx)|*.ocx|DLL\'s (*.dll)|*.dll|All Files (*.*)|*.*||"
     dlg = CreateFileDialog(win32ui, 1, nothing, nothing, openFlags, fspec)
-    if DoModal(dlg) == IDOK(win32con)
+    if DoModal(dlg) == win32con.IDOK
         try
             self.tlb = LoadTypeLib(pythoncom, GetPathName(dlg))
         catch exn
-            if exn isa ole_error(pythoncom)
+            if exn isa pythoncom.ole_error
                 MessageBox(self, "The file does not contain type information")
                 self.tlb = nothing
             end
@@ -193,7 +192,7 @@ function _GetMainInfoTypes(self::TypeBrowseDialog)::Vector
         desc =
             desc +
             (", Flags=0x%x, typeKind=0x%x, typeFlags=0x%x" % (flags, typeKind, typeFlags))
-        if flags & IMPLTYPEFLAG_FSOURCE(pythoncom)
+        if flags & pythoncom.IMPLTYPEFLAG_FSOURCE
             desc = desc * "(Source)"
         end
         push!(infos, ("Implements", desc))
@@ -222,7 +221,7 @@ function _GetMethodInfoTypes(self::TypeBrowseDialog)::Vector
 end
 
 function CmdTypeListbox(self::TypeBrowseDialog, id, code)::Int64
-    if code == LBN_SELCHANGE(win32con)
+    if code == win32con.LBN_SELCHANGE
         pos = GetCurSel(self.typelb)
         if pos >= 0
             ResetContent(self.memberlb)
@@ -254,7 +253,7 @@ function _GetRealMemberPos(self::TypeBrowseDialog, pos)::Tuple
 end
 
 function CmdMemberListbox(self::TypeBrowseDialog, id, code)::Int64
-    if code == LBN_SELCHANGE(win32con)
+    if code == win32con.LBN_SELCHANGE
         ResetContent(self.paramlb)
         pos = GetCurSel(self.memberlb)
         realPos, isMethod = _GetRealMemberPos(self, pos)
@@ -277,22 +276,22 @@ function GetTemplate(self::TypeBrowseDialog)
     w = 272
     h = 192
     style =
-        ((FRAMEDLG_STD | WS_VISIBLE(win32con)) | DS_SETFONT(win32con)) |
-        WS_MINIMIZEBOX(win32con)
+        ((FRAMEDLG_STD | win32con.WS_VISIBLE) | win32con.DS_SETFONT) |
+        win32con.WS_MINIMIZEBOX
     template = [["Type Library Browser", (0, 0, w, h), style, nothing, (8, "Helv")]]
-    append(template, [130, "&Type", -1, (10, 10, 62, 9), SS_STD | SS_LEFT(win32con)])
+    append(template, [130, "&Type", -1, (10, 10, 62, 9), SS_STD | win32con.SS_LEFT])
     append(template, [131, nothing, self.IDC_TYPELIST, (10, 20, 80, 80), LBS_STD])
-    append(template, [130, "&Members", -1, (100, 10, 62, 9), SS_STD | SS_LEFT(win32con)])
+    append(template, [130, "&Members", -1, (100, 10, 62, 9), SS_STD | win32con.SS_LEFT])
     append(template, [131, nothing, self.IDC_MEMBERLIST, (100, 20, 80, 80), LBS_STD])
-    append(template, [130, "&Parameters", -1, (190, 10, 62, 9), SS_STD | SS_LEFT(win32con)])
+    append(template, [130, "&Parameters", -1, (190, 10, 62, 9), SS_STD | win32con.SS_LEFT])
     append(template, [131, nothing, self.IDC_PARAMLIST, (190, 20, 75, 80), LBS_STD])
     lvStyle =
         (
             (
                 ((SS_STD | commctrl.LVS_REPORT) | commctrl.LVS_AUTOARRANGE) |
                 commctrl.LVS_ALIGNLEFT
-            ) | WS_BORDER(win32con)
-        ) | WS_TABSTOP(win32con)
+            ) | win32con.WS_BORDER
+        ) | win32con.WS_TABSTOP
     append(template, ["SysListView32", "", self.IDC_LISTVIEW, (10, 110, 255, 65), lvStyle])
     return template
 end
