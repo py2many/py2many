@@ -3,7 +3,6 @@ using PyCall
 pythoncom = pyimport("pythoncom")
 import win32com.client.build
 
-
 using win32com.client: gencache
 abstract type AbstractArg end
 abstract type AbstractMethod end
@@ -123,41 +122,22 @@ function _CalcTypeSize(typeTuple)
 end
 
 mutable struct Arg <: AbstractArg
-    name::Any
+    name
+    size
     offset::Int64
-    size::Any
-
-    Arg(name::Any, offset::Int64 = 0, size::Any = _CalcTypeSize(arg_info)) =
-        new(name, offset, size)
 end
 
 mutable struct Method <: AbstractMethod
-    _gw_in_args::Tuple
-    _gw_out_args::Tuple
-    arg_defs::Any
+    _gw_in_args
+    _gw_out_args
     args::Vector
     cbArgs::Int64
-    dispid::Any
-    invkind::Any
+    dispid
+    invkind
+    name
     isEventSink::Int64
-    name::Any
-    names::Any
-    ret_def::Any
 
-    Method(
-        method_info,
-        isEventSink = 0,
-        _gw_in_args::Tuple = _GenerateInArgTuple(self),
-        _gw_out_args::Tuple = _GenerateOutArgTuple(self),
-        arg_defs = desc[3],
-        args::Vector = [],
-        cbArgs::Int64 = cbArgs,
-        dispid = dispid,
-        invkind = invkind,
-        name = name,
-        names = all_names[2:end],
-        ret_def = desc[9],
-    ) = begin
+    Method(method_info, isEventSink = 0) = begin
         if isEventSink && name[begin:2] != "On"
             name = "On%s" % name
         end
@@ -167,20 +147,7 @@ mutable struct Method <: AbstractMethod
             cbArgs = cbArgs + arg.size
             self.args.append(arg)
         end
-        new(
-            method_info,
-            isEventSink,
-            _gw_in_args,
-            _gw_out_args,
-            arg_defs,
-            args,
-            cbArgs,
-            dispid,
-            invkind,
-            name,
-            names,
-            ret_def,
-        )
+        new(method_info, isEventSink)
     end
 end
 function _GenerateInArgTuple(self::Method)::Tuple
@@ -206,23 +173,16 @@ function _GenerateOutArgTuple(self::Method)::Tuple
 end
 
 mutable struct Definition <: AbstractDefinition
-    _iid::Any
-    _is_dispatch::Any
+    _iid
     _methods::Vector
+    _is_dispatch
 
-    Definition(
-        iid,
-        is_dispatch,
-        method_defs,
-        _iid = iid,
-        _is_dispatch = is_dispatch,
-        _methods::Vector = [],
-    ) = begin
+    Definition(iid, is_dispatch, method_defs) = begin
         for info in method_defs
             entry = Method(info)
             self._methods.append(entry)
         end
-        new(iid, is_dispatch, method_defs, _iid, _is_dispatch, _methods)
+        new(iid, is_dispatch, method_defs)
     end
 end
 function iid(self::Definition)::Definition

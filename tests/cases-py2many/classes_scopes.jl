@@ -4,7 +4,6 @@ function func()::String
 end
 
 mutable struct TestClass <: AbstractTestClass
-
 end
 function func(self::TestClass)::String
     return "test2"

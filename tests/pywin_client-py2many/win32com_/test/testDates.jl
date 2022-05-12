@@ -1,9 +1,7 @@
 module testDates
 using PyCall
-pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
-
-
+pywintypes = pyimport("pywintypes")
 
 import win32com.client
 import win32com.test.util
@@ -26,7 +24,6 @@ function test_ob()
 end
 
 mutable struct TestCase <: AbstractTestCase
-
 end
 function check(self::TestCase, d, expected = nothing)
     if !pywintypes.TimeType <: datetime
@@ -53,7 +50,6 @@ function testMSTruncated(self::TestCase)
 end
 
 function main()
-
 end
 
 main()

@@ -1,7 +1,5 @@
 using Distributed
 
-
-
 function init(arg)
     global seq
     seq = arg

@@ -4,8 +4,6 @@ win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
 import win32com.gen_py
 
-
-
 _frozen = getattr(sys, "frozen", 1 == 0)
 if _frozen && !getattr(pythoncom, "frozen", 0)
     pythoncom.frozen = sys.frozen

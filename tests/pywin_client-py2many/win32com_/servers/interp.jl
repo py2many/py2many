@@ -17,30 +17,30 @@ import winerror
 abstract type AbstractInterpreter end
 mutable struct Interpreter <: AbstractInterpreter
     #= The interpreter object exposed via COM =#
+    dict::Dict
     _public_methods_::Vector{String}
     _reg_class_spec_::String
     _reg_clsid_::String
     _reg_desc_::String
     _reg_progid_::String
     _reg_verprogid_::String
-    dict::Dict
 
     Interpreter(
+        dict::Dict,
         _public_methods_::Vector{String} = ["Exec", "Eval"],
         _reg_class_spec_::String = "win32com.servers.interp.Interpreter",
         _reg_clsid_::String = "{30BD3490-2632-11cf-AD5B-524153480001}",
         _reg_desc_::String = "Python Interpreter",
         _reg_progid_::String = "Python.Interpreter",
         _reg_verprogid_::String = "Python.Interpreter.2",
-        dict::Dict = Dict(),
     ) = new(
+        dict,
         _public_methods_,
         _reg_class_spec_,
         _reg_clsid_,
         _reg_desc_,
         _reg_progid_,
         _reg_verprogid_,
-        dict,
     )
 end
 function Eval(self::Interpreter, exp)

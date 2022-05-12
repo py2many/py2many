@@ -1,14 +1,12 @@
 using Distributed
 
-
-
 function make_tree(depth::Int64)::Tuple
     #=  Trees or tuples, final leaves have None as values.  =#
     return depth == 0 ? ((nothing, nothing)) :
            ((make_tree(depth - 1), make_tree(depth - 1)))
 end
 
-function check_node(left::Union{Tuple,Any}, right::Union{Tuple,Any})::Int64
+function check_node(left::Union{Tuple, Any}, right::Union{Tuple, Any})::Int64
     #= 
         Count 1 for each node found.
         (Unpacking directly in the parameters is faster)

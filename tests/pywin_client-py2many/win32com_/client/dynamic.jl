@@ -23,10 +23,6 @@ pythoncom = pyimport("pythoncom")
 include("win32com_/client/util.jl")
 import util
 
-
-
-
-
 include("build.jl")
 include("win32com_/ext_modules/winerror.jl")
 import winerror as winerror
@@ -52,7 +48,6 @@ ALL_INVOKE_TYPES = [
 function debug_print()
     if debugging != 0
         for arg in args
-
         end
         println()
     end
@@ -61,7 +56,6 @@ end
 function debug_attr_print()
     if debugging_attr != 0
         for arg in args
-
         end
         println()
     end
@@ -201,17 +195,17 @@ function DumbDispatch(
 end
 
 mutable struct CDispatch <: AbstractCDispatch
-    ob::Any
-    _olerepr_::Any
-    _username_::Any
-    Properties_::Any
-    _oleobj_::Any
-    __dict__::Any
-    _mapCachedItems_::Any
-    _enum_::Any
-    _lazydata_::Any
-    _builtMethods_::Any
-    __class__::Any
+    ob
+    _olerepr_
+    _username_
+    Properties_
+    _oleobj_
+    __dict__
+    _mapCachedItems_
+    _enum_
+    _lazydata_
+    _builtMethods_
+    __class__
 
     CDispatch(
         IDispatch,
@@ -653,7 +647,7 @@ function __getattr__(self::CDispatch, attr)::Tuple
             end
         end
         mutable struct Factory <: AbstractFactory
-            ob::Any
+            ob
         end
         function __call__(self::Factory)::Factory
             return Iterator(util, self.ob)

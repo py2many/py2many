@@ -193,8 +193,6 @@ class JuliaTranspiler(CLikeTranspiler):
         for i in range(len_args):
             arg = args[i]
             arg_typename = typenames[i]
-            if arg_typename == self._default_type:
-                arg_typename = None
 
             if arg_typename and arg_typename != "T":
                 arg_typename = super()._map_type(arg_typename)
@@ -212,7 +210,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 default = self.visit(default)
 
             arg_signature = ""
-            if arg_typename:
+            if arg_typename and arg_typename != self._default_type:
                 arg_signature = f"{arg}::{arg_typename}" if default is None else f"{arg}::{arg_typename} = {default}"
             else:
                 arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
@@ -508,7 +506,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 typename = f"Abstract{typename}"
 
             decs.append(declaration)
-            fields_str.append(declaration if not typename else f"{declaration}::{typename}")
+            fields_str.append(declaration 
+                if (not typename or (typename and typename == self._default_type)) 
+                else f"{declaration}::{typename}")
             
             # Default field values
             fields.append((declaration, typename, default))
@@ -519,7 +519,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 default_fields = []
                 for (declaration, typename, default) in fields:
                     field = []
-                    if typename:
+                    if typename and typename != self._default_type:
                         field.append(f"{declaration}::{typename}")
                     else:
                         field.append(declaration)
@@ -541,10 +541,13 @@ class JuliaTranspiler(CLikeTranspiler):
             arg_ids = [arg.arg for arg in args.args]
             for (declaration, typename, default) in fields:
                 if default and declaration not in arg_ids:
-                    args.args.append(ast.arg(
+                    arg = ast.arg(
                         arg = declaration,
-                        annotation = ast.Name(id=typename),
-                    ))
+                    )
+                    if typename and typename != self._default_type:
+                        arg.annotation = ast.Name(id=typename)
+                    args.args.append(arg)
+
                     args.defaults.append(default)
             node.constructor_str = self.visit(node.constructor)
 
@@ -836,19 +839,27 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Delete(self, node: ast.Delete) -> str:
         del_targets = []
         for t in node.targets:
+            # Get node name
             node_name = self.visit(t)
             if isinstance(t, ast.Subscript):
                 node_name = self.visit(t.value)
 
-            n_val = node.scopes.find(node_name)
-            if type_ann := getattr(n_val, "annotation", None):
-                ann_str = self.visit(type_ann)
-                if isinstance(t, ast.Subscript) and re.match(r"Dict{\S*}", ann_str):
-                    del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
-                if re.match(r"Vector{\S*}", ann_str) or re.match(r"Dict{\S*}", ann_str):
-                    del_targets.append(f"empty!({node_name})")
+            type_ann = None
+            if t_ann := getattr(t, "annotation", None):
+                type_ann = t_ann
+            elif n_ann := getattr(node.scopes.find(node_name), "annotation", None):
+                type_ann = n_ann
+            if isinstance(t, ast.Subscript):
+                node_name = self.visit(t.value)
 
-            del_targets.append(f"#Delete Unsupported\ndel({node_name})")
+            if type_ann and (ann_str := self.visit(type_ann)):
+                if ann_str.startswith("Dict"):
+                    del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
+                elif ann_str.startswith("Vector") or ann_str.startswith("Array"):
+                    del_targets.append(f"empty!({node_name})")
+            
+        if not del_targets:
+            del_targets.extend(["#Delete Unsupported", f"del({node_name})"])
         
         return "\n".join(del_targets)
 

@@ -6,13 +6,9 @@ pythoncom = pyimport("pythoncom")
 import win32com.servers.dictionary
 using win32com.test.util: RegisterPythonServer
 
-
-
 import win32com.server.util
 import win32com.test.util
 import win32com.client
-
-
 
 import winerror
 import win32timezone
@@ -122,14 +118,12 @@ function TestDict(quiet = nothing)
 end
 
 mutable struct TestCase <: AbstractTestCase
-
 end
 function testDict(self::TestCase)
     TestDict()
 end
 
 function main()
-
 end
 
 main()

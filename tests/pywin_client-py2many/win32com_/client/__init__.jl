@@ -7,8 +7,6 @@ import gencache
 include("win32com_/ext_modules/winerror.jl")
 import winerror as winerror
 
-
-
 include("dynamic.jl")
 include("gencache.jl")
 _PyIDispatchType = pythoncom.TypeIIDs[pythoncom.IID_IDispatch+1]
@@ -235,8 +233,6 @@ end
 mutable struct Constants <: AbstractConstants
     #= A container for generated COM constants. =#
     __dicts__::Vector
-
-    Constants(__dicts__::Vector = []) = new(__dicts__)
 end
 function __getattr__(self::Constants, a)
     for d in self.__dicts__
@@ -259,10 +255,7 @@ function _event_setattr_(self, attr, val)
 end
 
 mutable struct EventsProxy <: AbstractEventsProxy
-    _obj_::Any
-    __dict__::Any
-
-    EventsProxy(_obj_::Any, __dict__::Any = ob) = new(_obj_, __dict__)
+    _obj_
 end
 function __del__(self::EventsProxy)
     try
@@ -531,13 +524,13 @@ function Record(name, object)
 end
 
 mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
-    Properties_::Any
-    __class__::Any
-    _oleobj_::Any
-    __dict__::Any
-    oobj::Any
+    Properties_
+    __class__
+    __dict__
+    _oleobj_
+    oobj
 
-    DispatchBaseClass(oobj = nothing, __dict__ = oobj) = begin
+    DispatchBaseClass(oobj = nothing) = begin
         if oobj === nothing
             oobj = pythoncom.new(self.CLSID)
         elseif isa(oobj, DispatchBaseClass)
@@ -554,7 +547,7 @@ mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
                 end
             end
         end
-        new(oobj, __dict__)
+        new(oobj)
     end
 end
 function __dir__(self::DispatchBaseClass)::Vector
@@ -683,12 +676,11 @@ function _get_good_object_(obj, obUserName = nothing, resultCLSID = nothing)::Tu
 end
 
 mutable struct CoClassBaseClass <: AbstractCoClassBaseClass
-    __class__::Any
-    __dict__::Any
-    dispobj::Any
-    oobj::Any
+    __class__
+    __dict__
+    oobj
 
-    CoClassBaseClass(oobj = nothing, dispobj = default_interface(self, oobj)) = begin
+    CoClassBaseClass(oobj = nothing) = begin
         if oobj === nothing
             oobj = pythoncom.new(self.CLSID)
         end
@@ -698,7 +690,7 @@ mutable struct CoClassBaseClass <: AbstractCoClassBaseClass
                 setattr(self, maybe, getattr(self, "__maybe" * maybe))
             end
         end
-        new(oobj, dispobj)
+        new(oobj)
     end
 end
 function __repr__(self::CoClassBaseClass)
@@ -757,15 +749,12 @@ function __maybe__nonzero__(self::CoClassBaseClass)
 end
 
 mutable struct VARIANT <: AbstractVARIANT
-    _value::Any
-    value::Any
-    varianttype::Any
+    _value
+    varianttype
+    value
 
-    VARIANT(
-        _value::Any = value,
-        value::Any = property(_get_value, _set_value, _del_value),
-        varianttype::Any = vt,
-    ) = new(_value, value, varianttype)
+    VARIANT(_value, varianttype, value = property(_get_value, _set_value, _del_value)) =
+        new(_value, varianttype, value)
 end
 function _get_value(self::VARIANT)::VARIANT
     return self._value

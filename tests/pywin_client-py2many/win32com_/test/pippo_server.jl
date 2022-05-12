@@ -5,7 +5,6 @@ pythoncom = pyimport("pythoncom")
 using distutils.dep_util: newer
 import win32com.server.register
 
-
 import win32com
 import winerror
 using win32com.server.util: wrap
@@ -20,7 +19,7 @@ mutable struct CPippo <: AbstractCPippo
     _typelib_version_::Tuple
 
     CPippo(
-        MyProp1::Int64 = 10,
+        MyProp1::Int64,
         _com_interfaces_::Vector{String} = ["IPippo"],
         _reg_clsid_::String = "{1F0F75D6-BD63-41B9-9F88-2D9D2E1AA5C3}",
         _reg_desc_::String = "Pippo Python test object",

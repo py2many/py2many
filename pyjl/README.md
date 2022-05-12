@@ -251,6 +251,9 @@ Currently there are some errors after merging. One possible alternative is to us
 ### `TYPPETE`
 Typpete only supports Python up to version 3.7.
 
+## Code Formatting
+For code formatting, PyJL uses JuliaFormatter.jl. If you want to specify your own formatting options, you need to create a `.JuliaFormatter.toml` file. A sample file is provided in the `pyjl/formatter` folder. You need to place this file in the same directory (or any parent directory) you are transpiling. You can find more instructions [here](https://github.com/domluna/JuliaFormatter.jl).
+
 #
 ## Keywords
 - PLR - Python Language Reference (Based on version 3.9.7)

@@ -12,19 +12,18 @@ abstract type AbstractError <: AbstractException end
 abstract type AbstractPythonSemanticClass end
 abstract type AbstractTester <: Abstractwin32com.test.util.TestCase end
 mutable struct Error <: AbstractError
-
 end
 
 mutable struct PythonSemanticClass <: AbstractPythonSemanticClass
-    _dispid_to_func_::Dict{Int64,String}
-    _public_methods_::Vector{String}
     list::Vector
+    _dispid_to_func_::Dict{Int64, String}
+    _public_methods_::Vector{String}
 
     PythonSemanticClass(
-        _dispid_to_func_::Dict{Int64,String} = Dict(10 => "Add", 11 => "Remove"),
+        list::Vector,
+        _dispid_to_func_::Dict{Int64, String} = Dict(10 => "Add", 11 => "Remove"),
         _public_methods_::Vector{String} = ["In"],
-        list::Vector = [],
-    ) = new(_dispid_to_func_, _public_methods_, list)
+    ) = new(list, _dispid_to_func_, _public_methods_)
 end
 function _NewEnum(self::PythonSemanticClass)
     return NewEnum(win32com.server.util, self.list)
@@ -101,7 +100,7 @@ function SemanticTest(ob)
 end
 
 mutable struct Tester <: AbstractTester
-    ob::Any
+    ob
 end
 function setUp(self::Tester)
     debug = 0
@@ -128,7 +127,6 @@ function testIDispatchEx(self::Tester)
 end
 
 function main()
-
 end
 
 main()

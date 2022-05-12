@@ -198,11 +198,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return f"{node.id}_"
         
         return super().visit_Name(node)
-    
-    def visit_Constant(self, node) -> str:
-        if node.value in self._julia_keywords:
-            return f"{node.value}_"
-        return super().visit_Constant(node)
 
     def visit_arg(self, node):
         id = get_id(node)

@@ -3,7 +3,6 @@
 using JuliaFormatter
 
 function format_files(dir)
-    options = []
     JuliaFormatter.format(dir)
 end
 

@@ -4,7 +4,6 @@ win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
 using win32com.client: gencache
 
-
 import win32com.client.dynamic
 using win32com.client: Dispatch
 
@@ -12,13 +11,11 @@ import win32con
 import winerror
 import glob
 
-
 using win32com.test.util: CheckClean
 abstract type AbstractExplorerEvents end
 bVisibleEventFired = 0
 HRESULTS_IN_AUTOMATION = [-2125463506, winerror.MK_E_UNAVAILABLE]
 mutable struct ExplorerEvents <: AbstractExplorerEvents
-
 end
 function OnVisible(self::ExplorerEvents, visible)
     global bVisibleEventFired

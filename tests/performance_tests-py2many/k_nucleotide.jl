@@ -1,9 +1,5 @@
 using Distributed
 
-
-
-
-
 abstract type Abstractlean_call end
 lean_buffer = Dict()
 function lean_args(sequence, reading_frames, i, j)::Tuple
@@ -14,7 +10,7 @@ function lean_args(sequence, reading_frames, i, j)::Tuple
 end
 
 mutable struct lean_call <: Abstractlean_call
-    func::Any
+    func
 end
 function __call__(self::lean_call, lean_key, reading_frames, i, j)::Vector
     global lean_buffer

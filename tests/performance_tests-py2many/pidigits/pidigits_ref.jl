@@ -36,7 +36,6 @@ function pidigits(N::Int)
                 a -= d * t
                 a *= 10
                 n *= 10
-
             end
         end
     end

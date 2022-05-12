@@ -11,7 +11,7 @@ automatically calls this.
 # INTERNAL FUNCTIONS
 #
 #
-import string
+import win32com_.ext_modules.string as string
 
 
 def is_interface_enum(enumtype):

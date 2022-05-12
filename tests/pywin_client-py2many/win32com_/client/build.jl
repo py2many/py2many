@@ -15,9 +15,8 @@ pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
 pythoncom = pyimport("pythoncom")
 
-import string
-
-
+include("win32com_/ext_modules/string.jl")
+import string as string
 
 include("win32com_/ext_modules/keyword.jl")
 using win32com_.ext_modules.keyword: iskeyword
@@ -38,7 +37,6 @@ end
 
 error = "PythonCOM.Client.Build error"
 mutable struct NotSupportedException <: AbstractNotSupportedException
-
 end
 
 DropIndirection = "DropIndirection"
@@ -75,13 +73,15 @@ for v in NoTranslateTypes
 end
 mutable struct MapEntry <: AbstractMapEntry
     #= Simple holder for named attibutes - items in a map. =#
-    doc::Any
-    hidden::Any
-    names::Any
-    resultCLSID::Any
-    resultDoc::Any
-    resultDocumentation::Any
+    desc
+    dispid
+    doc
+    hidden
+    names
+    resultCLSID
+    resultDocumentation
     wasProperty::Int64
+    resultDoc
 
     MapEntry(
         desc_or_id,
@@ -90,26 +90,15 @@ mutable struct MapEntry <: AbstractMapEntry
         resultCLSID = pythoncom.IID_NULL,
         resultDoc = nothing,
         hidden = 0,
-        resultDocumentation = resultDoc,
-        wasProperty::Int64 = 0,
     ) = begin
         if type_(desc_or_id) == type_(0)
-            self.dispid = desc_or_id
+            dispid = desc_or_id
             self.desc = nothing
         else
             self.dispid = desc_or_id[0]
             self.desc = desc_or_id
         end
-        new(
-            desc_or_id,
-            names,
-            doc,
-            resultCLSID,
-            resultDoc,
-            hidden,
-            resultDocumentation,
-            wasProperty,
-        )
+        new(desc_or_id, names, doc, resultCLSID, resultDoc, hidden)
     end
 end
 function __repr__(self::MapEntry)
@@ -140,45 +129,38 @@ function GetResultName(self::MapEntry)
 end
 
 mutable struct OleItem <: AbstractOleItem
-    doc::Any
     bIsDispatch::Int64
     bIsSink::Int64
     bWritten::Int64
-    clsid::Any
-    co_class::Any
+    clsid
+    co_class
+    doc
+    python_name
     typename::String
 
-    OleItem(
-        doc = nothing,
-        bIsDispatch::Int64 = 0,
-        bIsSink::Int64 = 0,
-        bWritten::Int64 = 0,
-        clsid = nothing,
-        co_class = nothing,
-        typename::String = "OleItem",
-    ) = begin
+    OleItem(doc = nothing, typename::String = "OleItem") = begin
         if self.doc
             self.python_name = MakePublicAttributeName(self.doc[0])
         else
             self.python_name = nothing
         end
-        new(doc, bIsDispatch, bIsSink, bWritten, clsid, co_class, typename)
+        new(doc, typename)
     end
 end
 
 mutable struct DispatchItem <: AbstractDispatchItem
-    bIsDispatch::Any
-    clsid::Any
-    attr::Any
-    bForUser::Int64
-    defaultDispatchName::Any
-    doc::Any
+    bIsDispatch::Bool
+    clsid
+    defaultDispatchName
     hidden::Int64
     mapFuncs::Dict
     propMap::Dict
     propMapGet::Dict
     propMapPut::Dict
-    typeinfo::Any
+    attr
+    bForUser::Int64
+    doc
+    typeinfo
     typename::String
 
     DispatchItem(
@@ -186,31 +168,13 @@ mutable struct DispatchItem <: AbstractDispatchItem
         attr = nothing,
         doc = nothing,
         bForUser = 1,
-        defaultDispatchName = nothing,
-        hidden::Int64 = 0,
-        mapFuncs::Dict = Dict(),
-        propMap::Dict = Dict(),
-        propMapGet::Dict = Dict(),
-        propMapPut::Dict = Dict(),
         typename::String = "DispatchItem",
     ) = begin
         OleItem.__init__(self, doc)
         if typeinfo
             self.Build(typeinfo, attr, bForUser)
         end
-        new(
-            typeinfo,
-            attr,
-            doc,
-            bForUser,
-            defaultDispatchName,
-            hidden,
-            mapFuncs,
-            propMap,
-            propMapGet,
-            propMapPut,
-            typename,
-        )
+        new(typeinfo, attr, doc, bForUser, typename)
     end
 end
 function _propMapPutCheck_(self::DispatchItem, key, item)
@@ -558,7 +522,7 @@ function MakeVarArgsFuncMethod(self::DispatchItem, entry, name, bMakeClass = 1):
 end
 
 mutable struct VTableItem <: AbstractVTableItem
-    vtableFuncs::Any
+    vtableFuncs::Vector
 end
 function Build(self::VTableItem, typeinfo, attr, bForUser = 1)
     Build(DispatchItem, self, typeinfo, attr)
@@ -575,14 +539,13 @@ function Build(self::VTableItem, typeinfo, attr, bForUser = 1)
 end
 
 mutable struct LazyDispatchItem <: AbstractLazyDispatchItem
-    clsid::Any
+    clsid
     typename::String
 
-    LazyDispatchItem(attr, doc, clsid = attr[1], typename::String = "LazyDispatchItem") =
-        begin
-            DispatchItem.__init__(self, nothing, attr, doc, 0)
-            new(attr, doc, clsid, typename)
-        end
+    LazyDispatchItem(attr, doc, typename::String = "LazyDispatchItem") = begin
+        DispatchItem.__init__(self, nothing, attr, doc, 0)
+        new(attr, doc, typename)
+    end
 end
 
 typeSubstMap = Dict(

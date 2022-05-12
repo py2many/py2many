@@ -30,6 +30,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         self._modules = getattr(node, "__files__", [])
         self._path = getattr(node, "__path__", ".")
+        self._use_modules = getattr(node, "use_modules", False)
         self.generic_visit(node)
         return node
 
@@ -80,8 +81,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if value_id and value_id not in sys.builtin_module_names \
                 and value_id not in self._ignored_module_set \
                 and (is_enum(value_id, node.scopes) or
-                    is_class_or_module(value_id, node.scopes) or
-                    is_class_type(value_id, node.scopes) or
+                    ((is_class_or_module(value_id, node.scopes) or
+                    is_class_type(value_id, node.scopes))
+                    and self._use_modules) or
                     value_id.startswith("self")):
             return node
 
@@ -273,6 +275,36 @@ class JuliaClassRewriter(ast.NodeTransformer):
         node.body = body
 
         return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        if self._is_self(node.targets[0]):
+            annotation = getattr(node.value, "annotation", None)
+            if not annotation:
+                annotation = ast.Constant(value="Any")
+            for target in node.targets:
+                target_id = self._id(target)
+                if target_id not in self._class_fields:
+                    self._class_fields[target_id] = ast.AnnAssign(
+                        target=ast.Name(id=target_id),
+                        annotation = annotation,
+                        lineno=1)
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        if self._is_self(node.target):
+            target_id = self._id(node.target)
+            if target_id not in self._class_fields:
+                self._class_fields[target_id] = ast.AnnAssign(
+                        target=ast.Name(id=target_id),
+                        annotation = node.annotation,
+                        lineno=1)
+        return node
+
+    def _is_self(self, node):
+        return isinstance(node, ast.Attribute) and get_id(node.value) == "self"
+
+    def _id(self, node):
+        return node.attr if isinstance(node, ast.Attribute) else get_id(node)
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
@@ -770,7 +802,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
             ann = getattr(val_node, "annotation", None)
             if isinstance(ann, ast.Subscript):
                 ann = ann.value
-        
+
         # Parse ann
         if id := get_id(ann):
             ann = id

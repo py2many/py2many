@@ -1,4 +1,6 @@
 import ast
+
+from py2many.ast_helpers import get_id
 from .scope import ScopeMixin
 
 
@@ -139,24 +141,35 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Assign(self, node):
         for target in node.targets:
-            if isinstance(target, ast.Name):
-                target.assigned_from = node
-                self.scope.vars.append(target)
+            # TODO: Experimental annotations
+            if hasattr(node.value, "annotation"):
+                target.annotation = node.value.annotation
+            self._generic_target_visit(node, target)
         return node
 
     def visit_AnnAssign(self, node):
         target = node.target
-        if isinstance(target, ast.Name):
-            target.assigned_from = node
-            self.scope.vars.append(target)
+        # TODO: Experimental annotations
+        target.annotation = node.annotation
+        self._generic_target_visit(node, target)
         return node
 
     def visit_AugAssign(self, node):
         target = node.target
+        self._generic_target_visit(node, target)
+        return node
+
+    def _generic_target_visit(self, node, target):
         if isinstance(target, ast.Name):
             target.assigned_from = node
             self.scope.vars.append(target)
-        return node
+        if isinstance(target, ast.Attribute) and \
+                get_id(target.value) == "self":
+            if isinstance(target.attr, str):
+                ast.Name(id=target.attr)
+                self.scope.vars.append(ast.Name(id=target.attr))
+                target.assigned_from = node
+
 
 
 class LHSAnnotationTransformer(ast.NodeTransformer):

@@ -564,7 +564,20 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Attribute(self, node):
         value_id = get_id(node.value)
         if value_id == "self" and self._self_types:
-            node.annotation = self._self_types[-1]
+            attr_node = node.scopes.find(node.attr)
+            if ann := getattr(attr_node, "annotation", None):
+                node.annotation = ann
+            elif hasattr(attr_node, "assigned_from"):
+                node.annotation = getattr(attr_node.assigned_from, "annotation", None)
+            
+            # Try to get annotation
+            if not getattr(node, "annotation", None):
+                curr_class_name = get_id(self._self_types[-1])
+                class_scope = node.scopes.find(curr_class_name)
+                ann = getattr(class_scope.scopes.find(node.attr), "annotation", None)
+                if ann:
+                    node.annotation = ann
+                # node.annotation = self._self_types[-1]
         elif value_id is not None and hasattr(node, "scopes"):
             if is_enum(value_id, node.scopes):
                 node.annotation = node.scopes.find(value_id)        

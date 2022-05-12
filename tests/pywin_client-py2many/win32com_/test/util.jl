@@ -6,11 +6,9 @@ pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 using win32com.shell.shell: IsUserAnAdmin
 
-
 import tempfile
 
 import gc
-
 
 import winerror
 
@@ -113,7 +111,6 @@ function ExecuteShellCommand(cmd, testcase, expected_output = nothing, traceback
     output = strip(read(readline(output_name)))
     remove(os, output_name)
     mutable struct Failed <: AbstractFailed
-
     end
 
     try
@@ -157,13 +154,13 @@ function assertRaisesCOM_HRESULT(testcase, hresult, func)
 end
 
 mutable struct CaptureWriter <: AbstractCaptureWriter
-    captured::Any
-    old_out::Any
-    old_err::Any
+    old_err
+    old_out
+    captured::Vector
 
-    CaptureWriter(old_err = nothing) = begin
+    CaptureWriter() = begin
         self.clear()
-        new(old_err)
+        new()
     end
 end
 function capture(self::CaptureWriter)
@@ -204,9 +201,9 @@ end
 mutable struct LogHandler <: AbstractLogHandler
     emitted::Vector
 
-    LogHandler(emitted::Vector = []) = begin
+    LogHandler() = begin
         logging.Handler.__init__(self)
-        new(emitted)
+        new()
     end
 end
 function emit(self::LogHandler, record)
@@ -245,7 +242,6 @@ function CapturingFunctionTestCase()
 end
 
 mutable struct _CapturingFunctionTestCase <: Abstract_CapturingFunctionTestCase
-
 end
 function __call__(self::_CapturingFunctionTestCase, result = nothing)
     if result === nothing
@@ -276,12 +272,12 @@ function checkOutput(self::_CapturingFunctionTestCase, output, result)
 end
 
 mutable struct ShellTestCase <: AbstractShellTestCase
-    __cmd::Any
-    __eo::Any
+    __cmd
+    __eo
 
-    ShellTestCase(cmd, expected_output, __cmd = cmd, __eo = expected_output) = begin
+    ShellTestCase(cmd, expected_output) = begin
         unittest.TestCase.__init__(self)
-        new(cmd, expected_output, __cmd, __eo)
+        new(cmd, expected_output)
     end
 end
 function runTest(self::ShellTestCase)

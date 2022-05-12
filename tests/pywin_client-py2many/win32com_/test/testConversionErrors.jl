@@ -21,18 +21,15 @@ function test_ob()
 end
 
 mutable struct TestException <: AbstractTestException
-
 end
 
 mutable struct BadConversions <: AbstractBadConversions
-
 end
 function __float__(self::BadConversions)
     throw(TestException())
 end
 
 mutable struct TestCase <: AbstractTestCase
-
 end
 function test_float(self::TestCase)
     try
@@ -48,7 +45,6 @@ function test_float(self::TestCase)
 end
 
 function main()
-
 end
 
 main()

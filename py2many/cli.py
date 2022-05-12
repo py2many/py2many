@@ -109,11 +109,11 @@ def core_transformers(tree, trees, args):
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
+    add_imports(tree)
     infer_meta = (
         infer_types_typpete(
             tree) if args and args.typpete else infer_types(tree)
     )
-    add_imports(tree)
     return tree, infer_meta
 
 

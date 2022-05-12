@@ -4,7 +4,6 @@ import win32com.test.util
 
 abstract type AbstractSimple <: Abstractwin32com.test.util.TestCase end
 mutable struct Simple <: AbstractSimple
-
 end
 function testit(self::Simple)
     cses = InstancesOf(GetObject("WinMgMts:"), "Win32_Process")
@@ -17,7 +16,6 @@ function testit(self::Simple)
 end
 
 function main()
-
 end
 
 main()

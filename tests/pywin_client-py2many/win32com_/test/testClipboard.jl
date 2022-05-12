@@ -4,7 +4,6 @@ using Test
 pythoncom = pyimport("pythoncom")
 using win32com.test: util
 
-
 import win32con
 import winerror
 import win32clipboard
@@ -21,16 +20,15 @@ function WrapCOMObject(ob, iid = nothing)
 end
 
 mutable struct TestDataObject <: AbstractTestDataObject
-    bytesval::Any
-    _com_interfaces_::Vector
-    _public_methods_::Any
+    bytesval
     supported_fe::Vector
+    _com_interfaces_::Vector
+    _public_methods_
 
     TestDataObject(
         bytesval,
         _com_interfaces_::Vector = [pythoncom.IID_IDataObject],
         _public_methods_ = IDataObject_Methods,
-        supported_fe::Vector = [],
     ) = begin
         global num_do_objects
         num_do_objects += 1
@@ -38,7 +36,7 @@ mutable struct TestDataObject <: AbstractTestDataObject
             fe = (cf, nothing, pythoncom.DVASPECT_CONTENT, -1, pythoncom.TYMED_HGLOBAL)
             self.supported_fe.append(fe)
         end
-        new(bytesval, _com_interfaces_, _public_methods_, supported_fe)
+        new(bytesval, _com_interfaces_, _public_methods_)
     end
 end
 function __del__(self::TestDataObject)
@@ -113,7 +111,6 @@ function EnumDAdvise(self::TestDataObject)
 end
 
 mutable struct ClipboardTester <: AbstractClipboardTester
-
 end
 function setUp(self::ClipboardTester)
     OleInitialize(pythoncom)

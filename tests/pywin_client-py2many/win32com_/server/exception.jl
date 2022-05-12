@@ -30,14 +30,14 @@ mutable struct COMException <: AbstractCOMException
         By using this class, you automatically provide rich error information to the
         server.
          =#
-    description::Any
-    helpfile::Any
-    scode::Any
-    source::Any
-    desc::Any
-    helpContext::Any
-    helpcontext::Any
-    hresult::Any
+    description
+    helpcontext
+    helpfile
+    scode
+    source
+    desc
+    helpContext
+    hresult
 
     COMException(
         description = nothing,
@@ -47,7 +47,6 @@ mutable struct COMException <: AbstractCOMException
         helpContext = nothing,
         desc = nothing,
         hresult = nothing,
-        helpcontext = helpContext,
     ) = begin
         if scode && scode != 1
             if scode >= -32768 && scode < 32768
@@ -60,7 +59,7 @@ mutable struct COMException <: AbstractCOMException
             self.description = pythoncom.GetScodeString(scode)
         end
         pythoncom.com_error.__init__(self, scode, self.description, nothing, -1)
-        new(description, scode, source, helpfile, helpContext, desc, hresult, helpcontext)
+        new(description, scode, source, helpfile, helpContext, desc, hresult)
     end
 end
 function __repr__(self::COMException)

@@ -574,40 +574,20 @@ class JuliaRewriterPlugins:
                         value = default,
                         lineno=1)
 
-        _id = lambda x: x.attr if isinstance(x, ast.Attribute) else get_id(x)
         constructor_body = []
+        node = InitFunctionRewriter().visit(node)
         for n in node.body:
-            if isinstance(n, ast.Assign):
-                target_id = _id(n.targets[0])
-                if target_id not in arg_names:
-                    t_self._class_fields[target_id] = n
-                else:
-                    annotation = n.value.annotation \
-                        if hasattr(n.value, "annotation") \
-                        else ast.Name(id = "Any")
-                    t_self._class_fields[target_id] = ast.AnnAssign(
-                        target=n.targets[0],
-                        annotation = annotation,
-                        lineno=1)
-            elif isinstance(n, ast.AnnAssign):
-                if _id(n.target) in arg_names:
-                    t_self._class_fields[_id(n.target)] = ast.AnnAssign(
-                        target=n.target,
-                        annotation = n.annotation,
-                        lineno=1)
-                else:
-                    t_self._class_fields[_id(n.target)] = n
-            else:
+            if not isinstance(n, ast.Assign) and not isinstance(n, ast.AnnAssign):
                 constructor_body.append(n)
 
-        parent: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
-        if constructor_body and parent:
+        class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+        if constructor_body and class_node:
             constructor_args = node.args
             # Remove self
             constructor_args.args = constructor_args.args[1:]
             # TODO: Check lineno and col_offset
-            parent.constructor = juliaAst.Constructor(
-                                    struct_name = ast.Name(id = parent.name),
+            class_node.constructor = juliaAst.Constructor(
+                                    struct_name = ast.Name(id = class_node.name),
                                     args=constructor_args,
                                     body = constructor_body,
                                     ctx=ast.Load(), 
@@ -638,6 +618,19 @@ class JuliaRewriterPlugins:
     def visit_next(r_self, node: ast.FunctionDef):
         # TODO: Implement __next__ translation
         r_self.generic_visit(node)
+        return node
+
+
+class InitFunctionRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        self.generic_visit(node)
+        if get_id(node.value) == "self":
+            if isinstance(node.attr, str):
+                return ast.Name(id=node.attr)
+            return node.attr
         return node
 
 

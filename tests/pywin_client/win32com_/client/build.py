@@ -17,7 +17,7 @@ dynamically, or possibly even generate .html documentation for objects.
 #        OleItem, DispatchItem, MapEntry, BuildCallList() is used by makepy
 
 import sys
-import string
+import win32com_.ext_modules.string as string
 import datetime
 
 import pythoncom

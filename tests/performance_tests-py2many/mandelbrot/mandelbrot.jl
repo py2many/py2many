@@ -1,10 +1,6 @@
 using Distributed
 using ResumableFunctions
 
-
-
-
-
 function pixels(y, n, abs)
     Channel() do ch_pixels
         range7 = Vector{UInt8}(0:6)

@@ -8,25 +8,23 @@ include("win32com_/server/util.jl")
 abstract type AbstractSimpleConnection end
 mutable struct SimpleConnection <: AbstractSimpleConnection
     #= A simple, single connection object =#
-    debug::Any
-    coInstance::Any
-    cookie::Any
-    cp::Any
-    eventCLSID::Any
-    eventInstance::Any
+    cookie
+    cp
+    debug
+    coInstance
+    eventCLSID
+    eventInstance
 
     SimpleConnection(
         coInstance = nothing,
         eventInstance = nothing,
         eventCLSID = nothing,
         debug = 0,
-        cookie = nothing,
-        cp = nothing,
     ) = begin
         if !(coInstance === nothing)
             self.Connect(coInstance, eventInstance, eventCLSID)
         end
-        new(coInstance, eventInstance, eventCLSID, debug, cookie, cp)
+        new(coInstance, eventInstance, eventCLSID, debug)
     end
 end
 function __del__(self::SimpleConnection)

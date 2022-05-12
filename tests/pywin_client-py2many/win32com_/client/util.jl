@@ -36,12 +36,9 @@ mutable struct Enumerator <: AbstractEnumerator
         this will force many reset-and-seek operations to find the requested index.
 
          =#
-    resultCLSID::Any
-    _oleobj_::Any
+    _oleobj_
     index::Int64
-
-    Enumerator(resultCLSID::Any, _oleobj_::Any = enum, index::Int64 = -1) =
-        new(resultCLSID, _oleobj_, index)
+    resultCLSID
 end
 function __getitem__(self::Enumerator, index)
     return __GetIndex(self, index)
@@ -91,7 +88,7 @@ function _make_retval_(self::Enumerator, result)
 end
 
 mutable struct EnumVARIANT <: AbstractEnumVARIANT
-    resultCLSID::Any
+    resultCLSID
 
     EnumVARIANT(enum, resultCLSID = nothing) = begin
         Enumerator.__init__(self, enum)
@@ -103,13 +100,8 @@ function _make_retval_(self::EnumVARIANT, result)
 end
 
 mutable struct Iterator <: AbstractIterator
-    resultCLSID::Any
-    _iter_::Any
-
-    Iterator(
-        resultCLSID::Any,
-        _iter_::Any = (x for x in QueryInterface(enum, pythoncom.IID_IEnumVARIANT)),
-    ) = new(resultCLSID, _iter_)
+    resultCLSID
+    _iter_
 end
 function __iter__(self::Iterator)
     return self

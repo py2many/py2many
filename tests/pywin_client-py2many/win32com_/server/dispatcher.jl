@@ -8,7 +8,6 @@ win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
 import win32traceutil
 
-
 using win32com.server.exception: IsCOMServerException
 using win32com.util: IIDToInterfaceName
 import win32com
@@ -22,13 +21,8 @@ mutable struct DispatcherBase <: AbstractDispatcherBase
         that exactly where the output of print goes may not be useful!  A derived class may
         provide additional semantics for this.
          =#
-    logger::Any
-    policy::Any
-
-    DispatcherBase(
-        logger::Any = getattr(win32com, "logger", nothing),
-        policy::Any = policyClass(object),
-    ) = new(logger, policy)
+    policy
+    logger
 end
 function _CreateInstance_(self::DispatcherBase, clsid, reqIID)
     try
@@ -172,7 +166,6 @@ function _trace_(self::DispatcherBase)
         debug(self.logger, record)
     else
         for arg in args[begin:-1]
-
         end
         println(args[end])
     end
@@ -185,7 +178,7 @@ abstract type AbstractDispatcherOutputDebugString <: AbstractDispatcherTrace end
 abstract type AbstractDispatcherWin32dbg <: AbstractDispatcherBase end
 mutable struct DispatcherTrace <: AbstractDispatcherTrace
     #= A dispatcher, which causes a 'print' line for each COM function called. =#
-    policy::Any
+    policy
 end
 function _QueryInterface_(self::DispatcherTrace, iid)
     rc = _QueryInterface_(DispatcherBase, self)
@@ -274,7 +267,6 @@ end
 mutable struct DispatcherWin32trace <: AbstractDispatcherWin32trace
     #= A tracing dispatcher that sends its output to the win32trace remote collector. =#
 
-
     DispatcherWin32trace(policyClass, object) = begin
         DispatcherTrace.__init__(self, policyClass, object)
         if self.logger === nothing
@@ -303,7 +295,6 @@ mutable struct DispatcherWin32dbg <: AbstractDispatcherWin32dbg
 
         Requires Pythonwin.
          =#
-
 
     DispatcherWin32dbg(policyClass, ob) = begin
         pywin.debugger.brk()

@@ -7,7 +7,6 @@ import win32com
 import win32com.client.makepy
 import win32com.test
 
-
 genList = [("msword8", "{00020905-0000-0000-C000-000000000046}", 1033, 8, 0)]
 genDir = "Generated4Test"
 function GetGenPath()

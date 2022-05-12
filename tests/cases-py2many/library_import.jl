@@ -1,8 +1,6 @@
 using PyCall
 datetime = pyimport("datetime")
 
-
-
 import JSON as js
 function typing_test()::Int64
     a::Vector{Int64} = [1, 2, 3]

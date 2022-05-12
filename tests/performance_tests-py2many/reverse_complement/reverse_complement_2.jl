@@ -1,6 +1,5 @@
 using Distributed
 
-
 reverse_translation = Dict(
     b"A" => b"T",
     b"B" => b"V",

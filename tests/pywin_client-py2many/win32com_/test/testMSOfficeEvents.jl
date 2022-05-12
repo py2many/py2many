@@ -4,7 +4,6 @@ pythoncom = pyimport("pythoncom")
 using win32com.client: DispatchWithEvents, Dispatch
 import msvcrt
 
-
 import threading
 stopEvent = Event(threading)
 abstract type AbstractExcelEvents end
@@ -12,7 +11,6 @@ abstract type AbstractWorkbookEvents end
 abstract type AbstractWordEvents end
 function TestExcel()
     mutable struct ExcelEvents <: AbstractExcelEvents
-
     end
     function OnNewWorkbook(self::ExcelEvents, wb)
         if type_(wb) != types.InstanceType
@@ -54,7 +52,6 @@ function TestExcel()
     end
 
     mutable struct WorkbookEvents <: AbstractWorkbookEvents
-
     end
     function OnActivate(self::WorkbookEvents)
         println("workbook OnActivate")
@@ -82,7 +79,6 @@ end
 
 function TestWord()
     mutable struct WordEvents <: AbstractWordEvents
-
     end
     function OnDocumentChange(self::WordEvents)
         self.seen_events["OnDocumentChange"] = nothing

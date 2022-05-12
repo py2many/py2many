@@ -10,16 +10,13 @@ function is_square(self::Rectangle)::Bool
     return self.height == self.length
 end
 
-
 function __repr__(self::AbstractRectangle)::String
     return AbstractRectangle(self.height, self.length)
 end
 
-
 function __eq__(self::AbstractRectangle, other::AbstractRectangle)::Bool
     return __key(self) == __key(other)
 end
-
 
 function __key(self::AbstractRectangle)
     (self.height, self.length)

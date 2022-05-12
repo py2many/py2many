@@ -2,12 +2,10 @@ module testROT
 using PyCall
 pythoncom = pyimport("pythoncom")
 
-
 import win32com.test.util
 import winerror
 abstract type AbstractTestROT <: Abstractwin32com.test.util.TestCase end
 mutable struct TestROT <: AbstractTestROT
-
 end
 function testit(self::TestROT)
     ctx = CreateBindCtx(pythoncom)
@@ -33,7 +31,6 @@ function testit(self::TestROT)
 end
 
 function main()
-
 end
 
 main()

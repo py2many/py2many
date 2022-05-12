@@ -8,7 +8,6 @@ import win32com.client
 using util: CheckClean
 using win32com.client: gencache, constants
 
-
 ammodule = nothing
 function GetDefaultProfileName()
     try

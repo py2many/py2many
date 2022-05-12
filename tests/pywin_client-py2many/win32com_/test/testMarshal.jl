@@ -29,12 +29,11 @@ import threading
 import win32com.client
 import win32event
 
-
 using testServers: InterpCase
 abstract type AbstractThreadInterpCase <: AbstractInterpCase end
 freeThreaded = 1
 mutable struct ThreadInterpCase <: AbstractThreadInterpCase
-    BeginThreadsSimpleMarshal::Any
+    BeginThreadsSimpleMarshal
 end
 function _testInterpInThread(self::ThreadInterpCase, stopEvent, interp)
     try
@@ -162,7 +161,6 @@ function testSimpleMarshalCoWait(self::ThreadInterpCase)
 end
 
 function main()
-
 end
 
 main()

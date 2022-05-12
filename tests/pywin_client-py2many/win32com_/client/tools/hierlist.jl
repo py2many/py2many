@@ -1,11 +1,9 @@
 module hierlist
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
-
+win32ui = pyimport("win32ui")
 
 import win32con
-
 
 using pywin.mfc: object, window, docview, dialog
 import commctrl
@@ -27,12 +25,12 @@ function GetItemText(item)
 end
 
 mutable struct HierDialog <: AbstractHierDialog
-    dlgID::Any
-    hierList::Any
-    title::Any
-    bitmapID::Any
-    childListBoxID::Any
-    dll::Any
+    dlgID
+    hierList
+    title
+    bitmapID
+    childListBoxID
+    dll
 
     HierDialog(
         title,
@@ -53,46 +51,18 @@ function OnInitDialog(self::HierDialog)
 end
 
 mutable struct HierList <: AbstractHierList
-    OnTreeItemDoubleClick::Any
-    OnTreeItemExpanding::Any
-    OnTreeItemSelChanged::Any
-    bitmapID::Any
-    bitmapMask::Any
-    imageList::Any
-    listBoxId::Any
-    notify_parent::Any
-    root::Any
-    filledItemHandlesMap::Dict
+    listControl
+    bitmapID
+    root
+    listBoxId
     itemHandleMap::Dict
-    listControl::Any
-
-    HierList(
-        OnTreeItemDoubleClick::Any,
-        OnTreeItemExpanding::Any,
-        OnTreeItemSelChanged::Any,
-        bitmapID::Any,
-        bitmapMask::Any,
-        imageList::Any,
-        listBoxId::Any,
-        notify_parent::Any,
-        root::Any,
-        filledItemHandlesMap::Dict = Dict(),
-        itemHandleMap::Dict = Dict(),
-        listControl::Any = nothing,
-    ) = new(
-        OnTreeItemDoubleClick,
-        OnTreeItemExpanding,
-        OnTreeItemSelChanged,
-        bitmapID,
-        bitmapMask,
-        imageList,
-        listBoxId,
-        notify_parent,
-        root,
-        filledItemHandlesMap,
-        itemHandleMap,
-        listControl,
-    )
+    filledItemHandlesMap::Dict
+    bitmapMask
+    imageList
+    notify_parent
+    OnTreeItemExpanding
+    OnTreeItemSelChanged
+    OnTreeItemDoubleClick
 end
 function __getattr__(self::HierList, attr)
     try
@@ -104,7 +74,7 @@ function __getattr__(self::HierList, attr)
     end
 end
 
-function ItemFromHandle(self::HierList, handle)
+function ItemFromHandle(self::HierList, handle)::Dict
     return self.itemHandleMap[handle+1]
 end
 
@@ -250,7 +220,7 @@ function _GetChildHandles(self::HierList, handle)::Vector
     return ret
 end
 
-function ItemFromHandle(self::HierList, handle)
+function ItemFromHandle(self::HierList, handle)::Dict
     return self.itemHandleMap[handle+1]
 end
 
@@ -352,9 +322,9 @@ function TakeDefaultAction(self::HierList, item)
 end
 
 mutable struct HierListWithItems <: AbstractHierListWithItems
-    bitmapID::Any
-    bitmapMask::Any
-    listBoxID::Any
+    bitmapID
+    bitmapMask
+    listBoxID
 
     HierListWithItems(
         root,
@@ -413,8 +383,6 @@ function TakeDefaultAction(self::HierListWithItems, item)
 end
 
 mutable struct HierListItem <: AbstractHierListItem
-
-
     HierListItem() = begin
         #= pass =#
         new()

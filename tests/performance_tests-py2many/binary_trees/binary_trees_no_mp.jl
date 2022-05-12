@@ -1,5 +1,4 @@
 
-
 function make_tree(depth::Int64)::Tuple
     #=  Trees or tuples, final leaves have None as values.  =#
     return depth == 0 ? ((nothing, nothing)) :

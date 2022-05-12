@@ -19,7 +19,6 @@ import win32event
 import winxpgui
 import tempfile
 
-
 import win32con
 
 import winerror

@@ -88,7 +88,6 @@ function testit(self::PyCOMTest)
 end
 
 mutable struct PippoTest <: AbstractPippoTest
-
 end
 function testit(self::PippoTest)
     RegisterPythonServer(pippo_server.__file__, "Python.Test.Pippo")

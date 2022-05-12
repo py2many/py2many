@@ -1,0 +1,3 @@
+annotate_untyped_fields_with_any=false
+remove_extra_newlines=true
+whitespace_typedefs=true

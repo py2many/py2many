@@ -21,14 +21,16 @@ IConnectionPoint_methods = [
     "GetConnectionInterface",
 ]
 mutable struct ConnectableServer <: AbstractConnectableServer
-    _connect_interfaces_::Any
-    _com_interfaces_::Vector
-    _public_methods_::Vector{String}
+    _connect_interfaces_
     connections::Dict
     cookieNo::Int64
+    _com_interfaces_::Vector
+    _public_methods_::Vector{String}
 
     ConnectableServer(
-        _connect_interfaces_::Any,
+        _connect_interfaces_,
+        connections::Dict,
+        cookieNo::Int64,
         _com_interfaces_::Vector = [
             pythoncom.IID_IConnectionPoint,
             pythoncom.IID_IConnectionPointContainer,
@@ -37,9 +39,7 @@ mutable struct ConnectableServer <: AbstractConnectableServer
             IConnectionPointContainer_methods,
             IConnectionPoint_methods,
         ),
-        connections::Dict = Dict(),
-        cookieNo::Int64 = 0,
-    ) = new(_connect_interfaces_, _com_interfaces_, _public_methods_, connections, cookieNo)
+    ) = new(_connect_interfaces_, connections, cookieNo, _com_interfaces_, _public_methods_)
 end
 function EnumConnections(self::ConnectableServer)
     throw(Exception(winerror.E_NOTIMPL))

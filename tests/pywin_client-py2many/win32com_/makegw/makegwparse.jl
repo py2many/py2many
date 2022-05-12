@@ -14,7 +14,6 @@ module makegwparse
  =#
 using Printf
 
-
 abstract type Abstracterror_not_found <: AbstractException end
 abstract type Abstracterror_not_supported <: AbstractException end
 abstract type AbstractArgFormatter end
@@ -61,17 +60,10 @@ VERBOSE = 0
 DEBUG = 0
 mutable struct ArgFormatter <: AbstractArgFormatter
     #= An instance for a specific type of argument.\t Knows how to convert itself =#
-    arg::Any
-    builtinIndirection::Any
-    declaredIndirection::Any
+    arg
+    builtinIndirection
+    declaredIndirection
     gatewayMode::Int64
-
-    ArgFormatter(
-        arg::Any,
-        builtinIndirection::Any,
-        declaredIndirection::Any,
-        gatewayMode::Int64 = 0,
-    ) = new(arg, builtinIndirection, declaredIndirection, gatewayMode)
 end
 function _IndirectPrefix(self::ArgFormatter, indirectionFrom, indirectionTo)::String
     #= Given the indirection level I was declared at (0=Normal, 1=*, 2=**)
@@ -251,8 +243,8 @@ function NeedUSES_CONVERSION(self::ArgFormatter)::Int64
 end
 
 mutable struct ArgFormatterFloat <: AbstractArgFormatterFloat
-    arg::Any
-    gatewayMode::Any
+    arg
+    gatewayMode
 end
 function GetFormatChar(self::ArgFormatterFloat)::String
     return "f"
@@ -298,8 +290,8 @@ function GetParsePostCode(self::ArgFormatterFloat)::String
 end
 
 mutable struct ArgFormatterShort <: AbstractArgFormatterShort
-    arg::Any
-    gatewayMode::Any
+    arg
+    gatewayMode
 end
 function GetFormatChar(self::ArgFormatterShort)::String
     return "i"
@@ -345,7 +337,7 @@ function GetParsePostCode(self::ArgFormatterShort)::String
 end
 
 mutable struct ArgFormatterLONG_PTR <: AbstractArgFormatterLONG_PTR
-    arg::Any
+    arg
 end
 function GetFormatChar(self::ArgFormatterLONG_PTR)::String
     return "O"
@@ -391,7 +383,7 @@ end
 
 mutable struct ArgFormatterPythonCOM <: AbstractArgFormatterPythonCOM
     #= An arg formatter for types exposed in the PythonCOM module =#
-    arg::Any
+    arg
 end
 function GetFormatChar(self::ArgFormatterPythonCOM)::String
     return "O"
@@ -422,7 +414,7 @@ function DeclareParseArgTupleInputConverter(self::ArgFormatterPythonCOM)::String
 end
 
 mutable struct ArgFormatterBSTR <: AbstractArgFormatterBSTR
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterBSTR)::String
     return "<o unicode>"
@@ -448,7 +440,7 @@ function GetBuildForGatewayPostCode(self::ArgFormatterBSTR)::String
 end
 
 mutable struct ArgFormatterOLECHAR <: AbstractArgFormatterOLECHAR
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterOLECHAR)::String
     return "<o unicode>"
@@ -486,7 +478,7 @@ function GetBuildForGatewayPostCode(self::ArgFormatterOLECHAR)::String
 end
 
 mutable struct ArgFormatterTCHAR <: AbstractArgFormatterTCHAR
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterTCHAR)::String
     return "string/<o unicode>"
@@ -523,7 +515,7 @@ function GetBuildForGatewayPostCode(self::ArgFormatterTCHAR)::String
 end
 
 mutable struct ArgFormatterIID <: AbstractArgFormatterIID
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterIID)::String
     return "<o PyIID>"
@@ -544,8 +536,8 @@ function GetInterfaceCppObjectInfo(self::ArgFormatterIID)::Tuple
 end
 
 mutable struct ArgFormatterTime <: AbstractArgFormatterTime
-    arg::Any
-    builtinIndirection::Any
+    arg
+    builtinIndirection
     declaredIndirection::Int64
 
     ArgFormatterTime(arg, builtinIndirection, declaredIndirection = 0) = begin
@@ -585,7 +577,7 @@ function GetBuildForInterfacePostCode(self::ArgFormatterTime)::String
 end
 
 mutable struct ArgFormatterSTATSTG <: AbstractArgFormatterSTATSTG
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterSTATSTG)::String
     return "<o STATSTG>"
@@ -603,7 +595,7 @@ function GetBuildForInterfacePreCode(self::ArgFormatterSTATSTG)
 end
 
 mutable struct ArgFormatterGeneric <: AbstractArgFormatterGeneric
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterGeneric)::String
     return "<o %s>" % self.arg.type
@@ -625,7 +617,7 @@ function GetBuildForInterfacePreCode(self::ArgFormatterGeneric)
 end
 
 mutable struct ArgFormatterIDLIST <: AbstractArgFormatterIDLIST
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterIDLIST)::String
     return "<o PyIDL>"
@@ -647,7 +639,7 @@ function GetBuildForInterfacePreCode(self::ArgFormatterIDLIST)
 end
 
 mutable struct ArgFormatterHANDLE <: AbstractArgFormatterHANDLE
-    arg::Any
+    arg
 end
 function _GetPythonTypeDesc(self::ArgFormatterHANDLE)::String
     return "<o PyHANDLE>"
@@ -665,7 +657,7 @@ function GetBuildForInterfacePreCode(self::ArgFormatterHANDLE)
 end
 
 mutable struct ArgFormatterLARGE_INTEGER <: AbstractArgFormatterLARGE_INTEGER
-    arg::Any
+    arg
 end
 function GetKeyName(self::ArgFormatterLARGE_INTEGER)::String
     return "LARGE_INTEGER"
@@ -687,15 +679,14 @@ function GetBuildForInterfacePreCode(self::ArgFormatterLARGE_INTEGER)
 end
 
 mutable struct ArgFormatterULARGE_INTEGER <: AbstractArgFormatterULARGE_INTEGER
-
 end
 function GetKeyName(self::ArgFormatterULARGE_INTEGER)::String
     return "ULARGE_INTEGER"
 end
 
 mutable struct ArgFormatterInterface <: AbstractArgFormatterInterface
-    arg::Any
-    gatewayMode::Any
+    arg
+    gatewayMode
 end
 function GetInterfaceCppObjectInfo(self::ArgFormatterInterface)::Tuple
     return (
@@ -730,7 +721,7 @@ function GetInterfaceArgCleanup(self::ArgFormatterInterface)
 end
 
 mutable struct ArgFormatterVARIANT <: AbstractArgFormatterVARIANT
-    arg::Any
+    arg
 end
 function GetParsePostCode(self::ArgFormatterVARIANT)
     return "\tif ( !PyCom_VariantFromPyObject(ob%s, %s) )\n\t\tbPythonIsHappy = FALSE;\n" %
@@ -771,7 +762,7 @@ ConvertSimpleTypes = Dict(
 )
 mutable struct ArgFormatterSimple <: AbstractArgFormatterSimple
     #= An arg formatter for simple integer etc types =#
-    arg::Any
+    arg
 end
 function GetFormatChar(self::ArgFormatterSimple)::Tuple
     return ConvertSimpleTypes[self.arg.type][2]
@@ -873,41 +864,41 @@ mutable struct Argument <: AbstractArgument
         In addition, methods exist so that an argument knows how to convert itself
         to/from Python arguments.
          =#
-    good_interface_names::Any
-    indirectionLevel::Any
-    name::Any
-    raw_type::Any
-    type_::Any
-    unc_type::Any
     arrayDecl::Int64
     const_::Int64
-    inout::Any
-    regex::Any
+    good_interface_names
+    indirectionLevel::Int64
+    inout
+    name
+    raw_type
+    type_
+    unc_type
+    regex
 
     Argument(
-        good_interface_names::Any,
-        indirectionLevel::Any,
-        name::Any,
-        raw_type::Any,
-        type_::Any,
-        unc_type::Any,
-        arrayDecl::Int64 = 0,
-        const_::Int64 = 0,
-        inout::Any = nothing,
-        regex::Any = compile(
-            re,
-            "/\\* \\[([^\\]]*.*?)] \\*/[ \\t](.*[* ]+)(\\w+)(\\[ *])?[\\),]",
-        ),
-    ) = new(
+        arrayDecl::Int64,
+        const_::Int64,
         good_interface_names,
-        indirectionLevel,
+        indirectionLevel::Int64,
+        inout,
         name,
         raw_type,
         type_,
         unc_type,
+        regex = compile(
+            re,
+            "/\\* \\[([^\\]]*.*?)] \\*/[ \\t](.*[* ]+)(\\w+)(\\[ *])?[\\),]",
+        ),
+    ) = new(
         arrayDecl,
         const_,
+        good_interface_names,
+        indirectionLevel,
         inout,
+        name,
+        raw_type,
+        type_,
+        unc_type,
         regex,
     )
 end
@@ -990,19 +981,21 @@ mutable struct Method <: AbstractMethod
         This class contains information about a specific method, as well as
         a list of all @Argument@s
          =#
-    good_interface_names::Any
-    result::Any
     args::Vector
-    name::Any
-    regex::Any
+    callconv
+    good_interface_names
+    name
+    result
+    regex
 
     Method(
-        good_interface_names::Any,
-        result::Any,
-        args::Vector = [],
-        name::Any = nothing,
-        regex::Any = compile(re, "virtual (/\\*.*?\\*/ )?(.*?) (.*?) (.*?)\\(\\w?"),
-    ) = new(good_interface_names, result, args, name, regex)
+        args::Vector,
+        callconv,
+        good_interface_names,
+        name,
+        result,
+        regex = compile(re, "virtual (/\\*.*?\\*/ )?(.*?) (.*?) (.*?)\\(\\w?"),
+    ) = new(args, callconv, good_interface_names, name, result, regex)
 end
 function BuildFromFile(self::Method, file)
     #= Parse and build my data from a file
@@ -1045,22 +1038,16 @@ mutable struct Interface <: AbstractInterface
         This class contains information about a specific interface, as well as
         a list of all @Method@s
          =#
-    base::Any
+    base
     methods::Vector
-    name::Any
-    regex::Any
+    name
+    regex
 
-    Interface(
-        mo,
-        base = group(mo, 3),
-        methods::Vector = [],
-        name = group(mo, 2),
-        regex = compile(re, "(interface|) ([^ ]*) : public (.*)\$"),
-    ) = begin
+    Interface(mo, regex = compile(re, "(interface|) ([^ ]*) : public (.*)\$")) = begin
         if VERBOSE
             @printf("Interface %s : public %s", (self.name, self.base))
         end
-        new(mo, base, methods, name, regex)
+        new(mo, regex)
     end
 end
 function BuildMethods(self::Interface, file)

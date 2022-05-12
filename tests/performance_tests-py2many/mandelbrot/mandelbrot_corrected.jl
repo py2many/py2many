@@ -1,8 +1,6 @@
 using Distributed
 using ResumableFunctions
 
-
-
 @resumable function pixels(y, n, abs)
     range7 = Vector{UInt8}((0:6))
     pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])

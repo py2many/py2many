@@ -1,8 +1,5 @@
 using Distributed
 
-
-
-
 function permutations(n, start, size)
     Channel() do ch_permutations
         p = Vector{UInt8}(0:n-1)

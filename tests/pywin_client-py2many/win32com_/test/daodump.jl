@@ -1,7 +1,6 @@
 module daodump
 using Printf
 
-
 import win32com.client
 function DumpDB(db, bDeep = 1)
     DumpTables(db, bDeep)

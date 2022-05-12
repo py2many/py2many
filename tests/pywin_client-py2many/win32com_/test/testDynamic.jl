@@ -11,7 +11,6 @@ abstract type AbstractVeryPermissive end
 error = "testDynamic error"
 iid = MakeIID(pythoncom, "{b48969a0-784b-11d0-ae71-d23f56000000}")
 mutable struct VeryPermissive <: AbstractVeryPermissive
-
 end
 function _dynamic_(self::VeryPermissive, name, lcid, wFlags, args)
     if wFlags & pythoncom.DISPATCH_METHOD
@@ -42,7 +41,6 @@ function write(self::VeryPermissive)
         throw(Exception(winerror.DISP_E_BADPARAMCOUNT))
     end
     for arg in args[begin:-1]
-
     end
     println(string(args[end]))
 end

@@ -1,9 +1,7 @@
 module browser
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
-
-
+win32ui = pyimport("win32ui")
 
 import __main__
 
@@ -11,11 +9,11 @@ using pywin.mfc: dialog
 include("hierlist.jl")
 special_names = ["__doc__", "__name__", "__self__"]
 mutable struct HLIPythonObject <: AbstractHLIPythonObject
-    myobject::Any
-    knownExpandable::Any
-    name::Any
+    myobject
+    knownExpandable
+    name
 
-    HLIPythonObject(myobject = nothing, name = nothing, knownExpandable = nothing) = begin
+    HLIPythonObject(myobject = nothing, name = nothing) = begin
         hierlist.HierListItem.__init__(self)
         if name
             self.name = name
@@ -38,7 +36,7 @@ mutable struct HLIPythonObject <: AbstractHLIPythonObject
                 end
             end
         end
-        new(myobject, name, knownExpandable)
+        new(myobject, name)
     end
 end
 function __lt__(self::HLIPythonObject, other)::Bool
@@ -178,7 +176,6 @@ function TakeDefaultAction(self::HLIPythonObject)
 end
 
 mutable struct HLIDocString <: AbstractHLIDocString
-
 end
 function GetHLIType(self::HLIDocString)::String
     return "DocString"
@@ -197,14 +194,12 @@ function GetBitmapColumn(self::HLIDocString)::Int64
 end
 
 mutable struct HLIModule <: AbstractHLIModule
-
 end
 function GetHLIType(self::HLIModule)::String
     return "Module"
 end
 
 mutable struct HLIFrame <: AbstractHLIFrame
-
 end
 function GetHLIType(self::HLIFrame)::String
     return "Stack Frame"
@@ -232,14 +227,13 @@ abstract type AbstractBrowserTemplate <: Abstractdocview.DocTemplate end
 abstract type AbstractBrowserDocument <: Abstractdocview.Document end
 abstract type AbstractBrowserView <: Abstractdocview.TreeView end
 mutable struct HLITraceback <: AbstractHLITraceback
-
 end
 function GetHLIType(self::HLITraceback)::String
     return "Traceback"
 end
 
 mutable struct HLIClass <: AbstractHLIClass
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLIClass)::String
     return "Class"
@@ -255,7 +249,7 @@ function GetSubList(self::HLIClass)::Vector
 end
 
 mutable struct HLIMethod <: AbstractHLIMethod
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLIMethod)::String
     return "Method"
@@ -266,7 +260,7 @@ function GetText(self::HLIMethod)::String
 end
 
 mutable struct HLICode <: AbstractHLICode
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLICode)::String
     return "Code"
@@ -287,8 +281,8 @@ function GetSubList(self::HLICode)::Vector
 end
 
 mutable struct HLIInstance <: AbstractHLIInstance
-    name::Any
-    myobject::Any
+    name
+    myobject
 end
 function GetHLIType(self::HLIInstance)::String
     return "Instance"
@@ -313,14 +307,13 @@ function GetSubList(self::HLIInstance)::Vector
 end
 
 mutable struct HLIBuiltinFunction <: AbstractHLIBuiltinFunction
-
 end
 function GetHLIType(self::HLIBuiltinFunction)::String
     return "Builtin Function"
 end
 
 mutable struct HLIFunction <: AbstractHLIFunction
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLIFunction)::String
     return "Function"
@@ -355,7 +348,7 @@ function GetSubList(self::HLIFunction)::Vector
 end
 
 mutable struct HLISeq <: AbstractHLISeq
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLISeq)::String
     return "Sequence (abstract!)"
@@ -377,21 +370,19 @@ function GetSubList(self::HLISeq)::Vector
 end
 
 mutable struct HLIList <: AbstractHLIList
-
 end
 function GetHLIType(self::HLIList)::String
     return "List"
 end
 
 mutable struct HLITuple <: AbstractHLITuple
-
 end
 function GetHLIType(self::HLITuple)::String
     return "Tuple"
 end
 
 mutable struct HLIDict <: AbstractHLIDict
-    myobject::Any
+    myobject
 end
 function GetHLIType(self::HLIDict)::String
     return "Dict"
@@ -421,7 +412,6 @@ function GetSubList(self::HLIDict)::Vector
 end
 
 mutable struct HLIString <: AbstractHLIString
-
 end
 function IsExpandable(self::HLIString)::Int64
     return 0
@@ -459,9 +449,9 @@ function MakeHLI(ob, name = nothing)
 end
 
 mutable struct DialogShowObject <: AbstractDialogShowObject
-    object::Any
-    title::Any
-    edit::Any
+    object
+    title
+    edit
 
     DialogShowObject(object, title) = begin
         dialog.Dialog.__init__(self, win32ui.IDD_LARGE_EDIT)
@@ -491,10 +481,10 @@ import win32con
 
 import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
-    cs::Any
-    dt::Vector{Vector{Union{Any,String,Tuple}}}
-    hier_list::Any
-    style::Any
+    hier_list
+    cs
+    dt::Vector{Vector{Union{Any, String, Tuple}}}
+    style
 
     dynamic_browser(
         hli_root,
@@ -502,7 +492,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Any,String,Tuple}}} = [
+        dt::Vector{Vector{Union{Any, String, Tuple}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),
@@ -512,12 +502,11 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ],
             ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs],
         ],
-        hier_list = HierListWithItems(hierlist, hli_root, win32ui.IDB_BROWSER_HIER),
         style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE,
     ) = begin
         dialog.Dialog.__init__(self, self.dt)
         self.HookMessage(self.on_size, win32con.WM_SIZE)
-        new(hli_root, cs, dt, hier_list, style)
+        new(hli_root, cs, dt, style)
     end
 end
 function OnInitDialog(self::dynamic_browser)
@@ -560,8 +549,6 @@ end
 
 using pywin.mfc: docview
 mutable struct BrowserTemplate <: AbstractBrowserTemplate
-
-
     BrowserTemplate() = begin
         docview.DocTemplate.__init__(
             self,
@@ -588,7 +575,7 @@ function OpenObject(self::BrowserTemplate, root)::BrowserDocument
 end
 
 mutable struct BrowserDocument <: AbstractBrowserDocument
-    root::Any
+    root
 
     BrowserDocument(template, root) = begin
         docview.Document.__init__(self, template)
@@ -602,7 +589,6 @@ function OnOpenDocument(self::BrowserDocument, name)::Int64
 end
 
 mutable struct BrowserView <: AbstractBrowserView
-
 end
 function OnInitialUpdate(self::BrowserView)
     rc = OnInitialUpdate(self._obj_)

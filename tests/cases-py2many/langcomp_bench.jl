@@ -17,8 +17,6 @@ function test_python(iterations::Int64)
         println("OK")
     end
     empty!(array)
-    #Delete Unsupported
-    del(array)
 end
 
 function main()

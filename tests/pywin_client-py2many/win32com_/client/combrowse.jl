@@ -25,22 +25,18 @@ module combrowse
  =#
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 pythoncom = pyimport("pythoncom")
 
 using pywin.tools: hierlist
-
-
 
 include("win32com_/ext_modules/win32con.jl")
 import win32con as win32con
 using win32com_.client: util
 using win32com_.client.tools: browser
 mutable struct HLIRoot <: AbstractHLIRoot
-    name::Any
-
-    HLIRoot(name::Any = title) = new(name)
+    name
 end
 function GetSubList(self::HLIRoot)
     return [
@@ -74,7 +70,7 @@ abstract type AbstractHLITypeLibFunction <: AbstractHLICOM end
 abstract type AbstractHLITypeLib <: AbstractHLICOM end
 abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
 mutable struct HLICOM <: AbstractHLICOM
-    name::Any
+    name
 end
 function GetText(self::HLICOM)::HLICOM
     return self.name
@@ -85,7 +81,7 @@ function CalculateIsExpandable(self::HLICOM)::Int64
 end
 
 mutable struct HLICLSID <: AbstractHLICLSID
-    name::Any
+    name
 
     HLICLSID(myobject, name = nothing) = begin
         if type_(myobject) == type_("")
@@ -114,11 +110,10 @@ function GetSubList(self::HLICLSID)::Vector
 end
 
 mutable struct HLI_Interface <: AbstractHLI_Interface
-
 end
 
 mutable struct HLI_Enum <: AbstractHLI_Enum
-    myobject::Any
+    myobject
 end
 function GetBitmapColumn(self::HLI_Enum)::Int64
     return 0
@@ -135,7 +130,7 @@ function CalculateIsExpandable(self::HLI_Enum)
 end
 
 mutable struct HLI_IEnumMoniker <: AbstractHLI_IEnumMoniker
-    myobject::Any
+    myobject
 end
 function GetSubList(self::HLI_IEnumMoniker)::Vector
     ctx = CreateBindCtx(pythoncom)
@@ -147,7 +142,6 @@ function GetSubList(self::HLI_IEnumMoniker)::Vector
 end
 
 mutable struct HLI_IMoniker <: AbstractHLI_IMoniker
-
 end
 function GetSubList(self::HLI_IMoniker)::Vector
     ret = []
@@ -218,7 +212,6 @@ function GetSubList(self::HLICategory)::Vector
 end
 
 mutable struct HLIHelpFile <: AbstractHLIHelpFile
-
 end
 function CalculateIsExpandable(self::HLIHelpFile)::Int64
     return 0
@@ -245,7 +238,6 @@ function GetBitmapColumn(self::HLIHelpFile)::Int64
 end
 
 mutable struct HLIRegisteredTypeLibrary <: AbstractHLIRegisteredTypeLibrary
-
 end
 function GetSubList(self::HLIRegisteredTypeLibrary)::Vector
     clsidstr, versionStr = self.myobject
@@ -343,7 +335,6 @@ function GetSubList(self::HLIRegisteredTypeLibrary)::Vector
 end
 
 mutable struct HLITypeLibEntry <: AbstractHLITypeLibEntry
-
 end
 function GetText(self::HLITypeLibEntry)::Union[str, Any]
     tlb, index = self.myobject
@@ -372,7 +363,6 @@ function GetSubList(self::HLITypeLibEntry)::Vector
 end
 
 mutable struct HLICoClass <: AbstractHLICoClass
-
 end
 function GetSubList(self::HLICoClass)
     ret = GetSubList(HLITypeLibEntry)
@@ -393,11 +383,11 @@ end
 
 mutable struct HLITypeLibMethod <: AbstractHLITypeLibMethod
     entry_type::String
-    name::Any
+    name
 
-    HLITypeLibMethod(ob, name = nothing, entry_type::String = "Method") = begin
+    HLITypeLibMethod(ob, name = nothing) = begin
         HLITypeLibEntry.__init__(self, ob, name)
-        new(ob, name, entry_type)
+        new(ob, name)
     end
 end
 function GetSubList(self::HLITypeLibMethod)
@@ -415,18 +405,12 @@ function GetSubList(self::HLITypeLibMethod)
 end
 
 mutable struct HLITypeLibEnum <: AbstractHLITypeLibEnum
-    id::Any
-    name::Any
-    typeinfo::Any
+    id
+    name
 
-    HLITypeLibEnum(
-        myitem,
-        id = GetVarDesc(typeinfo, index)[1],
-        name = GetNames(typeinfo, self.id)[1],
-        typeinfo = GetTypeInfo(typelib, index),
-    ) = begin
+    HLITypeLibEnum(myitem) = begin
         HLITypeLibEntry.__init__(self, myitem, name)
-        new(myitem, id, name, typeinfo)
+        new(myitem)
     end
 end
 function GetText(self::HLITypeLibEnum)
@@ -447,16 +431,12 @@ function GetSubList(self::HLITypeLibEnum)::Vector
 end
 
 mutable struct HLITypeLibProperty <: AbstractHLITypeLibProperty
-    id::Any
-    name::Any
+    id
+    name
 
-    HLITypeLibProperty(
-        myitem,
-        id = GetVarDesc(typeinfo, index)[1],
-        name = GetNames(typeinfo, self.id)[1],
-    ) = begin
+    HLITypeLibProperty(myitem) = begin
         HLICOM.__init__(self, myitem, name)
-        new(myitem, id, name)
+        new(myitem)
     end
 end
 function GetText(self::HLITypeLibProperty)
@@ -480,13 +460,13 @@ function GetSubList(self::HLITypeLibProperty)::Vector
 end
 
 mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
+    id
+    name
     funcflags::Vector{Tuple}
-    funckinds::Dict{Any,String}
-    id::Any
-    invokekinds::Dict{Any,String}
-    name::Any
+    funckinds::Dict{Any, String}
+    invokekinds::Dict{Any, String}
     type_flags::Vector{Tuple}
-    vartypes::Dict{Any,String}
+    vartypes::Dict{Any, String}
 
     HLITypeLibFunction(
         myitem,
@@ -500,27 +480,25 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
             (pythoncom.FUNCFLAG_FHIDDEN, "Hidden"),
             (pythoncom.FUNCFLAG_FUSESGETLASTERROR, "Uses GetLastError"),
         ],
-        funckinds::Dict{Any,String} = Dict(
+        funckinds::Dict{Any, String} = Dict(
             pythoncom.FUNC_VIRTUAL => "Virtual",
             pythoncom.FUNC_PUREVIRTUAL => "Pure Virtual",
             pythoncom.FUNC_STATIC => "Static",
             pythoncom.FUNC_DISPATCH => "Dispatch",
         ),
-        id = GetFuncDesc(typeinfo, index)[1],
-        invokekinds::Dict{Any,String} = Dict(
+        invokekinds::Dict{Any, String} = Dict(
             pythoncom.INVOKE_FUNC => "Function",
             pythoncom.INVOKE_PROPERTYGET => "Property Get",
             pythoncom.INVOKE_PROPERTYPUT => "Property Put",
             pythoncom.INVOKE_PROPERTYPUTREF => "Property Put by reference",
         ),
-        name = GetNames(typeinfo, self.id)[1],
         type_flags::Vector{Tuple} = [
             (pythoncom.VT_VECTOR, "Vector"),
             (pythoncom.VT_ARRAY, "Array"),
             (pythoncom.VT_BYREF, "ByRef"),
             (pythoncom.VT_RESERVED, "Reserved"),
         ],
-        vartypes::Dict{Any,String} = Dict(
+        vartypes::Dict{Any, String} = Dict(
             pythoncom.VT_EMPTY => "Empty",
             pythoncom.VT_NULL => "NULL",
             pythoncom.VT_I2 => "Integer 2",
@@ -564,7 +542,7 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
         ),
     ) = begin
         HLICOM.__init__(self, myitem, name)
-        new(myitem, funcflags, funckinds, id, invokekinds, name, type_flags, vartypes)
+        new(myitem, funcflags, funckinds, invokekinds, type_flags, vartypes)
     end
 end
 function GetText(self::HLITypeLibFunction)
@@ -672,7 +650,7 @@ HLITypeKinds = Dict(
     pythoncom.TKIND_UNION => (HLITypeLibEntry, "Union"),
 )
 mutable struct HLITypeLib <: AbstractHLITypeLib
-    myobject::Any
+    myobject
 end
 function GetSubList(self::HLITypeLib)::Vector
     ret = []

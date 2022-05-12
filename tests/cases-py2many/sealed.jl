@@ -1,5 +1,4 @@
 
-
 abstract type AbstractPacket end
 abstract type AbstractRegister end
 mutable struct Packet <: AbstractPacket
@@ -10,11 +9,9 @@ function __repr__(self::AbstractPacket)::String
     return AbstractPacket(self.val)
 end
 
-
 function __eq__(self::AbstractPacket, other::AbstractPacket)::Bool
     return __key(self) == __key(other)
 end
-
 
 function __key(self::AbstractPacket)
     (self.val)

@@ -6,13 +6,11 @@ using win32com.test.util: RegisterPythonServer
 using win32com.test: pippo_server
 import numpy
 
-
-
 using win32com.client: Dispatch
 using win32com.client.gencache: EnsureDispatch
 abstract type AbstractPippoTester end
 mutable struct PippoTester <: AbstractPippoTester
-    object::Any
+    object
 end
 function setUp(self::PippoTester)
     RegisterPythonServer(pippo_server.__file__, "Python.Test.Pippo")

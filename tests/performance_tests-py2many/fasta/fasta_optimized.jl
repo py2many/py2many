@@ -38,8 +38,8 @@ end
 
 Random = genRandom()
 function makeCumulative(
-    table::Vector{Tuple{String,Float64}},
-)::Tuple{Vector{Float64},Vector{String}}
+    table::Vector{Tuple{String, Float64}},
+)::Tuple{Vector{Float64}, Vector{String}}
     P::Vector{Float64} = []
     C::Vector{String} = []
     prob = 0.0
@@ -64,7 +64,7 @@ function repeatFasta(src::String, n::Int64)
     end
 end
 
-function randomFasta(table::Vector{Tuple{String,Float64}}, n::Int64)
+function randomFasta(table::Vector{Tuple{String, Float64}}, n::Int64)
     width = 60
     r = (0:width-1)
     gR = Random

@@ -11,11 +11,9 @@ function __repr__(self::AbstractOptions)::String
     return AbstractOptions(self.n, self.v)
 end
 
-
 function __eq__(self::AbstractOptions, other::AbstractOptions)::Bool
     return __key(self) == __key(other)
 end
-
 
 function __key(self::AbstractOptions)
     (self.n, self.v)

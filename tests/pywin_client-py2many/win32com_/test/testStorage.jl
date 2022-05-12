@@ -8,7 +8,6 @@ import win32com.test.util
 
 abstract type AbstractTestEnum <: Abstractwin32com.test.util.TestCase end
 mutable struct TestEnum <: AbstractTestEnum
-
 end
 function testit(self::TestEnum)
     fname, tmp = GetTempFileName(win32api, GetTempPath(win32api), "stg")
@@ -91,7 +90,6 @@ function testit(self::TestEnum)
 end
 
 function main()
-
 end
 
 main()

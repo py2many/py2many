@@ -3,7 +3,6 @@ abstract type AbstractPerson end
 abstract type AbstractStudent <: AbstractPerson end
 abstract type AbstractStudent2 <: AbstractPerson end
 mutable struct Foo <: AbstractFoo
-
 end
 function bar(self::Foo)::Int64
     return baz(self)
@@ -20,7 +19,7 @@ end
 mutable struct Person <: AbstractPerson
     name::String
 end
-function get_name(self::Person)::Person
+function get_name(self::Person)::String
     return self.name
 end
 

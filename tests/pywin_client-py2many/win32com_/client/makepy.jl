@@ -1,7 +1,6 @@
 module makepy
 #= Generate a .py file from an OLE TypeLibrary file.
 
-
  This module is concerned only with the actual writing of
  a .py file.  It draws on the @build@ module, which builds
  the knowledge of a COM interface.
@@ -80,7 +79,7 @@ end
 
 mutable struct SimpleProgress <: AbstractSimpleProgress
     #= A simple progress class prints its output to stderr =#
-    verboseLevel::Any
+    verboseLevel
 end
 function Close(self::SimpleProgress)
     #= pass =#
@@ -117,11 +116,11 @@ function LogWarning(self::SimpleProgress, desc)
 end
 
 mutable struct GUIProgress <: AbstractGUIProgress
-    dialog::Any
+    dialog
 
-    GUIProgress(verboseLevel, dialog = nothing) = begin
+    GUIProgress(verboseLevel) = begin
         SimpleProgress.__init__(self, verboseLevel)
-        new(verboseLevel, dialog)
+        new(verboseLevel)
     end
 end
 function Close(self::GUIProgress)

@@ -4,7 +4,6 @@ function inline_pass()
 end
 
 function inline_ellipsis()
-
 end
 
 function indexing()::Int64

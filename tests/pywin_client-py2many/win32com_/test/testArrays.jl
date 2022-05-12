@@ -37,7 +37,7 @@ function _normalize_array(a)::Vector
 end
 
 mutable struct ArrayTest <: AbstractArrayTest
-    arr::Any
+    arr
 end
 function setUp(self::ArrayTest)
     self.arr = EnsureDispatch(gencache, "PyCOMTest.ArrayTest")

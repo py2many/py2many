@@ -7,8 +7,8 @@
 using BenchmarkTools
 
 struct Node
-    l::Union{Node,Nothing}
-    r::Union{Node,Nothing}
+    l::Union{Node, Nothing}
+    r::Union{Node, Nothing}
 end
 
 mutable struct Latch

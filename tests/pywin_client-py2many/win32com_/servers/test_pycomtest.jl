@@ -14,9 +14,9 @@ abstract type AbstractPyCOMTestMI <: AbstractPyCOMTest end
 pythoncom.__future_currency__ = true
 EnsureModule(gencache, "{6BCDCB60-5605-11D0-AE5F-CADD4C000000}", 0, 1, 1)
 mutable struct PyCOMTest <: AbstractPyCOMTest
-    intval::Any
-    longval::Any
-    ulongval::Any
+    intval
+    longval
+    ulongval
     _com_interfaces_::Vector{String}
     _reg_clsid_::String
     _reg_progid_::String
@@ -24,9 +24,9 @@ mutable struct PyCOMTest <: AbstractPyCOMTest
     _typelib_version::Tuple
 
     PyCOMTest(
-        intval::Any,
-        longval::Any,
-        ulongval::Any,
+        intval,
+        longval,
+        ulongval,
         _com_interfaces_::Vector{String} = ["IPyCOMTest"],
         _reg_clsid_::String = "{e743d9cd-cb03-4b04-b516-11d3a81c1597}",
         _reg_progid_::String = "Python.Test.PyCOMTest",

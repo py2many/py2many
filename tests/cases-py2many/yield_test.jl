@@ -56,7 +56,6 @@ end
 end
 
 mutable struct TestClass <: AbstractTestClass
-
 end
 @resumable function generator_func(self::TestClass)
     num = 123

@@ -103,5 +103,4 @@ end
 
 # isinteractive() || mandelbrot(stdout, parse(Int, ARGS[1]))
 
-
 @time mandelbrot(stdout, 16000)

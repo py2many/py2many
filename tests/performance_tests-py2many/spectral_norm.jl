@@ -1,8 +1,5 @@
 using Distributed
 
-
-
-
 function eval_A(i, j)::Int64
     ij = i + j
     return ((ij * (ij + 1) ÷ 2) + i) + 1

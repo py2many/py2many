@@ -19,10 +19,10 @@ unparse  # ignore pyflakes
 def get_id(var):
     if isinstance(var, ast.alias):
         return var.name
-    elif isinstance(var, ast.Name):
-        return var.id
     elif isinstance(var, ast.arg):
         return var.arg
+    elif isinstance(var, ast.Name):
+        return var.id
     elif isinstance(var, ast.FunctionDef):
         return var.name
     elif isinstance(var, ast.ClassDef):

@@ -4,8 +4,6 @@ using PyCall
 win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
 
-
-
 import glob
 
 import win32com.test.util

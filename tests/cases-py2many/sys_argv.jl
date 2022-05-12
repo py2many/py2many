@@ -1,5 +1,4 @@
 
-
 function main()
     a::Vector{String} = append!([PROGRAM_FILE], ARGS)
     cmd::String = a[1]

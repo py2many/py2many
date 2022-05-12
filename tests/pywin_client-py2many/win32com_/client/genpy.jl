@@ -10,8 +10,6 @@ The makepy command line etc handling is also getting large enough in its own rig
 using PyCall
 pythoncom = pyimport("pythoncom")
 
-
-
 import win32com_
 
 include("build.jl")
@@ -90,8 +88,8 @@ function WriteSinkEventMap(obj, stream)
 end
 
 mutable struct WritableItem <: AbstractWritableItem
-    doc::Any
-    order::Any
+    doc
+    order
 end
 function __cmp__(self::WritableItem, other)
     #= Compare for sorting =#
@@ -114,9 +112,9 @@ function __repr__(self::WritableItem)
 end
 
 mutable struct RecordItem <: build.OleItem
+    clsid
     bForUser::Int64
-    clsid::Any
-    doc::Any
+    doc
     order::Int64
     typename::String
 
@@ -125,12 +123,11 @@ mutable struct RecordItem <: build.OleItem
         typeAttr,
         doc = nothing,
         bForUser = 1,
-        clsid = typeAttr[1],
         order::Int64 = 9,
         typename::String = "RECORD",
     ) = begin
         build.OleItem.__init__(self, doc)
-        new(typeInfo, typeAttr, doc, bForUser, clsid, order, typename)
+        new(typeInfo, typeAttr, doc, bForUser, order, typename)
     end
 end
 function WriteClass(self::RecordItem, generator)
@@ -146,12 +143,12 @@ function WriteAliasesForItem(item, aliasItems, stream)
 end
 
 mutable struct AliasItem <: build.OleItem
-    aliasDoc::Any
-    attr::Any
-    bWritten::Any
-    ai::Any
+    aliasAttr
+    aliasDoc
+    attr
+    bWritten::Int64
     bForUser::Int64
-    doc::Any
+    doc
     order::Int64
     typename::String
 
@@ -160,7 +157,6 @@ mutable struct AliasItem <: build.OleItem
         attr,
         doc = nothing,
         bForUser = 1,
-        ai = attr[15],
         order::Int64 = 2,
         typename::String = "ALIAS",
     ) = begin
@@ -174,7 +170,7 @@ mutable struct AliasItem <: build.OleItem
             self.aliasDoc = nothing
             self.aliasAttr = nothing
         end
-        new(typeinfo, attr, doc, bForUser, ai, order, typename)
+        new(typeinfo, attr, doc, bForUser, order, typename)
     end
 end
 function WriteAliasItem(self::AliasItem, aliasDict, stream)
@@ -205,13 +201,12 @@ function WriteAliasItem(self::AliasItem, aliasDict, stream)
 end
 
 mutable struct EnumerationItem <: build.OleItem
-    bForUser::Int64
-    clsid::Any
-    doc::Any
-    hidden::Any
+    clsid
+    hidden
     mapVars::Dict
+    bForUser::Int64
+    doc
     order::Int64
-    typeFlags::Any
     typename::String
 
     EnumerationItem(
@@ -219,12 +214,7 @@ mutable struct EnumerationItem <: build.OleItem
         attr,
         doc = nothing,
         bForUser = 1,
-        clsid = attr[1],
-        hidden = typeFlags & pythoncom.TYPEFLAG_FHIDDEN ||
-                 typeFlags & pythoncom.TYPEFLAG_FRESTRICTED,
-        mapVars::Dict = Dict(),
         order::Int64 = 1,
-        typeFlags = attr[12],
         typename::String = "ENUMERATION",
     ) = begin
         build.OleItem.__init__(self, doc)
@@ -233,18 +223,7 @@ mutable struct EnumerationItem <: build.OleItem
             name = typeinfo.GetNames(vdesc[0])[0]
             self.mapVars[name] = build.MapEntry(vdesc)
         end
-        new(
-            typeinfo,
-            attr,
-            doc,
-            bForUser,
-            clsid,
-            hidden,
-            mapVars,
-            order,
-            typeFlags,
-            typename,
-        )
+        new(typeinfo, attr, doc, bForUser, order, typename)
     end
 end
 function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
@@ -281,19 +260,14 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
 end
 
 mutable struct VTableItem <: build.VTableItem
-    bIsDispatch::Any
-    bWritten::Any
-    python_name::Any
-    vtableFuncs::Any
+    bIsDispatch
+    bWritten::Int64
+    python_name
+    vtableFuncs
     order::Int64
 
-    VTableItem(
-        bIsDispatch::Any,
-        bWritten::Any,
-        python_name::Any,
-        vtableFuncs::Any,
-        order::Int64 = 4,
-    ) = new(bIsDispatch, bWritten, python_name, vtableFuncs, order)
+    VTableItem(bIsDispatch, bWritten::Int64, python_name, vtableFuncs, order::Int64 = 4) =
+        new(bIsDispatch, bWritten, python_name, vtableFuncs, order)
 end
 function WriteClass(self::VTableItem, generator)
     WriteVTableMap(self, generator)
@@ -346,27 +320,20 @@ function WriteVTableMap(self::VTableItem, generator)
 end
 
 mutable struct DispatchItem <: build.DispatchItem
-    bIsDispatch::Any
-    bIsSink::Any
-    bWritten::Any
-    clsid::Any
-    mapFuncs::Any
-    python_name::Any
-    coclass_clsid::Any
-    doc::Any
+    bIsDispatch
+    bIsSink
+    bWritten::Int64
+    clsid
+    coclass_clsid
+    mapFuncs
+    python_name
+    type_attr
+    doc
     order::Int64
-    type_attr::Any
 
-    DispatchItem(
-        typeinfo,
-        attr,
-        doc = nothing,
-        coclass_clsid = nothing,
-        order::Int64 = 3,
-        type_attr = attr,
-    ) = begin
+    DispatchItem(typeinfo, attr, doc = nothing, order::Int64 = 3) = begin
         build.DispatchItem.__init__(self, typeinfo, attr, doc)
-        new(typeinfo, attr, doc, coclass_clsid, order, type_attr)
+        new(typeinfo, attr, doc, order)
     end
 end
 function WriteClass(self::DispatchItem, generator)
@@ -741,14 +708,14 @@ function WriteClassBody(self::DispatchItem, generator)
 end
 
 mutable struct CoClassItem <: build.OleItem
-    bWritten::Any
-    interfaces::Any
-    python_name::Any
-    sources::Any
-    bForUser::Int64
     bIsDispatch::Int64
-    clsid::Any
-    doc::Any
+    bWritten::Int64
+    clsid
+    interfaces
+    python_name
+    sources
+    bForUser::Int64
+    doc
     order::Int64
     typename::String
 
@@ -759,24 +726,11 @@ mutable struct CoClassItem <: build.OleItem
         sources = [],
         interfaces = [],
         bForUser = 1,
-        bIsDispatch::Int64 = 1,
-        clsid = attr[1],
         order::Int64 = 5,
         typename::String = "COCLASS",
     ) = begin
         build.OleItem.__init__(self, doc)
-        new(
-            typeinfo,
-            attr,
-            doc,
-            sources,
-            interfaces,
-            bForUser,
-            bIsDispatch,
-            clsid,
-            order,
-            typename,
-        )
+        new(typeinfo, attr, doc, sources, interfaces, bForUser, order, typename)
     end
 end
 function WriteClass(self::CoClassItem, generator)
@@ -873,7 +827,7 @@ function WriteClass(self::CoClassItem, generator)
 end
 
 mutable struct GeneratorProgress <: AbstractGeneratorProgress
-    tlb_desc::Any
+    tlb_desc
 
     GeneratorProgress() = begin
         #= pass =#
@@ -916,17 +870,17 @@ function Close(self::GeneratorProgress)
 end
 
 mutable struct Generator <: AbstractGenerator
-    bBuildHidden::Any
-    base_mod_name::Any
-    generate_type::Any
-    sourceFilename::Any
-    typelib::Any
+    bBuildHidden
     bHaveWrittenCoClassBaseClass::Int64
     bHaveWrittenDispatchBaseClass::Int64
     bHaveWrittenEventBaseClass::Int64
-    bUnicodeToString::Any
-    file::Any
-    progress::Any
+    base_mod_name
+    file
+    generate_type::String
+    progress
+    sourceFilename
+    typelib
+    bUnicodeToString
 
     Generator(
         typelib,
@@ -934,25 +888,9 @@ mutable struct Generator <: AbstractGenerator
         progressObject,
         bBuildHidden = 1,
         bUnicodeToString = nothing,
-        bHaveWrittenCoClassBaseClass::Int64 = 0,
-        bHaveWrittenDispatchBaseClass::Int64 = 0,
-        bHaveWrittenEventBaseClass::Int64 = 0,
-        file = nothing,
-        progress = progressObject,
     ) = begin
         @assert(bUnicodeToString === nothing)
-        new(
-            typelib,
-            sourceFilename,
-            progressObject,
-            bBuildHidden,
-            bUnicodeToString,
-            bHaveWrittenCoClassBaseClass,
-            bHaveWrittenDispatchBaseClass,
-            bHaveWrittenEventBaseClass,
-            file,
-            progress,
-        )
+        new(typelib, sourceFilename, progressObject, bBuildHidden, bUnicodeToString)
     end
 end
 function CollectOleItemInfosFromType(self::Generator)::Vector

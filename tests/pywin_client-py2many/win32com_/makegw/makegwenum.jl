@@ -8,7 +8,8 @@ substitutes the appropriate interface name.
 This module is notmally not used directly - the @makegw@ module
 automatically calls this.
  =#
-import string
+include("win32com_/ext_modules/string.jl")
+import string as string
 function is_interface_enum(enumtype)
     return !(enumtype[1] in string.uppercase && enumtype[3] in string.uppercase)
 end

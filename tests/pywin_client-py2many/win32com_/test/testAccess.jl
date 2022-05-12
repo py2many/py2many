@@ -8,7 +8,6 @@ using util: CheckClean
 
 using win32com.client: gencache, constants, Dispatch
 
-
 function CreateTestAccessDatabase(dbname = nothing)
     if dbname === nothing
         dbname = join

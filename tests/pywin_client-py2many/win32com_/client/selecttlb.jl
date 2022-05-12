@@ -11,24 +11,13 @@ import win32con as win32con
 abstract type AbstractTypelibSpec end
 mutable struct TypelibSpec <: AbstractTypelibSpec
     clsid::String
-    flags::Any
     lcid::Int64
-    major::Any
-    minor::Any
-    desc::Any
-    dll::Any
-    ver_desc::Any
-
-    TypelibSpec(
-        clsid::String,
-        flags::Any,
-        lcid::Int64,
-        major::Any,
-        minor::Any,
-        desc::Any = nothing,
-        dll::Any = nothing,
-        ver_desc::Any = nothing,
-    ) = new(clsid, flags, lcid, major, minor, desc, dll, ver_desc)
+    major
+    minor
+    dll
+    desc
+    ver_desc
+    flags
 end
 function __getitem__(self::TypelibSpec, item)::TypelibSpec
     if item == 0

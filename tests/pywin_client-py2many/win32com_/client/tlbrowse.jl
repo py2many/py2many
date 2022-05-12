@@ -1,10 +1,8 @@
 module tlbrowse
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 pythoncom = pyimport("pythoncom")
-
-
 
 import commctrl
 
@@ -39,19 +37,19 @@ typekindmap = Dict(
 TypeBrowseDialog_Parent = dialog.Dialog
 mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
     #= Browse a type library =#
-    OnFileOpen::Any
-    attr::Any
-    listview::Any
-    memberlb::Any
-    paramlb::Any
-    tlb::Any
-    typeinfo::Any
-    typelb::Any
+    OnFileOpen
+    attr
+    listview
+    memberlb
+    paramlb
+    tlb
+    typeinfo
+    typelb
     IDC_LISTVIEW::Int64
     IDC_MEMBERLIST::Int64
     IDC_PARAMLIST::Int64
     IDC_TYPELIST::Int64
-    typefile::Any
+    typefile
 
     TypeBrowseDialog(
         typefile = nothing,

@@ -32,7 +32,6 @@ import shutil
 import zipfile
 import getopt
 
-
 import glob
 include("CLSIDToClass.jl")
 using importlib: reload
@@ -447,7 +446,6 @@ function EnsureModule(
         necessary (re)generate, then import the necessary support files. If we regenerate the file, there
         is no way to totally snuff out all instances of the old module in Python, and thus we will regenerate the file more than necessary,
         unless makepy/genpy is modified accordingly.
-
 
         Returns the Python module.  No exceptions are caught during the generate process.
 
