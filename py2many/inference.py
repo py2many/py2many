@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_in_body, find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_node_by_name_and_type, find_node_by_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -562,6 +562,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_Attribute(self, node):
+        self.generic_visit(node)
         value_id = get_id(node.value)
         if value_id == "self" and self._self_types:
             attr_node = node.scopes.find(node.attr)
@@ -571,13 +572,21 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = getattr(attr_node.assigned_from, "annotation", None)
             
             # Try to get annotation
-            if not getattr(node, "annotation", None):
+            if not getattr(node, "annotation", None) and self._self_types:
                 curr_class_name = get_id(self._self_types[-1])
                 class_scope = node.scopes.find(curr_class_name)
-                ann = getattr(class_scope.scopes.find(node.attr), "annotation", None)
+                b_node = find_in_body(class_scope.body, lambda x: 
+                    (isinstance(x, ast.Assign) and get_id(x.targets[0]) == get_id(node)) or
+                    (isinstance(x, ast.AnnAssign) and get_id(x.target) == get_id(node)))
+                if hasattr(b_node, "targets"):
+                    ann = getattr(b_node.targets[0], "annotation", None)
+                else:
+                    ann = getattr(b_node, "annotation", None)
+                # Alternative 2
+                # node = find_node_by_name_and_type(get_id(node), ast.Attribute, node.scopes)
+                # ann = getattr(class_scope.scopes.find(node.attr), "annotation", None)
                 if ann:
                     node.annotation = ann
-                # node.annotation = self._self_types[-1]
         elif value_id is not None and hasattr(node, "scopes"):
             if is_enum(value_id, node.scopes):
                 node.annotation = node.scopes.find(value_id)        
