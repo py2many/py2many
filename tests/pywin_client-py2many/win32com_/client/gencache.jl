@@ -23,8 +23,8 @@ Hacks, to do, etc
  =#
 using Printf
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 import io as io
 include("makepy.jl")
 include("genpy.jl")
@@ -313,9 +313,9 @@ function MakeModuleForTypelib(
     GenerateFromTypeLibSpec(
         makepy,
         (typelibCLSID, lcid, major, minor),
-        progressInstance,
-        bForDemand,
-        bBuildHidden,
+        progressInstance = progressInstance,
+        bForDemand = bForDemand,
+        bBuildHidden = bBuildHidden,
     )
     return GetModuleForTypelib(typelibCLSID, lcid, major, minor)
 end
@@ -343,9 +343,9 @@ function MakeModuleForTypelibInterface(
         GenerateFromTypeLibSpec(
             makepy,
             typelib_ob,
-            progressInstance,
-            bForDemandDefault,
-            bBuildHidden,
+            progressInstance = progressInstance,
+            bForDemand = bForDemandDefault,
+            bBuildHidden = bBuildHidden,
         )
     catch exn
         if exn isa pywintypes.com_error

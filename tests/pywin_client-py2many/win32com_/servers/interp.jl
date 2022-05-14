@@ -46,7 +46,7 @@ end
 function Eval(self::Interpreter, exp)
     #= Evaluate an expression. =#
     if type_(exp) != str
-        throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
+        throw(Exception(desc = "Must be a string", scode = winerror.DISP_E_TYPEMISMATCH))
     end
     return eval(string(exp), self.dict)
 end
@@ -54,7 +54,7 @@ end
 function Exec(self::Interpreter, exp)
     #= Execute a statement. =#
     if type_(exp) != str
-        throw(Exception("Must be a string", winerror.DISP_E_TYPEMISMATCH))
+        throw(Exception(desc = "Must be a string", scode = winerror.DISP_E_TYPEMISMATCH))
     end
     exec(string(exp), self.dict)
 end

@@ -165,7 +165,7 @@ class DispatchItem(OleItem):
         if typeinfo:
             self.Build(typeinfo, attr, bForUser)
 
-    def _propMapPutCheck_(self, key, item):
+    def _propMapPutCheck_(self, key: str, item: MapEntry):
         ins, outs, opts = self.CountInOutOptArgs(item.desc[2])
         if ins > 1:  # if a Put property takes more than 1 arg:
             if opts + 1 == ins or ins == item.desc[6] + 1:
@@ -182,7 +182,7 @@ class DispatchItem(OleItem):
             if deleteExisting:
                 del self.propMapPut[key]
 
-    def _propMapGetCheck_(self, key, item):
+    def _propMapGetCheck_(self, key: str, item: MapEntry):
         ins, outs, opts = self.CountInOutOptArgs(item.desc[2])
         if ins > 0:  # if a Get property takes _any_ in args:
             if item.desc[6] == ins or ins == opts:

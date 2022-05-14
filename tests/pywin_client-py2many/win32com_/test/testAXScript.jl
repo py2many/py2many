@@ -15,7 +15,7 @@ end
 function setUp(self::AXScript)
     file = GetFullPathName(win32api, join)
     self.verbose = verbose
-    RegisterPythonServer(file, "python", self.verbose)
+    RegisterPythonServer(file, "python", verbose = self.verbose)
 end
 
 function testHost(self::AXScript)

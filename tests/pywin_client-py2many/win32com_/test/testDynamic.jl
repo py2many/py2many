@@ -25,7 +25,7 @@ function _dynamic_(self::VeryPermissive, name, lcid, wFlags, args)
             return ret
         catch exn
             if exn isa KeyError
-                throw(Exception(winerror.DISP_E_MEMBERNOTFOUND))
+                throw(Exception(scode = winerror.DISP_E_MEMBERNOTFOUND))
             end
         end
     end
@@ -33,12 +33,12 @@ function _dynamic_(self::VeryPermissive, name, lcid, wFlags, args)
         setattr(self, name, args[1])
         return
     end
-    throw(Exception(winerror.E_INVALIDARG, "invalid wFlags"))
+    throw(Exception(scode = winerror.E_INVALIDARG, desc = "invalid wFlags"))
 end
 
 function write(self::VeryPermissive)
     if length(args) == 0
-        throw(Exception(winerror.DISP_E_BADPARAMCOUNT))
+        throw(Exception(scode = winerror.DISP_E_BADPARAMCOUNT))
     end
     for arg in args[begin:-1]
     end
@@ -46,7 +46,11 @@ function write(self::VeryPermissive)
 end
 
 function Test()
-    ob = wrap(win32com.server.util, VeryPermissive(), win32com.server.policy.DynamicPolicy)
+    ob = wrap(
+        win32com.server.util,
+        VeryPermissive(),
+        usePolicy = win32com.server.policy.DynamicPolicy,
+    )
     try
         handle = RegisterActiveObject(pythoncom, ob, iid, 0)
     catch exn

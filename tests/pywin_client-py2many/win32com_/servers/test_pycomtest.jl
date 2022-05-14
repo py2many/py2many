@@ -52,23 +52,23 @@ function DoubleInOutString(self::PyCOMTest, str)::Int64
 end
 
 function Fire(self::PyCOMTest, nID)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetLastVarArgs(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetMultipleInterfaces(self::PyCOMTest, outinterface1, outinterface2)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSafeArrays(self::PyCOMTest, attrs, attrs2, ints)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSetDispatch(self::PyCOMTest, indisp)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSetInterface(self::PyCOMTest, ininterface)
@@ -88,23 +88,23 @@ function TestByRefString(self::PyCOMTest, v)::Int64
 end
 
 function GetSetInterfaceArray(self::PyCOMTest, ininterface)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSetUnknown(self::PyCOMTest, inunk)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSimpleCounter(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetSimpleSafeArray(self::PyCOMTest, ints)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function GetStruct(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function SetIntSafeArray(self::PyCOMTest, ints)::Int64
@@ -124,31 +124,31 @@ function SetBinSafeArray(self::PyCOMTest, buf)::Int64
 end
 
 function SetVarArgs(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function SetVariantSafeArray(self::PyCOMTest, vars)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function Start(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function Stop(self::PyCOMTest, nID)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function StopAll(self::PyCOMTest)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function TakeByRefDispatch(self::PyCOMTest, inout)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function TakeByRefTypedDispatch(self::PyCOMTest, inout)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function Test(self::PyCOMTest, key, inval)
@@ -160,11 +160,11 @@ function Test2(self::PyCOMTest, inval)
 end
 
 function Test3(self::PyCOMTest, inval)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function Test4(self::PyCOMTest, inval)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function Test5(self::PyCOMTest, inout)::Int64
@@ -192,11 +192,11 @@ function TestOptionals(
     lval = 1,
     dval = 3.140000104904175,
 )
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function TestOptionals2(self::PyCOMTest, dval, strval = "", sval = 1)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function CheckVariantSafeArray(self::PyCOMTest, data)::Int64

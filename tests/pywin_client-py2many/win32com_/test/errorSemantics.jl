@@ -31,7 +31,7 @@ mutable struct TestServer <: AbstractTestServer
     ) = new(_com_interfaces_, _public_methods_)
 end
 function Clone(self::TestServer)
-    throw(COMException("Not today", winerror.E_UNEXPECTED))
+    throw(COMException("Not today", scode = winerror.E_UNEXPECTED))
 end
 
 function Commit(self::TestServer, flags)

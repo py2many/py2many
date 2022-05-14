@@ -50,3 +50,9 @@ def create_ast_block(body, at_node=None) -> ASTxIf:
         block.lineno = at_node.lineno
     ast.fix_missing_locations(block)
     return block
+
+def copy_attributes(node1, node2):
+    """Copy attributes from node1 to node2"""
+    for key, val in node1.__dict__.items():
+        if key not in node2.__dict__:
+            node2.__dict__[key] = val

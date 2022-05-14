@@ -1,7 +1,7 @@
 module __init__
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 
 import gencache
 include("win32com_/ext_modules/winerror.jl")
@@ -321,7 +321,7 @@ function DispatchWithEvents(clsid, user_event_class)::EventsProxy
             disp_clsid = GetTypeAttr(ti)[1]
             tlb, index = GetContainingTypeLib(ti)
             tla = GetLibAttr(tlb)
-            EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
+            EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], bValidateFile = 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
             if exn isa pythoncom.com_error
@@ -390,7 +390,7 @@ function WithEvents(disp, user_event_class)
             disp_clsid = GetTypeAttr(ti)[1]
             tlb, index = GetContainingTypeLib(ti)
             tla = GetLibAttr(tlb)
-            EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], 0)
+            EnsureModule(gencache, tla[1], tla[2], tla[4], tla[5], bValidateFile = 0)
             disp_class = GetClassForProgID(gencache, string(disp_clsid))
         catch exn
             if exn isa pythoncom.com_error
@@ -725,7 +725,7 @@ function __setattr__(self::CoClassBaseClass, attr, value)
 end
 
 function __maybe__call__(self::CoClassBaseClass)
-    return __call__(self.__dict__["_dispobj_"], args..., kwargs)
+    return __call__(self.__dict__["_dispobj_"], args..., None = kwargs)
 end
 
 function __maybe__str__(self::CoClassBaseClass)

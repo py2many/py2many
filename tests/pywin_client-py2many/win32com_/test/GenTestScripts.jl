@@ -25,7 +25,13 @@ function GenerateFromRegistered(fname)
     close(readline(join))
 
     f = readline(join)
-    GenerateFromTypeLibSpec(win32com.client.makepy, loadArgs, f, 1, 1)
+    GenerateFromTypeLibSpec(
+        win32com.client.makepy,
+        loadArgs,
+        f,
+        bQuiet = 1,
+        bGUIProgress = 1,
+    )
     close(f)
 
     fullModName = "win32com.test.%s.%s" % (genDir, fname)

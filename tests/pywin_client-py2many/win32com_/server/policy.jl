@@ -68,9 +68,9 @@ Error Handling
 
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pywintypes = pyimport("pywintypes")
 using win32com.util: IIDToInterfaceName
 using win32com: universal
 import win32com.client
@@ -303,7 +303,12 @@ function _Invoke_(self::BasicWrapPolicy, dispid, lcid, wFlags, args)
             dispid = self._name_to_dispid_[lower(dispid)]
         catch exn
             if exn isa KeyError
-                throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
+                throw(
+                    COMException(
+                        scode = winerror.DISP_E_MEMBERNOTFOUND,
+                        desc = "Member not found",
+                    ),
+                )
             end
         end
     end
@@ -320,7 +325,12 @@ function _GetIDsOfNames_(self::BasicWrapPolicy, names, lcid)
             This checks the validity of the arguments, and calls the _getidsofnames_ helper.
              =#
     if length(names) > 1
-        throw(COMException(winerror.DISP_E_INVALID, "Cannot support member argument names"))
+        throw(
+            COMException(
+                scode = winerror.DISP_E_INVALID,
+                desc = "Cannot support member argument names",
+            ),
+        )
     end
     return _getidsofnames_(self, names, lcid)
 end
@@ -338,7 +348,7 @@ function _getdispid_(self::BasicWrapPolicy, name, fdex)::Dict
         return self._name_to_dispid_[lower(name)]
     catch exn
         if exn isa KeyError
-            throw(COMException(winerror.DISP_E_UNKNOWNNAME))
+            throw(COMException(scode = winerror.DISP_E_UNKNOWNNAME))
         end
     end
 end
@@ -361,7 +371,12 @@ function _InvokeEx_(
             dispid = self._name_to_dispid_[lower(dispid)]
         catch exn
             if exn isa KeyError
-                throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
+                throw(
+                    COMException(
+                        scode = winerror.DISP_E_MEMBERNOTFOUND,
+                        desc = "Member not found",
+                    ),
+                )
             end
         end
     end
@@ -389,7 +404,7 @@ function _DeleteMemberByName_(self::BasicWrapPolicy, name, fdex)
 end
 
 function _deletememberbyname_(self::BasicWrapPolicy, name, fdex)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(scode = winerror.E_NOTIMPL))
 end
 
 function _DeleteMemberByDispID_(self::BasicWrapPolicy, id)
@@ -397,7 +412,7 @@ function _DeleteMemberByDispID_(self::BasicWrapPolicy, id)
 end
 
 function _deletememberbydispid_(self::BasicWrapPolicy, id)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(scode = winerror.E_NOTIMPL))
 end
 
 function _GetMemberProperties_(self::BasicWrapPolicy, id, fdex)
@@ -405,7 +420,7 @@ function _GetMemberProperties_(self::BasicWrapPolicy, id, fdex)
 end
 
 function _getmemberproperties_(self::BasicWrapPolicy, id, fdex)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(scode = winerror.E_NOTIMPL))
 end
 
 function _GetMemberName_(self::BasicWrapPolicy, dispid)
@@ -413,7 +428,7 @@ function _GetMemberName_(self::BasicWrapPolicy, dispid)
 end
 
 function _getmembername_(self::BasicWrapPolicy, dispid)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(scode = winerror.E_NOTIMPL))
 end
 
 function _GetNextDispID_(self::BasicWrapPolicy, fdex, dispid)::Vector
@@ -433,10 +448,10 @@ function _getnextdispid_(self::BasicWrapPolicy, fdex, dispid)::Vector
             return ids[findfirst(isequal(dispid), ids)+1+1]
         catch exn
             if exn isa ValueError
-                throw(COMException(winerror.E_UNEXPECTED))
+                throw(COMException(scode = winerror.E_UNEXPECTED))
             end
             if exn isa IndexError
-                throw(COMException(winerror.S_FALSE))
+                throw(COMException(scode = winerror.S_FALSE))
             end
         end
     end
@@ -447,7 +462,7 @@ function _GetNameSpaceParent_(self::BasicWrapPolicy)
 end
 
 function _getnamespaceparent_(self::BasicWrapPolicy)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(scode = winerror.E_NOTIMPL))
 end
 
 mutable struct MappedWrapPolicy <: AbstractMappedWrapPolicy
@@ -500,7 +515,7 @@ function _getmembername_(self::MappedWrapPolicy, dispid)
     elseif dispid in self._dispid_to_put_
         return self._dispid_to_put_[dispid+1]
     else
-        throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+        throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
     end
 end
 
@@ -671,7 +686,7 @@ function _GetTypeInfo_(self::DesignatedWrapPolicy, index, lcid)::Tuple
         self._typeinfos_ = _build_typeinfos_(self)
     end
     if index < 0 || index >= length(self._typeinfos_)
-        throw(COMException(winerror.DISP_E_BADINDEX))
+        throw(COMException(scode = winerror.DISP_E_BADINDEX))
     end
     return (0, self._typeinfos_[index+1])
 end
@@ -702,7 +717,7 @@ function _invokeex_(
         catch exn
             if exn isa KeyError
                 if !(__and__(wFlags, DISPATCH_PROPERTYGET))
-                    throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+                    throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
                 end
             end
         end
@@ -712,7 +727,7 @@ function _invokeex_(
             name = self._dispid_to_get_[dispid+1]
         catch exn
             if exn isa KeyError
-                throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+                throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
             end
         end
         retob = getattr(self._obj_, name)
@@ -726,7 +741,7 @@ function _invokeex_(
             name = self._dispid_to_put_[dispid+1]
         catch exn
             if exn isa KeyError
-                throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+                throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
             end
         end
         if type_(getattr(self._obj_, name, nothing)) == types.MethodType &&
@@ -738,7 +753,7 @@ function _invokeex_(
         end
         return
     end
-    throw(COMException(winerror.E_INVALIDARG, "invalid wFlags"))
+    throw(COMException(scode = winerror.E_INVALIDARG, desc = "invalid wFlags"))
 end
 
 mutable struct EventHandlerPolicy <: AbstractEventHandlerPolicy
@@ -862,7 +877,12 @@ function _invokeex_(
         name = self._dyn_dispid_to_name_[dispid+1]
     catch exn
         if exn isa KeyError
-            throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
+            throw(
+                COMException(
+                    scode = winerror.DISP_E_MEMBERNOTFOUND,
+                    desc = "Member not found",
+                ),
+            )
         end
     end
     return _dynamic_(self._obj_, name, lcid, wFlags, args)

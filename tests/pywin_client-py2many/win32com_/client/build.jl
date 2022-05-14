@@ -11,9 +11,9 @@ Other modules may use this information to generate .py files, use the informatio
 dynamically, or possibly even generate .html documentation for objects.
  =#
 using PyCall
+pythoncom = pyimport("pythoncom")
 datetime = pyimport("datetime")
 pywintypes = pyimport("pywintypes")
-pythoncom = pyimport("pythoncom")
 
 include("win32com_/ext_modules/string.jl")
 import string as string
@@ -102,7 +102,7 @@ mutable struct MapEntry <: AbstractMapEntry
     end
 end
 function __repr__(self::MapEntry)
-    return test
+    return "MapEntry(dispid=$(self.dispid), desc=$(self.desc), names=$(self.names), doc=$(self.doc!r), resultCLSID=$(self.resultCLSID), resultDocumentation=$(self.resultDocumentation), wasProperty=$(self.wasProperty), hidden=$(self.hidden)"
 end
 
 function GetResultCLSID(self::MapEntry)
@@ -170,23 +170,23 @@ mutable struct DispatchItem <: AbstractDispatchItem
         bForUser = 1,
         typename::String = "DispatchItem",
     ) = begin
-        OleItem.__init__(self, doc)
+        OleItem(doc)
         if typeinfo
             Build(typeinfo, attr, bForUser)
         end
         new(typeinfo, attr, doc, bForUser, typename)
     end
 end
-function _propMapPutCheck_(self::DispatchItem, key, item)
+function _propMapPutCheck_(self::DispatchItem, key::String, item::MapEntry)
     ins, outs, opts = CountInOutOptArgs(self, item.desc[3])
     if ins > 1
         if (opts + 1) === ins || ins == (item.desc[7] + 1)
-            newKey = "Set" + key
+            newKey = "Set" * key
             deleteExisting = 0
         else
             deleteExisting = 1
             if key in self.mapFuncs || key in self.propMapGet
-                newKey = "Set" + key
+                newKey = "Set" * key
             else
                 newKey = key
             end
@@ -199,16 +199,16 @@ function _propMapPutCheck_(self::DispatchItem, key, item)
     end
 end
 
-function _propMapGetCheck_(self::DispatchItem, key, item)
+function _propMapGetCheck_(self::DispatchItem, key::String, item::MapEntry)
     ins, outs, opts = CountInOutOptArgs(self, item.desc[3])
     if ins > 0
         if item.desc[7] === ins || ins === opts
-            newKey = "Get" + key
+            newKey = "Get" * key
             deleteExisting = 0
         else
             deleteExisting = 1
             if key in self.mapFuncs
-                newKey = "Get" + key
+                newKey = "Get" * key
             else
                 newKey = key
             end
@@ -529,7 +529,7 @@ function Build(self::VTableItem, typeinfo, attr, bForUser = 1)
         append!(collect(values(self.mapFuncs)), collect(values(self.propMapGet))),
         collect(values(self.propMapPut)),
     )
-    sort(meth_list, (m) -> m.desc[8])
+    sort(meth_list, key = (m) -> m.desc[8])
     self.vtableFuncs = []
     for entry in meth_list
         append(self.vtableFuncs, (entry.names, entry.dispid, entry.desc))
@@ -541,7 +541,7 @@ mutable struct LazyDispatchItem <: AbstractLazyDispatchItem
     typename::String
 
     LazyDispatchItem(attr, doc, typename::String = "LazyDispatchItem") = begin
-        DispatchItem.__init__(self, nothing, attr, doc, 0)
+        DispatchItem(nothing, attr, doc, 0)
         new(attr, doc, typename)
     end
 end

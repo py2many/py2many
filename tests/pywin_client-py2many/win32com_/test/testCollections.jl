@@ -1,7 +1,7 @@
 module testCollections
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 
 import win32com.server.util
 import win32com.test.util

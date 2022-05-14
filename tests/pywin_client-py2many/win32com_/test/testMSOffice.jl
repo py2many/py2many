@@ -1,8 +1,8 @@
 module testMSOffice
 using PyCall
 pythoncom = pyimport("pythoncom")
-pywintypes = pyimport("pywintypes")
 win32api = pyimport("win32api")
+pywintypes = pyimport("pywintypes")
 import win32com.test.Generated4Test.msword8
 
 import xl5en32
@@ -64,7 +64,7 @@ function TestWord7(word)
         _proc_(word, "AppShow")
     end
     for i = 0:11
-        FormatFont(word, i + 1, i + 12)
+        FormatFont(word, Color = i + 1, Points = i + 12)
         Insert(word, "Hello from Python %d\n" % i)
     end
     FileClose(word, 2)
@@ -83,7 +83,7 @@ function TestWord8(word)
         p.Font.ColorIndex = i + 1
         p.Font.Size = 12 + 4 * i
     end
-    Close(doc, 0)
+    Close(doc, SaveChanges = 0)
     Quit(word)
     Sleep(win32api, 1000)
 end
@@ -165,7 +165,14 @@ function TestAll()
     end
     try
         println("Starting Excel 8 for generated excel8.py test...")
-        mod = EnsureModule(gencache, "{00020813-0000-0000-C000-000000000046}", 0, 1, 2, 1)
+        mod = EnsureModule(
+            gencache,
+            "{00020813-0000-0000-C000-000000000046}",
+            0,
+            1,
+            2,
+            bForDemand = 1,
+        )
         xl = Dispatch(win32com.client, "Excel.Application")
         TextExcel(xl)
     catch exn

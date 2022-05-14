@@ -32,8 +32,8 @@ the dictionary's keys. This allows for the following type of VB code:
     next
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 using win32com.server.register: UseCommandLine
 
 using win32com.server: util, policy
@@ -97,16 +97,26 @@ function _invokeex_(
     if dispid == 0
         l = length(args)
         if l < 1
-            throw(COMException("not enough parameters", winerror.DISP_E_BADPARAMCOUNT))
+            throw(
+                COMException(
+                    desc = "not enough parameters",
+                    scode = winerror.DISP_E_BADPARAMCOUNT,
+                ),
+            )
         end
         key = args[1]
         if type_(key) ∉ [str, str]
-            throw(COMException("Key must be a string", winerror.DISP_E_TYPEMISMATCH))
+            throw(
+                COMException(
+                    desc = "Key must be a string",
+                    scode = winerror.DISP_E_TYPEMISMATCH,
+                ),
+            )
         end
         key = lower(key)
         if wFlags & __or__(DISPATCH_METHOD, DISPATCH_PROPERTYGET)
             if l > 1
-                throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+                throw(COMException(scode = winerror.DISP_E_BADPARAMCOUNT))
             end
             try
                 return self._obj_[key+1]
@@ -117,7 +127,7 @@ function _invokeex_(
             end
         end
         if l != 2
-            throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+            throw(COMException(scode = winerror.DISP_E_BADPARAMCOUNT))
         end
         if args[2] === nothing
             try
@@ -135,17 +145,17 @@ function _invokeex_(
     end
     if dispid == 1
         if !(__and__(wFlags, DISPATCH_PROPERTYGET))
-            throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+            throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
         end
         if length(args) != 0
-            throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+            throw(COMException(scode = winerror.DISP_E_BADPARAMCOUNT))
         end
         return length(self._obj_)
     end
     if dispid == pythoncom.DISPID_NEWENUM
         return NewEnum(util, collect(keys(self._obj_)))
     end
-    throw(COMException(winerror.DISP_E_MEMBERNOTFOUND))
+    throw(COMException(scode = winerror.DISP_E_MEMBERNOTFOUND))
 end
 
 function _getidsofnames_(self::DictionaryPolicy, names, lcid)::Tuple
@@ -154,7 +164,12 @@ function _getidsofnames_(self::DictionaryPolicy, names, lcid)::Tuple
         return (self._name_to_dispid_[name+1],)
     catch exn
         if exn isa KeyError
-            throw(COMException(winerror.DISP_E_MEMBERNOTFOUND, "Member not found"))
+            throw(
+                COMException(
+                    scode = winerror.DISP_E_MEMBERNOTFOUND,
+                    desc = "Member not found",
+                ),
+            )
         end
     end
 end

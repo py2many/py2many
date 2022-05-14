@@ -91,12 +91,12 @@ mutable struct EnumVARIANT <: AbstractEnumVARIANT
     resultCLSID
 
     EnumVARIANT(enum, resultCLSID = nothing) = begin
-        Enumerator.__init__(self, enum)
+        Enumerator(enum)
         new(enum, resultCLSID)
     end
 end
 function _make_retval_(self::EnumVARIANT, result)
-    return _get_good_object_(result, self.resultCLSID)
+    return _get_good_object_(result, resultCLSID = self.resultCLSID)
 end
 
 mutable struct Iterator <: AbstractIterator
@@ -108,7 +108,7 @@ function __iter__(self::Iterator)
 end
 
 function __next__(self::Iterator)
-    return _get_good_object_(next(self._iter_), self.resultCLSID)
+    return _get_good_object_(next(self._iter_), resultCLSID = self.resultCLSID)
 end
 
 end

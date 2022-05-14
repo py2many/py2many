@@ -1,7 +1,7 @@
 module testStorage
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 using win32com: storagecon
 
 import win32com.test.util

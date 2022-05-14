@@ -37,16 +37,24 @@ mutable struct PerfMonQuery <: AbstractPerfMonQuery
 end
 function Query(self::PerfMonQuery, object, counter, instance = nothing, machine = nothing)
     try
-        return GetPerformanceAttributes(win32pdhutil, object, counter, instance, machine)
+        return GetPerformanceAttributes(
+            win32pdhutil,
+            object,
+            counter,
+            instance,
+            machine = machine,
+        )
     catch exn
         let exc = exn
             if exc isa win32pdhutil.error
-                throw(Exception(exception, exc.strerror))
+                throw(Exception(exception, desc = exc.strerror))
             end
         end
         let desc = exn
             if desc isa TypeError
-                throw(Exception(exception, desc, winerror.DISP_E_TYPEMISMATCH))
+                throw(
+                    Exception(exception, desc = desc, scode = winerror.DISP_E_TYPEMISMATCH),
+                )
             end
         end
     end

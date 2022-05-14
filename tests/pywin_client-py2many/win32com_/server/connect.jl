@@ -59,7 +59,7 @@ function Advise(self::ConnectableServer, pUnk)::Int64
             QueryInterface(pUnk, self._connect_interfaces_[1], pythoncom.IID_IDispatch)
     catch exn
         if exn isa pythoncom.com_error
-            throw(Exception(olectl.CONNECT_E_NOCONNECTION))
+            throw(Exception(scode = olectl.CONNECT_E_NOCONNECTION))
         end
     end
     self.cookieNo = self.cookieNo + 1
@@ -72,7 +72,7 @@ function Unadvise(self::ConnectableServer, cookie)
         delete!(self.connections, cookie)
     catch exn
         if exn isa KeyError
-            throw(Exception(winerror.E_UNEXPECTED))
+            throw(Exception(scode = winerror.E_UNEXPECTED))
         end
     end
 end

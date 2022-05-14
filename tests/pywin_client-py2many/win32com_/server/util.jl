@@ -143,7 +143,7 @@ function NewEnum(
         (the default is @ListEnumerator@), and the specific IEnum
         interface can be specified.
          =#
-    ob = cls(seq, iid)
+    ob = cls(seq, iid = iid)
     return wrap(ob, iid)
 end
 
@@ -166,14 +166,14 @@ mutable struct Collection <: AbstractCollection
 end
 function Item(self::Collection)
     if length(args) != 1
-        throw(COMException(winerror.DISP_E_BADPARAMCOUNT))
+        throw(COMException(scode = winerror.DISP_E_BADPARAMCOUNT))
     end
     try
         return self.data[args[1]+1]
     catch exn
         let desc = exn
             if desc isa IndexError
-                throw(COMException(winerror.DISP_E_BADINDEX, string(desc)))
+                throw(COMException(scode = winerror.DISP_E_BADINDEX, desc = string(desc)))
             end
         end
     end
@@ -194,7 +194,7 @@ function Remove(self::Collection, index)
     catch exn
         let desc = exn
             if desc isa IndexError
-                throw(COMException(winerror.DISP_E_BADINDEX, string(desc)))
+                throw(COMException(scode = winerror.DISP_E_BADINDEX, desc = string(desc)))
             end
         end
     end
@@ -205,7 +205,7 @@ function Insert(self::Collection, index, value)
         index = parse(Int, index)
     catch exn
         if exn isa (ValueError, TypeError)
-            throw(COMException(winerror.DISP_E_TYPEMISMATCH))
+            throw(COMException(scode = winerror.DISP_E_TYPEMISMATCH))
         end
     end
     insert(self.data, index, value)

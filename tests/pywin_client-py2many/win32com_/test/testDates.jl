@@ -34,18 +34,48 @@ function check(self::TestCase, d, expected = nothing)
 end
 
 function testUTC(self::TestCase)
-    check(self, datetime(2000, 12, 25, 500000, utc(TimeZoneInfo)))
+    check(
+        self,
+        datetime(
+            year = 2000,
+            month = 12,
+            day = 25,
+            microsecond = 500000,
+            tzinfo = utc(TimeZoneInfo),
+        ),
+    )
 end
 
 function testLocal(self::TestCase)
-    check(self, datetime(2000, 12, 25, 500000, local_(TimeZoneInfo)))
+    check(
+        self,
+        datetime(
+            year = 2000,
+            month = 12,
+            day = 25,
+            microsecond = 500000,
+            tzinfo = local_(TimeZoneInfo),
+        ),
+    )
 end
 
 function testMSTruncated(self::TestCase)
     check(
         self,
-        datetime(2000, 12, 25, 500500, utc(TimeZoneInfo)),
-        datetime(2000, 12, 25, 500000, utc(TimeZoneInfo)),
+        datetime(
+            year = 2000,
+            month = 12,
+            day = 25,
+            microsecond = 500500,
+            tzinfo = utc(TimeZoneInfo),
+        ),
+        datetime(
+            year = 2000,
+            month = 12,
+            day = 25,
+            microsecond = 500000,
+            tzinfo = utc(TimeZoneInfo),
+        ),
     )
 end
 

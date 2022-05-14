@@ -29,7 +29,7 @@ end
 
 function ShowInfo(spec)
     if !(spec)
-        tlbSpec = SelectTlb(selecttlb, selecttlb.FLAG_HIDDEN)
+        tlbSpec = SelectTlb(selecttlb, excludeFlags = selecttlb.FLAG_HIDDEN)
         if tlbSpec === nothing
             return
         end
@@ -119,7 +119,7 @@ mutable struct GUIProgress <: AbstractGUIProgress
     dialog
 
     GUIProgress(verboseLevel) = begin
-        SimpleProgress.__init__(self, verboseLevel)
+        SimpleProgress(verboseLevel)
         new(verboseLevel)
     end
 end
@@ -270,7 +270,7 @@ function GenerateFromTypeLibSpec(
     progress = progressInstance
     bToGenDir = file === nothing
     for (typelib, info) in typelibs
-        gen = Generator(genpy, typelib, info.dll, progress, bBuildHidden)
+        gen = Generator(genpy, typelib, info.dll, progress, bBuildHidden = bBuildHidden)
         if file === nothing
             this_name = GetGeneratedFileName(
                 gencache,

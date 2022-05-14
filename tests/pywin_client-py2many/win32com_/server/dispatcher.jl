@@ -4,8 +4,8 @@ module dispatcher
 Please see policy.py for a discussion on dispatchers and policies
  =#
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32traceutil
 
 using win32com.server.exception: IsCOMServerException
@@ -268,7 +268,7 @@ mutable struct DispatcherWin32trace <: AbstractDispatcherWin32trace
     #= A tracing dispatcher that sends its output to the win32trace remote collector. =#
 
     DispatcherWin32trace(policyClass, object) = begin
-        DispatcherTrace.__init__(self, policyClass, object)
+        DispatcherTrace(policyClass, object)
         if logger === nothing
         end
         _trace_("Object with win32trace dispatcher created (object=%s)" % repr(object))
@@ -301,7 +301,7 @@ mutable struct DispatcherWin32dbg <: AbstractDispatcherWin32dbg
         println("The DispatcherWin32dbg dispatcher is deprecated!")
         println("Please let me know if this is a problem.")
         println("Uncomment the relevant lines in dispatcher.py to re-enable")
-        DispatcherBase.__init__(self, policyClass, ob)
+        DispatcherBase(policyClass, ob)
         new(policyClass, ob)
     end
 end

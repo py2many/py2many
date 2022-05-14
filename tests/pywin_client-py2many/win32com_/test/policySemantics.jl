@@ -109,7 +109,7 @@ function setUp(self::Tester)
     else
         dispatcher = nothing
     end
-    disp = wrap(win32com.server.util, PythonSemanticClass(), dispatcher)
+    disp = wrap(win32com.server.util, PythonSemanticClass(), useDispatcher = dispatcher)
     self.ob = Dispatch(win32com.client, disp)
 end
 

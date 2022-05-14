@@ -581,12 +581,12 @@ function ReExecuteElevated(flags)
         end
         executable = get(os.environ, "COMSPEC", "cmd.exe")
         rc = ShellExecuteEx(
-            hwnd,
-            shellcon.SEE_MASK_NOCLOSEPROCESS,
-            "runas",
-            executable,
-            "/C \"%s\"" % batfile,
-            win32con.SW_SHOW,
+            hwnd = hwnd,
+            fMask = shellcon.SEE_MASK_NOCLOSEPROCESS,
+            lpVerb = "runas",
+            lpFile = executable,
+            lpParameters = "/C \"%s\"" % batfile,
+            nShow = win32con.SW_SHOW,
         )
         hproc = rc["hProcess"]
         WaitForSingleObject(win32event, hproc, win32event.INFINITE)

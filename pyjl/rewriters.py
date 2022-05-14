@@ -11,7 +11,7 @@ from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
-from py2many.ast_helpers import get_id
+from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
 from pyjl.helpers import generate_var_name, get_ann_repr
@@ -47,8 +47,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             self._handle_special_cases(fname)
 
-            if get_id(fname.value):
-                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
+            value_id = get_id(fname.value)
+            if value_id:
+                node0 = ast.Name(id=value_id, lineno=node.lineno)
             else:
                 node0 = fname.value
 
@@ -274,6 +275,22 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         node.body = body
 
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        func = node.func
+        if isinstance(func, ast.Attribute):
+            value_id = get_id(func.value)
+            val_node = find_node_by_name_and_type(value_id, ast.ClassDef, node.scopes)[0]
+            if isinstance(val_node, ast.ClassDef):
+                func_n = ast.Name(id=value_id, lineno=node.lineno) \
+                    if value_id else func.value
+
+                if func.attr == "__init__":
+                    func_n.annotation = getattr(node.func, "annotation", None)
+                    node.func = func_n
+                    node.args = node.args[1:]
+                    return node
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
@@ -1268,9 +1285,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
             )
 
             # Populate remaining fields
-            for key, elem in node.__dict__.items():
-                if key not in julia_module.__dict__:
-                    julia_module.__dict__[key] = elem
+            copy_attributes(node, julia_module)
 
             return julia_module
         return node

@@ -97,7 +97,7 @@ mutable struct HLICLSID <: AbstractHLICLSID
             end
             name = "IID: " + name
         end
-        HLICOM.__init__(self, myobject, name)
+        HLICOM(myobject, name)
         new(myobject, name)
     end
 end
@@ -386,7 +386,7 @@ mutable struct HLITypeLibMethod <: AbstractHLITypeLibMethod
     name
 
     HLITypeLibMethod(ob, name = nothing) = begin
-        HLITypeLibEntry.__init__(self, ob, name)
+        HLITypeLibEntry(ob, name)
         new(ob, name)
     end
 end
@@ -409,7 +409,7 @@ mutable struct HLITypeLibEnum <: AbstractHLITypeLibEnum
     name
 
     HLITypeLibEnum(myitem) = begin
-        HLITypeLibEntry.__init__(self, myitem, name)
+        HLITypeLibEntry(myitem, name)
         new(myitem)
     end
 end
@@ -435,7 +435,7 @@ mutable struct HLITypeLibProperty <: AbstractHLITypeLibProperty
     name
 
     HLITypeLibProperty(myitem) = begin
-        HLICOM.__init__(self, myitem, name)
+        HLICOM(myitem, name)
         new(myitem)
     end
 end
@@ -541,7 +541,7 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
             pythoncom.VT_CLSID => "CLSID",
         ),
     ) = begin
-        HLICOM.__init__(self, myitem, name)
+        HLICOM(myitem, name)
         new(myitem, funcflags, funckinds, invokekinds, type_flags, vartypes)
     end
 end

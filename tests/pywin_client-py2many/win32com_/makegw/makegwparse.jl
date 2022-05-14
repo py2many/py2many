@@ -546,7 +546,7 @@ mutable struct ArgFormatterTime <: AbstractArgFormatterTime
             arg.indirectionLevel = arg.indirectionLevel + 1
             builtinIndirection = 0
         end
-        ArgFormatterPythonCOM.__init__(self, arg, builtinIndirection, declaredIndirection)
+        ArgFormatterPythonCOM(arg, builtinIndirection, declaredIndirection)
         new(arg, builtinIndirection, declaredIndirection)
     end
 end

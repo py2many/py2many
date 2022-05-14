@@ -1,7 +1,7 @@
 module localserver
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 
 sys.coinit_flags = 2
 

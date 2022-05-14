@@ -1,9 +1,9 @@
 module util
 using Printf
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 win32api = pyimport("win32api")
+pywintypes = pyimport("pywintypes")
 using win32com.shell.shell: IsUserAnAdmin
 
 import tempfile
@@ -140,7 +140,7 @@ end
 
 function assertRaisesCOM_HRESULT(testcase, hresult, func)
     try
-        func(args..., kw)
+        func(args..., None = kw)
     catch exn
         let details = exn
             if details isa pythoncom.com_error
@@ -237,7 +237,7 @@ end
 
 TestCase = unittest.TestCase
 function CapturingFunctionTestCase()
-    real_test = _CapturingFunctionTestCase(args..., kw)
+    real_test = _CapturingFunctionTestCase(args..., None = kw)
     return LeakTestCase(real_test)
 end
 

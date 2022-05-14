@@ -72,7 +72,11 @@ function BeginThreadsSimpleMarshal(self::ThreadInterpCase, numThreads)::Tuple
             pythoncom.IID_IDispatch,
             interp._oleobj_,
         )
-        t = Thread(threading, self._testInterpInThread, (hEvent, interpStream))
+        t = Thread(
+            threading,
+            target = self._testInterpInThread,
+            args = (hEvent, interpStream),
+        )
         setDaemon(t, 1)
         start(t)
         push!(threads, t)
@@ -100,7 +104,7 @@ function BeginThreadsFastMarshal(self::ThreadInterpCase, numThreads)::Tuple
     threads = []
     for i = 0:numThreads-1
         hEvent = CreateEvent(win32event, nothing, 0, 0, nothing)
-        t = Thread(threading, self._testInterpInThread, (hEvent, interp))
+        t = Thread(threading, target = self._testInterpInThread, args = (hEvent, interp))
         setDaemon(t, 1)
         start(t)
         push!(events, hEvent)

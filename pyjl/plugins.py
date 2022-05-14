@@ -422,7 +422,7 @@ class JuliaTranspilerPlugins:
                 original = subst_val[0]
                 replacement = subst_val[1]
             else:
-                original = i
+                original = f"{i}"
                 replacement = subst_val[0]
             for j in range(1, len(res), 2):
                 split_res = res[j].split(".")

@@ -86,7 +86,7 @@ end
 
 function _invalid(self::Template, mo)
     i = start(mo, "invalid")
-    lines = splitlines(self.template[begin:i], true)
+    lines = splitlines(self.template[begin:i], keepends = true)
     if !(lines)
         colno = 1
         lineno = 1
@@ -238,7 +238,7 @@ function convert_field(self::Formatter, value, conversion)::String
     elseif conversion == "a"
         return ascii(value)
     end
-    throw(ValueError(test))
+    throw(ValueError("Unknown conversion specifier $(conversion!s)"))
 end
 
 function parse(self::Formatter, format_string)

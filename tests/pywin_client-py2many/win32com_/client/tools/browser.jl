@@ -1,7 +1,7 @@
 module browser
 using PyCall
-win32api = pyimport("win32api")
 win32ui = pyimport("win32ui")
+win32api = pyimport("win32api")
 
 import __main__
 
@@ -483,7 +483,7 @@ import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     hier_list
     cs
-    dt::Vector{Vector{Union{Tuple, String, Any}}}
+    dt::Vector{Vector{Union{String, Tuple, Any}}}
     style
 
     dynamic_browser(
@@ -492,7 +492,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Tuple, String, Any}}} = [
+        dt::Vector{Vector{Union{String, Tuple, Any}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),

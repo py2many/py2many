@@ -16,7 +16,7 @@ IDataObject_Methods = split(
 )
 num_do_objects = 0
 function WrapCOMObject(ob, iid = nothing)
-    return wrap(ob, iid, 0)
+    return wrap(ob, iid = iid, useDispatcher = 0)
 end
 
 mutable struct TestDataObject <: AbstractTestDataObject
@@ -46,7 +46,7 @@ end
 
 function _query_interface_(self::TestDataObject, iid)
     if iid == pythoncom.IID_IEnumFORMATETC
-        return NewEnum(self.supported_fe, iid)
+        return NewEnum(self.supported_fe, iid = iid)
     end
 end
 
@@ -63,22 +63,22 @@ function GetData(self::TestDataObject, fe)
         end
     end
     if ret_stg === nothing
-        throw(COMException(winerror.E_NOTIMPL))
+        throw(COMException(hresult = winerror.E_NOTIMPL))
     end
     return ret_stg
 end
 
 function GetDataHere(self::TestDataObject, fe)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function QueryGetData(self::TestDataObject, fe)
     cf, target, aspect, index, tymed = fe
     if (aspect & pythoncom.DVASPECT_CONTENT) == 0
-        throw(COMException(winerror.DV_E_DVASPECT))
+        throw(COMException(hresult = winerror.DV_E_DVASPECT))
     end
     if tymed != pythoncom.TYMED_HGLOBAL
-        throw(COMException(winerror.DV_E_TYMED))
+        throw(COMException(hresult = winerror.DV_E_TYMED))
     end
     return nothing
 end
@@ -88,26 +88,26 @@ function GetCanonicalFormatEtc(self::TestDataObject, fe)
 end
 
 function SetData(self::TestDataObject, fe, medium)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function EnumFormatEtc(self::TestDataObject, direction)
     if direction != pythoncom.DATADIR_GET
-        throw(COMException(winerror.E_NOTIMPL))
+        throw(COMException(hresult = winerror.E_NOTIMPL))
     end
-    return NewEnum(self.supported_fe, pythoncom.IID_IEnumFORMATETC)
+    return NewEnum(self.supported_fe, iid = pythoncom.IID_IEnumFORMATETC)
 end
 
 function DAdvise(self::TestDataObject, fe, flags, sink)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function DUnadvise(self::TestDataObject, connection)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 function EnumDAdvise(self::TestDataObject)
-    throw(COMException(winerror.E_NOTIMPL))
+    throw(COMException(hresult = winerror.E_NOTIMPL))
 end
 
 mutable struct ClipboardTester <: AbstractClipboardTester

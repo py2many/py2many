@@ -18,8 +18,8 @@ Example
  =#
 using Printf
 using PyCall
-pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+pywintypes = pyimport("pywintypes")
 include("win32com_/client/util.jl")
 import util
 
@@ -148,7 +148,7 @@ function Dispatch(
         end
     end
     olerepr = MakeOleRepr(IDispatch, typeinfo, lazydata)
-    return createClass(IDispatch, olerepr, userName, lazydata)
+    return createClass(IDispatch, olerepr, userName, lazydata = lazydata)
 end
 
 function MakeOleRepr(IDispatch, typeinfo, typecomp)

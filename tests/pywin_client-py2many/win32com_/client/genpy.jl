@@ -196,7 +196,7 @@ function WriteAliasItem(self::AliasItem, aliasDict, stream)
             end
         end
     end
-    println(stream)
+    println(file = stream)
     self.bWritten = 1
 end
 
@@ -316,7 +316,7 @@ function WriteVTableMap(self::VTableItem, generator)
         write(stream)
     end
     write(stream)
-    println(stream)
+    println(file = stream)
 end
 
 mutable struct DispatchItem <: build.DispatchItem
@@ -347,7 +347,7 @@ function WriteClass(self::DispatchItem, generator)
         WriteClassHeader(self, generator)
         WriteClassBody(self, generator)
     end
-    println(generator.file)
+    println(file = generator.file)
     self.bWritten = 1
 end
 
@@ -373,7 +373,7 @@ function WriteClassHeader(self::DispatchItem, generator)
     else
         write(stream)
     end
-    println(stream)
+    println(file = stream)
     self.bWritten = 1
 end
 
@@ -401,7 +401,7 @@ function WriteEventSinkClassHeader(self::DispatchItem, generator)
     end
     write(stream)
     WriteSinkEventMap(self, stream)
-    println(stream)
+    println(file = stream)
     write(stream)
     write(stream)
     write(stream)
@@ -424,7 +424,7 @@ function WriteEventSinkClassHeader(self::DispatchItem, generator)
     write(stream)
     write(stream)
     write(stream)
-    println(stream)
+    println(file = stream)
     self.bWritten = 1
 end
 
@@ -443,7 +443,7 @@ function WriteCallbackClassBody(self::DispatchItem, generator)
             write(stream)
         end
     end
-    println(stream)
+    println(file = stream)
     self.bWritten = 1
 end
 
@@ -823,7 +823,7 @@ function WriteClass(self::CoClassItem, generator)
         write(stream, "\tdefault_interface = %s", (defName,))
     end
     self.bWritten = 1
-    println(stream)
+    println(file = stream)
 end
 
 mutable struct GeneratorProgress <: AbstractGeneratorProgress
@@ -1110,24 +1110,24 @@ function do_gen_file_header(self::Generator)
     write(self.file)
     write(self.file)
     write(self.file, "python_version = 0x%x", (sys.hexversion,))
-    println(self.file)
+    println(file = self.file)
     write(self.file)
     write(self.file)
     write(self.file)
     write(self.file)
-    println(self.file)
-    write(self.file)
-    write(self.file)
-    write(self.file)
-    write(self.file)
-    write(self.file)
-    println(self.file)
+    println(file = self.file)
     write(self.file)
     write(self.file)
     write(self.file)
     write(self.file)
     write(self.file)
-    println(self.file)
+    println(file = self.file)
+    write(self.file)
+    write(self.file)
+    write(self.file)
+    write(self.file)
+    write(self.file)
+    println(file = self.file)
 end
 
 function do_generate(self::Generator)
@@ -1158,7 +1158,7 @@ function do_generate(self::Generator)
         if !(num_written) != 0
             write(stream)
         end
-        println(stream)
+        println(file = stream)
     end
     if self.generate_type == GEN_FULL
         items = [l for l in values(oleItems) if l != nothing]
@@ -1189,7 +1189,7 @@ function do_generate(self::Generator)
         end
     end
     write(stream)
-    println(stream)
+    println(file = stream)
     if self.generate_type == GEN_FULL
         write(stream)
         for item in values(oleItems)
@@ -1206,7 +1206,7 @@ function do_generate(self::Generator)
             write(stream, "\t\'%s\' : \'%s\',", (item.clsid, item.python_name))
         end
         write(stream)
-        println(stream)
+        println(file = stream)
     else
         write(stream)
         write(stream)
@@ -1226,9 +1226,9 @@ function do_generate(self::Generator)
             write(stream, "\t\'%s\' : \'%s\',", (item.clsid, item.python_name))
         end
         write(stream)
-        println(stream)
+        println(file = stream)
     end
-    println(stream)
+    println(file = stream)
     map = Dict()
     for item in values(oleItems)
         if item != nothing && !isa(item, CoClassItem)
@@ -1243,11 +1243,11 @@ function do_generate(self::Generator)
         write(stream, "\t\'%s\' : \'%s\',", (name, iid))
     end
     write(stream)
-    println(stream)
+    println(file = stream)
     if enumItems
         write(stream)
     end
-    println(stream)
+    println(file = stream)
 end
 
 function generate_child(self::Generator, child, dir)

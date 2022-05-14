@@ -148,10 +148,10 @@ function make_test_suite(test_level = 1)::Tuple
         for mod_name in unittest_modules[i+1]
             mod, func = get_test_mod_and_func(mod_name, import_failures)
             if mod === nothing
-                throw(Exception(test))
+                throw(Exception("no such module \'$()\'"))
             end
             if func != nothing
-                test = CapturingFunctionTestCase(func, mod_name)
+                test = CapturingFunctionTestCase(func, description = mod_name)
             elseif hasattr(mod, "suite")
                 test = suite(mod)
             else
@@ -246,7 +246,7 @@ function main()
             println("|" * countTestCases(suite))
         end
     end
-    testRunner = TestRunner(verbosity)
+    testRunner = TestRunner(verbosity = verbosity)
     testResult = run(testRunner, suite)
     if import_failures
         writeln(

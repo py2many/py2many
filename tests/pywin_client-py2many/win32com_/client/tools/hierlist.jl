@@ -1,7 +1,7 @@
 module hierlist
 using PyCall
-win32api = pyimport("win32api")
 win32ui = pyimport("win32ui")
+win32api = pyimport("win32api")
 
 import win32con
 
@@ -330,7 +330,7 @@ mutable struct HierListWithItems <: AbstractHierListWithItems
         listBoxID = nothing,
         bitmapMask = nothing,
     ) = begin
-        HierList.__init__(self, root, bitmapID, listBoxID, bitmapMask)
+        HierList(root, bitmapID, listBoxID, bitmapMask)
         new(root, bitmapID, listBoxID, bitmapMask)
     end
 end
