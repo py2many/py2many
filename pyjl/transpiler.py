@@ -281,7 +281,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if node.args:
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
-            vargs += [self.visit(kw.value) for kw in node.keywords]
+            vargs += [self.visit(kw) for kw in node.keywords]
         return vargs
 
     def visit_For(self, node) -> str:

@@ -412,15 +412,24 @@ class JuliaTranspilerPlugins:
             return f"x -> join(x, {vargs[0]})" 
         return "join"
 
+    # TODO: Optimize (possibly using regex)
     def visit_format(t_self, node, vargs):
-        # TODO: Optimize
-        res: str = vargs[0]
-        subst_values = vargs[1:]
-        # re.sub(r"\{\d+\}", r"\$" + re.escape(subst_values[r"\d"]), res)
+        subst_values: list[str] = vargs[1:]
+        res: str = re.split("{|}", vargs[0])
         for i in range(len(subst_values)):
-            subst_val = subst_values[i]
-            res = res.replace(f"{{{i}}}", f"${subst_val}")
-        return res
+            subst_val = re.split("\s*=\s*", subst_values[i])
+            if len(subst_val) > 1:
+                original = subst_val[0]
+                replacement = subst_val[1]
+            else:
+                original = i
+                replacement = subst_val[0]
+            for j in range(1, len(res), 2):
+                split_res = res[j].split(".")
+                split_res[0] = split_res[0].replace(original, replacement)
+                res[j] = f"$({'.'.join(split_res)})"
+
+        return "".join(res)
 
     def visit_bytearray(t_self, node, vargs: list[str]):
         if len(vargs) == 0:
@@ -806,7 +815,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     random.random: (lambda self, node, vargs: "pylib::random::random()", False),
     # Str and Byte transformations
     str.join: (JuliaTranspilerPlugins.visit_join, False),
-    str.format: (lambda self, node, vargs: f"test", False),  # Does not work
+    str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
     # Itertools
