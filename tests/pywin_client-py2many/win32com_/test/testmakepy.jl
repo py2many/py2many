@@ -1,8 +1,8 @@
 module testmakepy
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 
 import glob
 

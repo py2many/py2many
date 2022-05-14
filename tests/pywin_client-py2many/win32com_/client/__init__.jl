@@ -244,7 +244,7 @@ function __getattr__(self::Constants, a)
 end
 
 constants = Constants()
-function _event_setattr_(self, attr, val)
+function _event_setattr_(self::VARIANT, attr, val)
     try
         __setattr__(self.__class__.__bases__[1], self, attr, val)
     catch exn
@@ -532,10 +532,10 @@ mutable struct DispatchBaseClass <: AbstractDispatchBaseClass
 
     DispatchBaseClass(oobj = nothing) = begin
         if oobj === nothing
-            oobj = pythoncom.new(self.CLSID)
+            oobj = pythoncom.new(CLSID)
         elseif isa(oobj, DispatchBaseClass)
             try
-                oobj = oobj._oleobj_.QueryInterface(self.CLSID, pythoncom.IID_IDispatch)
+                oobj = oobj._oleobj_.QueryInterface(CLSID, pythoncom.IID_IDispatch)
             catch exn
                 let details = exn
                     if details isa pythoncom.com_error
@@ -682,7 +682,7 @@ mutable struct CoClassBaseClass <: AbstractCoClassBaseClass
 
     CoClassBaseClass(oobj = nothing) = begin
         if oobj === nothing
-            oobj = pythoncom.new(self.CLSID)
+            oobj = pythoncom.new(CLSID)
         end
         for maybe in
             ["__call__", "__str__", "__int__", "__iter__", "__len__", "__nonzero__"]
@@ -756,7 +756,7 @@ mutable struct VARIANT <: AbstractVARIANT
     VARIANT(_value, varianttype, value = property(_get_value, _set_value, _del_value)) =
         new(_value, varianttype, value)
 end
-function _get_value(self::VARIANT)::VARIANT
+function _get_value(self::VARIANT)
     return self._value
 end
 

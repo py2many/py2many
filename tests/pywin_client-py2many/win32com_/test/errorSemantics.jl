@@ -266,7 +266,7 @@ if logging != nothing
         last_record
 
         TestLogHandler() = begin
-            self.reset()
+            reset()
             logging.Handler.__init__(self)
             new()
         end

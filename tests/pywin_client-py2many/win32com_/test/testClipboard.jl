@@ -34,7 +34,7 @@ mutable struct TestDataObject <: AbstractTestDataObject
         num_do_objects += 1
         for cf in (win32con.CF_TEXT, win32con.CF_UNICODETEXT)
             fe = (cf, nothing, pythoncom.DVASPECT_CONTENT, -1, pythoncom.TYMED_HGLOBAL)
-            self.supported_fe.append(fe)
+            supported_fe.append(fe)
         end
         new(bytesval, _com_interfaces_, _public_methods_)
     end

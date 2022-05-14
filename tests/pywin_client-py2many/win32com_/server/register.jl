@@ -9,8 +9,8 @@ construct the necessary Python object, and dispatch COM events.
  =#
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32com.server
 using win32com.shell.shell: ShellExecuteEx
 using win32com.shell: shellcon

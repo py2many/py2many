@@ -1,9 +1,9 @@
 module util
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 using win32com.shell.shell: IsUserAnAdmin
 
 import tempfile
@@ -159,7 +159,7 @@ mutable struct CaptureWriter <: AbstractCaptureWriter
     captured::Vector
 
     CaptureWriter() = begin
-        self.clear()
+        clear()
         new()
     end
 end

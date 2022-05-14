@@ -53,7 +53,7 @@ function GetConnectionPointContainer(self::ConnectableServer)
     return wrap(win32com.server.util, self)
 end
 
-function Advise(self::ConnectableServer, pUnk)::ConnectableServer
+function Advise(self::ConnectableServer, pUnk)::Int64
     try
         interface =
             QueryInterface(pUnk, self._connect_interfaces_[1], pythoncom.IID_IDispatch)
@@ -63,14 +63,13 @@ function Advise(self::ConnectableServer, pUnk)::ConnectableServer
         end
     end
     self.cookieNo = self.cookieNo + 1
-    self.connections[self.cookieNo+1] = interface
+    self.connections[self.cookieNo] = interface
     return self.cookieNo
 end
 
 function Unadvise(self::ConnectableServer, cookie)
     try
-        #Delete Unsupported
-        del(self.connections)
+        delete!(self.connections, cookie)
     catch exn
         if exn isa KeyError
             throw(Exception(winerror.E_UNEXPECTED))

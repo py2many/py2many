@@ -1,7 +1,7 @@
 module testDictionary
 using PyCall
-pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 import win32com.servers.dictionary
 using win32com.test.util: RegisterPythonServer
@@ -50,8 +50,7 @@ function TestDict(quiet = nothing)
     checkDict["NewKey"] = "NewValue"
     TestDictAgainst(dict, checkDict)
     dict["NewKey"] = nothing
-    #Delete Unsupported
-    del(checkDict)
+    delete!(checkDict, "NewKey")
     TestDictAgainst(dict, checkDict)
     now = now(win32timezone)
     now = replace(now, round(now.microsecond / 1000) * 1000)

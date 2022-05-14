@@ -101,7 +101,7 @@ end
 
 function GetParseTupleArg(self::ArgFormatter)::String
     #= Get the argument to be passed to PyArg_ParseTuple =#
-    if self.gatewayMode
+    if self.gatewayMode != 0
         return GetIndirectedArgName(self, nothing, 1)
     end
     return GetIndirectedArgName(self, self.builtinIndirection, 1)
@@ -160,10 +160,10 @@ function SetGatewayMode(self::ArgFormatter)
     self.gatewayMode = 1
 end
 
-function _GetDeclaredIndirection(self::ArgFormatter)::ArgFormatter
+function _GetDeclaredIndirection(self::ArgFormatter)
     return self.arg.indirectionLevel
     println("declared:", self.arg.name, self.gatewayMode)
-    if self.gatewayMode
+    if self.gatewayMode != 0
         return self.arg.indirectionLevel
     else
         return self.declaredIndirection
@@ -952,7 +952,7 @@ function BuildFromFile(self::Argument, file)
     if VERBOSE != 0
         @printf(
             "\t   Arg %s of type %s%s (%s)",
-            (self.name, self.type, "*" * self.indirectionLevel, self.inout)
+            (self.name, self.type, repeat("*", self.indirectionLevel), self.inout)
         )
     end
 end
@@ -969,7 +969,7 @@ end
 
 function GetRawDeclaration(self::Argument)
     ret = "%s %s" % (self.raw_type, self.name)
-    if self.arrayDecl
+    if self.arrayDecl != 0
         ret = ret * "[]"
     end
     return ret
@@ -1045,7 +1045,7 @@ mutable struct Interface <: AbstractInterface
 
     Interface(mo, regex = compile(re, "(interface|) ([^ ]*) : public (.*)\$")) = begin
         if VERBOSE
-            @printf("Interface %s : public %s", (self.name, self.base))
+            @printf("Interface %s : public %s", (name, base))
         end
         new(mo, regex)
     end

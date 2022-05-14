@@ -1,7 +1,7 @@
 module __init__
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import win32com.gen_py
 
 _frozen = getattr(sys, "frozen", 1 == 0)
@@ -102,12 +102,6 @@ if "win32com.gen_py" ∉ sys.modules
     del(types)
 end
 gen_py = sys.modules["win32com.gen_py"]
-#Delete Unsupported
-del(os)
-#Delete Unsupported
-del(sys)
-#Delete Unsupported
-del(win32api)
 #Delete Unsupported
 del(pythoncom)
 end

@@ -145,7 +145,7 @@ mutable struct Method <: AbstractMethod
             arg = Arg(argDesc)
             arg.offset = cbArgs
             cbArgs = cbArgs + arg.size
-            self.args.append(arg)
+            args.append(arg)
         end
         new(method_info, isEventSink)
     end
@@ -180,12 +180,12 @@ mutable struct Definition <: AbstractDefinition
     Definition(iid, is_dispatch, method_defs) = begin
         for info in method_defs
             entry = Method(info)
-            self._methods.append(entry)
+            _methods.append(entry)
         end
         new(iid, is_dispatch, method_defs)
     end
 end
-function iid(self::Definition)::Definition
+function iid(self::Definition)
     return self._iid
 end
 

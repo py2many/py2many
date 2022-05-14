@@ -269,9 +269,9 @@ mutable struct DispatcherWin32trace <: AbstractDispatcherWin32trace
 
     DispatcherWin32trace(policyClass, object) = begin
         DispatcherTrace.__init__(self, policyClass, object)
-        if self.logger === nothing
+        if logger === nothing
         end
-        self._trace_("Object with win32trace dispatcher created (object=%s)" % repr(object))
+        _trace_("Object with win32trace dispatcher created (object=%s)" % repr(object))
         new(policyClass, object)
     end
 end

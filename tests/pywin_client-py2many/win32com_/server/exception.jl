@@ -53,12 +53,12 @@ mutable struct COMException <: AbstractCOMException
                 scode = -2147024896 | (scode & 65535)
             end
         end
-        if scode == 1 && !(self.description)
-            self.description = "S_FALSE"
-        elseif scode && !(self.description)
-            self.description = pythoncom.GetScodeString(scode)
+        if scode == 1 && !(description)
+            description = "S_FALSE"
+        elseif scode && !(description)
+            description = pythoncom.GetScodeString(scode)
         end
-        pythoncom.com_error.__init__(self, scode, self.description, nothing, -1)
+        pythoncom.com_error.__init__(self, scode, description, nothing, -1)
         new(description, scode, source, helpfile, helpContext, desc, hresult)
     end
 end

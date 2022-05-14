@@ -103,7 +103,7 @@ function substitute()
     elseif kws
         mapping = _ChainMap(kws, mapping)
     end
-    function convert(mo)::Union[Union[Union[str, Template], str], Template]
+    function convert(mo)::String
         named = group(mo, "named") || group(mo, "braced")
         if named != nothing
             return string(mapping[named+1])
@@ -126,7 +126,7 @@ function safe_substitute()
     elseif kws
         mapping = _ChainMap(kws, mapping)
     end
-    function convert(mo)::Union[Union[Union[str, Template], str], Template]
+    function convert(mo)::String
         named = group(mo, "named") || group(mo, "braced")
         if named != nothing
             try

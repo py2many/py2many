@@ -64,6 +64,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             self._trees = {}
         else:
             self._trees = {t.__file__.stem: t for t in trees}
+        self._class_vars = []
 
     def visit_FunctionDef(self, node):
         node.vars = []
@@ -73,7 +74,12 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         for arg in node.args.args:
             arg.assigned_from = node
             node.vars.append(arg)
+
+        self._class_vars = []
         self.generic_visit(node)
+        if self._class_vars:
+            self.scopes[-2].vars.extend(self._class_vars)
+        self._class_vars = []
         return node
 
     def visit_ClassDef(self, node):
@@ -141,35 +147,26 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Assign(self, node):
         for target in node.targets:
-            # TODO: Experimental annotations
-            if hasattr(node.value, "annotation"):
-                target.annotation = node.value.annotation
             self._generic_target_visit(node, target)
         return node
 
     def visit_AnnAssign(self, node):
-        target = node.target
-        # TODO: Experimental annotations
-        target.annotation = node.annotation
-        self._generic_target_visit(node, target)
+        self._generic_target_visit(node, node.target)
         return node
 
     def visit_AugAssign(self, node):
-        target = node.target
-        self._generic_target_visit(node, target)
+        self._generic_target_visit(node, node.target)
         return node
 
     def _generic_target_visit(self, node, target):
+        target.assigned_from = node
         if isinstance(target, ast.Name):
-            target.assigned_from = node
             self.scope.vars.append(target)
         if isinstance(target, ast.Attribute) and \
                 get_id(target.value) == "self":
-            if isinstance(target.attr, str):
-                ast.Name(id=target.attr)
-                self.scope.vars.append(ast.Name(id=target.attr))
-                target.assigned_from = node
-
+            self_var = ast.Name(id = target.attr)
+            self_var.target_node = target
+            self._class_vars.append(self_var)
 
 
 class LHSAnnotationTransformer(ast.NodeTransformer):

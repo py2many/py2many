@@ -23,8 +23,8 @@ this is a pain in the but!
  =#
 using Printf
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import threading
 import win32com.client
 import win32event

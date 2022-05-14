@@ -164,11 +164,11 @@ mutable struct AliasItem <: build.OleItem
         if type_(ai) == type_(()) && type_(ai[1]) == type_(0)
             href = ai[1]
             alinfo = typeinfo.GetRefTypeInfo(href)
-            self.aliasDoc = alinfo.GetDocumentation(-1)
-            self.aliasAttr = alinfo.GetTypeAttr()
+            aliasDoc = alinfo.GetDocumentation(-1)
+            aliasAttr = alinfo.GetTypeAttr()
         else
-            self.aliasDoc = nothing
-            self.aliasAttr = nothing
+            aliasDoc = nothing
+            aliasAttr = nothing
         end
         new(typeinfo, attr, doc, bForUser, order, typename)
     end
@@ -221,7 +221,7 @@ mutable struct EnumerationItem <: build.OleItem
         for j = 0:attr[7]
             vdesc = typeinfo.GetVarDesc(j)
             name = typeinfo.GetNames(vdesc[0])[0]
-            self.mapVars[name] = build.MapEntry(vdesc)
+            mapVars[name] = build.MapEntry(vdesc)
         end
         new(typeinfo, attr, doc, bForUser, order, typename)
     end
@@ -232,7 +232,7 @@ function WriteEnumerationItems(self::EnumerationItem, stream)::Int64
     names = collect(keys(self.mapVars))
     sort(names)
     for name in names
-        entry = self.mapVars[name+1]
+        entry = self.mapVars[name]
         vdesc = entry.desc
         if vdesc[5] == pythoncom.VAR_CONST
             val = vdesc[2]
@@ -1366,21 +1366,21 @@ function do_gen_child_item(self::Generator, oleitem)
 end
 
 function checkWriteDispatchBaseClass(self::Generator)
-    if !(self.bHaveWrittenDispatchBaseClass)
+    if !(self.bHaveWrittenDispatchBaseClass) != 0
         write(self.file)
         self.bHaveWrittenDispatchBaseClass = 1
     end
 end
 
 function checkWriteCoClassBaseClass(self::Generator)
-    if !(self.bHaveWrittenCoClassBaseClass)
+    if !(self.bHaveWrittenCoClassBaseClass) != 0
         write(self.file)
         self.bHaveWrittenCoClassBaseClass = 1
     end
 end
 
 function checkWriteEventBaseClass(self::Generator)
-    if !(self.bHaveWrittenEventBaseClass)
+    if !(self.bHaveWrittenEventBaseClass) != 0
         self.bHaveWrittenEventBaseClass = 1
     end
 end

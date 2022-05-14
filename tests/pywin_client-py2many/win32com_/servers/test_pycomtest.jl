@@ -203,7 +203,7 @@ function CheckVariantSafeArray(self::PyCOMTest, data)::Int64
     return 1
 end
 
-function LongProp(self::PyCOMTest)::PyCOMTest
+function LongProp(self::PyCOMTest)
     return self.longval
 end
 
@@ -211,7 +211,7 @@ function SetLongProp(self::PyCOMTest, val)
     self.longval = val
 end
 
-function ULongProp(self::PyCOMTest)::PyCOMTest
+function ULongProp(self::PyCOMTest)
     return self.ulongval
 end
 
@@ -219,7 +219,7 @@ function SetULongProp(self::PyCOMTest, val)
     self.ulongval = val
 end
 
-function IntProp(self::PyCOMTest)::PyCOMTest
+function IntProp(self::PyCOMTest)
     return self.intval
 end
 

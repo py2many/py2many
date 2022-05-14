@@ -11,8 +11,8 @@ Other modules may use this information to generate .py files, use the informatio
 dynamically, or possibly even generate .html documentation for objects.
  =#
 using PyCall
-pywintypes = pyimport("pywintypes")
 datetime = pyimport("datetime")
+pywintypes = pyimport("pywintypes")
 pythoncom = pyimport("pythoncom")
 
 include("win32com_/ext_modules/string.jl")
@@ -93,10 +93,10 @@ mutable struct MapEntry <: AbstractMapEntry
     ) = begin
         if type_(desc_or_id) == type_(0)
             dispid = desc_or_id
-            self.desc = nothing
+            desc = nothing
         else
-            self.dispid = desc_or_id[0]
-            self.desc = desc_or_id
+            dispid = desc_or_id[0]
+            desc = desc_or_id
         end
         new(desc_or_id, names, doc, resultCLSID, resultDoc, hidden)
     end
@@ -105,7 +105,7 @@ function __repr__(self::MapEntry)
     return test
 end
 
-function GetResultCLSID(self::MapEntry)::MapEntry
+function GetResultCLSID(self::MapEntry)
     rc = self.resultCLSID
     if rc == pythoncom.IID_NULL
         return nothing
@@ -139,10 +139,10 @@ mutable struct OleItem <: AbstractOleItem
     typename::String
 
     OleItem(doc = nothing, typename::String = "OleItem") = begin
-        if self.doc
-            self.python_name = MakePublicAttributeName(self.doc[0])
+        if doc
+            python_name = MakePublicAttributeName(doc[0])
         else
-            self.python_name = nothing
+            python_name = nothing
         end
         new(doc, typename)
     end
@@ -172,7 +172,7 @@ mutable struct DispatchItem <: AbstractDispatchItem
     ) = begin
         OleItem.__init__(self, doc)
         if typeinfo
-            self.Build(typeinfo, attr, bForUser)
+            Build(typeinfo, attr, bForUser)
         end
         new(typeinfo, attr, doc, bForUser, typename)
     end
@@ -192,10 +192,9 @@ function _propMapPutCheck_(self::DispatchItem, key, item)
             end
         end
         item.wasProperty = 1
-        self.mapFuncs[newKey+1] = item
+        self.mapFuncs[newKey] = item
         if deleteExisting
-            #Delete Unsupported
-            del(self.propMapPut)
+            delete!(self.propMapPut, key)
         end
     end
 end
@@ -215,10 +214,9 @@ function _propMapGetCheck_(self::DispatchItem, key, item)
             end
         end
         item.wasProperty = 1
-        self.mapFuncs[newKey+1] = item
+        self.mapFuncs[newKey] = item
         if deleteExisting
-            #Delete Unsupported
-            del(self.propMapGet)
+            delete!(self.propMapGet, key)
         end
     end
 end
@@ -272,7 +270,7 @@ function _AddFunc_(self::DispatchItem, typeinfo, fdesc, bForUser)::Tuple
                 name = "Set" * name
             else
                 existing.wasProperty = 1
-                self.mapFuncs["Set"*name+1] = existing
+                self.mapFuncs["Set"*name] = existing
                 map = self.propMapPut
             end
         else
@@ -313,7 +311,7 @@ function _AddVar_(self::DispatchItem, typeinfo, vardesc, bForUser)::Tuple
         end
         map = self.propMap
         hidden = (vardesc.wVarFlags & 64) != 0
-        map[names[1]+1] = MapEntry(vardesc, names, doc, resultCLSID, resultDoc, hidden)
+        map[names[1]] = MapEntry(vardesc, names, doc, resultCLSID, resultDoc, hidden)
         return (names[1], map)
     else
         return nothing

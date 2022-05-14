@@ -8,7 +8,7 @@ from typing import Any, Dict
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum
+from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import get_id
@@ -628,7 +628,14 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         self._curr_slice_val = node.value
         self.generic_visit(node)
         self._curr_slice_val = None
-        value_id = get_id(node.value)
+
+        # Get value id
+        is_self = False
+        if is_self := (isinstance(node.value, ast.Attribute) and
+                get_id(node.value.value) == "self"):
+            value_id = node.value.attr
+        else:
+            value_id = get_id(node.value)
 
         # Handle negative indexing 
         if isinstance(node.slice, ast.UnaryOp) and \
@@ -650,7 +657,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     annotation = ast.Name(id = "int")
                 )
 
-        if not self._is_dict(node, value_id) and \
+        if not self._is_dict(node, value_id, is_self = is_self) and \
                 not isinstance(node.slice, ast.Slice):
             call_id = self._get_func_name(node)
             if not getattr(node, "range_optimization", None) and \
@@ -793,15 +800,12 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     col_offset = col_offset
                 )
 
-    def _is_dict(self, node, value_id):
+    def _is_dict(self, node, value_id, is_self = False):
         ann = None
         if hasattr(node, "container_type"):
             ann = node.container_type
-        else:
-            val_node = node.scopes.find(value_id)
-            ann = getattr(val_node, "annotation", None)
-            if isinstance(ann, ast.Subscript):
-                ann = ann.value
+        elif val_annotation := getattr(node.value, 'annotation', None):
+            ann = val_annotation
 
         # Parse ann
         if id := get_id(ann):

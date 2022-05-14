@@ -1,8 +1,8 @@
 module tlbrowse
 using PyCall
 win32api = pyimport("win32api")
-win32ui = pyimport("win32ui")
 pythoncom = pyimport("pythoncom")
+win32ui = pyimport("win32ui")
 
 import commctrl
 
@@ -58,21 +58,21 @@ mutable struct TypeBrowseDialog <: AbstractTypeBrowseDialog
         IDC_PARAMLIST::Int64 = 1002,
         IDC_TYPELIST::Int64 = 1000,
     ) = begin
-        TypeBrowseDialog_Parent.__init__(self, self.GetTemplate())
+        TypeBrowseDialog_Parent.__init__(self, GetTemplate())
         try
             if typefile
-                self.tlb = pythoncom.LoadTypeLib(typefile)
+                tlb = pythoncom.LoadTypeLib(typefile)
             else
-                self.tlb = nothing
+                tlb = nothing
             end
         catch exn
             if exn isa pythoncom.ole_error
-                self.MessageBox("The file does not contain type information")
-                self.tlb = nothing
+                MessageBox("The file does not contain type information")
+                tlb = nothing
             end
         end
-        self.HookCommand(self.CmdTypeListbox, self.IDC_TYPELIST)
-        self.HookCommand(self.CmdMemberListbox, self.IDC_MEMBERLIST)
+        HookCommand(CmdTypeListbox, IDC_TYPELIST)
+        HookCommand(CmdMemberListbox, IDC_MEMBERLIST)
         new(typefile, IDC_LISTVIEW, IDC_MEMBERLIST, IDC_PARAMLIST, IDC_TYPELIST)
     end
 end

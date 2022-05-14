@@ -412,8 +412,7 @@ function ForgetAboutTypelibInterface(typelib_ob)
     minor = tla[5]
     info = (string(guid), lcid, major, minor)
     try
-        #Delete Unsupported
-        del(demandGeneratedTypeLibraries)
+        delete!(demandGeneratedTypeLibraries, info)
     catch exn
         if exn isa KeyError
             @printf(
@@ -424,8 +423,7 @@ function ForgetAboutTypelibInterface(typelib_ob)
     end
     for (key, val) in collect(items(versionRedirectMap))
         if val == info
-            #Delete Unsupported
-            del(versionRedirectMap)
+            delete!(versionRedirectMap, key)
         end
     end
 end
@@ -684,8 +682,7 @@ function AddModuleToCache(
     SetTypelibForAllClsids(mod.VTablesToClassMap)
     SetTypelibForAllClsids(mod.VTablesToPackageMap)
     if info in versionRedirectMap
-        #Delete Unsupported
-        del(versionRedirectMap)
+        delete!(versionRedirectMap, info)
     end
     if bFlushNow && dict_modified
         _SaveDicts()

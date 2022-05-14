@@ -25,9 +25,9 @@ module combrowse
  =#
 using Printf
 using PyCall
-win32api = pyimport("win32api")
-win32ui = pyimport("win32ui")
 pythoncom = pyimport("pythoncom")
+win32ui = pyimport("win32ui")
+win32api = pyimport("win32api")
 
 using pywin.tools: hierlist
 
@@ -72,7 +72,7 @@ abstract type AbstractHLIHeadingRegisterdTypeLibs <: AbstractHLICOM end
 mutable struct HLICOM <: AbstractHLICOM
     name
 end
-function GetText(self::HLICOM)::HLICOM
+function GetText(self::HLICOM)
     return self.name
 end
 
@@ -340,7 +340,7 @@ function GetText(self::HLITypeLibEntry)::Union[str, Any]
     tlb, index = self.myobject
     name, doc, ctx, helpFile = GetDocumentation(tlb, index)
     try
-        typedesc = HLITypeKinds[GetTypeInfoType(tlb, index)][2]
+        typedesc = HLITypeKinds[GetTypeInfoType(tlb, index)+1][2]
     catch exn
         if exn isa KeyError
             typedesc = "Unknown!"
@@ -413,7 +413,7 @@ mutable struct HLITypeLibEnum <: AbstractHLITypeLibEnum
         new(myitem)
     end
 end
-function GetText(self::HLITypeLibEnum)
+function GetText(self::HLITypeLibEnum)::String
     return self.name + " - Enum/Module"
 end
 
@@ -439,7 +439,7 @@ mutable struct HLITypeLibProperty <: AbstractHLITypeLibProperty
         new(myitem)
     end
 end
-function GetText(self::HLITypeLibProperty)
+function GetText(self::HLITypeLibProperty)::String
     return self.name + " - Property"
 end
 
@@ -545,7 +545,7 @@ mutable struct HLITypeLibFunction <: AbstractHLITypeLibFunction
         new(myitem, funcflags, funckinds, invokekinds, type_flags, vartypes)
     end
 end
-function GetText(self::HLITypeLibFunction)
+function GetText(self::HLITypeLibFunction)::String
     return self.name + " - Function"
 end
 

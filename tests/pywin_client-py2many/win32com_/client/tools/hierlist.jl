@@ -75,7 +75,7 @@ function __getattr__(self::HierList, attr)
 end
 
 function ItemFromHandle(self::HierList, handle)::Dict
-    return self.itemHandleMap[handle+1]
+    return self.itemHandleMap[handle]
 end
 
 function SetStyle(self::HierList, newStyle)
@@ -144,7 +144,7 @@ function OnTreeItemDoubleClick(self::HierList, info, extra)::Int64
     if idFrom != self.listBoxId
         return nothing
     end
-    item = self.itemHandleMap[GetSelectedItem(self.listControl)+1]
+    item = self.itemHandleMap[GetSelectedItem(self.listControl)]
     TakeDefaultAction(self, item)
     return 1
 end
@@ -157,9 +157,9 @@ function OnTreeItemExpanding(self::HierList, info, extra)::Int64
     action, itemOld, itemNew, pt = extra
     itemHandle = itemNew[1]
     if itemHandle ∉ self.filledItemHandlesMap
-        item = self.itemHandleMap[itemHandle+1]
+        item = self.itemHandleMap[itemHandle]
         AddSubList(self, itemHandle, GetSubList(self, item))
-        self.filledItemHandlesMap[itemHandle+1] = nothing
+        self.filledItemHandlesMap[itemHandle] = nothing
     end
     return 0
 end
@@ -171,7 +171,7 @@ function OnTreeItemSelChanged(self::HierList, info, extra)::Int64
     end
     action, itemOld, itemNew, pt = extra
     itemHandle = itemNew[1]
-    item = self.itemHandleMap[itemHandle+1]
+    item = self.itemHandleMap[itemHandle]
     PerformItemSelected(self, item)
     return 1
 end
@@ -200,7 +200,7 @@ function AddItem(self::HierList, parentHandle, item, hInsertAfter = commctrl.TVI
         hInsertAfter,
         (nothing, nothing, nothing, text, bitmapCol, bitmapSel, cItems, 0),
     )
-    self.itemHandleMap[hitem+1] = item
+    self.itemHandleMap[hitem] = item
     return hitem
 end
 
@@ -221,7 +221,7 @@ function _GetChildHandles(self::HierList, handle)::Vector
 end
 
 function ItemFromHandle(self::HierList, handle)::Dict
-    return self.itemHandleMap[handle+1]
+    return self.itemHandleMap[handle]
 end
 
 function Refresh(self::HierList, hparent = nothing)
@@ -231,7 +231,7 @@ function Refresh(self::HierList, hparent = nothing)
     if hparent ∉ self.filledItemHandlesMap
         return
     end
-    root_item = self.itemHandleMap[hparent+1]
+    root_item = self.itemHandleMap[hparent]
     old_handles = _GetChildHandles(self, hparent)
     old_items = collect(map(self.ItemFromHandle, old_handles))
     new_items = GetSubList(self, root_item)
@@ -259,11 +259,9 @@ function Refresh(self::HierList, hparent = nothing)
         else
             hdelete = old_handles[iold+1]
             for hchild in _GetChildHandles(self, hdelete)
-                #Delete Unsupported
-                del(self.itemHandleMap)
+                delete!(self.itemHandleMap, hchild)
                 if hchild in self.filledItemHandlesMap
-                    #Delete Unsupported
-                    del(self.filledItemHandlesMap)
+                    delete!(self.filledItemHandlesMap, hchild)
                 end
             end
             DeleteItem(self.listControl, hdelete)

@@ -22,7 +22,7 @@ mutable struct SimpleConnection <: AbstractSimpleConnection
         debug = 0,
     ) = begin
         if !(coInstance === nothing)
-            self.Connect(coInstance, eventInstance, eventCLSID)
+            Connect(coInstance, eventInstance, eventCLSID)
         end
         new(coInstance, eventInstance, eventCLSID, debug)
     end

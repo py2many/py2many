@@ -16,10 +16,10 @@ mutable struct HLIPythonObject <: AbstractHLIPythonObject
     HLIPythonObject(myobject = nothing, name = nothing) = begin
         hierlist.HierListItem.__init__(self)
         if name
-            self.name = name
+            name = name
         else
             try
-                self.name = myobject.__name__
+                name = myobject.__name__
             catch exn
                 if exn isa (AttributeError, TypeError)
                     try
@@ -27,10 +27,10 @@ mutable struct HLIPythonObject <: AbstractHLIPythonObject
                         if length(r) > 20
                             r = r[begin:20] + "..."
                         end
-                        self.name = r
+                        name = r
                     catch exn
                         if exn isa (AttributeError, TypeError)
-                            self.name = "???"
+                            name = "???"
                         end
                     end
                 end
@@ -53,7 +53,7 @@ function __repr__(self::HLIPythonObject)::String
     catch exn
         type_ = "Generic"
     end
-    return ((("HLIPythonObject(" + type_) * ") - name: " + self.name) + " object: ") +
+    return (("HLIPythonObject(" + type_) * ") - name: " + self.name) * " object: " +
            repr(self.myobject)
 end
 
@@ -119,7 +119,7 @@ function GetSubList(self::HLIPythonObject)::Vector
     return ret
 end
 
-function IsExpandable(self::HLIPythonObject)::HLIPythonObject
+function IsExpandable(self::HLIPythonObject)
     if self.knownExpandable === nothing
         self.knownExpandable = CalculateIsExpandable(self)
     end
@@ -256,7 +256,7 @@ function GetHLIType(self::HLIMethod)::String
 end
 
 function GetText(self::HLIMethod)::String
-    return ("Method: " + self.myobject) + "()"
+    return ("Method: " + self.myobject) * "()"
 end
 
 mutable struct HLICode <: AbstractHLICode
@@ -266,7 +266,7 @@ function GetHLIType(self::HLICode)::String
     return "Code"
 end
 
-function IsExpandable(self::HLICode)::HLICode
+function IsExpandable(self::HLICode)
     return self.myobject
 end
 
@@ -483,7 +483,7 @@ import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
     hier_list
     cs
-    dt::Vector{Vector{Union{Any, String, Tuple}}}
+    dt::Vector{Vector{Union{Tuple, String, Any}}}
     style
 
     dynamic_browser(
@@ -492,7 +492,7 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
             ((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) |
             commctrl.TVS_LINESATROOT
         ) | commctrl.TVS_HASBUTTONS,
-        dt::Vector{Vector{Union{Any, String, Tuple}}} = [
+        dt::Vector{Vector{Union{Tuple, String, Any}}} = [
             [
                 "Python Object Browser",
                 (0, 0, 200, 200),
@@ -504,8 +504,8 @@ mutable struct dynamic_browser <: Abstractdynamic_browser
         ],
         style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE,
     ) = begin
-        dialog.Dialog.__init__(self, self.dt)
-        self.HookMessage(self.on_size, win32con.WM_SIZE)
+        dialog.Dialog.__init__(self, dt)
+        HookMessage(on_size, win32con.WM_SIZE)
         new(hli_root, cs, dt, style)
     end
 end
@@ -579,7 +579,7 @@ mutable struct BrowserDocument <: AbstractBrowserDocument
 
     BrowserDocument(template, root) = begin
         docview.Document.__init__(self, template)
-        self.SetTitle("Browser: " + root.name)
+        SetTitle("Browser: " + root.name)
         new(template, root)
     end
 end

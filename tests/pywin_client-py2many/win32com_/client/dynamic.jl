@@ -247,7 +247,7 @@ function __bool__(self::CDispatch)::Bool
     return true
 end
 
-function __repr__(self::CDispatch)
+function __repr__(self::CDispatch)::String
     return "<COMObject %s>" % self._username_
 end
 
@@ -629,7 +629,7 @@ function __AttrToID__(self::CDispatch, attr)
     return GetIDsOfNames(self._oleobj_, 0, attr)
 end
 
-function __getattr__(self::CDispatch, attr)::Tuple
+function __getattr__(self::Factory, attr)::Tuple
     if attr == "__iter__"
         try
             invkind = pythoncom.DISPATCH_METHOD | pythoncom.DISPATCH_PROPERTYGET
@@ -697,7 +697,7 @@ function __getattr__(self::CDispatch, attr)::Tuple
     end
     if retEntry != nothing
         try
-            ret = self._mapCachedItems_[retEntry.dispid+1]
+            ret = self._mapCachedItems_[retEntry.dispid]
             debug_attr_print()
             return ret
         catch exn

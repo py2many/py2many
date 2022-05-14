@@ -2,8 +2,8 @@ module selecttlb
 #= Utilities for selecting and enumerating the Type Libraries installed on the system
  =#
 using PyCall
-win32api = pyimport("win32api")
 pythoncom = pyimport("pythoncom")
+win32api = pyimport("win32api")
 import pywin.dialogs.list
 
 include("win32com_/ext_modules/win32con.jl")
@@ -19,7 +19,7 @@ mutable struct TypelibSpec <: AbstractTypelibSpec
     ver_desc
     flags
 end
-function __getitem__(self::TypelibSpec, item)::TypelibSpec
+function __getitem__(self::TypelibSpec, item)
     if item == 0
         return self.ver_desc
     end

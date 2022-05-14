@@ -29,7 +29,7 @@ function _NewEnum(self::PythonSemanticClass)
     return NewEnum(win32com.server.util, self.list)
 end
 
-function _value_(self::PythonSemanticClass)::PythonSemanticClass
+function _value_(self::PythonSemanticClass)::Vector
     return self.list
 end
 

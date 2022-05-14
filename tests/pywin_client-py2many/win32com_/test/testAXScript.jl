@@ -10,7 +10,7 @@ import win32com.test.util
 abstract type AbstractAXScript <: Abstractwin32com.test.util.TestCase end
 verbose = "-v" in append!([PROGRAM_FILE], ARGS)
 mutable struct AXScript <: AbstractAXScript
-    verbose::Bool
+    verbose
 end
 function setUp(self::AXScript)
     file = GetFullPathName(win32api, join)
