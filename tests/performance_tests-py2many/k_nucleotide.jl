@@ -144,9 +144,9 @@ function display(results, display_list, sort = false, relative = false, end_ = "
     end
     for (k_nucleotide, (frequency, n)) in lines
         if relative
-            println(test)
+            println("$(k_nucleotide) $(frequency*100.0 / n:.3f)")
         else
-            println(test)
+            println("$(1)\t$(0)")
         end
     end
     println(end_)
@@ -195,7 +195,7 @@ function main_func()
     partitions = [length(sequence) * i ÷ n for i = 0:n]
     count_jobs = [
         (sequence, reading_frames, partitions[i+1], partitions[i+2]) for
-        i = 0:length(partitions)-1-1
+        i = 0:length(partitions)-2
     ]
     if n == 1
         results = collect(chain(starmap(count_frequencies, count_jobs)...))

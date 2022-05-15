@@ -416,9 +416,20 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
 
 class JuliaGeneratorRewriter(ast.NodeTransformer):
     """A Rewriter for Generator functions"""
+    SPECIAL_FUNCTIONS = set([
+        "islice"
+    ])
+
     def __init__(self):
-        self._nested_funcs = []
         super().__init__()
+        self._nested_funcs = []
+        self._replace_map: Dict = {}
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        self.generic_visit(node)
+        if (id := get_id(node)) in self._replace_map:
+            return self._replace_map[id]
+        return node
 
     def visit_Module(self, node: ast.Module) -> Any:
         body = []
@@ -442,26 +453,35 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             node.body, lambda x: isinstance(x, ast.Yield))
 
         body = []
+
+        # Check if function is resumable
+        is_resumable = lambda x: RESUMABLE in x.parsed_decorators
+        
+        node.n_body = []
         for n in node.body:
-            if isinstance(n, ast.FunctionDef) and RESUMABLE in n.parsed_decorators:
+            if isinstance(n, ast.FunctionDef) and is_resumable(n):
                 resumable = n.parsed_decorators[RESUMABLE]
                 if REMOVE_NESTED in resumable \
                         and resumable[REMOVE_NESTED]:
                     self._nested_funcs.append(n)
                     continue
 
-            body.append(self.visit(n))
+            n_visit = self.visit(n)
+            if node.n_body:
+                body.extend(node.n_body)
+                node.n_body = []
+            if n_visit:
+                body.append(n_visit)
 
         node.body = body
 
-        if RESUMABLE in node.parsed_decorators and \
+        if is_resumable(node) and \
                 CHANNELS in node.parsed_decorators:
             raise AstUnsupportedOperation(  
                 "Function cannot have both @resumable and @channels decorators", 
                 node)
 
-        is_resumable = RESUMABLE in node.parsed_decorators
-        if yield_node and not is_resumable:
+        if yield_node and not is_resumable(node):
             # Body contains yield and is not resumable function
             node.returns_channel = True
             node.body = [
@@ -492,6 +512,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
+        self.generic_visit(node)
         parent = find_closest_scope(node.scopes)
         if isinstance(parent, ast.FunctionDef):
             dec = None
@@ -517,8 +538,49 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset)
                 return new_node
 
-        return self.generic_visit(node)
+        return node
 
+    def visit_With(self, node: ast.With) -> Any:
+        parent = node.scopes[-2]
+        context_expr = node.items[0].context_expr
+        opt_var = node.items[0].optional_vars
+        if isinstance(context_expr, ast.Call):
+            func_id = get_id(context_expr.func)
+            func_def = find_node_by_name_and_type(func_id, ast.FunctionDef, node.scopes)[0]
+            if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "body"):
+                prev = self._replace_map
+                self._replace_map = {get_id(opt_var): context_expr}
+                self.generic_visit(node)
+                self._replace_map = prev
+                parent.body.extend(node.body)
+                return None
+        return node
+    
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        parent = node.scopes[-1]
+        if get_id(node.func) in self.SPECIAL_FUNCTIONS and \
+                isinstance(node.args[0], ast.Call):
+            args0 = node.args[0]
+            args0_id = get_id(args0.func)
+            func_def = find_node_by_name_and_type(args0_id, ast.FunctionDef, node.scopes)[0]
+            if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "n_body"):
+                resumable_name = ast.Name(id=f"{args0_id}_")
+                resumable_assign = ast.Assign(
+                    targets = [resumable_name],
+                    value = ast.Call(
+                        func = ast.Name(id = get_id(args0.func)),
+                        args = [arg for arg in args0.args],
+                        keywords = [arg for arg in args0.keywords],
+                        # annotation = getattr(args0, "annotation", None),
+                        scopes = getattr(args0, "scopes", None),
+                    ),
+                    scopes = args0.scopes
+                )
+                node.args[0].func = resumable_name
+                node.args[0].args = []
+                parent.n_body.append(self.visit(resumable_assign))
+        return node
 
 # TODO: More a transformer than a rewriter
 class JuliaDecoratorRewriter(ast.NodeTransformer):
@@ -676,7 +738,10 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 
         if not self._is_dict(node, value_id, is_self = is_self) and \
                 not isinstance(node.slice, ast.Slice):
-            call_id = self._get_func_name(node)
+            call_id = None
+            if isinstance(node.slice, ast.Call):
+                call_id = self._get_assign_value(node.slice)
+
             if not getattr(node, "range_optimization", None) and \
                     not getattr(node, "using_offset_arrays", None):
                 # Ignore special functions, as they already return the correct indices
@@ -708,17 +773,22 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 
         return node
 
-    def _get_func_name(self, node: ast.Subscript):
-        call_id = None
-        if isinstance(node.slice, ast.Call):
-            call_id = get_id(node.slice.func)
-            assign_node = find_node_by_name_and_type(call_id, ast.Assign, node.scopes)[0]
-            if assign_node:
-                if isinstance(assign_node.value, ast.Call):
-                    call_id = get_id(assign_node.value.func)
-                elif id := get_id(assign_node.value):
-                    call_id = id 
+    def _get_assign_value(self, node: ast.Call):
+        """Gets the last assignment value"""
+        call_id = self._id(node.func)
+        assign_node = find_node_by_name_and_type(call_id, ast.Assign, node.scopes)[0]
+        if assign_node:
+            if isinstance(assign_node.value, ast.Call):
+                return self._get_assign_value(assign_node.value)
+            elif id := self._id(assign_node.value):
+                return id 
         return call_id
+
+    def _id(self, node):
+        """A wrapper arround the get_id function to cover attributes"""
+        if isinstance(node, ast.Attribute):
+            return node.attr
+        return get_id(node)
 
     def visit_Slice(self, node: ast.Slice) -> Any:
         self.generic_visit(node)

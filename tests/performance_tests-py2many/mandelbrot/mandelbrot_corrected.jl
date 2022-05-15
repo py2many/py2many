@@ -1,9 +1,8 @@
-using Distributed
 using ResumableFunctions
 
 @resumable function pixels(y, n, abs)
-    range7 = Vector{UInt8}((0:6))
-    pixel_bits = Vector{UInt8}([128 >> pos for pos in (0:7)])
+    range7 = Vector{UInt8}(0:6)
+    pixel_bits = Vector{UInt8}([128 >> pos for pos = 0:7])
     c1 = 2.0 / float(n)
     c0 = (-1.5 + 1im * y * c1) - 1im
     x = 0
@@ -29,12 +28,9 @@ end
 
 function compute_row(p)::Tuple
     y, n = p
-    pixels_p = pixels(y, n, abs)
-    result = Vector{UInt8}()
-    for v in (0:(n+7)÷8)
-        push!(result, pixels_p())
-    end
-    result[end] = result[end] & (255 << (8 - (n % 8)))
+    pixels_assign = pixels(y, n, abs)
+    result = Vector{UInt8}([pixels_assign() for _ in (0:(n+7)÷8)])
+    result[end] = result[end] & 255 << (8 - (n % 8))
     return (y, result)
 end
 
@@ -46,16 +42,15 @@ end
 end
 
 function mandelbrot(n)
-    write_ = x -> write(stdout, x)
-    write_("P4\n$n $n\n")
+    write = x -> Base.write(stdout, x)
+    write(Vector{UInt8}("P4\n$(n) 0\n"))
     for row in compute_rows(n, compute_row)
-        write_(row[2])
+        write(row[2])
     end
 end
 
 function main()
-    @time mandelbrot(2000)
-    # mandelbrot(parse(Int, argv[2]))
+    mandelbrot(2)
 end
 
 main()

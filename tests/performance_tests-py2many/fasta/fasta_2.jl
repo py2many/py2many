@@ -78,10 +78,8 @@ function copy_from_sequence(header, sequence, n, width, locks = nothing)
     while length(sequence) < n
         extend(sequence, sequence)
     end
-    lock_pair() do
-        write(header)
-        write_lines(sequence, n, width)
-    end
+    write(header)
+    write_lines(sequence, n, width)
 end
 
 function lcg(seed, im, ia, ic)
@@ -143,12 +141,10 @@ function lookup_and_write(
         output = Vector{UInt8}()
         output[begin:stop-start] = lookup(probabilities, values)
     end
-    lock_pair() do
-        if start == 0
-            write(header)
-        end
-        write_lines(output, length(output), width)
+    if start == 0
+        write(header)
     end
+    write_lines(output, length(output), width)
 end
 
 function random_selection(header, alphabet, n, width, seed, locks = nothing)
@@ -161,37 +157,35 @@ function random_selection(header, alphabet, n, width, seed, locks = nothing)
             output = Vector{UInt8}([prng for _ in (0:n)])
         end
         lookup_and_write(header, probabilities, table, output, 0, n, width)
+        lcg(seed, im, ia, ic) do prng
+            for (start, stop) in zip([0] + partitions, partitions + [n])
+                values = collect((prng for _ in (0:stop-start)))
+                post = stop < n ? (acquired_lock()) : (post_write)
+                push!(
+                    processes,
+                    started_process(
+                        lookup_and_write,
+                        (
+                            header,
+                            probabilities,
+                            table,
+                            values,
+                            start,
+                            stop,
+                            width,
+                            (pre, post),
+                        ),
+                    ),
+                )
+                pre = post
+            end
+        end
     else
         pre_seed, post_seed, pre_write, post_write = locks
         m = n > (width * 15) ? (length(Sys.cpu_info()) * 3) : (1)
         partitions = [(n ÷ width * m) * width * i for i = 1:m-1]
         processes = []
         pre = pre_write
-        lock_pair() do
-            lcg(seed, im, ia, ic) do prng
-                for (start, stop) in zip([0] + partitions, partitions + [n])
-                    values = collect((prng for _ in (0:stop-start)))
-                    post = stop < n ? (acquired_lock()) : (post_write)
-                    push!(
-                        processes,
-                        started_process(
-                            lookup_and_write,
-                            (
-                                header,
-                                probabilities,
-                                table,
-                                values,
-                                start,
-                                stop,
-                                width,
-                                (pre, post),
-                            ),
-                        ),
-                    )
-                    pre = post
-                end
-            end
-        end
         for p in processes
             x -> join(x, p)
         end

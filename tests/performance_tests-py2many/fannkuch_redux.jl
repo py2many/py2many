@@ -102,7 +102,7 @@ function fannkuch(n)
             checksums, maximums = zip(starmap(task, task_args)...)
         end
         checksum, maximum = (sum(checksums), max(maximums))
-        println(test)
+        println("$(checksum)\nPfannkuchen($(n)) = $(maximum)")
     end
 end
 

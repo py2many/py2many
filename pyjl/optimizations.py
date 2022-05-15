@@ -2,6 +2,8 @@
 import ast
 from typing import Any
 
+from py2many.ast_helpers import get_id
+
 
 class AlgebraicSimplification(ast.NodeTransformer):
     def __init__(self) -> None:
@@ -9,16 +11,25 @@ class AlgebraicSimplification(ast.NodeTransformer):
         self._optimize = False
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
-        self._optimize = True
-        self.generic_visit(node)
-        self._optimize = False
+        self._generic_optimize_visit(node)
         return node
 
     def visit_Call(self, node: ast.Call) -> Any:
-        self._optimize = True
-        self.generic_visit(node)
-        self._optimize = False
+        # TODO: For now, just optimize range function calls
+        if get_id(node.func) == "range":
+            self._generic_optimize_visit(node)
+        else:
+            self.generic_visit(node)
         return node
+
+    def _generic_optimize_visit(self, node):
+        is_nested = self._optimize
+        if not is_nested:
+            self._optimize = True
+            self.generic_visit(node)
+            self._optimize = False
+        else:
+            self.generic_visit(node)
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
         self.generic_visit(node)

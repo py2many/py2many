@@ -17,7 +17,7 @@ function indexing()::Int64
 end
 
 function infer_bool(code::Int64)::Bool
-    return code in [1, 2, 4]
+    return code ∈ [1, 2, 4]
 end
 
 function show()

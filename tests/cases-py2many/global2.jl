@@ -5,7 +5,7 @@ code_b = "b"
 l_b = Set([code_a])
 l_c = Dict(code_b => code_0)
 function main()
-    @assert("a" in l_b)
+    @assert("a" ∈ l_b)
     println("OK")
 end
 

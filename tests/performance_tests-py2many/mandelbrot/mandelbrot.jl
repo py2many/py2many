@@ -63,9 +63,8 @@ end
     else
         default_worker_pool() do pool
             unordered_rows = imap_unordered(pool, f, row_jobs)
-            for v in ordered_rows(unordered_rows, n)
-                @yield v
-            end
+            # Unsupported
+            @yield_from ordered_rows(unordered_rows, n)
         end
     end
 end
@@ -73,7 +72,7 @@ end
 function mandelbrot(n)
     write = x -> Base.write(stdout, x)
     compute_rows(n, compute_row) do rows
-        write(Vector{UInt8}(test))
+        write(Vector{UInt8}("P4\n$(n) 0\n"))
         for row in rows
             #= pass =#
         end

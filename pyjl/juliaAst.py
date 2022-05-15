@@ -20,6 +20,7 @@ class AbstractType(stmt):
 class Constructor(stmt):
     struct_name: ast.Name
     args: ast.arguments
+    keywords: list[ast.keyword] # TODO: not used yet
     body: list[expr]
     ctx: expr_context
 

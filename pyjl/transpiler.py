@@ -24,7 +24,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, \
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, \
     get_class_scope, is_class_or_module, is_class_type
 
 from typing import Any, List
@@ -247,7 +247,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node: ast.Call) -> str:
         fname = self.visit(node.func)
-        vargs = self._get_call_args(node)
+        class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)
+        kw_args = not class_scope
+        vargs = self._get_call_args(node, kw_args=kw_args)
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
@@ -276,12 +278,13 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(converted)
         return f"{fname}({args})"
 
-    def _get_call_args(self, node: ast.Call):
+    def _get_call_args(self, node: ast.Call, kw_args = True):
         vargs = []
         if node.args:
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
-            vargs += [self.visit(kw) for kw in node.keywords]
+            kw_visitor = lambda x: self.visit(x) if kw_args else self.visit(x.value)
+            vargs += [kw_visitor(kw) for kw in node.keywords]
         return vargs
 
     def visit_For(self, node) -> str:

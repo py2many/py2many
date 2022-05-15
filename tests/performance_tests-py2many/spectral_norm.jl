@@ -33,7 +33,7 @@ function main_func()
         vv += ve * ve
     end
     result = √(vBv / vv)
-    println(test)
+    println("$(result:.9f)")
 end
 
 function main()

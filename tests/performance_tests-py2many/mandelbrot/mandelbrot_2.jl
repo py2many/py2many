@@ -10,11 +10,11 @@ function mandelbrot(limit, c)::Int64
 end
 
 function main()
-    @assert(mandelbrot(1, (0.2 + 0.3j)) == 2)
-    @assert(mandelbrot(5, (0.2 + 0.3j)) == 6)
-    @assert(mandelbrot(6, (0.2 + 0.3j)) == 7)
-    @assert(mandelbrot(10000, (1 + 0.3j)) == 2)
-    @assert(mandelbrot(10000, (0.6 + 0.4j)) == 4)
+    @assert(mandelbrot(1, 0.2 + 0.3im) == 2)
+    @assert(mandelbrot(5, 0.2 + 0.3im) == 6)
+    @assert(mandelbrot(6, 0.2 + 0.3im) == 7)
+    @assert(mandelbrot(10000, 1 + 0.3im) == 2)
+    @assert(mandelbrot(10000, 0.6 + 0.4im) == 4)
 end
 
 main()

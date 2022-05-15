@@ -11,7 +11,7 @@ function main()
     for j in l_b
         println(j)
     end
-    if "a" in ["a", "b"]
+    if "a" ∈ ["a", "b"]
         println("OK")
     end
 end

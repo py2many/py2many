@@ -2,7 +2,7 @@ using Printf
 
 function combinations(l)::Vector
     result = []
-    for x = 0:length(l)-1-1
+    for x = 0:length(l)-2
         ls = l[x+2:end]
         for y in ls
             push!(result, (l[x+1], y))

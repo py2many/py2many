@@ -9,7 +9,7 @@ from os import cpu_count
 from sys import argv, stdout
 from time import perf_counter
 
-# @resumable
+@resumable
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
@@ -38,7 +38,7 @@ def compute_row(p):
     result[-1] &= 0xff << (8 - n % 8)
     return y, result
 
-# @resumable(lower_yield_from=True)
+@resumable(lower_yield_from=True)
 def compute_rows(n, f):
     row_jobs = ((y, n) for y in range(n))
     yield from map(f, row_jobs)
@@ -46,13 +46,14 @@ def compute_rows(n, f):
 def mandelbrot(n):
     write = stdout.buffer.write
 
-    with closing(compute_rows(n, compute_row)) as rows:
+    # with closing(compute_rows(n, compute_row)) as rows:
+    with compute_rows(n, compute_row) as rows:
         write("P4\n{0} {0}\n".format(n).encode())
         for row in rows:
             write(row[1])
 
 if __name__ == '__main__':
-    mandelbrot(2000)
+    mandelbrot(10)
     # mandelbrot(int(argv[1]))
 
 # Benchmarks
