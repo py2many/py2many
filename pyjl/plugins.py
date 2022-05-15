@@ -499,6 +499,14 @@ class JuliaTranspilerPlugins:
 
         return f"zip({vargs[0]}, {vargs[1]})"
 
+    def visit_getattr(t_self, node, vargs: list[str]):
+        if len(vargs) == 3:
+            return f"hasfield({vargs[0]}, {vargs[1]}): getfield({vargs[0]}, {vargs[1]} ? {vargs[2]}"
+        elif len(vargs) == 2:
+            return f"getfield({vargs[0]}, {vargs[1]}"
+        else:
+            return "getfield"
+
     def visit_frozenset_contains(t_self, node, vargs):
         t_self._usings.add("FunctionalCollections")
         return f"{vargs[1]} in {vargs[0]}" \
@@ -651,23 +659,29 @@ class JuliaExternalModulePlugins:
     def visit_pywintypes(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
 
-    def visit_pandas(t_self, node: ast.Call):
-        t_self._usings.add("Pandas")
-
     def visit_datetime(t_self, node: ast.Call):
         # https://github.com/JuliaPy/PyCall.jl/issues/341
         JuliaExternalModulePlugins._pycall_import(t_self, node, "datetime")
 
-    def visit_win32api(t_self, node):
+    def visit_win32api(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "win32api")
 
     def visit_win32ui(t_self, node):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")    
 
     def _pycall_import(t_self, node: ast.Call, mod_name: str):
         t_self._usings.add("PyCall")
         import_stmt = f"{mod_name} = pyimport(\"{mod_name}\")"
         t_self._globals.add(import_stmt)
+    
+    def visit_pandas(t_self, node: ast.Call):
+        t_self._usings.add("Pandas")
+
+    def visit_getopt(t_self, node: ast.Call):
+        t_self._usings.add("Getopt")
+
+    def visit_zipfile(t_self, node: ast.Call):
+        t_self._usings.add("ZipFile")
 
 
 TYPE_CODE_MAP = {
@@ -729,6 +743,8 @@ IMPORT_DISPATCH_TABLE = {
     "pandas": JuliaExternalModulePlugins.visit_pandas,
     "win32api": JuliaExternalModulePlugins.visit_win32api,
     "win32ui": JuliaExternalModulePlugins.visit_win32ui,
+    "getopt": JuliaExternalModulePlugins.visit_getopt,
+    "zipfile": JuliaExternalModulePlugins.visit_zipfile,
 }
 
 DECORATOR_DISPATCH_TABLE = {
@@ -843,6 +859,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Traceback
     traceback.print_exc: (lambda self, node, vargs: "current_exceptions() != [] ? "\
         "current_exceptions()[end] : nothing", False),
+    # 
+    getattr: (JuliaTranspilerPlugins.visit_getattr , False),
     ########################################################
     pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
     pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),

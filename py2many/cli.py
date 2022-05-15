@@ -565,7 +565,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
         print("Detected empty __init__; skipping")
         return True
     result = _transpile([filename], [source_data], settings, args, outdir=outdir)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(result[0][0])
 
     format_res = False

@@ -70,7 +70,7 @@ jl_symbols = {
     ast.Invert: "~",
     ast.Pow: "^",
     ast.MatMult: "*",
-    ast.In: "in",
+    ast.In: "∈",
     ast.NotIn: "∉",
     ast.Eq: "==",
     ast.FloorDiv: "÷"
