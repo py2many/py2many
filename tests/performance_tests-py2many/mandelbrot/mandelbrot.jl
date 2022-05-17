@@ -1,5 +1,5 @@
 using Distributed
-using ResumableFunctions
+using StringEncodings
 
 function pixels(y, n, abs)
     Channel() do ch_pixels
@@ -41,30 +41,31 @@ function compute_row(p)::Tuple
     return (y, result)
 end
 
-@resumable function ordered_rows(rows, n)
-    order = [nothing] * n
-    i = 0
-    j = n
-    while i < length(order)
-        if j > 0
-            row = next(rows)
-            order[row[1]+1] = row
-            j -= 1
-        end
-        if order[i+1]
-            @yield order[i+1]
-            order[i+1] = nothing
-            i += 1
+function ordered_rows(rows, n)
+    Channel() do ch_ordered_rows
+        order = [nothing] * n
+        i = 0
+        j = n
+        while i < length(order)
+            if j > 0
+                row = next(rows)
+                order[row[1]+1] = row
+                j -= 1
+            end
+            if order[i+1]
+                put!(ch_ordered_rows, order[i+1])
+                order[i+1] = nothing
+                i += 1
+            end
         end
     end
 end
 
-@resumable function compute_rows(n, f)
+function compute_rows(n, f)
     row_jobs = ((y, n) for y = 0:n-1)
     if length(Sys.cpu_info()) < 2
-        for v in map(f, row_jobs)
-            @yield v
-        end
+        # Unsupported
+        @yield_from map(f, row_jobs)
     else
         default_worker_pool() do pool
             unordered_rows = imap_unordered(pool, f, row_jobs)
@@ -76,14 +77,16 @@ end
 
 function mandelbrot(n)
     write = x -> Base.write(stdout, x)
-    write(Vector{UInt8}("P4\n$(n) $(n)\n"))
-    for row in compute_rows(n, compute_row)
-        #= pass =#
+    compute_rows(n, compute_row) do rows
+        write(encode("P4\n$(n) $(n)\n", "UTF-8"))
+        for row in rows
+            write(row[2])
+        end
     end
 end
 
 function main()
-    mandelbrot(2000)
+    mandelbrot(20)
 end
 
 main()

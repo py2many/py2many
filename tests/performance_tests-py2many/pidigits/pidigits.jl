@@ -26,7 +26,7 @@ end
 
 function main()
     global tmp1, tmp2, acc, den, num
-    n = parse(Int, argv[2])
+    n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
     tmp1 = 0
     tmp2 = 0
     acc = 0
@@ -44,7 +44,7 @@ function main()
         if d != extract_Digit(4)
             continue
         end
-
+        print(Char(48 + d))
         i += 1
         if (i % 10) == 0
             @printf("\t:%d", i)

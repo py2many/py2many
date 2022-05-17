@@ -1,4 +1,5 @@
 using ResumableFunctions
+using StringEncodings
 
 @resumable function pixels(y, n, abs)
     range7 = Vector{UInt8}(0:6)
@@ -48,14 +49,14 @@ end
 
 function mandelbrot(n)
     write = x -> Base.write(stdout, x)
-    write(Vector{UInt8}("P4\n$(n) $(n)\n"))
+    write(encode("P4\n$(n) $(n)\n", "UTF-8"))
     for row in compute_rows(n, compute_row)
         write(row[2])
     end
 end
 
 function main()
-    mandelbrot(200)
+    mandelbrot(20)
 end
 
 main()

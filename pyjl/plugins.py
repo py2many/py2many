@@ -329,28 +329,36 @@ class JuliaTranspilerPlugins:
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
         if node.args:
-                args_str, args_vals = [], []
-                for arg in node.args:
-                    if isinstance(arg, ast.BinOp) and \
-                            isinstance(arg.op, ast.Mod):
-                        args_str.append(t_self.visit(arg.left))
-                        args_vals.append(t_self.visit(arg.right))
+            args_str, args_vals = [], []
+            for arg in node.args:
+                if isinstance(arg, ast.BinOp) and \
+                        isinstance(arg.op, ast.Mod):
+                    args_str.append(t_self.visit(arg.left))
+                    args_vals.append(t_self.visit(arg.right))
 
-                if node.keywords:
-                    kwds = []
-                    for k in node.keywords:
-                        if "file" == k.arg:
-                            kwds.append(f'write({t_self.visit(k.value)}, {" ".join(args_str)}, {", ".join(args_vals)})') \
-                                if args_vals \
-                                else kwds.append(f'write({t_self.visit(k.value)}, {", ".join(args_str)})')
-                        if "flush" == k.arg:
-                            kwds.append(f"flush({t_self.visit(k.value)})")
+            if node.keywords:
+                kwds = []
+                for k in node.keywords:
+                    if "file" == k.arg:
+                        kwds.append(f'write({t_self.visit(k.value)}, {" ".join(args_str)}, {", ".join(args_vals)})') \
+                            if args_vals \
+                            else kwds.append(f'write({t_self.visit(k.value)}, {", ".join(args_str)})')
+                    if "flush" == k.arg:
+                        kwds.append(f"flush({t_self.visit(k.value)})")
+                    if "end" == k.arg:
+                        val = ""
+                        if isinstance(k.value, ast.Constant):
+                            val = k.value.value
+                        if val == "":
+                            kwds.append(f"print({' '.join(vargs[:-1])})")
+                        else:
+                            kwds.append(f"print({' '.join(vargs[:-1])}{val})")
+                if kwds:
                     return "\n".join(kwds)
 
-                if args_str:
-                    t_self._usings.add("Printf")
-                    # + " ".join(kw_args)
-                    return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
+            if args_str:
+                t_self._usings.add("Printf")
+                return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
 
         return f"println({', '.join(vargs)})"
 
@@ -553,6 +561,14 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+    def visit_encode(t_self, node, vargs):
+        t_self._usings.add("StringEncodings")
+        if len(vargs) == 0:
+            return "encode"
+        if len(vargs) == 1:
+            return f"encode({t_self.visit(node.args[0])}, \"UTF-8\")"
+        return f"encode({vargs[0]}, {vargs[1]})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -712,7 +728,6 @@ SMALL_DISPATCH_MAP = {
     # "floor": lambda n, vargs: f"floor({vargs[0]})",
     "None": lambda n, vargs: f"nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
-    "encode": lambda n, vargs: f"Vector{{UInt8}}({vargs[0]})",    
 }
 
 SMALL_USINGS_MAP = {
@@ -726,6 +741,7 @@ DISPATCH_MAP = {
     "join": JuliaTranspilerPlugins.visit_join,
     "format": JuliaTranspilerPlugins.visit_format,
     "__next__": JuliaTranspilerPlugins.visit_next,
+    "encode": JuliaTranspilerPlugins.visit_encode,
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
 }
@@ -862,6 +878,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         "current_exceptions()[end] : nothing", False),
     # 
     getattr: (JuliaTranspilerPlugins.visit_getattr , False),
+    chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ########################################################
     pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
     pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),

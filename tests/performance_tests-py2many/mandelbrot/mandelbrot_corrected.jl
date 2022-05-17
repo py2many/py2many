@@ -42,15 +42,17 @@ end
 end
 
 function mandelbrot(n)
+    # open("/home/miguel/Desktop/jl_output.txt", "w") do io
     write = x -> Base.write(stdout, x)
-    write(Vector{UInt8}("P4\n$(n) 0\n"))
+    write(encode("P4\n$(n) $(n)\n", "UTF-8"))
     for row in compute_rows(n, compute_row)
         write(row[2])
     end
+    # end
 end
 
 function main()
-    mandelbrot(2)
+    mandelbrot(20)
 end
 
 main()

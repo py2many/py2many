@@ -5,7 +5,8 @@
 # Transliterated from GMP to built-in by Isaac Gouy
 
 
-from sys import argv
+# Changed import (originally "from sys import argv")
+import sys
 
 
 def extract_Digit(nth):
@@ -35,7 +36,7 @@ def next_Term(k):
 
 def main():
     global tmp1, tmp2, acc, den, num
-    n=int(argv[1])
+    n=int(sys.argv[1])
 
     tmp1 = 0
     tmp2 = 0

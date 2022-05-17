@@ -6,7 +6,7 @@
 from contextlib import closing
 from itertools import islice
 from sys import stdout
-from time import perf_counter
+# from time import perf_counter
 
 @resumable
 def pixels(y, n, abs):
@@ -51,7 +51,7 @@ def mandelbrot(n):
             write(row[1])
 
 if __name__ == '__main__':
-    mandelbrot(200)
+    mandelbrot(20)
     # mandelbrot(int(argv[1]))
 
 # Benchmarks

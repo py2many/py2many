@@ -1,4 +1,5 @@
 using Distributed
+using StringEncodings
 
 abstract type Abstractlean_call end
 lean_buffer = Dict()
@@ -166,7 +167,7 @@ function main_func()
         b"a" => b"1",
     )
     function str_to_bits(text)::Int64
-        buffer = translate(Vector{UInt8}(text), translation)
+        buffer = translate(encode(text, "latin1"), translation)
         bits = 0
         for k = 0:length(buffer)-1
             bits = bits * 4 + buffer[k+1]

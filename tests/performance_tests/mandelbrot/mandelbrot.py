@@ -1,14 +1,8 @@
-# The Computer Language Benchmarks Game
-# https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
-#
-# contributed by Joerg Baumann
-
 from contextlib import closing
 from itertools import islice
 from os import cpu_count
 from sys import argv, stdout
 
-# @resumable
 def pixels(y, n, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
@@ -37,7 +31,6 @@ def compute_row(p):
     result[-1] &= 0xff << (8 - n % 8)
     return y, result
 
-@resumable
 def ordered_rows(rows, n):
     order = [None] * n
     i = 0
@@ -53,7 +46,6 @@ def ordered_rows(rows, n):
             order[i] = None
             i += 1
 
-@resumable(lower_yield_from=True)
 def compute_rows(n, f):
     row_jobs = ((y, n) for y in range(n))
 
@@ -71,10 +63,8 @@ def mandelbrot(n):
     with closing(compute_rows(n, compute_row)) as rows:
         write("P4\n{0} {0}\n".format(n).encode())
         for row in rows:
-            pass
-            # print(row[1])
-            # write(row[1])
+            write(row[1])
 
 if __name__ == '__main__':
-    mandelbrot(2000)
+    mandelbrot(20)
     # mandelbrot(int(argv[1]))
