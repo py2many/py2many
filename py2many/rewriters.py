@@ -1,7 +1,6 @@
 import ast
 import re
 import textwrap
-from tkinter import N
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_block, create_ast_node

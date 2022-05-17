@@ -4,7 +4,6 @@ import contextlib
 import io
 import itertools
 import math
-from multiprocessing import Pool
 import multiprocessing
 import operator
 import pathlib
@@ -17,7 +16,6 @@ import sys
 import traceback
 import unittest
 import bisect
-from build.lib.pyjl.plugins import JuliaRewriterPlugins
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
