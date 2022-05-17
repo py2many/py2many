@@ -109,7 +109,10 @@ class InferTypesTransformer(ast.NodeTransformer):
         "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
     ])
     BUILT_IN_FUNC_TYPE_MAP = {
-        "len": "int"
+        "len": "int",
+        "str.encode": "bytes",
+        "bytes.translate": "bytes",
+        "bytearray.translate": "bytearray"
     }
     TYPE_DICT = {
         int: "int",
@@ -246,29 +249,43 @@ class InferTypesTransformer(ast.NodeTransformer):
         # ast.parse produces a Module object that needs to be destructured
         type_annotation = cast(ast.Expr, create_ast_node(typename, node)).value
         node.annotation = type_annotation
+        node.annotation.is_annotation = True
 
     def visit_List(self, node):
         self.generic_visit(node)
+        self._visit_container_type(node, typename="List")
+        return node
+
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        self.generic_visit(node)
+        self._visit_container_type(node, typename="Tuple")
+        return node
+
+    def _visit_container_type(self, node, typename="Any"):
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
             if getattr(node, "is_annotation", False):
                 return node
             else:
-                elt_types: Set[str] = set()
-                for e in elements:
-                    typ = get_inferred_type(e)
-                    if typ is not None:
-                        elt_types.add(unparse(typ))
-                if len(elt_types) == 0:
-                    node.annotation = ast.Name(id="List")
-                elif len(elt_types) == 1:
-                    self._annotate(node, f"List[{elt_types.pop()}]")
-                else:
-                    self._annotate(node, f"List[Union[{', '.join(elt_types)}]]")
+                self._visit_container_elem_types(node, typename=typename)
         else:
             if not hasattr(node, "annotation"):
-                node.annotation = ast.Name(id="List")
-        return node
+                node.annotation = ast.Name(id=typename)
+
+    def _visit_container_elem_types(self, node, typename = "Any"):
+        if elements := node.elts:
+            elt_types: Set[str] = set()
+            for e in elements:
+                typ = get_inferred_type(e)
+                if typ is not None:
+                    elt_types.add(unparse(typ))
+
+            if len(elt_types) == 0:
+                node.annotation = ast.Name(id=typename)
+            elif len(elt_types) == 1:
+                self._annotate(node, f"{typename}[{elt_types.pop()}]")
+            else:
+                self._annotate(node, f"{typename}[Union[{', '.join(elt_types)}]]")
 
     def visit_Set(self, node):
         self.generic_visit(node)
@@ -329,10 +346,6 @@ class InferTypesTransformer(ast.NodeTransformer):
             if not hasattr(node, "annotation"):
                 node.annotation = ast.Name(id="Dict")
         return node
-
-    def visit_Tuple(self, node: ast.Tuple) -> Any:
-        node.annotation = ast.Name(id = "Tuple")
-        return self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
@@ -611,8 +624,17 @@ class InferTypesTransformer(ast.NodeTransformer):
                     node.annotation = return_type
             elif fname in self.TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
-            elif fname in self.BUILT_IN_FUNC_TYPE_MAP:
-                node.annotation = ast.Name(id=self.BUILT_IN_FUNC_TYPE_MAP[fname])
+            
+            # Find annotation through node.func name/annotation 
+            func_name = None
+            if isinstance(node.func, ast.Attribute):
+                ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
+                if ann:
+                    func_name = f"{get_id(ann)}.{node.func.attr}"
+            else:
+                func_name = fname
+            if func_name in self.BUILT_IN_FUNC_TYPE_MAP:
+                self._annotate(node, self.BUILT_IN_FUNC_TYPE_MAP[func_name])
         self.generic_visit(node)
         return node
 
@@ -646,7 +668,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = definition.annotation
         return node
 
-    def visit_For(self, node):
+    def visit_For(self, node: ast.For):
         self.visit(node.target)
         self.visit(node.iter)
         if hasattr(node.iter, "annotation") and isinstance(
@@ -661,4 +683,30 @@ class InferTypesTransformer(ast.NodeTransformer):
                 for e in node.target.elts:
                     e.annotation = typ
         self.generic_visit(node)
+        return node
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> Any:
+        self.generic_visit(node)
+        ann_map = {}
+        anns = set()
+        for c in node.generators:
+            if isinstance(c.iter, ast.Name):
+                iter_id = get_id(c.iter)
+                ann = getattr(node.scopes.find(iter_id), "annotation", None)
+                if ann:
+                    if isinstance(ann, ast.Subscript):
+                        ann_map[get_id(c.target)] = ann.slice
+                        c.target.annotation = ann
+                    anns.add(get_id(ann))
+        if isinstance(node.elt, ast.BinOp):
+            left = node.elt.left
+            right = node.elt.right
+            if (id := get_id(left)) in ann_map:
+                node.elt.left.annotation = ann_map[id]
+            if (id := get_id(right)) in ann_map:
+                node.elt.right.annotation = ann_map[id]
+
+        if len(anns) == 1:
+            self._annotate(node, f"generator[{anns.pop()}]")
+
         return node

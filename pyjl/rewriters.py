@@ -1,5 +1,6 @@
 from __future__ import annotations, nested_scopes
 import ast
+from calendar import c
 import copy
 import os
 import sys
@@ -970,6 +971,27 @@ class JuliaImportRewriter(ast.NodeTransformer):
         if not isinstance(parent, ast.Module):
             self._nested_imports.append(node)
             return None
+        return node
+
+
+class JuliaIORewriter(ast.NodeTransformer):
+    """Rewrites IO operations into Julia compatible ones"""
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_For(self, node: ast.For) -> Any:
+        self.generic_visit(node)
+        if isinstance(node.iter, ast.Name):
+            iter_node = node.scopes.find(get_id(node.iter))
+            iter_ann = getattr(iter_node, "annotation", None)
+            if get_id(iter_ann) == "BinaryIO":
+                # Julia IOBuffer cannot be read by line
+                iter_node = ast.Call(
+                    func = ast.Name(id = "readlines"),
+                    args = [ast.Name(id = get_id(node.iter))],
+                    keywords = []
+                )
+                node.iter = iter_node
         return node
 
 

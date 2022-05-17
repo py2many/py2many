@@ -34,7 +34,7 @@ reverse_translation = Dict(
     b"w" => b"W",
     b"y" => b"R",
 )
-function reverse_complement(header, sequence)::Tuple
+function reverse_complement(header, sequence)
     t = translate(sequence, reverse_translation, b"\n\r ")
     output = Vector{UInt8}()
     trailing_length = length(t) % 60

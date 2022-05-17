@@ -3,7 +3,7 @@ using StringEncodings
 
 abstract type Abstractlean_call end
 lean_buffer = Dict()
-function lean_args(sequence, reading_frames, i, j)::Tuple
+function lean_args(sequence, reading_frames, i, j)
     global lean_buffer
     lean_key = length(lean_buffer)
     lean_buffer[lean_key] = sequence
@@ -32,10 +32,10 @@ function __call__(self::lean_call, lean_key, reading_frames, i, j)::Vector
     return lean_results
 end
 
-function count_frequencies(sequence, reading_frames, i, j)
+function count_frequencies(sequence::Vector{Int8}, reading_frames, i, j)
     frames = tuple(sorted([frame for (frame, _) in reading_frames], true))
     frequences_mask_list =
-        tuple(((defaultdict(int), (1 << repeat([frame...], 2)) - 1) for frame in frames))
+        tuple(((defaultdict(int), (1 << repeat([frame...], 2)) - 1) for frame in frames)...)
     frame = frames[1]
     frequences, mask = frequences_mask_list[1]
     short_frame_frequences = frequences_mask_list[2:end]
@@ -47,7 +47,7 @@ function count_frequencies(sequence, reading_frames, i, j)
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
-            worklist = translate(worklist, nothing, n)
+            worklist = replace!(collect(worklist), merge!(nothing, Dict())...)
             len_after = length(worklist)
             freq[n[1]+1] = len_before - len_after
             len_before = len_after
@@ -60,10 +60,10 @@ function count_frequencies(sequence, reading_frames, i, j)
         worklist = sequence[i+1:min(j + 1, length(sequence))]
         overlaps = []
         for v in (n + m for n in mono_nucleotides for m in mono_nucleotides)
-            bits = v[1] * 4 + v[2]
+            bits = append!(repeat(v[1], 4), v[2])
             freq[bits+1] = count(worklist, v)
             if v[2:end] == v[begin:1]
-                push!(overlaps, (v, bits, v[begin:1] + v))
+                push!(overlaps, (v, bits, append!(v[begin:1], v)))
             end
         end
         for (v, bits, pattern) in overlaps
@@ -108,8 +108,8 @@ function count_frequencies(sequence, reading_frames, i, j)
     ]
 end
 
-function read_sequence(file, header, translation)
-    for line in file
+function read_sequence(file::IOBuffer, header, translation)::Vector{Int8}
+    for line in readlines(file)
         if line[1] == Int(codepoint('>'))
             if line[2:length(header)+1] == header
                 has_break = true
@@ -118,7 +118,7 @@ function read_sequence(file, header, translation)
         end
     end
     sequence = Vector{UInt8}()
-    for line in file
+    for line in readlines(file)
         if line[1] == Int(codepoint('>'))
             has_break = true
             break
@@ -126,12 +126,12 @@ function read_sequence(file, header, translation)
         sequence += line
     end
     return replace!(
-        sequence,
-        merge!(translation, {"\n" => "", "\r" => "", "\t" => "", " " => ""}),
+        collect(sequence),
+        merge!(translation, Dict(b"\n" => b"", b"\r" => b"", b"\t" => b"", b" " => b""))...,
     )
 end
 
-function lookup_frequency(results, frame, bits)::Tuple
+function lookup_frequency(results, frame, bits)
     n = 1
     frequency = 0
     for (_, n, frequencies) in filter((r) -> r[1] == frame, results)
@@ -169,8 +169,8 @@ function main_func()
         b"c" => b"\x02",
         b"a" => b"\x03",
     )
-    function str_to_bits(text)::Int64
-        buffer = translate(encode(text, "latin1"), translation)
+    function str_to_bits(text::String)::Int64
+        buffer = replace!(collect(encode(text, "latin1")), translation...)
         bits = 0
         for k = 0:length(buffer)-1
             bits = bits * 4 + buffer[k+1]
@@ -179,12 +179,12 @@ function main_func()
     end
 
     function display_list(k_nucleotides)
-        return [(n, length(n), str_to_bits(n)) for n in k_nucleotides]
+        return [(n, length(n), str_to_bits(convert(String, n))) for n in k_nucleotides]
     end
 
     sequence = read_sequence(stdin.buffer, b"THREE", translation)
     mono_nucleotides = ("G", "A", "T", "C")
-    di_nucleotides = tuple((n + m for n in mono_nucleotides for m in mono_nucleotides))
+    di_nucleotides = tuple((n * m for n in mono_nucleotides for m in mono_nucleotides)...)
     k_nucleotides = ("GGT", "GGTA", "GGTATT", "GGTATTTTAATT", "GGTATTTTAATTTATAGT")
     reading_frames = append!(
         [

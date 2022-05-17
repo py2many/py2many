@@ -32,7 +32,7 @@ using StringEncodings
     end
 end
 
-function compute_row(p)::Tuple
+function compute_row(p)
     y, n = p
     pixels_ = pixels(y, n, abs)
     result = Vector{UInt8}([pixels_() for _ in (0:(n+7)÷8)])

@@ -601,10 +601,10 @@ class JuliaTranspilerPlugins:
                     i += 1
                 if arg in t_self._str_special_character_map:
                     arg = t_self._str_special_character_map[arg]
-                key_map.append(f"\"{arg}\" => \"\"")
+                key_map.append(f"b\"{arg}\" => b\"\"")
             key_map = ", ".join(key_map)
-            translation_map = f"merge!({vargs[1]}, {{{key_map}}})"
-        return f"replace!({vargs[0]}, {translation_map})"
+            translation_map = f"merge!({vargs[1]}, Dict({key_map}))"
+        return f"replace!(collect({vargs[0]}), {translation_map}...)"
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -836,6 +836,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     range: (JuliaTranspilerPlugins.visit_range, False),
     zip: (JuliaTranspilerPlugins.visit_zip, False),
     frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset_contains, False),
+    tuple: (lambda self, node, vargs: f"tuple({vargs[0]}...)" 
+        if isinstance(node.args[0], ast.GeneratorExp) else f"tuple({vargs[0]})", False),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
@@ -888,6 +890,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     bytearray.translate: (JuliaTranspilerPlugins.visit_translate, False),
+    bytes.translate: (JuliaTranspilerPlugins.visit_translate, False),
     # Itertools
     itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
         if len(vargs) > 2 else f"repeat({vargs[0]})", False),

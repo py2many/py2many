@@ -3,7 +3,7 @@ import re
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import List, Optional, Tuple, Union
+from typing import BinaryIO, List, Optional, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 
@@ -158,6 +158,11 @@ CONTAINER_TYPE_MAP = {
     bytearray: f"Vector{{Int8}}",
 }
 
+########################################################
+EXTERNAL_TYPE_MAP = {
+    BinaryIO: "IOBuffer"
+}
+
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
@@ -173,6 +178,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._none_type = NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
+        self._external_type_map = EXTERNAL_TYPE_MAP
+        self._module_dispatch_table = MODULE_DISPATCH_TABLE
         self._use_modules = None
         self._julia_keywords = julia_keywords
 
@@ -250,8 +257,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return self._type_map[typeclass]
         elif typeclass in self._container_type_map:
             return self._container_type_map[typeclass]
-        elif typeclass in MODULE_DISPATCH_TABLE:
-            return MODULE_DISPATCH_TABLE[typeclass]
+        elif typeclass in self._module_dispatch_table:
+            return self._module_dispatch_table[typeclass]
+        elif typeclass in self._external_type_map:
+            return self._external_type_map[typeclass]
         else:
             # Default if no type is found
             return typename
@@ -422,13 +431,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
             # Account for JuliaMethodCallRewriter
             annotation = None
-            if v := node.scopes.find(var):
-                annotation = getattr(v, "annotation", None)
-            elif ann := getattr(node.args[0], "annotation", None):
+            if ann := getattr(node.args[0], "annotation", None):
                 annotation = ann
+            if not annotation and (v := node.scopes.find(var)):
+                annotation = getattr(v, "annotation", None)
             if ann := self._generic_typename_from_type_node(annotation):
-                # Temporary (NOT WORKING)
-                ann: str = re.split(r"\s+[*]", ann)[0]
+                # Get main type
+                ann: str = re.split(r"[|]", ann)[0]
                 dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
                 if dispatch_func:
                     return dispatch_func

@@ -7,6 +7,7 @@ from os import cpu_count
 from sys import stdin
 from collections import defaultdict
 from itertools import starmap, chain
+from typing import BinaryIO
 
 lean_buffer = {}
 
@@ -36,7 +37,7 @@ class lean_call:
             lean_results.append((frame, n, lean_frequences))
         return lean_results
 
-def count_frequencies(sequence, reading_frames, i, j):
+def count_frequencies(sequence: bytearray, reading_frames, i, j):
     frames = tuple(
         sorted([frame for frame,_ in reading_frames], reverse=True))
     frequences_mask_list = tuple(
@@ -102,7 +103,7 @@ def count_frequencies(sequence, reading_frames, i, j):
         (frame, len(sequence) - frame + 1, frequences_mask_list[i][0])
             for i, frame in enumerate(frames)]
 
-def read_sequence(file, header, translation) :
+def read_sequence(file: BinaryIO, header, translation):
     for line in file:
         if line[0] == ord('>'):
             if line[1:len(header)+1] == header:
@@ -139,7 +140,7 @@ def display(results, display_list, sort=False, relative=False, end='\n'):
 def main():
     translation = bytes.maketrans(b'GTCAgtca',
         b'\x00\x01\x02\x03\x00\x01\x02\x03')
-    def str_to_bits(text):
+    def str_to_bits(text: str):
         buffer = text.encode('latin1').translate(translation)
         bits = 0
         for k in range(len(buffer)):

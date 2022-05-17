@@ -203,7 +203,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ######################################################
 
     def _verify_annotation(self, node, annotation, target, inferred = True):
-        annotation.is_inferred = inferred
+        # annotation.is_inferred = inferred
         var_name = get_id(target)
         ann_str = get_ann_repr(annotation)
         map_ann = node.scopes.find(var_name)

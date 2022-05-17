@@ -24,7 +24,7 @@ homosapiens = [
 end
 
 Random = genRandom()
-function makeCumulative(table)::Tuple
+function makeCumulative(table)
     P = []
     C = []
     prob = 0.0

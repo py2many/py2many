@@ -43,6 +43,7 @@ from pyrs.transpiler import (
 from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
 from pyjl.rewriters import (
     ForLoopTargetRewriter,
+    JuliaIORewriter,
     JuliaImportRewriter,
     JuliaAugAssignRewriter, 
     JuliaClassRewriter,
@@ -395,7 +396,8 @@ def julia_settings(args, env=os.environ):
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges],
         post_rewriters=[JuliaImportRewriter(), JuliaClassRewriter(), JuliaMethodCallRewriter(), 
             JuliaAugAssignRewriter(), JuliaConditionRewriter(), ForLoopTargetRewriter(), 
-            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), JuliaModuleRewriter()],
+            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), JuliaModuleRewriter(),
+            JuliaIORewriter()],
         optimization_rewriters=[AlgebraicSimplification()]
     )
 
