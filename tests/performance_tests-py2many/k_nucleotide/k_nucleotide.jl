@@ -47,7 +47,7 @@ function count_frequencies(sequence, reading_frames, i, j)
         len_before = length(worklist)
         while len_before > 0
             n = worklist[1:1]
-            worklist = replace!(nothing, n)
+            worklist = translate(worklist, nothing, n)
             len_after = length(worklist)
             freq[n[1]+1] = len_before - len_after
             len_before = len_after
@@ -110,7 +110,7 @@ end
 
 function read_sequence(file, header, translation)
     for line in file
-        if line[1] == ord(">")
+        if line[1] == Int(codepoint('>'))
             if line[2:length(header)+1] == header
                 has_break = true
                 break
@@ -119,13 +119,16 @@ function read_sequence(file, header, translation)
     end
     sequence = Vector{UInt8}()
     for line in file
-        if line[1] == ord(">")
+        if line[1] == Int(codepoint('>'))
             has_break = true
             break
         end
         sequence += line
     end
-    return replace!(translation, b"\n\r\t ")
+    return replace!(
+        sequence,
+        merge!(translation, {"\n" => "", "\r" => "", "\t" => "", " " => ""}),
+    )
 end
 
 function lookup_frequency(results, frame, bits)::Tuple
@@ -157,14 +160,14 @@ end
 
 function main_func()
     translation = Dict(
-        b"G" => b"\\",
-        b"T" => b"x",
-        b"C" => b"0",
-        b"A" => b"0",
-        b"g" => b"\\",
-        b"t" => b"x",
-        b"c" => b"0",
-        b"a" => b"1",
+        b"G" => b"\x00",
+        b"T" => b"\x01",
+        b"C" => b"\x02",
+        b"A" => b"\x03",
+        b"g" => b"\x00",
+        b"t" => b"\x01",
+        b"c" => b"\x02",
+        b"a" => b"\x03",
     )
     function str_to_bits(text)::Int64
         buffer = translate(encode(text, "latin1"), translation)

@@ -385,7 +385,16 @@ class JuliaTranspilerPlugins:
 
     def visit_maketrans(t_self, node, vargs: list[str]):
         original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
-        replacement_lst = [vargs[1][i] for i in range(2, len(vargs[1]) - 1)]
+        replacement_lst = []
+        byte_replacements = str(vargs[1][2:-1])
+        i = 0
+        while i < len(byte_replacements):
+            if byte_replacements[i:i+2] == "\\x":
+                replacement_lst.append(str(byte_replacements[i:i+4]))
+                i += 4
+            else:
+                replacement_lst.append(byte_replacements[i])
+                i += 1
         element_lst = []
         for o, r in zip(original_lst, replacement_lst):
             if o in t_self._str_special_character_map:
@@ -568,6 +577,34 @@ class JuliaTranspilerPlugins:
         if len(vargs) == 1:
             return f"encode({t_self.visit(node.args[0])}, \"UTF-8\")"
         return f"encode({vargs[0]}, {vargs[1]})"
+
+    def visit_ord(t_self, node, vargs):
+        v0 = vargs[0].replace('\"', '\'')
+        return f"Int(codepoint({v0}))"
+
+    def visit_translate(t_self,node, vargs):
+        if len(vargs) < 2:
+            return "replace!"
+        if len(vargs) == 2:
+            translation_map = vargs[1]
+        elif len(vargs) == 3:
+            # Include "delete" parameter
+            key_map = []
+            del_args = vargs[2][2:-1]
+            i = 0
+            while i < len(del_args):
+                if del_args[i] == "\\":
+                    arg = del_args[i:i+2]
+                    i += 2
+                else:
+                    arg = del_args[i]
+                    i += 1
+                if arg in t_self._str_special_character_map:
+                    arg = t_self._str_special_character_map[arg]
+                key_map.append(f"\"{arg}\" => \"\"")
+            key_map = ", ".join(key_map)
+            translation_map = f"merge!({vargs[1]}, {{{key_map}}})"
+        return f"replace!({vargs[0]}, {translation_map})"
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -850,7 +887,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     str.join: (JuliaTranspilerPlugins.visit_join, False),
     str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
-    "translate": (lambda self, node, vargs: f"replace!({vargs[1]}, {vargs[2]})", False),
+    bytearray.translate: (JuliaTranspilerPlugins.visit_translate, False),
     # Itertools
     itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
         if len(vargs) > 2 else f"repeat({vargs[0]})", False),
@@ -879,6 +916,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # 
     getattr: (JuliaTranspilerPlugins.visit_getattr , False),
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
+    ord: (JuliaTranspilerPlugins.visit_ord, False),
     ########################################################
     pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
     pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),

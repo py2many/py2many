@@ -46,7 +46,7 @@ function write_lines(
                 i += width
             end
             if table
-                write(translate(output, table))
+                write(replace!(output, table))
             else
                 write(output)
             end
@@ -64,7 +64,7 @@ function write_lines(
     end
     output += sequence[i+1:n] + newline
     if table
-        write(translate(output, table))
+        write(replace!(output, table))
     else
         write(output)
     end
@@ -76,7 +76,7 @@ function cumulative_probabilities(alphabet, factor = 1.0)::Tuple
     table = maketrans(
         bytearray,
         bytes(chain(0:length(alphabet)-1, [255])),
-        bytes(chain((ord(c) for (c, _) in alphabet), [10])),
+        bytes(chain((Int(codepoint(c)) for (c, _) in alphabet), [10])),
     )
     return (probabilities, table)
 end

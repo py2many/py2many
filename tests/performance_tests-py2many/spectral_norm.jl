@@ -20,7 +20,7 @@ function multiply_AtAv(u)
 end
 
 function main_func()
-    n = 10
+    n = parse(Int, argv[2])
     u = repeat([1], n)
     for _ = 0:9
         v = multiply_AtAv(u)

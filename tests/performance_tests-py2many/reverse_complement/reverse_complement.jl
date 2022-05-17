@@ -33,10 +33,10 @@ COMPLEMENTS = Dict(
     b"b" => b"V",
     b"n" => b"N",
 )
-COMMENT = ord(">")
+COMMENT = Int(codepoint('>'))
 function reverse_sequence(sequence)::Vector{Int8}
     chunk = Vector{UInt8}()
-    complemented = replace!(COMPLEMENTS, b"\n")
+    complemented = translate(sequence, COMPLEMENTS, b"\n")
     seq_len = length(complemented)
     last_line_len = seq_len % 60
     if last_line_len != 0

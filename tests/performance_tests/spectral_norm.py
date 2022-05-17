@@ -44,8 +44,7 @@ def multiply_AtAv(u):
 
 
 def main():
-    # n = int(argv[1])
-    n = 10
+    n = int(argv[1])
     u = [1] * n
 
     for _ in range(10):
