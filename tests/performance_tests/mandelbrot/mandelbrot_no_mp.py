@@ -5,8 +5,7 @@
 
 from contextlib import closing
 from itertools import islice
-from os import cpu_count
-from sys import argv, stdout
+from sys import stdout
 from time import perf_counter
 
 @resumable
@@ -46,14 +45,13 @@ def compute_rows(n, f):
 def mandelbrot(n):
     write = stdout.buffer.write
 
-    # with closing(compute_rows(n, compute_row)) as rows:
-    with compute_rows(n, compute_row) as rows:
+    with closing(compute_rows(n, compute_row)) as rows:
         write("P4\n{0} {0}\n".format(n).encode())
         for row in rows:
             write(row[1])
 
 if __name__ == '__main__':
-    mandelbrot(10)
+    mandelbrot(200)
     # mandelbrot(int(argv[1]))
 
 # Benchmarks

@@ -2,6 +2,7 @@ function for_with_break()
     arr = []
     for i = 0:3
         if i == 2
+            has_break = true
             break
         end
         push!(arr, i)
@@ -22,8 +23,12 @@ end
 
 function for_with_else()
     arr = []
+    has_break = false
     for i = 0:3
         push!(arr, i)
+    end
+    if has_break != true
+        push!(arr, 4)
     end
     @assert(arr == [0, 1, 2, 3, 4])
 end
@@ -33,6 +38,7 @@ function while_with_break()
     i = 0
     while true
         if i == 2
+            has_break = true
             break
         end
         push!(arr, i)

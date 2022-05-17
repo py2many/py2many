@@ -416,7 +416,7 @@ class JuliaTranspilerPlugins:
     def visit_format(t_self, node, vargs):
         subst_values: list[str] = vargs[1:]
         res: str = re.split("{|}", vargs[0])
-        replacement_list = []
+        replacement_map = {}
         for i in range(len(subst_values)):
             subst_val = re.split("\s*=\s*", subst_values[i])
             if len(subst_val) > 1:
@@ -425,12 +425,11 @@ class JuliaTranspilerPlugins:
             else:
                 original = f"{i}"
                 replacement = subst_val[0]
-            replacement_list.append((original, replacement))
+            replacement_map[original] = replacement
 
-        replc_idx = range(1, len(res), 2)
-        for j, repl_elem in zip(replc_idx, replacement_list):
+        for j in range(1, len(res), 2):
             split_res = res[j].split(".")
-            split_res[0] = split_res[0].replace(repl_elem[0], repl_elem[1])
+            split_res[0] = split_res[0].translate(str.maketrans(replacement_map))
             res[j] = f"$({'.'.join(split_res)})"
 
         return "".join(res)

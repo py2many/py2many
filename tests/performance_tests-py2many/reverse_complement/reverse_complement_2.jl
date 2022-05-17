@@ -63,6 +63,7 @@ function read_sequences(file)
                     end
                 end
                 put!(ch_read_sequences, (header, sequence))
+                has_break = true
                 break
             end
         end

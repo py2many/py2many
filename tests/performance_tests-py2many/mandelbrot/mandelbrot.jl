@@ -13,13 +13,18 @@ function pixels(y, n, abs)
             c = x * c1 + c0
             for pixel_bit in pixel_bits
                 z = c
+                has_break = false
                 for _ in range7
                     for _ in range7
                         z = z * z + c
                     end
                     if abs(z) >= 2.0
+                        has_break = true
                         break
                     end
+                end
+                if has_break != true
+                    pixel += pixel_bit
                 end
                 c += c1
             end
@@ -71,11 +76,9 @@ end
 
 function mandelbrot(n)
     write = x -> Base.write(stdout, x)
-    compute_rows(n, compute_row) do rows
-        write(Vector{UInt8}("P4\n$(n) 0\n"))
-        for row in rows
-            #= pass =#
-        end
+    write(Vector{UInt8}("P4\n$(n) $(n)\n"))
+    for row in compute_rows(n, compute_row)
+        #= pass =#
     end
 end
 

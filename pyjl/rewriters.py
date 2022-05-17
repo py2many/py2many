@@ -534,6 +534,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         ast.Yield(
                             value = val
                         )],
+                    orelse = [],
                     lineno = node.lineno,
                     col_offset = node.col_offset)
                 return new_node
@@ -543,11 +544,18 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     def visit_With(self, node: ast.With) -> Any:
         parent = node.scopes[-2]
         context_expr = node.items[0].context_expr
+        # Bypass call to closing
+        if isinstance(context_expr, ast.Call) and \
+                get_id(context_expr.func) == "closing":
+            context_expr = context_expr.args[0]
+
         opt_var = node.items[0].optional_vars
         if isinstance(context_expr, ast.Call):
             func_id = get_id(context_expr.func)
             func_def = find_node_by_name_and_type(func_id, ast.FunctionDef, node.scopes)[0]
             if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "body"):
+                # Resumable functions cannot be called from annonymous functions
+                # https://github.com/BenLauwens/ResumableFunctions.jl/blob/master/docs/src/manual.md
                 prev = self._replace_map
                 self._replace_map = {get_id(opt_var): context_expr}
                 self.generic_visit(node)
@@ -933,7 +941,8 @@ class JuliaImportRewriter(ast.NodeTransformer):
         return self._generic_import_scope_visit(node)
 
     def _generic_import_scope_visit(self, node):
-        del node.imports
+        if hasattr(node, "imports"):
+            del node.imports
         self.generic_visit(node)
         return node
     

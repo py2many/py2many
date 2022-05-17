@@ -56,6 +56,7 @@ function alternating_flips_generator(n, start, size)
                     permutation[begin:first+1] = permutation[end:-1:first+1]
                     first = permutation[1]
                     if !(first)
+                        has_break = true
                         break
                     end
                     flips_count += 1

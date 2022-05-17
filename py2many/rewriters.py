@@ -1,6 +1,7 @@
 import ast
 import re
 import textwrap
+from tkinter import N
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_block, create_ast_node
@@ -514,3 +515,65 @@ class RestoreMainRewriter(ast.NodeTransformer):
             ast.fix_missing_locations(if_block)
             return if_block
         return node
+
+class ForElseRewriter(ast.NodeTransformer):
+    def __init__(self, language) -> None:
+        super().__init__()
+        self._language = language
+        self._has_break_var_name = "has_break"
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        self._visit_Scope(node)
+        return node    
+
+    def visit_For(self, node: ast.For) -> Any:
+        self._visit_Scope(node)
+        parent = node.scopes[-2]
+        if len(node.orelse) > 0 and hasattr(parent, "body"):
+            lineno = node.orelse[0].lineno
+            if_expr = ast.If(
+                test = ast.Compare(
+                    left = ast.Name(id=self._has_break_var_name),
+                    ops = [ast.NotEq()],
+                    comparators = [ast.Constant(value=True)]),
+                body = [oe for oe in node.orelse],
+                orelse = [],
+                lineno = lineno
+            )
+            node.if_expr = if_expr
+
+        return node
+
+    def _visit_Scope(self, node) -> Any:
+        self.generic_visit(node)
+        assign = ast.Assign(
+            targets = [ast.Name(id=self._has_break_var_name)],
+            value = None # Fill up later
+        )
+        body = []
+        for n in node.body:
+            if isinstance(n, ast.Break):
+                assign.value = ast.Constant(value=True)
+                body.append(assign)
+                body.append(n)
+            elif isinstance(n, ast.For) and hasattr(n, "if_expr"):
+                assign.value = ast.Constant(value=False)
+                body.append(assign)
+                body.append(n)
+                body.append(n.if_expr)
+            else:
+                body.append(n)
+        node.body = body
+

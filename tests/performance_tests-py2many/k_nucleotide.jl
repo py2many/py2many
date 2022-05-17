@@ -111,6 +111,7 @@ function read_sequence(file, header, translation)
     for line in file
         if line[1] == ord(">")
             if line[2:length(header)+1] == header
+                has_break = true
                 break
             end
         end
@@ -118,6 +119,7 @@ function read_sequence(file, header, translation)
     sequence = Vector{UInt8}()
     for line in file
         if line[1] == ord(">")
+            has_break = true
             break
         end
         sequence += line
@@ -146,7 +148,7 @@ function display(results, display_list, sort = false, relative = false, end_ = "
         if relative
             println("$(k_nucleotide) $(frequency*100.0 / n:.3f)")
         else
-            println("$(1)\t$(0)")
+            println("$(frequency)\t$(k_nucleotide)")
         end
     end
     println(end_)

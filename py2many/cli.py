@@ -84,6 +84,7 @@ from pysmt.inference import infer_smt_types
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
     FStringJoinRewriter,
+    ForElseRewriter,
     InferredAnnAssignRewriter,
     PythonMainRewriter,
     DocStringToCommentRewriter,
@@ -160,7 +161,8 @@ def _transpile(
         PrintBoolRewriter(language),
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
-        UnitTestRewriter(language)
+        UnitTestRewriter(language),
+        ForElseRewriter(language)
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
@@ -558,7 +560,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
         return False
 
     print(f"{filename} ... {output_path}")
-    with open(filename) as f:
+    with open(filename, encoding="utf-8") as f:
         source_data = f.read()
     dunder_init = filename.stem == "__init__"
     if dunder_init and not source_data:
@@ -629,7 +631,7 @@ def _process_many(
 
     source_data = []
     for filename in filenames:
-        with open(basedir / filename) as f:
+        with open(basedir / filename, encoding="utf-8") as f:
             source_data.append(f.read())
 
     outputs, successful = _transpile(

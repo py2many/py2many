@@ -38,8 +38,12 @@ function write_lines(
     if blocks
         for _ = 0:blocks-1
             output = Vector{UInt8}()
+            has_break = false
             for i = i:width:i+width*lines_per_block-1
                 output += sequence[i+1:i+width] + newline
+            end
+            if has_break != true
+                i += width
             end
             if table
                 write(translate(output, table))
@@ -50,8 +54,12 @@ function write_lines(
     end
     output = Vector{UInt8}()
     if i < (n - width)
+        has_break = false
         for i = i:width:n-width-1
             output += sequence[i+1:i+width] + newline
+        end
+        if has_break != true
+            i += width
         end
     end
     output += sequence[i+1:n] + newline

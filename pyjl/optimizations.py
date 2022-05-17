@@ -15,7 +15,7 @@ class AlgebraicSimplification(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node: ast.Call) -> Any:
-        # TODO: For now, just optimize range function calls
+        # For now, just optimize range function calls
         if get_id(node.func) == "range":
             self._generic_optimize_visit(node)
         else:
