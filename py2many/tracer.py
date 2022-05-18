@@ -108,9 +108,10 @@ def find_node_by_type(node_type, scopes):
         if isinstance(sc, node_type):
             c_node = sc
             break
-        c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type)))
-        if c_node is not None:
-            break
+        if hasattr(sc, "body"):
+            c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type)))
+            if c_node is not None:
+                break
     return c_node
 
 def find_node_by_name(name, scopes):

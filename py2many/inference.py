@@ -414,13 +414,13 @@ class InferTypesTransformer(ast.NodeTransformer):
         # Finds the closest node that is a function definition
         func_node = find_node_by_type(ast.FunctionDef, node.scopes)
         type_str = get_id(func_node.returns) if func_node else None
-        if type_str is not None:
+        if type_str:
             if new_type_str != type_str:
                 type_str = f"Union[{type_str},{new_type_str}]"
                 func_node.returns.id = type_str
         else:
             # Do not overwrite source annotation with inferred
-            if func_node.returns is None:
+            if func_node and func_node.returns is None:
                 func_node.returns = ast.Name(id=new_type_str)
                 lifetime = getattr(node.value.annotation, "lifetime", None)
                 if lifetime is not None:

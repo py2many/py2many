@@ -461,59 +461,57 @@ class UnitTestRewriter(ast.NodeTransformer):
         return self.generic_visit(node)
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        if node.name == "main":
-            l_no = node.body[-1].lineno + 1
-            body = []
-            for n in node.body:
-                # Remove "unittest.main"
-                if not(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
-                        and isinstance(n.value.func, ast.Attribute)
-                        and f"{get_id(n.value.func.value)}.{n.value.func.attr}" == "unittest.main"):
-                    body.append(n)
-            for (class_name, func_defs) in self._test_classes:
-                # Convert to snake case
-                # (?<!^) --> Don't put underscore at beginning 
-                #    ?<! --> negative lookbehind: asserts that string 
-                #              is not equal to the beginning "^"
-                instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
-                body.append(
-                    ast.Assign(
-                        targets = [ast.Name(id=instance_name)],
-                        value = ast.Call(
-                            func = ast.Name(id = class_name, ctx = ast.Load()),
-                            args = [],
-                            keywords = [],
-                            lineno = l_no,
-                            col_offset = node.col_offset
-                        )))
-                l_no += 1
+        self.generic_visit(node)
+        if getattr(node, "python_main", None) :
+            self._generic_main_visit(node)
+        return node
 
-                # Create Function Calls
-                for func_name in func_defs:
-                    body.append(ast.Call(
-                        func = ast.Name(id = func_name, ctx = ast.Load()),
-                        args = [ast.Name(id = instance_name)],
+    def visit_If(self, node: ast.If) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "python_main", None):
+            self._generic_main_visit(node)
+        return node
+
+    def _generic_main_visit(self, node):
+        l_no = node.body[-1].lineno + 1
+        body = []
+        for n in node.body:
+            # Remove "unittest.main"
+            if not(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
+                    and isinstance(n.value.func, ast.Attribute)
+                    and f"{get_id(n.value.func.value)}.{n.value.func.attr}" == "unittest.main"):
+                body.append(n)
+        for (class_name, func_defs) in self._test_classes:
+            # Convert to snake case
+            # (?<!^) --> Don't put underscore at beginning 
+            #    ?<! --> negative lookbehind: asserts that string 
+            #              is not equal to the beginning "^"
+            instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
+            body.append(
+                ast.Assign(
+                    targets = [ast.Name(id=instance_name)],
+                    value = ast.Call(
+                        func = ast.Name(id = class_name, ctx = ast.Load()),
+                        args = [],
                         keywords = [],
                         lineno = l_no,
-                        col_offset = node.col_offset))
-                    l_no += 1
+                        col_offset = node.col_offset
+                    )))
+            l_no += 1
 
-            # Update node.body
-            node.body = body
+            # Create Function Calls
+            for func_name in func_defs:
+                body.append(ast.Call(
+                    func = ast.Name(id = func_name, ctx = ast.Load()),
+                    args = [ast.Name(id = instance_name)],
+                    keywords = [],
+                    lineno = l_no,
+                    col_offset = node.col_offset))
+                l_no += 1
 
-        return self.generic_visit(node)
+        # Update node.body
+        node.body = body
 
-
-class RestoreMainRewriter(ast.NodeTransformer):
-    def visit_FunctionDef(self, node):
-        is_python_main = getattr(node, "python_main", False)
-
-        if is_python_main:
-            if_block = create_ast_node("if __name__ == '__main__': True", node)
-            if_block.body = node.body
-            ast.fix_missing_locations(if_block)
-            return if_block
-        return node
 
 class ForElseRewriter(ast.NodeTransformer):
     def __init__(self, language) -> None:

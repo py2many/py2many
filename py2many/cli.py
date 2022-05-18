@@ -51,7 +51,8 @@ from pyjl.rewriters import (
     JuliaDecoratorRewriter,
     JuliaGeneratorRewriter,
     JuliaConditionRewriter,
-    JuliaIndexingRewriter, 
+    JuliaIndexingRewriter,
+    # JuliaMainRewriter, 
     JuliaMethodCallRewriter,
     JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
@@ -89,12 +90,11 @@ from py2many.rewriters import (
     FStringJoinRewriter,
     ForElseRewriter,
     InferredAnnAssignRewriter,
+    UnitTestRewriter,
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
-    RestoreMainRewriter,
     StrStrRewriter,
-    UnitTestRewriter,
     IgnoredAssignRewriter,
     UnpackScopeRewriter,
 )
@@ -151,21 +151,22 @@ def _transpile(
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
-        PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         DocStringToCommentRewriter(language),
         IgnoredAssignRewriter(language),
     ]
 
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
+    if settings.ext != ".py": # settings.ext != ".jl" and 
+        generic_rewriters.append(PythonMainRewriter(settings.transpiler._main_signature_arg_names))
 
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
         PrintBoolRewriter(language),
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
+        ForElseRewriter(language),
         UnitTestRewriter(language),
-        ForElseRewriter(language)
     ]
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
@@ -315,7 +316,7 @@ def python_settings(args, env=os.environ):
         ".py",
         "Python",
         formatter=["black"],
-        rewriters=[RestoreMainRewriter()],
+        rewriters=[],
         post_rewriters=[InferredAnnAssignRewriter()],
     )
 
@@ -394,12 +395,12 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()],
+        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()], # JuliaMainRewriter() --> Currently not working
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges, find_ordered_collections],
-        post_rewriters=[JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), JuliaMethodCallRewriter(), 
-            JuliaAugAssignRewriter(), JuliaConditionRewriter(), ForLoopTargetRewriter(), 
-            JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), JuliaModuleRewriter(),
-            JuliaIORewriter()],
+        post_rewriters=[JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
+            JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
+            ForLoopTargetRewriter(), JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), 
+            JuliaModuleRewriter(), JuliaIORewriter()],
         optimization_rewriters=[AlgebraicSimplification()]
     )
 
