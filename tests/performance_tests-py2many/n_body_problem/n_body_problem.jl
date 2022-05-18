@@ -1,4 +1,3 @@
-using OrderedCollections
 using Printf
 
 function combinations(l)::Vector
@@ -15,7 +14,7 @@ end
 PI = 3.141592653589793
 SOLAR_MASS = 4 * PI * PI
 DAYS_PER_YEAR = 365.24
-BODIES = OrderedDict(
+BODIES = Dict(
     "sun" => ([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], SOLAR_MASS),
     "jupiter" => (
         [4.841431442464721, -1.1603200440274284, -0.10362204447112311],

@@ -4,7 +4,7 @@ function test_python(iterations::Int64)
     total = float(0.0)
     array_length = 1000
     array::Vector{Int64} = [i for i = 0:array_length-1]
-    println("iterations", iterations)
+    println("iterations$(iterations)")
     while iteration < iterations
         innerloop = 0
         while innerloop < 100

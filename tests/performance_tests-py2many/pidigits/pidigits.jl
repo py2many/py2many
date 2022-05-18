@@ -44,7 +44,7 @@ function main()
         if d != extract_Digit(4)
             continue
         end
-        print(Char(48 + d))
+        println("$(Char(48 + d))")
         i += 1
         if (i % 10) == 0
             @printf("\t:%d", i)

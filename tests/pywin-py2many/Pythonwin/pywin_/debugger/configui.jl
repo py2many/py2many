@@ -1,4 +1,3 @@
-module configui
 using PyCall
 win32ui = pyimport("win32ui")
 import win32com_.gen_py.debugger
@@ -28,7 +27,7 @@ function OnOK(self::DebuggerOptionsPropPage)::Int64
     UpdateData(self)
     dirty = 0
     for (key, val) in collect(items(self))
-        if key in self.options
+        if key ∈ self.options
             if self.options[key+1] != val
                 self.options[key+1] = val
                 dirty = 1
@@ -42,6 +41,4 @@ function OnOK(self::DebuggerOptionsPropPage)::Int64
         win32com_.gen_py.debugger.currentDebugger.options = self.options
     end
     return 1
-end
-
 end

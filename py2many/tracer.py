@@ -155,6 +155,10 @@ def find_in_body(body, fn):
         elif (isinstance(node, ast.Expr) and hasattr(node, "value")
                 and fn(node.value)):
             return node.value
+        elif hasattr(node, "iter") and fn(node.iter):
+            return node.iter
+        elif hasattr(node, "test") and fn(node.test):
+            return node.test
         elif hasattr(node, "body"):
             ret = find_in_body(node.body, fn)
             if ret:

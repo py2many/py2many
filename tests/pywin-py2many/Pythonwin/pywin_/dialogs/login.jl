@@ -1,4 +1,3 @@
-module login
 #= login -- PythonWin user ID and password dialog box
 
 (Adapted from originally distributed with Mark Hammond's PythonWin - 
@@ -42,19 +41,19 @@ function MakeLoginDlgTemplate(title)
         ) | win32con.DS_SETFONT
     cs = win32con.WS_CHILD | win32con.WS_VISIBLE
     dlg = [[title, (0, 0, 184, 40), style, nothing, (8, "MS Sans Serif")]]
-    append(dlg, [130, "User ID:", -1, (7, 9, 69, 9), cs | win32con.SS_LEFT])
+    push!(dlg, [130, "User ID:", -1, (7, 9, 69, 9), cs | win32con.SS_LEFT])
     s = (cs | win32con.WS_TABSTOP) | win32con.WS_BORDER
-    append(dlg, ["EDIT", nothing, win32ui.IDC_EDIT1, (50, 7, 60, 12), s])
-    append(dlg, [130, "Password:", -1, (7, 22, 69, 9), cs | win32con.SS_LEFT])
+    push!(dlg, ["EDIT", nothing, win32ui.IDC_EDIT1, (50, 7, 60, 12), s])
+    push!(dlg, [130, "Password:", -1, (7, 22, 69, 9), cs | win32con.SS_LEFT])
     s = (cs | win32con.WS_TABSTOP) | win32con.WS_BORDER
-    append(
+    push!(
         dlg,
         ["EDIT", nothing, win32ui.IDC_EDIT2, (50, 20, 60, 12), s | win32con.ES_PASSWORD],
     )
     s = cs | win32con.WS_TABSTOP
-    append(dlg, [128, "OK", win32con.IDOK, (124, 5, 50, 14), s | win32con.BS_DEFPUSHBUTTON])
+    push!(dlg, [128, "OK", win32con.IDOK, (124, 5, 50, 14), s | win32con.BS_DEFPUSHBUTTON])
     s = win32con.BS_PUSHBUTTON | s
-    append(dlg, [128, "Cancel", win32con.IDCANCEL, (124, 20, 50, 14), s])
+    push!(dlg, [128, "Cancel", win32con.IDCANCEL, (124, 20, 50, 14), s])
     return dlg
 end
 
@@ -68,15 +67,15 @@ function MakePasswordDlgTemplate(title)
         ) | win32con.DS_SETFONT
     cs = win32con.WS_CHILD | win32con.WS_VISIBLE
     dlg = [[title, (0, 0, 177, 45), style, nothing, (8, "MS Sans Serif")]]
-    append(dlg, [130, "Password:", -1, (7, 7, 69, 9), cs | win32con.SS_LEFT])
+    push!(dlg, [130, "Password:", -1, (7, 7, 69, 9), cs | win32con.SS_LEFT])
     s = (cs | win32con.WS_TABSTOP) | win32con.WS_BORDER
-    append(
+    push!(
         dlg,
         ["EDIT", nothing, win32ui.IDC_EDIT1, (50, 7, 60, 12), s | win32con.ES_PASSWORD],
     )
     s = (cs | win32con.WS_TABSTOP) | win32con.BS_PUSHBUTTON
-    append(dlg, [128, "OK", win32con.IDOK, (124, 5, 50, 14), s | win32con.BS_DEFPUSHBUTTON])
-    append(dlg, [128, "Cancel", win32con.IDCANCEL, (124, 22, 50, 14), s])
+    push!(dlg, [128, "OK", win32con.IDOK, (124, 5, 50, 14), s | win32con.BS_DEFPUSHBUTTON])
+    push!(dlg, [128, "Cancel", win32con.IDCANCEL, (124, 22, 50, 14), s])
     return dlg
 end
 
@@ -132,8 +131,8 @@ function main()
     if userid === password === nothing
         println("User pressed Cancel")
     else
-        println("User ID: ", userid)
-        println("Password:", password)
+        println("User ID: $(userid)")
+        println("Password:$(password)")
         newpassword = GetPassword("Reenter just for fun", password)
         if newpassword === nothing
             println("User cancelled")
@@ -148,4 +147,3 @@ function main()
 end
 
 main()
-end

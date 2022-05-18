@@ -1,4 +1,3 @@
-module ideoptions
 using PyCall
 win32ui = pyimport("win32ui")
 using win32com_.gen_py.mfc: dialog
@@ -142,6 +141,4 @@ function OnFormatError(self::OptionsPropPage, command, code)
         formatOutputError = fmt
         SaveFontPreferences()
     end
-end
-
 end

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 
+import sys
+
+
 def show():
     print("b")
     print(2, "b")
@@ -10,6 +13,12 @@ def show():
     print(b)
     c = True
     print(c)
+    name = "test"
+    val = True
+    print(
+        "%s_vtables_dispatch_ = %d" % (name, val),
+        file=sys.stdout,
+    )
 
 
 if __name__ == "__main__":

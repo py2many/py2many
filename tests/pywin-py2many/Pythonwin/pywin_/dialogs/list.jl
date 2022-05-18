@@ -1,4 +1,3 @@
-module list
 using PyCall
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
@@ -158,4 +157,3 @@ function main()
 end
 
 main()
-end

@@ -1,15 +1,20 @@
-using OrderedCollections
+using Distributed
+
+function init(arg)
+    global seq
+    seq = arg
+end
 
 function var_find(f)::Int64
     return length(collect(eachmatch(Regex(f), seq)))
 end
 
 function main_func()
-    global seq
     seq = read(stdin, String)
     ilen = length(seq)
     seq = replace(seq, r">.*\n|\n" => s"")
     clen = length(seq)
+    pool = default_worker_pool()
     variants = (
         "agggtaaa|tttaccct",
         "[cgt]gggtaaa|tttaccc[acg]",
@@ -21,17 +26,17 @@ function main_func()
         "agggta[cgt]a|t[acg]taccct",
         "agggtaa[cgt]|[acg]ttaccct",
     )
-    for f in zip(variants, map(var_find, variants))
+    for f in zip(variants, imap(pool, var_find, variants))
         println("$(f[1])$(f[2])")
     end
-    subst = OrderedDict(
+    subst = Dict(
         "tHa[Nt]" => "<4>",
         "aND|caN|Ha[DS]|WaS" => "<3>",
         "a[NSt]|BY" => "<2>",
         "<[^>]*>" => "|",
         "\\|[^|][^|]*\\|" => "-",
     )
-    for (f, r) in collect(subst)
+    for (f, r) in collect(collect(subst))
         seq = replace(seq, Regex(f) => SubstitutionString(r))
     end
     println()

@@ -584,7 +584,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         # annotation = getattr(args0, "annotation", None),
                         scopes = getattr(args0, "scopes", None),
                     ),
-                    scopes = args0.scopes
+                    scopes = args0.scopes,
+                    lineno = node.lineno
                 )
                 node.args[0].func = resumable_name
                 node.args[0].args = []

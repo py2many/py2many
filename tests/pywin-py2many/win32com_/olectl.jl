@@ -1,4 +1,3 @@
-module olectl
 #= Constants used by COM Controls
 
   Hand created version of OLECTL.H constants.
@@ -6,11 +5,11 @@ module olectl
 import winerror
 FACILITY_CONTROL = 10
 function MAKE_SCODE(sev, fac, code)::Int64
-    return Int(((parse(Int, -(sev)) << 31) | (fac << 16)) | code)
+return Int(((parse(Int, -(sev)) << 31) | (fac << 16)) | code)
 end
 
 function STD_CTL_SCODE(n)::Int64
-    return MAKE_SCODE(winerror.SEVERITY_ERROR, FACILITY_CONTROL, n)
+return MAKE_SCODE(winerror.SEVERITY_ERROR, FACILITY_CONTROL, n)
 end
 
 CTL_E_ILLEGALFUNCTIONCALL = STD_CTL_SCODE(5)
@@ -62,4 +61,3 @@ CONNECT_E_ADVISELIMIT = CONNECT_E_FIRST + 1
 CONNECT_E_CANNOTCONNECT = CONNECT_E_FIRST + 2
 CONNECT_E_OVERRIDDEN = CONNECT_E_FIRST + 3
 CLASS_E_NOTLICENSED = winerror.CLASSFACTORY_E_FIRST + 2
-end

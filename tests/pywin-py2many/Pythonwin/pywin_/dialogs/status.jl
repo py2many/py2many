@@ -1,4 +1,3 @@
-module status
 using PyCall
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
@@ -22,7 +21,7 @@ function MakeProgressDlgTemplate(caption, staticText = "")
     h = 40
     dlg = [[caption, (0, 0, w, h), style, nothing, (8, "MS Sans Serif")]]
     s = win32con.WS_TABSTOP | cs
-    append(dlg, [130, staticText, 1000, (7, 7, w - 7, h - 32), cs | win32con.SS_LEFT])
+    push!(dlg, [130, staticText, 1000, (7, 7, w - 7, h - 32), cs | win32con.SS_LEFT])
     return dlg
 end
 
@@ -238,6 +237,7 @@ function ThreadedStatusProgressDialog(title, msg = "", maxticks = 100)
     end_time = pylib::time() + 10
     while pylib::time() < end_time
         if isSet(t.createdEvent)
+            has_break = true
             break
         end
         PumpWaitingMessages(win32ui)
@@ -281,4 +281,3 @@ function main()
 end
 
 main()
-end

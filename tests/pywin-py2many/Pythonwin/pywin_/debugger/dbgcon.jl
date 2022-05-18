@@ -1,4 +1,4 @@
-module dbgcon
+using OrderedCollections
 using PyCall
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
@@ -17,7 +17,7 @@ function DoGetOption(optsDict, optName, default)
 end
 
 function LoadDebuggerOptions()::Dict
-    opts = Dict()
+    opts = OrderedDict()
     DoGetOption(opts, OPT_HIDE, 0)
     DoGetOption(opts, OPT_STOP_EXCEPTIONS, 1)
     return opts
@@ -27,6 +27,4 @@ function SaveDebuggerOptions(opts)
     for (key, val) in items(opts)
         WriteProfileVal(win32ui, "Debugger Options", key, val)
     end
-end
-
 end

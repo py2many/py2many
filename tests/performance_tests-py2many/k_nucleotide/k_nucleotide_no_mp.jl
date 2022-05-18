@@ -1,9 +1,8 @@
 using Distributed
-using OrderedCollections
 using StringEncodings
 
 abstract type Abstractlean_call end
-lean_buffer = OrderedDict()
+lean_buffer = Dict()
 function lean_args(sequence, reading_frames, i, j)
     global lean_buffer
     lean_key = length(lean_buffer)

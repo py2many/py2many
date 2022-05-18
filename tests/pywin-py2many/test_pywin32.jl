@@ -1,4 +1,3 @@
-module test_pywin32
 using Pandas
 include("win32com_/client/gencache.jl")
 
@@ -16,4 +15,3 @@ excel.Visible = true
 Open(excel.Workbooks, out_file)
 _ = input("Press enter to close Excel")
 Quit(excel.Application)
-end

@@ -1,4 +1,3 @@
-module cmdline
 using PyCall
 win32ui = pyimport("win32ui")
 
@@ -9,7 +8,7 @@ function ParseArgs(str)::Vector
     length = length(str)
     while pos < length
         try
-            while str[pos+1] in string.whitespace
+            while str[pos+1] ∈ string.whitespace
                 pos = pos + 1
             end
         catch exn
@@ -18,6 +17,7 @@ function ParseArgs(str)::Vector
             end
         end
         if pos >= length
+            has_break = true
             break
         end
         if str[pos+1] == "\""
@@ -33,7 +33,7 @@ function ParseArgs(str)::Vector
             end
         else
             endPos = pos
-            while endPos < length && !(str[endPos+1] in string.whitespace)
+            while endPos < length && !(str[endPos+1] ∈ string.whitespace)
                 endPos = endPos + 1
             end
             nextPos = endPos + 1
@@ -53,12 +53,15 @@ function FixArgFileName(fileName)
         path = os.curdir
     end
     path = abspath(os.path, path)
+    has_break = false
     for syspath in sys.path
         if abspath(os.path, syspath) === path
+            has_break = true
             break
         end
     end
+    if has_break != true
+        append(sys.path, path)
+    end
     return splitext(os.path, fname)[1]
-end
-
 end

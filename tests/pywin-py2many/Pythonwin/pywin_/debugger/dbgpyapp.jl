@@ -1,4 +1,3 @@
-module dbgpyapp
 using PyCall
 win32ui = pyimport("win32ui")
 using win32com_.gen_py.framework: interact
@@ -33,6 +32,4 @@ function InitInstance(self::DebuggerPythonApp)
     LoadSystemModules(self)
     LoadUserModules(self)
     EnableControlContainer(win32ui)
-end
-
 end

@@ -1,4 +1,3 @@
-module thread
 using PyCall
 win32ui = pyimport("win32ui")
 include("object.jl")
@@ -6,34 +5,32 @@ include("object.jl")
 abstract type AbstractWinThread <: Abstractobject.CmdTarget end
 abstract type AbstractWinApp <: AbstractWinThread end
 mutable struct WinThread <: AbstractWinThread
-    initObj
+initObj
 
-    WinThread(initObj = nothing) = begin
-        if initObj === nothing
-            initObj = win32ui.CreateThread()
-        end
-        object.CmdTarget.__init__(self, initObj)
-        new(initObj)
-    end
+            WinThread(initObj = nothing) = begin
+                if initObj === nothing
+initObj = win32ui.CreateThread()
+end
+object.CmdTarget.__init__(self, initObj)
+                new(initObj )
+            end
 end
 function InitInstance(self::WinThread)
-    #= pass =#
+#= pass =#
 end
 
 function ExitInstance(self::WinThread)
-    #= pass =#
+#= pass =#
 end
 
 mutable struct WinApp <: AbstractWinApp
-    initApp
+initApp
 
-    WinApp(initApp = nothing) = begin
-        if initApp === nothing
-            initApp = win32ui.GetApp()
-        end
-        WinThread(initApp)
-        new(initApp)
-    end
+            WinApp(initApp = nothing) = begin
+                if initApp === nothing
+initApp = win32ui.GetApp()
 end
-
+WinThread(initApp)
+                new(initApp )
+            end
 end

@@ -1,4 +1,3 @@
-module __init__
 using PyCall
 win32ui = pyimport("win32ui")
 
@@ -122,6 +121,4 @@ end
 
 function pm(t = nothing)
     post_mortem(t)
-end
-
 end

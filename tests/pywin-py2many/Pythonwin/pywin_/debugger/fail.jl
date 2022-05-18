@@ -1,4 +1,3 @@
-module fail
 import win32com_.gen_py.debugger
 
 function a()
@@ -40,4 +39,3 @@ function e(arg)::Int64
 end
 
 a()
-end

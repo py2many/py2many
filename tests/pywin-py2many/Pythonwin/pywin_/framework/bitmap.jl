@@ -1,4 +1,3 @@
-module bitmap
 using PyCall
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
@@ -156,6 +155,4 @@ function demo()
     for fileName in glob1(glob, winDir, "*.bmp")[begin:2]
         OpenDocumentFile(bitmapTemplate, join)
     end
-end
-
 end

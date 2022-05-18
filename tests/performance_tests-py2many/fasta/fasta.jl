@@ -1,5 +1,4 @@
 using BisectPy
-using ResumableFunctions
 
 alu = "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"
 iub = collect(
@@ -14,12 +13,14 @@ homosapiens = [
     ("g", 0.1975473066391),
     ("t", 0.3015094502008),
 ]
-@resumable function genRandom(ia = 3877, ic = 29573, im = 139968)
-    seed = 42
-    imf = float(im)
-    while true
-        seed = (seed * ia + ic) % im
-        @yield seed / imf
+function genRandom(ia = 3877, ic = 29573, im = 139968)
+    Channel() do ch_genRandom
+        seed = 42
+        imf = float(im)
+        while true
+            seed = (seed * ia + ic) % im
+            put!(ch_genRandom, seed / imf)
+        end
     end
 end
 
@@ -52,7 +53,7 @@ end
 function randomFasta(table, n::Int64)
     width = 60
     r = 0:width-1
-    gR = Random
+    gR = take!(Random)
     bb = bisect_right
     jn = x -> join(x, "")
     probs, chars = makeCumulative(table)

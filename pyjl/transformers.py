@@ -33,7 +33,7 @@ class JuliaOrderedCollectionTransformer(ast.NodeTransformer):
                     t_id = get_id(t)
                     for spec_call_name in self.SPECIAL_FUNC_CALLS:
                         call_id = f"{t_id}.{spec_call_name}"
-                        call_node = find_node_by_name_and_type(call_id, ast.Call, node.scopes)
+                        call_node = find_node_by_name_and_type(call_id, ast.Call, node.scopes)[0]
                         if call_node:
                             node.value.use_ordered_collection = True
                             break
@@ -41,6 +41,7 @@ class JuliaOrderedCollectionTransformer(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
         self.generic_visit(node)
+        ann_id = ""
         if isinstance(node.annotation, ast.Subscript):
             ann_id = get_id(node.annotation.value)
         elif id := get_id(node.annotation):
@@ -49,7 +50,7 @@ class JuliaOrderedCollectionTransformer(ast.NodeTransformer):
             t_id = get_id(node.target)
             for spec_call_name in self.SPECIAL_FUNC_CALLS:
                 call_id = f"{t_id}.{spec_call_name}"
-                call_node = find_node_by_name_and_type(call_id, ast.Call, node.scopes)
+                call_node = find_node_by_name_and_type(call_id, ast.Call, node.scopes)[0]
                 if call_node:
                     node.value.use_ordered_collection = True
                     break

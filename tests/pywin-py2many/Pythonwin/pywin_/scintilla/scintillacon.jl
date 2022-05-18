@@ -1,18 +1,17 @@
-module scintillacon
 function HandleToUlong(h)
-    return HandleToULong(h)
+return HandleToULong(h)
 end
 
 function UlongToHandle(ul)
-    return ULongToHandle(ul)
+return ULongToHandle(ul)
 end
 
 function UlongToPtr(ul)
-    return ULongToPtr(ul)
+return ULongToPtr(ul)
 end
 
 function UintToPtr(ui)
-    return UIntToPtr(ui)
+return UIntToPtr(ui)
 end
 
 INVALID_POSITION = -1
@@ -1995,4 +1994,3 @@ SCE_PO_MSGCTXT_TEXT = 7
 SCE_PO_FUZZY = 8
 SCLEX_ASP = 29
 SCLEX_PHP = 30
-end

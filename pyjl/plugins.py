@@ -328,47 +328,86 @@ class JuliaTranspilerPlugins:
 
 
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
-        if node.args:
+        if len(vargs) == 1 and not node.keywords and \
+                not isinstance(node.args[0], ast.BinOp):
+            return f"println({vargs[0]})"
+        if len(node.args) > 0:
             args_str, args_vals = [], []
+            parsed_args = []
             for arg in node.args:
-                if isinstance(arg, ast.BinOp) and \
-                        isinstance(arg.op, ast.Mod):
-                    args_str.append(t_self.visit(arg.left))
-                    args_vals.append(t_self.visit(arg.right))
-
-            if node.keywords:
-                kwds = []
-                for k in node.keywords:
-                    if "file" == k.arg:
-                        kwds.append(f'write({t_self.visit(k.value)}, {" ".join(args_str)}, {", ".join(args_vals)})') \
-                            if args_vals \
-                            else kwds.append(f'write({t_self.visit(k.value)}, {", ".join(args_str)})')
-                    if "flush" == k.arg:
-                        kwds.append(f"flush({t_self.visit(k.value)})")
-                    if "end" == k.arg:
-                        val = ""
-                        if isinstance(k.value, ast.Constant):
-                            val = k.value.value
-                        if val == "":
-                            kwds.append(f"print({' '.join(vargs[:-1])})")
+                if isinstance(arg, ast.BinOp):
+                    if isinstance(arg.op, ast.Mod):
+                        elements = []
+                        if hasattr(arg.right, "elts"):
+                            elements.extend([get_id(arg) for arg in arg.right.elts])
                         else:
-                            kwds.append(f"print({' '.join(vargs[:-1])}{val})")
-                    if "sep" == k.arg:
-                        parsed_vargs = (f"$({varg})" for varg in vargs)
-                        sep = f"{t_self.visit(k.value)}, "
-                        return f"print(\"{sep.join(parsed_vargs)}\")"
-                if kwds:
-                    return "\n".join(kwds)
+                            elements = t_self.visit(arg.right)
+                        left_str: str = t_self.visit(arg.left)[1:-1]
+                        parsed_args = re.split(r"%\w", left_str)
+                        for i in range(0, len(parsed_args)):
+                            if i % 2 == 0:
+                                parsed_args[i] = f"$({elements[i//2]})"
 
-            if args_str:
+                        args_str.append(t_self.visit(arg.left))
+                        args_vals.append(t_self.visit(arg.right))
+                    elif isinstance(arg.op, ast.Add):
+                        left: str = t_self.visit(arg.left)
+                        if left.startswith("\""):
+                            left = left[1:-1]
+                        right: str = t_self.visit(arg.right)
+                        if right.startswith("\""):
+                            right = right[1:-1]
+                        if not (isinstance(arg.left, ast.Constant) and 
+                                isinstance(arg.left.value, str)):
+                            left = f"$({left})"
+                        if not (isinstance(arg.right, ast.Constant) and 
+                                isinstance(arg.right.value, str)):
+                            right = f"$({right})"
+                        parsed_args.append(f"{left}{right}")
+                else:
+                    if isinstance(arg, ast.Constant) and \
+                            isinstance(arg.value, str):
+                        if arg.value.startswith("\""):
+                            parsed_args.append(t_self.visit(arg)[1:-1])
+                        else:
+                            parsed_args.append(t_self.visit(arg)[1:-1])
+                    else:
+                        parsed_args.append(f"$({t_self.visit(arg)})")
+
+            func_name = "println"
+            sep = ""
+            end = "\n"
+            print_repr = []
+            for k in node.keywords:
+                if k.arg == "file":
+                    func_name = "write"
+                    print_repr.append(t_self.visit(k.value))
+                if k.arg == "flush":
+                    func_name = "flush"
+                    print_repr.append(t_self.visit(k.value))
+                if k.arg == "end":
+                    val = ""
+                    if isinstance(k.value, ast.Constant):
+                        val = k.value.value
+                    if val != "":
+                        end = val
+                if k.arg == "sep":
+                    # parsed_vargs = (f"$({varg})" for varg in vargs)
+                    sep = t_self.visit(k.value)
+
+            if args_str and not print_repr and end == "\n" and sep == "":
                 t_self._usings.add("Printf")
                 return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
 
-        sep = ", "
-        if len(vargs) > 1:
-            # By default, join with a space
-            parsed_vargs = (f"$({varg})" for varg in vargs)
-            return f"println(\"{' '.join(parsed_vargs)}\")"
+            # Append parsed arguments
+            print_repr.append(f"\"{sep.join(parsed_args)}\"")
+
+            if end != "\n" and func_name == "println":
+                return f"print({', '.join(print_repr)}{end})"
+            else:
+                return f"{func_name}({', '.join(print_repr)})"
+        
+        # By default, use println
         return f"println({', '.join(vargs)})"
 
     def visit_cast_int(t_self, node, vargs) -> str:
@@ -479,7 +518,7 @@ class JuliaTranspilerPlugins:
 
     def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
         func_def = JuliaTranspilerPlugins._get_func_def(node, vargs[0])
-        if func_def:
+        if func_def and hasattr(func_def, "annotation"):
             annotation = get_id(func_def.annotation)
             if annotation == "Generator":
                 decs = getattr(func_def, "parsed_decorators", None)

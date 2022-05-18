@@ -1,4 +1,3 @@
-module DockingBar
 using PyCall
 win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
@@ -9,7 +8,7 @@ using win32com_.gen_py.mfc: afxres, window
 abstract type AbstractDockingBar <: Abstractwindow.Wnd end
 clrBtnHilight = GetSysColor(win32api, win32con.COLOR_BTNHILIGHT)
 clrBtnShadow = GetSysColor(win32api, win32con.COLOR_BTNSHADOW)
-function CenterPoint(rect)::Tuple
+function CenterPoint(rect)
     width = rect[3] - rect[1]
     height = rect[4] - rect[2]
     return (rect[1] + (width ÷ 2), rect[2] + (height ÷ 2))
@@ -53,16 +52,16 @@ mutable struct DockingBar <: AbstractDockingBar
     dialog
     dockBar
     nDockBarID::Int64
-    ptOld::Tuple
-    rectBorder::Tuple
-    rectClose::Tuple
-    rectGripper::Tuple
-    rectTracker::Tuple
-    rectUndock::Tuple
-    sizeFloat::Tuple
-    sizeHorz::Tuple
-    sizeMin::Tuple
-    sizeVert::Tuple
+    ptOld
+    rectBorder::Tuple{Int64}
+    rectClose::Tuple{Int64}
+    rectGripper::Tuple{Int64}
+    rectTracker::Tuple{Int64}
+    rectUndock::Tuple{Int64}
+    sizeFloat::Tuple{Int64}
+    sizeHorz::Tuple{Int64}
+    sizeMin::Tuple{Int64}
+    sizeVert::Tuple{Int64}
     obj
 
     DockingBar(obj = nothing) = begin
@@ -641,4 +640,3 @@ function main()
 end
 
 main()
-end

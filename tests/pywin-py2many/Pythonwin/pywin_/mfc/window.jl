@@ -1,4 +1,3 @@
-module window
 using PyCall
 win32ui = pyimport("win32ui")
 include("object.jl")
@@ -9,54 +8,54 @@ abstract type AbstractFrameWnd <: AbstractWnd end
 abstract type AbstractMDIChildWnd <: AbstractFrameWnd end
 abstract type AbstractMDIFrameWnd <: AbstractFrameWnd end
 mutable struct Wnd <: AbstractWnd
-    initobj
+initobj
 
-    Wnd(initobj = nothing) = begin
-        object.CmdTarget.__init__(self, initobj)
-        if _obj_
-            _obj_.HookMessage(OnDestroy, win32con.WM_DESTROY)
-        end
-        new(initobj)
-    end
+            Wnd(initobj = nothing) = begin
+                object.CmdTarget.__init__(self, initobj)
+if _obj_
+_obj_.HookMessage(OnDestroy, win32con.WM_DESTROY)
+end
+                new(initobj )
+            end
 end
 function OnDestroy(self::Wnd, msg)
-    #= pass =#
+#= pass =#
 end
 
 mutable struct FrameWnd <: AbstractFrameWnd
-    FrameWnd(wnd) = begin
-        Wnd(wnd)
-        new(wnd)
-    end
+
+
+            FrameWnd(wnd) = begin
+                Wnd(wnd)
+                new(wnd)
+            end
 end
 
 mutable struct MDIChildWnd <: AbstractMDIChildWnd
-    wnd
+wnd
 
-    MDIChildWnd(wnd = nothing) = begin
-        if wnd === nothing
-            wnd = win32ui.CreateMDIChild()
-        end
-        FrameWnd(wnd)
-        new(wnd)
-    end
+            MDIChildWnd(wnd = nothing) = begin
+                if wnd === nothing
+wnd = win32ui.CreateMDIChild()
+end
+FrameWnd(wnd)
+                new(wnd )
+            end
 end
 function OnCreateClient(self::MDIChildWnd, cp, context)
-    if context != nothing && context.template != nothing
-        CreateView(context.template, self, context)
-    end
+if context != nothing && context.template != nothing
+CreateView(context.template, self, context)
+end
 end
 
 mutable struct MDIFrameWnd <: AbstractMDIFrameWnd
-    wnd
+wnd
 
-    MDIFrameWnd(wnd = nothing) = begin
-        if wnd === nothing
-            wnd = win32ui.CreateMDIFrame()
-        end
-        FrameWnd(wnd)
-        new(wnd)
-    end
+            MDIFrameWnd(wnd = nothing) = begin
+                if wnd === nothing
+wnd = win32ui.CreateMDIFrame()
 end
-
+FrameWnd(wnd)
+                new(wnd )
+            end
 end
