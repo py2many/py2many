@@ -108,7 +108,7 @@ function fannkuch(n)
 end
 
 function main()
-    fannkuch(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+    fannkuch(10)
 end
 
 main()

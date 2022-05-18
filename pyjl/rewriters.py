@@ -994,6 +994,30 @@ class JuliaIORewriter(ast.NodeTransformer):
                 node.iter = iter_node
         return node
 
+class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
+    """Rewrites normal collections into ordered collections. 
+    This depends on the JuliaOrderedCollectionTransformer"""
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Dict(self, node: ast.Dict) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "use_ordered_collection", None):
+            return juliaAst.OrderedDict(
+                keys = node.keys,
+                values = node.values,
+                annotation = node.annotation
+            )
+        return node
+
+    def visit_Set(self, node: ast.Set) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "use_ordered_collection", None):
+            return juliaAst.OrderedSet(
+                elts = node.elts,
+                annotation = node.annotation
+            )
+        return node
 
 ###########################################################
 ################## Conditional Rewriters ##################

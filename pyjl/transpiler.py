@@ -1072,3 +1072,22 @@ class JuliaTranspiler(CLikeTranspiler):
         body = self.visit_Module(node)
         mod_name = self.visit(node.name)
         return f"module {mod_name}\n{body}\nend"
+
+    def visit_OrderedDict(self, node: juliaAst.OrderedDict):
+        self._usings.add("OrderedCollections")
+        kv_pairs = []
+        for key, value in zip (node.keys, node.values):
+            if key:
+                kv_pairs.append(f"{self.visit(key)} => {self.visit(value)}")
+            else:
+                if isinstance(value, ast.Dict):
+                    kv_pairs.append(f"{self.visit(value)}...")
+        
+        kv_pairs = ", ".join(kv_pairs)
+        return f"OrderedDict({kv_pairs})"
+
+    def visit_OrderedSet(self, node: juliaAst.OrderedDict):
+        self._usings.add("OrderedCollections")
+        elements = [self.visit(e) for e in node.elts]
+        elements_str = ", ".join(elements)
+        return f"OrderedSet([{elements_str}])"

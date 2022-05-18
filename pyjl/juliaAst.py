@@ -34,6 +34,14 @@ class JuliaModule(ast.Module):
     body: list[expr]
     ctx: expr_context
 
+class OrderedDict(ast.Dict):
+    keys: list[expr]
+    values: list[expr]
+
+class OrderedSet(ast.Set):
+    elts: list[expr]
+
+
 ######################################
 ############### Parser ###############
 ######################################
@@ -66,4 +74,18 @@ class JuliaNodeVisitor(NodeVisitor):
     def visit_JuliaModule(self, node: JuliaModule) -> Any:
         """Visit Julia Module (a wrapper arround ast.Module)"""
         self.visit_Module(node)
+        return node
+        
+    def visit_OrderedDict(self, node: OrderedDict) -> Any:
+        """Visit Julia Ordered Dictionary (maintain the insertion order)"""
+        for k in node.keys:
+            self.visit(k)
+        for v in node.valus:
+            self.visit(v)
+        return node
+
+    def visit_OrderedSet(self, node: OrderedSet) -> Any:
+        """Visit Julia Ordered Sets (maintain the insertion order)"""
+        for e in node.elts:
+            self.visit(e)
         return node

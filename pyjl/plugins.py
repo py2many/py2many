@@ -353,6 +353,10 @@ class JuliaTranspilerPlugins:
                             kwds.append(f"print({' '.join(vargs[:-1])})")
                         else:
                             kwds.append(f"print({' '.join(vargs[:-1])}{val})")
+                    if "sep" == k.arg:
+                        parsed_vargs = (f"$({varg})" for varg in vargs)
+                        sep = f"{t_self.visit(k.value)}, "
+                        return f"print(\"{sep.join(parsed_vargs)}\")"
                 if kwds:
                     return "\n".join(kwds)
 
@@ -360,6 +364,11 @@ class JuliaTranspilerPlugins:
                 t_self._usings.add("Printf")
                 return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
 
+        sep = ", "
+        if len(vargs) > 1:
+            # By default, join with a space
+            parsed_vargs = (f"$({varg})" for varg in vargs)
+            return f"println(\"{' '.join(parsed_vargs)}\")"
         return f"println({', '.join(vargs)})"
 
     def visit_cast_int(t_self, node, vargs) -> str:
@@ -606,6 +615,41 @@ class JuliaTranspilerPlugins:
             translation_map = f"merge!({vargs[1]}, Dict({key_map}))"
         return f"replace!(collect({vargs[0]}), {translation_map}...)"
 
+    def visit_refindall(t_self, node, vargs):
+        if len(vargs) == 1:
+            return f"""
+                # Unsupported use of re.findall with one arg
+                findall({vargs[0]})"""
+        else:
+            vargs[0] = JuliaTranspilerPlugins._replace_regex_val(node.args[0],  
+                vargs[0], "Regex", "r")
+            if len(vargs) == 2:
+                return f"collect(eachmatch({vargs[0]}, {vargs[1]}))"
+            elif len(vargs) == 3:
+                return f"""
+                    # Flags unsupported
+                    collect(eachmatch(r\"{vargs[0]}\", {vargs[1]}))"""
+
+    def visit_resub(t_self, node, vargs):
+        if len(vargs) < 3:
+            return f"""
+                # Unsupported use of re.sub with less than 3 arguments
+                sub()"""
+        else:
+            vargs[0] = JuliaTranspilerPlugins._replace_regex_val(node.args[0],  
+                vargs[0], "Regex", "r")
+            vargs[1] = JuliaTranspilerPlugins._replace_regex_val(node.args[1], 
+                vargs[1], "SubstitutionString", "s")
+            return f"replace({vargs[2]}, {vargs[0]} => {vargs[1]})"
+
+    def _replace_regex_val(arg, varg: str, val1, val2):
+        if isinstance(arg, ast.Name):
+            varg = f"{val1}({varg})"
+        elif isinstance(arg, ast.Constant) and \
+                isinstance(arg.value, str):
+            varg = f"{val2}{varg}"
+        return varg
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -838,6 +882,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset_contains, False),
     tuple: (lambda self, node, vargs: f"tuple({vargs[0]}...)" 
         if isinstance(node.args[0], ast.GeneratorExp) else f"tuple({vargs[0]})", False),
+    dict.items: (lambda self, node, vargs: f"collect({vargs[0]})", True),
     # Math operations
     math.pow: (lambda self, node, vargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
@@ -860,7 +905,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback
     # io
     argparse.ArgumentParser.parse_args: (lambda self, node, vargs: "::from_args()", False),
-    sys.stdin.read: (lambda self, node, vargs: f"open({vargs[0]}, r)", True),
+    sys.stdin.read: (lambda self, node, vargs: f"read(stdin, String)" 
+        if len(vargs) == 0 else f"read({vargs[0]}, {vargs[1]})", True),
     sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
@@ -903,8 +949,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Time
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     # Regex
-    re.sub: (lambda self, node, vargs: f"replace({vargs[2]}, r{vargs[0]} => s{vargs[1]})", False),
-    re.findall: (lambda self, node, vargs: f"findall({vargs[0]}, {vargs[1]})", False),
+    re.sub: (JuliaTranspilerPlugins.visit_resub, False),
+    re.findall: (JuliaTranspilerPlugins.visit_refindall, False),
     # Unit Tests
     unittest.TestCase.assertTrue: (JuliaTranspilerPlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),

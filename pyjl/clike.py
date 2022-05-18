@@ -435,9 +435,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 annotation = ann
             if not annotation and (v := node.scopes.find(var)):
                 annotation = getattr(v, "annotation", None)
+
             if ann := self._generic_typename_from_type_node(annotation):
                 # Get main type
-                ann: str = re.split(r"[|]", ann)[0]
+                ann: str = re.split(r"\[|\]", ann)[0]
                 dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
                 if dispatch_func:
                     return dispatch_func

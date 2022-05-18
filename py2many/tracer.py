@@ -187,6 +187,7 @@ def matches_name(node, name):
                 and get_id(node.targets[0]) == name) or 
              ((isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign))
                 and get_id(node.target) == name) or
+             (hasattr(node, "func") and get_id(node.func) == name) or
              (get_id(node) == name))
 
 

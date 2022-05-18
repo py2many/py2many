@@ -1,11 +1,9 @@
 
 import ast
-from distutils.log import warn
 import logging
 from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
-from py2many.tracer import find_closest_scope
 
 logger = logging.Logger("pyjl")
 

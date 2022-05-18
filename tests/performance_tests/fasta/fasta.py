@@ -26,7 +26,7 @@ homosapiens = [
     ('t', 0.3015094502008),
 ]
 
-@resumable
+# @resumable
 def genRandom(ia = 3877, ic = 29573, im = 139968):
     seed = 42
     imf = float(im)
