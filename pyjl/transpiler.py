@@ -1086,6 +1086,16 @@ class JuliaTranspiler(CLikeTranspiler):
         kv_pairs = ", ".join(kv_pairs)
         return f"OrderedDict({kv_pairs})"
 
+    def visit_OrderedDictComp(self, node: juliaAst.OrderedDictComp):
+        self._usings.add("OrderedCollections")
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+        generators = node.generators
+        dict_comp = (f"{key} => {value} " +
+                     self._visit_generators(generators))
+
+        return f"OrderedDict({dict_comp})"
+
     def visit_OrderedSet(self, node: juliaAst.OrderedDict):
         self._usings.add("OrderedCollections")
         elements = [self.visit(e) for e in node.elts]

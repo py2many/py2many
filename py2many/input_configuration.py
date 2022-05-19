@@ -17,11 +17,12 @@ logger = logging.Logger("py2many")
 def parse_input_configurations(filename):
     _, file_extension = os.path.splitext(filename)
     input = Path(filename)
-    if not input.is_file:
-        raise Exception("The input file dos not exist")
+    if not input.is_file():
+        raise Exception("The input configuration file does not exist")
     if file_extension == ".ini":
         return ConfigFileHandler(input)
-    return None
+    else:
+        raise Exception("Configuration file has to be a .ini file")
 
 
 class ConfigFileHandler():
@@ -150,7 +151,7 @@ def config_rewriters(config_handler: ConfigFileHandler, tree):
 class FlagRewriter(ast.NodeTransformer):
     def __init__(self, flags):
         super().__init__()
-        self._flags = flags
+        self._flags: Dict = flags
 
     def visit_Module(self, node: ast.Module) -> Any:
         for flag_name, flag_value in self._flags.items():

@@ -5,7 +5,7 @@
     Helps with the conversion of Python's ast to Julia
 """
 
-from ast import  NodeVisitor, expr, expr_context, stmt
+from ast import  NodeVisitor, comprehension, expr, expr_context, stmt
 import ast
 from typing import Any
 
@@ -37,9 +37,17 @@ class JuliaModule(ast.Module):
 class OrderedDict(ast.Dict):
     keys: list[expr]
     values: list[expr]
+    annotation: expr
+
+class OrderedDictComp(ast.DictComp):
+    key: expr
+    value: expr
+    generators: list[comprehension]
+    annotation: expr
 
 class OrderedSet(ast.Set):
     elts: list[expr]
+    annotation: expr
 
 
 ######################################
@@ -80,8 +88,16 @@ class JuliaNodeVisitor(NodeVisitor):
         """Visit Julia Ordered Dictionary (maintain the insertion order)"""
         for k in node.keys:
             self.visit(k)
-        for v in node.valus:
+        for v in node.values:
             self.visit(v)
+        return node
+    
+    def visit_OrderedDictComp(self, node: OrderedDictComp) -> Any:
+        """Visit Julia Ordered Dictionary (maintain the insertion order)"""
+        self.visit(node.key)
+        self.visit(node.value)
+        for g in node.generators:
+            self.visit(g)
         return node
 
     def visit_OrderedSet(self, node: OrderedSet) -> Any:

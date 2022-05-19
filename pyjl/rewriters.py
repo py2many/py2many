@@ -718,14 +718,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         self._curr_slice_val = None
 
-        # Get value id
-        is_self = False
-        if is_self := (isinstance(node.value, ast.Attribute) and
-                get_id(node.value.value) == "self"):
-            value_id = node.value.attr
-        else:
-            value_id = get_id(node.value)
-
         # Handle negative indexing 
         if isinstance(node.slice, ast.UnaryOp) and \
                 isinstance(node.slice.op, ast.USub) and \
@@ -746,7 +738,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     annotation = ast.Name(id = "int")
                 )
 
-        if not self._is_dict(node, value_id, is_self = is_self) and \
+        if not self._is_dict(node) and \
                 not isinstance(node.slice, ast.Slice):
             call_id = None
             if isinstance(node.slice, ast.Call):
@@ -897,7 +889,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     col_offset = col_offset
                 )
 
-    def _is_dict(self, node, value_id, is_self = False):
+    def _is_dict(self, node):
         ann = None
         if hasattr(node, "container_type"):
             ann = node.container_type
@@ -1003,8 +995,8 @@ class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
         self._use_ordered_collections = False
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self.generic_visit(node)
         self._use_ordered_collections = getattr(node, "use_ordered_collections", False)
+        self.generic_visit(node)
         return node
 
     def visit_Dict(self, node: ast.Dict) -> Any:
@@ -1014,6 +1006,18 @@ class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
             return juliaAst.OrderedDict(
                 keys = node.keys,
                 values = node.values,
+                annotation = node.annotation
+            )
+        return node
+
+    def visit_DictComp(self, node: ast.DictComp) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "use_ordered_collection", None) or \
+                self._use_ordered_collections:
+            return juliaAst.OrderedDictComp(
+                key = node.key,
+                value = node.value,
+                generators = node.generators,
                 annotation = node.annotation
             )
         return node
