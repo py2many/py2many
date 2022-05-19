@@ -1056,6 +1056,34 @@ class JuliaMainRewriter(ast.NodeTransformer):
             node.test.comparators[0] = ast.Name(id="@__FILE__")
         return node
 
+class JuliaBigIntRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._use_big_integers = False
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._use_big_integers = getattr(node, "use_big_integers", False)
+        self.generic_visit(node)
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
+        self._generic_assign_visit(node)
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        self.generic_visit(node)
+        self._generic_assign_visit(node)
+        return node
+
+    def _generic_assign_visit(self, node):
+        type_comment = getattr(node, "type_comment", None)
+        if type_comment == "BigInt" or self._use_big_integers:
+            node.value = ast.Call(
+                func = ast.Name(id="BigInt"),
+                args = [node.value],
+                keywords = [])
+
 ###########################################################
 ################## Conditional Rewriters ##################
 ###########################################################

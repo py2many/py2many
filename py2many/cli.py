@@ -44,6 +44,7 @@ from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
 from pyjl.transformers import find_ordered_collections
 from pyjl.rewriters import (
     ForLoopTargetRewriter,
+    JuliaBigIntRewriter,
     JuliaIORewriter,
     JuliaImportRewriter,
     JuliaAugAssignRewriter, 
@@ -382,7 +383,7 @@ def julia_settings(args, env=os.environ):
     format_jl = None
     if sys.platform == "win32":
         user = os.getlogin()
-        julia_version = "1.7.1" # TODO: Make an adjustable parameter
+        julia_version = "1.7.2" # TODO: Make an adjustable parameter
         julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-{julia_version}/bin/julia.exe"
     else:
         julia_path = "julia"
@@ -400,7 +401,7 @@ def julia_settings(args, env=os.environ):
         post_rewriters=[JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
             JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
             ForLoopTargetRewriter(), JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), 
-            JuliaModuleRewriter(), JuliaIORewriter()],
+            JuliaModuleRewriter(), JuliaIORewriter(), JuliaBigIntRewriter()],
         optimization_rewriters=[AlgebraicSimplification()]
     )
 
