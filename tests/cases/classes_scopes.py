@@ -11,13 +11,12 @@ def test():
     def inner_test():
         return num*teststr
     
-    def inner_test_2():
-        num = 4
+    def inner_test_2(num):
         # num: int = 4 # fails with annotation (pyjl)
         return num*teststr
     
     assert inner_test() == "testtest"
-    assert inner_test_2() == "testtesttesttest"
+    assert inner_test_2(4) == "testtesttesttest"
 
 if __name__ == "__main__":
     assert func() == "test"
