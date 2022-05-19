@@ -1,4 +1,4 @@
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     l = [1, 2, 3]
     b = ["a", "b", "c"]
     x = 0
@@ -13,5 +13,3 @@ function main()
     @assert(output[end] == 6)
     println("OK")
 end
-
-main()

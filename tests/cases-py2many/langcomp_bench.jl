@@ -19,8 +19,6 @@ function test_python(iterations::Int64)
     empty!(array)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     test_python(3)
 end
-
-main()

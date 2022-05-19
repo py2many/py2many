@@ -15,7 +15,7 @@ function __exit__(self::FileOp, type_ = nothing, value = nothing, traceback = no
     close(self.file)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     NamedTempFile::new() do temp_file
         file_path = temp_file.name
         FileOp(file_path, "w") do file
@@ -26,5 +26,3 @@ function main()
         end
     end
 end
-
-main()

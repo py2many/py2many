@@ -23,7 +23,7 @@ function return_dict_index_int(key::Int64)::String
     return CODES[key]
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(implicit_keys())
     @assert(explicit_keys())
     @assert(dict_values())
@@ -31,5 +31,3 @@ function main()
     @assert(return_dict_index_int(1) == "one")
     println("OK")
 end
-
-main()

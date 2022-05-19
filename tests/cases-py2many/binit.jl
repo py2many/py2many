@@ -24,7 +24,7 @@ function bin_it(limits::Vector{Int64}, data::Vector{Int64})::Vector{Int64}
     return bins
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     limits = [23, 37, 43, 53, 67, 83]
     data = [
         95,
@@ -81,5 +81,3 @@ function main()
     @assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13])
     println("OK")
 end
-
-main()

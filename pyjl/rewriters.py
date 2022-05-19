@@ -1000,10 +1000,17 @@ class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
     This depends on the JuliaOrderedCollectionTransformer"""
     def __init__(self) -> None:
         super().__init__()
+        self._use_ordered_collections = False
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self.generic_visit(node)
+        self._use_ordered_collections = getattr(node, "use_ordered_collections", False)
+        return node
 
     def visit_Dict(self, node: ast.Dict) -> Any:
         self.generic_visit(node)
-        if getattr(node, "use_ordered_collection", None):
+        if getattr(node, "use_ordered_collection", None) or \
+                self._use_ordered_collections:
             return juliaAst.OrderedDict(
                 keys = node.keys,
                 values = node.values,
@@ -1013,14 +1020,15 @@ class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
 
     def visit_Set(self, node: ast.Set) -> Any:
         self.generic_visit(node)
-        if getattr(node, "use_ordered_collection", None):
+        if getattr(node, "use_ordered_collection", None) or \
+                self._use_ordered_collections:
             return juliaAst.OrderedSet(
                 elts = node.elts,
                 annotation = node.annotation
             )
         return node
 
-# TODO: Currently not working
+
 class JuliaMainRewriter(ast.NodeTransformer):
     def __init__(self):
         super().__init__()

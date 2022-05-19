@@ -30,7 +30,7 @@ function calendar_json_test()::js
     return dumps(js, now, date_to_json)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     b = typing_test()
     @assert(b == 2)
     @assert(match(re, "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{6}", calendar_test()))
@@ -38,5 +38,3 @@ function main()
     println(res)
     println("OK")
 end
-
-main()

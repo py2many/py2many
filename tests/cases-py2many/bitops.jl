@@ -1,5 +1,5 @@
 
-function main_func()
+function main()
     ands::Vector{Bool} = []
     ors::Vector{Bool} = []
     xors::Vector{Bool} = []
@@ -16,8 +16,6 @@ function main_func()
     println("OK")
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

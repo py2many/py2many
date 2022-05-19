@@ -1,5 +1,5 @@
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     s1 = sum([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
     s2 = fsum([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
     a = [1, 2, 3, 4]
@@ -15,5 +15,3 @@ function main()
     @assert(tan(deg2rad(30)) == (√(3) / 3))
     @assert(round(12.556, digits = 2) == 12.56)
 end
-
-main()

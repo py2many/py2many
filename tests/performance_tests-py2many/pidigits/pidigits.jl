@@ -27,11 +27,11 @@ end
 function main()
     global tmp1, tmp2, acc, den, num
     n = parse(Int, append!([PROGRAM_FILE], ARGS)[2])
-    tmp1 = 0
-    tmp2 = 0
-    acc = 0
-    den = 1
-    num = 1
+    tmp1 = BigInt(0)
+    tmp2 = BigInt(0)
+    acc = BigInt(0)
+    den = BigInt(1)
+    num = BigInt(1)
     i = 0
     k = 0
     while i < n

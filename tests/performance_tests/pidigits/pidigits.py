@@ -38,13 +38,11 @@ def main():
     global tmp1, tmp2, acc, den, num
     n=int(sys.argv[1])
 
-    tmp1 = 0
-    tmp2 = 0
-
-    acc = 0
-    den = 1
-    num = 1
-
+    tmp1 = 0 # type: BigInt
+    tmp2 = 0 # type: BigInt
+    acc = 0 # type: BigInt
+    den = 1 # type: BigInt
+    num = 1 # type: BigInt
 
     i=0
     k=0

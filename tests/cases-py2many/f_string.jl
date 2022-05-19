@@ -1,4 +1,4 @@
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = 10
     b = "test"
     c = 2 + 4
@@ -16,5 +16,3 @@ function main()
     @assert(str4 == "hello 2 world 0.444")
     println("OK")
 end
-
-main()

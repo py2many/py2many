@@ -3,10 +3,8 @@ function nested_containers()::Bool
     return 1 ∈ CODES["KEY"]
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     if nested_containers()
         println("OK")
     end
 end
-
-main()

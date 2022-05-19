@@ -100,7 +100,7 @@ function __key(self::AbstractValueHolder)
     (self.val, self.strVal)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     c1 = ValueHolder(10, "10")
     @assert(__eq__(c1, ValueHolder(10, "10")))
     c2 = ValueHolder(10, "10")
@@ -126,5 +126,3 @@ function main()
     @assert(__lt__(c6, c5))
     @assert(__gt__(c5, c6))
 end
-
-main()

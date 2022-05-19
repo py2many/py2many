@@ -27,10 +27,8 @@ function starred_list()
     @assert(([1, 2, 3]..., 4 * 1, 5) == (1, 2, 3, 4, 5))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     expression_list()
     starred_item()
     starred_list()
 end
-
-main()

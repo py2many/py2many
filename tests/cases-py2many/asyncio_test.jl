@@ -19,9 +19,7 @@ end
         wait(writer())
     end
 end
-function main()::Int64
+if abspath(PROGRAM_FILE) == @__FILE__
     run(asyncio, async_main())
     run(asyncio, echo_server())
 end
-
-main()

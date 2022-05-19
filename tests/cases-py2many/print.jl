@@ -13,8 +13,6 @@ function show()
     write(sys.stdout, "$(name)_vtables_dispatch_ = $(val)")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     show()
 end
-
-main()

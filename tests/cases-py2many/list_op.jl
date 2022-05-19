@@ -172,7 +172,7 @@ function list_ops()
     @assert(new_elems == ["11", "22", "33"])
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     for_with_break()
     for_with_continue()
     while_with_break()
@@ -184,5 +184,3 @@ function main()
     inplace_ops()
     list_ops()
 end
-
-main()

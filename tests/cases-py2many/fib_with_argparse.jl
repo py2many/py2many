@@ -26,12 +26,10 @@ function fib(i::Int64)::Int64
     return fib(i - 1) + fib(i - 2)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     args = parse_args(Options)
     if args.n == 0
         args.n = 5
     end
     println(fib(args.n))
 end
-
-main()

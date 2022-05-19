@@ -28,7 +28,7 @@ function lookup_and_write_without_else(values::Vector)
     return output
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(lookup_and_write([]) == [])
     @assert(lookup_and_write(convert(Vector, [1])) == 1)
     @assert(lookup_and_write(convert(Vector, [1, 2])) == 2)
@@ -40,5 +40,3 @@ function main()
     @assert(lookup_and_write_without_else(convert(Vector, [1, 2, 3])) == 3)
     @assert(lookup_and_write_without_else(convert(Vector, [1, 2, 3, 4])) === nothing)
 end
-
-main()

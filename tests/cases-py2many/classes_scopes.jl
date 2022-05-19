@@ -25,11 +25,9 @@ function test()
     @assert(inner_test_2() == "testtesttesttest")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(func() == "test")
     testClass = TestClass()
     @assert(func(testClass) == "test2")
     test()
 end
-
-main()

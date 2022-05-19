@@ -1,5 +1,5 @@
 using tempfile: NamedTemporaryFile
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     NamedTempFile::new() do temp_file
         file_path = temp_file.name
         open(file_path, "w") do f
@@ -12,5 +12,3 @@ function main()
         end
     end
 end
-
-main()

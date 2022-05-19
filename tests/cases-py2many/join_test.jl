@@ -5,7 +5,7 @@ function test(self::Hello)::String
     return "ola"
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = "a"
     b = "ab"
     @assert(join(b, a) == "aab")
@@ -19,5 +19,3 @@ function main()
     @assert(join([test(Hello()), "adeus"], "\n") == "ola\nadeus")
     println("OK")
 end
-
-main()

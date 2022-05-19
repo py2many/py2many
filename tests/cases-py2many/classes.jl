@@ -49,7 +49,7 @@ mutable struct Student2 <: AbstractStudent2
         end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     f = Foo()
     b = bar(f)
     @assert(b == 10)
@@ -62,5 +62,3 @@ function main()
     s2 = Student2("S2", 123)
     println("OK")
 end
-
-main()

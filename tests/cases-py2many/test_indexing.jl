@@ -1,4 +1,4 @@
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = [1, 2, 3]
     i = -1
     println(a[end])
@@ -6,5 +6,3 @@ function main()
         println(a[i+1])
     end
 end
-
-main()

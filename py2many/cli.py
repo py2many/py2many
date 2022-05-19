@@ -52,7 +52,7 @@ from pyjl.rewriters import (
     JuliaGeneratorRewriter,
     JuliaConditionRewriter,
     JuliaIndexingRewriter,
-    # JuliaMainRewriter, 
+    JuliaMainRewriter, 
     JuliaMethodCallRewriter,
     JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
@@ -157,7 +157,7 @@ def _transpile(
 
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
-    if settings.ext != ".py": # settings.ext != ".jl" and 
+    if settings.ext != ".jl" and settings.ext != ".py":
         generic_rewriters.append(PythonMainRewriter(settings.transpiler._main_signature_arg_names))
 
     # Language independent rewriters that run after type inference
@@ -395,7 +395,7 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter()], # JuliaMainRewriter() --> Currently not working
+        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter(), JuliaMainRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges, find_ordered_collections],
         post_rewriters=[JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
             JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 

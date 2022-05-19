@@ -22,7 +22,7 @@ mutable struct Register <: AbstractRegister
     VALUE::Int64
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = VALUE(Register, 10)
     @assert(is_value(a))
     value(a)
@@ -31,5 +31,3 @@ function main()
     packet(b)
     println("OK")
 end
-
-main()

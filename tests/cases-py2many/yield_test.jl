@@ -66,7 +66,7 @@ end
     @yield num
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     arr1 = []
     for i in generator_func()
         push!(arr1, i)
@@ -108,5 +108,3 @@ function main()
         println(i)
     end
 end
-
-main()

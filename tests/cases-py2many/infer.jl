@@ -47,7 +47,7 @@ function plus_test(x::String, y::String)::String
     return x * y
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     foo()
     @assert(fibonacci(10) == 55)
     @assert((repeat("test", fibonacci(3))) == "testtest")
@@ -60,5 +60,3 @@ function main()
     @assert(res == "sszz")
     println("OK")
 end
-
-main()

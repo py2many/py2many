@@ -20,12 +20,10 @@ end
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     arr = []
     for i in yield_from()
         push!(arr, i)
     end
     @assert(arr == [0, 1, 2, 3, 4])
 end
-
-main()
