@@ -67,7 +67,7 @@ function generate_sequences(lines)
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     stdin = readline(0)
     for (heading, sequence) in generate_sequences(stdin.buffer)
         write(stdout, heading)
@@ -75,5 +75,3 @@ function main()
         flush(stdout)
     end
 end
-
-main()

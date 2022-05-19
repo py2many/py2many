@@ -9,7 +9,7 @@ function var_find(f)::Int64
     return length(collect(eachmatch(Regex(f), seq)))
 end
 
-function main_func()
+function main()
     seq = read(stdin, String)
     ilen = length(seq)
     seq = replace(seq, r">.*\n|\n" => s"")
@@ -45,8 +45,6 @@ function main_func()
     println(length(seq))
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

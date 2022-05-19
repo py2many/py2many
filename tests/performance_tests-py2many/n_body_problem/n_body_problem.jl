@@ -89,7 +89,7 @@ function report_energy(bodies = SYSTEM, pairs = PAIRS, e = 0.0)
     for (r, (vx, vy, vz), m) in bodies
         e += m * ((vx * vx + vy * vy) + vz * vz) / 2.0
     end
-    @printf("%.9f", e)
+    @printf("%.9f\n", e)
 end
 
 function offset_momentum(ref, bodies = SYSTEM, px = 0.0, py = 0.0, pz = 0.0)
@@ -104,15 +104,13 @@ function offset_momentum(ref, bodies = SYSTEM, px = 0.0, py = 0.0, pz = 0.0)
     v[3] = pz / m
 end
 
-function main_func(n, ref = "sun")
+function main(n, ref = "sun")
     offset_momentum(BODIES[ref])
     report_energy()
     advance(0.01, n)
     report_energy()
 end
 
-function main()
-    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+if abspath(PROGRAM_FILE) == @__FILE__
+    main(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
-
-main()

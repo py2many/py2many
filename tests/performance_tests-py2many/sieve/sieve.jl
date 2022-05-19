@@ -12,8 +12,6 @@ function sieve(n)::Int64
     return counter
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(sieve(10000000) == 664579)
 end
-
-main()

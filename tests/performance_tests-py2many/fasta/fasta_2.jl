@@ -245,8 +245,6 @@ function fasta(n)
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     fasta(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
-
-main()

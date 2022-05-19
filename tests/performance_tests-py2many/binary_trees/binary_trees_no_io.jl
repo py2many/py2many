@@ -21,7 +21,7 @@ function run(depth::Int64)::Int64
     return check_node(make_tree(depth)...)
 end
 
-function main_func(requested_max_depth, min_depth = 4)
+function main(requested_max_depth, min_depth = 4)
     io_lst::Vector{String} = []
     max_depth = max(min_depth + 2, requested_max_depth)
     stretch_depth = max_depth + 1
@@ -40,8 +40,6 @@ function main_func(requested_max_depth, min_depth = 4)
     println(join(io_lst, "\n"))
 end
 
-function main()
-    main_func(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
+if abspath(PROGRAM_FILE) == @__FILE__
+    main(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end
-
-main()

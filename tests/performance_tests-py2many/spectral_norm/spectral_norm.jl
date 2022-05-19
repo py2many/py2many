@@ -19,7 +19,7 @@ function multiply_AtAv(u)
     return pmap(At_sum, zip(repeat(tmp), r))
 end
 
-function main_func()
+function main()
     n = parse(Int, argv[2])
     u = repeat([1], n)
     for _ = 0:9
@@ -36,10 +36,8 @@ function main_func()
     println("$(result:.9f)")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     default_worker_pool() do pool
-        main_func()
+        main()
     end
 end
-
-main()

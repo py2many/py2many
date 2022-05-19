@@ -1,4 +1,5 @@
 using Distributed
+using ResumableFunctions
 
 reverse_translation = Dict(
     b"A" => b"T",
@@ -70,16 +71,21 @@ function read_sequences(file)
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     write = x -> Base.write(stdout, x)
     flush = Base.flush(stdout)
     s = read_sequences(stdin.buffer)
     data = take!(s)
+    @resumable function merge(v, g)
+        @yield v
+        for v in g
+            @yield v
+        end
+    end
+
     for (h, r) in starmap(reverse_complement, merge(data, s))
         write(h)
         write(r)
         flush
     end
 end
-
-main()

@@ -348,8 +348,8 @@ class JuliaTranspilerPlugins:
                             if i % 2 == 0:
                                 parsed_args[i] = f"$({elements[i//2]})"
 
-                        args_str.append(t_self.visit(arg.left))
-                        args_vals.append(t_self.visit(arg.right))
+                        args_str.append(left_str)
+                        args_vals.append(elements)
                     elif isinstance(arg.op, ast.Add):
                         left: str = t_self.visit(arg.left)
                         if left.startswith("\""):
@@ -376,7 +376,7 @@ class JuliaTranspilerPlugins:
 
             func_name = "println"
             sep = ""
-            end = "\n"
+            end = "\\n"
             print_repr = []
             for k in node.keywords:
                 if k.arg == "file":
@@ -389,20 +389,19 @@ class JuliaTranspilerPlugins:
                     val = ""
                     if isinstance(k.value, ast.Constant):
                         val = k.value.value
-                    if val != "":
-                        end = val
+                    end = val
                 if k.arg == "sep":
                     # parsed_vargs = (f"$({varg})" for varg in vargs)
                     sep = t_self.visit(k.value)
 
-            if args_str and not print_repr and end == "\n" and sep == "":
+            if args_str and not print_repr and end == "\\n" and sep == "":
                 t_self._usings.add("Printf")
-                return f'@printf({" ".join(args_str)}, {", ".join(args_vals)})'
+                return f'@printf(\"{" ".join(args_str)}{end}\", {", ".join(args_vals)})'
 
             # Append parsed arguments
             print_repr.append(f"\"{sep.join(parsed_args)}\"")
 
-            if end != "\n" and func_name == "println":
+            if end != "\\n" and func_name == "println":
                 return f"print({', '.join(print_repr)}{end})"
             else:
                 return f"{func_name}({', '.join(print_repr)})"

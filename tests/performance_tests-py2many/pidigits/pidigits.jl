@@ -44,10 +44,10 @@ function main()
         if d != extract_Digit(4)
             continue
         end
-        println("$(Char(48 + d))")
+        print("$(Char(48 + d))")
         i += 1
         if (i % 10) == 0
-            @printf("\t:%d", i)
+            @printf("\t:%d\n", i)
         end
         eliminate_Digit(d)
     end

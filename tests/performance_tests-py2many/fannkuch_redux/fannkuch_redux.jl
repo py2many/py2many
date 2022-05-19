@@ -107,8 +107,6 @@ function fannkuch(n)
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     fannkuch(10)
 end
-
-main()

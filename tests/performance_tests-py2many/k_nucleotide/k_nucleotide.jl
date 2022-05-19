@@ -158,7 +158,7 @@ function display(results, display_list, sort = false, relative = false, end_ = "
     println(end_)
 end
 
-function main_func()
+function main()
     translation = Dict(
         b"G" => b"\x00",
         b"T" => b"\x01",
@@ -217,8 +217,6 @@ function main_func()
     display(results, display_list(k_nucleotides))
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

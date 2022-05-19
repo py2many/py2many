@@ -55,8 +55,6 @@ function mandelbrot(n)
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     mandelbrot(20)
 end
-
-main()
