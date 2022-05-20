@@ -16,13 +16,12 @@ function test()
         return repeat(teststr, num)
     end
 
-    function inner_test_2()::String
-        num = 4
-        return repeat(teststr, num)
+    function inner_test_2(num)::String
+        return num * teststr
     end
 
     @assert(inner_test() == "testtest")
-    @assert(inner_test_2() == "testtesttesttest")
+    @assert(inner_test_2(4) == "testtesttesttest")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

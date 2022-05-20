@@ -122,8 +122,6 @@ class ParseAnnotations():
         # Get fields
         temp_dict = self._parsed_data
 
-        print(self._parsed_data)
-        print(get_id(node))
         for scope in node.scopes[1:]:
             if isinstance(scope, ast.ClassDef) and \
                     "classes" in temp_dict and \
@@ -133,9 +131,9 @@ class ParseAnnotations():
                     "functions" in temp_dict and \
                     get_id(scope) in temp_dict["functions"]:
                 temp_dict = temp_dict["functions"][get_id(scope)]
-        print(temp_dict)
-        if temp_dict:
-            node_field_map |= temp_dict[name]
+
+        if temp_dict and temp_dict != self._parsed_data:
+            node_field_map |= temp_dict
 
         return node_field_map
 
@@ -157,6 +155,7 @@ def config_rewriters(config_handler: ConfigFileHandler, tree):
         parser = ParseAnnotations(ann_sec, filename)
         AnnotationRewriter(parser).visit(tree)
     if ann_sec := config_handler.get_sec_with_option("ANNOTATIONS", "generic"):
+        # Generic annotation files
         parser = ParseAnnotations(ann_sec, "generic")
         AnnotationRewriter(parser).visit(tree)
 
@@ -188,12 +187,6 @@ class AnnotationRewriter(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         self.generic_visit(node)
-        node_name = get_id(node)
-        node_scope_name = None
-        if len(node.scopes) > 2:
-            node_class = find_node_by_type(ast.ClassDef, node.scopes)
-            node_scope_name = get_id(node_class) if node_class else None
-
         node_field_map = self._parser.get_attributes(node)
         if "decorators" in node_field_map:
             node.decorator_list += node_field_map["decorators"]
@@ -204,17 +197,15 @@ class AnnotationRewriter(ast.NodeTransformer):
                 map(lambda dec: ast.Name(id=dec), node.decorator_list))
 
         if "args" in node_field_map:
-            args_list = node_field_map["args"]
-            print(args_list)
-            # for arg in node.args:
-            #     if arg.arg == a
-
+            args_map = node_field_map["args"]
+            for arg in node.args.args:
+                if arg.arg in args_map:
+                    arg.annotation = ast.Name(args_map[arg.arg])
         return node
 
     def visit_ClassDef(self, node):
         self.generic_visit(node)
-        class_name = get_id(node)
-        node_field_map = self._parser.get_attributes(class_name)
+        node_field_map = self._parser.get_attributes(node)
         if node_field_map and "decorators" in node_field_map:
             node.decorator_list += node_field_map["decorators"]
             # Remove duplicates
