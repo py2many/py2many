@@ -1056,33 +1056,60 @@ class JuliaMainRewriter(ast.NodeTransformer):
             node.test.comparators[0] = ast.Name(id="@__FILE__")
         return node
 
-class JuliaBigIntRewriter(ast.NodeTransformer):
+class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._use_big_integers = False
+        self._use_arbitrary_precision = False
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._use_big_integers = getattr(node, "use_big_integers", False)
+        self._use_arbitrary_precision = getattr(node, "use_arbitrary_precision", False)
         self.generic_visit(node)
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
-        self.generic_visit(node)
+        # self.generic_visit(node)
+        for t in node.targets:
+            self.visit(t)
         self._generic_assign_visit(node)
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        self.generic_visit(node)
+        # self.generic_visit(node)
+        self.visit(node.target)
         self._generic_assign_visit(node)
         return node
 
     def _generic_assign_visit(self, node):
         type_comment = getattr(node, "type_comment", None)
-        if type_comment == "BigInt" or self._use_big_integers:
-            node.value = ast.Call(
-                func = ast.Name(id="BigInt"),
-                args = [node.value],
-                keywords = [])
+        if isinstance(node.value, ast.Constant):
+            node.value = self.visit_Constant(node.value, type_comment)
+        else:
+            if getattr(node, "value", None):
+                self.visit(node.value)
+
+    def visit_Constant(self, node: ast.Constant, type_comment=None):
+        self.generic_visit(node)
+        ann = getattr(node, "annotation", None)
+        if ann:
+            is_int = lambda x: get_id(x) == "int"
+            is_float = lambda x: get_id(x) == "float"
+            func_name = "BigInt" if is_int(ann) else "BigFloat"
+            if (type_comment == "BigInt" or type_comment == "BigFloat" or
+                    (self._use_arbitrary_precision and 
+                        (is_int(ann) or is_float(ann)))):
+                lineno = getattr(node, "lineno", 0)
+                col_offset = getattr(node, "col_offset", 0)
+                return ast.Call(
+                    func = ast.Name(id=func_name),
+                    args = [ast.Constant(
+                        value = node.value,
+                        annotation = ann)],
+                    keywords = [],
+                    lineno = lineno,
+                    col_offset = col_offset,
+                    annotation = ann)
+        return node
+
 
 ###########################################################
 ################## Conditional Rewriters ##################

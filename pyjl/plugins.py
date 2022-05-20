@@ -37,8 +37,8 @@ except ImportError:
 
 ########################################################
 # External imports
-# import pandas
-# import pandas.core.groupby.generic
+import pandas
+import pandas.core.groupby.generic
 ########################################################
 
 
@@ -1005,11 +1005,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ord: (JuliaTranspilerPlugins.visit_ord, False),
     ########################################################
-    # TODO: Just temporary
-    # pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
-    # pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),
-    # pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[1]})", False),
-    # pandas.core.groupby.generic.DataFrameGroupBy.sum: (lambda self, node, vargs: f"sum({vargs[0]})", False),
+    pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
+    pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),
+    pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[1]})", False),
+    pandas.core.groupby.generic.DataFrameGroupBy.sum: (lambda self, node, vargs: f"sum({vargs[0]})", False),
 }
 
 # Dispatches special Functions
