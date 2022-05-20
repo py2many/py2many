@@ -51,8 +51,8 @@ end
 function HookOleEvents(self::Control)
 dict = _GetEventMap(self)
 for (dispid, methodName) in items(dict)
-if hasattr(self, methodName)
-HookOleEvent(self._obj_, getfield(self, methodName, dispid)
+if hasfield(typeof(self), :methodName)
+HookOleEvent(self._obj_, getfield(self, :methodName), dispid)
 end
 end
 end
@@ -65,11 +65,11 @@ if exn isa AttributeError
 #= pass =#
 end
 end
-return getfield(self._dispobj_, attr
+return getfield(self._dispobj_, :attr)
 end
 
 function __setattr__(self::Control, attr, value)
-if hasattr(self.__dict__, attr)
+if hasfield(typeof(self.__dict__), :attr)
 self.__dict__[attr] = value
 return
 end

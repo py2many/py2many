@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.debugger
 import win32com_.gen_py.framework.interact
 using win32com_.gen_py.scintilla: configui

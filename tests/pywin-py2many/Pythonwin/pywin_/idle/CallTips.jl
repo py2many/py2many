@@ -19,7 +19,7 @@ unix_keydefs::Dict
 windows_keydefs::Dict
 
             CallTips(editwin, keydefs::Dict{String, Vector{String}} = Dict("<<paren-open>>" => ["<Key-parenleft>"], "<<paren-close>>" => ["<Key-parenright>"], "<<check-calltip-cancel>>" => ["<KeyRelease>"], "<<calltip-cancel>>" => ["<ButtonPress>", "<Key-Escape>"]), menudefs::Vector = [], unix_keydefs::Dict = Dict(), windows_keydefs::Dict = Dict()) = begin
-                if hasattr(text, "make_calltip_window")
+                if hasfield(typeof(text), :make_calltip_window)
 _make_calltip_window = text.make_calltip_window
 else
 _make_calltip_window = _make_tk_calltip_window
@@ -122,14 +122,15 @@ fob = ob
 end
 if isfunction(inspect, fob) || ismethod(inspect, fob)
 try
-arg_getter = hasfield(inspect, "getfullargspec"): getfield(inspect, "getfullargspec" ? inspect.getargspec
+arg_getter = (hasfield(typeof(inspect), :getfullargspec) ? 
+                getfield(inspect, :getfullargspec) : inspect.getargspec)
 argText = formatargspec(inspect, arg_getter(fob)...)
 catch exn
 println("Failed to format the args")
 current_exceptions() != [] ? current_exceptions()[end] : nothing
 end
 end
-if hasattr(ob, "__doc__")
+if hasfield(typeof(ob), :__doc__)
 doc = ob.__doc__
 try
 doc = strip(doc)
@@ -144,7 +145,7 @@ end
 return argText
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 function t1()
 #= () =#
 end
@@ -206,15 +207,13 @@ for t in tests
 expected = (t.__doc__ + "\n") + t.__doc__
 if get_arg_text(t) != expected
 push!(failed, t)
-@printf("%s - expected %s, but got %s", (t, repr(expected), repr(get_arg_text(t))))
+@printf("%s - expected %s, but got %s\n", t, repr(expected), repr(get_arg_text(t)))
 end
 end
-@printf("%d of %d tests failed", (length(failed), length(tests)))
+@printf("%d of %d tests failed\n", length(failed), length(tests))
 end
 
 tc = TC()
 tests = (t1, t2, t3, t4, t5, t6, TC, tc.t1, tc.t2, tc.t3, tc.t4, tc.t5, tc.t6)
 test(tests)
 end
-
-main()

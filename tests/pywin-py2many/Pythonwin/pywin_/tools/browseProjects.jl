@@ -1,7 +1,7 @@
 using OrderedCollections
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.docking.DockingBar
 import regutil
 include("hierlist.jl")
@@ -313,10 +313,10 @@ end
 mutable struct dynamic_browser <: Abstractdynamic_browser
 hier_list
 cs
-dt::Vector{Union{Vector{Union{Any, Tuple{Union{Int64, String}}, Tuple{Int64}, String}}, Vector{Union{Any, Tuple{Int64}, String}}}}
+dt::Vector{Union{Vector{Union{Any, Tuple{Int64}, String, Tuple{Union{Int64, String}}}}, Vector{Union{Any, Tuple{Int64}, String}}}}
 style
 
-            dynamic_browser(hli_root, cs = (((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) | commctrl.TVS_LINESATROOT) | commctrl.TVS_HASBUTTONS, dt::Vector{Union{Vector{Union{Any, Tuple{Union{Int64, String}}, Tuple{Int64}, String}}, Vector{Union{Any, Tuple{Int64}, String}}}} = [["Python Projects", (0, 0, 200, 200), style, nothing, (8, "MS Sans Serif")], ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs]], style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE) = begin
+            dynamic_browser(hli_root, cs = (((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) | commctrl.TVS_LINESATROOT) | commctrl.TVS_HASBUTTONS, dt::Vector{Union{Vector{Union{Any, Tuple{Int64}, String, Tuple{Union{Int64, String}}}}, Vector{Union{Any, Tuple{Int64}, String}}}} = [["Python Projects", (0, 0, 200, 200), style, nothing, (8, "MS Sans Serif")], ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs]], style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE) = begin
                 dialog.Dialog.__init__(self, dt)
 HookMessage(on_size, win32con.WM_SIZE)
                 new(hli_root, cs , dt, style )

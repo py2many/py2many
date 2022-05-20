@@ -271,7 +271,7 @@ cmdid = 0
 else
 cmdid = get_command_id(self.bindings, event)
 if cmdid === nothing
-@printf("View.AppendMenu(): Unknown event \"%s\" specified for menu text \"%s\" - ignored", (event, text))
+@printf("View.AppendMenu(): Unknown event \"%s\" specified for menu text \"%s\" - ignored\n", event, text)
 return
 end
 keyname = get_key_binding(configManager, event, _GetSubConfigNames(self))
@@ -432,7 +432,7 @@ end
 items_dict = Dict()
 if ob != nothing
 try
-if hasattr(ob, "_obj_")
+if hasfield(typeof(ob), :_obj_)
 try
 update(items_dict, list2dict(dir(ob._obj_)))
 catch exn
@@ -448,7 +448,7 @@ if exn isa AttributeError
 #= pass =#
 end
 end
-if hasattr(ob, "__class__")
+if hasfield(typeof(ob), :__class__)
 update(items_dict, list2dict(_get_class_attributes(ob.__class__)))
 end
 try
@@ -459,7 +459,7 @@ if exn isa AttributeError
 #= pass =#
 end
 end
-if hasattr(ob, "_oleobj_")
+if hasfield(typeof(ob), :_oleobj_)
 try
 for iTI in 0:GetTypeInfoCount(ob._oleobj_) - 1
 typeInfo = GetTypeInfo(ob._oleobj_, iTI)
@@ -539,12 +539,12 @@ end
 end
 
 function _UpdateWithClassMethods(self::CScintillaView, dict, classinfo)
-if !hasattr(classinfo, "methods")
+if !hasfield(typeof(classinfo), :methods)
 return
 end
 update(dict, classinfo.methods)
 for super in classinfo.super
-if hasattr(super, "methods")
+if hasfield(typeof(super), :methods)
 _UpdateWithClassMethods(self, dict, super)
 end
 end

@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.mfc.dialog
 import win32con
 using win32com_.gen_py.mfc: afxres, window
@@ -635,8 +635,6 @@ function test()
     DockControlBar(GetMainFrame(win32ui), bar, afxres.AFX_IDW_DOCKBAR_BOTTOM)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     test()
 end
-
-main()

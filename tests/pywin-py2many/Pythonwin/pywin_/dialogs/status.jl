@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 using win32com_.gen_py.mfc: dialog
 using win32com_.gen_py.mfc.thread: WinThread
 import threading
@@ -276,8 +276,6 @@ function thread_demo()
     Close(d)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     thread_demo()
 end
-
-main()

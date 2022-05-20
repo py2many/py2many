@@ -25,7 +25,7 @@ if !startswith(attr, "__")
 try
 o = self.__dict__["_obj_"]
 if o != nothing
-return getfield(o, attr
+return getfield(o, :attr)
 end
 if attr[1] != "_" && attr[end] != "_"
 throw(error(win32ui, "The MFC object has died."))

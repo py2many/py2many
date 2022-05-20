@@ -339,24 +339,18 @@ class JuliaTranspilerPlugins:
                     if isinstance(arg.op, ast.Mod):
                         elements = []
                         if hasattr(arg.right, "elts"):
-                            elements.extend([get_id(arg) for arg in arg.right.elts])
+                            elements.extend([t_self.visit(arg) for arg in arg.right.elts])
                         else:
-                            elements = t_self.visit(arg.right)
+                            elements = [t_self.visit(arg.right)]
                         left_str: str = t_self.visit(arg.left)[1:-1]
                         parsed_args = re.split(r"%\w", left_str)
-                        for i in range(0, len(parsed_args)):
-                            if i % 2 == 0:
-                                parsed_args[i] = f"$({elements[i//2]})"
+                        for i in range(0, len(parsed_args), 2):
+                            parsed_args[i] = f"$({elements[i//2]})"
 
                         args_str.append(left_str)
-                        args_vals.append(elements)
+                        args_vals.extend(elements)
                     elif isinstance(arg.op, ast.Add):
-                        left: str = t_self.visit(arg.left)
-                        if left.startswith("\""):
-                            left = left[1:-1]
-                        right: str = t_self.visit(arg.right)
-                        if right.startswith("\""):
-                            right = right[1:-1]
+                        left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
                         if not (isinstance(arg.left, ast.Constant) and 
                                 isinstance(arg.left.value, str)):
                             left = f"$({left})"
@@ -408,6 +402,55 @@ class JuliaTranspilerPlugins:
         
         # By default, use println
         return f"println({', '.join(vargs)})"
+
+    def visit_getattr(t_self, node, vargs: list[str]):
+        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
+
+        if len(parsed_args) == 3:
+            # Cannot remove the quotes from default
+            default = t_self.visit(node.args[-1])
+            return f"""(hasfield(typeof({parsed_args[0]}), :{parsed_args[1]}) ? 
+                getfield({parsed_args[0]}, :{parsed_args[1]}) : {default})"""
+        elif len(parsed_args) == 2:
+            return f"getfield({parsed_args[0]}, :{parsed_args[1]})"
+        return "getfield"
+
+    def visit_hasattr(t_self, node, vargs: list[str]):
+        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
+        if len(parsed_args) == 2:
+            return f"hasfield(typeof({parsed_args[0]}), :{parsed_args[1]})"
+        return "hasfield"
+
+    def _parse_bin_op(t_self, node: ast.BinOp):
+        left: str
+        right: str
+        if isinstance(node.left, ast.Constant):
+            left = t_self.visit_Constant(node.left, quotes=False)
+        else:
+            left = t_self.visit(node.left)
+        if isinstance(node.right, ast.Constant):
+            right = t_self.visit_Constant(node.right, quotes=False)
+        else:
+            right = t_self.visit(node.right)
+        # left: str = t_self.visit(arg.left)
+        # if left.startswith("\""):
+        #     left = left[1:-1]
+        # right: str = t_self.visit(arg.right)
+        # if right.startswith("\""):
+        #     right = right[1:-1]
+        return left, right
+
+    def _parse_attrs(t_self, node):
+        parsed_args = []
+        for arg in node.args:
+            if isinstance(arg, ast.BinOp):
+                left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
+                parsed_args.append(f"{left}{t_self.visit(arg.op)}{right}")
+            elif isinstance(arg, ast.Constant):
+                parsed_args.append(t_self.visit_Constant(arg, quotes=False))
+            else:
+                parsed_args.append(t_self.visit(arg))
+        return parsed_args
 
     def visit_cast_int(t_self, node, vargs) -> str:
         if hasattr(node, "args") and node.args:
@@ -563,14 +606,6 @@ class JuliaTranspilerPlugins:
             f"zip({vargs[0]})"
 
         return f"zip({vargs[0]}, {vargs[1]})"
-
-    def visit_getattr(t_self, node, vargs: list[str]):
-        if len(vargs) == 3:
-            return f"hasfield({vargs[0]}, {vargs[1]}): getfield({vargs[0]}, {vargs[1]} ? {vargs[2]}"
-        elif len(vargs) == 2:
-            return f"getfield({vargs[0]}, {vargs[1]}"
-        else:
-            return "getfield"
 
     def visit_frozenset_contains(t_self, node, vargs):
         t_self._usings.add("FunctionalCollections")
@@ -1002,6 +1037,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         "current_exceptions()[end] : nothing", False),
     # 
     getattr: (JuliaTranspilerPlugins.visit_getattr , False),
+    hasattr: (JuliaTranspilerPlugins.visit_hasattr , False),
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ord: (JuliaTranspilerPlugins.visit_ord, False),
     ########################################################

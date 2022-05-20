@@ -5,11 +5,11 @@
 import winerror
 FACILITY_CONTROL = 10
 function MAKE_SCODE(sev, fac, code)::Int64
-return Int(((parse(Int, -(sev)) << 31) | (fac << 16)) | code)
+    return Int(((parse(Int, -(sev)) << 31) | (fac << 16)) | code)
 end
 
 function STD_CTL_SCODE(n)::Int64
-return MAKE_SCODE(winerror.SEVERITY_ERROR, FACILITY_CONTROL, n)
+    return MAKE_SCODE(winerror.SEVERITY_ERROR, FACILITY_CONTROL, n)
 end
 
 CTL_E_ILLEGALFUNCTIONCALL = STD_CTL_SCODE(5)

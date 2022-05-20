@@ -1,7 +1,7 @@
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 
 
@@ -107,7 +107,7 @@ catch exn
 if exn isa SystemExit
 worked = 1
 end
-@printf("Failed to execute command:\n%s", pyCmd)
+@printf("Failed to execute command:\n%s\n", pyCmd)
 current_exceptions() != [] ? current_exceptions()[end] : nothing
 worked = 0
 end

@@ -1,7 +1,7 @@
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.debugger
 using win32com_.gen_py.mfc: docview, object
 using win32com_.gen_py.framework.editor: GetEditorOption
@@ -164,7 +164,7 @@ catch exn
  let exc = exn
 if exc isa os.error
 if !(self.bReportedFileNotFound) != 0
-@printf("The file \'%s\' is open for editing, but\nchecking it for changes caused the error: %s", (GetPathName(self), exc.strerror))
+@printf("The file \'%s\' is open for editing, but\nchecking it for changes caused the error: %s\n", GetPathName(self), exc.strerror)
 self.bReportedFileNotFound = 1
 end
 return
@@ -172,7 +172,7 @@ end
 end
 end
 if self.bReportedFileNotFound != 0
-@printf("The file \'%s\' has re-appeared - continuing to watch for changes...", (GetPathName(self),))
+@printf("The file \'%s\' has re-appeared - continuing to watch for changes...\n", GetPathName(self))
 self.bReportedFileNotFound = 0
 end
 changed = self.fileStat === nothing || self.fileStat[1] != newstat[1] || self.fileStat[7] != newstat[7] || self.fileStat[9] != newstat[9] || self.fileStat[10] != newstat[10]
@@ -273,7 +273,7 @@ if self.scModule === nothing
 try
 self.scModule = __import__(self.scModuleName)
 for part in split(self.scModuleName, ".")[2:end]
-self.scModule = getfield(self.scModule, part
+self.scModule = getfield(self.scModule, :part)
 end
 catch exn
 current_exceptions() != [] ? current_exceptions()[end] : nothing

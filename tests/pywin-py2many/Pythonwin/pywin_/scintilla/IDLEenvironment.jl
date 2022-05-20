@@ -2,8 +2,8 @@ using OrderedCollections
 using Printf
 using PyCall
 using StringEncodings
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.framework.editor
 
 import string
@@ -84,7 +84,8 @@ self.text = nothing
 self.extension_menus = nothing
 try
 for ext in values(self.extensions)
-closer = hasfield(ext, "close"): getfield(ext, "close" ? nothing
+closer = (hasfield(typeof(ext), :close) ? 
+                getfield(ext, :close) : nothing)
 if closer != nothing
 closer()
 end
@@ -103,13 +104,13 @@ mod = GetIDLEModule(extension)
 if mod === nothing
 return nothing
 end
-klass = getfield(mod, extension
+klass = getfield(mod, :extension)
 ext = klass(self)
 self.extensions[extension] = klass(self)
 events = [item for item in dir(klass) if item[length(item) - -5:end] == "_event" ]
 for event in events
 name = "<<%s>>" % (replace(event[begin:-6], "_", "-"),)
-bind(self.edit.bindings, name, getfield(ext, event)
+bind(self.edit.bindings, name, getfield(ext, :event))
 end
 return ext
 end
@@ -118,7 +119,8 @@ function GetMenuItems(self::IDLEEditorWindow, menu_name)::Vector
 bindings = self.edit.bindings
 ret = []
 for ext in values(self.extensions)
-menudefs = hasfield(ext, "menudefs"): getfield(ext, "menudefs" ? []
+menudefs = (hasfield(typeof(ext), :menudefs) ? 
+                getfield(ext, :menudefs) : [])
 for (name, items) in menudefs
 if name == menu_name
 for (text, event) in [item for item in items if item != nothing ]
@@ -554,7 +556,7 @@ end
 function TestGet(fr, to, t, expected)
 got = get(t, fr, to)
 if got != expected
-@printf("ERROR: get(%s, %s) expected %s, but got %s", (repr(fr), repr(to), repr(expected), repr(got)))
+@printf("ERROR: get(%s, %s) expected %s, but got %s\n", repr(fr), repr(to), repr(expected), repr(got))
 end
 end
 
@@ -582,7 +584,7 @@ modname = "win32com_.gen_py.idle." + extension
 __import__(modname)
 mod = sys.modules[modname + 1]
 mod.TclError = TextError
-klass = getfield(mod, extension
+klass = getfield(mod, :extension)
 d = OpenDocumentFile(win32com_.gen_py.framework.editor.editorTemplate, nothing)
 v = GetFirstView(d)
 fname = splitext(os.path, __file__)[1] + ".py"
@@ -592,8 +594,6 @@ r = klass(IDLEWrapper(TkText(v)))
 return r
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 test()
 end
-
-main()

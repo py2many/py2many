@@ -1,7 +1,7 @@
 using OrderedCollections
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.mfc.docview
 
 import win32con
@@ -240,7 +240,8 @@ end
 
 function DestroyList(self::BrowserView)
 self.destroying = 1
-list = hasfield(self, "list"): getfield(self, "list" ? nothing
+list = (hasfield(typeof(self), :list) ? 
+                getfield(self, :list) : nothing)
 self.list = nothing
 if list != nothing
 HierTerm(list)

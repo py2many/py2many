@@ -70,8 +70,6 @@ AddPage(ps, RegistryPage())
 DoModal(ps)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 t()
 end
-
-main()

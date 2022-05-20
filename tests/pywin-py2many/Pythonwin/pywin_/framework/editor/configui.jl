@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 import win32com_.gen_py.scintilla.view
 using win32com_.gen_py.mfc: dialog
@@ -250,8 +250,6 @@ AddPage(ps, EditorWhitespacePropertyPage())
 DoModal(ps)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 testpp()
 end
-
-main()

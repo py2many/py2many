@@ -1,7 +1,7 @@
 using OrderedCollections
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 DBGSTATE_NOT_DEBUGGING = 0
 DBGSTATE_RUNNING = 1
 DBGSTATE_BREAK = 2

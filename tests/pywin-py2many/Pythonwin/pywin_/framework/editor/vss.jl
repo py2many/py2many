@@ -1,7 +1,7 @@
 using PyCall
 pythoncom = pyimport("pythoncom")
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 import win32com_.client
 include("win32com_/client/gencache.jl")

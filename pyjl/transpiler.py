@@ -37,6 +37,7 @@ SPECIAL_CHARACTER_MAP = {
     "\v": "\\v", 
     "\t": "\\t",
     "\xe9":"\\xe9",
+    "\000":"\\000"
 }
 
 # For now just includes SPECIAL_CHARACTER_MAP
@@ -98,7 +99,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
-    def visit_Constant(self, node: ast.Constant, is_comment_str = False) -> str:
+    def visit_Constant(self, node: ast.Constant, quotes = True) -> str:
         if node.value is True:
             return "true"
         elif node.value is False:
@@ -106,7 +107,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is None:
             return self._none_type
         elif isinstance(node.value, str):
-            return self.visit_Str(node, is_comment_str)
+            return self.visit_Str(node, quotes)
         elif isinstance(node.value, bytes):
             return self.visit_Bytes(node)
         elif isinstance(node.value, complex):
@@ -118,13 +119,13 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_Str(self, node: ast.Str, is_comment_str = False) -> str:
+    def visit_Str(self, node: ast.Str, quotes = True) -> str:
         # Escape special characters
         trs_map = str.maketrans(self._str_special_character_map) \
-            if not is_comment_str \
+            if quotes \
             else self._docstr_special_character_map
         node_str = node.value.translate(str.maketrans(trs_map))
-        return f'"{node_str}"' if not is_comment_str else node_str
+        return f'"{node_str}"' if quotes else node_str
 
     def visit_Bytes(self, node: ast.Bytes) -> str:
         bytes_str: str = str(node.s)

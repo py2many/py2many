@@ -1,7 +1,7 @@
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import string
 import win32con
 
@@ -13,7 +13,7 @@ _better_names = Dict("escape" => "esc", "return" => "enter", "back" => "pgup", "
 function _fillvkmap()
 names = [entry for entry in win32con.__dict__ if startswith(entry, "VK_") ]
 for name in names
-code = getfield(win32con, name
+code = getfield(win32con, :name)
 n = lower(name[4:end])
 key_name_to_vk[n] = code
 if n ∈ keys(_better_names)
@@ -113,7 +113,7 @@ end
 
 function _psc(char)
 sc, mods = get_vk(char)
-@printf("Char %s -> %d -> %s", (repr(char), sc, get(key_code_to_name, sc)))
+@printf("Char %s -> %d -> %s\n", repr(char), sc, get(key_code_to_name, sc))
 end
 
 function test1()
@@ -127,7 +127,7 @@ end
 
 function _pkn(n)
 vk, flags = parse_key_name(n)
-@printf("%s -> %s,%s -> %s", (n, vk, flags, make_key_name(vk, flags)))
+@printf("%s -> %s,%s -> %s\n", n, vk, flags, make_key_name(vk, flags))
 end
 
 function test2()
@@ -157,8 +157,6 @@ _pkn("!")
 _pkn(".")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 test2()
 end
-
-main()

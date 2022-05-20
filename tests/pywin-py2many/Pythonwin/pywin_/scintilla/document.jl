@@ -118,11 +118,11 @@ try
 dec = decode(text, source_encoding)
 catch exn
 if exn isa UnicodeError
-@printf("WARNING: Failed to decode bytes from \'%s\' encoding - treating as latin1", source_encoding)
+@printf("WARNING: Failed to decode bytes from \'%s\' encoding - treating as latin1\n", source_encoding)
 dec = decode(text, "latin1")
 end
 if exn isa LookupError
-@printf("WARNING: Invalid encoding \'%s\' specified - treating as latin1", source_encoding)
+@printf("WARNING: Invalid encoding \'%s\' specified - treating as latin1\n", source_encoding)
 dec = decode(text, "latin1")
 end
 end
@@ -243,14 +243,15 @@ end
 
 function _ApplyToViews(self::CScintillaDocument, funcName)
 for view in GetAllViews(self)
-func = getfield(view, funcName
+func = getfield(view, :funcName)
 func(args...)
 end
 end
 
 function _ApplyOptionalToViews(self::CScintillaDocument, funcName)
 for view in GetAllViews(self)
-func = hasfield(view, funcName): getfield(view, funcName ? nothing
+func = (hasfield(typeof(view), :funcName) ? 
+                getfield(view, :funcName) : nothing)
 if func != nothing
 func(args...)
 end
@@ -276,7 +277,7 @@ function __call__(self::ViewNotifyDelegate, std, extra)
 hwndFrom, idFrom, code = std
 for v in GetAllViews(self.doc)
 if GetSafeHwnd(v) === hwndFrom
-return getfield(v, self.name((std, extra)...)
+return getfield(v, :self.name)((std, extra)...)
 end
 end
 end

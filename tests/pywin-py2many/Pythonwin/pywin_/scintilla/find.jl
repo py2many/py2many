@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32con
 
 using win32com_.gen_py.mfc: dialog
@@ -34,7 +34,7 @@ end
             end
 end
 function __setattr__(self::SearchParams, attr, val)
-if !hasattr(self, attr)
+if !hasfield(typeof(self), :attr)
 throw(AttributeError(attr))
 end
 self.__dict__[attr] = val
@@ -249,7 +249,7 @@ end
 for hist in searchHistory
 AddString(self.editFindText, hist)
 end
-if hasattr(self.editFindText, "SetEditSel")
+if hasfield(typeof(self.editFindText), :SetEditSel)
 SetEditSel(self.editFindText, 0, -2)
 else
 SetSel(self.editFindText, 0, -2)
@@ -323,7 +323,7 @@ HookCommand(self, self.OnReplaceAll, 111)
 HookMessage(self, self.OnActivate, win32con.WM_ACTIVATE)
 self.editReplaceText = GetDlgItem(self, 104)
 SetWindowText(self.editReplaceText, lastSearch.replaceText)
-if hasattr(self.editReplaceText, "SetEditSel")
+if hasfield(typeof(self.editReplaceText), :SetEditSel)
 SetEditSel(self.editReplaceText, 0, -2)
 else
 SetSel(self.editReplaceText, 0, -2)
@@ -378,8 +378,6 @@ end
 end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 ShowFindDialog()
 end
-
-main()

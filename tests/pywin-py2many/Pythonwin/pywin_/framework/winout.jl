@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 include("scriptutils.jl")
 include("help.jl")
 import _thread
@@ -617,8 +617,6 @@ end
 return w
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
 test()
 end
-
-main()

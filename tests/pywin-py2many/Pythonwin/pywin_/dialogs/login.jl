@@ -24,8 +24,8 @@ Merged with dlgpass and moved to win32com_.gen_py.dialogs by Mark Hammond Jan 19
  =#
 using Printf
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 import win32con
 using win32com_.gen_py.mfc: dialog
@@ -118,7 +118,7 @@ function GetPassword(title = "Password", password = "")::PasswordDlg
     return d["password"]
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     title = "Login"
     def_user = ""
     if length(append!([PROGRAM_FILE], ARGS)) > 1
@@ -128,7 +128,7 @@ function main()
         def_userid = append!([PROGRAM_FILE], ARGS)[3]
     end
     userid, password = GetLogin(title, def_user)
-    if userid === password === nothing
+    if userid == password === nothing
         println("User pressed Cancel")
     else
         println("User ID: $(userid)")
@@ -141,9 +141,7 @@ function main()
             if newpassword != password
                 what = "not "
             end
-            @printf("The passwords did %smatch", what)
+            @printf("The passwords did %smatch\n", what)
         end
     end
 end
-
-main()

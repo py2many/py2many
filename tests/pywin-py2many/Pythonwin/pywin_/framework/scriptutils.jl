@@ -4,8 +4,8 @@ Various utilities for running/importing a script
 using Printf
 using PyCall
 using StringEncodings
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 import win32com_.gen_py.debugger
 using win32com_.gen_py.framework: interact
 using importlib: reload
@@ -95,7 +95,7 @@ end
 catch exn
  let details = exn
 if details isa win32ui.error
-@printf("Warning: The sys.path entry \'%s\' is invalid\n%s", (syspath, details))
+@printf("Warning: The sys.path entry \'%s\' is invalid\n%s\n", syspath, details)
 end
 end
 end
@@ -144,7 +144,7 @@ view = GetActiveView()
 if view === nothing
 return nothing
 end
-if hasattr(view, "SCIAddText")
+if hasfield(typeof(view), :SCIAddText)
 return view
 end
 try
@@ -172,7 +172,7 @@ if view === nothing || isa(view, TreeView)
 return (nothing, nothing)
 end
 doc = GetDocument(view)
-if hasattr(doc, "MarkerAdd")
+if hasfield(typeof(doc), :MarkerAdd)
 return (doc, view)
 end
 return (nothing, nothing)
@@ -446,7 +446,8 @@ modName, modExt = splitext(os.path, modName)
 newPath = nothing
 has_break = false
 for (key, mod) in collect(items(sys.modules))
-if hasfield(mod, "__file__"): getfield(mod, "__file__" ? nothing
+if (hasfield(typeof(mod), :__file__) ? 
+                getfield(mod, :__file__) : nothing)
 fname = mod.__file__
 base, ext = splitext(os.path, fname)
 if lower(ext) ∈ [".pyo", ".pyc"]
@@ -489,7 +490,8 @@ mod = get(sys.modules, modName)
 if bNeedReload
 mod = reload(sys.modules[modName + 1])
 end
-SetStatusText(win32ui, (("Successfully " + what) * "ed module \'" + modName) * ("\': %s" % hasfield(mod, "__file__"): getfield(mod, "__file__" ? "<unkown file>"))
+SetStatusText(win32ui, (("Successfully " + what) * "ed module \'" + modName) * ("\': %s" % (hasfield(typeof(mod), :__file__) ? 
+                getfield(mod, :__file__) : "<unkown file>")))
 catch exn
 _HandlePythonFailure(what)
 end
@@ -515,7 +517,7 @@ f = readline(pathName)
 catch exn
  let details = exn
 if details isa IOError
-@printf("Cant open file \'%s\' - %s", (pathName, details))
+@printf("Cant open file \'%s\' - %s\n", pathName, details)
 return
 end
 end
@@ -657,7 +659,7 @@ path = RegQueryValue(win32api, win32con.HKEY_LOCAL_MACHINE, "SOFTWARE\\Python\\P
 catch exn
 if exn isa win32api.error
 println("WARNING - The Python registry does not have an \'InstallPath\' setting")
-@printf("          The file \'%s\' can not be located", filename)
+@printf("          The file \'%s\' can not be located\n", filename)
 return nothing
 end
 end
@@ -666,7 +668,7 @@ try
 stat(os, fname)
 catch exn
 if exn isa os.error
-@printf("WARNING - The file \'%s\' can not be located in path \'%s\'", (filename, path))
+@printf("WARNING - The file \'%s\' can not be located in path \'%s\'\n", filename, path)
 return nothing
 end
 end

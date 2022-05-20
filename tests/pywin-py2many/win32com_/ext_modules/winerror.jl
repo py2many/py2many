@@ -1964,52 +1964,52 @@ ERROR_DS_HIERARCHY_TABLE_TOO_DEEP = 8628
 SEVERITY_SUCCESS = 0
 SEVERITY_ERROR = 1
 function HRESULT_FROM_WIN32(scode)::Int64
-return -2147024896 | (scode & 65535)
+    return -2147024896 | (scode & 65535)
 end
 
 function SUCCEEDED(Status)::Bool
-return Status >= 0
+    return Status >= 0
 end
 
 function FAILED(Status)::Bool
-return Status < 0
+    return Status < 0
 end
 
 function HRESULT_CODE(hr)::Int64
-return hr & 65535
+    return hr & 65535
 end
 
 function SCODE_CODE(sc)::Int64
-return sc & 65535
+    return sc & 65535
 end
 
 function HRESULT_FACILITY(hr)::Int64
-return (hr >> 16) & 8191
+    return (hr >> 16) & 8191
 end
 
 function SCODE_FACILITY(sc)::Int64
-return (sc >> 16) & 8191
+    return (sc >> 16) & 8191
 end
 
 function HRESULT_SEVERITY(hr)::Int64
-return (hr >> 31) & 1
+    return (hr >> 31) & 1
 end
 
 function SCODE_SEVERITY(sc)::Int64
-return (sc >> 31) & 1
+    return (sc >> 31) & 1
 end
 
 FACILITY_NT_BIT = 268435456
 function HRESULT_FROM_NT(x)::Int64
-return x | FACILITY_NT_BIT
+    return x | FACILITY_NT_BIT
 end
 
 function GetScode(hr)
-return hr
+    return hr
 end
 
 function ResultFromScode(sc)
-return sc
+    return sc
 end
 
 NOERROR = 0

@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 
 import win32con
@@ -60,7 +60,7 @@ OnTreeItemDoubleClick
 end
 function __getattr__(self::HierList, attr)
 try
-return getfield(self.listControl, attr
+return getfield(self.listControl, :attr)
 catch exn
 if exn isa AttributeError
 return __getattr__(object.Object, self)
@@ -348,7 +348,8 @@ return DelegateCall(self, item.GetSubList)
 end
 
 function PerformItemSelected(self::HierListWithItems, item)
-func = hasfield(item, "PerformItemSelected"): getfield(item, "PerformItemSelected" ? nothing
+func = (hasfield(typeof(item), :PerformItemSelected) ? 
+                getfield(item, :PerformItemSelected) : nothing)
 if func === nothing
 return PerformItemSelected(HierList, self)
 else
@@ -357,7 +358,8 @@ end
 end
 
 function TakeDefaultAction(self::HierListWithItems, item)
-func = hasfield(item, "TakeDefaultAction"): getfield(item, "TakeDefaultAction" ? nothing
+func = (hasfield(typeof(item), :TakeDefaultAction) ? 
+                getfield(item, :TakeDefaultAction) : nothing)
 if func === nothing
 return TakeDefaultAction(HierList, self)
 else

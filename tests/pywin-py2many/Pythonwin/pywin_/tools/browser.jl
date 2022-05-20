@@ -1,6 +1,6 @@
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 
 
 
@@ -106,7 +106,7 @@ end
 try
 for member in self.myobject.__members__
 if !(member ∈ special_names)
-push!(ret, MakeHLI(getfield(self.myobject, member, member))
+push!(ret, MakeHLI(getfield(self.myobject, :member), member))
 end
 end
 catch exn
@@ -127,7 +127,7 @@ return self.knownExpandable
 end
 
 function CalculateIsExpandable(self::HLIPythonObject)::Int64
-if hasattr(self.myobject, "__doc__")
+if hasfield(typeof(self.myobject), :__doc__)
 return 1
 end
 try
@@ -428,7 +428,7 @@ try
 cls = TypeMap[type_(ob)]
 catch exn
 if exn isa KeyError
-if hasattr(ob, "__class__")
+if hasfield(typeof(ob), :__class__)
 cls = HLIInstance
 else
 cls = HLIPythonObject
@@ -473,10 +473,10 @@ import commctrl
 mutable struct dynamic_browser <: Abstractdynamic_browser
 hier_list
 cs
-dt::Vector{Union{Vector{Union{Any, Tuple{Union{Int64, String}}, Tuple{Int64}, String}}, Vector{Union{Any, Tuple{Int64}, String}}}}
+dt::Vector{Union{Vector{Union{Any, Tuple{Int64}, String, Tuple{Union{Int64, String}}}}, Vector{Union{Any, Tuple{Int64}, String}}}}
 style
 
-            dynamic_browser(hli_root, cs = (((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) | commctrl.TVS_LINESATROOT) | commctrl.TVS_HASBUTTONS, dt::Vector{Union{Vector{Union{Any, Tuple{Union{Int64, String}}, Tuple{Int64}, String}}, Vector{Union{Any, Tuple{Int64}, String}}}} = [["Python Object Browser", (0, 0, 200, 200), style, nothing, (8, "MS Sans Serif")], ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs]], style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE) = begin
+            dynamic_browser(hli_root, cs = (((win32con.WS_CHILD | win32con.WS_VISIBLE) | commctrl.TVS_HASLINES) | commctrl.TVS_LINESATROOT) | commctrl.TVS_HASBUTTONS, dt::Vector{Union{Vector{Union{Any, Tuple{Int64}, String, Tuple{Union{Int64, String}}}}, Vector{Union{Any, Tuple{Int64}, String}}}} = [["Python Object Browser", (0, 0, 200, 200), style, nothing, (8, "MS Sans Serif")], ["SysTreeView32", nothing, win32ui.IDC_LIST1, (0, 0, 200, 200), cs]], style = win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE) = begin
                 dialog.Dialog.__init__(self, dt)
 HookMessage(on_size, win32con.WM_SIZE)
                 new(hli_root, cs , dt, style )

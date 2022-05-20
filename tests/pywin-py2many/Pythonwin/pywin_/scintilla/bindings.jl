@@ -1,7 +1,7 @@
 using OrderedCollections
 using PyCall
-win32ui = pyimport("win32ui")
 win32api = pyimport("win32api")
+win32ui = pyimport("win32ui")
 include("IDLEenvironment.jl")
 import string
 
@@ -124,7 +124,7 @@ function _get_IDLE_handler(self::BindingsManager, ext, handler)
 try
 instance = IDLEExtension(self.parent_view.idle, ext)
 name = replace(handler, "-", "_") + "_event"
-return getfield(instance, name
+return getfield(instance, :name)
 catch exn
 if exn isa (ImportError, AttributeError)
 msg = "Can not find event \'%s\' in IDLE extension \'%s\'" % (handler, ext)
@@ -137,7 +137,8 @@ end
 function fire(self::BindingsManager, event, event_param = nothing)::Int64
 binding = get(self.bindings, event)
 if binding === nothing
-handler = hasfield(self.parent_view, event + "Event"): getfield(self.parent_view, event + "Event" ? nothing
+handler = (hasfield(typeof(self.parent_view), :event+Event) ? 
+                getfield(self.parent_view, :event+Event) : nothing)
 if handler === nothing
 report_error(self, "The event name \'%s\' can not be found." % event)
 return 1
