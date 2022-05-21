@@ -19,6 +19,7 @@ import bisect
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
+from pyjl.helpers import get_func_def
 
 import pyjl.juliaAst as juliaAst
 
@@ -559,37 +560,20 @@ class JuliaTranspilerPlugins:
         return f"(x for x in {vargs[0]})"
 
     def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
-        func_def = JuliaTranspilerPlugins._get_func_def(node, vargs[0])
-        if func_def and hasattr(func_def, "annotation"):
-            annotation = get_id(func_def.annotation)
-            if annotation == "Generator":
-                decs = getattr(func_def, "parsed_decorators", None)
-                if RESUMABLE in decs:
-                    return f"{vargs[0]}({', '.split(vargs[1:])})" \
-                        if len(vargs) > 1 \
-                        else f"{vargs[0]}"
-                else:
-                    return f"take!({vargs[0]})"
+        func_def = get_func_def(node, vargs[0])
+        if get_id(getattr(func_def, "annotation", None)) == "Generator":
+            decs = getattr(func_def, "parsed_decorators", None)
+            if RESUMABLE in decs:
+                return f"{vargs[0]}({', '.split(vargs[1:])})" \
+                    if len(vargs) > 1 \
+                    else f"{vargs[0]}"
+            else:
+                return f"take!({vargs[0]})"
         # TODO: Is this valid? Is this undecidable?
         # else:
         #     getattr(node, "is_gen_expr", None)
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
-
-    def _get_func_def(node, name):
-        func_def = find_node_by_name_and_type(name, ast.FunctionDef, node.scopes)[0]
-        if func_def:
-            return func_def
-
-        assign = find_node_by_name_and_type(name, ast.Assign, node.scopes)[0]
-        if assign and (assign_val := assign.value):
-            assign_id = None
-            if assign_val and isinstance(assign_val, ast.Call):
-                assign_id = get_id(assign_val.func)
-            elif id:= get_id(assign_val):
-                assign_id = id
-            return find_node_by_name_and_type(assign_id, ast.FunctionDef, node.scopes)[0]
-        return None
 
     def visit_zip(t_self, node, vargs: list[str]):
         ls1 = node.args[0]

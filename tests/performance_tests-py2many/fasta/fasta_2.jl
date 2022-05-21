@@ -92,43 +92,53 @@ end
 
 function lcg(seed, im, ia, ic)
     Channel() do ch_lcg
-        local_seed = seed.value
-        try
-            while true
-                local_seed = (local_seed * ia + ic) % im
-                put!(ch_lcg, local_seed)
+        Channel() do ch_lcg
+            local_seed = seed.value
+            try
+                while true
+                    local_seed = (local_seed * ia + ic) % im
+                    put!(ch_lcg, local_seed)
+                end
+            finally
+                seed.value = local_seed
             end
-        finally
-            seed.value = local_seed
         end
     end
 end
 
 function lookup(probabilities, values)
     Channel() do ch_lookup
-        for value in values
-            put!(ch_lookup, bisect_right(probabilities, value))
+        Channel() do ch_lookup
+            for value in values
+                put!(ch_lookup, bisect_right(probabilities, value))
+            end
         end
     end
 end
 
 function lcg_lookup_slow(probabilities, seed, im, ia, ic)
-    lcg(seed, im, ia, ic) do prng
-        # Unsupported
-        @yield_from lookup(probabilities, prng)
+    Channel() do ch_lcg_lookup_slow
+        Channel() do ch_lcg_lookup_slow
+            lcg(seed, im, ia, ic) do prng
+                # Unsupported
+                @yield_from lookup(probabilities, prng)
+            end
+        end
     end
 end
 
 function lcg_lookup_fast(probabilities, seed, im, ia, ic)
     Channel() do ch_lcg_lookup_fast
-        local_seed = seed.value
-        try
-            while true
-                local_seed = (local_seed * ia + ic) % im
-                put!(ch_lcg_lookup_fast, bisect_right(probabilities, local_seed))
+        Channel() do ch_lcg_lookup_fast
+            local_seed = seed.value
+            try
+                while true
+                    local_seed = (local_seed * ia + ic) % im
+                    put!(ch_lcg_lookup_fast, bisect_right(probabilities, local_seed))
+                end
+            finally
+                seed.value = local_seed
             end
-        finally
-            seed.value = local_seed
         end
     end
 end

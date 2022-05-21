@@ -139,3 +139,21 @@ def _apply_prefix_and_suffix(name: str, prefix, suffix):
     if suffix:
         new_name = f"{name}_{suffix}"
     return new_name
+
+def get_func_def(node, name):
+    if not hasattr(node, "scopes"):
+        return None
+
+    func_def = find_node_by_name_and_type(name, ast.FunctionDef, node.scopes)[0]
+    if func_def:
+        return func_def
+
+    assign = find_node_by_name_and_type(name, ast.Assign, node.scopes)[0]
+    if assign and (assign_val := assign.value):
+        assign_id = None
+        if assign_val and isinstance(assign_val, ast.Call):
+            assign_id = get_id(assign_val.func)
+        elif id:= get_id(assign_val):
+            assign_id = id
+        return find_node_by_name_and_type(assign_id, ast.FunctionDef, node.scopes)[0]
+    return None

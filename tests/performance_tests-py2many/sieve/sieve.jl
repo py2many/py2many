@@ -1,3 +1,4 @@
+
 function sieve(n)::Int64
     primes = repeat([true], (n + 1))
     counter = 0
@@ -13,5 +14,5 @@ function sieve(n)::Int64
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    @assert(sieve(10000000) == 664579)
+    sieve(parse(Int, append!([PROGRAM_FILE], ARGS)[2]))
 end

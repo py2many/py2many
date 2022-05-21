@@ -50,22 +50,24 @@ end
 
 function read_sequences(file)
     Channel() do ch_read_sequences
-        for line in file
-            if line[1] == Int(codepoint('>'))
-                header = line
-                sequence = Vector{UInt8}()
-                for line in file
-                    if line[1] == Int(codepoint('>'))
-                        put!(ch_read_sequences, (header, sequence))
-                        header = line
-                        sequence = Vector{UInt8}()
-                    else
-                        sequence += line
+        Channel() do ch_read_sequences
+            for line in file
+                if line[1] == Int(codepoint('>'))
+                    header = line
+                    sequence = Vector{UInt8}()
+                    for line in file
+                        if line[1] == Int(codepoint('>'))
+                            put!(ch_read_sequences, (header, sequence))
+                            header = line
+                            sequence = Vector{UInt8}()
+                        else
+                            sequence += line
+                        end
                     end
+                    put!(ch_read_sequences, (header, sequence))
+                    has_break = true
+                    break
                 end
-                put!(ch_read_sequences, (header, sequence))
-                has_break = true
-                break
             end
         end
     end
@@ -78,8 +80,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     data = take!(s)
     @resumable function merge(v, g)
         @yield v
-        for v in g
-            @yield v
+        for w in g
+            @yield w
         end
     end
 

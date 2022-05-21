@@ -10,6 +10,8 @@ from py2many.inference import get_inferred_type
 
 from typing import Any, cast, Optional
 
+from py2many.scope import ScopeList
+
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
     def visit_Assign(self, node):
@@ -495,7 +497,8 @@ class UnitTestRewriter(ast.NodeTransformer):
                         args = [],
                         keywords = [],
                         lineno = l_no,
-                        col_offset = node.col_offset
+                        col_offset = node.col_offset,
+                        scopes = ScopeList()
                     )))
             l_no += 1
 
@@ -506,7 +509,8 @@ class UnitTestRewriter(ast.NodeTransformer):
                     args = [ast.Name(id = instance_name)],
                     keywords = [],
                     lineno = l_no,
-                    col_offset = node.col_offset))
+                    col_offset = node.col_offset),
+                    scopes = ScopeList())
                 l_no += 1
 
         # Update node.body

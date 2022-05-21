@@ -209,7 +209,8 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, optimization_rewriters, config_handler, args
+    trees, tree, transpiler, rewriters, transformers, post_rewriters, 
+    optimization_rewriters, config_handler, args
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -396,9 +397,9 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaDecoratorRewriter(), JuliaGeneratorRewriter(), JuliaMainRewriter()],
+        rewriters=[JuliaDecoratorRewriter(), JuliaMainRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges, find_ordered_collections],
-        post_rewriters=[JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
+        post_rewriters=[JuliaGeneratorRewriter(), JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
             JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
             ForLoopTargetRewriter(), JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), 
             JuliaModuleRewriter(), JuliaIORewriter(), JuliaArbitraryPrecisionRewriter()],

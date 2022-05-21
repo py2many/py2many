@@ -15,7 +15,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
-from pyjl.helpers import generate_var_name, get_ann_repr
+from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -370,7 +370,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     args = [],
                     keywords = [],
                     lineno = node.lineno,
-                    col_offset = node.col_offset)
+                    col_offset = node.col_offset,
+                    scopes = node.target.lineno)
 
                 if self._is_number(node.value) and isinstance(node.op, ast.Mult):
                     call.args.extend([node_target.value, node_target.slice, value])
@@ -395,7 +396,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 targets=[node_target],
                 value = value,
                 lineno=node.lineno,
-                col_offset=node.col_offset
+                col_offset=node.col_offset,
+                scopes = node.scopes
             )
 
         return self.generic_visit(node)
@@ -425,6 +427,13 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         super().__init__()
         self._nested_funcs = []
         self._replace_map: Dict = {}
+        self._replace_calls: Dict[str, ast.Call] = {}
+        self._sweep = False
+
+    def _visit_func_defs(self, node):
+        for n in node.body:
+            if isinstance(n, ast.FunctionDef):
+                self.visit(n)
 
     def visit_Name(self, node: ast.Name) -> Any:
         self.generic_visit(node)
@@ -433,6 +442,10 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_Module(self, node: ast.Module) -> Any:
+        # Reset state
+        self._replace_calls = {}
+        self._replace_map: Dict = {}
+
         body = []
         for n in node.body:
             b_node = self.visit(n)
@@ -444,18 +457,24 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 
             body.append(b_node)
 
+        # Sweep phase
+        self._sweep = True
+        self.generic_visit(node)
+        self._sweep = False
+        
+        # Update node body
         node.body = body
 
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        # self.generic_visit(node)
-        yield_node = find_in_scope(
-            node.body, lambda x: isinstance(x, ast.Yield))
+        if self._sweep:
+            body = list(map(lambda x: self.visit(x), node.body))
+            node.body = list(filter(lambda x: x is not None, body))
 
         body = []
 
-        # Check if function is resumable
+        # Check if function uses resumables
         is_resumable = lambda x: RESUMABLE in x.parsed_decorators
         
         node.n_body = []
@@ -474,6 +493,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             if n_visit:
                 body.append(n_visit)
 
+        # Update body
         node.body = body
 
         if is_resumable(node) and \
@@ -482,37 +502,29 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 "Function cannot have both @resumable and @channels decorators", 
                 node)
 
-        if yield_node and not is_resumable(node):
+        ann_id = get_id(getattr(node, "annotation", None))
+        if ann_id == "Generator" and not is_resumable(node):
             # Body contains yield and is not resumable function
-            node.returns_channel = True
             node.body = [
                 ast.With(
-                    items = [
-                        ast.withitem(
-                            context_expr = ast.Call(
-                                func=ast.Name(
-                                    id = "Channel",
-                                    lineno = node.lineno,
-                                    col_offset = node.col_offset),
-                                args = [],
-                                keywords = [],
-                                scopes = ScopeList(),
-                                lineno = node.lineno,
-                                col_offset = node.col_offset),
-                            optional_vars = ast.Name(
-                                id = f"ch_{node.name}",
-                                lineno = node.lineno,
-                                col_offset = node.col_offset)
-                        )
-                    ],
+                    items = [ast.withitem(
+                        context_expr = ast.Call(
+                            func=ast.Name(id = "Channel"),
+                            args = [],
+                            keywords = [],
+                            scopes = ScopeList(),
+                            lineno = node.lineno,
+                            col_offset = node.col_offset),
+                        optional_vars = ast.Name(id = f"ch_{node.name}"))],
                     body = node.body,
                     lineno = node.lineno,
-                    col_offset = node.col_offset)
-            ]
+                    col_offset = node.col_offset)]
 
         return node
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
+        if self._sweep:
+            return node
         self.generic_visit(node)
         parent = find_closest_scope(node.scopes)
         if isinstance(parent, ast.FunctionDef):
@@ -537,12 +549,15 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                         )],
                     orelse = [],
                     lineno = node.lineno,
-                    col_offset = node.col_offset)
+                    col_offset = node.col_offset,
+                    scopes = node.scopes)
                 return new_node
 
         return node
 
     def visit_With(self, node: ast.With) -> Any:
+        if self._sweep:
+            return node
         parent = node.scopes[-2]
         context_expr = node.items[0].context_expr
         # Bypass call to closing
@@ -567,30 +582,60 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     
     def visit_Call(self, node: ast.Call) -> Any:
         self.generic_visit(node)
-        parent = node.scopes[-1]
-        if get_id(node.func) in self.SPECIAL_FUNCTIONS and \
-                isinstance(node.args[0], ast.Call):
-            args0 = node.args[0]
-            args0_id = get_id(args0.func)
-            func_def = find_node_by_name_and_type(args0_id, ast.FunctionDef, node.scopes)[0]
-            if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "n_body"):
-                resumable_name = ast.Name(id=f"{args0_id}_")
-                resumable_assign = ast.Assign(
-                    targets = [resumable_name],
-                    value = ast.Call(
-                        func = ast.Name(id = get_id(args0.func)),
-                        args = [arg for arg in args0.args],
-                        keywords = [arg for arg in args0.keywords],
-                        # annotation = getattr(args0, "annotation", None),
-                        scopes = getattr(args0, "scopes", None),
-                    ),
-                    scopes = args0.scopes,
-                    lineno = node.lineno
-                )
-                node.args[0].func = resumable_name
-                node.args[0].args = []
-                parent.n_body.append(self.visit(resumable_assign))
+        if self._sweep:
+            if (id := get_id(node.func)) in self._replace_calls:
+                repl_call = self._replace_calls[id]
+                repl_call.lineno = node.lineno
+                repl_call.col_offset = node.col_offset
+                repl_call.scopes = getattr(node, "scopes", ScopeList())
+                return repl_call
+        else:
+            parent = node.scopes[-1]
+            if get_id(node.func) in self.SPECIAL_FUNCTIONS and \
+                    isinstance(node.args[0], ast.Call):
+                args0 = node.args[0]
+                args0_id = get_id(args0.func)
+                func_def = get_func_def(node, args0_id)
+                if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "n_body"):
+                    resumable_name = ast.Name(id=f"{args0_id}_")
+                    resumable_assign = ast.Assign(
+                        targets = [resumable_name],
+                        value = ast.Call(
+                            func = ast.Name(id = get_id(args0.func)),
+                            args = [arg for arg in args0.args],
+                            keywords = [arg for arg in args0.keywords],
+                            # annotation = getattr(args0, "annotation", None),
+                            scopes = getattr(args0, "scopes", None),
+                        ),
+                        scopes = args0.scopes,
+                        lineno = node.lineno
+                    )
+                    node.args[0].func = resumable_name
+                    node.args[0].args = []
+                    parent.n_body.append(self.visit(resumable_assign))
         return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
+        if self._sweep:
+            return node
+
+        name = get_id(node.value.value) \
+            if (isinstance(node.value, ast.Attribute) and
+                node.value.attr == "__next__") \
+            else get_id(node.value)
+        func_def = get_func_def(node, name)
+        if func_def and get_id(getattr(func_def, "annotation", None)) == "Generator" and \
+                RESUMABLE not in func_def.parsed_decorators:
+            self._replace_calls[get_id(node.targets[0])] = ast.Call(
+                func = node.value,
+                args = [],
+                keywords = [],
+                annotation = getattr(node.value, "annotation", None)
+            )
+            return None
+        return node
+
 
 # TODO: More a transformer than a rewriter
 class JuliaDecoratorRewriter(ast.NodeTransformer):
@@ -814,7 +859,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     keywords = [],
                     annotation = ast.Name(id="int"),
                     lineno = node.lineno,
-                    col_offset = node.col_offset),
+                    col_offset = node.col_offset,
+                    scopes = node.lower.scopes),
                 op = ast.Sub(),
                 right = node.lower.operand,
                 lineno = node.lineno,
@@ -979,12 +1025,12 @@ class JuliaIORewriter(ast.NodeTransformer):
             iter_ann = getattr(iter_node, "annotation", None)
             if get_id(iter_ann) == "BinaryIO":
                 # Julia IOBuffer cannot be read by line
-                iter_node = ast.Call(
+                node.iter = ast.Call(
                     func = ast.Name(id = "readlines"),
                     args = [ast.Name(id = get_id(node.iter))],
-                    keywords = []
+                    keywords = [],
+                    scopes = node.iter.scopes
                 )
-                node.iter = iter_node
         return node
 
 class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
@@ -1107,7 +1153,8 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
                     keywords = [],
                     lineno = lineno,
                     col_offset = col_offset,
-                    annotation = ann)
+                    annotation = ann,
+                    scopes = node.scopes)
         return node
 
 
@@ -1148,7 +1195,8 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                         value = default,
                         # annotation = ast.Name(id= "int"),
                         lineno = node.lineno - 1,
-                        col_offset = node.col_offset)
+                        col_offset = node.col_offset,
+                        scopes = n.scopes)
                 body.append(assign)
                 self._target_vals = []
 
@@ -1180,7 +1228,8 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                     annotation = annotation),
                 # annotation = annotation,
                 lineno = node.lineno + 1,
-                col_offset = node.col_offset)
+                col_offset = node.col_offset,
+                scopes = node.scopes)
             node.target.id = new_loop_id
             node.body.insert(0, new_var_assign)
         return node
@@ -1205,7 +1254,8 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                     return ast.Call(
                         func = ast.Name(id='set', ctx=ast.Load()),
                         args = [],
-                        keywords = [])
+                        keywords = [],
+                        scopes = iter.scopes)
         return None
 
 

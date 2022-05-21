@@ -1,3 +1,5 @@
+import sys
+
 # @offset_arrays # For PyJL
 def sieve(n):
     primes = [True] * (n+1)
@@ -11,4 +13,4 @@ def sieve(n):
     return counter
 
 if __name__ == "__main__":
-    assert sieve(10000000) == 664579
+    sieve(int(sys.argv[1]))
