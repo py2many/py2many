@@ -21,8 +21,8 @@ jobs:
       matrix:
         python-version: [ '3.8' ]
         os:
-          - ubuntu-20.04
-          - macos-10.15
+          - ubuntu-22.04
+          - macos-12
           - windows-2019
     runs-on: ${{ matrix.os }}
 
@@ -114,6 +114,7 @@ jobs:
                   astyle \
                   libc++-12-dev \
                   libc++abi-12-dev \
+                  libunwind-12-dev \
                 && true
               echo "CXX=clang++-12" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
