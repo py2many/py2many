@@ -7,7 +7,11 @@ from shutil import rmtree
 from unittest.mock import Mock
 
 from py2many.cli import _get_all_settings, _process_dir
-from py2many.exceptions import AstTypeNotSupported
+from py2many.exceptions import (
+    AstNotImplementedError,
+    AstTypeNotSupported,
+    AstUnrecognisedBinOp,
+)
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
@@ -45,6 +49,13 @@ def assert_only_reformat_failures(successful, format_errors, failures):
     assert successful
     assert not failures
     assert format_errors
+
+
+def assert_counts(
+    successful, format_errors, failures, format_error_count, failure_count
+):
+    assert len(format_errors) == format_error_count
+    assert len(failures) == failure_count
 
 
 class SelfTranspileTests(unittest.TestCase):
@@ -245,4 +256,30 @@ class SelfTranspileTests(unittest.TestCase):
             successful,
             format_errors,
             failures,
+        )
+
+    def test_vlang_recursive(self):
+        settings = self.SETTINGS["vlang"]
+        transpiler_module = ROOT_DIR / "pyv"
+
+        assert_some_failures(
+            *_process_dir(
+                settings,
+                transpiler_module,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
+            ),
+            expected_success={"clike.py"},
+        )
+        assert_counts(
+            *_process_dir(
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
+            ),
+            format_error_count=2,
+            failure_count=12,
         )
