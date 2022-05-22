@@ -601,13 +601,13 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                     resumable_assign = ast.Assign(
                         targets = [resumable_name],
                         value = ast.Call(
-                            func = ast.Name(id = get_id(args0.func)),
+                            func = ast.Name(id = args0_id),
                             args = [arg for arg in args0.args],
                             keywords = [arg for arg in args0.keywords],
                             # annotation = getattr(args0, "annotation", None),
                             scopes = getattr(args0, "scopes", None),
                         ),
-                        scopes = args0.scopes,
+                        scopes = getattr(args0, "scopes", None),
                         lineno = node.lineno
                     )
                     node.args[0].func = resumable_name

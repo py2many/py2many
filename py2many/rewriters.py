@@ -189,7 +189,9 @@ class FStringJoinRewriter(ast.NodeTransformer):
             elif isinstance(v, ast.FormattedValue):
                 arg0.elts.append(
                     ast.Call(
-                        func=ast.Name(id="str", ctx="Load"), args=[v.value], keywords=[]
+                        func=ast.Name(id="str", ctx="Load"), 
+                        args=[v.value], keywords=[],
+                        scopes = ScopeList()
                     )
                 )
         new_node.lineno = node.lineno
@@ -318,6 +320,7 @@ class StrStrRewriter(ast.NodeTransformer):
                     ret = ast.parse("findfirst(a, b) != Nothing").body[0].value
                     ret.left.args[0] = left
                     ret.left.args[1] = right
+                    ret.left.scopes = node.scopes
                 elif self._language == "go":
                     # To be rewritten to strings.Contains via plugins
                     ret = ast.parse("StringsContains(a, b)").body[0].value
@@ -334,6 +337,7 @@ class StrStrRewriter(ast.NodeTransformer):
                     ret.args[0] = left
                 ret.lineno = node.lineno
                 ast.fix_missing_locations(ret)
+                ret.scopes = ScopeList()
                 return ret
 
         return node
