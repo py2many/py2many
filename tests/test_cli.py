@@ -452,6 +452,11 @@ class CodeGeneratorTests(unittest.TestCase):
         if ENV.get(lang):
             env.update(ENV.get(lang))
 
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
+        if settings.formatter:
+            if not spawn.find_executable(settings.formatter[0]):
+                raise unittest.SkipTest(f"{settings.formatter[0]} not available")
+
         TEST_OUTPUT = f"{case}-{lang}-generated"
         EXPECTED_OUTPUT = f"{case}-{lang}-expected"
         case_dirname = ROOT_DIR / Path("tests/dir_cases") / case
