@@ -70,24 +70,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Check for runner dependencies (ACT)
-        if: ${{ env.ACT }}
-        shell: bash
-        run: |
-          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
-
       - name: Install V
         if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
-        shell: bash
-        env:
-          RELEASE: weekly.2022.13
-        run: |
-          FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip
-          (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE})
-          (cd /tmp && unzip ${FILE} || true) # unzip can return 1 without any errors for the Windows zip.
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            (cd /usr/local/bin && sudo ln -s /tmp/v/v)
-          fi
+        uses: vlang/setup-v@v1
+        with:
+          token: ${{ github.token }}
 
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2

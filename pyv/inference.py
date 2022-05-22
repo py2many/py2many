@@ -5,6 +5,7 @@ from typing import Dict
 
 from py2many.analysis import get_id
 from py2many.clike import class_for_typename
+from py2many.exceptions import AstUnrecognisedBinOp
 from py2many.inference import get_inferred_type, InferTypesTransformer
 
 
@@ -153,4 +154,4 @@ class InferVTypesTransformer(ast.NodeTransformer):
                 node.v_annotation = map_type("float")
                 return node
 
-            raise Exception(f"type error: {left_id} {type(node.op)} {right_id}")
+            raise AstUnrecognisedBinOp(left_id, right_id, node)
