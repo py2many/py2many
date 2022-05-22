@@ -26,12 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Check for runner dependencies
-        shell: bash
-        run: |
-          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
-
       - uses: actions/setup-java@v3
+        if: ${{ matrix.os != 'macos-10.15' }}
         with:
           distribution: adopt
           java-version: 15
@@ -56,6 +52,8 @@ jobs:
 
       - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
+        if: ${{ matrix.os != 'macos-10.15' }}
+
       - uses: jiro4989/setup-nim-action@v1
       - uses: actions/setup-go@v2
         # Needed as https://github.com/actions/setup-go/pull/89 is not merged
@@ -64,6 +62,12 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Check for runner dependencies (ACT)
+        if: ${{ env.ACT }}
+        shell: bash
+        run: |
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
 
       - name: Install V
         if: ${{ !env.WHICH_V }}
@@ -119,11 +123,18 @@ jobs:
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install clang-format kscript ktlint astyle
+              # https://github.com/holgerbrandl/homebrew-tap/issues/1 broke
+              # brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+              brew install clang-format astyle
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
+          echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install kscript (using sdkman)
+        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-20.04' }}
+        shell: bash
+        run: |
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install kscript
@@ -175,7 +186,9 @@ jobs:
         # sdkman init can be replaced with actions setup when the following is fixed
         # https://github.com/sdkman/sdkman-action/issues/8
         run: |
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          if [ -f $HOME/.sdkman/bin/sdkman-init.sh ]; then
+            source "$HOME/.sdkman/bin/sdkman-init.sh"
+          fi
           LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
