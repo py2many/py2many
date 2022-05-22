@@ -16,6 +16,7 @@ jobs:
 
     strategy:
       matrix:
+        python-version: [ '3.8' ]
         os:
           - ubuntu-20.04
           - macos-10.15
@@ -51,7 +52,8 @@ jobs:
 
       - uses: subosito/flutter-action@v1
         with:
-          channel: 'stable'
+          flutter-version: '2.10.5'
+
       - uses: julia-actions/setup-julia@v1
       - uses: fwilhe2/setup-kotlin@main
       - uses: jiro4989/setup-nim-action@v1
@@ -61,7 +63,8 @@ jobs:
           go-version: '1.15'
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: ${{ matrix.python-version }}
+
       - name: Install V
         if: ${{ !env.WHICH_V }}
         shell: bash
@@ -129,18 +132,24 @@ jobs:
         shell: bash
         run: |
           dart --version
+          flutter --version
+          set -ex
+
           # tests/build here must be the same as defined in test_cli
           if [[ ! -d tests/build ]]; then
             dart create --no-pub -t package-simple tests/build
+            cat tests/build/pubspec.yaml
           fi
+
           cd tests/build
-          if ! grep vnum pubspec.yaml ; then
+          if ! grep collection pubspec.yaml ; then
             # Specifying the version here doesnt stick
-            set -ex
             dart pub add collection:1.15.0
             cat pubspec.yaml
             dart pub add sprintf
             dart pub add tuple
+          fi
+          if ! grep vnum pubspec.yaml ; then
             cat pubspec.yaml
             sed -i.bak '/test:/d' pubspec.yaml
             # Force version downgrade here
