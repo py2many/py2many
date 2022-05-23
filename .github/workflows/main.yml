@@ -119,9 +119,8 @@ jobs:
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              # https://github.com/holgerbrandl/homebrew-tap/issues/1 broke
-              # brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install astyle clang-format cljstyle z3
+              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+              brew install astyle clang-format cljstyle kscript ktlint z3
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
