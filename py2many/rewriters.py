@@ -88,7 +88,7 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
             orig = [None] * len(target.elts)
             body = [node]
             for i in range(len(target.elts)):
-                temps.append(ast.Name(id=self._get_temp(), lineno=node.lineno))
+                temps.append(ast.Name(id=self._get_temp()))
                 # The irony!
                 target.elts[i], orig[i] = temps[i], target.elts[i]
                 body.append(
@@ -513,8 +513,8 @@ class UnitTestRewriter(ast.NodeTransformer):
                     args = [ast.Name(id = instance_name)],
                     keywords = [],
                     lineno = l_no,
-                    col_offset = node.col_offset),
-                    scopes = ScopeList())
+                    col_offset = node.col_offset,
+                    scopes = ScopeList()))
                 l_no += 1
 
         # Update node.body

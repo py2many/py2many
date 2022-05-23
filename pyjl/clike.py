@@ -240,7 +240,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         right = self.visit(node.comparators[0])
         return f"{left} in {right}"
 
-    def visit_NamedExpr(self, node) -> str:
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
     def visit_keyword(self, node: ast.keyword) -> Any:

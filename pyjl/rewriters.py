@@ -558,7 +558,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     def visit_With(self, node: ast.With) -> Any:
         if self._sweep:
             return node
-        parent = node.scopes[-2]
+        parent = node.scopes[-2] if len(node.scopes) >= 2 else None
         context_expr = node.items[0].context_expr
         # Bypass call to closing
         if isinstance(context_expr, ast.Call) and \
@@ -569,7 +569,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         if isinstance(context_expr, ast.Call):
             func_id = get_id(context_expr.func)
             func_def = find_node_by_name_and_type(func_id, ast.FunctionDef, node.scopes)[0]
-            if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "body"):
+            if func_def and RESUMABLE in func_def.parsed_decorators \
+                    and parent and hasattr(parent, "body"):
                 # Resumable functions cannot be called from annonymous functions
                 # https://github.com/BenLauwens/ResumableFunctions.jl/blob/master/docs/src/manual.md
                 prev = self._replace_map
@@ -590,13 +591,14 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 repl_call.scopes = getattr(node, "scopes", ScopeList())
                 return repl_call
         else:
-            parent = node.scopes[-1]
+            parent = node.scopes[-1] if len(node.scopes) >= 1 else None
             if get_id(node.func) in self.SPECIAL_FUNCTIONS and \
                     isinstance(node.args[0], ast.Call):
                 args0 = node.args[0]
                 args0_id = get_id(args0.func)
                 func_def = get_func_def(node, args0_id)
-                if func_def and RESUMABLE in func_def.parsed_decorators and hasattr(parent, "n_body"):
+                if func_def and RESUMABLE in func_def.parsed_decorators and \
+                        parent and hasattr(parent, "n_body"):
                     resumable_name = ast.Name(id=f"{args0_id}_")
                     resumable_assign = ast.Assign(
                         targets = [resumable_name],
@@ -1006,8 +1008,8 @@ class JuliaImportRewriter(ast.NodeTransformer):
             return None
         node.names = aliases
         # self.generic_visit(node)
-        parent = node.scopes[-1]
-        if not isinstance(parent, ast.Module):
+        parent = node.scopes[-1] if len(node.scopes) >= 1 else None
+        if parent and not isinstance(parent, ast.Module):
             self._nested_imports.append(node)
             return None
         return node
