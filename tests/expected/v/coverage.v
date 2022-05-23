@@ -1,3 +1,4 @@
+[translated]
 module main
 
 fn inline_pass() {
@@ -49,7 +50,7 @@ fn show() {
 	println((a5.len).str())
 	a9 := ['a', 'b', 'c', 'd']
 	println((a9.len).str())
-	a7 := map{
+	a7 := {
 		'a': 1
 		'b': 2
 	}

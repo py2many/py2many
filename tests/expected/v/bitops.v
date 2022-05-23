@@ -1,3 +1,4 @@
+[translated]
 module main
 
 fn main_func() {
@@ -6,9 +7,9 @@ fn main_func() {
 	mut xors := []bool{}
 	for a in [false, true] {
 		for b in [false, true] {
-			ands << ((a && b))
-			ors << ((a || b))
-			xors << ((a != b))
+			ands << (a && b)
+			ors << (a || b)
+			xors << (a != b)
 		}
 	}
 	assert ands == [false, false, false, true]

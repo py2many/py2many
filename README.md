@@ -155,3 +155,7 @@ rustc fib.rs
 
 
 
+# Contributing
+
+See [CONTRIBUTING.md](https://github.com/adsharma/py2many/blob/main/CONTRIBUTING.md)
+for how to test your changes and contribute to this project.

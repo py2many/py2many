@@ -1,7 +1,8 @@
+[translated]
 module main
 
 fn nested_containers() bool {
-	CODES := map{
+	CODES := {
 		'KEY': [1, 3]
 	}
 	return 1 in CODES['KEY']
