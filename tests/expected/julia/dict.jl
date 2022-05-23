@@ -1,16 +1,16 @@
 function implicit_keys()::Bool
     CODES = Dict("KEY" => 1)
-    return "KEY" in keys(CODES)
+    return "KEY" ∈ keys(CODES)
 end
 
 function explicit_keys()::Bool
     CODES = Dict("KEY" => 1)
-    return "KEY" in keys(CODES)
+    return "KEY" ∈ keys(CODES)
 end
 
 function dict_values()::Bool
     CODES = Dict("KEY" => 1)
-    return 1 in values(CODES)
+    return 1 ∈ values(CODES)
 end
 
 function return_dict_index_str(key::String)::Int64
@@ -23,7 +23,7 @@ function return_dict_index_int(key::Int64)::String
     return CODES[key]
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(implicit_keys())
     @assert(explicit_keys())
     @assert(dict_values())
@@ -31,5 +31,3 @@ function main()
     @assert(return_dict_index_int(1) == "one")
     println("OK")
 end
-
-main()

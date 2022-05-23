@@ -30,8 +30,8 @@ function mult_bool_and_string()::Int64
 end
 
 function mult_list_and_int()::Vector
-    a::Vector = []
-    for i in (0:9)
+    a::Vector{Int64} = []
+    for i = 0:9
         push!(a, i)
     end
     return repeat(a, 2)
@@ -44,10 +44,10 @@ function mult_tuple_and_int()
     @assert(mul_1 == mul_2)
 end
 
-function add_two_lists()::Vector
-    a::Vector = []
-    b::Vector = []
-    for i in (0:9)
+function add_two_lists()
+    a::Vector{Int64} = []
+    b::Vector{Int64} = []
+    for i = 0:9
         push!(a, i)
         push!(b, i)
     end
@@ -79,7 +79,7 @@ function nested_bin_op()::Int64
     return a * (10 + 20) + a * (2 + (4 + 8 * (6 + 3)) * 80)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(mult_int_and_int() == 4)
     @assert(mult_float_and_int() == 4.0)
     @assert(mult_string_and_int() == "testtest")
@@ -97,5 +97,3 @@ function main()
     @assert(nested_bin_op() == 61120)
     mult_tuple_and_int()
 end
-
-main()

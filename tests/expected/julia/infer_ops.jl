@@ -73,9 +73,7 @@ function show()
     println("OK")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     foo()
     show()
 end
-
-main()

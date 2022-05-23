@@ -1,5 +1,4 @@
 
-
 @async function nested()
     return 42
 end
@@ -14,15 +13,13 @@ end
         @async function writer()
             while isopen(sock)
                 data = wait(readline(sock))
-                wait(write_(sock, upper(data)))
+                wait(write(sock, upper(data)))
             end
         end
         wait(writer())
     end
 end
-function main()::Int64
+if abspath(PROGRAM_FILE) == @__FILE__
     run(asyncio, async_main())
     run(asyncio, echo_server())
 end
-
-main()

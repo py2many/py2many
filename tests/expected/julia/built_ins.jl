@@ -7,7 +7,7 @@ function default_builtins()
     @assert(c == 0)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     default_builtins()
     a = max(1, 2)
     @assert(a == 2)
@@ -15,5 +15,3 @@ function main()
     @assert(b == 1)
     println("OK")
 end
-
-main()

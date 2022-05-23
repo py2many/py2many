@@ -4,21 +4,20 @@ function inline_pass()
 end
 
 function inline_ellipsis()
-
 end
 
 function indexing()::Int64
     sum = 0
-    a::Vector = []
-    for i in (0:9)
+    a::Vector{Int64} = []
+    for i = 0:9
         push!(a, i)
-        sum = sum + a[i+1]
+        sum += a[i+1]
     end
     return sum
 end
 
 function infer_bool(code::Int64)::Bool
-    return code in [1, 2, 4]
+    return code ∈ [1, 2, 4]
 end
 
 function show()
@@ -33,13 +32,13 @@ function show()
     a2::Float64 = 2.1
     @assert(a2 == 2.1)
     res = []
-    for i in (0:9)
+    for i = 0:9
         push!(res, i)
     end
-    for i in (0:2:9)
+    for i = 0:2:9
         push!(res, i)
     end
-    for i in (1:9)
+    for i = 1:9
         push!(res, i)
     end
     @assert(res == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 2, 4, 6, 8, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -57,7 +56,7 @@ function show()
     @assert(length(a9) == 4)
     @assert(a9 == ["a", "b", "c", "d"])
     a6 = Set([1, 2, 3, 4])
-    i = iter(a6)
+    i = (x for x in a6)
     @assert(length(a6) == 4)
     @assert(next(i, nothing) == 1)
     @assert(next(i, nothing) == 2)
@@ -110,8 +109,6 @@ function show()
     @assert(_c4 == 3)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     show()
 end
-
-main()

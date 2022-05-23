@@ -5,12 +5,10 @@ function fib(i::Int64)::Int64
     return fib(i - 1) + fib(i - 2)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(fib(0) == 1)
     @assert(fib(1) == 1)
     @assert(fib(5) == 8)
     @assert(fib(30) == 1346269)
     println("OK")
 end
-
-main()

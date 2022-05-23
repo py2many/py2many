@@ -56,12 +56,10 @@ function boolean_literals()
     @assert(l4 == 0)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     string_literals()
     integer_literals()
     floating_point_literals()
     imaginary()
     boolean_literals()
 end
-
-main()

@@ -26,8 +26,6 @@ function show()::Vector
     return s
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(show() == ["foo", "Finally", "ZeroDivisionError", "foo_2"])
 end
-
-main()

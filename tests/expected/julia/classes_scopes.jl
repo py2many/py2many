@@ -4,9 +4,8 @@ function func()::String
 end
 
 mutable struct TestClass <: AbstractTestClass
-
 end
-function func(self::AbstractTestClass)::String
+function func(self::TestClass)::String
     return "test2"
 end
 
@@ -17,20 +16,17 @@ function test()
         return repeat(teststr, num)
     end
 
-    function inner_test_2()::String
-        num = 4
-        return repeat(teststr, num)
+    function inner_test_2(num)::String
+        return num * teststr
     end
 
     @assert(inner_test() == "testtest")
-    @assert(inner_test_2() == "testtesttesttest")
+    @assert(inner_test_2(4) == "testtesttesttest")
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(func() == "test")
     testClass = TestClass()
     @assert(func(testClass) == "test2")
     test()
 end
-
-main()

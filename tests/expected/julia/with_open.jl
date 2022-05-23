@@ -1,9 +1,9 @@
 using tempfile: NamedTemporaryFile
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     NamedTempFile::new() do temp_file
-        file_path = name(temp_file)
+        file_path = temp_file.name
         open(file_path, "w") do f
-            write_(f, "hello")
+            write(f, "hello")
         end
         open(file_path, "r") do f
             @assert(read(f, 1) == "h")
@@ -12,5 +12,3 @@ function main()
         end
     end
 end
-
-main()

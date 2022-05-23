@@ -21,7 +21,7 @@ end
 
 function mult_list_and_int()::Vector
     a = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
     end
     return repeat(a, 2)
@@ -30,7 +30,7 @@ end
 function add_two_lists()::Vector
     a = []
     b = []
-    for i in (0:9)
+    for i = 0:9
         push!(a, i)
         push!(b, i)
     end
@@ -72,7 +72,7 @@ function nested_bin_op()::Int64
     return a * (10 + 20) + a * (2 + (4 + 8 * (6 + 3)) * 80)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(mult_int_and_int() == 4)
     @assert(mult_float_and_int() == 4.0)
     @assert(mult_string_and_int() == "testtest")
@@ -89,5 +89,3 @@ function main()
     @assert(arithmetic_shift_left_int_and_int() == 4)
     @assert(nested_bin_op() == 61120)
 end
-
-main()

@@ -11,9 +11,7 @@ function complex_test()
     @assert(c6 == (3.7 + 8im))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     complex_test()
     println("OK")
 end
-
-main()

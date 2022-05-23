@@ -1,7 +1,8 @@
 function for_with_break()
     arr = []
-    for i in (0:3)
+    for i = 0:3
         if i == 2
+            has_break = true
             break
         end
         push!(arr, i)
@@ -11,7 +12,7 @@ end
 
 function for_with_continue()
     arr = []
-    for i in (0:3)
+    for i = 0:3
         if i == 2
             continue
         end
@@ -22,8 +23,12 @@ end
 
 function for_with_else()
     arr = []
-    for i in (0:3)
+    has_break = false
+    for i = 0:3
         push!(arr, i)
+    end
+    if has_break != true
+        push!(arr, 4)
     end
     @assert(arr == [0, 1, 2, 3, 4])
 end
@@ -33,6 +38,7 @@ function while_with_break()
     i = 0
     while true
         if i == 2
+            has_break = true
             break
         end
         push!(arr, i)
@@ -56,11 +62,11 @@ end
 
 function loop_range_test()
     arr1 = []
-    for i in (1:9)
+    for i = 1:9
         push!(arr1, i)
     end
     arr2 = []
-    num = (1:11)
+    num = 1:11
     for i in num
         push!(arr2, i)
     end
@@ -85,9 +91,9 @@ function loop_element_test()
 end
 
 function for_cycle_vars()
-    seq::Vector{Int64} = [1, 2, 3, 4, 5]
-    seq_copy::list = collect(seq)
-    for i in (0:length(seq)-1-1)
+    seq = [1, 2, 3, 4, 5]
+    seq_copy = collect(seq)
+    for i = 0:length(seq)-2
         @assert(seq[i+1] == seq_copy[i+1])
     end
     complex_list = [([1, 2], 3, 4)]
@@ -98,7 +104,7 @@ function for_cycle_vars()
         @assert(c == 4)
         arr = []
         a = 1
-        for j in (0:1)
+        for j = 0:1
             push!(arr, a)
             a += 1
         end
@@ -114,7 +120,7 @@ end
 
 function reversed_array()
     x = [1, 2, 3]
-    x = x[begin:end]
+    x = x[end:-1:begin]
     @assert(x == [3, 2, 1])
 end
 
@@ -127,37 +133,37 @@ end
 function inplace_ops()
     a = [1, 1]
     b = a
-    b = b + [3, 3]
+    b = append!(b, [3, 3])
     @assert(a == [1, 1, 3, 3])
     @assert(b == [1, 1, 3, 3])
 end
 
 function list_ops()
     a = Vector()
-    append(a, "test")
+    push!(a, "test")
     @assert(a == ["test"])
-    clear(a)
+    empty!(a)
     @assert(a == [])
     @assert(length(a) == 0)
-    append(a, "test1")
-    append(a, "test2")
-    remove(a, "test1")
+    push!(a, "test1")
+    push!(a, "test2")
+    deleteat!(a, findfirst(isequal("test1"), a))
     @assert(a == ["test2"])
     @assert(length(a) == 1)
-    clear(a)
-    append(a, "test")
+    empty!(a)
+    push!(a, "test")
     b = copy(a)
     @assert(b == a)
-    clear(a)
-    append(a, "test2")
-    append(a, "test2")
-    remove(a, "test2")
-    @assert(count(a, "test2") == 1)
-    clear(a)
-    append(a, "test1")
-    extend(a, b)
+    empty!(a)
+    push!(a, "test2")
+    push!(a, "test2")
+    deleteat!(a, findfirst(isequal("test2"), a))
+    @assert(count(isequal("test2"), a) == 1)
+    empty!(a)
+    push!(a, "test1")
+    append!(a, b)
     @assert(a == ["test1", "test"])
-    clear(a)
+    empty!(a)
     elems = ["1", "2", "3"]
     new_elems = []
     for e in elems
@@ -166,7 +172,7 @@ function list_ops()
     @assert(new_elems == ["11", "22", "33"])
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     for_with_break()
     for_with_continue()
     while_with_break()
@@ -178,5 +184,3 @@ function main()
     inplace_ops()
     list_ops()
 end
-
-main()

@@ -4,8 +4,6 @@ function test()
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     test()
 end
-
-main()

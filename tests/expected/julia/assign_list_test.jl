@@ -1,4 +1,4 @@
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     (a, b, c) = [1, 2, 3]
     @assert(a == 1)
     @assert(b == 2)
@@ -17,5 +17,3 @@ function main()
         @assert(m2 == 11)
     end
 end
-
-main()

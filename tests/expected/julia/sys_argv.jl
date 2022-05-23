@@ -1,6 +1,5 @@
 
-
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a::Vector{String} = append!([PROGRAM_FILE], ARGS)
     cmd::String = a[1]
     if cmd == "dart"
@@ -14,5 +13,3 @@ function main()
         println("OK")
     end
 end
-
-main()

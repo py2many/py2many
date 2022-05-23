@@ -4,9 +4,7 @@ code_a = "a"
 code_b = "b"
 l_b = Set([code_a])
 l_c = Dict(code_b => code_0)
-function main()
-    @assert("a" in l_b)
+if abspath(PROGRAM_FILE) == @__FILE__
+    @assert("a" ∈ l_b)
     println("OK")
 end
-
-main()

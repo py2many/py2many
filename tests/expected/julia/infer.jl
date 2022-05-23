@@ -14,9 +14,9 @@ function fibonacci(n)::Int64
     end
 end
 
-function mul_list()::Int64
+function mul_list()
     a::Vector = []
-    for i in (0:4)
+    for i = 0:4
         push!(a, i)
     end
     return repeat(a, 2)
@@ -32,14 +32,14 @@ function combinations(array)::Vector
     return result
 end
 
-function mul_recvd_list(a::list)
-    for i in (0:length(a)-1)
-        append(a, i)
+function mul_recvd_list(a::Vector)
+    for i = 0:length(a)-1
+        push!(a, i)
     end
-    return 2 * a
+    return repeat(a, 2)
 end
 
-function plus_test(x, y)
+function plus_test(x, y)::Any
     return x + y
 end
 
@@ -47,12 +47,12 @@ function plus_test(x::String, y::String)::String
     return x * y
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     foo()
     @assert(fibonacci(10) == 55)
     @assert((repeat("test", fibonacci(3))) == "testtest")
     a = []
-    a_mul = mul_recvd_list(convert(list, a))
+    a_mul = mul_recvd_list(a)
     @assert(a_mul == [])
     x = "ss"
     y = "zz"
@@ -60,5 +60,3 @@ function main()
     @assert(res == "sszz")
     println("OK")
 end
-
-main()

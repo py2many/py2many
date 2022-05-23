@@ -3,8 +3,8 @@ function test_python(iterations::Int64)
     iteration = 0
     total = float(0.0)
     array_length = 1000
-    array::Vector{Int64} = [i for i in (0:array_length-1)]
-    println("iterations", iterations)
+    array::Vector{Int64} = [i for i = 0:array_length-1]
+    println("iterations$(iterations)")
     while iteration < iterations
         innerloop = 0
         while innerloop < 100
@@ -19,8 +19,6 @@ function test_python(iterations::Int64)
     empty!(array)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     test_python(3)
 end
-
-main()

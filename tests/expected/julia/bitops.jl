@@ -1,8 +1,8 @@
 
-function main_func()
-    ands::Vector = []
-    ors::Vector = []
-    xors::Vector = []
+function main()
+    ands::Vector{Bool} = []
+    ors::Vector{Bool} = []
+    xors::Vector{Bool} = []
     for a in [false, true]
         for b in [false, true]
             push!(ands, a & b)
@@ -16,8 +16,6 @@ function main_func()
     println("OK")
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

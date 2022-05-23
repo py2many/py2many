@@ -1,7 +1,7 @@
 
 function bisect_right(data::Vector{Int64}, item::Int64)::Int64
     low = 0
-    high::Int64 = parse(Int, length(data))
+    high::Int64 = Int(length(data))
     while low < high
         middle = Int(floor((low + high) / 2))
         if item < data[middle+1]
@@ -16,15 +16,15 @@ end
 function bin_it(limits::Vector{Int64}, data::Vector{Int64})::Vector{Int64}
     bins = [0]
     for _x in limits
-        append(bins, 0)
+        push!(bins, 0)
     end
     for d in data
-        bins[bisect_right(limits, d)+1] = bins[bisect_right(limits, d)+1] + 1
+        bins[bisect_right(limits, d)+1] += 1
     end
     return bins
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     limits = [23, 37, 43, 53, 67, 83]
     data = [
         95,
@@ -81,5 +81,3 @@ function main()
     @assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13])
     println("OK")
 end
-
-main()

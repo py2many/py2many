@@ -1,10 +1,8 @@
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = [1, 2, 3]
     i = -1
     println(a[end])
-    for i in (-1:-1:-5)
+    for i = -3:-1:-1
         println(a[i+1])
     end
 end
-
-main()
