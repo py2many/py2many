@@ -41,7 +41,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
               cargo \
-              clang \
               clang-format \
               powershell \
               rustfmt \
@@ -112,11 +111,9 @@ jobs:
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes \
                   astyle \
-                  libc++-12-dev \
-                  libc++abi-12-dev \
-                  libunwind-12-dev \
+                  clang-14 \
                 && true
-              echo "CXX=clang++-12" >> $GITHUB_ENV
+              echo "CXX=clang++-14" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
