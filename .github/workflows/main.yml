@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - uses: actions/setup-java@v3
-        if: ${{ matrix.os != 'macos-10.15' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
         with:
           distribution: adopt
           java-version: 15
@@ -56,7 +56,7 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
       - uses: fwilhe2/setup-kotlin@main
-        if: ${{ matrix.os != 'macos-10.15' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
 
       - uses: jiro4989/setup-nim-action@v1
         if: ${{ !env.FOCUS || env.FOCUS == 'nim' }}
@@ -112,6 +112,7 @@ jobs:
               sudo apt-get install --yes \
                   astyle \
                   clang-14 \
+                  z3 \
                 && true
               echo "CXX=clang++-14" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
@@ -120,14 +121,14 @@ jobs:
           elif [ "$RUNNER_OS" == "macOS" ]; then
               # https://github.com/holgerbrandl/homebrew-tap/issues/1 broke
               # brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install clang-format astyle
+              brew install astyle clang-format cljstyle z3
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
           echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
 
       - name: Install kscript (using sdkman)
-        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-20.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
         shell: bash
         run: |
           curl -s "https://get.sdkman.io" | bash
@@ -169,7 +170,7 @@ jobs:
         run: cargo install cargo-script
 
       - name: Install smt dependencies
-        if: ${{ !env.FOCUS || env.FOCUS == 'smt' }}
+        if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" != "Windows" ]; then
