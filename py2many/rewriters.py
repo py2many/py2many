@@ -557,10 +557,12 @@ class ForElseRewriter(ast.NodeTransformer):
                 test = ast.Compare(
                     left = ast.Name(id=self._has_break_var_name),
                     ops = [ast.NotEq()],
-                    comparators = [ast.Constant(value=True, scopes = ScopeList())]),
+                    comparators = [ast.Constant(value=True, scopes = node.scopes)],
+                    scopes = node.scopes),
                 body = [oe for oe in node.orelse],
                 orelse = [],
-                lineno = lineno
+                lineno = lineno,
+                scopes = node.scopes
             )
             node.if_expr = if_expr
 

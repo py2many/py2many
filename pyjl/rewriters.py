@@ -727,6 +727,7 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                         scopes = node.test.scopes)],
                 lineno = node.test.lineno,
                 col_offset = node.test.col_offset,
+                scopes = node.scopes
             )
     
     def visit_Compare(self, node: ast.Compare) -> Any:
