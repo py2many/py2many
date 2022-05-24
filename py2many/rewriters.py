@@ -91,9 +91,9 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
                 temps.append(ast.Name(id=self._get_temp()))
                 # The irony!
                 target.elts[i], orig[i] = temps[i], target.elts[i]
-                body.append(
-                    ast.Assign(targets=[orig[i]], value=temps[i], lineno=node.lineno)
-                )
+                assign = ast.Assign(targets=[orig[i]], value=temps[i], scopes=node.scopes)
+                ast.fix_missing_locations(assign)
+                body.append(assign)
             return create_ast_block(body=body, at_node=node)
         return node
 
@@ -241,7 +241,8 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
             parent.docstring_comment = ast.Constant(
                 value = node.value,
                 lineno = node.lineno,
-                col_offset = node.col_offset)
+                col_offset = node.col_offset,
+                scopes = node.scopes)
             return None
         return node
 
@@ -362,7 +363,10 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
                     body.append(ast.Expr(value=node.value.elts[i]))
                     body[-1].unused = True
                     continue
-            body.append(ast.Assign(targets=[target.elts[i]], value=node.value.elts[i]))
+            assign = ast.Assign(targets=[target.elts[i]], value=node.value.elts[i], 
+                scopes=node.scopes)
+            ast.fix_missing_locations(assign)
+            body.append(assign)
         return create_ast_block(body=body, at_node=node)
 
     def visit_Assign(self, node):
@@ -493,17 +497,18 @@ class UnitTestRewriter(ast.NodeTransformer):
             #    ?<! --> negative lookbehind: asserts that string 
             #              is not equal to the beginning "^"
             instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
-            body.append(
-                ast.Assign(
-                    targets = [ast.Name(id=instance_name)],
-                    value = ast.Call(
-                        func = ast.Name(id = class_name, ctx = ast.Load()),
-                        args = [],
-                        keywords = [],
-                        lineno = l_no,
-                        col_offset = node.col_offset,
-                        scopes = ScopeList()
-                    )))
+            body.append(ast.Assign(
+                targets = [ast.Name(id=instance_name)],
+                value = ast.Call(
+                    func = ast.Name(id = class_name, ctx = ast.Load()),
+                    args = [],
+                    keywords = [],
+                    lineno = l_no,
+                    col_offset = node.col_offset,
+                    scopes = ScopeList()),
+                lineno = l_no,
+                col_offset = 0))
+                    
             l_no += 1
 
             # Create Function Calls
@@ -552,7 +557,7 @@ class ForElseRewriter(ast.NodeTransformer):
                 test = ast.Compare(
                     left = ast.Name(id=self._has_break_var_name),
                     ops = [ast.NotEq()],
-                    comparators = [ast.Constant(value=True)]),
+                    comparators = [ast.Constant(value=True, scopes = ScopeList())]),
                 body = [oe for oe in node.orelse],
                 orelse = [],
                 lineno = lineno
@@ -565,16 +570,18 @@ class ForElseRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         assign = ast.Assign(
             targets = [ast.Name(id=self._has_break_var_name)],
-            value = None # Fill up later
+            value = None, # Fill up later
+            scopes = node.scopes
         )
+        ast.fix_missing_locations(assign)
         body = []
         for n in node.body:
             if isinstance(n, ast.Break):
-                assign.value = ast.Constant(value=True)
+                assign.value = ast.Constant(value=True, scopes = ScopeList())
                 body.append(assign)
                 body.append(n)
             elif isinstance(n, ast.For) and hasattr(n, "if_expr"):
-                assign.value = ast.Constant(value=False)
+                assign.value = ast.Constant(value=False, scopes = ScopeList())
                 body.append(assign)
                 body.append(n)
                 body.append(n.if_expr)

@@ -143,9 +143,6 @@ def _transpile(
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
-        tree.__path__ = outdir
-        # information of all files (for import distiction)
-        tree.__files__ = filenames
         tree_list.append(tree)
     trees = toposort(tree_list)
     topo_filenames = [t.__file__ for t in trees]
@@ -382,14 +379,8 @@ def rust_settings(args, env=os.environ):
 
 def julia_settings(args, env=os.environ):
     format_jl = None
-    if sys.platform == "win32":
-        user = os.getlogin()
-        julia_version = "1.7.2" # TODO: Make an adjustable parameter
-        julia_path = f"C:/Users/{user}/AppData/Local/Programs/Julia-{julia_version}/bin/julia.exe"
-    else:
-        julia_path = "julia"
     if os.path.exists("pyjl/formatter"):
-        format_jl = [julia_path, "-O0", "--compile=min",
+        format_jl = ["julia", "-O0", "--compile=min",
                      "--startup=no", "pyjl/formatter/format_files.jl"]
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
@@ -399,8 +390,8 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[JuliaDecoratorRewriter(), JuliaMainRewriter()],
         transformers=[infer_julia_types, analyse_loop_scope, optimize_loop_ranges, find_ordered_collections],
-        post_rewriters=[JuliaGeneratorRewriter(), JuliaOrderedCollectionRewriter(), JuliaImportRewriter(), JuliaClassRewriter(), 
-            JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
+        post_rewriters=[JuliaImportRewriter(), JuliaGeneratorRewriter(), JuliaOrderedCollectionRewriter(), 
+            JuliaClassRewriter(), JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
             ForLoopTargetRewriter(), JuliaOffsetArrayRewriter(), JuliaIndexingRewriter(), 
             JuliaModuleRewriter(), JuliaIORewriter(), JuliaArbitraryPrecisionRewriter()],
         optimization_rewriters=[AlgebraicSimplification()]

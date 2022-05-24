@@ -25,13 +25,13 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._ignored_module_set = JL_IGNORED_MODULE_SET
-        self._modules = []
-        self._path = None
+        self._imports = []
+        self._file = None
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._modules = getattr(node, "__files__", [])
-        self._path = getattr(node, "__path__", ".")
+        self._file = getattr(node, "__file__", ".")
         self._use_modules = getattr(node, "use_modules", False)
+        self._imports = getattr(node, "imports", [])
         self.generic_visit(node)
         return node
 
@@ -45,7 +45,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             args += [self.visit(a) for a in node.args]
 
         fname = node.func
-        if isinstance(fname, ast.Attribute):
+        if isinstance(fname, ast.Attribute) and \
+                not is_class_or_module(get_id(fname.value), node.scopes):
             self._handle_special_cases(fname)
 
             value_id = get_id(fname.value)
@@ -98,7 +99,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             lineno=node.lineno,
             col_offset=node.col_offset,
             annotation = annotation,
-            scopes = node.scopes)
+            scopes = node.scopes,
+            is_attr = True)
 
         return node
 
@@ -136,13 +138,12 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     
     def _is_module(self, path: list[str]):
         path_str = os.sep.join(path)
-        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{path_str}.jl")
-        return is_file and path[-1] in self._modules
+        return path_str in self._imports
 
     def _is_dir(self, path: list[str]):
         path_str = os.sep.join(path)
-        is_file = os.path.isdir(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{path_str}")
-        return is_file and path[-1] in self._modules
+        is_file = os.path.isdir(f"{os.getcwd()}{os.sep}{self._file}{os.sep}{path_str}")
+        return is_file and path[-1] in self._imports
 
 
 class JuliaClassRewriter(ast.NodeTransformer):
@@ -187,11 +188,14 @@ class JuliaClassRewriter(ast.NodeTransformer):
                     ".")[0] if extends_lst else None
                 # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
-                extends = ast.Name(id=f"Abstract{extends_lst[0]}") \
-                    if extends_lst and core_module not in self._ignored_module_set \
-                    else None
+                extends = None
+                if extends_lst and core_module not in self._ignored_module_set:
+                    extends_name = f"Abstract{extends_lst[0]}" \
+                        if extends_lst[0] in self._hierarchy_map \
+                        else extends_lst[0]
+                    extends = ast.Name(id=f"{extends_name}") 
                 abstract_types.append(
-                    juliaAst.AbstractType(value=nameVal, extends=extends,
+                    juliaAst.AbstractType(value=nameVal, extends = extends,
                                           ctx=ast.Load(), lineno=l_no, col_offset=0))
                 # increment linenumber
                 l_no += 1
@@ -352,7 +356,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     op=node.op,
                     right=node.value,
                     lineno=node.lineno,
-                    col_offset=node.col_offset)
+                    col_offset=node.col_offset,
+                    scopes = node.value.scopes)
 
             node_target = node.target
             if isinstance(node.target, ast.Subscript):
@@ -381,7 +386,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     lower = old_slice.lower
                     upper = old_slice.upper
                     if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
-                        lower = ast.Constant(value = int(lower.value) + 1)
+                        lower = ast.Constant(value = int(lower.value) + 1, scopes = lower.scopes)
                     # else:
                     #     lower.splice_increment = True
                     new_slice = ast.Slice(
@@ -471,6 +476,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         if self._sweep:
             body = list(map(lambda x: self.visit(x), node.body))
             node.body = list(filter(lambda x: x is not None, body))
+            return node
 
         body = []
 
@@ -709,12 +715,12 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                 ops = [ast.NotEq()],
                 comparators = [
                     ast.Constant(
-                        0, 
+                        0,
                         lineno = node.test.lineno,
-                        col_offset = node.test.col_offset)
-                    ],
+                        col_offset = node.test.col_offset,
+                        scopes = node.test.scopes)],
                 lineno = node.test.lineno,
-                col_offset = node.test.col_offset
+                col_offset = node.test.col_offset,
             )
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
@@ -739,7 +745,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._curr_slice_val = None
-        self._imports = []
 
     def visit_Module(self, node: ast.Module) -> Any:
         imports = getattr(node, "imports", [])
@@ -760,7 +765,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         if hasattr(node, "is_annotation"):
             return node
 
-
         self._curr_slice_val = node.value
         self.generic_visit(node)
         self._curr_slice_val = None
@@ -771,8 +775,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 isinstance(node.slice.operand, ast.Constant):
             end_val = ast.Name(
                     id = "end",
-                    lineno = node.lineno,
-                    col_offset = node.col_offset,
                     annotation = ast.Name(id="int"),
                     preserve_keyword = True)
             if node.slice.operand.value == 1:
@@ -782,7 +784,9 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     left = end_val,
                     op = ast.Sub(),
                     right = ast.Constant(value = node.slice.operand.value - 1),
-                    annotation = ast.Name(id = "int")
+                    annotation = ast.Name(id = "int"),
+                    lineno = node.lineno, col_offset = node.col_offset,
+                    scopes = node.slice.scopes
                 )
 
         if not self._is_dict(node) and \
@@ -816,9 +820,16 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                         node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
                             node.lineno, node.col_offset)
             else:
-                if call_id in self.SPECIAL_FUNCTIONS:
-                    node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
-                        node.lineno, node.col_offset)
+                if call_id in self.SPECIAL_FUNCTIONS and \
+                        call_id in self._imports:
+                    # Get corresponding assignment
+                    assign_node = find_node_by_name_and_type(get_id(node.value), ast.Assign, node.scopes)[0]
+                    if assign_node and isinstance(assign_node.value, ast.Call) and \
+                            get_id(assign_node.value.func) == "OffsetArray":
+                        dec = assign_node.value.args[1]
+                        dec = -dec.value if dec.value < 0 else dec.value
+                        node.slice = self._do_bin_op(node.slice, ast.Sub(), dec,
+                            node.lineno, node.col_offset)
 
         return node
 
@@ -866,7 +877,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 op = ast.Sub(),
                 right = node.lower.operand,
                 lineno = node.lineno,
-                col_offset = node.col_offset)
+                col_offset = node.col_offset,
+                scopes = node.lower.scopes)
 
         # Julia array indices start at 1
         if isinstance(node.lower, ast.Constant) and node.lower.value == -1:
@@ -932,9 +944,11 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     op = op,
                     right = ast.Constant(
                         value = val, 
-                        annotation = ast.Name(id= "int")),
+                        annotation = ast.Name(id= "int"),
+                        scopes = node.scopes),
                     lineno = lineno,
-                    col_offset = col_offset
+                    col_offset = col_offset,
+                    scopes = node.scopes
                 )
 
     def _is_dict(self, node):
@@ -1151,7 +1165,8 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
                     func = ast.Name(id=func_name),
                     args = [ast.Constant(
                         value = node.value,
-                        annotation = ann)],
+                        annotation = ann,
+                        scopes = node.scopes)],
                     keywords = [],
                     lineno = lineno,
                     col_offset = col_offset,
@@ -1239,15 +1254,15 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
     def _get_default_val_from_iter(self, node: ast.For):
         iter = node.iter
         if isinstance(iter, ast.Call) and get_id(iter.func) == "range":
-            return ast.Constant(value = 0)
+            return ast.Constant(value = 0, scopes = iter.scopes)
         if id := get_id(iter):
             n = node.scopes.find[id]
             ann = node.annotation if hasattr(node, "annotation") else getattr(n, "annotation", None)
             if ann_id := get_id(ann):
                 if ann_id == "int":
-                    return ast.Constant(value = 0)
+                    return ast.Constant(value = 0, scopes = iter.scopes)
                 if ann_id == "float":
-                    return ast.Constant(value = 0.0)
+                    return ast.Constant(value = 0.0, scopes = iter.scopes)
                 if ann_id.startswith("list") or ann_id.startswith("List"):
                     return ast.List(elts=[], ctx=ast.Load())
                 if ann_id.startswith("Dict"):
@@ -1513,14 +1528,13 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
     def _build_offset_array_call(self, list_arg, annotation, lineno, col_offset, scopes):
         return ast.Call(
-                func = ast.Name(id="OffsetArray"),
-                args = [list_arg, ast.Constant(-1)],
-                keywords = [],
-                annotation = annotation,
-                lineno = lineno,
-                col_offset = col_offset, 
-                scopes = scopes
-            )
+            func = ast.Name(id="OffsetArray"),
+            args = [list_arg, ast.Constant(value=-1, scopes=scopes)],
+            keywords = [],
+            annotation = annotation,
+            lineno = lineno,
+            col_offset = col_offset, 
+            scopes = scopes)
 
     def _create_parent(self, node, lineno, col_offset):
         # TODO: Unreliable annotations when calling parent

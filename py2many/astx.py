@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import List, Optional, Tuple
 
-
 class LifeTime(IntEnum):
     UNKNOWN = 0
     STATIC = 1
@@ -50,3 +49,5 @@ class ASTx(ast.AST):
     lhs: bool = False
     scopes: List["ASTx"] = field(default_factory=list)
     id: Optional[str] = None
+
+

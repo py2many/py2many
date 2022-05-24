@@ -1,6 +1,7 @@
 import argparse
 from bisect import bisect, bisect_left, bisect_right
 import contextlib
+import importlib
 import io
 import itertools
 import math
@@ -16,6 +17,7 @@ import sys
 import traceback
 import unittest
 import bisect
+import zipfile
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -36,11 +38,7 @@ except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
-########################################################
-# External imports
-import pandas
-import pandas.core.groupby.generic
-########################################################
+
 
 
 class JuliaTranspilerPlugins:
@@ -564,9 +562,12 @@ class JuliaTranspilerPlugins:
         if get_id(getattr(func_def, "annotation", None)) == "Generator":
             decs = getattr(func_def, "parsed_decorators", None)
             if RESUMABLE in decs:
-                return f"{vargs[0]}({', '.split(vargs[1:])})" \
-                    if len(vargs) > 1 \
-                    else f"{vargs[0]}"
+                if len(vargs) > 1:
+                    return f"{vargs[0]}({', '.split(vargs[1:])})"
+                elif getattr(node, "is_attr", None):
+                    return f"{vargs[0]}" 
+                else :
+                    return f"{vargs[0]}()"
             else:
                 return f"take!({vargs[0]})"
         # TODO: Is this valid? Is this undecidable?
@@ -707,6 +708,11 @@ class JuliaTranspilerPlugins:
             varg = f"{val2}{varg}"
         return varg
 
+    def visit_import_module(t_self, node, vargs):
+        # Try to split 'path' from 'name'
+        path, name = os.path.split(vargs[0])
+        return f"@eval @from {path} import Symbol({name})"
+
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
@@ -806,39 +812,6 @@ class InitFunctionRewriter(ast.NodeTransformer):
         return node
 
 
-########################################################
-class JuliaExternalModulePlugins:
-    def visit_pycomm(t_self, node: ast.Call):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "pythoncom")
-
-    def visit_pywintypes(t_self, node: ast.Call):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
-
-    def visit_datetime(t_self, node: ast.Call):
-        # https://github.com/JuliaPy/PyCall.jl/issues/341
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "datetime")
-
-    def visit_win32api(t_self, node: ast.Call):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32api")
-
-    def visit_win32ui(t_self, node):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")    
-
-    def _pycall_import(t_self, node: ast.Call, mod_name: str):
-        t_self._usings.add("PyCall")
-        import_stmt = f"{mod_name} = pyimport(\"{mod_name}\")"
-        t_self._globals.add(import_stmt)
-    
-    def visit_pandas(t_self, node: ast.Call):
-        t_self._usings.add("Pandas")
-
-    def visit_getopt(t_self, node: ast.Call):
-        t_self._usings.add("Getopt")
-
-    def visit_zipfile(t_self, node: ast.Call):
-        t_self._usings.add("ZipFile")
-
-
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -890,16 +863,6 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 }
 
 IMPORT_DISPATCH_TABLE = {
-    "bisect": lambda t_self, node: t_self._usings.add("BisectPy"),
-    ########################################################
-    "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
-    "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
-    "datetime": JuliaExternalModulePlugins.visit_datetime,
-    "pandas": JuliaExternalModulePlugins.visit_pandas,
-    "win32api": JuliaExternalModulePlugins.visit_win32api,
-    "win32ui": JuliaExternalModulePlugins.visit_win32ui,
-    "getopt": JuliaExternalModulePlugins.visit_getopt,
-    "zipfile": JuliaExternalModulePlugins.visit_zipfile,
 }
 
 DECORATOR_DISPATCH_TABLE = {
@@ -972,6 +935,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
+    io.BytesIO: (lambda self, node, vargs: f"IOBuffer({vargs[0]})", True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     pathlib.Path.cwd: (lambda self, node, vargs: "pwd()", True),
@@ -1024,11 +988,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     hasattr: (JuliaTranspilerPlugins.visit_hasattr , False),
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ord: (JuliaTranspilerPlugins.visit_ord, False),
-    ########################################################
-    pandas.read_csv: (lambda self, node, vargs: f"read_csv({vargs[1]})", False),
-    pandas.DataFrame.groupby: (lambda self, node, vargs: f"groupby({vargs[1]})", False),
-    pandas.DataFrame.to_excel: (lambda self, node, vargs: f"to_excel({vargs[1]})", False),
-    pandas.core.groupby.generic.DataFrameGroupBy.sum: (lambda self, node, vargs: f"sum({vargs[0]})", False),
+    # Path
+    os.path.split: (lambda self, node, vargs: f"splitdir({vargs[0]})", True),
+    # importlib
+    importlib.import_module: (JuliaTranspilerPlugins.visit_import_module, False),
+    # importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
 }
 
 # Dispatches special Functions

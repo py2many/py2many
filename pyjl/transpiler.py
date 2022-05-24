@@ -91,7 +91,7 @@ class JuliaTranspiler(CLikeTranspiler):
         self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
         self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
         self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
-        self._special_method_table = self.SPECIAL_METHOD_TABLE    
+        self._special_method_table = self.SPECIAL_METHOD_TABLE
 
     def comment(self, text: str) -> str:
         return f"#= {text} =#"
@@ -637,23 +637,41 @@ class JuliaTranspiler(CLikeTranspiler):
                 import_names = f"using {module_name}: {', '.join(names)}"
                 return "\n".join([import_str, import_names])
             else:
-                # If we import a file that defines no module, we cannot use "using" statement
-                import_stmts = []
-                for imp in imports:
-                    import_stmts.append(f"import {imp}")
-                return "\n".join(import_stmts)
+                # If it imports a file that defines no module, just use "include"
+                return import_str
 
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
     def _get_import_str(self, name: str):
         path = name.split(".")
-        is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._path}{os.sep}{os.sep.join(path)}.jl")
-        if is_file and path[-1] in self._modules:
+        path_str = self._parse_path(name)
+        # is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._filename}{os.sep}{os.sep.join(path)}.jl")
+        is_file = os.path.isfile(f"{path_str}.py")
+        if is_file:
             sep = "/"
             path_str = sep.join(path)
             return f'include(\"{path_str}.jl\")'
         return None
+
+    def _parse_path(self, import_name: str) -> str:
+        cwd = os.getcwd().split(os.sep)
+        out_path = self._filename.as_posix().split("/")
+        path = import_name.split(".")
+        indexes = [idx for idx, elem in enumerate(out_path) if elem in path]
+        if indexes and (idx := indexes[0]) < len(out_path):
+            full_path = cwd + out_path[0:idx] + path
+        else:
+            full_path = cwd + out_path + path
+        parsed_path = []
+        i = 0
+        while i < len(full_path):
+            if i+1 < len(full_path) and full_path[i+1] == "..":
+                i+=2
+            else:
+                parsed_path.append(full_path[i])
+                i+=1
+        return os.sep.join(parsed_path)
 
     def visit_List(self, node:ast.List) -> str:
         elts = self._parse_elts(node)

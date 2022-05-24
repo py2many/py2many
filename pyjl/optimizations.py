@@ -61,12 +61,17 @@ class AlgebraicSimplification(ast.NodeTransformer):
                 if isinstance(node.left.op, ast.USub) and \
                         isinstance(node.left.operand, ast.Constant):
                     return ast.Constant(
-                        value = (-node.left.operand.value + node.right.value))
+                        value = (-node.left.operand.value + node.right.value),
+                        scopes = node.left.scopes)
             if isinstance(node.left, ast.Constant) \
                     and isinstance(node.right, ast.Constant):
                 if isinstance(node.op, ast.Sub):
-                    return ast.Constant(node.left.value - node.right.value)
+                    return ast.Constant(
+                        value=node.left.value - node.right.value,
+                        scopes = node.left.scopes)
                 elif isinstance(node.op, ast.Add):
-                    return ast.Constant(node.left.value + node.right.value)
+                    return ast.Constant(
+                        value=node.left.value + node.right.value,
+                        scopes = node.left.scopes)
 
         return node
