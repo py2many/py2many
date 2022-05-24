@@ -74,7 +74,9 @@ jl_symbols = {
     ast.In: "∈",
     ast.NotIn: "∉",
     ast.Eq: "==",
-    ast.FloorDiv: "÷"
+    ast.FloorDiv: "÷",
+    ast.Is: "===",
+    ast.IsNot: "!=="
 }
 
 JL_IGNORED_MODULE_SET = set([
@@ -99,6 +101,7 @@ JL_IGNORED_MODULE_SET = set([
     "binascii",
     "traceback",
     "types",
+    "io"
 ])
 
 JULIA_TYPE_MAP = {

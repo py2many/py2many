@@ -27,11 +27,12 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         self._ignored_module_set = JL_IGNORED_MODULE_SET
         self._imports = []
         self._file = None
+        self._use_modules = None
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._file = getattr(node, "__file__", ".")
-        self._use_modules = getattr(node, "use_modules", False)
-        self._imports = getattr(node, "imports", [])
+        self._use_modules = getattr(node, USE_MODULES, None)
+        self._imports = list(map(get_id, getattr(node, "imports", [])))
         self.generic_visit(node)
         return node
 
@@ -45,21 +46,26 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             args += [self.visit(a) for a in node.args]
 
         fname = node.func
-        if isinstance(fname, ast.Attribute) and \
-                not is_class_or_module(get_id(fname.value), node.scopes):
-            self._handle_special_cases(fname)
+        if isinstance(fname, ast.Attribute):
+            if get_id(fname.value) in self._imports and not self._use_modules:
+                # Handle separate module call when Julia defines no 'module'
+                new_func_name = fname.attr
+                node.func = ast.Name(
+                    id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+            elif not is_class_or_module(get_id(fname.value), node.scopes):
+                self._handle_special_cases(fname)
 
-            value_id = get_id(fname.value)
-            if value_id:
-                node0 = ast.Name(id=value_id, lineno=node.lineno)
-            else:
-                node0 = fname.value
+                value_id = get_id(fname.value)
+                if value_id:
+                    node0 = ast.Name(id=value_id, lineno=node.lineno)
+                else:
+                    node0 = fname.value
 
-            args = [node0] + node.args
+                args = [node0] + node.args
 
-            new_func_name = fname.attr
-            node.func = ast.Name(
-                id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+                new_func_name = fname.attr
+                node.func = ast.Name(
+                    id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
         node.args = args
         return self.generic_visit(node)

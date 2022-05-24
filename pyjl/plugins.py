@@ -17,7 +17,6 @@ import sys
 import traceback
 import unittest
 import bisect
-import zipfile
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -37,8 +36,6 @@ try:
 except ImportError:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
-
-
 
 
 class JuliaTranspilerPlugins:
@@ -708,10 +705,22 @@ class JuliaTranspilerPlugins:
             varg = f"{val2}{varg}"
         return varg
 
-    def visit_import_module(t_self, node, vargs):
+    def visit_import(t_self, node, vargs):
         # Try to split 'path' from 'name'
         path, name = os.path.split(vargs[0])
         return f"@eval @from {path} import Symbol({name})"
+
+    def visit_makedirs(t_self, node: ast.Call, vargs):
+        parsed_args = []
+        # Ignore "exist_ok" parameter
+        node_args = node.args if len(node.args) <= 2 else node.args[:2]
+        for arg in node_args:
+            parsed_args.append(t_self.visit(arg))
+        accepted_keywords = set(["mode"])
+        for keyword in node.keywords:
+            if arg in accepted_keywords:
+                parsed_args.append(t_self.visit(keyword))
+        return f"mkpath({', '.join(parsed_args)})"
 
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
@@ -989,10 +998,18 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ord: (JuliaTranspilerPlugins.visit_ord, False),
     # Path
-    os.path.split: (lambda self, node, vargs: f"splitdir({vargs[0]})", True),
+    os.path.split: (lambda self, node, vargs: f"splitdir({vargs[0]})", False),
+    os.path.join: (lambda self, node, vargs: f"joinpath({', '.join(vargs)})", False),
+    os.path.dirname: (lambda self, node, vargs: f"dirname({', '.join(vargs)})", False),
+    os.makedirs: (JuliaTranspilerPlugins.visit_makedirs, False),
+    os.remove: (lambda self, node, vargs: f"rm({vargs[0]})", False),
+    os.unlink: (lambda self, node, vargs: f"rm({vargs[0]})", False),
+    os.path.isdir: (lambda self, node, vargs: f"isdir({vargs[0]})", False),
+    os.path.exists: (lambda self, node, vargs: f"ispath({vargs[0]})", False), # TODO: Is tghis too generic? 
     # importlib
-    importlib.import_module: (JuliaTranspilerPlugins.visit_import_module, False),
-    # importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
+    importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
+    importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),
+    importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
 }
 
 # Dispatches special Functions

@@ -169,7 +169,9 @@ class GUIProgress(SimpleProgress):
     def Starting(self, tlb_desc):
         SimpleProgress.Starting(self, tlb_desc)
         if self.dialog is None:
-            from win32com_.gen_py.dialogs import status
+            # Changed
+            # from win32com_.gen_py.dialogs import status
+            from win32com_.ext_modules import status
 
             self.dialog = status.ThreadedStatusProgressDialog(tlb_desc)
         else:
