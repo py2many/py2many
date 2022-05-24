@@ -11,8 +11,7 @@ def test():
     def inner_test():
         return num*teststr
     
-    def inner_test_2(num):
-        # num: int = 4 # fails with annotation (pyjl)
+    def inner_test_2(num: int):
         return num*teststr
     
     assert inner_test() == "testtest"

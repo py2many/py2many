@@ -67,8 +67,12 @@ Examples:
 """
 
 import sys, os, importlib, pythoncom
-from win32com_.client import genpy, selecttlb, gencache
-from win32com_.client import Dispatch
+
+# Changed
+# from win32com_.client import genpy, selecttlb, gencache
+from . import genpy, selecttlb, gencache
+# from win32com_.client import Dispatch
+from __init__ import Dispatch
 
 bForDemandDefault = 0  # Default value of bForDemand - toggle this to change the world - see also gencache.py
 

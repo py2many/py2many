@@ -1,15 +1,15 @@
 import win32ui
 import win32api
-import commctrl
 import pythoncom
 from win32com_.gen_py.mfc import dialog
 
 # Changed
 import win32com_.ext_modules.win32con as win32con
+# import commctrl
+from tools import commctrl
 
 class TLBrowserException(Exception):
     "TypeLib browser internal error"
-
 
 error = TLBrowserException
 

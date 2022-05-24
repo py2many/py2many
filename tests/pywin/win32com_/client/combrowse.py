@@ -596,7 +596,8 @@ class HLIHeadingRegisterdTypeLibs(HLICOM):
 
 
 def main(modal=False):
-    from win32com_.gen_py.tools import hierlist
+    # Unnecessary import
+    # from win32com_.client.tools import hierlist
 
     root = HLIRoot("COM Browser")
     if "app" in sys.modules:

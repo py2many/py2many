@@ -310,7 +310,6 @@ class CDispatch:
             )
         except pythoncom.com_error:
             return None  # no enumerator for this object.
-        # import win32com__.client.util
         import win32com_.client.util
 
         return win32com_.client.util.WrapEnum(enum, None)
@@ -568,7 +567,8 @@ class CDispatch:
                     self.ob = ob
 
                 def __call__(self):
-                    import util
+                    # import util
+                    from . import util
 
                     return util.Iterator(self.ob)
 

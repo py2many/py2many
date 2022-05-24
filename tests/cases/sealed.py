@@ -17,6 +17,7 @@ class Register:
 
 if __name__ == "__main__":
     a = Register.VALUE(10)
+    print(a)
     assert a.is_value()
     a.value()
     # assert a.value() == 10
