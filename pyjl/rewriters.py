@@ -10,7 +10,7 @@ from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum
-from py2many.analysis import IGNORED_MODULE_SET
+from py2many.analysis import IGNORED_MODULE_SET, is_mutable
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
@@ -722,6 +722,23 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                 lineno = node.test.lineno,
                 col_offset = node.test.col_offset,
             )
+    
+    def visit_Compare(self, node: ast.Compare) -> Any:
+        # Julia comparisons with 'None' or mutable vars use Henry Baker's EGAL predicate
+        # https://stackoverflow.com/questions/38601141/what-is-the-difference-between-and-comparison-operators-in-julia
+        self.generic_visit(node)
+        find_none = lambda x: isinstance(x, ast.Constant) and x.value == None
+        comps_none = next(filter(find_none, node.comparators), None)
+        mutable_comps = next(filter(lambda x: is_mutable(node.scopes, get_id(x)), node.comparators), None)
+        mutable_left = is_mutable(node.scopes, get_id(node.left))
+        if find_none(node.left) or comps_none or \
+                mutable_comps or mutable_left:
+            for i in range(len(node.ops)):
+                if isinstance(node.ops[i], ast.Eq):
+                    node.ops[i] = ast.Is()
+                elif isinstance(node.ops[i], ast.NotEq):
+                    node.ops[i] = ast.IsNot()
+        return node
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
     """Translates Python's 1-based indexing to Julia's 

@@ -322,10 +322,6 @@ class JuliaTranspiler(CLikeTranspiler):
                     if value_type and value_type[0] == "Dict":
                         comp_str = f"keys({comp_str})"
 
-            if ((isinstance(op, ast.Eq) or isinstance(op, ast.Is))
-                    and (is_mutable(node.scopes, comp_str) or comp_str == self._none_type)):
-                op_str = "==="
-
             # Isolate composite operations
             if isinstance(comparator, ast.BinOp) or isinstance(comparator, ast.BoolOp):
                 comp_str = f"({comp_str})"
