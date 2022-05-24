@@ -8,6 +8,7 @@ from py2many.ast_helpers import get_id
 import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
+from py2many.external_modules import import_external_modules
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
@@ -98,13 +99,6 @@ JL_IGNORED_MODULE_SET = set([
     "binascii",
     "traceback",
     "types",
-    ########################################################
-    "pythoncom",
-    "pywintypes",
-    "datetime",
-    "pandas",
-    "win32api",
-    "win32ui",
 ])
 
 JULIA_TYPE_MAP = {
@@ -158,12 +152,6 @@ CONTAINER_TYPE_MAP = {
     bytearray: f"Vector{{Int8}}",
 }
 
-########################################################
-EXTERNAL_TYPE_MAP = {
-    BinaryIO: "IOBuffer"
-}
-
-
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
     symbol_type = type(node)
@@ -178,10 +166,14 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._none_type = NONE_TYPE
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
-        self._external_type_map = EXTERNAL_TYPE_MAP
-        self._module_dispatch_table = MODULE_DISPATCH_TABLE
-        self._use_modules = None
         self._julia_keywords = julia_keywords
+        #
+        self._use_modules = None
+        self._external_type_map = {}
+        self._module_dispatch_table = MODULE_DISPATCH_TABLE
+        self._import_dispatch_table = IMPORT_DISPATCH_TABLE
+        #
+        import_external_modules(self, "julia")
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -344,8 +336,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 imported_name = name
 
             #  Handle external modules
-            if name in IMPORT_DISPATCH_TABLE:
-                IMPORT_DISPATCH_TABLE[name](self, node)
+            if name in self._import_dispatch_table:
+                self._import_dispatch_table[name](self, node)
                 
             # Add imports to _imported_names
             if asname:
@@ -370,8 +362,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         This ensures that dispatch is correct'''
 
         # Handle external modules
-        if node.module in IMPORT_DISPATCH_TABLE:
-            IMPORT_DISPATCH_TABLE[node.module](self, node)
+        if node.module in self._import_dispatch_table:
+            self._import_dispatch_table[node.module](self, node)
 
         imported_name = MODULE_DISPATCH_TABLE[node.module] \
             if node.module in MODULE_DISPATCH_TABLE else node.module

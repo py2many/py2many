@@ -7,7 +7,7 @@ import random
 import sys
 import time
 
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Any, Dict, OrderedDict
 
 # Fixed width ints and aliases
@@ -133,12 +133,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
-        self._globals = set([])
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
-        self._module = None
-        self._path = None
-        self._modules = []
+        self._imports = []
+        self._filename = None
         self._container_type_map = DEFAULT_CONTAINER_MAP
         self._default_type = _AUTO
         self._statement_separator = ";"
@@ -152,8 +150,13 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._func_usings_map = {}
         self._attr_dispatch_table = {}
         self._keywords = {}
-        self._external_type_map = {}
         self._throw_on_unimplemented = True
+        #
+        self._module = None
+        self._globals = set([])
+        self._external_type_map = {}
+        self._module_dispatch_table = {}
+        self._import_dispatch_table = {}
 
     def headers(self, meta=None):
         return "\n".join(self._headers)
@@ -238,16 +241,11 @@ class CLikeTranspiler(ast.NodeVisitor):
 
         # Get attributes
         filename = getattr(node, "__file__", None)
+        self._filename = filename
         if filename:
             self._module = Path(filename).stem
-        path = getattr(node, "__path__", None)
-        if path:
-            self._path = path
-        modules = node.__files__
-        if modules:
-            # Update module list
-            self._modules = list(path.name.split(
-                ".")[0] for path in modules)
+        
+        self._imports = list(map(get_id, getattr(node, "imports", [])))
         
         # Visit non-function nodes
         body_dict: Dict[ast.AST, str] = OrderedDict()
