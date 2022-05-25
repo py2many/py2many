@@ -15,7 +15,6 @@ import random
 import re
 import sys
 import traceback
-import unittest
 import bisect
 
 from py2many.exceptions import AstUnsupportedOperation
@@ -260,32 +259,6 @@ class JuliaTranspilerPlugins:
 
     def visit_async_ann(self, node, decorator):
         return ""
-
-    def visit_assertTrue(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(t_self)
-        return f"@test {vargs[1]}"
-
-    def visit_assertFalse(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(t_self)
-        return f"@test !({vargs[1]})"
-
-    def visit_assertEqual(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(t_self)
-        arg = t_self.visit(ast.Name(id=vargs[2]))
-        return f"@test ({vargs[1]} == {arg})"
-
-    def visit_assertRaises(t_self, node, vargs):
-        exception = vargs[1]
-        func = vargs[2]
-        values = ", ".join(vargs[3:])
-        return f"@test_throws {exception} {func}({values})"
-
-    def visit_assertIsInstance(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_test_visit(t_self)
-        return f"@test isa({vargs[0]}, {vargs[1]})"
-
-    def _generic_test_visit(t_self):
-        t_self._usings.add("Test")
 
     # def visit_array(self, node, vargs):
     #     type_code: str = re.sub(r"\"", "", vargs[0])
@@ -817,7 +790,6 @@ class InitFunctionRewriter(ast.NodeTransformer):
         if get_id(node.value) == "self":
             if isinstance(node.attr, str):
                 return ast.Name(id=node.attr)
-            return node.attr
         return node
 
 
@@ -981,12 +953,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Regex
     re.sub: (JuliaTranspilerPlugins.visit_resub, False),
     re.findall: (JuliaTranspilerPlugins.visit_refindall, False),
-    # Unit Tests
-    unittest.TestCase.assertTrue: (JuliaTranspilerPlugins.visit_assertTrue, True),
-    unittest.TestCase.assertFalse: (JuliaTranspilerPlugins.visit_assertFalse, True),
-    unittest.TestCase.assertEqual: (JuliaTranspilerPlugins.visit_assertEqual, True),
-    unittest.TestCase.assertRaises: (JuliaTranspilerPlugins.visit_assertRaises, True),
-    unittest.TestCase.assertIsInstance: (JuliaTranspilerPlugins.visit_assertIsInstance, True),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
     # Traceback
