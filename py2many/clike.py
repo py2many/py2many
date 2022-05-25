@@ -214,7 +214,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _get_docstring(self, node) -> str:
         docstring_comment = getattr(node, "docstring_comment", None)
         comment = self.visit_Constant(docstring_comment, 
-                quotes = False) \
+                quotes = False, docstring = True) \
             if docstring_comment else None
         return self.comment(comment) if comment else None
 

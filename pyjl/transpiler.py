@@ -37,11 +37,15 @@ SPECIAL_CHARACTER_MAP = {
     "\v": "\\v", 
     "\t": "\\t",
     "\xe9":"\\xe9",
-    "\000":"\\000"
+    "\000":"\\000",
+    "\ud800": "\\ud800",
+    "\udfff": "\\udfff",
+    "\udcdc": "\\udcdc",
+    "\udad1": "\\udad1"
 }
 
 # For now just includes SPECIAL_CHARACTER_MAP
-DOCSTRING_TRANSLATION_MAP = SPECIAL_CHARACTER_MAP | {} 
+DOCSTRING_TRANSLATION_MAP = SPECIAL_CHARACTER_MAP 
 
 STR_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {
     "\"": "\\\"",
@@ -99,7 +103,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
-    def visit_Constant(self, node: ast.Constant, quotes = True) -> str:
+    def visit_Constant(self, node: ast.Constant, quotes = True, docstring = False) -> str:
         if node.value is True:
             return "true"
         elif node.value is False:
@@ -107,7 +111,7 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is None:
             return self._none_type
         elif isinstance(node.value, str):
-            return self.visit_Str(node, quotes)
+            return self.visit_Str(node, quotes, docstring)
         elif isinstance(node.value, bytes):
             return self.visit_Bytes(node)
         elif isinstance(node.value, complex):
@@ -119,10 +123,10 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_Str(self, node: ast.Str, quotes = True) -> str:
+    def visit_Str(self, node: ast.Str, quotes = True, docstring = False) -> str:
         # Escape special characters
         trs_map = str.maketrans(self._str_special_character_map) \
-            if quotes \
+            if not docstring \
             else self._docstr_special_character_map
         node_str = node.value.translate(str.maketrans(trs_map))
         return f'"{node_str}"' if quotes else node_str
@@ -985,15 +989,17 @@ class JuliaTranspiler(CLikeTranspiler):
         test = self.visit(node.test)
         return f"{test} ? ({body}) : ({orelse})"
 
-    def visit_JoinedStr(self, node: ast.JoinedStr) -> Any:
-        str_repr = ""
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
+        str_repr = []
         for value in node.values:
-            if isinstance(value, ast.FormattedValue):
-                str_repr += f"$({self.visit(value)})"
+            if isinstance(value, ast.Constant):
+                str_repr.append(self.visit_Constant(value, quotes=False))
+            elif isinstance(value, ast.FormattedValue):
+                str_repr.append(f"$({self.visit(value)})")
             else:
-                tmp_val: str = self.visit(value).replace("\"", "")
-                str_repr += tmp_val
-        return f"\"{str_repr}\""
+                print(value)
+                str_repr.append(self.visit(value))
+        return f"\"{''.join(str_repr)}\""
 
     def visit_FormattedValue(self, node: ast.FormattedValue) -> Any:
         value = self.visit(node.value)

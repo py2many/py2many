@@ -15,7 +15,7 @@ from py2many.analysis import IGNORED_MODULE_SET, is_mutable
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
-from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def
+from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -310,7 +310,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
             if not annotation:
                 annotation = ast.Constant(value="Any")
             for target in node.targets:
-                target_id = self._id(target)
+                target_id = obj_id(target)
                 if target_id not in self._class_fields:
                     self._class_fields[target_id] = ast.AnnAssign(
                         target=ast.Name(id=target_id),
@@ -320,7 +320,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
         if self._is_self(node.target):
-            target_id = self._id(node.target)
+            target_id = obj_id(node.target)
             if target_id not in self._class_fields:
                 self._class_fields[target_id] = ast.AnnAssign(
                         target=ast.Name(id=target_id),
@@ -330,9 +330,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
     def _is_self(self, node):
         return isinstance(node, ast.Attribute) and get_id(node.value) == "self"
-
-    def _id(self, node):
-        return node.attr if isinstance(node, ast.Attribute) else get_id(node)
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
@@ -675,7 +672,10 @@ class JuliaDecoratorRewriter(ast.NodeTransformer):
                 elif isinstance(decorator, ast.Call):
                     keywords = {}
                     for keyword in decorator.keywords:
-                        keywords[keyword.arg] = keyword.value.value
+                        if hasattr(keyword.value, "value"):
+                            keywords[keyword.arg] = keyword.value.value
+                        else:
+                            keywords[keyword.arg] = keyword.value
                     parsed_decorators[get_id(decorator.func)] = keywords
                 
         if "dataclass" in parsed_decorators \
@@ -859,20 +859,14 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
 
     def _get_assign_value(self, node: ast.Call):
         """Gets the last assignment value"""
-        call_id = self._id(node.func)
+        call_id = obj_id(node.func)
         assign_node = find_node_by_name_and_type(call_id, ast.Assign, node.scopes)[0]
         if assign_node:
             if isinstance(assign_node.value, ast.Call):
                 return self._get_assign_value(assign_node.value)
-            elif id := self._id(assign_node.value):
+            elif id := obj_id(assign_node.value):
                 return id 
         return call_id
-
-    def _id(self, node):
-        """A wrapper arround the get_id function to cover attributes"""
-        if isinstance(node, ast.Attribute):
-            return node.attr
-        return get_id(node)
 
     def visit_Slice(self, node: ast.Slice) -> Any:
         self.generic_visit(node)

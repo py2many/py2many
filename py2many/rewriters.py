@@ -211,7 +211,7 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         if body:
             if not isinstance(body[0], ast.Expr):
                 return None
-            node_val = node.body[0].value
+            node_val = getattr(body[0], "value", None)
             if node_val and isinstance(node_val, ast.Constant) and isinstance(node_val.value, str):
                 return node_val
         return None
@@ -427,7 +427,7 @@ class UnpackScopeRewriter(ast.NodeTransformer):
     def visit_With(self, node: ast.With) -> ast.With:
         return self._visit_assign_node_body(node)
 
-    def visit_While(self, node: ast.With) -> ast.With:
+    def visit_While(self, node: ast.While) -> ast.While:
         return self._visit_assign_node_body(node)
 
 
@@ -589,5 +589,6 @@ class ForElseRewriter(ast.NodeTransformer):
                 body.append(n.if_expr)
             else:
                 body.append(n)
+
         node.body = body
 

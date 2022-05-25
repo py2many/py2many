@@ -197,7 +197,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         node_id = get_id(node)
         if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
-            return f"{node.id}_"
+            return f"{node_id}_"
         
         return super().visit_Name(node)
 
@@ -412,8 +412,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def _dispatch(self, node: ast.Call, fname: str, vargs: List[str]) -> Optional[str]:
         if len(node.args) > 0:
             var = vargs[0]
-            if isinstance(node.args[0], ast.Call):
-                var = get_id(node.args[0].func)
+            if isinstance(node.args[0], ast.Call) and \
+                    (id := get_id(node.args[0].func)):
+                var = id
 
             # Self argument type lookup
             class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)

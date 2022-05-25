@@ -157,3 +157,10 @@ def get_func_def(node, name):
             assign_id = id
         return find_node_by_name_and_type(assign_id, ast.FunctionDef, node.scopes)[0]
     return None
+
+
+def obj_id(node):
+        """A wrapper arround the get_id function to cover attributes"""
+        if isinstance(node, ast.Attribute):
+            return node.attr
+        return get_id(node)

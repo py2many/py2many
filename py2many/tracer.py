@@ -348,9 +348,10 @@ def defined_before(node1, node2):
 
 
 def is_list_assignment(node):
-    return isinstance(node.value, ast.List) and isinstance(
-        node.targets[0].ctx, ast.Store
-    )
+    return (hasattr(node, "value")
+            and isinstance(node.value, ast.List)
+            and hasattr(node, "targets")
+            and isinstance(node.targets[0].ctx, ast.Store))
 
 
 def is_list_addition(node):

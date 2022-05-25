@@ -633,9 +633,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                     if lifetime is not None:
                         node.annotation.lifetime = lifetime
             elif fname in {"max", "min"}:
-                return_type = get_inferred_type(node.args[0])
-                if return_type is not None:
-                    node.annotation = return_type
+                if node.args:
+                    return_type = get_inferred_type(node.args[0])
+                    if return_type is not None:
+                        node.annotation = return_type
             elif fname in self.TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
             

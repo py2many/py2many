@@ -1,6 +1,7 @@
 import ast
 
 from py2many.ast_helpers import get_id
+from py2many.tracer import is_list_assignment
 from .scope import ScopeMixin
 
 
@@ -28,19 +29,12 @@ class ListCallTransformer(ast.NodeTransformer):
     def visit_Call(self, node):
         if self.is_list_addition(node):
             var = node.scopes.find(node.func.value.id)
-            if var is not None and self.is_list_assignment(var.assigned_from):
+            if var is not None and is_list_assignment(var.assigned_from):
                 if not hasattr(var, "calls"):
                     var.calls = []
                 var.calls.append(node)
         return node
 
-    def is_list_assignment(self, node):
-        return (
-            hasattr(node, "value")
-            and isinstance(node.value, ast.List)
-            and hasattr(node, "targets")
-            and isinstance(node.targets[0].ctx, ast.Store)
-        )
 
     def is_list_addition(self, node):
         """Check if operation is adding something to a list"""
