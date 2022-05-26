@@ -63,11 +63,15 @@ class JuliaExternalModulePlugins:
             return f"mul!({vargs[0]}, {vargs[1]})"
         return f"{vargs[0]}*{vargs[1]}"
 
-    def _visit_val(t_self, node):
+    def _visit_val(t_self, node: ast.Call, vargs: list[str]):
         if isinstance(node, ast.Constant):
             return t_self.visit_Constant(node, quotes=False)
         else:
             return t_self.visit(node)
+
+    def visit_npnewaxis(t_self, node: ast.Call, vargs: list[str]):
+        # TODO: Search broadcasting in Julia
+        pass
 
 
 FuncType = Union[Callable, str]
@@ -95,13 +99,9 @@ EXTERNAL_TYPE_MAP = {
     np.int16: "Int16",
     np.int32: "Int32",
     np.int64: "Int64",
-    np.int128: "BigInt",
-    np.int256: "BigInt",
     np.float16: "Float16",
     np.float32: "Float32",
     np.float64: "Float64",
-    np.float128: "BigFloat",
-    np.float256: "BigFloat",
     np.bool8: "Bool",
     np.byte: "UInt8",
     np.short: "Int8",
@@ -112,3 +112,8 @@ FUNC_TYPE_MAP = {
     "numpy.sum": "list",
     "numpy.append": "list"
 }
+
+
+IGNORED_MODULE_SET = set([
+    "numpy"
+])
