@@ -401,12 +401,6 @@ class JuliaTranspilerPlugins:
             right = t_self.visit_Constant(node.right, quotes=False)
         else:
             right = t_self.visit(node.right)
-        # left: str = t_self.visit(arg.left)
-        # if left.startswith("\""):
-        #     left = left[1:-1]
-        # right: str = t_self.visit(arg.right)
-        # if right.startswith("\""):
-        #     right = right[1:-1]
         return left, right
 
     def _parse_attrs(t_self, node):
@@ -426,8 +420,7 @@ class JuliaTranspilerPlugins:
             needs_parsing = False
             is_float = False
             for arg in node.args:
-                arg_type = t_self._typename_from_annotation(arg)
-                if arg_type:
+                if arg_type := t_self._typename_from_annotation(arg):
                     if arg_type.startswith("Float"):
                         is_float = True
                     elif not arg_type.startswith("Int"):

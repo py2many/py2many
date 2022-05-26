@@ -141,7 +141,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         right_id = get_id(right.value) if isinstance(right, ast.Subscript) else get_id(right)
 
         is_numeric = (lambda x: x == "int" or "float" or "complex"
-            or x.startswith("c_int") or x.startswith("c_uint"))
+            or (isinstance(x, str) and 
+                (x.startswith("c_int") or x.startswith("c_uint"))))
 
         # If one or more nodes are None, skip other conditions
         if ((left is None and right is not None) 

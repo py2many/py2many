@@ -9,7 +9,7 @@ from typing import Any, Dict
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_in_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum, is_list
 from py2many.analysis import IGNORED_MODULE_SET, is_mutable
 
 from py2many.ast_helpers import copy_attributes, get_id
@@ -349,8 +349,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             ((isinstance(node.op, ast.Add) or
               isinstance(node.op, ast.Mult) or
               isinstance(node.op, ast.MatMult)) and
-                (self._is_list(node.target) or
-                 self._is_list(node.value)))
+                (is_list(node.target) or
+                 is_list(node.value)))
         )
         if requires_lowering:
             # New binary operation
@@ -409,13 +409,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             )
 
         return self.generic_visit(node)
-
-    @staticmethod
-    def _is_list(node):
-        annotation = getattr(node, "annotation", None)
-        if annotation:
-            return get_ann_repr(annotation).startswith("List")
-        return False
 
     @staticmethod
     def _is_number(node):
@@ -1471,7 +1464,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         for t in node.targets:
             t.require_parent = False
         ann = getattr(node.value, "annotation", None)
-        if self._use_offset_array and self._is_list(ann):
+        if self._use_offset_array and is_list(node.value):
             for n in node.targets:
                 if id := get_id(n):
                     self._list_assigns.append(id)
@@ -1486,7 +1479,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
         node.target.require_parent = False
-        if self._use_offset_array and self._is_list(node.annotation):
+        if self._use_offset_array and is_list(node.value):
             # node.annotation = ast.Name(id="OffsetArray")
             self._list_assigns.append(get_id(node.target))
             if not isinstance(node.value, ast.List):
@@ -1498,18 +1491,13 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         self._is_assign_val = False
         return node
 
-    def _is_list(self, annotation):
-        ann_str:str = get_ann_repr(annotation)
-        return ann_str and (ann_str.startswith("List") \
-            or ann_str.startswith("list"))
-
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         node.value.require_parent = False
         self.generic_visit(node)
 
         # Cover nested subscripts
         if isinstance(node.value, ast.Subscript):
-            node.using_offset_arrays = node.value.using_offset_arrays
+            node.using_offset_arrays = getattr(node.value, "using_offset_arrays", False)
 
         if self._use_offset_array and (id := get_id(node.value)):
             self._subscript_vals.append(id)

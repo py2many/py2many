@@ -41,7 +41,8 @@ SPECIAL_CHARACTER_MAP = {
     "\ud800": "\\ud800",
     "\udfff": "\\udfff",
     "\udcdc": "\\udcdc",
-    "\udad1": "\\udad1"
+    "\udad1": "\\udad1",
+    "\ud8f0": "\\ud8f0"
 }
 
 # For now just includes SPECIAL_CHARACTER_MAP

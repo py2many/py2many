@@ -301,7 +301,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             )
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
-            if node_id.startswith("typing."):
+            if node_id and node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return self._map_type(node_id)
         elif isinstance(node, ast.Subscript):
