@@ -13,7 +13,7 @@ sudo ./setup.py install
 # py2many --julia=1 --config=pyjl/test_files/setup.ini "$TESTS/cases/sealed.py" --outdir=../pyjl_tests/cases-py2many
 
 ## Python tests
-# py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
+py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
 # py2many --julia=1 "$TESTS/cases_py/test_builtin.py" --outdir=../pyjl_tests/cases_py-py2many # Specific file
 # python py2many.py --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many # Temporary for windows
 
@@ -28,7 +28,7 @@ sudo ./setup.py install
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_/client/combrowse.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/client
 
 # Retinaface
-py2many --julia=1 "../pyjl_tests/retinaface" --outdir=../pyjl_tests/retinaface-py2many
+# py2many --julia=1 "../pyjl_tests/retinaface" --outdir=../pyjl_tests/retinaface-py2many
 
 # Run Transpiler Tests
 # TODO

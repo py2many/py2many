@@ -433,6 +433,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 annotation = getattr(v, "annotation", None)
 
             if ann := self._generic_typename_from_type_node(annotation):
+                if isinstance(ann, list):
+                    ann = ann[0]
                 # Get main type
                 ann: str = re.split(r"\[|\]", ann)[0]
                 dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)

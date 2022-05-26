@@ -591,7 +591,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         if not getattr(node, "annotation", None):
             if value_id == "self":
                 class_node = find_node_by_type(ast.ClassDef, node.scopes)
-                attr_node = getattr(class_node.scopes.find(node.attr), "target_node", None)
+                attr_node = getattr(class_node.scopes.find(node.attr), "target_node", None) \
+                    if hasattr(class_node, "scopes") else None
                 if ann := getattr(attr_node, "annotation", None):
                     node.annotation = ann
                 elif hasattr(attr_node, "assigned_from"):

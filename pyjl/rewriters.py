@@ -113,8 +113,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def _handle_special_cases(self, node):
         # Bypass init module calls
         func_repr = get_id(node)
-        split_repr = func_repr.split(".")
-        if self._is_dir(split_repr):
+        split_repr = func_repr.split(".") if func_repr else []
+        if split_repr and self._is_dir(split_repr):
             self._insert_init(node)
             return node
 
@@ -189,7 +189,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         abstract_types = []
         l_no = node.import_cnt
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
-            if not is_jlClass:
+            if not is_jlClass and extends_lst:
                 core_module = extends_lst[0].split(
                     ".")[0] if extends_lst else None
                 # TODO: Investigate Julia traits
@@ -1368,14 +1368,15 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         let_assignments = []
         for arg in node.args.args:
             arg_id = arg.arg
-            annotation: str = get_ann_repr(arg.annotation)
+            annotation: str = get_ann_repr(arg.annotation) \
+                if hasattr(arg, "annotation") else None
             # TODO: Optimize: "arg_id not in self._subscript_vals" (This is O(n^2))
             if not annotation or (annotation and not annotation.startswith("List"))\
                     or arg_id not in self._subscript_vals:
                 continue
             arg_name = ast.Name(id=arg_id)
             val = self._build_offset_array_call(
-                        arg_name, arg.annotation, node.lineno, 
+                        arg_name, annotation, node.lineno, 
                         node.col_offset, node.scopes)
             assign = ast.Assign(
                     targets = [arg_name],

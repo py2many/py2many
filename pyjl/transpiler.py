@@ -4,6 +4,8 @@ import os
 
 import textwrap
 import re
+
+from pyparsing import Regex
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
 
@@ -39,10 +41,14 @@ SPECIAL_CHARACTER_MAP = {
     "\xe9":"\\xe9",
     "\000":"\\000",
     "\ud800": "\\ud800",
+    "\x00": "\\x00",
     "\udfff": "\\udfff",
-    "\udcdc": "\\udcdc",
-    "\udad1": "\\udad1",
-    "\ud8f0": "\\ud8f0"
+    "\0": "\\0"
+    # "\udcdc": "\\udcdc",
+    # "\udad1": "\\udad1",
+    # "\ud8f0": "\\ud8f0",
+    # "\x80": "\\x80",
+    # "\xff": "\\xff"
 }
 
 # For now just includes SPECIAL_CHARACTER_MAP
@@ -126,20 +132,19 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Str(self, node: ast.Str, quotes = True, docstring = False) -> str:
         # Escape special characters
-        trs_map = str.maketrans(self._str_special_character_map) \
+        trs_map = self._str_special_character_map \
             if not docstring \
             else self._docstr_special_character_map
         node_str = node.value.translate(str.maketrans(trs_map))
+        node_str = node.value.encode("UTF-8").decode("ascii", "backslashreplace") # Avoid special characters
         return f'"{node_str}"' if quotes else node_str
 
     def visit_Bytes(self, node: ast.Bytes) -> str:
         bytes_str: str = str(node.s)
-        byte_name = bytes_str[0]
         content = bytes_str[2:-1]
         bytes_str = content.translate(str.maketrans(self._bytes_special_character_map))
-        # Decoding does not give representative value
-        # return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
-        return f"{byte_name}\"{bytes_str}\""
+        return f"b\"{bytes_str}\""
+        # return 'b"' + node.value.decode("ascii", "backslashreplace") + '"'
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []
@@ -384,9 +389,11 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_BinOp(self, node: ast.BinOp) -> str:
-        left_jl_ann: str = self._typename_from_type_node(node.left.annotation, 
+        left_jl_ann: str = self._typename_from_type_node(
+            getattr(node.left, "annotation", self._default_type), 
             default=self._default_type)
-        right_jl_ann: str = self._typename_from_type_node(node.right.annotation, 
+        right_jl_ann: str = self._typename_from_type_node(
+            getattr(node.right, "annotation", self._default_type), 
             default=self._default_type)
 
         is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
@@ -998,7 +1005,6 @@ class JuliaTranspiler(CLikeTranspiler):
             elif isinstance(value, ast.FormattedValue):
                 str_repr.append(f"$({self.visit(value)})")
             else:
-                print(value)
                 str_repr.append(self.visit(value))
         return f"\"{''.join(str_repr)}\""
 
