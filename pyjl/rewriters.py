@@ -191,7 +191,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
             if not is_jlClass and extends_lst:
                 core_module = extends_lst[0].split(
-                    ".")[0] if extends_lst else None
+                    ".")[0] if extends_lst[0] else None
                 # TODO: Investigate Julia traits
                 nameVal = ast.Name(id=class_name)
                 extends = None
@@ -466,6 +466,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         # Update node body
         node.body = body
 
+
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
@@ -483,7 +484,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and is_resumable(n):
                 resumable = n.parsed_decorators[RESUMABLE]
-                if REMOVE_NESTED in resumable \
+                if resumable and REMOVE_NESTED in resumable \
                         and resumable[REMOVE_NESTED]:
                     self._nested_funcs.append(n)
                     continue

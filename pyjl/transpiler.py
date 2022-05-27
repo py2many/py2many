@@ -36,15 +36,15 @@ SPECIAL_CHARACTER_MAP = {
     "\t": "\\t",
     "\xe9":"\\xe9",
     "\000":"\\000",
-    "\ud800": "\\ud800",
+    "\xff": "\\xff",
     "\x00": "\\x00",
+    "\0": "\\0",
+    "\ud800": "\\ud800",
     "\udfff": "\\udfff",
-    "\0": "\\0"
-    # "\udcdc": "\\udcdc",
-    # "\udad1": "\\udad1",
-    # "\ud8f0": "\\ud8f0",
-    # "\x80": "\\x80",
-    # "\xff": "\\xff"
+    "\udcdc": "\\udcdc",
+    "\udad1": "\\udad1",
+    "\ud8f0": "\\ud8f0",
+    "\x80": "\\x80",
 }
 
 # For now just includes SPECIAL_CHARACTER_MAP
