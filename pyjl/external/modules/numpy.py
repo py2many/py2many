@@ -10,9 +10,9 @@ from py2many.tracer import is_list
 class JuliaExternalModulePlugins:
     def visit_npsum(t_self, node: ast.Call, vargs) -> str:
         dims = None
-        for k in node.keywords:
-            if k.arg == "axis":
-                dims = JuliaExternalModulePlugins._visit_val(t_self, k.value)
+        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+        if "axis" in keywords:
+            dims = keywords["axis"]
         if dims:
             return f"sum({vargs[0]}, dims={dims})"
         return f"sum({vargs[0]})"
@@ -31,20 +31,28 @@ class JuliaExternalModulePlugins:
                 return f"""[{var_name} for {var_name} in {loop_var} if {vargs[1]}]"""
 
     def visit_nparray(t_self, node: ast.Call, vargs: list[str]) -> str:
-        if len(vargs) > 0:
-            return vargs[0]
-        return "[]"
+        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+        type = "Float64"
+        elems = ""
+        if len(vargs) >= 1:
+            elems = vargs[0]
+        if "dtype" in keywords:
+            if keywords["dtype"] in EXTERNAL_TYPE_MAP:
+                type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+        return f"Vector{{{type}}}({elems})"
 
     def visit_npappend(t_self, node: ast.Call, vargs: list[str]) -> str:
         return f"push!({vargs[0], vargs[1]})"
 
     def visit_npzeros(t_self, node: ast.Call, vargs: list[str]) -> str:
         zero_type = "Float64"
-        for k in node.keywords:
+        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+        if "dtype" in keywords:
             # TODO: No support for custom dtype
             # https://numpy.org/doc/stable/reference/generated/numpy.zeros.html?highlight=numpy%20zeros#numpy.zeros
-            if "dtype" == k.arg:
-                zero_type = JuliaExternalModulePlugins._visit_val(t_self, k.value)
+            if keywords["dtype"] in EXTERNAL_TYPE_MAP:
+                zero_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+            zero_type = keywords["dtype"]
         
         parsed_args = []
         if node.args:
@@ -55,23 +63,35 @@ class JuliaExternalModulePlugins:
 
         return f"zeros({zero_type}, {', '.join(parsed_args)})"
 
+    def _visit_val(t_self, node: ast.Call):
+        if isinstance(node, ast.Constant):
+            return t_self.visit_Constant(node, quotes=False)
+        else:
+            return t_self.visit(node)
+
     def visit_npmultiply(t_self, node: ast.Call, vargs: list[str]) -> str:
         # Since two elements must have same type, we just need to check one
         left = node.args[0]
         if is_list(left):
             t_self._usings.add("LinearAlgebra")
             return f"mul!({vargs[0]}, {vargs[1]})"
-        return f"{vargs[0]}*{vargs[1]}"
-
-    def _visit_val(t_self, node: ast.Call, vargs: list[str]):
-        if isinstance(node, ast.Constant):
-            return t_self.visit_Constant(node, quotes=False)
-        else:
-            return t_self.visit(node)
+        return f"repeat({vargs[0]}, {vargs[1]})"
 
     def visit_npnewaxis(t_self, node: ast.Call, vargs: list[str]):
         # TODO: Search broadcasting in Julia
         pass
+
+    def visit_ones(t_self, node: ast.Call, vargs: list[str]):
+        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+        val_type = "Float64"
+        if "dtype" in keywords  and \
+                keywords["dtype"] in EXTERNAL_TYPE_MAP:
+            val_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+        return f"ones({val_type}, {vargs[0]})"
+
+    def _get_keywords(t_self, node: ast.Call):
+        return {k.arg:(JuliaExternalModulePlugins._visit_val(t_self, k.value)) 
+            for k in node.keywords}
 
 
 FuncType = Union[Callable, str]
@@ -79,18 +99,21 @@ FuncType = Union[Callable, str]
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.sum: (JuliaExternalModulePlugins.visit_npsum, True),
     np.where: (JuliaExternalModulePlugins.visit_npwhere, True),
-    np.array: (JuliaExternalModulePlugins.visit_nparray),
-    np.append: (JuliaExternalModulePlugins.visit_npappend),
-    np.zeros: (JuliaExternalModulePlugins.visit_npzeros),
-    np.multiply: (JuliaExternalModulePlugins.visit_npmultiply),
-    np.sqrt: (lambda self, node, vargs: f"√({vargs[0]})", False),
-    np.arccos: (lambda self, node, vargs: f"acos({vargs[0]})", False),
-    np.arcsin: (lambda self, node, vargs: f"asin({vargs[0]})", False),
-    np.arctan: (lambda self, node, vargs: f"atan({vargs[0]})", False),
-    np.sin: (lambda self, node, vargs: f"sin({vargs[0]})", False),
-    np.cos: (lambda self, node, vargs: f"cos({vargs[0]})", False),
-    np.tan: (lambda self, node, vargs: f"tan({vargs[0]})", False),
-    np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis), # See broadcasting
+    np.array: (JuliaExternalModulePlugins.visit_nparray, True),
+    np.append: (JuliaExternalModulePlugins.visit_npappend, True),
+    np.zeros: (JuliaExternalModulePlugins.visit_npzeros, True),
+    np.multiply: (JuliaExternalModulePlugins.visit_npmultiply, True),
+    np.sqrt: (lambda self, node, vargs: f"√({vargs[0]})" if vargs else "√", True),
+    np.arccos: (lambda self, node, vargs: f"acos({vargs[0]})", True),
+    np.arcsin: (lambda self, node, vargs: f"asin({vargs[0]})", True),
+    np.arctan: (lambda self, node, vargs: f"atan({vargs[0]})", True),
+    np.sin: (lambda self, node, vargs: f"sin({vargs[0]})", True),
+    np.cos: (lambda self, node, vargs: f"cos({vargs[0]})", True),
+    np.tan: (lambda self, node, vargs: f"tan({vargs[0]})", True),
+    np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True), # See broadcasting
+    np.ones: (JuliaExternalModulePlugins.visit_ones, True),
+    np.flatnonzero: (lambda self, node, vargs: 
+        f"[i for i in {vargs[0]} if {vargs[0]}[i] != 0]", True),
 }
 
 # Numpy Types
@@ -110,7 +133,8 @@ EXTERNAL_TYPE_MAP = {
 FUNC_TYPE_MAP = {
     "numpy.multiply": "list",
     "numpy.sum": "list",
-    "numpy.append": "list"
+    "numpy.append": "list",
+    "numpy.sqrt": "float"
 }
 
 

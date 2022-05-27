@@ -41,7 +41,7 @@ def import_external_modules(self, lang):
             if attr_name in self.__dict__ and \
                     map_name in ext_mod.__dict__:
                 obj = ext_mod.__dict__[map_name]
-                curr_val = self.__dict__[attr_name]
+                curr_val = getattr(self, attr_name, None)
                 # Update value in default containers
                 if isinstance(curr_val, dict):
                     curr_val |= obj

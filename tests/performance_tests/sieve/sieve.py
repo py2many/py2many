@@ -1,16 +1,15 @@
+import math
 import sys
 
-# @offset_arrays # For PyJL
-def sieve(n):
-    primes = [True] * (n+1)
-    counter = 0
-    for i in range(2,n):
+@offset_arrays # For PyJL
+def sieve(n: int):
+    primes = [True] * (n)
+    primes[0], primes[1] = False, False
+    for i in range(2, int(math.sqrt(n) + 1)):
         if primes[i]:
-            counter = counter + 1
             for j in range(i*i, n, i):
                 primes[j] = False
-
-    return counter
+    return [i for i in range(len(primes)) if primes[i]]
 
 if __name__ == "__main__":
     sieve(int(sys.argv[1]))

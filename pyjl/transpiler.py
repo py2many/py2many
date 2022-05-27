@@ -13,14 +13,10 @@ import pyjl.juliaAst as juliaAst
 
 from .clike import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES, CLikeTranspiler
 from .plugins import (
-    ATTR_DISPATCH_TABLE,
     DECORATOR_DISPATCH_TABLE,
-    FUNC_DISPATCH_TABLE,
     JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
-    SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
 )
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -91,10 +87,6 @@ class JuliaTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set([])
         self._dispatch_map = DISPATCH_MAP
-        self._small_dispatch_map = SMALL_DISPATCH_MAP
-        self._small_usings_map = SMALL_USINGS_MAP
-        self._func_dispatch_table = FUNC_DISPATCH_TABLE
-        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
         # Added
         self._julia_num_types = JULIA_NUM_TYPES
@@ -136,7 +128,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if not docstring \
             else self._docstr_special_character_map
         node_str = node.value.translate(str.maketrans(trs_map))
-        node_str = node.value.encode("UTF-8").decode("ascii", "backslashreplace") # Avoid special characters
+        # node_str = node.value.encode("UTF-8").decode("ascii", "backslashreplace") # Avoid special characters
         return f'"{node_str}"' if quotes else node_str
 
     def visit_Bytes(self, node: ast.Bytes) -> str:

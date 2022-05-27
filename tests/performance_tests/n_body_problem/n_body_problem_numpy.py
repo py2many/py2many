@@ -104,10 +104,10 @@ def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     ref[5] = pz / m
 
 def main(n):
-    offset_momentum(SYSTEM[0])
-    report_energy()
+    np.vectorize(offset_momentum(SYSTEM[0]))
+    np.vectorize(report_energy())
     advance(0.01, n)
-    report_energy()
+    np.vectorize(report_energy())
 
 if __name__ == '__main__':
     # main(int(sys.argv[1]))

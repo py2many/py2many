@@ -1469,13 +1469,14 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
             for n in node.targets:
                 if id := get_id(n):
                     self._list_assigns.append(id)
-            if not isinstance(node.value, ast.List):
-                node.value = self._build_offset_array_call(
-                    node.value, ann, node.lineno, 
-                    node.col_offset, node.scopes)
-        self._is_assign_val = True
-        self.generic_visit(node)
-        self._is_assign_val = False
+            node.value = self._build_offset_array_call(
+                node.value, ann, node.lineno, 
+                node.col_offset, node.scopes)
+            self.generic_visit(node)
+        else:
+            self._is_assign_val = True
+            self.generic_visit(node)
+            self._is_assign_val = False
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
@@ -1483,13 +1484,14 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         if self._use_offset_array and is_list(node.value):
             # node.annotation = ast.Name(id="OffsetArray")
             self._list_assigns.append(get_id(node.target))
-            if not isinstance(node.value, ast.List):
-                node.value = self._build_offset_array_call(
-                    node.value, node.annotation, node.lineno, 
-                    node.col_offset, node.scopes)
-        self._is_assign_val = True
-        self.generic_visit(node)
-        self._is_assign_val = False
+            node.value = self._build_offset_array_call(
+                node.value, node.annotation, node.lineno, 
+                node.col_offset, node.scopes)
+            self.generic_visit(node)
+        else:
+            self._is_assign_val = True
+            self.generic_visit(node)
+            self._is_assign_val = False
         return node
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:

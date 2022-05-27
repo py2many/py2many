@@ -107,8 +107,6 @@ def class_for_typename(typename: str, default_type, locals=None) -> Union[str, o
         # Cant eval super; causes RuntimeError
         return None
     try:
-        # TODO: take into account any imports happening in the file being parsed
-        # and pass them into eval
         typeclass = eval(typename, globals(), locals)
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):

@@ -1,5 +1,8 @@
 import ast
 import re
+
+import numpy as np
+
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
@@ -12,7 +15,7 @@ from py2many.external_modules import import_external_modules
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE
+from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
 from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 import importlib
@@ -170,6 +173,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         self._julia_keywords = julia_keywords
+        self._small_dispatch_map = SMALL_DISPATCH_MAP
+        self._small_usings_map = SMALL_USINGS_MAP
+        self._func_dispatch_table = FUNC_DISPATCH_TABLE
+        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         #
         self._use_modules = None
         self._external_type_map = {}

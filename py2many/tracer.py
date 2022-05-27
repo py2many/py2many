@@ -67,7 +67,12 @@ def is_list(node):
             and is_list(var.assigned_from.value)
         )
     else:
-        return False
+        ann = getattr(node, "annotation", None)
+        list_ann = lambda x: x == "list" or x == "List"
+        return ((isinstance(ann, ast.Name) and
+                    list_ann(get_id(ann))) or 
+                (isinstance(ann, ast.Subscript) and 
+                    list_ann(get_id(ann.value))))
 
 ############################################
 # Added
