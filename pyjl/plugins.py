@@ -193,7 +193,8 @@ class JuliaTranspilerPlugins:
             if value == None:
                 return (None, None)
             fields[arg] = value
-            field_repr.append(f"_{arg}={key_map[value]}")
+            val = key_map[value] if value in key_map else value
+            field_repr.append(f"_{arg}={val}")
 
         return fields, field_repr
 

@@ -259,6 +259,7 @@ class AsyncContextManagerTestCase(unittest.TestCase):
             return decorate
         @asynccontextmanager
         @attribs(foo='bar')
+        @resumables
         async def baz(spam):
             """Whee!"""
             yield

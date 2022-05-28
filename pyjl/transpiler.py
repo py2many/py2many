@@ -176,6 +176,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 if ret is not None:
                     return ret
         
+        
         funcdef = f"function {node.name}{template}({args}){return_type}"
 
         is_python_main = getattr(node, "python_main", False)
@@ -861,9 +862,10 @@ class JuliaTranspiler(CLikeTranspiler):
         del_targets = []
         for t in node.targets:
             # Get node name
-            node_name = self.visit(t)
             if isinstance(t, ast.Subscript):
                 node_name = self.visit(t.value)
+            else:
+                node_name = self.visit(t)
 
             type_ann = None
             if t_ann := getattr(t, "annotation", None):
@@ -875,7 +877,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
             if type_ann and (ann_str := self.visit(type_ann)):
                 if ann_str.startswith("Dict"):
-                    del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
+                    if isinstance(t, ast.Subscript):
+                        del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
+                    else:
+                        del_targets.append(f"delete!({node_name})")
                 elif ann_str.startswith("Vector") or ann_str.startswith("Array"):
                     del_targets.append(f"empty!({node_name})")
             
@@ -1013,7 +1018,11 @@ class JuliaTranspiler(CLikeTranspiler):
             f_spec_val: str = self.visit(f_spec_val)
             # Supporting rounding
             if re.match(r".[\d]*", f_spec_val):
-                f_spec_parsed = f_spec_val.split(".")[1].replace("\"", "")
+                f_spec_split = f_spec_val.split(".")
+                if len(f_spec_split) > 1:
+                    f_spec_parsed = f_spec_split[1].replace("\"", "")
+                else:
+                    f_spec_parsed = f_spec_val
                 return f"round({value}, digits={f_spec_parsed})"
 
         return f"{value}"

@@ -88,6 +88,7 @@ class ContextManagerTestCase(unittest.TestCase):
 
     def test_contextmanager_no_reraise(self):
         @contextmanager
+        @resumables
         def whee():
             yield
         ctx = whee()

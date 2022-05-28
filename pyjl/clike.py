@@ -205,7 +205,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
             return f"{node_id}_"
-        
         return super().visit_Name(node)
 
     def visit_arg(self, node):
@@ -301,6 +300,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         )
     
     def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
+        if node == None:
+            return default
         if isinstance(node, ast.Name):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
