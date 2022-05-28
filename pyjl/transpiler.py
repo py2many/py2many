@@ -141,7 +141,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []
 
-        # Parse function args       
+        # Parse function args
         args_list = self._get_args(node)
         args = ", ".join(args_list)
         node.parsed_args = args
@@ -250,7 +250,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node: ast.Call) -> str:
         fname = self.visit(node.func)
-        class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)
+        class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)[0]
         kw_args = not class_scope
         vargs = self._get_call_args(node, kw_args=kw_args)
 
@@ -261,8 +261,8 @@ class JuliaTranspiler(CLikeTranspiler):
         # Check if first arg is of class type.
         # If it is, search for the function in the class scope
         fndef = node.scopes.find(fname)
-        if vargs and (class_scope := get_class_scope(vargs[0], node.scopes)):
-            fndef = class_scope.scopes.find(fname)
+        if vargs and (arg_cls_scope := find_node_by_name_and_type(vargs[0], ast.ClassDef, node.scopes)[0]):
+            fndef = arg_cls_scope.scopes.find(fname)
 
         if fndef and hasattr(fndef, "args"):
             converted = []
@@ -487,7 +487,7 @@ class JuliaTranspiler(CLikeTranspiler):
         node.declarations = extractor.get_declarations()
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
-        
+
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
         has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
 
@@ -501,7 +501,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields_str = []
         for declaration, (typename, default) in dec_items:
             dec = declaration.split(".")
-            if dec[0] == "self":
+            if dec[0] == "self" and len(dec) > 1:
                 declaration = dec[1]
             if declaration in self._julia_keywords:
                 declaration = f"{declaration}_"
@@ -554,7 +554,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
                     args.defaults.append(default)
             node.constructor_str = self.visit(node.constructor)
-
 
         node.fields = fields
         node.fields_str = "\n".join(fields_str)

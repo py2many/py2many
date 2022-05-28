@@ -63,7 +63,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         ann = getattr(node.value, "annotation", None)
         annotation = ann if ann else getattr(node, "annotation", None)
-
         if annotation is None:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
@@ -96,7 +95,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             )
             if (not target_has_annotation or inferred):
                 self._verify_annotation(node, annotation, target)
-
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
 
@@ -208,7 +206,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         var_name = get_id(target)
         ann_str = get_ann_repr(annotation)
         map_ann = node.scopes.find(var_name)
-        map_ann_str = get_ann_repr(map_ann)
+        map_ann_str = get_ann_repr(map_ann) if map_ann else None
         if(map_ann_str and getattr(map_ann, "is_inferred", True) == False and ann_str != self._default_type \
                 and map_ann_str != self._default_type and ann_str != map_ann_str):
             raise AstIncompatibleAssign(

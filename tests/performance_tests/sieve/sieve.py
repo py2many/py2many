@@ -1,7 +1,7 @@
 import math
 import sys
 
-@offset_arrays # For PyJL
+# @offset_arrays # For PyJL
 def sieve(n: int):
     primes = [True] * (n)
     primes[0], primes[1] = False, False

@@ -7,7 +7,7 @@ import random
 import sys
 import time
 
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import Any, Dict, OrderedDict
 
 # Fixed width ints and aliases
@@ -611,6 +611,8 @@ class CLikeTranspiler(ast.NodeVisitor):
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
         elif isinstance(node, ast.Constant) and node.value is not None:
+            if node.value == Ellipsis:
+                return "..."
             return node.value
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
@@ -719,7 +721,6 @@ class CLikeTranspiler(ast.NodeVisitor):
                 return self._dispatch_map[fname](self, node, vargs)
             except IndexError:
                 return None
-            
 
         if fname in self._small_dispatch_map:
             if fname in self._small_usings_map:

@@ -209,14 +209,14 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         return super().visit_Name(node)
 
     def visit_arg(self, node):
-        id = get_id(node)
-        if id == "self":
-            return (None, "self")
+        # if node.arg == "self":
+        #     return (None, "self")
         # typename = "T"
         typename = ""
-        if hasattr(node, "annotation"):
-            typename = self._typename_from_annotation(node)
-        return (typename, id)
+        if hasattr(node, "annotation") and \
+                (t_name := self._typename_from_annotation(node)):
+            typename = t_name
+        return (typename, node.arg)
 
     def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]
@@ -273,8 +273,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
-        if hasattr(node, attr):
-            type_node = getattr(node, attr)
+        if type_node := getattr(node, attr, None):
             typename = self._typename_from_type_node(type_node, default=self._default_type)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
@@ -457,7 +456,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 dispatch = super()._dispatch(node, f"{var}.{fname}", vargs[1:])
                 if dispatch:
                     return dispatch
-
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):

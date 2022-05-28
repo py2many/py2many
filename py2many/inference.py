@@ -284,8 +284,14 @@ class InferTypesTransformer(ast.NodeTransformer):
                 node.annotation = ast.Name(id=typename)
             elif len(elt_types) == 1:
                 self._annotate(node, f"{typename}[{elt_types.pop()}]")
-            else:
-                self._annotate(node, f"{typename}[Union[{', '.join(elt_types)}]]")
+            elif len(elt_types) == 2:
+                # Promotion
+                elt_1 = elt_types.pop()
+                elt_2 = elt_types.pop()
+                if (elt_1 == "int" and elt_2 == "float") or \
+                        (elt_2 == "int" and elt_1 == "float"):
+                    self._annotate(node, f"{typename}[float]")
+
 
     def visit_Set(self, node):
         self.generic_visit(node)
@@ -383,7 +389,6 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
-
         node.target.annotation = node.annotation
         target = node.target
         target_typename = self._clike._typename_from_annotation(target)
@@ -610,13 +615,12 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Call(self, node):
         fname = get_id(node.func)
-        if fname is not None:
+        if fname:
             # Handle methods calls by looking up the method name
             # without the prefix
             # TODO: use remove suffix
             if fname.startswith("self."):
                 fname = fname.split(".", 1)[1]
-
             fn = node.scopes.find(fname)
 
             # TODO: Is thre a better method?

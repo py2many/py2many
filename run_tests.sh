@@ -14,7 +14,7 @@ sudo ./setup.py install
 
 ## Python tests
 py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
-# py2many --julia=1 "$TESTS/cases_py/test_collections.py" --outdir=../pyjl_tests/cases_py-py2many # Specific file
+# py2many --julia=1 "$TESTS/cases_py/test_dataclasses.py" --outdir=../pyjl_tests/cases_py-py2many # Specific file
 # python py2many.py --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many # Temporary for windows
 
 ## Performance tests

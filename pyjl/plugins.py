@@ -148,7 +148,7 @@ class JuliaTranspilerPlugins:
                 end
             """)
         if d_fields["unsafe_hash"]:
-            if d_fields["_eq"]:  # && ismutable
+            if d_fields["eq"]:  # && ismutable
                 body.append(f"""
                 function __hash__(self::{struct_name})
                     return __key(self)
