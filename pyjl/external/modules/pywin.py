@@ -9,9 +9,6 @@ import pandas
 
 
 class JuliaExternalModulePlugins:
-    def visit_pycomm(t_self, node: ast.Call):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "pythoncom")
-
     def visit_pywintypes(t_self, node: ast.Call):
         JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
 
@@ -96,7 +93,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 
 IMPORT_DISPATCH_TABLE = {
-    "pythoncom": JuliaExternalModulePlugins.visit_pycomm,
     "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
     "datetime": JuliaExternalModulePlugins.visit_datetime,
     "win32api": JuliaExternalModulePlugins.visit_win32api,
@@ -105,7 +101,6 @@ IMPORT_DISPATCH_TABLE = {
 
 
 IGNORED_MODULE_SET = set([
-    "pythoncom",
     "pywintypes",
     "datetime",
     "pandas",

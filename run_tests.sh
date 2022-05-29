@@ -13,7 +13,7 @@ sudo ./setup.py install
 # py2many --julia=1 --config=pyjl/test_files/setup.ini "$TESTS/cases/sealed.py" --outdir=../pyjl_tests/cases-py2many
 
 ## Python tests
-py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
+# py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
 # py2many --julia=1 "$TESTS/cases_py/test_dict.py" --outdir=../pyjl_tests/cases_py-py2many # Specific file
 # python py2many.py --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many # Temporary for windows
 
@@ -25,6 +25,7 @@ py2many --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many
 ## Pywin tests
 # py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
 # python py2many.py --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many # Temporary for windows
+python py2many.py --julia=1 "../pyjl_tests/pywin/win32com_/ext_modules/pywintypes.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/ext_modules
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_" --outdir=../pyjl_tests/pywin-py2many/win32com_
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_/client/combrowse.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/client
 

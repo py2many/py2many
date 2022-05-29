@@ -5,7 +5,6 @@ import os
 import textwrap
 import re
 
-from pyparsing import Regex
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
 
@@ -395,6 +394,21 @@ class JuliaTranspiler(CLikeTranspiler):
         # Visit left and right
         left = self.visit(node.left)
         right = self.visit(node.right)
+
+        # Modulo string formatting
+        if isinstance(node.left, ast.Constant) and \
+                isinstance(node.left.value, str) and \
+                "%" in node.left.value:
+            split_str = re.split(r"%[\w|.\d\w]", node.left.value)
+            elts = getattr(node.right, "elts", [])
+            for i in range(len(elts)):
+                e = elts[i]
+                if isinstance(e, ast.Constant):
+                    split_str[i] = self.visit(e)
+                else:
+                    split_str[i] = f"$({self.visit(e)})"
+            print(split_str)
+            return f"\"{''.join(split_str)}\""
 
         if is_class_type(left, node.scopes) or \
                 is_class_type(right, node.scopes):

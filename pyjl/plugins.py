@@ -965,6 +965,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     os.remove: (lambda self, node, vargs: f"rm({vargs[0]})", False),
     os.unlink: (lambda self, node, vargs: f"rm({vargs[0]})", False),
     os.path.isdir: (lambda self, node, vargs: f"isdir({vargs[0]})", False),
+    os.path.isfile: (lambda self, node, vargs: f"isfile({vargs[0]})", False),
     os.path.exists: (lambda self, node, vargs: f"ispath({vargs[0]})", False), # TODO: Is tghis too generic? 
     # importlib
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
