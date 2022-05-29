@@ -192,9 +192,9 @@ jobs:
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
           if [ "$FOCUS" ]; then
-            tox -- -k "$FOCUS"
+            tox -e py38 -- -k "$FOCUS"
           else
-            tox
+            tox -e py38
           fi
 
   lint:
