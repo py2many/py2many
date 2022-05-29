@@ -69,12 +69,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install V
-        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
-        uses: vlang/setup-v@v1
-        with:
-          token: ${{ github.token }}
-
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
 
@@ -121,10 +115,18 @@ jobs:
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install astyle clang-format cljstyle kscript ktlint z3
+              # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
           fi
           echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install V
+        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
+        uses: vlang/setup-v@v1
+        with:
+          token: ${{ github.token }}
 
       - name: Install kscript (using sdkman)
         if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
