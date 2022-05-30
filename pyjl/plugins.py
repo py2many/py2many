@@ -5,7 +5,6 @@ import importlib
 import io
 import itertools
 import math
-import multiprocessing
 import operator
 import pathlib
 import time
@@ -38,6 +37,7 @@ except ImportError:
 
 
 class JuliaTranspilerPlugins:
+    ########## Decorators ##########
     def visit_jl_dataclass(t_self, node: ast.ClassDef, decorator):
         t_self._usings.add("DataClass")
 
@@ -171,7 +171,7 @@ class JuliaTranspilerPlugins:
             return f"{struct_def}\n{fields}\n{node.constructor_str}\nend\n{body}"
 
         return f"{struct_def}\n{fields}\nend\n{body}"
-        
+
 
     def _generic_dataclass_visit(node, decorator):
         fields = {}
@@ -236,6 +236,7 @@ class JuliaTranspilerPlugins:
 
         return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
 
+
     def visit_resumables(t_self, node, decorator):
         # node.scopes[-2] because node.scopes[-1] is the current function
         parent = node.scopes[-2]
@@ -255,30 +256,18 @@ class JuliaTranspilerPlugins:
         maybe_main = "\nmain()" if node.is_python_main else ""
         return f"@resumable {funcdef}\n{body}\nend\n{maybe_main}"
 
+
     def visit_offsetArrays(t_self, node, decorator):
         t_self._usings.add("OffsetArrays")
 
-    def visit_async_ann(self, node, decorator):
-        return ""
 
     # def visit_array(self, node, vargs):
     #     type_code: str = re.sub(r"\"", "", vargs[0])
     #     if type_code in TYPE_CODE_MAP:
     #         return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
 
-    def visit_open(t_self, node, vargs):
-        for_node = find_node_by_type(ast.For, node.scopes)
-        # Check if this is always like this
-        if for_node is not None:
-            return f"readline({vargs[0]})"
-
-        return f"open({vargs[0]}, {vargs[1]})"
-
-    def visit_named_temp_file(t_self, node, vargs):
-        node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
-        node.result_type = True
-        return "NamedTempFile::new()"
-
+    ######################################################################
+    ########## Range ##########
     def visit_range(t_self, node, vargs: List[str]) -> str:
         start = 0
         stop = 0
@@ -296,7 +285,228 @@ class JuliaTranspilerPlugins:
 
         return f"{start}:{stop}"
 
+    ########## Builtin Functions ##########
+    def visit_getattr(t_self, node, vargs: list[str]):
+        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
 
+        if len(parsed_args) == 3:
+            # Cannot remove the quotes from default
+            default = t_self.visit(node.args[-1])
+            return f"""(hasfield(typeof({parsed_args[0]}), :{parsed_args[1]}) ? 
+                getfield({parsed_args[0]}, :{parsed_args[1]}) : {default})"""
+        elif len(parsed_args) == 2:
+            return f"getfield({parsed_args[0]}, :{parsed_args[1]})"
+        return "getfield"
+
+    def visit_hasattr(t_self, node, vargs: list[str]):
+        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
+        if len(parsed_args) == 2:
+            return f"hasfield(typeof({parsed_args[0]}), :{parsed_args[1]})"
+        return "hasfield"
+
+    def _parse_attrs(t_self, node):
+        parsed_args = []
+        for arg in node.args:
+            if isinstance(arg, ast.BinOp):
+                left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
+                parsed_args.append(f"{left}{t_self.visit(arg.op)}{right}")
+            elif isinstance(arg, ast.Constant):
+                parsed_args.append(t_self.visit_Constant(arg, quotes=False))
+            else:
+                parsed_args.append(t_self.visit(arg))
+        return parsed_args
+
+    def _parse_bin_op(t_self, node: ast.BinOp):
+        left: str
+        right: str
+        if isinstance(node.left, ast.Constant):
+            left = t_self.visit_Constant(node.left, quotes=False)
+        else:
+            left = t_self.visit(node.left)
+        if isinstance(node.right, ast.Constant):
+            right = t_self.visit_Constant(node.right, quotes=False)
+        else:
+            right = t_self.visit(node.right)
+        return left, right
+
+    ########## Cast ##########
+    def visit_cast_int(t_self, node, vargs) -> str:
+        if hasattr(node, "args") and node.args:
+            needs_parsing = False
+            is_float = False
+            for arg in node.args:
+                if arg_type := t_self._typename_from_annotation(arg):
+                    if arg_type.startswith("Float"):
+                        is_float = True
+                    elif not arg_type.startswith("Int"):
+                        needs_parsing = True
+                        break
+
+            if needs_parsing:
+                return f"parse(Int, {vargs[0]})"
+            elif is_float:
+                return f"Int(floor({vargs[0]}))"
+            else:
+                return f"Int({vargs[0]})"
+        return f"zero(Int)"  # Default int value
+
+    ########## String operations ##########
+    def visit_maketrans(t_self, node, vargs: list[str]):
+        original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
+        replacement_lst = []
+        byte_replacements = str(vargs[1][2:-1])
+        i = 0
+        while i < len(byte_replacements):
+            if byte_replacements[i:i+2] == "\\x":
+                replacement_lst.append(str(byte_replacements[i:i+4]))
+                i += 4
+            else:
+                replacement_lst.append(byte_replacements[i])
+                i += 1
+        element_lst = []
+        for o, r in zip(original_lst, replacement_lst):
+            if o in t_self._str_special_character_map:
+                o = t_self._str_special_character_map[o]
+            if r in t_self._str_special_character_map:
+                r = t_self._str_special_character_map[r]
+            element_lst.append(f'b"{o}" => b"{r}"')
+        element_lst_str = ", ".join(element_lst)
+        return f"Dict({element_lst_str})"
+
+    def visit_join(t_self, node, vargs):
+        if len(vargs) == 2:
+            return f"join({vargs[1]}, {vargs[0]})"
+        elif len(vargs) == 1:
+            return f"x -> join(x, {vargs[0]})" 
+        return "join"
+
+    # TODO: Optimize (possibly using regex)
+    def visit_format(t_self, node, vargs):
+        subst_values: list[str] = vargs[1:]
+        res: str = re.split("{|}", vargs[0])
+        # Fill in empty curly braces
+        cnt = 0
+        for i in range(len(res)):
+            r = res[i]
+            if r == "":
+                res[i] = f"{cnt}"
+                cnt+=1
+        # Create replacement map to replace original strings
+        replacement_map = {}
+        for i in range(len(subst_values)):
+            subst_val = re.split("\s*=\s*", subst_values[i])
+            if len(subst_val) > 1:
+                original = subst_val[0]
+                replacement = subst_val[1]
+            else:
+                original = f"{i}"
+                replacement = subst_val[0]
+            replacement_map[original] = replacement
+        # Replace placeholders for values
+        for j in range(1, len(res), 2):
+            split_res = res[j].split(".")
+            split_res[0] = split_res[0].translate(str.maketrans(replacement_map))
+            res[j] = f"$({'.'.join(split_res)})"
+
+        return "".join(res)
+
+    def visit_translate(t_self,node, vargs):
+        if len(vargs) < 2:
+            return "replace!"
+        if len(vargs) == 2:
+            translation_map = vargs[1]
+        elif len(vargs) == 3:
+            # Include "delete" parameter
+            key_map = []
+            del_args = vargs[2][2:-1]
+            i = 0
+            while i < len(del_args):
+                if del_args[i] == "\\":
+                    arg = del_args[i:i+2]
+                    i += 2
+                else:
+                    arg = del_args[i]
+                    i += 1
+                if arg in t_self._str_special_character_map:
+                    arg = t_self._str_special_character_map[arg]
+                key_map.append(f"b\"{arg}\" => b\"\"")
+            key_map = ", ".join(key_map)
+            translation_map = f"merge!({vargs[1]}, Dict({key_map}))"
+        return f"replace!(collect({vargs[0]}), {translation_map}...)"
+
+    ########## Array Operations ##########
+    def visit_bytearray(t_self, node, vargs: list[str]):
+        if len(vargs) == 0:
+            return "Vector{UInt8}()"
+        else:
+            parsed_args = vargs[0]
+            if isinstance(node.args[0], ast.GeneratorExp) \
+                    or getattr(node.args[0], "is_gen_expr", None):
+                parsed_args = parsed_args.removeprefix("(").removesuffix(")")
+                parsed_args = f"[{vargs[0][1:-1]}]"
+            return f"Vector{{UInt8}}({parsed_args})"
+
+    def visit_islice(t_self, node, vargs: list[str]) -> str:
+        node.is_gen_expr = True
+        return f"({vargs[0]} for _ in (0:{vargs[1]}))"
+
+    def visit_iter(t_self, node, vargs: list[str]) -> str:
+        node.is_gen_expr = True
+        return f"(x for x in {vargs[0]})"
+
+    def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
+        func_def = get_func_def(node, vargs[0])
+        if get_id(getattr(func_def, "annotation", None)) == "Generator":
+            decs = getattr(func_def, "parsed_decorators", None)
+            if RESUMABLE in decs:
+                if len(vargs) > 1:
+                    return f"{vargs[0]}({', '.split(vargs[1:])})"
+                elif getattr(node, "is_attr", None):
+                    return f"{vargs[0]}" 
+                else :
+                    return f"{vargs[0]}()"
+            else:
+                return f"take!({vargs[0]})"
+        # TODO: Is this valid? Is this undecidable?
+        # else:
+        #     getattr(node, "is_gen_expr", None)
+        #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
+        return f"next({', '.join(vargs)})"
+
+    def visit_zip(t_self, node, vargs: list[str]):
+        ls1 = node.args[0]
+        if isinstance(ls1, ast.Constant) and \
+                isinstance(ls1.value, str):
+            ls1_lst = []
+            for n in ls1.value:
+                ls1_lst.append(f'\"{n}\"')
+            return f"zip([{', '.join(ls1_lst)}], {vargs[1]})"
+        
+        if len(vargs) == 0:
+            return "zip"
+        if len(vargs) == 1:
+            f"zip({vargs[0]})"
+
+        return f"zip({vargs[0]}, {vargs[1]})"
+
+    def visit_frozenset_contains(t_self, node, vargs):
+        t_self._usings.add("FunctionalCollections")
+        return f"{vargs[1]} in {vargs[0]}" \
+            if len(vargs) == 2 else "x::pset, y -> y in x"
+
+    ########## Bisect ##########
+    def visit_bisect_right(t_self, node, vargs: list[str]):
+        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
+        return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
+
+    def visit_bisect_left(t_self, node, vargs: list[str]):
+        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
+        return f"bisect_left({', '.join(vargs)})" if vargs else "bisect_left"
+
+    def _generic_bisect_visit(t_self):
+        t_self._usings.add("BisectPy")
+
+    ########## IO ##########
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
         if len(vargs) == 1 and not node.keywords and \
                 not isinstance(node.args[0], ast.BinOp):
@@ -373,205 +583,6 @@ class JuliaTranspilerPlugins:
         # By default, use println
         return f"println({', '.join(vargs)})"
 
-    def visit_getattr(t_self, node, vargs: list[str]):
-        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
-
-        if len(parsed_args) == 3:
-            # Cannot remove the quotes from default
-            default = t_self.visit(node.args[-1])
-            return f"""(hasfield(typeof({parsed_args[0]}), :{parsed_args[1]}) ? 
-                getfield({parsed_args[0]}, :{parsed_args[1]}) : {default})"""
-        elif len(parsed_args) == 2:
-            return f"getfield({parsed_args[0]}, :{parsed_args[1]})"
-        return "getfield"
-
-    def visit_hasattr(t_self, node, vargs: list[str]):
-        parsed_args = JuliaTranspilerPlugins._parse_attrs(t_self, node)
-        if len(parsed_args) == 2:
-            return f"hasfield(typeof({parsed_args[0]}), :{parsed_args[1]})"
-        return "hasfield"
-
-    def _parse_bin_op(t_self, node: ast.BinOp):
-        left: str
-        right: str
-        if isinstance(node.left, ast.Constant):
-            left = t_self.visit_Constant(node.left, quotes=False)
-        else:
-            left = t_self.visit(node.left)
-        if isinstance(node.right, ast.Constant):
-            right = t_self.visit_Constant(node.right, quotes=False)
-        else:
-            right = t_self.visit(node.right)
-        return left, right
-
-    def _parse_attrs(t_self, node):
-        parsed_args = []
-        for arg in node.args:
-            if isinstance(arg, ast.BinOp):
-                left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
-                parsed_args.append(f"{left}{t_self.visit(arg.op)}{right}")
-            elif isinstance(arg, ast.Constant):
-                parsed_args.append(t_self.visit_Constant(arg, quotes=False))
-            else:
-                parsed_args.append(t_self.visit(arg))
-        return parsed_args
-
-    def visit_cast_int(t_self, node, vargs) -> str:
-        if hasattr(node, "args") and node.args:
-            needs_parsing = False
-            is_float = False
-            for arg in node.args:
-                if arg_type := t_self._typename_from_annotation(arg):
-                    if arg_type.startswith("Float"):
-                        is_float = True
-                    elif not arg_type.startswith("Int"):
-                        needs_parsing = True
-                        break
-
-            if needs_parsing:
-                return f"parse(Int, {vargs[0]})"
-            elif is_float:
-                return f"Int(floor({vargs[0]}))"
-            else:
-                return f"Int({vargs[0]})"
-        return f"zero(Int)"  # Default int value
-
-    def visit_maketrans(t_self, node, vargs: list[str]):
-        original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
-        replacement_lst = []
-        byte_replacements = str(vargs[1][2:-1])
-        i = 0
-        while i < len(byte_replacements):
-            if byte_replacements[i:i+2] == "\\x":
-                replacement_lst.append(str(byte_replacements[i:i+4]))
-                i += 4
-            else:
-                replacement_lst.append(byte_replacements[i])
-                i += 1
-        element_lst = []
-        for o, r in zip(original_lst, replacement_lst):
-            if o in t_self._str_special_character_map:
-                o = t_self._str_special_character_map[o]
-            if r in t_self._str_special_character_map:
-                r = t_self._str_special_character_map[r]
-            element_lst.append(f'b"{o}" => b"{r}"')
-        element_lst_str = ", ".join(element_lst)
-        return f"Dict({element_lst_str})"
-
-    def visit_starmap(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
-        return f"pmap({vargs[1]}, {vargs[2]})"
-
-    def visit_map(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
-        return f"pmap({vargs[1]}, {vargs[2]})"
-
-    def visit_Pool(t_self, node, vargs):
-        JuliaTranspilerPlugins._generic_distributed_visit(t_self)
-        return "default_worker_pool()"
-    
-    def _generic_distributed_visit(t_self):
-        t_self._usings.add("Distributed")
-
-    def visit_join(t_self, node, vargs):
-        if len(vargs) == 2:
-            return f"join({vargs[1]}, {vargs[0]})"
-        elif len(vargs) == 1:
-            return f"x -> join(x, {vargs[0]})" 
-        return "join"
-
-    # TODO: Optimize (possibly using regex)
-    def visit_format(t_self, node, vargs):
-        subst_values: list[str] = vargs[1:]
-        res: str = re.split("{|}", vargs[0])
-        replacement_map = {}
-        for i in range(len(subst_values)):
-            subst_val = re.split("\s*=\s*", subst_values[i])
-            if len(subst_val) > 1:
-                original = subst_val[0]
-                replacement = subst_val[1]
-            else:
-                original = f"{i}"
-                replacement = subst_val[0]
-            replacement_map[original] = replacement
-
-        for j in range(1, len(res), 2):
-            split_res = res[j].split(".")
-            split_res[0] = split_res[0].translate(str.maketrans(replacement_map))
-            res[j] = f"$({'.'.join(split_res)})"
-
-        return "".join(res)
-
-    def visit_bytearray(t_self, node, vargs: list[str]):
-        if len(vargs) == 0:
-            return "Vector{UInt8}()"
-        else:
-            parsed_args = vargs[0]
-            if isinstance(node.args[0], ast.GeneratorExp) \
-                    or getattr(node.args[0], "is_gen_expr", None):
-                parsed_args = parsed_args.removeprefix("(").removesuffix(")")
-                parsed_args = f"[{vargs[0][1:-1]}]"
-            return f"Vector{{UInt8}}({parsed_args})"
-
-    def visit_islice(t_self, node, vargs: list[str]) -> str:
-        node.is_gen_expr = True
-        return f"({vargs[0]} for _ in (0:{vargs[1]}))"
-
-    def visit_iter(t_self, node, vargs: list[str]) -> str:
-        node.is_gen_expr = True
-        return f"(x for x in {vargs[0]})"
-
-    def visit_next(t_self, node: ast.Call, vargs: list[str]) -> str:
-        func_def = get_func_def(node, vargs[0])
-        if get_id(getattr(func_def, "annotation", None)) == "Generator":
-            decs = getattr(func_def, "parsed_decorators", None)
-            if RESUMABLE in decs:
-                if len(vargs) > 1:
-                    return f"{vargs[0]}({', '.split(vargs[1:])})"
-                elif getattr(node, "is_attr", None):
-                    return f"{vargs[0]}" 
-                else :
-                    return f"{vargs[0]}()"
-            else:
-                return f"take!({vargs[0]})"
-        # TODO: Is this valid? Is this undecidable?
-        # else:
-        #     getattr(node, "is_gen_expr", None)
-        #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
-        return f"next({', '.join(vargs)})"
-
-    def visit_zip(t_self, node, vargs: list[str]):
-        ls1 = node.args[0]
-        if isinstance(ls1, ast.Constant) and \
-                isinstance(ls1.value, str):
-            ls1_lst = []
-            for n in ls1.value:
-                ls1_lst.append(f'\"{n}\"')
-            return f"zip([{', '.join(ls1_lst)}], {vargs[1]})"
-        
-        if len(vargs) == 0:
-            return "zip"
-        if len(vargs) == 1:
-            f"zip({vargs[0]})"
-
-        return f"zip({vargs[0]}, {vargs[1]})"
-
-    def visit_frozenset_contains(t_self, node, vargs):
-        t_self._usings.add("FunctionalCollections")
-        return f"{vargs[1]} in {vargs[0]}" \
-            if len(vargs) == 2 else "x::pset, y -> y in x"
-
-    def visit_bisect_right(t_self, node, vargs: list[str]):
-        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
-        return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
-
-    def visit_bisect_left(t_self, node, vargs: list[str]):
-        JuliaTranspilerPlugins._generic_bisect_visit(t_self)
-        return f"bisect_left({', '.join(vargs)})" if vargs else "bisect_left"
-
-    def _generic_bisect_visit(t_self):
-        t_self._usings.add("BisectPy")
-
     def visit_write(t_self, node, vargs: list[str]):
         func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "write")
 
@@ -585,7 +596,7 @@ class JuliaTranspilerPlugins:
 
         if not vargs:
             return f"{func_name}(stdout)"
-        return f"{func_name}({vargs[0]})"        
+        return f"{func_name}({vargs[0]})"
 
     def _handle_base_funcs(node, func_name):
         new_func_name = func_name
@@ -594,12 +605,13 @@ class JuliaTranspilerPlugins:
             new_func_name = f"Base.{func_name}"
         return new_func_name
 
-    def visit_all(t_self, node: ast.Assign, vargs):
-        assert isinstance(node.value, ast.List)
-        values = []
-        for value in node.value.elts:
-            values.append(value.value)
-        return f"export {', '.join(values)}"
+    def visit_textio_read(t_self, node, vargs):
+        # TODO
+        return None
+
+    def visit_textio_write(t_self, node, vargs):
+        # TODO
+        return None
 
     def visit_encode(t_self, node, vargs):
         t_self._usings.add("StringEncodings")
@@ -613,30 +625,20 @@ class JuliaTranspilerPlugins:
         v0 = vargs[0].replace('\"', '\'')
         return f"Int(codepoint({v0}))"
 
-    def visit_translate(t_self,node, vargs):
-        if len(vargs) < 2:
-            return "replace!"
-        if len(vargs) == 2:
-            translation_map = vargs[1]
-        elif len(vargs) == 3:
-            # Include "delete" parameter
-            key_map = []
-            del_args = vargs[2][2:-1]
-            i = 0
-            while i < len(del_args):
-                if del_args[i] == "\\":
-                    arg = del_args[i:i+2]
-                    i += 2
-                else:
-                    arg = del_args[i]
-                    i += 1
-                if arg in t_self._str_special_character_map:
-                    arg = t_self._str_special_character_map[arg]
-                key_map.append(f"b\"{arg}\" => b\"\"")
-            key_map = ", ".join(key_map)
-            translation_map = f"merge!({vargs[1]}, Dict({key_map}))"
-        return f"replace!(collect({vargs[0]}), {translation_map}...)"
+    def visit_open(t_self, node, vargs):
+        for_node = find_node_by_type(ast.For, node.scopes)
+        # Check if this is always like this
+        if for_node is not None:
+            return f"readline({vargs[0]})"
 
+        return f"open({vargs[0]}, {vargs[1]})"
+
+    def visit_named_temp_file(t_self, node, vargs):
+        node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
+        node.result_type = True
+        return "NamedTempFile::new()"
+
+    ########## regex ##########
     def visit_refindall(t_self, node, vargs):
         if len(vargs) == 1:
             return f"""
@@ -672,11 +674,13 @@ class JuliaTranspilerPlugins:
             varg = f"{val2}{varg}"
         return varg
 
+    ########## importlib ##########
     def visit_import(t_self, node, vargs):
         # Try to split 'path' from 'name'
         path, name = os.path.split(vargs[0])
         return f"@eval @from {path} import Symbol({name})"
 
+    ########## Path ##########
     def visit_makedirs(t_self, node: ast.Call, vargs):
         parsed_args = []
         # Ignore "exist_ok" parameter
@@ -689,21 +693,31 @@ class JuliaTranspilerPlugins:
                 parsed_args.append(t_self.visit(keyword))
         return f"mkpath({', '.join(parsed_args)})"
 
+    ###### Random ######
+    def visit_random(t_self, node: ast.Call, vargs: list[str]):
+        t_self._usings.add("Random")
+        return f"rand({', '.join(vargs)})"
+
+    def visit_randomshuffle(t_self, node: ast.Call, vargs: list[str]):
+        t_self._usings.add("Random")
+        return f"shuffle({', '.join(vargs)})"
+
+    def visit_randomseed(t_self, node: ast.Call, vargs: list[str]):
+        t_self._usings.add("Random")
+        return f"Random.seed!({','.join(vargs)})"
+
+    ########## Async ##########
     @staticmethod
     def visit_asyncio_run(t_self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
 
-    def visit_textio_read(t_self, node, vargs):
-        # TODO
-        return None
-
-    def visit_textio_write(t_self, node, vargs):
-        # TODO
-        return None
-
-    def visit_ap_dataclass(t_self, cls):
-        # Do whatever transformation the decorator does to cls here
-        return cls
+    ########## Special Assignments ##########
+    def visit_all(t_self, node: ast.Assign, vargs):
+        assert isinstance(node.value, ast.List)
+        values = []
+        for value in node.value.elts:
+            values.append(value.value)
+        return f"export {', '.join(values)}"
 
 
 class JuliaRewriterPlugins:
@@ -730,15 +744,43 @@ class JuliaRewriterPlugins:
 
         constructor_body = []
         node = InitFunctionRewriter().visit(node)
+        assigns = []
         for n in node.body:
-            if not isinstance(n, ast.Assign) and not isinstance(n, ast.AnnAssign):
+            if isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign):
+                assigns.append(n)
+            else:
                 constructor_body.append(n)
 
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
-        if constructor_body and class_node:
-            constructor_args = node.args
-            # Remove self
+        if (constructor_body or assigns) and class_node:
+            constructor_args: ast.arguments = node.args
+            # Bypass self
             constructor_args.args = constructor_args.args[1:]
+
+            # Add assigns with default to constructor 
+            for assign in assigns:
+                if hasattr(assign, "value"):
+                    if isinstance(assign, ast.Assign):
+                        target = assign.targets[0]
+                    elif isinstance(assign, ast.AnnAssign):
+                        target = assign.target
+                    arg = ast.arg(
+                        arg = get_id(target),
+                    )
+                    if ann := getattr(assign, "annotation", None):
+                        arg.annotation = ann
+                    constructor_args.args.append(arg)
+                    constructor_args.defaults.append(assign.value)
+
+            # Remove duplicates
+            arg_ids = set()
+            parsed_args = []
+            for arg in constructor_args.args:
+                if arg.arg not in arg_ids:
+                    parsed_args.append(arg)
+                    arg_ids.add(arg.arg)
+            constructor_args.args = parsed_args
+
             # TODO: Check lineno and col_offset
             class_node.constructor = juliaAst.Constructor(
                                     struct_name = ast.Name(id = class_node.name),
@@ -922,11 +964,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     bisect_right: (JuliaTranspilerPlugins.visit_bisect_right, True),
     bisect_left: (JuliaTranspilerPlugins.visit_bisect_left, True),
     # Random
-    random.seed: (
-        lambda self, node, vargs: f"pylib::random::reseed_from_f64({vargs[0]})",
-        False,
-    ),
-    random.random: (lambda self, node, vargs: "pylib::random::random()", False),
+    random.random: (JuliaTranspilerPlugins.visit_random, False),
+    random.shuffle: (JuliaTranspilerPlugins.visit_randomshuffle, False),
+    random.seed: (JuliaTranspilerPlugins.visit_randomseed,False,),
     # Str and Byte transformations
     str.join: (JuliaTranspilerPlugins.visit_join, False),
     str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
@@ -937,22 +977,17 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     itertools.repeat: (lambda self, node, vargs: f"repeat({vargs[0], vargs[1]})"
         if len(vargs) > 2 else f"repeat({vargs[0]})", False),
     itertools.islice: (JuliaTranspilerPlugins.visit_islice, True),
-    # Multiprocessing
-    os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
-    multiprocessing.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
-    multiprocessing.Pool: (JuliaTranspilerPlugins.visit_Pool, True),
-    "starmap": (JuliaTranspilerPlugins.visit_starmap, True), # TODO: remove string-based fallback
     # Time
     time.time: (lambda self, node, vargs: "pylib::time()", False),
     # Regex
-    re.sub: (JuliaTranspilerPlugins.visit_resub, False),
     re.findall: (JuliaTranspilerPlugins.visit_refindall, False),
+    re.sub: (JuliaTranspilerPlugins.visit_resub, False),
     # Memory handling
     contextlib.closing: (lambda self, node, vargs: vargs[0], False), #TODO: Is this correct
     # Traceback
     traceback.print_exc: (lambda self, node, vargs: "current_exceptions() != [] ? "\
         "current_exceptions()[end] : nothing", False),
-    # 
+    # builtin functions
     getattr: (JuliaTranspilerPlugins.visit_getattr , False),
     hasattr: (JuliaTranspilerPlugins.visit_hasattr , False),
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
@@ -967,6 +1002,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     os.path.isdir: (lambda self, node, vargs: f"isdir({vargs[0]})", False),
     os.path.isfile: (lambda self, node, vargs: f"isfile({vargs[0]})", False),
     os.path.exists: (lambda self, node, vargs: f"ispath({vargs[0]})", False), # TODO: Is tghis too generic? 
+    # os (generic)
+    os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     # importlib
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),

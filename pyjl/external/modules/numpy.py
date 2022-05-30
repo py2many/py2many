@@ -53,7 +53,7 @@ class JuliaExternalModulePlugins:
             if keywords["dtype"] in EXTERNAL_TYPE_MAP:
                 zero_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
             zero_type = keywords["dtype"]
-        
+
         parsed_args = []
         if node.args:
             if isinstance(node.args[0], ast.Tuple):
@@ -89,6 +89,27 @@ class JuliaExternalModulePlugins:
             val_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
         return f"ones({val_type}, {vargs[0]})"
 
+    def visit_argmax(t_self, node: ast.Call, vargs: list[str]):
+        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+        axis = None
+        if "axis" in keywords:
+            axis:str = keywords["axis"]
+            if axis.isnumeric():
+                axis = int(axis) + 1
+            else:
+                axis = f"{axis}+1"
+
+            return f"map(x -> x[{axis}], argmax({vargs[0]}, dims={axis})"
+        return f"argmax({vargs[0]})"
+
+    def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
+        t_self._usings.add("LinearAlgebra")
+        return f"LinearAlgebra.dot({', '.join(vargs)})"
+
+    def visit_transpose(t_self, node, vargs: list[str]):
+        t_self._usings.add("LinearAlgebra")
+        return f"LinearAlgebra.transpose({', '.jojn(vargs)})"
+
     def _get_keywords(t_self, node: ast.Call):
         return {k.arg:(JuliaExternalModulePlugins._visit_val(t_self, k.value)) 
             for k in node.keywords}
@@ -114,6 +135,13 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
     np.flatnonzero: (lambda self, node, vargs: 
         f"[i for i in {vargs[0]} if {vargs[0]}[i] != 0]", True),
+    np.exp: (lambda self, node, vargs: f"[ℯ^i for i in {vargs[0]}]", True),
+    np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
+    np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
+    np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
+    np.dot: (JuliaExternalModulePlugins.visit_dotproduct, True),
+    np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
+    np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
 }
 
 # Numpy Types
