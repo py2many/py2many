@@ -99,9 +99,35 @@ jobs:
             (cd /usr/local/bin && sudo ln -fs $(find ~/.julia -name format.jl))
           fi
 
+      - name: Set up Homebrew (Linux)
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
+        shell: bash
+        env:
+          LB_USERNAME: linuxbrew
+        run: |
+          if [ ! -f /home/$LB_USERNAME/.linuxbrew/bin/brew ]; then
+            rm -rf /home/$LB_USERNAME/
+            deluser $LB_USERNAME
+            adduser --disabled-password --gecos "" $LB_USERNAME
+            wget -c https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
+            # c.f. https://stackoverflow.com/questions/72435188/how-to-install-brew-using-a-shallow-clone
+            sed -i 's:"git" "fetch":"git" "fetch" "--depth" "1":' install.sh
+            sed -i '/"update" "--force"/d' install.sh
+            mv install.sh /tmp
+            chmod a+r /tmp/install.sh
+            echo "export HOMEBREW_NO_AUTO_UPDATE=1" >> /home/$LB_USERNAME/.profile
+            su -l $LB_USERNAME -c "CI=1 USER=$LB_USERNAME bash /tmp/install.sh"
+            echo "eval \"\$(/home/$LB_USERNAME/.linuxbrew/bin/brew shellenv)\"" >> /home/$LB_USERNAME/.profile
+            chmod a+x /home/$LB_USERNAME/.linuxbrew/bin/brew
+            chmod a+x /home/$LB_USERNAME/.linuxbrew/Homebrew/bin/brew
+          fi
+
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
+        env:
+          LB_USERNAME: linuxbrew
         run: |
+          set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes \
                   astyle \
@@ -109,9 +135,10 @@ jobs:
                   z3 \
                 && true
               echo "CXX=clang++-14" >> $GITHUB_ENV
-              curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
-              chmod a+x ktlint
-              sudo mv ktlint /usr/local/bin/
+              # cljstyle has no linux cask https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/cljstyle.rb
+              # but can be added https://github.com/greglook/cljstyle/releases/tag/0.15.0
+              su -l $LB_USERNAME -c 'brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap'
+              su -l $LB_USERNAME -c 'time brew install ktlint kscript'
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install astyle clang-format cljstyle kscript ktlint z3
@@ -127,14 +154,6 @@ jobs:
         uses: vlang/setup-v@v1
         with:
           token: ${{ github.token }}
-
-      - name: Install kscript (using sdkman)
-        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
-        shell: bash
-        run: |
-          curl -s "https://get.sdkman.io" | bash
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          sdk install kscript
 
       - name: Install dart dependencies
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
@@ -183,16 +202,17 @@ jobs:
 
       - name: Run tox
         shell: bash
-        # sdkman init can be replaced with actions setup when the following is fixed
-        # https://github.com/sdkman/sdkman-action/issues/8
+        env:
+          LB_USERNAME: linuxbrew
         run: |
-          if [ -f $HOME/.sdkman/bin/sdkman-init.sh ]; then
-            source "$HOME/.sdkman/bin/sdkman-init.sh"
-          fi
-          LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
-            export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
+            export PATH="$PATH:/C/Program Files/LLVM/bin"
           fi
+
+          if [ -d /home/$LB_USERNAME/.linuxbrew ]; then
+            eval "$(/home/$LB_USERNAME/.linuxbrew/bin/brew shellenv)"
+          fi
+
           if [ "$FOCUS" ]; then
             tox -e py38 -- -k "$FOCUS"
           else
