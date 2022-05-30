@@ -307,27 +307,12 @@ class JuliaTranspilerPlugins:
     def _parse_attrs(t_self, node):
         parsed_args = []
         for arg in node.args:
-            if isinstance(arg, ast.BinOp):
-                left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
-                parsed_args.append(f"{left}{t_self.visit(arg.op)}{right}")
-            elif isinstance(arg, ast.Constant):
+            if isinstance(arg, ast.Constant):
                 parsed_args.append(t_self.visit_Constant(arg, quotes=False))
             else:
                 parsed_args.append(t_self.visit(arg))
         return parsed_args
 
-    def _parse_bin_op(t_self, node: ast.BinOp):
-        left: str
-        right: str
-        if isinstance(node.left, ast.Constant):
-            left = t_self.visit_Constant(node.left, quotes=False)
-        else:
-            left = t_self.visit(node.left)
-        if isinstance(node.right, ast.Constant):
-            right = t_self.visit_Constant(node.right, quotes=False)
-        else:
-            right = t_self.visit(node.right)
-        return left, right
 
     ########## Cast ##########
     def visit_cast_int(t_self, node, vargs) -> str:
@@ -516,37 +501,19 @@ class JuliaTranspilerPlugins:
             parsed_args = []
             for arg in node.args:
                 if isinstance(arg, ast.BinOp):
-                    if isinstance(arg.op, ast.Mod):
-                        elements = []
-                        if hasattr(arg.right, "elts"):
-                            elements.extend([t_self.visit(arg) for arg in arg.right.elts])
-                        else:
-                            elements = [t_self.visit(arg.right)]
-                        left_str: str = t_self.visit(arg.left)[1:-1]
-                        parsed_args = re.split(r"%\w", left_str)
-                        for i in range(0, len(parsed_args), 2):
-                            parsed_args[i] = f"$({elements[i//2]})"
-
-                        args_str.append(left_str)
-                        args_vals.extend(elements)
-                    elif isinstance(arg.op, ast.Add):
-                        left, right = JuliaTranspilerPlugins._parse_bin_op(t_self, arg)
-                        if not (isinstance(arg.left, ast.Constant) and 
-                                isinstance(arg.left.value, str)):
-                            left = f"$({left})"
-                        if not (isinstance(arg.right, ast.Constant) and 
-                                isinstance(arg.right.value, str)):
-                            right = f"$({right})"
-                        parsed_args.append(f"{left}{right}")
-                else:
-                    if isinstance(arg, ast.Constant) and \
-                            isinstance(arg.value, str):
-                        if arg.value.startswith("\""):
-                            parsed_args.append(t_self.visit(arg)[1:-1])
-                        else:
-                            parsed_args.append(t_self.visit(arg)[1:-1])
+                    parsed_arg: str = t_self.visit(arg)
+                    if parsed_arg.startswith("\""):
+                        parsed_args.append(parsed_arg[1:-1])
                     else:
-                        parsed_args.append(f"$({t_self.visit(arg)})")
+                        parsed_args.append(parsed_arg)
+                elif isinstance(arg, ast.Constant) and \
+                        isinstance(arg.value, str):
+                    if arg.value.startswith("\""):
+                        parsed_args.append(t_self.visit(arg)[1:-1])
+                    else:
+                        parsed_args.append(t_self.visit(arg)[1:-1])
+                else:
+                    parsed_args.append(f"$({t_self.visit(arg)})")
 
             func_name = "println"
             sep = ""
@@ -565,11 +532,11 @@ class JuliaTranspilerPlugins:
                         val = k.value.value
                     end = val
                 if k.arg == "sep":
-                    # parsed_vargs = (f"$({varg})" for varg in vargs)
                     sep = t_self.visit(k.value)
 
             if args_str and not print_repr and end == "\\n" and sep == "":
                 t_self._usings.add("Printf")
+                print(args_str)
                 return f'@printf(\"{" ".join(args_str)}{end}\", {", ".join(args_vals)})'
 
             # Append parsed arguments

@@ -402,7 +402,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.left, ast.Constant) and \
                 isinstance(node.left.value, str) and \
                 "%" in node.left.value:
-            split_str = re.split(r"%[\w|.\d\w]", node.left.value)
+            split_str = re.split(r"%[\w|(.\d\w)]|%-\d\d\w", node.left.value)
             elts = getattr(node.right, "elts", [])
             for i in range(len(elts)):
                 e = elts[i]

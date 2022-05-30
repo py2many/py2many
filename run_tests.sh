@@ -25,7 +25,8 @@ sudo ./setup.py install
 ## Pywin tests
 # py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
 # python py2many.py --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many # Temporary for windows
-# python py2many.py --julia=1 "../pyjl_tests/pywin/win32com_/ext_modules/pywintypes.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/ext_modules
+python py2many.py --julia=1 ../pyjl_tests/pywin/test.py --outdir=../pyjl_tests/pywin-py2many/
+
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_" --outdir=../pyjl_tests/pywin-py2many/win32com_
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_/client/combrowse.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/client
 
