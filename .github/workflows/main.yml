@@ -106,7 +106,7 @@ jobs:
           LB_USERNAME: linuxbrew
         run: |
           set -ex
-          ls -al /home/$LB_USERNAME/ ||:
+          find /home/$LB_USERNAME/ ||:
           if [ ! -f /home/$LB_USERNAME/.linuxbrew/bin/brew ]; then
             rm -rf /home/$LB_USERNAME/
             deluser $LB_USERNAME
@@ -123,11 +123,10 @@ jobs:
             chmod a+x /home/$LB_USERNAME/.linuxbrew/bin/brew
             chmod a+x /home/$LB_USERNAME/.linuxbrew/Homebrew/bin/brew
           fi
+          echo "/home/$LB_USERNAME/.linuxbrew/bin" >> $GITHUB_PATH
 
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
-        env:
-          LB_USERNAME: linuxbrew
         run: |
           set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
@@ -139,8 +138,8 @@ jobs:
               echo "CXX=clang++-14" >> $GITHUB_ENV
               # cljstyle has no linux cask https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/cljstyle.rb
               # but can be added https://github.com/greglook/cljstyle/releases/tag/0.15.0
-              su -l $LB_USERNAME -c 'brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap'
-              su -l $LB_USERNAME -c 'time brew install ktlint kscript'
+              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+              time brew install ktlint kscript
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install astyle clang-format cljstyle kscript ktlint z3
@@ -212,7 +211,7 @@ jobs:
           fi
 
           if [ -d /home/$LB_USERNAME/.linuxbrew ]; then
-            eval "$(/home/$LB_USERNAME/.linuxbrew/bin/brew shellenv)"
+            eval "$(brew shellenv)"
           fi
 
           if [ "$FOCUS" ]; then
