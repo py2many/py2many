@@ -11,6 +11,7 @@ from py2many.inference import get_inferred_type
 from typing import Any, cast, Optional
 
 from py2many.scope import ScopeList
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type
 
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
@@ -550,8 +551,16 @@ class ForElseRewriter(ast.NodeTransformer):
 
     def visit_For(self, node: ast.For) -> Any:
         self._visit_Scope(node)
-        parent = node.scopes[-2]
-        if len(node.orelse) > 0 and hasattr(parent, "body"):
+        self._generic_loop_visit(node)
+        return node
+
+    def visit_While(self, node: ast.While) -> Any:
+        self._visit_Scope(node)
+        self._generic_loop_visit(node)
+        return node
+
+    def _generic_loop_visit(self, node):
+        if len(node.orelse) > 0:
             lineno = node.orelse[0].lineno
             if_expr = ast.If(
                 test = ast.Compare(
@@ -566,8 +575,6 @@ class ForElseRewriter(ast.NodeTransformer):
             )
             node.if_expr = if_expr
 
-        return node
-
     def _visit_Scope(self, node) -> Any:
         self.generic_visit(node)
         assign = ast.Assign(
@@ -578,15 +585,17 @@ class ForElseRewriter(ast.NodeTransformer):
         ast.fix_missing_locations(assign)
         body = []
         for n in node.body:
-            if isinstance(n, ast.Break):
-                assign.value = ast.Constant(value=True, scopes = ScopeList())
-                body.append(assign)
-                body.append(n)
-            elif isinstance(n, ast.For) and hasattr(n, "if_expr"):
+            if hasattr(n, "if_expr"):
                 assign.value = ast.Constant(value=False, scopes = ScopeList())
                 body.append(assign)
                 body.append(n)
                 body.append(n.if_expr)
+            elif isinstance(n, ast.Break):
+                for_node = find_node_by_type(ast.For, node.scopes)
+                if hasattr(for_node, "if_expr"):
+                    assign.value = ast.Constant(value=True, scopes = ScopeList())
+                    body.append(assign)
+                body.append(n)
             else:
                 body.append(n)
 

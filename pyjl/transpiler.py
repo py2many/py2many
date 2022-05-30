@@ -187,7 +187,9 @@ class JuliaTranspiler(CLikeTranspiler):
         args_list = []
 
         if not is_constructor:
-            if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+            if len(typenames) > 0 and \
+                    (typenames[0] == self._default_type or not typenames[0]) \
+                    and hasattr(node, "self_type"):
                 typenames[0] = node.self_type
 
         defaults = node.args.defaults
@@ -264,7 +266,8 @@ class JuliaTranspiler(CLikeTranspiler):
         if vargs and (arg_cls_scope := find_node_by_name_and_type(vargs[0], ast.ClassDef, node.scopes)[0]):
             fndef = arg_cls_scope.scopes.find(fname)
 
-        if fndef and hasattr(fndef, "args"):
+        if fndef and hasattr(fndef, "args") and \
+                getattr(fndef.args, "args", None):
             converted = []
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
@@ -407,7 +410,6 @@ class JuliaTranspiler(CLikeTranspiler):
                     split_str[i] = self.visit(e)
                 else:
                     split_str[i] = f"$({self.visit(e)})"
-            print(split_str)
             return f"\"{''.join(split_str)}\""
 
         if is_class_type(left, node.scopes) or \

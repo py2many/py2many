@@ -20,17 +20,20 @@ sudo ./setup.py install
 ## Performance tests
 # py2many --julia=1 "$TESTS/performance_tests" --outdir=../pyjl_tests/performance_tests-py2many
 # py2many --julia=1 "$TESTS/performance_tests/sieve/sieve.py" --outdir=../pyjl_tests/performance_tests-py2many/sieve
-# python py2many.py --julia=1 "$TESTS/performance_tests" --outdir=../pyjl_tests/performance_tests-py2many # Temporary for windows
+# python py2many.py --julia=1 tests/performance_tests --outdir=../pyjl_tests/performance_tests-py2many # Temporary for windows
 
 ## Pywin tests
 # py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
 # python py2many.py --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many # Temporary for windows
-python py2many.py --julia=1 "../pyjl_tests/pywin/win32com_/ext_modules/pywintypes.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/ext_modules
+# python py2many.py --julia=1 "../pyjl_tests/pywin/win32com_/ext_modules/pywintypes.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/ext_modules
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_" --outdir=../pyjl_tests/pywin-py2many/win32com_
 # py2many --julia=1 "../pyjl_tests/pywin/win32com_/client/combrowse.py" --outdir=../pyjl_tests/pywin-py2many/win32com_/client
 
 # Retinaface
 # py2many --julia=1 "../pyjl_tests/retinaface" --outdir=../pyjl_tests/retinaface-py2many
+
+# Neural network
+python py2many.py --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many # Windows
 
 # Run Transpiler Tests
 # TODO

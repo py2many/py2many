@@ -38,6 +38,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
+        self.generic_visit(node)
         # Don't parse annotations
         if hasattr(node, "is_annotation"):
             return node
@@ -48,7 +49,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            if get_id(fname.value) in self._imports and not self._use_modules:
+            is_module = self._is_module(get_id(fname).split('.'))
+            if is_module and not self._use_modules:
                 # Handle separate module call when Julia defines no 'module'
                 new_func_name = fname.attr
                 node.func = ast.Name(
@@ -69,13 +71,13 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
 
         node.args = args
-        return self.generic_visit(node)
+        return node
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
         
         # Don't parse annotations
-        if hasattr(node, "is_annotation"):
+        if getattr(node, "is_annotation", False):
             return node
 
         if ret := self._handle_special_cases(node):
@@ -145,7 +147,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     
     def _is_module(self, path: list[str]):
         path_str = os.sep.join(path)
-        return path_str in self._imports
+        maybe_path = f"{os.getcwd()}{os.sep}{path_str}"
+        return os.path.isfile(maybe_path) \
+            and get_id(".".join(path)) in self._imports
 
     def _is_dir(self, path: list[str]):
         path_str = os.sep.join(path)
@@ -190,22 +194,22 @@ class JuliaClassRewriter(ast.NodeTransformer):
         abstract_types = []
         l_no = node.import_cnt
         for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
+            nameVal = ast.Name(id=class_name)
+            extends = None
             if not is_jlClass and extends_lst:
                 core_module = extends_lst[0].split(
                     ".")[0] if extends_lst[0] else None
                 # TODO: Investigate Julia traits
-                nameVal = ast.Name(id=class_name)
-                extends = None
                 if extends_lst and core_module not in self._ignored_module_set:
                     extends_name = f"Abstract{extends_lst[0]}" \
                         if extends_lst[0] in self._hierarchy_map \
                         else extends_lst[0]
                     extends = ast.Name(id=f"{extends_name}") 
-                abstract_types.append(
-                    juliaAst.AbstractType(value=nameVal, extends = extends,
-                                          ctx=ast.Load(), lineno=l_no, col_offset=0))
-                # increment linenumber
-                l_no += 1
+            abstract_types.append(
+                juliaAst.AbstractType(value=nameVal, extends = extends,
+                                        ctx=ast.Load(), lineno=l_no, col_offset=0))
+            # increment linenumber
+            l_no += 1
 
         if abstract_types:
             body = body[:node.import_cnt] + \
@@ -229,7 +233,9 @@ class JuliaClassRewriter(ast.NodeTransformer):
             name = get_id(node.bases[0])
             node.jl_bases = [
                 ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-            extends = [name]
+            # Julia does not have base-class object 
+            if name != "object":
+                extends = [name]
         elif len(node.bases) > 1:
             # TODO: Investigate Julia traits
             new_bases = []
@@ -726,15 +732,12 @@ class JuliaConditionRewriter(ast.NodeTransformer):
             )
     
     def visit_Compare(self, node: ast.Compare) -> Any:
-        # Julia comparisons with 'None' or mutable vars use Henry Baker's EGAL predicate
+        # Julia comparisons with 'None' use Henry Baker's EGAL predicate
         # https://stackoverflow.com/questions/38601141/what-is-the-difference-between-and-comparison-operators-in-julia
         self.generic_visit(node)
         find_none = lambda x: isinstance(x, ast.Constant) and x.value == None
         comps_none = next(filter(find_none, node.comparators), None)
-        mutable_comps = next(filter(lambda x: is_mutable(node.scopes, get_id(x)), node.comparators), None)
-        mutable_left = is_mutable(node.scopes, get_id(node.left))
-        if find_none(node.left) or comps_none or \
-                mutable_comps or mutable_left:
+        if find_none(node.left) or comps_none:
             for i in range(len(node.ops)):
                 if isinstance(node.ops[i], ast.Eq):
                     node.ops[i] = ast.Is()

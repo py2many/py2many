@@ -206,7 +206,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id="Generator")
 
         class_type = find_node_by_type(ast.ClassDef, node.scopes)
-        if class_type:
+        if class_type and not hasattr(node, "self_type"):
             node.self_type = get_id(class_type)
 
         return node
@@ -372,7 +372,10 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         annotation = getattr(node.value, "annotation", None)
         if annotation is None:
-            return node
+            if node.type_comment:
+                annotation = ast.Name(id = node.type_comment)
+            else:
+                return node
 
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")

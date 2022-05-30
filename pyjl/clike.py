@@ -104,7 +104,8 @@ JL_IGNORED_MODULE_SET = set([
     "binascii",
     "traceback",
     "types",
-    "io"
+    "io",
+    "random"
 ])
 
 JULIA_TYPE_MAP = {
