@@ -105,6 +105,8 @@ jobs:
         env:
           LB_USERNAME: linuxbrew
         run: |
+          set -ex
+          ls -al /home/$LB_USERNAME/ ||:
           if [ ! -f /home/$LB_USERNAME/.linuxbrew/bin/brew ]; then
             rm -rf /home/$LB_USERNAME/
             deluser $LB_USERNAME
