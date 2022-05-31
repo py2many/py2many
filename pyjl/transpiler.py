@@ -394,23 +394,27 @@ class JuliaTranspiler(CLikeTranspiler):
         is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
         is_tuple = lambda x: x.startswith("Tuple")
 
-        # Visit left and right
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-
         # Modulo string formatting
         if isinstance(node.left, ast.Constant) and \
                 isinstance(node.left.value, str) and \
                 "%" in node.left.value:
-            split_str = re.split(r"%[\w|(.\d\w)]|%-\d\d\w", node.left.value)
-            elts = getattr(node.right, "elts", [])
-            for i in range(len(elts)):
+            left = self.visit_Constant(node.left, quotes=False)
+            split_str: list[str] = re.split(r"%\w|%.\d\w|%-\d\d\w", left)
+            elts = getattr(node.right, "elts", [node.right])
+            # print(len(elts))
+            # print(len(split_str))
+            # print(split_str)
+            for i in range(len(split_str)-1):
                 e = elts[i]
                 if isinstance(e, ast.Constant):
-                    split_str[i] = self.visit(e)
+                    split_str[i] += self.visit_Constant(e,quotes=False)
                 else:
-                    split_str[i] = f"$({self.visit(e)})"
+                    split_str[i] += f"$({self.visit(e)})"
             return f"\"{''.join(split_str)}\""
+
+        # Visit left and right
+        left = self.visit(node.left)
+        right = self.visit(node.right)
 
         if is_class_type(left, node.scopes) or \
                 is_class_type(right, node.scopes):

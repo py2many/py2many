@@ -495,62 +495,56 @@ class JuliaTranspilerPlugins:
 
     ########## IO ##########
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
+        if len(vargs) == 0:
+            return "println"
         if len(vargs) == 1 and not node.keywords and \
                 not isinstance(node.args[0], ast.BinOp):
             return f"println({vargs[0]})"
-        if len(node.args) > 0:
-            args_str, args_vals = [], []
-            parsed_args = []
-            for arg in node.args:
-                if isinstance(arg, ast.BinOp):
-                    parsed_arg: str = t_self.visit(arg)
-                    if parsed_arg.startswith("\""):
-                        parsed_args.append(parsed_arg[1:-1])
-                    else:
-                        parsed_args.append(parsed_arg)
-                elif isinstance(arg, ast.Constant) and \
-                        isinstance(arg.value, str):
-                    if arg.value.startswith("\""):
-                        parsed_args.append(t_self.visit(arg)[1:-1])
-                    else:
-                        parsed_args.append(t_self.visit(arg)[1:-1])
-                else:
-                    parsed_args.append(f"$({t_self.visit(arg)})")
-
-            func_name = "println"
-            sep = ""
-            end = "\\n"
-            print_repr = []
-            for k in node.keywords:
-                if k.arg == "file":
-                    func_name = "write"
-                    print_repr.append(t_self.visit(k.value))
-                if k.arg == "flush":
-                    func_name = "flush"
-                    print_repr.append(t_self.visit(k.value))
-                if k.arg == "end":
-                    val = ""
-                    if isinstance(k.value, ast.Constant):
-                        val = k.value.value
-                    end = val
-                if k.arg == "sep":
-                    sep = t_self.visit(k.value)
-
-            if args_str and not print_repr and end == "\\n" and sep == "":
-                t_self._usings.add("Printf")
-                # print(args_str)
-                return f'@printf(\"{" ".join(args_str)}{end}\", {", ".join(args_vals)})'
-
-            # Append parsed arguments
-            print_repr.append(f"\"{sep.join(parsed_args)}\"")
-
-            if end != "\\n" and func_name == "println":
-                return f"print({', '.join(print_repr)}{end})"
+        parsed_args = []
+        args_str, args_vals = [], []
+        for node_arg in node.args:
+            arg = t_self.visit(node_arg)
+            if arg.startswith("\""):
+                arg = arg[1:-1]
+            if isinstance(node_arg, ast.BinOp) and \
+                    isinstance(node_arg.op, ast.Mod):
+                args_str.append(t_self.visit(node_arg.left)[1:-1])
+                args_vals.append(t_self.visit(node_arg.right))
+                parsed_args.append(arg)
+            elif isinstance(node_arg, ast.Constant):
+                parsed_args.append(arg)
             else:
-                return f"{func_name}({', '.join(print_repr)})"
-        
-        # By default, use println
-        return f"println({', '.join(vargs)})"
+                parsed_args.append(f"$({arg})")
+
+        func_name = "println"
+        sep = " "
+        end = "\\n"
+        print_repr = []
+        for k in node.keywords:
+            if k.arg == "file":
+                func_name = "write"
+                print_repr.append(t_self.visit(k.value))
+            if k.arg == "flush":
+                func_name = "flush"
+                print_repr.append(t_self.visit(k.value))
+            if k.arg == "end":
+                val = ""
+                if isinstance(k.value, ast.Constant):
+                    val = k.value.value
+                end = val
+            if k.arg == "sep":
+                sep = t_self.visit(k.value)
+
+        if args_str and not print_repr:
+            t_self._usings.add("Printf")
+            return f'@printf(\"{sep.join(args_str)}{end}\", {", ".join(args_vals)})'
+
+        # Append parsed arguments
+        print_repr.append(f"\"{sep.join(parsed_args)}\"")
+
+        if end != "\\n" and func_name == "println":
+            return f"print({', '.join(print_repr)}{end})"
+        return f"{func_name}({', '.join(print_repr)})"
 
     def visit_write(t_self, node, vargs: list[str]):
         func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "write")
@@ -907,6 +901,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.stdin.write: (lambda self, node, vargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs: f"close({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
+    sys.stdout: (lambda self, node, vargs: f"stdout", True),
     sys.stdout.buffer.write: (JuliaTranspilerPlugins.visit_write, True),
     sys.stdout.buffer.flush: (JuliaTranspilerPlugins.visit_flush, True),
     open: (JuliaTranspilerPlugins.visit_open, True),

@@ -67,6 +67,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+            else:
+                self.generic_visit(node)
         else:
             self.generic_visit(node)
 
