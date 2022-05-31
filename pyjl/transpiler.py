@@ -626,25 +626,42 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"using {jl_module_name}: {str_imports}"
 
     def _get_import_str(self, name: str):
-        path = name.split(".")
         path_str = self._parse_path(name)
-        # is_file = os.path.isfile(f"{os.getcwd()}{os.sep}{self._filename}{os.sep}{os.sep.join(path)}.jl")
-        is_file = os.path.isfile(f"{path_str}.py")
-        if is_file:
+        if os.path.isfile(f"{path_str}.py"):
+            # Find path from current file
             sep = "/"
-            path_str = sep.join(path)
-            return f'include(\"{path_str}.jl\")'
+            import_path = name.split(".")
+            out_filepath = self._filename.as_posix().split("/")
+            if out_filepath[:-1] == import_path[:-1]:
+                # Shortcut if paths are the same
+                return f'include(\"{import_path[-1]}.jl\")'
+            i, j = len(import_path) - 2, len(out_filepath) - 2
+            rev_cnt = 0
+            match = False
+            while i >= 0 and j >= 0:
+                if import_path[i] != out_filepath[j]:
+                    rev_cnt += 1
+                else:
+                    match = True
+                i, j = i - 1, j - 1
+            if match and rev_cnt > 0 and rev_cnt < len(import_path):
+                rev_path = "../" * rev_cnt
+                parsed_path = sep.join(import_path[rev_cnt:])
+                return f'include(\"{rev_path}{parsed_path}.jl\")'
+            return f'include(\"{sep.join(import_path)}.jl\")'
         return None
 
     def _parse_path(self, import_name: str) -> str:
         cwd = os.getcwd().split(os.sep)
-        out_path = self._filename.as_posix().split("/")
+        base_dir = self._basedir.as_posix().split("/")
+        if os.path.isfile(self._basedir.as_posix()):
+            base_dir = base_dir[:-1]
         path = import_name.split(".")
-        indexes = [idx for idx, elem in enumerate(out_path) if elem in path]
-        if indexes and (idx := indexes[0]) < len(out_path):
-            full_path = cwd + out_path[0:idx] + path
+        indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
+        if indexes and (idx := indexes[0]) < len(base_dir):
+            full_path = cwd + base_dir[0:idx] + path
         else:
-            full_path = cwd + out_path + path
+            full_path = cwd + base_dir + path
         parsed_path = []
         i = 0
         while i < len(full_path):

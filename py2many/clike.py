@@ -134,6 +134,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._imported_names: Dict[str, Any] = {}
         self._features = set([])
         self._imports = []
+        self._basedir = None
         self._filename = None
         self._container_type_map = DEFAULT_CONTAINER_MAP
         self._default_type = _AUTO
@@ -238,10 +239,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._features.clear()
 
         # Get attributes
-        filename = getattr(node, "__file__", None)
-        self._filename = filename
-        if filename:
-            self._module = Path(filename).stem
+        self._filename = getattr(node, "__file__", None)
+        if self._filename:
+            self._module = Path(self._filename).stem
+        self._basedir = getattr(node, "__basedir__", None)
         
         self._imports = list(map(get_id, getattr(node, "imports", [])))
         
