@@ -32,7 +32,7 @@ class AlgebraicSimplification(ast.NodeTransformer):
             self.generic_visit(node)
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
-        self.generic_visit(node)
+        self.visit(node.left)
         if self._optimize:
             if isinstance(node.left, ast.BinOp) and \
                     isinstance(node.right, ast.Constant):
@@ -73,5 +73,5 @@ class AlgebraicSimplification(ast.NodeTransformer):
                     return ast.Constant(
                         value=node.left.value + node.right.value,
                         scopes = node.left.scopes)
-
+        self.visit(node.right)
         return node

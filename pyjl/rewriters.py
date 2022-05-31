@@ -3,7 +3,6 @@ import ast
 from calendar import c
 import copy
 import os
-import re
 import sys
 from typing import Any, Dict
 
@@ -11,7 +10,7 @@ from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum, is_list
-from py2many.analysis import IGNORED_MODULE_SET, is_mutable
+from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
@@ -38,7 +37,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
-        self.generic_visit(node)
         # Don't parse annotations
         if hasattr(node, "is_annotation"):
             return node
@@ -69,6 +67,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
+        else:
+            self.generic_visit(node)
 
         node.args = args
         return node
@@ -649,43 +649,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
 
-# TODO: More a transformer than a rewriter
-class JuliaDecoratorRewriter(ast.NodeTransformer):
-    """Parses decorators and adds them to functions 
-    and class scopes"""
-    def __init__(self):
-        super().__init__()
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self._parse_decorators(node)
-        return self.generic_visit(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self._parse_decorators(node)
-        return self.generic_visit(node)
-
-    def _parse_decorators(self, node):
-        parsed_decorators: Dict[str, Dict[str, str]] = {}
-        if decorator_list := getattr(node, "decorator_list", None):
-            for decorator in decorator_list:
-                if isinstance(decorator, ast.Name):
-                    parsed_decorators[get_id(decorator)] = None
-                elif isinstance(decorator, ast.Call):
-                    keywords = {}
-                    for keyword in decorator.keywords:
-                        if hasattr(keyword.value, "value"):
-                            keywords[keyword.arg] = keyword.value.value
-                        else:
-                            keywords[keyword.arg] = keyword.value
-                    parsed_decorators[get_id(decorator.func)] = keywords
-                
-        if "dataclass" in parsed_decorators \
-                and "jl_dataclass" in parsed_decorators:
-            parsed_decorators.pop("dataclass")
-
-        node.parsed_decorators = parsed_decorators
-
-
 class JuliaConditionRewriter(ast.NodeTransformer):
     """Rewrites condition checks to Julia compatible ones
     All checks that perform equality checks with the literal '1'
@@ -745,6 +708,7 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                     node.ops[i] = ast.IsNot()
         return node
 
+
 class JuliaIndexingRewriter(ast.NodeTransformer):
     """Translates Python's 1-based indexing to Julia's 
     0-based indexing for lists"""
@@ -772,14 +736,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         imports = getattr(node, "imports", [])
         self._imports = [get_id(a) for a in imports]
         self.generic_visit(node)
-        return node
-
-    def visit_LetStmt(self, node: juliaAst.LetStmt):
-        # Introduced in JuliaOffsetArrayRewriter
-        for a in node.args:
-            self.visit(a)
-        for n in node.body:
-            self.visit(n)
         return node
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
@@ -874,35 +830,45 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         #     # From JuliaAugAssignRewriter
         #     lower = f"({lower} + 2)"
 
-        if isinstance(node.lower, ast.UnaryOp) \
+        # Translate negative indexing
+        if isinstance(node.upper,  ast.UnaryOp) \
+                and isinstance(node.upper.op, ast.USub) and \
+                isinstance(node.upper.operand, ast.Constant):
+            node.upper = ast.BinOp(
+                left = ast.Name(
+                    id = "end",
+                    annotation = ast.Name(id="int"),
+                    preserve_keyword = True),
+                op = ast.Sub(),
+                right = node.upper.operand,
+                lineno = node.upper.lineno,
+                col_offset = node.upper.col_offset,
+                scopes = node.upper.scopes)
+        elif isinstance(node.lower, ast.UnaryOp) \
                 and isinstance(node.lower.op, ast.USub) \
                 and self._curr_slice_val:
-            node.lower = ast.BinOp(
-                left = ast.Call(
+            length = ast.Call(
                     func = ast.Name(
                         id = "length",
-                        lineno = node.lineno,
-                        col_offset = node.col_offset,
+                        lineno = node.lineno, col_offset = node.col_offset,
                         annotation = ast.Name(id = "int")),
-                    args = [self._curr_slice_val],
-                    keywords = [],
+                    args = [self._curr_slice_val], keywords = [],
                     annotation = ast.Name(id="int"),
-                    lineno = node.lineno,
-                    col_offset = node.col_offset,
-                    scopes = node.lower.scopes),
-                op = ast.Sub(),
-                right = node.lower.operand,
-                lineno = node.lineno,
-                col_offset = node.col_offset,
-                scopes = node.lower.scopes)
-
-        # Julia array indices start at 1
-        if isinstance(node.lower, ast.Constant) and node.lower.value == -1:
-            node.lower = ast.Name(
-                id = "end",
-                lineno = node.lineno,
-                col_offset = node.col_offset,
-                annotation = ast.Name(id="int"))
+                    lineno = node.lineno, col_offset = node.col_offset,
+                    scopes = node.lower.scopes)
+            # Account for the fact that Julia indices start from 1
+            if isinstance(node.lower.operand, ast.Constant) and \
+                    node.lower.operand.value != 1:
+                right = self._do_bin_op(node.lower.operand, ast.Add(), 1, 
+                    node.lineno, node.col_offset)
+                node.lower = ast.BinOp(
+                    left = length,
+                    op = ast.Sub(),
+                    right = right,
+                    lineno = node.lineno, col_offset = node.col_offset,
+                    scopes = node.lower.scopes)
+            else: 
+                node.lower = length
         elif not getattr(node, "range_optimization", None) and \
                 not getattr(node, "using_offset_arrays", None):
             if isinstance(node.lower, ast.Constant) and isinstance(node.lower.value, int):
@@ -913,7 +879,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     node.lineno, node.col_offset)
 
         if hasattr(node, "step"):
-            # Cover Python list reverse
+            # Translate reverse lookup
             if isinstance(node.step, ast.Constant) \
                     and node.step.value == -1:
                 if (not node.lower and not node.upper) or \

@@ -4,57 +4,56 @@
 
     Helps with the conversion of Python's ast to Julia
 """
-
-from ast import  NodeVisitor, comprehension, expr, expr_context, stmt
 import ast
 from typing import Any
 
 ######################################
 ############### Types ################
 ######################################
-class AbstractType(stmt):
-    value: expr
-    extends: expr
-    ctx: expr_context
+class AbstractType(ast.Expr):
+    value: ast.expr
+    extends: ast.expr
+    ctx: ast.expr_context
 
-class Constructor(stmt):
-    struct_name: ast.Name
+class LetStmt(ast.Expr):
+    args: ast.arguments
+    body: list[ast.expr]
+    ctx: ast.expr_context
+
+class Constructor(ast.FunctionDef):
+    name: ast.Name
     args: ast.arguments
     keywords: list[ast.keyword] # TODO: not used yet
-    body: list[expr]
-    ctx: expr_context
-
-class LetStmt(stmt):
-    args: expr
-    body: list[expr]
-    ctx: expr_context
+    body: list[ast.expr]
+    ctx: ast.expr_context
 
 class JuliaModule(ast.Module):
     name: ast.Name
-    body: list[expr]
-    ctx: expr_context
+    body: list[ast.expr]
+    ctx: ast.expr_context
 
 class OrderedDict(ast.Dict):
-    keys: list[expr]
-    values: list[expr]
-    annotation: expr
+    keys: list[ast.expr]
+    values: list[ast.expr]
+    annotation: ast.expr
 
 class OrderedDictComp(ast.DictComp):
-    key: expr
-    value: expr
-    generators: list[comprehension]
-    annotation: expr
+    key: ast.expr
+    value: ast.expr
+    generators: list[ast.comprehension]
+    annotation: ast.expr
 
 class OrderedSet(ast.Set):
-    elts: list[expr]
-    annotation: expr
+    elts: list[ast.expr]
+    annotation: ast.expr
 
 
 ######################################
 ############### Parser ###############
 ######################################
 
-class JuliaNodeVisitor(NodeVisitor):
+
+class JuliaNodeVisitor(ast.NodeVisitor):
 
     def visit_AbstractType(self, node: AbstractType) -> Any:
         """Visit abstract type node."""

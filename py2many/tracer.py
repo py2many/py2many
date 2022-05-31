@@ -190,6 +190,12 @@ def find_in_scope(body, fn):
         
     return None
 
+def find_parent(type, scopes):
+    for i in range(len(scopes) - 1, -1, -1):
+        node = scopes[i]
+        if isinstance(node, type):
+            return node
+
 # Checks if a given node's name matches 
 # the supplied name
 def matches_name(node, name):
