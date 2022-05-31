@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_in_body, find_in_scope, find_node_by_name_and_type, find_node_by_type, is_enum
+from py2many.tracer import find_in_body, find_in_scope, find_node_by_name_and_type, find_node_by_type, find_parent, get_class_scope, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -205,9 +205,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                 isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
             node.annotation = ast.Name(id="Generator")
 
-        class_type = find_node_by_type(ast.ClassDef, node.scopes)
-        if class_type and not hasattr(node, "self_type"):
-            node.self_type = get_id(class_type)
+        if len(node.scopes) > 1:
+            class_type = find_parent(ast.ClassDef, node.scopes)
+            if class_type and not hasattr(node, "self_type"):
+                node.self_type = get_id(class_type)
 
         return node
 

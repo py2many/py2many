@@ -534,42 +534,7 @@ class JuliaTranspiler(CLikeTranspiler):
             # Default field values
             fields.append((declaration, typename, default))
 
-        if not hasattr(node, "constructor"):
-            if has_defaults:
-                decs_str = ", ".join(decs)
-                default_fields = []
-                for (declaration, typename, default) in fields:
-                    field = []
-                    if typename and typename != self._default_type:
-                        field.append(f"{declaration}::{typename}")
-                    else:
-                        field.append(declaration)
-
-                    if default:
-                        default_value = self.visit(default)
-                        field.append(f" = {default_value}")
-                    field = "".join(field)
-                    default_fields.append(field)
-                default_fields = ", ".join(default_fields)
-
-                # Define constructor with defaults and default constructor
-                node.constructor_str = f"""
-                    {node.name}({default_fields}) =
-                        new({decs_str})"""
-        else:
-            # Case where __init__ has custom implementation
-            args: ast.arguments= node.constructor.args
-            arg_ids = [arg.arg for arg in args.args]
-            for (declaration, typename, default) in fields:
-                if default and declaration not in arg_ids:
-                    arg = ast.arg(
-                        arg = declaration,
-                    )
-                    if typename and typename != self._default_type:
-                        arg.annotation = ast.Name(id=typename)
-                    args.args.append(arg)
-
-                    args.defaults.append(default)
+        if hasattr(node, "constructor"):
             node.constructor_str = self.visit(node.constructor)
 
         node.fields = fields
@@ -1089,8 +1054,7 @@ class JuliaTranspiler(CLikeTranspiler):
             body.append(self.visit(n))
         body = "\n".join(body)
 
-        struct_name = self.visit(node.struct_name)
-
+        struct_name = self.visit(node.name)
 
         if body:
             return f"""

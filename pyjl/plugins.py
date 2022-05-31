@@ -320,7 +320,9 @@ class JuliaTranspilerPlugins:
             needs_parsing = False
             is_float = False
             for arg in node.args:
-                if arg_type := t_self._typename_from_annotation(arg):
+                if isinstance(arg, ast.Compare):
+                    continue
+                elif arg_type := t_self._typename_from_annotation(arg):
                     if arg_type.startswith("Float"):
                         is_float = True
                     elif not arg_type.startswith("Int"):
@@ -536,7 +538,7 @@ class JuliaTranspilerPlugins:
 
             if args_str and not print_repr and end == "\\n" and sep == "":
                 t_self._usings.add("Printf")
-                print(args_str)
+                # print(args_str)
                 return f'@printf(\"{" ".join(args_str)}{end}\", {", ".join(args_vals)})'
 
             # Append parsed arguments
@@ -667,7 +669,9 @@ class JuliaTranspilerPlugins:
 
     def visit_randomshuffle(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("Random")
-        return f"shuffle({', '.join(vargs)})"
+        if vargs:
+            return f"shuffle({', '.join(vargs)})"
+        return "shuffle"
 
     def visit_randomseed(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("Random")
@@ -690,81 +694,57 @@ class JuliaTranspilerPlugins:
 class JuliaRewriterPlugins:
     def visit_init(t_self, node: ast.FunctionDef): 
         # Visit Args
-        arg_values = JuliaRewriterPlugins._get_args(t_self, node.args)
-        arg_names = []
-        for (name, type, default) in arg_values:
-            arg_names.append(name)
+        constructor_args = JuliaRewriterPlugins._get_args(t_self, node.args)
+        for name, (type, default) in constructor_args.items():
             if name not in t_self._class_fields and name != "self" and default:
-                # TODO: Deal with linenumber (and col_offset)
                 target = ast.Name(id=name, ctx=ast.Store())
                 if type:
                     t_self._class_fields[name] = ast.AnnAssign(
                         target=target,
                         annotation = type,
                         value = default,
-                        lineno=1)
+                        lineno=1, col_offset = 0)
                 else:
                     t_self._class_fields[name] = ast.Assign(
                         targets=[target],
                         value = default,
-                        lineno=1)
+                        lineno=1, col_offset = 0)
 
         constructor_body = []
         node = InitFunctionRewriter().visit(node)
-        assigns = []
+        has_assigns = False
         for n in node.body:
             if isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign):
-                assigns.append(n)
+                if hasattr(n, "value") and \
+                        get_id(n.value) not in constructor_args:
+                    # Add assigns with default to constructor
+                    has_assigns = True
+                    target = n.targets[0] \
+                        if isinstance(n, ast.Assign) \
+                        else n.target
+                    target_id = get_id(target)
+                    ann = getattr(n, "annotation", None)
+                    constructor_args[target_id] = (ann, n.value)
             else:
                 constructor_body.append(n)
 
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
-        if (constructor_body or assigns) and class_node:
-            constructor_args: ast.arguments = node.args
-            # Bypass self
-            constructor_args.args = constructor_args.args[1:]
-
-            # Add assigns with default to constructor 
-            for assign in assigns:
-                if hasattr(assign, "value"):
-                    if isinstance(assign, ast.Assign):
-                        target = assign.targets[0]
-                    elif isinstance(assign, ast.AnnAssign):
-                        target = assign.target
-                    arg = ast.arg(
-                        arg = get_id(target),
-                    )
-                    if ann := getattr(assign, "annotation", None):
-                        arg.annotation = ann
-                    constructor_args.args.append(arg)
-                    constructor_args.defaults.append(assign.value)
-
-            # Remove duplicates
-            arg_ids = set()
-            parsed_args = []
-            for arg in constructor_args.args:
-                if arg.arg not in arg_ids:
-                    parsed_args.append(arg)
-                    arg_ids.add(arg.arg)
-            constructor_args.args = parsed_args
-
-            # TODO: Check lineno and col_offset
+        if (constructor_body or has_assigns) and class_node:
+            parsed_args = JuliaRewriterPlugins._parse_args(constructor_args)
             class_node.constructor = juliaAst.Constructor(
-                                    struct_name = ast.Name(id = class_node.name),
-                                    args=constructor_args,
-                                    body = constructor_body,
-                                    ctx=ast.Load(), 
-                                    lineno=node.lineno + len(constructor_args.args), 
-                                    col_offset=4)
-
+                                        name = ast.Name(id = class_node.name),
+                                        args=parsed_args,
+                                        body = constructor_body,
+                                        ctx=ast.Load(), 
+                                        lineno=node.lineno, col_offset=0)
         return None
 
-    def _get_args(t_self, args: ast.arguments):
+    def _get_args(r_self, args: ast.arguments):
         defaults = args.defaults
         arguments: list[ast.arg] = args.args
         len_defaults = len(defaults)
         len_args = len(arguments)
-        arg_values = []
+        arg_values = {}
         for i in range(len_args):
             arg = arguments[i]
             default = None
@@ -774,15 +754,28 @@ class JuliaRewriterPlugins:
                     default = defaults[i - diff_len] if i >= diff_len else None
                 else:
                     default = defaults[i]
-            arg_values.append((arg.arg, arg.annotation, default))
+            # Bypass self
+            if arg.arg != "self":
+                arg_values[arg.arg] = (arg.annotation, default)
 
         return arg_values
+
+    def _parse_args(constructor_args: dict):
+        args = []
+        defaults = []
+        for name, (type, default) in constructor_args.items():
+            arg = ast.arg(arg=name)
+            if type: 
+                arg.annotation = type
+            args.append(arg)
+            if default:
+                defaults.append(default)
+        return ast.arguments(args=args, defaults=defaults)
 
     def visit_next(r_self, node: ast.FunctionDef):
         # TODO: Implement __next__ translation
         r_self.generic_visit(node)
         return node
-
 
 class InitFunctionRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
