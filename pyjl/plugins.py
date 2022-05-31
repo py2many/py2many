@@ -506,11 +506,14 @@ class JuliaTranspilerPlugins:
             arg = t_self.visit(node_arg)
             if arg.startswith("\""):
                 arg = arg[1:-1]
-            if isinstance(node_arg, ast.BinOp) and \
-                    isinstance(node_arg.op, ast.Mod):
-                args_str.append(t_self.visit(node_arg.left)[1:-1])
-                args_vals.append(t_self.visit(node_arg.right))
-                parsed_args.append(arg)
+            if isinstance(node_arg, ast.BinOp):
+                if isinstance(node_arg.op, ast.Mod):
+                    args_str.append(t_self.visit(node_arg.left)[1:-1])
+                    args_vals.append(t_self.visit(node_arg.right))
+                    parsed_args.append(arg)
+                else:
+                    parsed_bin_op = JuliaTranspilerPlugins._parse_bin_op(t_self, node_arg)
+                    parsed_args.append(parsed_bin_op)
             elif isinstance(node_arg, ast.Constant):
                 parsed_args.append(arg)
             else:
@@ -545,6 +548,28 @@ class JuliaTranspilerPlugins:
         if end != "\\n" and func_name == "println":
             return f"print({', '.join(print_repr)}{end})"
         return f"{func_name}({', '.join(print_repr)})"
+
+    def _parse_bin_op(t_self, node: ast.BinOp):
+        left: str
+        right: str
+        if isinstance(node.op, ast.Add):
+            # Left node
+            if isinstance(node.left, ast.BinOp):
+                left = JuliaTranspilerPlugins._parse_bin_op(t_self, node.left)
+            elif isinstance(node.left, ast.Constant):
+                left = t_self.visit_Constant(node.left, quotes=False)
+            else:
+                left = f"$({t_self.visit(node.left)})"
+            # Right node
+            if isinstance(node.right, ast.BinOp):
+                right = JuliaTranspilerPlugins._parse_bin_op(t_self, node.right)
+            elif isinstance(node.right, ast.Constant):
+                right = t_self.visit_Constant(node.right, quotes=False)
+            else:
+                right = f"$({t_self.visit(node.right)})"
+            return f"{left}{right}"
+        else:
+            return f"$({t_self.visit(node)})"
 
     def visit_write(t_self, node, vargs: list[str]):
         func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "write")

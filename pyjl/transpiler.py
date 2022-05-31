@@ -401,9 +401,6 @@ class JuliaTranspiler(CLikeTranspiler):
             left = self.visit_Constant(node.left, quotes=False)
             split_str: list[str] = re.split(r"%\w|%.\d\w|%-\d\d\w", left)
             elts = getattr(node.right, "elts", [node.right])
-            # print(len(elts))
-            # print(len(split_str))
-            # print(split_str)
             for i in range(len(split_str)-1):
                 e = elts[i]
                 if isinstance(e, ast.Constant):
