@@ -1,5 +1,4 @@
 import ast
-import pickle
 import getopt
 import glob
 from typing import BinaryIO, Callable, Dict, Tuple, Union
@@ -9,8 +8,8 @@ import pandas
 
 
 class JuliaExternalModulePlugins:
-    def visit_pywintypes(t_self, node: ast.Call):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
+    # def visit_pywintypes(t_self, node: ast.Call):
+    #     JuliaExternalModulePlugins._pycall_import(t_self, node, "pywintypes")
 
     def visit_datetime(t_self, node: ast.Call):
         # https://github.com/JuliaPy/PyCall.jl/issues/341
@@ -29,51 +28,36 @@ class JuliaExternalModulePlugins:
 
     #######
     
-    def visit_pandas_readcsv(t_self, node: ast.Call, vargs):
+    def visit_pandas_readcsv(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"read_csv({vargs[1]})"
     
-    def visit_pandas_groupby(t_self, node: ast.Call, vargs):
+    def visit_pandas_groupby(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"groupby({vargs[1]})"
 
-    def visit_pandas_toexcel(t_self, node: ast.Call, vargs):
+    def visit_pandas_toexcel(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"to_excel({vargs[1]})"
 
-    def visit_pandas_dataframe_sum(t_self, node: ast.Call, vargs):
+    def visit_pandas_dataframe_sum(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"sum({vargs[0]})"
 
     def _visit_pandas(t_self):
         t_self._usings.add("Pandas")
     
-    def visit_getopt(t_self, node: ast.Call, vargs):
+    def visit_getopt(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("Getopt")
         return f"getopt({', '.join(vargs)})"
 
-    def visit_zipfile(t_self, node: ast.Call, vargs):
+    def visit_zipfile(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("ZipFile")
         return f"ZipFile.Reader({vargs[0]})"
 
-    def visit_glob(t_self, node, vargs):
+    def visit_glob(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("Glob")
         return f"glob({vargs[0]})"
-
-    def visit_picklestore(t_self, node, vargs):
-        JuliaExternalModulePlugins._visit_pickle(t_self)
-        return f"Pickle.store({vargs[0]})"
-
-    def visit_pickleload(t_self, node, vargs):
-        JuliaExternalModulePlugins._visit_pickle(t_self)
-        return f"Pickle.load({vargs[0]})"
-
-    def visit_pickledump(t_self, node, vargs):
-        JuliaExternalModulePlugins._visit_pickle(t_self)
-        return f"Pickle.dump({vargs[0]})"
-
-    def _visit_pickle(t_self):
-        t_self._usings.add("Pickle")
 
 
 FuncType = Union[Callable, str]
@@ -83,10 +67,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     pandas.DataFrame.groupby: (JuliaExternalModulePlugins.visit_pandas_groupby, False),
     pandas.DataFrame.to_excel: (JuliaExternalModulePlugins.visit_pandas_toexcel, False),
     pandas.core.groupby.generic.DataFrameGroupBy.sum: (JuliaExternalModulePlugins.visit_pandas_dataframe_sum, False),
-    # pickle
-    pickle.Pickler: (JuliaExternalModulePlugins.visit_picklestore, False),
-    pickle.Unpickler: (JuliaExternalModulePlugins.visit_pickleload, False),
-    pickle.Pickler.dump: (JuliaExternalModulePlugins.visit_pickledump, False),
     # Zipfile
     zipfile.ZipFile: (JuliaExternalModulePlugins.visit_zipfile, False),
     # Glob
@@ -98,7 +78,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 
 IMPORT_DISPATCH_TABLE = {
-    "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
+    # "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
     "datetime": JuliaExternalModulePlugins.visit_datetime,
     "win32api": JuliaExternalModulePlugins.visit_win32api,
     "win32ui": JuliaExternalModulePlugins.visit_win32ui,
@@ -112,11 +92,6 @@ IGNORED_MODULE_SET = set([
     "win32api",
     "win32ui",
 ])
-
-FUNC_TYPE_MAP = {
-    "pickle.Pickler": "pickle.Pickler"
-}
-
 
 EXTERNAL_TYPE_MAP = {
     BinaryIO: "IOBuffer"

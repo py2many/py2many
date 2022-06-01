@@ -8,7 +8,7 @@ from py2many.tracer import is_list
 
 
 class JuliaExternalModulePlugins:
-    def visit_npsum(t_self, node: ast.Call, vargs) -> str:
+    def visit_npsum(t_self, node: ast.Call, vargs: list[str]) -> str:
         dims = None
         keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
         if "axis" in keywords:
@@ -106,9 +106,24 @@ class JuliaExternalModulePlugins:
         t_self._usings.add("LinearAlgebra")
         return f"LinearAlgebra.dot({', '.join(vargs)})"
 
-    def visit_transpose(t_self, node, vargs: list[str]):
+    def visit_transpose(t_self, node: ast.Call, vargs: list[str]) -> str:
         t_self._usings.add("LinearAlgebra")
         return f"LinearAlgebra.transpose({', '.jojn(vargs)})"
+
+    def visit_exp(t_self, node: ast.Call, vargs: list[str]):
+        arg = node.args[0]
+        if isinstance(arg, ast.Name):
+            ann = node.scopes.find(arg)
+            if ann == "int" or ann == "float":
+                return f"ℯ^{vargs[0]}"
+        if isinstance(arg, ast.Constant):
+            return f"ℯ^{vargs[0]}"
+        return f"[ℯ^i for i in {vargs[0]}]"
+
+    def visit_reshape(t_self, node: ast.Call, vargs: list[str]):
+        if len(vargs) == 2:
+            return f"reshape({vargs[0]}, {vargs[1]})"
+        return "reshape"
 
     def _get_keywords(t_self, node: ast.Call):
         return {k.arg:(JuliaExternalModulePlugins._visit_val(t_self, k.value)) 
@@ -135,13 +150,15 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
     np.flatnonzero: (lambda self, node, vargs: 
         f"[i for i in {vargs[0]} if {vargs[0]}[i] != 0]", True),
-    np.exp: (lambda self, node, vargs: f"[ℯ^i for i in {vargs[0]}]", True),
+    np.exp: (JuliaExternalModulePlugins.visit_exp, True),
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
     np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
     np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
     np.dot: (JuliaExternalModulePlugins.visit_dotproduct, True),
     np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
+    np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
+    np.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
 }
 
 # Numpy Types
@@ -159,10 +176,13 @@ EXTERNAL_TYPE_MAP = {
 }
 
 FUNC_TYPE_MAP = {
-    "numpy.multiply": "list",
-    "numpy.sum": "list",
-    "numpy.append": "list",
-    "numpy.sqrt": "float"
+    # "numpy.multiply": "list",
+    # "numpy.sum": "list",
+    # "numpy.append": "list",
+    # "numpy.sqrt": "float",
+    "np.dot": "float",
+    # "np.zeros": "np.ndarray",
+    # "numpy.arange": "np.ndarray"
 }
 
 
