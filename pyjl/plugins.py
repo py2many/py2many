@@ -747,15 +747,18 @@ class JuliaRewriterPlugins:
             else:
                 constructor_body.append(n)
 
+
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
         if (constructor_body or has_assigns) and class_node:
+            docstring_comment = getattr(node, "docstring_comment", None)
             parsed_args = JuliaRewriterPlugins._parse_args(constructor_args)
             class_node.constructor = juliaAst.Constructor(
                                         name = ast.Name(id = class_node.name),
                                         args=parsed_args,
                                         body = constructor_body,
                                         ctx=ast.Load(), 
-                                        lineno=node.lineno, col_offset=0)
+                                        lineno=node.lineno, col_offset=0,
+                                        docstring_comment=docstring_comment)
         return None
 
     def _get_args(r_self, args: ast.arguments):

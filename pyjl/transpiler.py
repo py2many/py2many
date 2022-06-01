@@ -7,6 +7,7 @@ import re
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
+from pyjl.helpers import is_dir, is_file
 
 import pyjl.juliaAst as juliaAst
 
@@ -458,7 +459,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_BinOp(node)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> str:
-        if isinstance(node.operand, (ast.Call, ast.Num)):
+        if isinstance(node.operand, (ast.Call, ast.Num, ast.Name, ast.Constant)):
             # Shortcut if parenthesis are not needed
             return f"{self.visit(node.op)}{self.visit(node.operand)}"
         return super().visit_UnaryOp(node)
@@ -626,11 +627,14 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"using {jl_module_name}: {str_imports}"
 
     def _get_import_str(self, name: str):
-        path_str = self._parse_path(name)
-        if (is_file := os.path.isfile(f"{path_str}.py")) or \
-                (is_folder := os.path.isdir(path_str)):
+        if (is_mod := is_file(name, self._basedir)) or \
+                (is_folder := is_dir(name, self._basedir)):
             # Find path from current file
-            extension = ".jl" if is_file else ".__init__.jl"
+            extension = ""
+            if is_mod:
+                extension = ".jl"
+            elif is_folder and not is_mod:
+                extension = ".__init__.jl"
             sep = "/"
             import_path = name.split(".")
             out_filepath = self._filename.as_posix().split("/")
@@ -652,27 +656,6 @@ class JuliaTranspiler(CLikeTranspiler):
                 return f'include(\"{rev_path}{parsed_path}{extension}\")'
             return f'include(\"{sep.join(import_path)}{extension}\")'
         return None
-
-    def _parse_path(self, import_name: str) -> str:
-        cwd = os.getcwd().split(os.sep)
-        base_dir = self._basedir.as_posix().split("/")
-        if os.path.isfile(self._basedir.as_posix()):
-            base_dir = base_dir[:-1]
-        path = import_name.split(".")
-        indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
-        if indexes and (idx := indexes[0]) < len(base_dir):
-            full_path = cwd + base_dir[0:idx] + path
-        else:
-            full_path = cwd + base_dir + path
-        parsed_path = []
-        i = 0
-        while i < len(full_path):
-            if i+1 < len(full_path) and full_path[i+1] == "..":
-                i+=2
-            else:
-                parsed_path.append(full_path[i])
-                i+=1
-        return os.sep.join(parsed_path)
 
     def visit_List(self, node:ast.List) -> str:
         elts = self._parse_elts(node)
@@ -1046,6 +1029,12 @@ class JuliaTranspiler(CLikeTranspiler):
         body = []
         for n in node.body:
             body.append(self.visit(n))
+
+        # Get docstring
+        docstring = self._get_docstring(node)
+        if docstring:
+            body.append(docstring)
+        
         body = "\n".join(body)
 
         struct_name = self.visit(node.name)

@@ -1,5 +1,6 @@
 # Gets range from for loop
 import ast
+import os
 from random import Random
 import random
 import re
@@ -161,3 +162,34 @@ def obj_id(node):
         if isinstance(node, ast.Attribute):
             return node.attr
         return get_id(node)
+
+def _parse_path(import_name: str, basedir) -> str:
+        cwd = os.getcwd().split(os.sep)
+        base_dir = basedir.as_posix().split("/")
+        if os.path.isfile(basedir.as_posix()):
+            base_dir = base_dir[:-1]
+        path = import_name.split(".")
+        indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
+        if indexes and (idx := indexes[0]) < len(base_dir):
+            full_path = cwd + base_dir[0:idx+1] + path
+        else:
+            full_path = cwd + base_dir + path
+        parsed_path = []
+        i = 0
+        while i < len(full_path):
+            if i+1 < len(full_path) and full_path[i+1] == "..":
+                i+=2
+            else:
+                parsed_path.append(full_path[i])
+                i+=1
+        return os.sep.join(parsed_path)
+
+def is_file(path: str, basedir, extension="py"):
+    """Takes a dot separated file path"""
+    maybe_path = _parse_path(path, basedir)
+    return os.path.isfile(f"{maybe_path}.{extension}")
+
+def is_dir(path: str, basedir):
+    """Takes a dot separated directory path"""
+    maybe_path = _parse_path(path, basedir)
+    return os.path.isdir(maybe_path)

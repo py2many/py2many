@@ -15,7 +15,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
-from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def, obj_id
+from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -24,13 +24,15 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     """Converts Python calls and attribute calls to Julia compatible ones"""
     def __init__(self) -> None:
         super().__init__()
+        self._file = None
+        self._basedir = None
         self._ignored_module_set = JL_IGNORED_MODULE_SET
         self._imports = []
-        self._file = None
         self._use_modules = None
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._file = getattr(node, "__file__", ".")
+        self._basedir = getattr(node, "__basedir__", None)
         self._use_modules = getattr(node, USE_MODULES, None)
         self._imports = list(map(get_id, getattr(node, "imports", [])))
         self.generic_visit(node)
@@ -47,16 +49,17 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            is_module = self._is_module(get_id(fname).split('.'))
+            val_id = get_id(fname.value)
+            is_module = val_id and is_file(val_id, self._basedir)
             if is_module and not self._use_modules:
                 # Handle separate module call when Julia defines no 'module'
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
-            elif not is_class_or_module(get_id(fname.value), node.scopes):
+            elif not is_class_or_module(val_id, node.scopes):
                 self._handle_special_cases(fname)
 
-                value_id = get_id(fname.value)
+                value_id = val_id
                 if value_id:
                     node0 = ast.Name(id=value_id, lineno=node.lineno)
                 else:
@@ -67,8 +70,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
-            else:
-                self.generic_visit(node)
         else:
             self.generic_visit(node)
 
@@ -112,20 +113,19 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             annotation = annotation,
             scopes = node.scopes,
             is_attr = True)
-
         return node
 
     def _handle_special_cases(self, node):
         # Bypass init module calls
         func_repr = get_id(node)
         split_repr = func_repr.split(".") if func_repr else []
-        if split_repr and self._is_dir(split_repr):
+        if split_repr and is_dir(".".join(split_repr), self._basedir):
             self._insert_init(node)
             return node
 
         # Bypass imports
         for i in range(1,len(split_repr)):
-            if self._is_module(split_repr[:i]):
+            if is_dir('.'.join(split_repr[:i]), self._basedir):
                 return node
 
         return None
@@ -146,17 +146,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             )
             node.attr = "__init__"
             return node.value.value
-    
-    def _is_module(self, path: list[str]):
-        path_str = os.sep.join(path)
-        maybe_path = f"{os.getcwd()}{os.sep}{path_str}"
-        return os.path.isfile(maybe_path) \
-            and get_id(".".join(path)) in self._imports
-
-    def _is_dir(self, path: list[str]):
-        path_str = os.sep.join(path)
-        is_file = os.path.isdir(f"{os.getcwd()}{os.sep}{self._file}{os.sep}{path_str}")
-        return is_file and path[-1] in self._imports
 
 
 class JuliaClassRewriter(ast.NodeTransformer):
@@ -768,6 +757,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     lineno = node.lineno, col_offset = node.col_offset,
                     scopes = node.slice.scopes
                 )
+            return node
 
         if not self._is_dict(node) and \
                 not isinstance(node.slice, ast.Slice):
