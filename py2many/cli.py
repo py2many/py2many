@@ -127,7 +127,7 @@ def _transpile(
     settings: LanguageSettings,
     args: Optional[argparse.Namespace] = None,
     _suppress_exceptions=Exception,
-    basedir = None,
+    basedir: str = None,
 ):
     """
     Transpile a single python translation unit (a python script) into
@@ -772,11 +772,11 @@ def main(args=None, env=os.environ):
         help="Create a project when using directory mode",
     )
 
-    # Configuration files. See pyjl/test_files/setup.ini for an example
+    # Configuration files.
     parser.add_argument(
         "--config",
         default=None,
-        help="External annotations with additional transpilation information (currently only supported in PyJL)",
+        help="External annotations with additional transpilation information",
     )
 
     # Compare files to expected

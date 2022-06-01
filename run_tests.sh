@@ -21,7 +21,7 @@ sudo ./setup.py install
 # python py2many.py --julia=1 tests/performance_tests --outdir=../pyjl_tests/performance_tests-py2many # Temporary for windows
 
 ## Pywin tests
-py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
+# py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
 # py2many --julia=1 "../pyjl_tests/demo" --outdir=../pyjl_tests/demo-py2many # Demo run
 # python py2many.py --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many # Temporary for windows
 
@@ -29,7 +29,7 @@ py2many --julia=1 "../pyjl_tests/pywin" --outdir=../pyjl_tests/pywin-py2many
 # py2many --julia=1 "../pyjl_tests/retinaface" --outdir=../pyjl_tests/retinaface-py2many
 
 # Neural network
-# py2many --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many
+py2many --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many
 # python py2many.py --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many # Temporary for windows
 
 # Run Transpiler Tests

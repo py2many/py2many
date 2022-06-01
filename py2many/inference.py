@@ -10,7 +10,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_in_body, find_in_scope, find_node_by_name_and_type, find_node_by_type, find_parent, get_class_scope, is_enum
+from py2many.tracer import find_in_body, find_node_by_type, find_parent, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -108,7 +108,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         "int", "float", "str", "bool", "bytes", "complex", 
         "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
     ])
-    BUILT_IN_FUNC_TYPE_MAP = {
+    FUNC_TYPE_MAP = {
         "len": "int",
         "str.encode": "bytes",
         "bytes.translate": "bytes",
@@ -657,8 +657,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                     func_name = f"{get_id(ann)}.{node.func.attr}"
             else:
                 func_name = fname
-            if func_name in self.BUILT_IN_FUNC_TYPE_MAP:
-                self._annotate(node, self.BUILT_IN_FUNC_TYPE_MAP[func_name])
+            if func_name in self.FUNC_TYPE_MAP:
+                self._annotate(node, self.FUNC_TYPE_MAP[func_name])
         self.generic_visit(node)
         return node
 

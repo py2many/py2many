@@ -1,12 +1,10 @@
 import ast
 import re
 
-import numpy as np
-
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import BinaryIO, List, Optional, Tuple, Union
+from typing import  List, Optional, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 
@@ -184,7 +182,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
         self._import_dispatch_table = IMPORT_DISPATCH_TABLE
         #
-        import_external_modules(self, "julia")
+        import_external_modules(self, "Julia")
 
     def usings(self):
         usings = sorted(list(set(self._usings)))

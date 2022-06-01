@@ -22,6 +22,8 @@ from ctypes import (
     c_uint64 as u64,
 )
 
+from py2many.external_modules import import_external_modules
+
 ilong = i64
 ulong = u64
 isize = i64

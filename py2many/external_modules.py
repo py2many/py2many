@@ -2,8 +2,6 @@ import os
 import imp
 from types import ModuleType
 
-from py2many.clike import CLikeTranspiler
-
 MOD_DIR = f"external{os.sep}modules"
 
 # Alternative: ("plugins", [(_small_dispatch_map, "SMALL_DISPATCH_MAP"), ...]
@@ -14,20 +12,21 @@ MOD_NAMES = set([
     ("_func_dispatch_table", "FUNC_DISPATCH_TABLE"),
     ("_import_dispatch_table", "IMPORT_DISPATCH_TABLE"),
     ("_ignored_module_set", "IGNORED_MODULE_SET"),
-    ("_external_type_map", "EXTERNAL_TYPE_MAP")
+    ("_external_type_map", "EXTERNAL_TYPE_MAP"),
+    ("_func_type_map", "FUNC_TYPE_MAP"),
 ])
 
 LANG_MAP = {
-    "python": "py2py",
-    "cpp": "pycpp",
-    "dart": "pydart",
-    "go": "pygo",
-    "julia": "pyjl",
-    "kotlin": "pykt",
-    "nim": "pynim",
-    "rust": "pyrs",
-    "smt": "pysmt",
-    "v": "pyv",
+    "Python": "py2py",
+    "C++": "pycpp",
+    "Dart": "pydart",
+    "Go": "pygo",
+    "Julia": "pyjl",
+    "Kotlin": "pykt",
+    "Nim": "pynim",
+    "Rust": "pyrs",
+    "SMT": "pysmt",
+    "V": "pyv",
 }
 
 def import_external_modules(self, lang):
@@ -63,7 +62,7 @@ def _get_external_modules(lang) -> list[tuple[str, str]]:
         file != "__init__.py"]
 
 
-class ExternalWrapper():
-    """Wrapper to add external modules"""
-    def __init__(self: CLikeTranspiler):
-        import_external_modules(self)
+# class ExternalWrapper():
+#     """Wrapper to add external modules"""
+#     def __init__(self: CLikeTranspiler):
+#         import_external_modules(self)

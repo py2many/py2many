@@ -68,6 +68,10 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._visit_pickle(t_self)
         return f"Pickle.load({vargs[0]})"
 
+    def visit_pickledump(t_self, node, vargs):
+        JuliaExternalModulePlugins._visit_pickle(t_self)
+        return f"Pickle.dump({vargs[0]})"
+
     def _visit_pickle(t_self):
         t_self._usings.add("Pickle")
 
@@ -82,6 +86,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # pickle
     pickle.Pickler: (JuliaExternalModulePlugins.visit_picklestore, False),
     pickle.Unpickler: (JuliaExternalModulePlugins.visit_pickleload, False),
+    pickle.Pickler.dump: (JuliaExternalModulePlugins.visit_pickledump, False),
     # Zipfile
     zipfile.ZipFile: (JuliaExternalModulePlugins.visit_zipfile, False),
     # Glob
@@ -107,6 +112,10 @@ IGNORED_MODULE_SET = set([
     "win32api",
     "win32ui",
 ])
+
+FUNC_TYPE_MAP = {
+    "pickle.Pickler": "pickle.Pickler"
+}
 
 
 EXTERNAL_TYPE_MAP = {

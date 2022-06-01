@@ -1,5 +1,7 @@
 import ast
 from ctypes import c_int64
+from typing import Any
+from py2many.external_modules import import_external_modules
 
 from py2many.inference import InferTypesTransformer
 from py2many.analysis import get_id
@@ -31,6 +33,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self._none_type = NONE_TYPE
         self._default_type = DEFAULT_TYPE
         self._clike = CLikeTranspiler()
+        #
+        self._func_type_map = {}
+        import_external_modules(self, "Julia")
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -195,6 +200,19 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        # TODO: This is just to keep inference language-independent for now
+        # Find annotation through node.func name/annotation 
+        fname = get_id(node.func)
+        if fname:
+            if isinstance(node.func, ast.Attribute):
+                ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
+                if ann:
+                    fname = f"{get_id(ann)}.{node.func.attr}"
+            if fname in self._func_type_map:
+                InferTypesTransformer._annotate(node, self._func_type_map[fname])
         return node
 
     ######################################################
