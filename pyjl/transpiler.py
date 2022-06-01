@@ -627,14 +627,16 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _get_import_str(self, name: str):
         path_str = self._parse_path(name)
-        if os.path.isfile(f"{path_str}.py"):
+        if (is_file := os.path.isfile(f"{path_str}.py")) or \
+                (is_folder := os.path.isdir(path_str)):
             # Find path from current file
+            extension = ".jl" if is_file else ".__init__.jl"
             sep = "/"
             import_path = name.split(".")
             out_filepath = self._filename.as_posix().split("/")
             if out_filepath[:-1] == import_path[:-1]:
                 # Shortcut if paths are the same
-                return f'include(\"{import_path[-1]}.jl\")'
+                return f'include(\"{import_path[-1]}{extension}\")'
             i, j = len(import_path) - 2, len(out_filepath) - 2
             rev_cnt = 0
             match = False
@@ -647,8 +649,8 @@ class JuliaTranspiler(CLikeTranspiler):
             if match and rev_cnt > 0 and rev_cnt < len(import_path):
                 rev_path = "../" * rev_cnt
                 parsed_path = sep.join(import_path[rev_cnt:])
-                return f'include(\"{rev_path}{parsed_path}.jl\")'
-            return f'include(\"{sep.join(import_path)}.jl\")'
+                return f'include(\"{rev_path}{parsed_path}{extension}\")'
+            return f'include(\"{sep.join(import_path)}{extension}\")'
         return None
 
     def _parse_path(self, import_name: str) -> str:
@@ -807,35 +809,16 @@ class JuliaTranspiler(CLikeTranspiler):
         op = self.visit(node.op)
         val = self.visit(node.value)
         return "{0} {1}= {2}".format(target, op, val)
-
-    def _visit_AssignOne(self, node: ast.Assign, target) -> str:
-        if isinstance(target, ast.Tuple):
-            elts = [self.visit(e) for e in target.elts]
-            value = self.visit(node.value)
-            return "{0} = {1}".format(", ".join(elts), value)
-
-        if isinstance(node.scopes[-1], ast.If):
-            outer_if = node.scopes[-1]
-            target_id = self.visit(target)
-            if target_id in outer_if.common_vars:
-                value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
-
-        if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
-            target = self.visit(target)
-            value = self.visit(node.value)
-            if value == None:
-                value = self._none_type
-            return "{0} = {1}".format(target, value)
-
-        # TODO: Check this
-        # definition = node.scopes.parent_scopes.find(get_id(target))
-        # if definition is None:
-        #     definition = node.scopes.find(get_id(target))
-
-        # Visit target and value
-        target_str = self.visit(target)
+    
+    def visit_Assign(self, node: ast.Assign) -> str:
         value = self.visit(node.value)
+        if len(node.targets) == 1:
+            if (target := self.visit(node.targets[0])) in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
+                return JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE[target](self, node, value)
+            
+        targets = [self.visit(target) for target in node.targets]
+        if value == None:
+            value = self._none_type
 
         # Custom type comments to preserve literal values
         if value is not None and value.isdigit():
@@ -848,14 +831,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 if type_c == "HLiteral":
                     value = hex(value)
 
-        # Special assignments
-        if target_str in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
-            return JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE[target_str](self, node, value)
-
-        expr = f"{target_str} = {value}"
-        # if isinstance(target, ast.Name) and defined_before(definition, node):
-        #     f"{expr};"
-        return expr
+        return f"{'='.join(targets)} = {value}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
         del_targets = []
