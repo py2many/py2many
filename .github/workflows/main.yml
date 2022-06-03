@@ -106,7 +106,6 @@ jobs:
           LB_USERNAME: linuxbrew
         run: |
           set -ex
-          find /home/$LB_USERNAME/ ||:
           if [ ! -f /home/$LB_USERNAME/.linuxbrew/bin/brew ]; then
             rm -rf /home/$LB_USERNAME/
             deluser $LB_USERNAME
@@ -139,7 +138,8 @@ jobs:
               # cljstyle has no linux cask https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/cljstyle.rb
               # but can be added https://github.com/greglook/cljstyle/releases/tag/0.15.0
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              time brew install ktlint kscript
+              brew tap athrunsun/linuxbinary
+              time brew install cljstyle ktlint kscript
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install astyle clang-format cljstyle kscript ktlint z3
