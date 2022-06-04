@@ -4,12 +4,24 @@ import unittest
 import sys
 
 from distutils import spawn
-from functools import lru_cache
+from functools import lru_cache, partial
 from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
 
-import astpretty
+try:
+    from astpretty import pprint as ast_pretty_print
+except ImportError:
+    if sys.version_info >= (3, 9):
+        from ast import dump as ast_dump_raw
+
+        ast_dump = partial(ast_dump_raw, indent=4)
+    else:
+        from ast import dump as ast_dump
+
+    def ast_pretty_print(node):
+        print(ast_dump(node))
+
 
 from unittest_expander import foreach, expand
 
@@ -193,7 +205,7 @@ def get_tree(source_data, ext):
         source_data = f"if __name__ == '__main__':\n  {source_data}"
     print(f">{source_data}<")
     tree = ast.parse(source_data)
-    astpretty.pprint(tree)
+    ast_pretty_print(tree)
     proc = run([sys.executable, "-c", source_data], capture_output=True)
     if proc.returncode:
         raise RuntimeError(f"Invalid case {source_data}:\n{proc.stdout}{proc.stderr}")
