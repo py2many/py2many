@@ -61,7 +61,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             return "float"
         return left_id if left_idx > right_idx else right_id
 
-
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
         self.visit(node.value)
@@ -98,9 +97,16 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                 if target_has_annotation
                 else False
             )
-            if (not target_has_annotation or inferred):
-                self._verify_annotation(node, annotation, target)
-        # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
+            # target_annotation = getattr(target, "annotation", None)
+            # target_typename = self._clike._generic_typename_from_type_node(target_annotation)
+            # value_typename = self._clike._generic_typename_from_type_node(annotation)
+            # target_class = class_for_typename(target_typename, None)
+            # value_class = class_for_typename(value_typename, None)
+            # compatible = is_compatible(target_class, value_class)
+            ###############
+            # TODO: We need to improve is_compatible to support a broader analysis
+            # For now, _verify_annotation performs a string-based comparison as a fallback
+            self._verify_annotation(node, annotation, target, inferred=inferred)
         return node
 
     def _find_annotated_assign(self, node):
@@ -205,6 +211,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     def visit_Call(self, node: ast.Call) -> Any:
         # TODO: This is just to keep inference language-independent for now
         # Find annotation through node.func name/annotation 
+        self.generic_visit(node)
         fname = get_id(node.func)
         if fname:
             if isinstance(node.func, ast.Attribute):
@@ -219,13 +226,14 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
     ################# Inference Methods ##################
     ######################################################
 
-    def _verify_annotation(self, node, annotation, target, inferred = True):
-        # annotation.is_inferred = inferred
-        var_name = get_id(target)
+    def _verify_annotation(self, node, annotation, target, inferred = False):
+        annotation.is_inferred = inferred
         ann_str = get_ann_repr(annotation)
-        map_ann = node.scopes.find(var_name)
+        # Find another variable
+        var_name = get_id(target)
+        map_ann = getattr(node.scopes.find(var_name), "annotation", None)
         map_ann_str = get_ann_repr(map_ann) if map_ann else None
-        if(map_ann_str and getattr(map_ann, "is_inferred", True) == False and ann_str != self._default_type \
+        if(map_ann_str and getattr(map_ann, "is_inferred", False) == False and ann_str != self._default_type \
                 and map_ann_str != self._default_type and ann_str != map_ann_str):
             raise AstIncompatibleAssign(
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
