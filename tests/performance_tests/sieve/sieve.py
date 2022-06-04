@@ -9,7 +9,7 @@ def sieve(n: int):
         if primes[i]:
             for j in range(i*i, n, i):
                 primes[j] = False
-    return [i for i in range(len(primes)) if primes[i]]
+    return list(filter(lambda j: primes[j], range(2,n)))
 
 if __name__ == "__main__":
     sieve(int(sys.argv[1]))

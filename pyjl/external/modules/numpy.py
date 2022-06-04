@@ -102,13 +102,14 @@ class JuliaExternalModulePlugins:
             return f"map(x -> x[{axis}], argmax({vargs[0]}, dims={axis})"
         return f"argmax({vargs[0]})"
 
-    def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
-        t_self._usings.add("LinearAlgebra")
-        return f"LinearAlgebra.dot({', '.join(vargs)})"
+    # Not really representative
+    # def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
+    #     t_self._usings.add("LinearAlgebra")
+    #     return f"LinearAlgebra.dot({', '.join(vargs)})"
 
     def visit_transpose(t_self, node: ast.Call, vargs: list[str]) -> str:
         t_self._usings.add("LinearAlgebra")
-        return f"LinearAlgebra.transpose({', '.jojn(vargs)})"
+        return f"LinearAlgebra.transpose({', '.join(vargs)})"
 
     def visit_exp(t_self, node: ast.Call, vargs: list[str]):
         arg = node.args[0]
@@ -118,7 +119,7 @@ class JuliaExternalModulePlugins:
                 return f"ℯ^{vargs[0]}"
         if isinstance(arg, ast.Constant):
             return f"ℯ^{vargs[0]}"
-        return f"[ℯ^i for i in {vargs[0]}]"
+        return f"ℯ.^{vargs[0]}"
 
     def visit_reshape(t_self, node: ast.Call, vargs: list[str]):
         if len(vargs) == 2:
@@ -139,7 +140,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.append: (JuliaExternalModulePlugins.visit_npappend, True),
     np.zeros: (JuliaExternalModulePlugins.visit_npzeros, True),
     np.multiply: (JuliaExternalModulePlugins.visit_npmultiply, True),
-    np.sqrt: (lambda self, node, vargs: f"√({vargs[0]})" if vargs else "√", True),
+    np.sqrt: (lambda self, node, vargs: f"sqrt({vargs[0]})" if vargs else "√", True),
     np.arccos: (lambda self, node, vargs: f"acos({vargs[0]})", True),
     np.arcsin: (lambda self, node, vargs: f"asin({vargs[0]})", True),
     np.arctan: (lambda self, node, vargs: f"atan({vargs[0]})", True),
@@ -154,7 +155,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
     np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
     np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
-    np.dot: (JuliaExternalModulePlugins.visit_dotproduct, True),
+    np.dot: (lambda self, node, vargs: f"({vargs[0]} .* {vargs[1]})" if vargs else "mult", True),
     np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
@@ -175,15 +176,16 @@ EXTERNAL_TYPE_MAP = {
     np.short: "Int8",
 }
 
-FUNC_TYPE_MAP = {
-    # "numpy.multiply": "list",
-    # "numpy.sum": "list",
-    # "numpy.append": "list",
-    # "numpy.sqrt": "float",
-    "np.dot": "float",
-    # "np.zeros": "np.ndarray",
-    # "numpy.arange": "np.ndarray"
-}
+# TODO: Results in wrong function annotations
+# FUNC_TYPE_MAP = {
+#     "numpy.multiply": "list",
+#     "numpy.sum": "list",
+#     "numpy.append": "list",
+#     "numpy.sqrt": "float",
+#     "np.dot": "float",
+#     "np.zeros": "np.ndarray",
+#     "numpy.arange": "np.ndarray"
+# }
 
 
 IGNORED_MODULE_SET = set([

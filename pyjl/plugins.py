@@ -912,7 +912,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.atan: (lambda self, node, vargs: f"atan({vargs[0]})", False),
     math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
     math.fsum: (lambda self, node, vargs: f"fsum({', '.join(vargs)})", False),
-    math.sqrt: (lambda self, node, vargs: f"√({vargs[0]})", False),
+    math.sqrt: (lambda self, node, vargs: f"sqrt({vargs[0]})", False),
     math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})" if vargs else "trunc", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),
     round: (lambda self, node, vargs: f"round({vargs[0]}, digits = {vargs[1]})", False),
