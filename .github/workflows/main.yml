@@ -95,9 +95,8 @@ jobs:
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
-          if [[ -d /usr/local/bin && ! -f /usr/local/bin/format.jl ]]; then
-            (cd /usr/local/bin && sudo ln -fs $(find ~/.julia -name format.jl))
-          fi
+          JULIA_FORMATTER_ROOT=$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')
+          echo "${JULIA_FORMATTER_ROOT}/bin/" >> $GITHUB_PATH
 
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
