@@ -273,19 +273,22 @@ def rust_settings(args, env=os.environ):
     )
 
 
+@lru_cache()
+def _julia_formatter_path():
+    proc = run(
+        ["julia", "-e", "import JuliaFormatter;print(pathof(JuliaFormatter))"],
+        capture_output=True,
+    )
+    if not proc.returncode and proc.stdout:
+        return str(Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl")
+
+
 def julia_settings(args, env=os.environ):
     format_jl = spawn.find_executable("format.jl")
     if not format_jl:
         julia = spawn.find_executable("julia")
         if julia:
-            proc = run(
-                ["julia", "-e", "import JuliaFormatter;print(pathof(JuliaFormatter))"],
-                capture_output=True,
-            )
-            if not proc.returncode and proc.stdout:
-                format_jl = str(
-                    Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl"
-                )
+            format_jl = _julia_formatter_path()
 
     if format_jl:
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
