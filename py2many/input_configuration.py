@@ -4,11 +4,9 @@ import re
 import yaml
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
-from py2many.scope import ScopeList
-from py2many.tracer import find_node_by_type
 
 import configparser
 import logging

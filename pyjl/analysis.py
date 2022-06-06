@@ -38,6 +38,7 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         self._targets_out_of_scope: Dict[str, Any] = {}
         self._assign_targets = set()
         self._loop_scope = False
+        self._ignore_vars = []
 
     def visit_Module(self, node: ast.Module) -> Any:
         if getattr(node, "optimize_loop_target", False) or \
@@ -67,6 +68,7 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         self._assign_targets = set()
         self._loop_targets = set()
         self._loop_scope = False
+        self._ignore_vars = []
 
         self.generic_visit(node)
 
@@ -74,7 +76,8 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         if self._assign_targets:
             temp = []
             for t_id, t in self._targets_out_of_scope.items():
-                if t_id in self._assign_targets:
+                if t_id in self._assign_targets or \
+                        t_id in self._ignore_vars:
                     temp.append(t_id)
             for t in temp:
                 self._targets_out_of_scope.pop(t)
@@ -83,8 +86,9 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
 
     def visit_Name(self, node: ast.Name) -> Any:
         self.generic_visit(node)
+        id = get_id(node)
         if not self._loop_scope and \
-                (id := get_id(node)) in self._loop_targets:
+                id in self._loop_targets:
             self._targets_out_of_scope[id] = node
         return node
 
@@ -146,6 +150,16 @@ class JuliaLoopScopeAnalysis(ast.NodeTransformer):
         if not getattr(node, "is_nested_loop", None):
             self._loop_scope = False
 
+        return node
+
+    def visit_ListComp(self, node: ast.ListComp) -> Any:
+        self.generic_visit(node)
+        self._ignore_vars.append(get_id(node.elt))
+        return node
+
+    def visit_Lambda(self, node: ast.Lambda) -> Any:
+        self.generic_visit(node)
+        self._ignore_vars.extend([get_id(x) for x in node.args.args])
         return node
 
 

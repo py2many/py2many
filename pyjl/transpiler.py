@@ -1,6 +1,5 @@
 from enum import IntFlag
 import ast
-import os
 
 import textwrap
 import re
@@ -396,9 +395,10 @@ class JuliaTranspiler(CLikeTranspiler):
         is_tuple = lambda x: x.startswith("Tuple")
 
         # Modulo string formatting
+        # TODO: Provide two translation alternatives (sprintf)
         if isinstance(node.left, ast.Constant) and \
                 isinstance(node.left.value, str) and \
-                "%" in node.left.value:
+                isinstance(node.op, ast.Mod):
             left = self.visit_Constant(node.left, quotes=False)
             split_str: list[str] = re.split(r"%\w|%.\d\w|%-\d\d\w", left)
             elts = getattr(node.right, "elts", [node.right])

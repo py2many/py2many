@@ -70,7 +70,7 @@ def show():
     # lists
     a5 = [1, 2, 3]
     print(len(a5))
-    a9: List[str] = ["a", "b", "c", "d"]
+    a9 = ["a", "b", "c", "d"]
     assert len(a9) == 4
     assert a9 == ["a", "b", "c", "d"]
 
@@ -92,8 +92,8 @@ def show():
 
     # Boolean tests
     a8 = True
-    a9 = False
-    assert a8 == True
+    a10 = False
+    assert a10 == True
     assert a9 == False
     if True:
         a1 += 1

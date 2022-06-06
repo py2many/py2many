@@ -891,7 +891,12 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
             # args order: start, stop, step
             if getattr(node, "range_optimization", None) and \
                     not getattr(node, "using_offset_arrays", None):
-                if len(node.args) > 1:
+                if len(node.args) == 1:
+                    node.args.append(node.args[0])
+                    node.args[0] = ast.Constant(
+                        value=1, 
+                        scopes=getattr(node.args[0], "scopes", ScopeList()))
+                elif len(node.args) > 1:
                     # increment start
                     node.args[0] = self._do_bin_op(node.args[0], ast.Add(), 1,
                         node.lineno, node.col_offset)
