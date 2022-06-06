@@ -37,7 +37,7 @@ from py2many.cli import (
 from py2many.exceptions import AstIncompatibleAssign
 from py2many.process_helpers import find_executable
 
-LANGS = set(_LANGS) - {"python"}
+LANGS = set(_LANGS) - {"python", "smt"}
 
 _INT_ENUM = dedent(
     """

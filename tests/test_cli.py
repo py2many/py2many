@@ -215,9 +215,10 @@ class CodeGeneratorTests(unittest.TestCase):
         exe.unlink(missing_ok=True)
 
         is_script = has_main(case_filename)
-        if not is_declarative(ext):
-            self.assertTrue(is_script)
+        if not is_script and not is_declarative(ext):
+            raise unittest.SkipTest(f"{case} is declarative, not suitable for {lang}")
 
+        if not is_declarative(ext):
             main_args = CASE_ARGS.get(case, tuple())
             expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
             expected_output = get_python_case_output(
