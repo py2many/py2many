@@ -167,7 +167,9 @@ jobs:
 
       - name: Install cargo-script
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        run: cargo install cargo-script
+        run: |
+          cargo install cargo-quickinstall
+          cargo quickinstall cargo-script
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
