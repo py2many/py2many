@@ -6,15 +6,9 @@ import sys
 
 def show():
     try:
-        raise Exception("foo")
-    except Exception as e:
-        print("caught")
-    finally:
-        print("Finally")
-    try:
-        raise Exception("foo")
-    except:
-        print("Got it")
+        3 / 0
+    except ZeroDivisionError:
+        print("ZeroDivisionError")
 
 
 if __name__ == "__main__":

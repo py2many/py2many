@@ -10,11 +10,6 @@ def show():
         print("Finally")
 
     try:
-        3 / 0
-    except ZeroDivisionError:
-        print("OK")
-
-    try:
         raise Exception("foo")
     except:
         print("Got it")
