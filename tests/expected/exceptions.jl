@@ -15,6 +15,15 @@ function show()
     catch exn
         println(join(["Got it"], " "))
     end
+    try
+        throw(Exception("foo"))
+    catch exn
+        let e = exn
+            if e isa Exception
+                @assert(findfirst("foo", string(e)) != Nothing)
+            end
+        end
+    end
 end
 
 function main()

@@ -14,6 +14,11 @@ show() {
   } catch (e) {
     print(sprintf("%s", ["Got it"]));
   }
+  try {
+    throw new Exception("foo");
+  } on Exception catch (e) {
+    assert(e.toString().contains("foo"));
+  }
 }
 
 main(List<String> argv) {

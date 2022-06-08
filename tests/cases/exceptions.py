@@ -14,6 +14,11 @@ def show():
     except:
         print("Got it")
 
+    try:
+        raise Exception("foo")
+    except Exception as e:
+        assert "foo" in str(e)
+
 
 if __name__ == "__main__":
     show()
