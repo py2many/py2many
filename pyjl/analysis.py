@@ -57,7 +57,7 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
     def _emit_warning(self, node):
         if self._variables_out_of_scope:
             elems = []
-            for t_id, target, _ in self._variables_out_of_scope.items():
+            for t_id, (target, _) in self._variables_out_of_scope.items():
                 elems.append(f"- {t_id} on linenumber {target.lineno}")
             elems_str = "\n".join(elems)
             logger.warn(f"\033[93mWARNING { node.__file__.name}: Loop target variables"
@@ -139,23 +139,19 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
             # Visit body
             # Create backup
             backup_loop_state = self._scope_vars.copy()
-            # backup_assign_state = self._assign_targets.copy()
             for n in node.body:
                 self._check_nested(n)
                 self.visit(n)
             # Save state
             saved_loop_state = self._scope_vars.copy()
-            # saved_assign_state = self._assign_targets.copy()
             # Restore backup
             self._scope_vars.intersection_update(backup_loop_state)
-            # self._assign_targets.intersection_update(backup_assign_state)
 
             # Visit orelse
             for oe in node.orelse:
                 self.visit(oe)
             # Join with saved state
             self._scope_vars.update(saved_loop_state)
-            # self._assign_targets.update(saved_assign_state)
 
         return self._generic_scope_visit(node)
 
@@ -277,7 +273,7 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
             intersection = targets.intersection(self._non_optimizable_targets)
             is_optimizable = intersection == set()
             node.iter.range_optimization = is_optimizable
-            # If one variable is not optimizable, the others aren't as well
+            # If one variable is not optimizable, the others aren't either
             if not is_optimizable:
                 self._non_optimizable_targets.intersection_update(targets)
         else:

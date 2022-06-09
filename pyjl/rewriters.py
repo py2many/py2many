@@ -1207,8 +1207,6 @@ class VariableScopeRewriter(ast.NodeTransformer):
         target_state = self._variables_out_of_scope
         self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
         for n in node.body:
-            if isinstance(n, ast.For):
-                print(self._variables_out_of_scope)
             self.visit(n)
             if self._target_vals:
                 for target, default in self._target_vals:
