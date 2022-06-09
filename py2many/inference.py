@@ -112,6 +112,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         "len": "int",
         "sqrt": "float",
         "math.sqrt": "float",
+        "range": "int",
         "str.encode": "bytes",
         "bytes.translate": "bytes",
         "bytearray.translate": "bytearray",

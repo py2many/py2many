@@ -1207,6 +1207,8 @@ class VariableScopeRewriter(ast.NodeTransformer):
         target_state = self._variables_out_of_scope
         self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
         for n in node.body:
+            if isinstance(n, ast.For):
+                print(self._variables_out_of_scope)
             self.visit(n)
             if self._target_vals:
                 for target, default in self._target_vals:
@@ -1229,7 +1231,6 @@ class VariableScopeRewriter(ast.NodeTransformer):
         return node
     
     def visit_For(self, node: ast.For) -> Any:
-        self.generic_visit(node)
         target_id = get_id(node.target)
         if target_id in self._variables_out_of_scope:
             annotation = getattr(node.scopes.find(target_id), "annotation", None)
@@ -1249,18 +1250,27 @@ class VariableScopeRewriter(ast.NodeTransformer):
                 scopes = node.scopes)
             node.target.id = new_loop_id
             node.body.insert(0, new_var_assign)
-            self._variables_out_of_scope.pop(target_id)
+            # We provide int as an annotation, as we are 
+            # dealing with a for loop with a call to range 
+            # (currently the only for loops optimizable)
+            self._add_target_val(node, target_id, 
+                getattr(node.iter, "annotation", None))
+        self.generic_visit(node)
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
         id = get_id(node)
+        self._add_target_val(node, id)
+        return node
+
+    def _add_target_val(self, node, id, opt_ann=None):
         if id in self._variables_out_of_scope:
             # Get variable and its default value
             _, ann = self._variables_out_of_scope[id]
-            target_default = get_default_val(node, ann)
+            target_default = get_default_val(node, opt_ann) \
+                if opt_ann else get_default_val(node, ann)
             self._target_vals.append((ast.Name(id=id), target_default))
             self._variables_out_of_scope.pop(id)
-        return node
 
 
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):
