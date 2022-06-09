@@ -18,11 +18,10 @@ from .plugins import (
     DISPATCH_MAP,
 )
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, \
-    get_class_scope, is_class_or_module, is_class_type
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -729,7 +728,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if getattr(node, "step", None):
             step = self.visit(node.step)
-            return f"{upper}:{step}:{lower}"
+            if isinstance(node.step, ast.UnaryOp) and \
+                    isinstance(node.step.op, ast.USub):
+                return f"{upper}:{step}:{lower}"
+            else:
+                return f"{lower}:{step}:{upper}"
 
         return f"{lower}:{upper}"
 

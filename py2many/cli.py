@@ -40,10 +40,10 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.analysis import analyse_loop_scope, optimize_loop_ranges
+from pyjl.analysis import analyse_variable_scope, optimize_loop_ranges
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
-    ForLoopTargetRewriter,
+    VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
     JuliaImportRewriter,
@@ -389,11 +389,11 @@ def julia_settings(args, env=os.environ):
         formatter=format_jl,
         indent=None,
         rewriters=[JuliaMainRewriter()],
-        transformers=[parse_decorators, infer_julia_types, analyse_loop_scope, optimize_loop_ranges, find_ordered_collections],
-        post_rewriters=[JuliaImportRewriter(), JuliaGeneratorRewriter(), JuliaIndexingRewriter(), 
-            JuliaOrderedCollectionRewriter(), JuliaClassRewriter(), JuliaMethodCallRewriter(), JuliaAugAssignRewriter(),  
-            JuliaConditionRewriter(), ForLoopTargetRewriter(), JuliaOffsetArrayRewriter(), 
-            JuliaModuleRewriter(), JuliaIORewriter(), JuliaArbitraryPrecisionRewriter()],
+        transformers=[parse_decorators, infer_julia_types, analyse_variable_scope, optimize_loop_ranges, find_ordered_collections],
+        post_rewriters=[JuliaImportRewriter(), JuliaGeneratorRewriter(), JuliaOffsetArrayRewriter(), 
+            JuliaIndexingRewriter(), JuliaOrderedCollectionRewriter(), JuliaClassRewriter(), 
+            JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
+            VariableScopeRewriter(), JuliaModuleRewriter(), JuliaIORewriter(), JuliaArbitraryPrecisionRewriter()],
         optimization_rewriters=[AlgebraicSimplification()]
     )
 

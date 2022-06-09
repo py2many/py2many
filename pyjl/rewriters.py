@@ -15,7 +15,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
-from pyjl.helpers import generate_var_name, get_ann_repr, get_func_def, is_dir, is_file, obj_id
+from pyjl.helpers import generate_var_name, get_ann_repr, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
@@ -66,7 +66,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                     node0 = fname.value
 
                 args = [node0] + node.args
-
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
@@ -789,6 +788,18 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     if get_id(node.slice) != "end":
                         node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
                             node.lineno, node.col_offset)
+            elif getattr(node, "range_optimization", None) and \
+                    not getattr(node, "using_offset_arrays", None):
+                # Support nested subscripts. See example at:
+                # tests/cases/newman_conway_sequence.py
+                if isinstance(node.scopes[-1], ast.For):
+                    for_node: ast.For = node.scopes[-1]
+                    target_id = get_id(for_node.target)
+                    if isinstance(node.slice, ast.Subscript) or \
+                            isinstance(node.slice, ast.BinOp) and \
+                            not self._bin_op_contains(node.slice, target_id):
+                        node.slice = self._do_bin_op(node.slice, ast.Add(), 1,
+                            node.lineno, node.col_offset)
             else:
                 if call_id in self.SPECIAL_FUNCTIONS and \
                         call_id in self._imports:
@@ -802,6 +813,17 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                             node.lineno, node.col_offset)
 
         return node
+
+    def _bin_op_contains(self, bin_op: ast.BinOp, node_id):
+        if (get_id(bin_op.left) == node_id) or \
+                (get_id(bin_op.right) == node_id):
+            return True
+        contains = False
+        if isinstance(bin_op.left, ast.BinOp):
+            contains = self._bin_op_contains(bin_op.left, node_id)
+        if not contains and isinstance(bin_op.right, ast.BinOp):
+            contains = self._bin_op_contains(bin_op.right, node_id)
+        return contains
 
     def _get_assign_value(self, node: ast.Call):
         """Gets the last assignment value"""
@@ -859,7 +881,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     right = right,
                     lineno = node.lineno, col_offset = node.col_offset,
                     scopes = node.lower.scopes)
-            else: 
+            else:
                 node.lower = length
         elif not getattr(node, "range_optimization", None) and \
                 not getattr(node, "using_offset_arrays", None):
@@ -892,6 +914,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
             if getattr(node, "range_optimization", None) and \
                     not getattr(node, "using_offset_arrays", None):
                 if len(node.args) == 1:
+                    # By default, the arrays start at 1
                     node.args.append(node.args[0])
                     node.args[0] = ast.Constant(
                         value=1, 
@@ -1158,19 +1181,19 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
 ################## Conditional Rewriters ##################
 ###########################################################
 
-class ForLoopTargetRewriter(ast.NodeTransformer):
-    """Rewrites loop target variables in case they are used 
-    outside of the loops scope. This has to be executed after 
-    the JuliaLoopScopeAnalysis transformer """
+class VariableScopeRewriter(ast.NodeTransformer):
+    """Rewrites variables in case they are defined withing one 
+    of Julia's local hard/soft scopes but used outside of their scopes. 
+    This has to be executed after the JuliaVariableScopeAnalysis transformer """
     def __init__(self) -> None:
         super().__init__()
-        self._targets_out_of_scope = False
+        self._variables_out_of_scope = None
         self._target_vals: list[tuple] = []
     
     def visit_Module(self, node: ast.Module) -> Any:
-        self._targets_out_of_scope = False
+        self._variables_out_of_scope = None
         self._target_vals = []
-        if getattr(node, "optimize_loop_target", False):
+        if getattr(node, "fix_scope_bounds", False):
             self._generic_scope_visit(node)
         return node
 
@@ -1180,8 +1203,9 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
     
     def _generic_scope_visit(self, node):
         body = []
-        target_state = self._targets_out_of_scope
-        self._targets_out_of_scope = getattr(node, "targets_out_of_scope", None)
+        # Cover nested scopes
+        target_state = self._variables_out_of_scope
+        self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
         for n in node.body:
             self.visit(n)
             if self._target_vals:
@@ -1193,24 +1217,21 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                         lineno = node.lineno - 1,
                         col_offset = node.col_offset,
                         scopes = n.scopes)
-                body.append(assign)
+                    body.append(assign)
                 self._target_vals = []
 
             body.append(n)
             
         # Update node body
         node.body = body
-        self._targets_out_of_scope = target_state
+        self._variables_out_of_scope = target_state
         
         return node
     
     def visit_For(self, node: ast.For) -> Any:
-        if self._targets_out_of_scope:
-            # Get target and its default value
-            target_id = get_id(node.target)
-            target_default = self._get_default_val_from_iter(node)
-            self._target_vals.append((ast.Name(target_id), target_default))
-
+        self.generic_visit(node)
+        target_id = get_id(node.target)
+        if target_id in self._variables_out_of_scope:
             annotation = getattr(node.scopes.find(target_id), "annotation", None)
             target = ast.Name(
                         id = target_id,
@@ -1228,31 +1249,18 @@ class ForLoopTargetRewriter(ast.NodeTransformer):
                 scopes = node.scopes)
             node.target.id = new_loop_id
             node.body.insert(0, new_var_assign)
+            self._variables_out_of_scope.pop(target_id)
         return node
 
-    def _get_default_val_from_iter(self, node: ast.For):
-        iter = node.iter
-        if isinstance(iter, ast.Call) and get_id(iter.func) == "range":
-            return ast.Constant(value = 0, scopes = iter.scopes)
-        if id := get_id(iter):
-            n = node.scopes.find[id]
-            ann = node.annotation if hasattr(node, "annotation") else getattr(n, "annotation", None)
-            if ann_id := get_id(ann):
-                if ann_id == "int":
-                    return ast.Constant(value = 0, scopes = iter.scopes)
-                if ann_id == "float":
-                    return ast.Constant(value = 0.0, scopes = iter.scopes)
-                if ann_id.startswith("list") or ann_id.startswith("List"):
-                    return ast.List(elts=[], ctx=ast.Load())
-                if ann_id.startswith("Dict"):
-                    return ast.Dict(keys=[], values = [], ctx=ast.Load())
-                if ann_id.startswith("set"):
-                    return ast.Call(
-                        func = ast.Name(id='set', ctx=ast.Load()),
-                        args = [],
-                        keywords = [],
-                        scopes = iter.scopes)
-        return None
+    def visit_Name(self, node: ast.Name) -> Any:
+        id = get_id(node)
+        if id in self._variables_out_of_scope:
+            # Get variable and its default value
+            _, ann = self._variables_out_of_scope[id]
+            target_default = get_default_val(node, ann)
+            self._target_vals.append((ast.Name(id=id), target_default))
+            self._variables_out_of_scope.pop(id)
+        return node
 
 
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):

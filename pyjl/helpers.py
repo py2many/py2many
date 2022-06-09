@@ -6,6 +6,7 @@ import random
 import re
 
 from py2many.ast_helpers import get_id
+from py2many.scope import ScopeList
 
 from py2many.tracer import find_node_by_name_and_type
 
@@ -193,3 +194,22 @@ def is_dir(path: str, basedir):
     """Takes a dot separated directory path"""
     maybe_path = _parse_path(path, basedir)
     return os.path.isdir(maybe_path)
+
+DEFAULTS_TABLE = {
+    "int": lambda scopes: ast.Constant(value = 0, scopes = scopes),
+    "float": lambda scopes: ast.Constant(value = 0.0, scopes = scopes),
+    "list": lambda scopes: ast.List(elts=[], ctx=ast.Load()),
+    "List": lambda scopes: ast.List(elts=[], ctx=ast.Load()),
+    "Dict": lambda scopes: ast.Dict(keys=[], values = [], ctx=ast.Load()),
+    "set": lambda scopes: ast.Call( func = ast.Name(id='set', ctx=ast.Load()), 
+        args = [], keywords = [], scopes = scopes)
+}
+
+def get_default_val(node, ann):
+    scopes = getattr(node, "scopes", ScopeList())
+    if (id := get_id(ann)) in DEFAULTS_TABLE:
+        return DEFAULTS_TABLE[id](scopes)
+    elif isinstance(ann, ast.Subscript) and \
+            (id := get_id(ann.value)) in DEFAULTS_TABLE:
+        return DEFAULTS_TABLE[id](scopes)
+    return ast.Constant(value=None)
