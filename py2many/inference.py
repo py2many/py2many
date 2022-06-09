@@ -110,9 +110,11 @@ class InferTypesTransformer(ast.NodeTransformer):
     ])
     FUNC_TYPE_MAP = {
         "len": "int",
+        "sqrt": "float",
+        "math.sqrt": "float",
         "str.encode": "bytes",
         "bytes.translate": "bytes",
-        "bytearray.translate": "bytearray"
+        "bytearray.translate": "bytearray",
     }
     TYPE_DICT = {
         int: "int",
@@ -649,16 +651,17 @@ class InferTypesTransformer(ast.NodeTransformer):
             elif fname in self.TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
             
-            # Find annotation through node.func name/annotation 
-            func_name = None
-            if isinstance(node.func, ast.Attribute):
-                ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
-                if ann:
-                    func_name = f"{get_id(ann)}.{node.func.attr}"
+            if fname in self.FUNC_TYPE_MAP:
+                self._annotate(node, self.FUNC_TYPE_MAP[fname])
             else:
-                func_name = fname
-            if func_name in self.FUNC_TYPE_MAP:
-                self._annotate(node, self.FUNC_TYPE_MAP[func_name])
+                # Use annotation
+                func_name = None
+                if isinstance(node.func, ast.Attribute):
+                    ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
+                    if ann:
+                        func_name = f"{get_id(ann)}.{node.func.attr}"
+                if func_name in self.FUNC_TYPE_MAP:
+                    self._annotate(node, self.FUNC_TYPE_MAP[func_name])
         self.generic_visit(node)
         return node
 

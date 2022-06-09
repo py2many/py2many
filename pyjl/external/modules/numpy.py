@@ -84,9 +84,12 @@ class JuliaExternalModulePlugins:
     def visit_ones(t_self, node: ast.Call, vargs: list[str]):
         keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
         val_type = "Float64"
-        if "dtype" in keywords  and \
-                keywords["dtype"] in EXTERNAL_TYPE_MAP:
-            val_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+        if "dtype" in keywords:
+            if "dtype" in EXTERNAL_TYPE_MAP:
+                keywords["dtype"] in EXTERNAL_TYPE_MAP
+            else:
+                keywords["dtype"] = t_self._map_type(keywords["dtype"])
+            val_type = keywords["dtype"]
         return f"ones({val_type}, {vargs[0]})"
 
     def visit_argmax(t_self, node: ast.Call, vargs: list[str]):
@@ -150,7 +153,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True), # See broadcasting
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
     np.flatnonzero: (lambda self, node, vargs: 
-        f"[i for i in {vargs[0]} if {vargs[0]}[i] != 0]", True),
+        f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]", True),
     np.exp: (JuliaExternalModulePlugins.visit_exp, True),
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
     np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
