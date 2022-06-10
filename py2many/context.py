@@ -114,7 +114,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         node.vars = []
         return node
 
-    def visit_For(self, node):
+    def visit_For(self, node: ast.For):
         node.target.assigned_from = node
         if isinstance(node.target, ast.Name):
             node.vars = [node.target]
@@ -122,6 +122,11 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             node.vars = [*node.target.elts]
         else:
             node.vars = []
+        self.generic_visit(node)
+        return node
+
+    def visit_While(self, node: ast.While):
+        node.vars = []
         self.generic_visit(node)
         return node
 
@@ -161,6 +166,9 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             self_var = ast.Name(id = target.attr)
             self_var.target_node = target
             self._class_vars.append(self_var)
+        if isinstance(target, ast.Tuple) or \
+                isinstance(target, ast.List):
+            self.scope.vars.extend([t for t in target.elts])
 
 
 class LHSAnnotationTransformer(ast.NodeTransformer):

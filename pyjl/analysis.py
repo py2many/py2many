@@ -35,16 +35,32 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._variables_out_of_scope: Dict[str, Any] = {}
-        self._scope_vars = set()
-        self._assign_targets = set()
+        self._scope_vars = []
+        self._nested_vars = set()
         self._ignore_vars = set()
-        self._hard_scope = False
+        self._all_variables_out_of_scope = []
+
+    # TODO: Maybe set as an event?
+    def _emit_warning(self, node):
+        if self._all_variables_out_of_scope:
+            elems = []
+            for (target, _) in self._all_variables_out_of_scope:
+                t_id = get_id(target)
+                elems.append(f"- {t_id} on linenumber {target.lineno}")
+            elems_str = "\n".join(elems)
+            logger.warn(f"\033[93mWARNING { node.__file__.name}: There are variables"
+                        f" used outside their scope:\n"
+                        f"{elems_str}\033[0m")
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._scope_vars = []
+        self._nested_vars = set()
+        self._ignore_vars = set()
+        self._variables_out_of_scope = {}
         if getattr(node, "fix_scope_bounds", False) or \
                 getattr(node, "loop_scope_warning", False):
             self._variables_out_of_scope = {}
-            self._scope_analysis(node)
+            self.generic_visit(node)
             if getattr(node, "loop_scope_warning", False):
                 self._emit_warning(node)
         return node
@@ -53,47 +69,56 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         self._scope_analysis(node)
         return node
 
-    # TODO: Maybe set as an event?
-    def _emit_warning(self, node):
-        if self._variables_out_of_scope:
-            elems = []
-            for t_id, (target, _) in self._variables_out_of_scope.items():
-                elems.append(f"- {t_id} on linenumber {target.lineno}")
-            elems_str = "\n".join(elems)
-            logger.warn(f"\033[93mWARNING { node.__file__.name}: Loop target variables"
-                        f" outside the scope of the loop:\n"
-                        f"{elems_str}\033[0m")
-
-    def _scope_analysis(self, node):
-        self._scope_vars = set()
-        self._assign_targets = set()
-        self._ignore_vars = set()
-        self._hard_scope = False
-
-        self.generic_visit(node)
-
-        if self._assign_targets or self._ignore_vars:
-            joined_set = self._assign_targets.union(self._ignore_vars)
-            for t_id in joined_set:
-                if t_id in self._variables_out_of_scope:
-                    self._variables_out_of_scope.pop(t_id)
-        node.variables_out_of_scope = self._variables_out_of_scope
-
-    def visit_Name(self, node: ast.Name) -> Any:
-        self.generic_visit(node)
-        id = get_id(node)
-        if not self._hard_scope and \
-                id in self._scope_vars:
-            ann = self._get_ann(node)
-            self._variables_out_of_scope[id] = (node, ann)
+    def visit_If(self, node: ast.If) -> Any:
+        # TODO: Add separate branching visit
+        self._scope_analysis(node)
+        return node
+    
+    def visit_For(self, node: ast.For) -> Any:
+        self._scope_analysis(node)
+        return node
+    
+    def visit_While(self, node: ast.While) -> Any:
+        self._scope_analysis(node)
         return node
 
-    def visit_arg(self, node: ast.arg) -> Any:
-        self.generic_visit(node)
-        if not self._hard_scope and \
-                node.arg in self._scope_vars:
-            ann = self._get_ann(node)
-            self._variables_out_of_scope[node.arg] = (node, ann)
+    def visit_With(self, node: ast.With) -> Any:
+        self._scope_analysis(node)
+        return node
+
+    def _scope_analysis(self, node):
+        self._scope_vars = []
+        self._nested_vars = set()
+        self._ignore_vars = set()
+        self._variables_out_of_scope = {}
+        vars = set(map(get_id, node.vars))
+        # Check for nested hard scopes and visit other nodes
+        for n in node.body:
+            if isinstance(n, (ast.For, ast.With, ast.While, 
+                    ast.If, ast.FunctionDef)):
+                nested_vars = set(map(get_id, n.vars))
+                self._nested_vars.update(nested_vars.difference(vars))
+            else:
+                self.visit(n)
+        if self._ignore_vars:
+            for var in self._ignore_vars:
+                if var in self._variables_out_of_scope:
+                    self._variables_out_of_scope.pop(var)
+        node.variables_out_of_scope = self._variables_out_of_scope
+        self._all_variables_out_of_scope.extend(self._variables_out_of_scope.values())
+
+        # Visit remaining nodes
+        for n in node.body:
+            if isinstance(n, (ast.For, ast.With, ast.While, 
+                    ast.If, ast.FunctionDef)):
+                self.visit(n)
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        # Check if the name is defined in any 
+        # of the nested scopes
+        if (id := get_id(node)) in self._nested_vars and \
+                not getattr(node, "lhs", False):
+            self._variables_out_of_scope[id] = (node, self._get_ann(node))  
         return node
     
     def _get_ann(self, node):
@@ -105,76 +130,14 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
                 return nd.annotation
         return None
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        self.generic_visit(node)
-        for t in node.targets:
-            targets = get_target(t)
-            if not self._hard_scope:
-                # Take into account all assignments performed 
-                # outside hard scopes
-                self._assign_targets.update(targets)
-            else:
-                self._scope_vars.update(targets)
-        return node
-    
-    def visit_For(self, node: ast.For) -> Any:
-        targets = get_target(node.target)
-        self._scope_vars.update(targets)
-        return self._generic_scope_visit(node)
-
-    def visit_With(self, node: ast.With) -> Any:
-        return self._generic_scope_visit(node)
-
-    def visit_While(self, node: ast.While) -> Any:
-        return self._generic_scope_visit(node)
-
-    def visit_If(self, node: ast.If) -> Any:
-        self._hard_scope = True
-        self.visit(node.test)
-        if not getattr(node, "orelse", []):
-            for n in node.body:
-                self._check_nested(n)
-                self.visit(n)
-        else:
-            # Visit body
-            # Create backup
-            backup_loop_state = self._scope_vars.copy()
-            for n in node.body:
-                self._check_nested(n)
-                self.visit(n)
-            # Save state
-            saved_loop_state = self._scope_vars.copy()
-            # Restore backup
-            self._scope_vars.intersection_update(backup_loop_state)
-
-            # Visit orelse
-            for oe in node.orelse:
-                self.visit(oe)
-            # Join with saved state
-            self._scope_vars.update(saved_loop_state)
-
-        return self._generic_scope_visit(node)
-
-    def _generic_scope_visit(self, node) -> Any:
-        self._hard_scope = True
-        # Support nested loops
-        for n in node.body:
-            # Find nodes that create their own scopes
-            self._check_nested(n)
-        self.generic_visit(node)
-        if not getattr(node, "is_nested", None):
-            self._hard_scope = False
-
-        return node
-
-    def _check_nested(self, node):
-        if isinstance(node, (ast.For, ast.While, 
-                ast.FunctionDef, ast.With, ast.If)):
-            node.is_nested = True
-
     def visit_ListComp(self, node: ast.ListComp) -> Any:
         self.generic_visit(node)
         self._ignore_vars.add(get_id(node.elt))
+        return node
+
+    def visit_DictComp(self, node: ast.DictComp) -> Any:
+        self.generic_visit(node)
+        self._ignore_vars.add(get_id(node.key))
         return node
 
     def visit_Lambda(self, node: ast.Lambda) -> Any:
