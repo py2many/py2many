@@ -45,7 +45,7 @@ COMPILERS = {
     "go": ["go", "build"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["cargo", "script", "--build-only", "--debug"],
+    "rust": ["cargo", "eval", "--build-only", "--debug"],
     "vlang": ["v"],
     "smt": ["z3", "-smt2"],
 }
@@ -55,7 +55,7 @@ INVOKER = {
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
     "python": [sys.executable],
-    "rust": ["cargo", "script"],
+    "rust": ["cargo", "eval"],
     "vlang": ["v", "run"],
 }
 
@@ -239,7 +239,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if expect_compile_failure:
                     return
                 cmd = _create_cmd(compiler, filename=case_output, exe=exe)
-                print(f"Running {cmd} ...")
+                print(f"Compiling {cmd} ...")
                 proc = run(cmd, env=env, check=not expect_failure)
 
                 if proc.returncode:
@@ -264,6 +264,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
+                print(f"Invoking {cmd} ...")
                 proc = run(
                     cmd,
                     env=env,

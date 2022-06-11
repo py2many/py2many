@@ -165,11 +165,11 @@ jobs:
             flutter pub add vnum
           fi
 
-      - name: Install cargo-script
+      - name: Install cargo-eval
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
         run: |
           cargo install cargo-quickinstall
-          cargo quickinstall cargo-script
+          cargo quickinstall cargo-eval
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
