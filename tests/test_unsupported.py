@@ -82,6 +82,17 @@ TEST_CASES = {
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
     "str_mult": "'a' * 4",
+    "nested_class": dedent(
+        """
+        class Foo:
+            class Inner:
+                def f1(self):
+                    return self.f2()
+                def f2(self) -> int:
+                    return 20
+        def main(): Foo.Inner().f1()
+    """
+    ),
     "nested_func": dedent(
         """
         def foo():
@@ -171,6 +182,7 @@ EXPECTED_SUCCESSES = [
     "list_slice.nim",
     "list_slice.v",
     "list_destruct.v",
+    "nested_class.kt",
     "nested_func.dart",
     "nested_func.kt",
     "nested_func.rs",
