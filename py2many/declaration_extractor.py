@@ -97,7 +97,6 @@ class DeclarationExtractor(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node, dataclass=False):
         val = self._get_assign_val(node)
-        parent = node.scopes[-1]
         target = node.target
         target_id = self._get_target_id(target)
         if target_id is None:
@@ -118,7 +117,7 @@ class DeclarationExtractor(ast.NodeVisitor):
             if target_id not in self.annotated_members:
                 self.annotated_members[target_id] = (type_str, val)
 
-        if self._is_member(target):  # or isinstance(parent, ast.ClassDef):
+        if self._is_member(target):
             id = self._get_target_id(target)
             if id not in self.member_assignments:
                 self.member_assignments[id] = val
@@ -129,9 +128,8 @@ class DeclarationExtractor(ast.NodeVisitor):
 
     def visit_Assign(self, node):
         val = self._get_assign_val(node)
-        parent = node.scopes[-1]
         target = node.targets[0]
-        if self._is_member(target):  # Wrong or isinstance(parent, ast.ClassDef):
+        if self._is_member(target):
             target_id = self._get_target_id(target)
             if target_id and (
                 target_id not in self.member_assignments
