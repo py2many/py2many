@@ -65,12 +65,9 @@ class CppTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        lint_exception = (
-            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
-        )
-        self._headers.append(f'#include "pycpp/runtime/range.hpp"{lint_exception}')
+        self._usings.add("<cppitertools/range.hpp>")
         args = ", ".join(vargs)
-        return f"rangepp::xrange({args})"
+        return f"iter::range({args})"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         self._usings.add("<iostream>")

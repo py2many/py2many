@@ -133,27 +133,24 @@ class CppTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._main_signature_arg_names = ["argc", "argv"]
 
+    def _get_nolint_suffix(self, nolint="build/include_order"):
+        return f"  // NOLINT({nolint})" if not self._no_prologue else ""
+
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        lint_exception = (
-            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
-        )
+        lint_exception = self._get_nolint_suffix()
         uses = "\n".join(f"#include {mod}{lint_exception}" for mod in usings)
         return uses
 
     def headers(self, meta: InferMeta):
-        lint_exception = (
-            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
-        )
-        self._headers.append(f'#include "pycpp/runtime/sys.h"{lint_exception}')
-        self._headers.append(f'#include "pycpp/runtime/builtins.h"{lint_exception}')
+        lint_exception = self._get_nolint_suffix()
+        self._headers.append('#include "pycpp/runtime/sys.h"')
+        self._headers.append('#include "pycpp/runtime/builtins.h"')
         if self.use_catch_test_cases:
-            self._headers.append(
-                f"#include <catch2/catch_test_macros.hpp>{lint_exception}"
-            )
+            self._headers.append("#include <catch2/catch_test_macros.hpp>")
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
-        return "\n".join(self._headers)
+        return "\n".join([f"{line}{lint_exception}" for line in self._headers])
 
     def visit_FunctionDef(self, node) -> str:
         body = "\n".join([self.visit(n) for n in node.body])
@@ -333,9 +330,7 @@ class CppTranspiler(CLikeTranspiler):
             )
         fields = "\n".join([f for f in fields])
         definitions = "\n".join([d for d in definitions])
-        lint_exception = (
-            "  // NOLINT(runtime/explicit)" if not self._no_prologue else ""
-        )
+        lint_exception = self._get_nolint_suffix("runtime/explicit")
         return textwrap.dedent(
             f"""\
             class {node.name} : public std::string {{
@@ -559,7 +554,7 @@ class CppTranspiler(CLikeTranspiler):
         return f"{value}[{index}]"
 
     def visit_Tuple(self, node) -> str:
-        self._headers.append("#include <tuple>")
+        self._usings.add("<tuple>")
         elts = [self.visit(e) for e in node.elts]
         return "std::make_tuple({0})".format(", ".join(elts))
 
@@ -633,7 +628,7 @@ class CppTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(target)
         target = self.visit(target)
         value = self.visit(node.value)
-        lint_exception = "  // NOLINT(runtime/string)" if not self._no_prologue else ""
+        lint_exception = self._get_nolint_suffix("runtime/string")
         if typename == "std::string" and is_global(node):
             return f"{typename} {target} = {value};{lint_exception}"
 

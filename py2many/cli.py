@@ -81,6 +81,7 @@ ROOT_DIR = PY2MANY_DIR.parent
 STDIN = "-"
 STDOUT = "-"
 CWD = Path.cwd()
+USER_HOME = os.path.expanduser("~/")
 
 
 def core_transformers(tree, trees, args):
@@ -221,6 +222,19 @@ def python_settings(args, env=os.environ):
     )
 
 
+def _conan_include_dirs():
+    CONAN_CATCH2 = "catch2/3.0.1/_/_/package/a25d6c83542b56b72fdaa05a85db5d46f5f0f71c"
+    CONAN_CPPITERTOOLS = (
+        "cppitertools/2.1/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9"
+    )
+    return [
+        "-I",
+        f"{USER_HOME}/.conan/data/{CONAN_CATCH2}/include",
+        "-I",
+        f"{USER_HOME}/.conan/data/{CONAN_CPPITERTOOLS}/include",
+    ]
+
+
 def cpp_settings(args, env=os.environ):
     clang_format_style = env.get("CLANG_FORMAT_STYLE")
     cxx = env.get("CXX")
@@ -240,8 +254,8 @@ def cpp_settings(args, env=os.environ):
     if cxx_flags:
         cxx_flags = cxx_flags.split()
     else:
-        cxx_flags = ["-std=c++14", "-Wall", "-Werror"]
-    cxx_flags = ["-I", str(ROOT_DIR)] + cxx_flags
+        cxx_flags = ["-std=c++17", "-Wall", "-Werror"]
+    cxx_flags = ["-I", str(ROOT_DIR)] + _conan_include_dirs() + cxx_flags
     if cxx.startswith("clang++") and not sys.platform == "win32":
         cxx_flags += ["-stdlib=libc++"]
 

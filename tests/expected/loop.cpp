@@ -1,10 +1,10 @@
-#include <iostream>  // NOLINT(build/include_order)
+#include <cppitertools/range.hpp>  // NOLINT(build/include_order)
+#include <iostream>                // NOLINT(build/include_order)
 
 #include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 inline void for_with_break() {
-  for (auto i : rangepp::xrange(4)) {
+  for (auto i : iter::range(4)) {
     if (i == 2) {
       break;
     }
@@ -14,7 +14,7 @@ inline void for_with_break() {
 }
 
 inline void for_with_continue() {
-  for (auto i : rangepp::xrange(4)) {
+  for (auto i : iter::range(4)) {
     if (i == 2) {
       continue;
     }
@@ -24,7 +24,7 @@ inline void for_with_continue() {
 }
 
 inline void for_with_else() {
-  for (auto i : rangepp::xrange(4)) {
+  for (auto i : iter::range(4)) {
     std::cout << i;
     std::cout << std::endl;
   }

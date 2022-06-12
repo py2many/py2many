@@ -1,11 +1,11 @@
-#include <algorithm>  // NOLINT(build/include_order)
-#include <cassert>    // NOLINT(build/include_order)
-#include <iostream>   // NOLINT(build/include_order)
-#include <map>        // NOLINT(build/include_order)
-#include <vector>     // NOLINT(build/include_order)
+#include <algorithm>               // NOLINT(build/include_order)
+#include <cassert>                 // NOLINT(build/include_order)
+#include <cppitertools/range.hpp>  // NOLINT(build/include_order)
+#include <iostream>                // NOLINT(build/include_order)
+#include <map>                     // NOLINT(build/include_order)
+#include <vector>                  // NOLINT(build/include_order)
 
 #include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline void inline_pass() {
@@ -17,7 +17,7 @@ inline void inline_ellipsis() {
 inline int indexing() {
   int sum = 0;
   std::vector<int> a = {};
-  for (auto i : rangepp::xrange(10)) {
+  for (auto i : iter::range(10)) {
     a.push_back(i);
     sum += a[i];
   }
@@ -43,11 +43,11 @@ inline void show() {
   double a2 = 2.1;
   std::cout << a2;
   std::cout << std::endl;
-  for (auto i : rangepp::xrange(0, 10)) {
+  for (auto i : iter::range(0, 10)) {
     std::cout << i;
     std::cout << std::endl;
   }
-  for (auto i : rangepp::xrange(0, 10, 2)) {
+  for (auto i : iter::range(0, 10, 2)) {
     std::cout << i;
     std::cout << std::endl;
   }

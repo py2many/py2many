@@ -1,16 +1,16 @@
-#include <cassert>   // NOLINT(build/include_order)
-#include <iostream>  // NOLINT(build/include_order)
-#include <tuple>
-#include <vector>  // NOLINT(build/include_order)
+#include <cassert>                 // NOLINT(build/include_order)
+#include <cppitertools/range.hpp>  // NOLINT(build/include_order)
+#include <iostream>                // NOLINT(build/include_order)
+#include <tuple>                   // NOLINT(build/include_order)
+#include <vector>                  // NOLINT(build/include_order)
 
 #include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline std::vector<int> bubble_sort(std::vector<int>& seq) {
   auto L = static_cast<int>(seq.size());
-  for (auto _ : rangepp::xrange(L)) {
-    for (auto n : rangepp::xrange(1, L)) {
+  for (auto _ : iter::range(L)) {
+    for (auto n : iter::range(1, L)) {
       if (seq[n] < seq[n - 1]) {
         std::tie(seq[n - 1], seq[n]) = std::make_tuple(seq[n], seq[n - 1]);
       }
