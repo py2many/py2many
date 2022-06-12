@@ -54,7 +54,7 @@ def transpile(source, headers=False, testing=False):
 
     buf = []
     if testing:
-        buf += ['#include "catch.hpp"']
+        buf += ["#include <catch2/catch_test_macros.hpp>"]
         transpiler.use_catch_test_cases = True
 
     if headers:
@@ -148,7 +148,9 @@ class CppTranspiler(CLikeTranspiler):
         self._headers.append(f'#include "pycpp/runtime/sys.h"{lint_exception}')
         self._headers.append(f'#include "pycpp/runtime/builtins.h"{lint_exception}')
         if self.use_catch_test_cases:
-            self._headers.append(f'#include "pycpp/runtime/catch.hpp"{lint_exception}')
+            self._headers.append(
+                f"#include <catch2/catch_test_macros.hpp>{lint_exception}"
+            )
         if meta.has_fixed_width_ints:
             self._headers.append("#include <stdint.h>")
         return "\n".join(self._headers)

@@ -101,9 +101,11 @@ jobs:
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
         run: |
+          set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes \
                   astyle \
+                  catch2 \
                   clang-14 \
                   z3 \
                 && true
@@ -113,10 +115,12 @@ jobs:
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install astyle clang-format cljstyle kscript ktlint z3
+              brew install astyle catch2 clang-format cljstyle kscript ktlint z3
               # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
+              git clone --depth 1 https://github.com/catchorg/Catch2 Catch2-repo
+              mv Catch2-repo/src/catch2 .
           fi
           echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
           echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
