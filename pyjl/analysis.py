@@ -34,10 +34,9 @@ def get_target(target):
 class JuliaVariableScopeAnalysis(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._variables_out_of_scope: Dict[str, Any] = {}
         self._scope_vars = []
-        self._nested_vars = set()
-        self._ignore_vars = set()
+        self._nested_vars =  {}
+        self._variables_out_of_scope: Dict[str, Any] = {}
         self._all_variables_out_of_scope = []
 
     # TODO: Maybe set as an event?
@@ -53,13 +52,8 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
                         f"{elems_str}\033[0m")
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._scope_vars = []
-        self._nested_vars = set()
-        self._ignore_vars = set()
-        self._variables_out_of_scope = {}
         if getattr(node, "fix_scope_bounds", False) or \
                 getattr(node, "loop_scope_warning", False):
-            self._variables_out_of_scope = {}
             self.generic_visit(node)
             if getattr(node, "loop_scope_warning", False):
                 self._emit_warning(node)
@@ -70,8 +64,10 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         return node
 
     def visit_If(self, node: ast.If) -> Any:
-        # TODO: Add separate branching visit
+        # Visit node body
         self._scope_analysis(node)
+        # Visit node orelse
+        self._scope_analysis(node, attr="orelse")
         return node
     
     def visit_For(self, node: ast.For) -> Any:
@@ -86,29 +82,28 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         self._scope_analysis(node)
         return node
 
-    def _scope_analysis(self, node):
-        self._scope_vars = []
-        self._nested_vars = set()
-        self._ignore_vars = set()
+    def _scope_analysis(self, node, attr="body"):
+        self._scope_vars.clear()
+        self._nested_vars.clear()
         self._variables_out_of_scope = {}
         vars = set(map(get_id, node.vars))
         # Check for nested hard scopes and visit other nodes
-        for n in node.body:
+        body = getattr(node, attr, [])
+        for n in body:
             if isinstance(n, (ast.For, ast.With, ast.While, 
                     ast.If, ast.FunctionDef)):
-                nested_vars = set(map(get_id, n.vars))
-                self._nested_vars.update(nested_vars.difference(vars))
+                self._nested_vars.update({get_id(n_var): n_var 
+                    for n_var in n.vars if get_id(n_var) not in vars})
             else:
                 self.visit(n)
-        if self._ignore_vars:
-            for var in self._ignore_vars:
-                if var in self._variables_out_of_scope:
-                    self._variables_out_of_scope.pop(var)
-        node.variables_out_of_scope = self._variables_out_of_scope
+        if hasattr(node, "variables_out_of_scope"):
+            node.variables_out_of_scope |= self._variables_out_of_scope
+        else:
+            node.variables_out_of_scope = self._variables_out_of_scope
         self._all_variables_out_of_scope.extend(self._variables_out_of_scope.values())
 
         # Visit remaining nodes
-        for n in node.body:
+        for n in body:
             if isinstance(n, (ast.For, ast.With, ast.While, 
                     ast.If, ast.FunctionDef)):
                 self.visit(n)
@@ -118,31 +113,32 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         # of the nested scopes
         if (id := get_id(node)) in self._nested_vars and \
                 not getattr(node, "lhs", False):
-            self._variables_out_of_scope[id] = (node, self._get_ann(node))  
+            var = self._nested_vars[id]
+            ann = self._get_ann(var)
+            self._variables_out_of_scope[id] = (node, ann)  
         return node
     
     def _get_ann(self, node):
         if hasattr(node, "annotation"):
             return node.annotation
-        elif hasattr(node, "scopes"):
+        if hasattr(node, "assigned_from"):
+            if hasattr(node.assigned_from, "annotation"):
+                return node.assigned_from.annotation
+        if hasattr(node, "scopes"):
             nd = node.scopes.find(get_id(node))
             if hasattr(nd, "annotation"):
                 return nd.annotation
         return None
 
+    # The variables in List and Dictionary Comprehensions, 
+    # and Lambdas should not count for the variables out of scope
     def visit_ListComp(self, node: ast.ListComp) -> Any:
-        self.generic_visit(node)
-        self._ignore_vars.add(get_id(node.elt))
         return node
 
     def visit_DictComp(self, node: ast.DictComp) -> Any:
-        self.generic_visit(node)
-        self._ignore_vars.add(get_id(node.key))
         return node
 
     def visit_Lambda(self, node: ast.Lambda) -> Any:
-        self.generic_visit(node)
-        self._ignore_vars.update([get_id(x) for x in node.args.args])
         return node
 
 
