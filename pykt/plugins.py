@@ -138,6 +138,14 @@ class KotlinTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "c_int8": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="Byte"),
+    "c_int16": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="Short"),
+    "c_int32": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="Int"),
+    "c_int64": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="Long"),
+    "c_uint8": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="UByte"),
+    "c_uint16": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="UShort"),
+    "c_uint32": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="UInt"),
+    "c_uint64": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="ULong"),
     "str": lambda n, vargs: f"{vargs[0]}.toString()" if vargs else '""',
     # TODO: strings use .length
     "len": lambda n, vargs: f"{vargs[0]}.size",

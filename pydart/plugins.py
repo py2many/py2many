@@ -132,6 +132,14 @@ class DartTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "c_int8": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_int16": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_int32": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_int64": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_uint8": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_uint16": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_uint32": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "c_uint64": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
     "str": lambda n, vargs: f"{vargs[0]}.toString()" if vargs else '""',
     "len": lambda n, vargs: f"{vargs[0]}.length",
     "int": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",

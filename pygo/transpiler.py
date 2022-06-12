@@ -19,6 +19,7 @@ from py2many.analysis import IGNORED_MODULE_SET, get_id, is_global, is_void_func
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
+from py2many.inference import is_ctype
 from py2many.rewriters import capitalize_first, rename, camel_case
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
@@ -251,6 +252,10 @@ class GoTranspiler(CLikeTranspiler):
 
         if not value_id:
             value_id = ""
+
+        if is_ctype(node.value):
+            if attr == "value":
+                return value_id
 
         if is_enum(value_id, node.scopes):
             return f"{attr}"

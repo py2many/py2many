@@ -15,6 +15,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
+from py2many.inference import is_ctype
 from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
 
 from typing import List, Tuple
@@ -157,6 +158,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if value_id == "sys":
             if attr == "argv":
                 return "append!([PROGRAM_FILE], ARGS)"
+
+        if is_ctype(node.value):
+            if attr == "value":
+                return value_id
 
         if is_enum(value_id, node.scopes):
             return f"{value_id}.{attr}"

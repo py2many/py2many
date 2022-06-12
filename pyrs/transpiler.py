@@ -25,7 +25,7 @@ from py2many.analysis import (
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
-from py2many.inference import is_reference
+from py2many.inference import is_reference, is_ctype
 from py2many.tracer import is_list, defined_before, is_class_or_module
 
 from pathlib import Path
@@ -319,6 +319,10 @@ class RustTranspiler(CLikeTranspiler):
             if attr == "argv":
                 self._usings.add("std::env")
                 return "env::args().map(|s| &*Box::leak(s.into_boxed_str())).collect()"
+
+        if is_ctype(node.value):
+            if attr == "value":
+                return value_id
 
         if is_list(node.value):
             if node.attr == "append":

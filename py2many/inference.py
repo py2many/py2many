@@ -73,6 +73,20 @@ def is_reference(arg):
     return annotation_has_ref
 
 
+def is_ctype(val: ast.AST) -> bool:
+    inferred = get_inferred_type(val)
+    return inferred and get_id(inferred) in [
+        "c_int8",
+        "c_int16",
+        "c_int32",
+        "c_int64",
+        "c_uint8",
+        "c_uint16",
+        "c_uint32",
+        "c_uint64",
+    ]
+
+
 def bit_length(val: ast.AST) -> int:
     if isinstance(val, ast.Constant) and isinstance(val.value, int):
         return int.bit_length(val.value)
@@ -81,7 +95,7 @@ def bit_length(val: ast.AST) -> int:
 
 def is_compatible(
     cls1, cls2, target: Optional[ast.AST] = None, source: Optional[ast.AST] = None
-):
+) -> bool:
     """This needs to return true if narrowing one of the classes leads to the other class"""
     # For now, handle fixed width only. In the future look into List[int] vs List
     fixed_width = InferTypesTransformer.FIXED_WIDTH_INTS
@@ -112,6 +126,14 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytes: "bytes",
         complex: "complex",
         type(...): "...",
+        c_int8: "c_int8",
+        c_int16: "c_int16",
+        c_int32: "c_int32",
+        c_int64: "c_int64",
+        c_uint8: "c_uint8",
+        c_uint16: "c_uint16",
+        c_uint32: "c_uint32",
+        c_uint64: "c_uint64",
     }
     FIXED_WIDTH_INTS_LIST = [
         bool,

@@ -13,14 +13,13 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
-
 from py2many.analysis import add_imports, is_global, is_void_function, get_id
 from py2many.ast_helpers import create_ast_block
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.context import add_variable_context, add_list_calls
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
-from py2many.inference import InferMeta
+from py2many.inference import InferMeta, is_ctype
 from py2many.scope import add_scope_context
 from py2many.rewriters import PythonMainRewriter
 from py2many.tracer import (
@@ -216,6 +215,10 @@ class CppTranspiler(CLikeTranspiler):
         if is_list(node.value):
             if node.attr == "append":
                 attr = "push_back"
+
+        if is_ctype(node.value):
+            if attr == "value":
+                return value_id
 
         if value_id in {"string"}:
             return f"std::{value_id}::{attr}"
