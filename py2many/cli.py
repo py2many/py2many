@@ -13,17 +13,22 @@ from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
+from py2py.transpiler import PythonTranspiler, RestoreMainRewriter
+from py2many.transformers import (
+    add_annotation_flags,
+    detect_mutable_vars,
+    detect_nesting_levels,
+)
+
+from pyjl.rewriters import JuliaMethodCallRewriter
+
 
 from .analysis import add_imports
-from .annotation_transformer import add_annotation_flags
 
 from .context import add_assignment_context, add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
 from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
-from .mutability_transformer import detect_mutable_vars
-from .nesting_transformer import detect_nesting_levels
-from .python_transformer import PythonTranspiler, RestoreMainRewriter
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
@@ -35,7 +40,7 @@ from pyrs.transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
 )
-from pyjl.transpiler import JuliaTranspiler, JuliaMethodCallRewriter
+from pyjl.transpiler import JuliaTranspiler
 from pykt.inference import infer_kotlin_types
 from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
 from pynim.inference import infer_nim_types
@@ -126,6 +131,7 @@ def _transpile(
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
     ]
+
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
         PrintBoolRewriter(language),
@@ -296,14 +302,14 @@ def julia_settings(args, env=os.environ):
         format_jl = ["format.jl", "-v"]
 
     return LanguageSettings(
-        JuliaTranspiler(),
-        ".jl",
-        "Julia",
-        format_jl,
-        None,
-        [],
-        [],
-        [JuliaMethodCallRewriter()],
+        transpiler=JuliaTranspiler(),
+        ext=".jl",
+        display_name="Julia",
+        formatter=format_jl,
+        indent=None,
+        rewriters=[],
+        transformers=[],
+        post_rewriters=[JuliaMethodCallRewriter()],
     )
 
 
@@ -662,9 +668,7 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
-        "--project",
-        default=True,
-        help="Create a project when using directory mode",
+        "--project", default=True, help="Create a project when using directory mode"
     )
     args, rest = parser.parse_known_args(args=args)
 
@@ -734,11 +738,7 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings,
-                source,
-                outdir,
-                args.project,
-                env=env,
+                settings, source, outdir, args.project, env=env
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1
