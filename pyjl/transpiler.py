@@ -572,25 +572,46 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_GeneratorExp(self, node) -> str:
         elt = self.visit(node.elt)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
-
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        generators = node.generators
+        gen_expr = self._visit_generators(generators)
+        return f"({elt} {gen_expr})"
 
     def visit_ListComp(self, node) -> str:
-        return self.visit_GeneratorExp(node)  # right now they are the same
+        elt = self.visit(node.elt)
+        generators = node.generators
+        list_comp = self._visit_generators(generators)
+        return f"[{elt} {list_comp}]"
+
+    def visit_DictComp(self, node: ast.DictComp) -> str:
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+        generators = node.generators
+        dict_comp = f"{key} => {value} " + self._visit_generators(generators)
+
+        return f"Dict({dict_comp})"
+
+    def _visit_generators(self, generators):
+        gen_exp = []
+        for i in range(len(generators)):
+            generator = generators[i]
+            target = self.visit(generator.target)
+            iter = self.visit(generator.iter)
+            exp = f"for {target} in {iter}"
+            gen_exp.append(exp) if i == 0 else gen_exp.append(f" {exp}")
+            filter_str = ""
+            if len(generator.ifs) == 1:
+                filter_str += f" if {self.visit(generator.ifs[0])} "
+            else:
+                for i in range(0, len(generator.ifs)):
+                    gen_if = generator.ifs[i]
+                    filter_str += (
+                        f" if {self.visit(gen_if)}"
+                        if i == 0
+                        else f" && {self.visit(gen_if)} "
+                    )
+            gen_exp.append(filter_str)
+
+        return "".join(gen_exp)
 
     def visit_Global(self, node) -> str:
         return "//global {0}".format(", ".join(node.names))

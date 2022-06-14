@@ -662,9 +662,7 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
-        "--project",
-        default=True,
-        help="Create a project when using directory mode",
+        "--project", default=True, help="Create a project when using directory mode"
     )
     args, rest = parser.parse_known_args(args=args)
 
@@ -734,11 +732,7 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings,
-                source,
-                outdir,
-                args.project,
-                env=env,
+                settings, source, outdir, args.project, env=env
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1

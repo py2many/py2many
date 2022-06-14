@@ -1,6 +1,6 @@
 function do_unsupported()
     a = 1
-    # dict comprehension ((key + 1), (value + 1)) unimplemented on line 9:4;
+    Dict((key + 1) => (value + 1) for (key, value) in Dict())
     b = Bool(a)
     println(join([b ? ("True") : ("False")], " "))
 end
