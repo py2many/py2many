@@ -121,10 +121,9 @@ We provide the layout of a possible configuration file below:
 ```
 
 ### Dependencies
-Please install the following dependencies before running Py2Many:
+Please install the following modules before running Py2Many:
 ```
 pip install toposort
-pip install numpy
 ```
 
 ### Example

@@ -28,9 +28,6 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
-        # Holds python_type with id as variable name
-        self._stack_var_map = {}
-        self._none_type = NONE_TYPE
         self._default_type = DEFAULT_TYPE
         self._clike = CLikeTranspiler()
         #
