@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [ '3.8' ]
+        python-version: [ '3.9' ]
         os:
           - ubuntu-22.04
           - macos-12
@@ -199,9 +199,9 @@ jobs:
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
           if [ "$FOCUS" ]; then
-            tox -e py38 -- -k "$FOCUS"
+            tox -e py39 -- -k "$FOCUS"
           else
-            tox -e py38
+            tox -e py39
           fi
 
   lint:

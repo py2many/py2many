@@ -88,7 +88,7 @@ class JuiliaTranspilerPlugins:
         # Do whatever transformation the decorator does to cls here
         return cls
 
-    def visit_range(t_self, node, vargs: List[str]) -> str:
+    def visit_range(self, node, vargs: List[str]) -> str:
         start = 0
         stop = 0
         step = None
@@ -133,9 +133,7 @@ SMALL_DISPATCH_MAP = {
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
 }
 
-SMALL_USINGS_MAP = {
-    "asyncio.run": "futures::executor::block_on",
-}
+SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
 
 DISPATCH_MAP = {
     "range": JuiliaTranspilerPlugins.visit_range,
@@ -151,7 +149,7 @@ DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_ap_datac
 CLASS_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_argparse_dataclass}
 
 ATTR_DISPATCH_TABLE = {
-    "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
+    "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
 }
 
 FuncType = Union[Callable, str]

@@ -92,7 +92,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return "{0}^{1}".format(self.visit(node.left), self.visit(node.right))
 
-        bin_op = f"{self.visit(node.left)} {self.visit(node.op)} {self.visit(node.right)}"
+        bin_op = (
+            f"{self.visit(node.left)} {self.visit(node.op)} {self.visit(node.right)}"
+        )
         is_nested = getattr(node, "isnested", None)
         return bin_op if not is_nested else f"({bin_op})"
 

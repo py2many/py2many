@@ -1,5 +1,3 @@
-
-
 import ast
 
 
@@ -11,7 +9,7 @@ def infer_julia_types(node, extension=False):
 class InferJuliaTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
-    
+
     def visit_BinOp(self, node):
         self.generic_visit(node)
 

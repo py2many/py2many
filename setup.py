@@ -35,7 +35,5 @@ setup(
         "Topic :: Utilities",
     ],
     test_suite="tests",
-    entry_points={
-        "console_scripts": ["py2many=py2many.cli:main"],
-    },
+    entry_points={"console_scripts": ["py2many=py2many.cli:main"]},
 )
