@@ -27,3 +27,5 @@ tests/cases/*.kt
 tests/cases/*.nim
 dist/
 pyjl/test_files
+test.sh
+tests/output
