@@ -52,7 +52,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             val_id = get_id(fname.value)
             is_module = val_id and is_file(val_id, self._basedir)
-            if is_module and not self._use_modules:
+            # Detect static class access
+            class_node = node.scopes.find(val_id)
+            is_static_access = is_class_or_module(val_id, node.scopes) and \
+                class_node and class_node.scopes.find(fname.attr)
+            if (is_module and not self._use_modules) or is_static_access:
                 # Handle separate module call when Julia defines no 'module'
                 new_func_name = fname.attr
                 node.func = ast.Name(
