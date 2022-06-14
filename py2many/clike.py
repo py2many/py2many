@@ -674,7 +674,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
             if isinstance(type_node, ast.Name) and \
-                    (id := get_id(node)) in self._container_type_map:
+                    (id := get_id(type_node)) in self._container_type_map:
                 node.container_type = (id, "Any")
 
             if cont_type := getattr(node, "container_type", None):

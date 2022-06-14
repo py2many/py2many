@@ -9,7 +9,7 @@ def sieve(n):
     for i in range(2, int(np.sqrt(n) + 1)):
         if primes[i]:
             # Vectorization of the assignment operation (Uses a loop in C)
-            primes[i*i::i] = False 
+            primes[i*i::i] = False
     return np.flatnonzero(primes)
 
 if __name__ == "__main__":

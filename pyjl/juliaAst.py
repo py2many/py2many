@@ -15,7 +15,7 @@ class AbstractType(ast.Expr):
     extends: ast.expr
     ctx: ast.expr_context
 
-class LetStmt(ast.Expr):
+class LetStmt(ast.Lambda):
     args: ast.arguments
     body: list[ast.expr]
     ctx: ast.expr_context
@@ -72,10 +72,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
 
     def visit_LetStmt(self, node: LetStmt) -> Any:
         """Visit Julia let statement"""
-        for a in node.args:
-            self.visit(a)
-        for n in node.body:
-            self.visit(n)
+        self.visit_Lambda(node)
         return node
 
     def visit_JuliaModule(self, node: JuliaModule) -> Any:
@@ -104,3 +101,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         for e in node.elts:
             self.visit(e)
         return node
+
+class JuliaNodeTransformer(JuliaNodeVisitor):
+    def __init__(self) -> None:
+        super().__init__()

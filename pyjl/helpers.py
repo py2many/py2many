@@ -52,7 +52,9 @@ def get_range_from_for_loop(node):
 
 # Returns a string representation of the node
 def get_ann_repr(node, parse_func = None, default = None):
-    if isinstance(node, str):
+    if node == None:
+        return default
+    elif isinstance(node, str):
         if parse_func:
             return parse_func(node)
         return node

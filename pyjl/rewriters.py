@@ -3,6 +3,7 @@ import ast
 from calendar import c
 import copy
 import os
+import re
 import sys
 from typing import Any, Dict
 
@@ -1352,20 +1353,20 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         let_assignments = []
         for arg in node.args.args:
             arg_id = arg.arg
-            annotation: str = get_ann_repr(arg.annotation) \
-                if hasattr(arg, "annotation") else None
-            # TODO: Optimize: "arg_id not in self._subscript_vals" (This is O(n^2))
-            if not annotation or (annotation and not annotation.startswith("List"))\
-                    or arg_id not in self._subscript_vals:
+            annotation_id = get_ann_repr(arg.annotation)
+            is_list = re.match(r"^List|^list", annotation_id)
+            if not hasattr(arg, "annotation") or \
+                    (hasattr(arg, "annotation") and not is_list) or \
+                    arg_id not in self._subscript_vals:
                 continue
             arg_name = ast.Name(id=arg_id)
             val = self._build_offset_array_call(
-                        arg_name, annotation, node.lineno, 
+                        arg_name, arg.annotation, node.lineno, 
                         node.col_offset, node.scopes)
             assign = ast.Assign(
                     targets = [arg_name],
                     value = val,
-                    annotation = val.annotation, 
+                    annotation = arg.annotation, 
                     lineno = node.lineno + 1,
                     col_offset = node.col_offset,
                     scopes = node.scopes # TODO: Remove the return statement form scopes
@@ -1486,7 +1487,10 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         if isinstance(node.value, ast.Subscript):
             node.using_offset_arrays = getattr(node.value, "using_offset_arrays", False)
 
-        if self._use_offset_array and (id := get_id(node.value)):
+        container_type = getattr(node, "container_type", None)
+        is_list = re.match(r"^list|List", container_type[0])
+        if self._use_offset_array and (id := get_id(node.value)) and \
+                is_list:
             self._subscript_vals.append(id)
             node.using_offset_arrays = True
             if isinstance(node.slice, ast.Slice):
