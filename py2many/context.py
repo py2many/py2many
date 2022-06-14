@@ -1,4 +1,6 @@
 import ast
+import os
+from pathlib import PosixPath
 
 from py2many.ast_helpers import get_id
 from py2many.tracer import is_list_assignment
@@ -57,8 +59,15 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         if len(trees) == 1:
             self._trees = {}
         else:
-            self._trees = {t.__file__.stem: t for t in trees}
+            # Identify modules by their full path
+            self._trees = {self._parse_path(t.__file__): t for t in trees}
         self._class_vars = []
+
+    def _parse_path(self, path: PosixPath):
+        parts = list(path.parts)
+        # remove file extension
+        parts[-1] = parts[-1].split(".")[0]
+        return ".".join(parts)
 
     def visit_FunctionDef(self, node):
         node.vars = []
