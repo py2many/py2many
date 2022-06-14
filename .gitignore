@@ -24,3 +24,5 @@ addons/
 # tests/performance_tests-py2many
 pyjl/test_files/
 pyjl/__pycache__
+tests/output
+run_tests.sh
