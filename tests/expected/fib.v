@@ -1,3 +1,4 @@
+[translated]
 module main
 
 fn fib(i int) int {
@@ -5,7 +6,7 @@ fn fib(i int) int {
 		return 1
 	}
 
-	return (fib((i - 1)) + fib((i - 2)))
+	return fib((i - 1)) + fib((i - 2))
 }
 
 fn main() {

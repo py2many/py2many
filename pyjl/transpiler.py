@@ -309,6 +309,8 @@ class JuliaTranspiler(CLikeTranspiler):
             return "std::vector ({0},{1})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
+        elif isinstance(node.op, ast.MatMult):
+            return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
         else:
             return super().visit_BinOp(node)
 
@@ -465,24 +467,34 @@ class JuliaTranspiler(CLikeTranspiler):
         return "({0})".format(elts)
 
     def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
+        buf = []
+        buf.append("try")
+        buf.extend([self.visit(child) for child in node.body])
+        if len(node.handlers) > 0:
+            buf.append("catch exn")
+            for handler in node.handlers:
+                buf.append(self.visit(handler))
+        if node.finalbody:
+            buf.append("finally")
+            buf.extend([self.visit(child) for child in node.finalbody])
+        buf.append("end")
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
-        exception_type = ""
+        buf = []
+        name = "exn"
+        if node.name:
+            buf.append(f" let {node.name} = {name}")
+            name = node.name
         if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
+            type_str = self.visit(node.type)
+            buf.append(f"if {name} isa {type_str}")
+        buf.extend([self.visit(child) for child in node.body])
+        if node.type:
+            buf.append("end")
+        if node.name:
+            buf.append("end")
+        return "\n".join(buf)
 
     def visit_Assert(self, node) -> str:
         return "@assert({0})".format(self.visit(node.test))
@@ -537,10 +549,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "raise!({0}) # unsupported".format(self.visit(node.exc))
+            return "throw({0})".format(self.visit(node.exc))
         # This handles the case where `raise` is used without
         # specifying the exception.
-        return "raise!() # unsupported"
+        return "error()"
 
     def visit_Await(self, node) -> str:
         return "await!({0})".format(self.visit(node.value))

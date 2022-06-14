@@ -17,6 +17,8 @@ def fib(i: int) -> int:
 
 if __name__ == "__main__":
     args = Options.parse_args()
+    if args.v:
+        print("args.v is true")
     if args.n == 0:
         args.n = 5
     print(fib(args.n))

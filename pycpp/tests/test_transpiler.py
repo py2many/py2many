@@ -39,7 +39,7 @@ def test_print_multiple_vars():
 def test_assert():
     source = parse("assert 1 == foo(3)")
     cpp = transpile(source, testing=True)
-    assert cpp == '#include "catch.hpp"\nREQUIRE(1 == foo(3));'
+    assert cpp == "#include <catch2/catch_test_macros.hpp>\nREQUIRE(1 == foo(3));"
 
 
 def test_augmented_assigns_with_counter():
@@ -132,7 +132,10 @@ def test_create_catch_test_case():
     source = parse("def test_fun():", "   assert True")
     cpp = transpile(source, testing=True)
     assert cpp == parse(
-        '#include "catch.hpp"', 'TEST_CASE("test_fun") {', "REQUIRE(true);", "}"
+        "#include <catch2/catch_test_macros.hpp>",
+        'TEST_CASE("test_fun") {',
+        "REQUIRE(true);",
+        "}",
     )
 
 

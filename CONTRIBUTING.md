@@ -8,11 +8,22 @@ read-on.
 - Running tests locally
 - Running tests via continuous integration (CI) pipeline
 
+## Running tests using act
 
-## Setting up your machine
+[This](https://github.com/adsharma/py2many/blob/main/.github/workflows/main.yml) is how CI pipleine does it.
 
-- [This](https://github.com/adsharma/py2many/blob/main/.github/workflows/main.yml) is how CI pipleine does it
-- Since you can't look inside each of those setup actions, here are some notes for ubuntu 20.04
+This CI pipeline can be run locally using https://github.com/nektos/act which will use Docker
+to run the GitHub Actions workflow.
+
+On your first invocation of `act`, select the "Medium" runner image, as the workflow has been tested using that.
+Refer to https://github.com/nektos/act#runners for more information.
+
+As it installs many large dependencies, languages and packages, be sure to use `act --reuse --job build`
+to reuse the same container for each invocation.
+
+## Setting up your Ubuntu machine
+
+Here are some notes for ubuntu 20.04
 
 ### Ubuntu 20.04 + python3
 
@@ -34,6 +45,21 @@ sudo apt install clang-format clang++ libc++-dev libc++abi-dev
 rustup component add rustfmt
 cargo install cargo-script
 ```
+
+## MacOS dependencies
+
+The following commands will install most of the dependencies on MacOS
+
+```
+brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+brew tap sdkman/tap
+brew install astyle clang-format cljstyle flutter gcc go julia kscript ktlint nim sdkman-cli vlang z3
+cargo install cargo-script
+```
+
+`cljstyle` will refuse to run.  In a shell, type `open /usr/local/bin/`, locate `cljstyle`, and Open.
+MacOS will inform that it was downloaded from the Internet and ask for confirmation.
+Once confirmed, it will become usable.
 
 ## Running tests for C++ only
 

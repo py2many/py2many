@@ -39,14 +39,14 @@ ENV = {
 }
 COMPILERS = {
     "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
-    + (["-stdlib=libc++"] if CXX == "clang++" else [])
+    + (["-stdlib=libc++"] if CXX.startswith("clang++") else [])
     + (["-o", "{exe}", "{filename}"] if sys.platform == "win32" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["cargo", "script", "--build-only", "--debug"],
-    "vlang": ["v", "-translated"],
+    "rust": ["cargo", "eval", "--build-only", "--debug"],
+    "vlang": ["v"],
     "smt": ["z3", "-smt2"],
 }
 INVOKER = {
@@ -55,8 +55,8 @@ INVOKER = {
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
     "python": [sys.executable],
-    "rust": ["cargo", "script"],
-    "vlang": ["v", "-translated", "run"],
+    "rust": ["cargo", "eval"],
+    "vlang": ["v", "run"],
 }
 
 TEST_CASES = [
@@ -239,7 +239,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if expect_compile_failure:
                     return
                 cmd = _create_cmd(compiler, filename=case_output, exe=exe)
-                print(f"Running {cmd} ...")
+                print(f"Compiling {cmd} ...")
                 proc = run(cmd, env=env, check=not expect_failure)
 
                 if proc.returncode:
@@ -258,10 +258,13 @@ class CodeGeneratorTests(unittest.TestCase):
 
             if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
-                if not spawn.find_executable(invoker[0]):
+                if os.path.exists(invoker[0]):
+                    pass
+                elif not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
+                print(f"Invoking {cmd} ...")
                 proc = run(
                     cmd,
                     env=env,
@@ -305,7 +308,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     if case == "coverage":
                         linter.append(
                             "-Wno-null-arithmetic"
-                            if CXX == "clang++"
+                            if CXX.startswith("clang++")
                             else "-Wno-pointer-arith"
                         )
                 proc = run(linter, env=env)
@@ -451,6 +454,11 @@ class CodeGeneratorTests(unittest.TestCase):
         env = os.environ.copy()
         if ENV.get(lang):
             env.update(ENV.get(lang))
+
+        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
+        if settings.formatter:
+            if not spawn.find_executable(settings.formatter[0]):
+                raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         TEST_OUTPUT = f"{case}-{lang}-generated"
         EXPECTED_OUTPUT = f"{case}-{lang}-expected"

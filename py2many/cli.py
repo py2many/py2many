@@ -273,12 +273,28 @@ def rust_settings(args, env=os.environ):
     )
 
 
+@lru_cache()
+def _julia_formatter_path():
+    proc = run(
+        ["julia", "-e", "import JuliaFormatter;print(pathof(JuliaFormatter))"],
+        capture_output=True,
+    )
+    if not proc.returncode and proc.stdout:
+        return str(Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl")
+
+
 def julia_settings(args, env=os.environ):
     format_jl = spawn.find_executable("format.jl")
+    if not format_jl:
+        julia = spawn.find_executable("julia")
+        if julia:
+            format_jl = _julia_formatter_path()
+
     if format_jl:
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
     else:
         format_jl = ["format.jl", "-v"]
+
     return LanguageSettings(
         JuliaTranspiler(),
         ".jl",
@@ -456,8 +472,8 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
         print("Detected empty __init__; skipping")
         return True
     result = _transpile([filename], [source_data], settings, args)
-    with open(output_path, "w") as f:
-        f.write(result[0][0])
+    with open(output_path, "wb") as f:
+        f.write(result[0][0].encode("utf-8"))
 
     if settings.formatter:
         return _format_one(settings, output_path, env)

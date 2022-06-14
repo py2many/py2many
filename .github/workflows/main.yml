@@ -11,54 +11,78 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  # Can be blank, or one of: cpp, dart, go, julia, kotlin, nim, smt, vlang
+  FOCUS: ''
 jobs:
   build:
 
     strategy:
       matrix:
+        python-version: [ '3.8' ]
         os:
-          - ubuntu-18.04
-          - macos-10.15
-          - windows-2019
+          - ubuntu-22.04
+          - macos-12
+          - windows-2022
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
-      - uses: subosito/flutter-action@v1
+
+      - uses: actions/setup-java@v3
+        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
         with:
-          channel: 'stable'
+          distribution: adopt
+          java-version: 15
+
+      - name: Add missing dependencies on act Medium runner
+        if: ${{ env.ACT }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+              cargo \
+              clang-format \
+              powershell \
+              rustfmt \
+              z3 \
+            && true
+          echo "${HOME}/.cargo/bin/" >> $GITHUB_PATH
+
+      - uses: subosito/flutter-action@v1
+        if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
+        with:
+          flutter-version: '2.10.5'
+
       - uses: julia-actions/setup-julia@v1
+        if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
       - uses: fwilhe2/setup-kotlin@main
+        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+
       - uses: jiro4989/setup-nim-action@v1
+        if: ${{ !env.FOCUS || env.FOCUS == 'nim' }}
       - uses: actions/setup-go@v2
+        if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
         # Needed as https://github.com/actions/setup-go/pull/89 is not merged
         with:
           go-version: '1.15'
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
-      - name: Install V
-        shell: bash
-        env:
-          RELEASE: weekly.2021.29
-        run: |
-          FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip
-          (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE})
-          (cd /tmp && unzip ${FILE})
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            (cd /usr/local/bin && sudo ln -s /tmp/v/v)
-          fi
+          python-version: ${{ matrix.python-version }}
+
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
 
       - name: Install go packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
         shell: bash
         run: |
-          (go get github.com/hgfischer/go-iter \
-           && go get github.com/google/go-cmp/cmp \
-           && go get github.com/adsharma/py2many/pygo/runtime \
-           && go get github.com/mgechev/revive \
-          )
+          go get github.com/hgfischer/go-iter
+          go get github.com/google/go-cmp/cmp
+          go get github.com/adsharma/py2many/pygo/runtime
+          go get github.com/mgechev/revive
+          if [[ -d /usr/local/bin && ! -f /usr/local/bin/golint && -f $HOME/go/bin/golint ]]; then
+            (cd /usr/local/bin && sudo ln -fs $HOME/go/bin/golint)
+          fi
 
       - name: Install tox
         run: |
@@ -66,49 +90,93 @@ jobs:
           pip3 install setuptools tox
 
       - name: Install Julia packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
         shell: bash
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
+          JULIA_FORMATTER_ROOT=$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')
+          echo "${JULIA_FORMATTER_ROOT}/bin/" >> $GITHUB_PATH
 
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
         run: |
+          set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
-              sudo apt-get install --yes astyle
+              sudo apt-get install --yes \
+                  astyle \
+                  catch2 \
+                  clang-14 \
+                  z3 \
+                && true
+              echo "CXX=clang++-14" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
-              (cd /usr/local/bin && sudo ln -s $(find ~/.julia -name format.jl))
-              (cd /usr/local/bin && sudo ln -s $HOME/go/bin/golint)
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install clang-format kscript ktlint astyle
-              (cd /usr/local/bin && ln -s $(find ~/.julia -name format.jl))
-              (cd /usr/local/bin && ln -s $HOME/go/bin/golint)
+              brew install astyle catch2 clang-format cljstyle kscript ktlint z3
+              # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install zip curl astyle llvm
+              git clone --depth 1 https://github.com/catchorg/Catch2 Catch2-repo
+              mv Catch2-repo/src/catch2 .
           fi
+          echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install V
+        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
+        uses: vlang/setup-v@v1
+        with:
+          token: ${{ github.token }}
+
+      - name: Install kscript (using sdkman)
+        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        shell: bash
+        run: |
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install kscript
 
       - name: Install dart dependencies
+        if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
         shell: bash
         run: |
           dart --version
-          # tests/build here must be the same as defined in test_cli
-          (dart create --no-pub -t package-simple tests/build && cd tests/build \
-           && dart pub add collection \
-           && dart pub add sprintf \
-           && dart pub add tuple \
-           && sed -i.bak '/test:/d' pubspec.yaml \
-           && flutter pub add vnum)
+          flutter --version
+          set -ex
 
-      - name: Install cargo-script
-        run: cargo install cargo-script
+          # tests/build here must be the same as defined in test_cli
+          if [[ ! -d tests/build ]]; then
+            dart create --no-pub -t package-simple tests/build
+            cat tests/build/pubspec.yaml
+          fi
+
+          cd tests/build
+          if ! grep collection pubspec.yaml ; then
+            # Specifying the version here doesnt stick
+            dart pub add collection:1.15.0
+            cat pubspec.yaml
+            dart pub add sprintf
+            dart pub add tuple
+          fi
+          if ! grep vnum pubspec.yaml ; then
+            cat pubspec.yaml
+            sed -i.bak '/test:/d' pubspec.yaml
+            # Force version downgrade here
+            sed -i.bak 's:1.16.0:1.15.0:' pubspec.yaml
+            flutter pub add vnum
+          fi
+
+      - name: Install cargo-eval
+        if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
+        run: |
+          cargo install cargo-quickinstall
+          cargo quickinstall cargo-eval
 
       - name: Install smt dependencies
+        if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" != "Windows" ]; then
@@ -117,17 +185,24 @@ jobs:
              chmod +x install-cljstyle
              sudo ./install-cljstyle)
           fi
+
       - name: Run tox
         shell: bash
         # sdkman init can be replaced with actions setup when the following is fixed
         # https://github.com/sdkman/sdkman-action/issues/8
         run: |
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          if [ -f $HOME/.sdkman/bin/sdkman-init.sh ]; then
+            source "$HOME/.sdkman/bin/sdkman-init.sh"
+          fi
           LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
-          tox
+          if [ "$FOCUS" ]; then
+            tox -e py38 -- -k "$FOCUS"
+          else
+            tox -e py38
+          fi
 
   lint:
     runs-on: ubuntu-latest

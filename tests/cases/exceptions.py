@@ -10,14 +10,14 @@ def show():
         print("Finally")
 
     try:
-        3 / 0
-    except ZeroDivisionError:
-        print("OK")
-
-    try:
         raise Exception("foo")
     except:
         print("Got it")
+
+    try:
+        raise Exception("foo")
+    except Exception as e:
+        assert "foo" in str(e)
 
 
 if __name__ == "__main__":
