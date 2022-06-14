@@ -1488,7 +1488,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
             node.using_offset_arrays = getattr(node.value, "using_offset_arrays", False)
 
         container_type = getattr(node, "container_type", None)
-        is_list = re.match(r"^list|List", container_type[0])
+        is_list = container_type and re.match(r"^list|List", container_type[0])
         if self._use_offset_array and (id := get_id(node.value)) and \
                 is_list:
             self._subscript_vals.append(id)
