@@ -13,6 +13,9 @@ from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
+from pyjl.inference import infer_julia_types
+from pyjl.rewriters import JuliaIndexingRewriter
+
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -296,14 +299,14 @@ def julia_settings(args, env=os.environ):
         format_jl = ["format.jl", "-v"]
 
     return LanguageSettings(
-        JuliaTranspiler(),
-        ".jl",
-        "Julia",
-        format_jl,
-        None,
-        [],
-        [],
-        [JuliaMethodCallRewriter()],
+        transpiler=JuliaTranspiler(),
+        ext=".jl",
+        display_name="Julia",
+        formatter=format_jl,
+        indent=None,
+        rewriters=[],
+        transformers=[infer_julia_types],
+        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()]
     )
 
 
