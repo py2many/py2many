@@ -8,6 +8,12 @@ from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
+from unittest.mock import Mock
+
+from pyjl.inference import infer_julia_types
+from pyjl.rewriters import JuliaIndexingRewriter
+
+from py2many.input_configuration import config_rewriters, parse_input_configurations
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -100,12 +106,25 @@ def _transpile(
 
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
+
+    # Handle input configuration files
+    config_handler = None
+    if args.config:
+        config_handler = parse_input_configurations(args.config)
+
     outputs = {}
     successful = []
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+                trees,
+                tree,
+                transpiler,
+                rewriters,
+                transformers,
+                post_rewriters,
+                config_handler,
+                args,
             )
             successful.append(filename)
             outputs[filename] = output
@@ -126,11 +145,21 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, args
+    trees,
+    tree,
+    transpiler,
+    rewriters,
+    transformers,
+    post_rewriters,
+    config_handler,
+    args,
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
     add_scope_context(tree)
+    # Configuration parser
+    if config_handler:
+        config_rewriters(config_handler, tree)
     # Language specific rewriters
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
