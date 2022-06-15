@@ -20,8 +20,6 @@ from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import get_func_def
 
-import pyjl.juliaAst as juliaAst
-
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Tuple, Union
 
@@ -709,59 +707,65 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+    ########## Special Functions ##########
 
-class JuliaRewriterPlugins:
     def visit_init(t_self, node: ast.FunctionDef): 
         # Visit Args
-        constructor_args = JuliaRewriterPlugins._get_args(t_self, node.args)
-        for name, (type, default) in constructor_args.items():
-            if name not in t_self._class_fields and name != "self" and default:
-                target = ast.Name(id=name, ctx=ast.Store())
-                if type:
-                    t_self._class_fields[name] = ast.AnnAssign(
-                        target=target,
-                        annotation = type,
-                        value = default,
-                        lineno=1, col_offset = 0)
-                else:
-                    t_self._class_fields[name] = ast.Assign(
-                        targets=[target],
-                        value = default,
-                        lineno=1, col_offset = 0)
+        constructor_args = JuliaTranspilerPlugins._get_args(node.args)
 
         constructor_body = []
-        node = InitFunctionRewriter().visit(node)
         has_assigns = False
         for n in node.body:
             if isinstance(n, ast.Assign) or isinstance(n, ast.AnnAssign):
-                if hasattr(n, "value") and \
-                        get_id(n.value) not in constructor_args:
-                    # Add assigns with default to constructor
-                    has_assigns = True
-                    target = n.targets[0] \
+                target = n.targets[0] \
                         if isinstance(n, ast.Assign) \
                         else n.target
-                    target_id = get_id(target)
+                is_self = isinstance(target, ast.Attribute) and \
+                    get_id(target.value) == "self"
+                if is_self and target.attr not in constructor_args:
+                    # Add assigns with default to constructor
+                    has_assigns = True
                     ann = getattr(n, "annotation", None)
-                    constructor_args[target_id] = (ann, n.value)
+                    constructor_args[target.attr] = (ann, n.value)
             else:
                 constructor_body.append(n)
 
-
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
         if (constructor_body or has_assigns) and class_node:
-            docstring_comment = getattr(node, "docstring_comment", None)
-            parsed_args = JuliaRewriterPlugins._parse_args(constructor_args)
-            class_node.constructor = juliaAst.Constructor(
-                                        name = ast.Name(id = class_node.name),
-                                        args=parsed_args,
-                                        body = constructor_body,
-                                        ctx=ast.Load(), 
-                                        lineno=node.lineno, col_offset=0,
-                                        docstring_comment=docstring_comment)
-        return None
+            # Use for organizing argument order in classes
+            class_node.constructor_arg_names = constructor_args.keys()
+            # Parse args
+            args = JuliaTranspilerPlugins._parse_args(t_self, constructor_args)
+            args_no_defaults = list(map(lambda x: x.split("=")[0], args))
+            decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
+            args_str = ", ".join(args)
+            decls_str = ", ".join(decls)
 
-    def _get_args(r_self, args: ast.arguments):
+            # Visit constructor Body
+            body = []
+            for n in constructor_body:
+                body.append(t_self.visit(n))
+
+            # Get docstring
+            docstring = t_self._get_docstring(node)
+            if docstring:
+                body.append(docstring)
+            
+            body = "\n".join(body)
+            struct_name = get_id(class_node)
+
+            if body:
+                class_node.constructor_str = f"""
+                {struct_name}({args_str}) = begin
+                    {body}
+                    new({decls_str})
+                end"""
+            else:
+                class_node.constructor_str = f"{struct_name}({args_str}) = new({decls_str})"
+        # Julia does not require init
+        return ""
+
+    def _get_args(args: ast.arguments):
         defaults = args.defaults
         arguments: list[ast.arg] = args.args
         len_defaults = len(defaults)
@@ -782,33 +786,20 @@ class JuliaRewriterPlugins:
 
         return arg_values
 
-    def _parse_args(constructor_args: dict):
+    def _parse_args(t_self, constructor_args: dict):
         args = []
-        defaults = []
         for name, (type, default) in constructor_args.items():
-            arg = ast.arg(arg=name)
-            if type: 
-                arg.annotation = type
-            args.append(arg)
-            if default:
-                defaults.append(default)
-        return ast.arguments(args=args, defaults=defaults)
-
-    def visit_next(r_self, node: ast.FunctionDef):
-        # TODO: Implement __next__ translation
-        r_self.generic_visit(node)
-        return node
-
-class InitFunctionRewriter(ast.NodeTransformer):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def visit_Attribute(self, node: ast.Attribute) -> Any:
-        self.generic_visit(node)
-        if get_id(node.value) == "self":
-            if isinstance(node.attr, str):
-                return ast.Name(id=node.attr)
-        return node
+            type = t_self._map_type(type) if type else ""
+            default = t_self.visit(default) if default else ""
+            if type and default:
+                args.append(f"{name}::{type} = {default}")
+            elif type and not default:
+                args.append(f"{name}::{type}")
+            elif not type and default:
+                args.append(f"{name} = {default}")
+            else:
+                args.append(name)
+        return args
 
 
 TYPE_CODE_MAP = {
@@ -995,8 +986,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 # Dispatches special Functions
 JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
-    "__init__": JuliaRewriterPlugins.visit_init,
-    "__next__": JuliaRewriterPlugins.visit_next,
+    "__init__": JuliaTranspilerPlugins.visit_init,
 }
 
 JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {

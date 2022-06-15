@@ -20,13 +20,6 @@ class LetStmt(ast.Lambda):
     body: list[ast.expr]
     ctx: ast.expr_context
 
-class Constructor(ast.FunctionDef):
-    name: ast.Name
-    args: ast.arguments
-    keywords: list[ast.keyword] # TODO: not used yet
-    body: list[ast.expr]
-    ctx: ast.expr_context
-
 class JuliaModule(ast.Module):
     name: ast.Name
     body: list[ast.expr]
@@ -59,15 +52,6 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         """Visit abstract type node."""
         self.visit(node.value)
         self.visit(node.extends)
-        return node
-
-    def visit_Constructor(self, node: Constructor) -> Any:
-        """Visit Julia constructor"""
-        self.visit(node.name)
-        for a in node.args:
-            self.visit(a)
-        for n in node.body:
-            self.visit(n)
         return node
 
     def visit_LetStmt(self, node: LetStmt) -> Any:

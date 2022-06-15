@@ -1,8 +1,6 @@
 from __future__ import annotations, nested_scopes
 import ast
-from calendar import c
 import copy
-import os
 import re
 import sys
 from typing import Any, Dict
@@ -18,7 +16,6 @@ from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
 from pyjl.helpers import generate_var_name, get_ann_repr, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
-from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -160,7 +157,7 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._ignored_module_set = \
             self._ignored_module_set = IGNORED_MODULE_SET.copy()\
                 .union(JL_IGNORED_MODULE_SET.copy())
-        self._class_fields: Dict[str, Any] = {}
+        # self._class_fields: Dict[str, Any] = {}
         self._hierarchy_map = {}
         self._nested_classes = []
         self._class_scopes = []
@@ -247,24 +244,12 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 
-        self._class_fields = {}
         self.generic_visit(node)
-
-        # Get new class fields
-        fields = []
-        for f in self._class_fields.values():
-            if f is not None:
-                fields.append(f)
-        node.body = fields + node.body
 
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self.generic_visit(node)
-
-        func_name = get_id(node)
-        if func_name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[func_name](self, node)
 
         args = node.args
         for arg in args.args:
@@ -305,33 +290,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
                     node.args = node.args[1:]
                     return node
         return node
-
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        if self._is_self(node.targets[0]):
-            annotation = getattr(node.value, "annotation", None)
-            if not annotation:
-                annotation = ast.Constant(value="Any")
-            for target in node.targets:
-                target_id = obj_id(target)
-                if target_id not in self._class_fields:
-                    self._class_fields[target_id] = ast.AnnAssign(
-                        target=ast.Name(id=target_id),
-                        annotation = annotation,
-                        lineno=1)
-        return node
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        if self._is_self(node.target):
-            target_id = obj_id(node.target)
-            if target_id not in self._class_fields:
-                self._class_fields[target_id] = ast.AnnAssign(
-                        target=ast.Name(id=target_id),
-                        annotation = node.annotation,
-                        lineno=1)
-        return node
-
-    def _is_self(self, node):
-        return isinstance(node, ast.Attribute) and get_id(node.value) == "self"
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):

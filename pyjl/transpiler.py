@@ -3,6 +3,7 @@ import ast
 
 import textwrap
 import re
+from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -167,6 +168,10 @@ class JuliaTranspiler(CLikeTranspiler):
 
         node.is_python_main = is_python_main = getattr(node, "python_main", False)
 
+        # Parse special functions
+        if node.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
+            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[node.name](self, node)
+
         # Visit decorators
         for ((d_id, _), decorator) in zip(node.parsed_decorators.items(), node.decorator_list):
             if d_id in DECORATOR_DISPATCH_TABLE:
@@ -181,15 +186,14 @@ class JuliaTranspiler(CLikeTranspiler):
         maybe_main = "\nmain()" if is_python_main else ""
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
-    def _get_args(self, node, is_constructor = False) -> list[str]:
+    def _get_args(self, node) -> list[str]:
         typenames, args = self.visit(node.args)
         args_list = []
 
-        if not is_constructor:
-            if len(typenames) > 0 and \
-                    (typenames[0] == self._default_type or not typenames[0]) \
-                    and hasattr(node, "self_type"):
-                typenames[0] = node.self_type
+        if len(typenames) > 0 and \
+                (typenames[0] == self._default_type or not typenames[0]) \
+                and hasattr(node, "self_type"):
+            typenames[0] = node.self_type
 
         defaults = node.args.defaults
         len_defaults = len(defaults)
@@ -464,6 +468,12 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
+        body = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body.append(self.visit(b))
+        body = "\n".join(body)
+
         # Get class declarations and assignments
         self._visit_class_fields(node)
 
@@ -487,12 +497,6 @@ class JuliaTranspiler(CLikeTranspiler):
         struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
             if bases else f"mutable struct {struct_name}"
 
-        body = []
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                body.append(self.visit(b))
-        body = "\n".join(body)
-
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
         maybe_constructor = f"\n{node.constructor_str}" if hasattr(node, "constructor_str") else ""
@@ -507,12 +511,19 @@ class JuliaTranspiler(CLikeTranspiler):
         node.class_assignments = extractor.class_assignments
 
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
-        has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
 
-        # Reorganize fields, so that defaults are last
-        dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
-            if has_defaults \
-            else declarations.items()
+        dec_items = []
+        if not hasattr(node, "constructor_arg_names"):
+            has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
+
+            # Reorganize fields, so that defaults are last
+            dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
+                if has_defaults \
+                else declarations.items()
+        else:
+            for arg in node.constructor_arg_names:
+                if arg in declarations:
+                    dec_items.append((arg, declarations[arg]))
 
         decs = []
         fields = []
@@ -534,9 +545,6 @@ class JuliaTranspiler(CLikeTranspiler):
             
             # Default field values
             fields.append((declaration, typename, default))
-
-        if hasattr(node, "constructor"):
-            node.constructor_str = self.visit(node.constructor)
 
         node.fields = fields
         node.fields_str = "\n".join(fields_str)
@@ -575,9 +583,9 @@ class JuliaTranspiler(CLikeTranspiler):
             )
         else:
             # Cover case where values are not unique and not strings
-            self._usings.add("PyEnum")
+            self._usings.add("SuperEnum")
             return textwrap.dedent(
-                f"@pyenum {node.name}::{typename} begin\n{field_str}end"
+                f"@se {node.name}::{typename} begin\n{field_str}end"
             )
 
     def _import(self, name: str, alias: str) -> str:
@@ -1018,37 +1026,6 @@ class JuliaTranspiler(CLikeTranspiler):
         return (f"abstract type Abstract{name} end"
                 if extends is None
                 else f"abstract type Abstract{name} <: {extends} end")
-
-    def visit_Constructor(self, node: juliaAst.Constructor) -> Any:
-        # Get constructor arguments
-        args = self._get_args(node, is_constructor=True)
-        args_no_defaults = list(map(lambda x: x.split("=")[0], args))
-        decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
-
-        args_str = ", ".join(args)
-        decls_str = ", ".join(decls)
-
-        # Visit constructor Body
-        body = []
-        for n in node.body:
-            body.append(self.visit(n))
-
-        # Get docstring
-        docstring = self._get_docstring(node)
-        if docstring:
-            body.append(docstring)
-        
-        body = "\n".join(body)
-
-        struct_name = self.visit(node.name)
-
-        if body:
-            return f"""
-            {struct_name}({args_str}) = begin
-                {body}
-                new({decls_str})
-            end"""
-        return f"{struct_name}({args_str}) = new({decls_str})"
 
     def visit_LetStmt(self, node: juliaAst.LetStmt) -> Any:
         args = [self.visit(arg) for arg in node.args]
