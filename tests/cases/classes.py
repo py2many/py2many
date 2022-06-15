@@ -9,35 +9,39 @@ class Foo:
     def bar_str(self):
         return "a"
 
+
 # @jl_class # For PyJL
 class Person:
-    def __init__(self, name:str):
+    def __init__(self, name: str):
         self.name = name
 
     def get_name(self):
         return self.name
 
+
 # @jl_class # For PyJL
 class Student(Person):
-    def __init__(self, 
-                 name:str, 
-                 student_number:int, 
-                 domain:str = "school.student.pt"):
+    def __init__(
+        self, name: str, student_number: int, domain: str = "school.student.pt"
+    ):
         self.name = name
         self.student_number = student_number
+        self.domain = domain
 
     def get_name(self):
         return f"{self.name} - {self.student_number}"
 
+
 class Student2(Person):
-    def __init__(self, 
-                 name:str, 
-                 student_number:int,
-                 domain:str = "school.student.pt"):
+    def __init__(
+        self, name: str, student_number: int, domain: str = "school.student.pt"
+    ):
         if student_number < 0:
             raise ValueError("Student number must be a positive number")
         self.student_number = student_number
         self.name = name
+        self.domain = domain
+
 
 if __name__ == "__main__":
     # Accessing class values
@@ -55,5 +59,5 @@ if __name__ == "__main__":
 
     s2 = Student2("S2", 123)
     # Student2("S2", -1) # Should raise an exception
-    
+
     print("OK")
