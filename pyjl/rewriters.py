@@ -158,7 +158,6 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._ignored_module_set = \
             self._ignored_module_set = IGNORED_MODULE_SET.copy()\
                 .union(JL_IGNORED_MODULE_SET.copy())
-        # self._class_fields: Dict[str, Any] = {}
         self._hierarchy_map = {}
         self._nested_classes = []
         self._class_scopes = []

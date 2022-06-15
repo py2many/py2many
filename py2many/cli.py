@@ -44,7 +44,7 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.analysis import analyse_variable_scope, optimize_loop_ranges
+from pyjl.analysis import analyse_variable_scope, detect_broadcast, optimize_loop_ranges
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
     VariableScopeRewriter,
@@ -419,6 +419,7 @@ def julia_settings(args, env=os.environ):
             analyse_variable_scope,
             optimize_loop_ranges,
             find_ordered_collections,
+            detect_broadcast,
         ],
         post_rewriters=[
             JuliaImportRewriter(),

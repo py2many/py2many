@@ -187,15 +187,15 @@ EXTERNAL_TYPE_MAP = {
 }
 
 # TODO: Results in wrong function annotations
-# FUNC_TYPE_MAP = {
-#     "numpy.multiply": "list",
-#     "numpy.sum": "list",
-#     "numpy.append": "list",
-#     "numpy.sqrt": "float",
-#     "np.dot": "float",
-#     "np.zeros": "np.ndarray",
-#     "numpy.arange": "np.ndarray"
-# }
+FUNC_TYPE_MAP = {
+    # "numpy.multiply": "list",
+    # "numpy.sum": "list",
+    # "numpy.append": "list",
+    # "numpy.sqrt": "float",
+    # "np.dot": "float",
+    # "np.zeros": "np.ndarray",
+    "numpy.exp": "list"
+}
 
 
 IGNORED_MODULE_SET = set(["numpy"])
