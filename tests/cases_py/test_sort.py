@@ -13,7 +13,7 @@ def check(tag, expected, raw, compare=None):
     if verbose:
         print("    checking", tag)
 
-    orig = raw[:]   # save input in case of error
+    orig = raw[:]  # save input in case of error
     if compare:
         raw.sort(key=cmp_to_key(compare))
     else:
@@ -39,13 +39,14 @@ def check(tag, expected, raw, compare=None):
             nerrors += 1
             return
 
+
 class TestBase(unittest.TestCase):
     def testStressfully(self):
         # Try a variety of sizes at and around powers of 2, and at powers of 10.
         sizes = [0]
         for power in range(1, 10):
             n = 2 ** power
-            sizes.extend(range(n-1, n+2))
+            sizes.extend(range(n - 1, n + 2))
         sizes.extend([10, 100, 1000])
 
         class Complains(object):
@@ -94,18 +95,20 @@ class TestBase(unittest.TestCase):
             y = x[:]
             y.reverse()
             s = x[:]
-            check("reversed via function", y, s, lambda a, b: (b>a)-(b<a))
+            check("reversed via function", y, s, lambda a, b: (b > a) - (b < a))
 
             if verbose:
                 print("    Checking against an insane comparison function.")
                 print("        If the implementation isn't careful, this may segfault.")
             s = x[:]
-            s.sort(key=cmp_to_key(lambda a, b:  int(random.random() * 3) - 1))
+            s.sort(key=cmp_to_key(lambda a, b: int(random.random() * 3) - 1))
             check("an insane function left some permutation", x, s)
 
             if len(x) >= 2:
+
                 def bad_key(x):
                     raise RuntimeError
+
                 s = x[:]
                 self.assertRaises(RuntimeError, s.sort, key=bad_key)
 
@@ -124,14 +127,15 @@ class TestBase(unittest.TestCase):
 
             s = [Stable(random.randrange(10), i) for i in range(n)]
             augmented = [(e, e.index) for e in s]
-            augmented.sort()    # forced stable because ties broken by index
-            x = [e for e, i in augmented] # a stable sort of s
+            augmented.sort()  # forced stable because ties broken by index
+            x = [e for e, i in augmented]  # a stable sort of s
             check("stability", x, s)
 
-#==============================================================================
+
+# ==============================================================================
+
 
 class TestBugs(unittest.TestCase):
-
     def test_bug453523(self):
         # bug 453523 -- list.sort() crasher.
         # If this fails, the most likely outcome is a core dump.
@@ -152,69 +156,82 @@ class TestBugs(unittest.TestCase):
         # Python 2.4a1 did not always detect mutation
         memorywaster = []
         for i in range(20):
+
             def mutating_cmp(x, y):
                 L.append(3)
                 L.pop()
                 return (x > y) - (x < y)
-            L = [1,2]
+
+            L = [1, 2]
             self.assertRaises(ValueError, L.sort, key=cmp_to_key(mutating_cmp))
+
             def mutating_cmp(x, y):
                 L.append(3)
                 del L[:]
                 return (x > y) - (x < y)
+
             self.assertRaises(ValueError, L.sort, key=cmp_to_key(mutating_cmp))
             memorywaster = [memorywaster]
 
-#==============================================================================
+
+# ==============================================================================
+
 
 class TestDecorateSortUndecorate(unittest.TestCase):
-
     def test_decorated(self):
-        data = 'The quick Brown fox Jumped over The lazy Dog'.split()
+        data = "The quick Brown fox Jumped over The lazy Dog".split()
         copy = data[:]
         random.shuffle(data)
         data.sort(key=str.lower)
+
         def my_cmp(x, y):
             xlower, ylower = x.lower(), y.lower()
             return (xlower > ylower) - (xlower < ylower)
+
         copy.sort(key=cmp_to_key(my_cmp))
 
     def test_baddecorator(self):
-        data = 'The quick Brown fox Jumped over The lazy Dog'.split()
-        self.assertRaises(TypeError, data.sort, key=lambda x,y: 0)
+        data = "The quick Brown fox Jumped over The lazy Dog".split()
+        self.assertRaises(TypeError, data.sort, key=lambda x, y: 0)
 
     def test_stability(self):
         data = [(random.randrange(100), i) for i in range(200)]
         copy = data[:]
-        data.sort(key=lambda t: t[0])   # sort on the random first field
-        copy.sort()                     # sort using both fields
-        self.assertEqual(data, copy)    # should get the same result
+        data.sort(key=lambda t: t[0])  # sort on the random first field
+        copy.sort()  # sort using both fields
+        self.assertEqual(data, copy)  # should get the same result
 
     def test_key_with_exception(self):
         # Verify that the wrapper has been removed
         data = list(range(-2, 2))
         dup = data[:]
-        self.assertRaises(ZeroDivisionError, data.sort, key=lambda x: 1/x)
+        self.assertRaises(ZeroDivisionError, data.sort, key=lambda x: 1 / x)
         self.assertEqual(data, dup)
 
     def test_key_with_mutation(self):
         data = list(range(10))
+
         def k(x):
             del data[:]
             data[:] = range(20)
             return x
+
         self.assertRaises(ValueError, data.sort, key=k)
 
     def test_key_with_mutating_del(self):
         data = list(range(10))
+
         class SortKiller(object):
             def __init__(self, x):
                 pass
+
             def __del__(self):
                 del data[:]
                 data[:] = range(20)
+
             def __lt__(self, other):
                 return id(self) < id(other)
+
         self.assertRaises(ValueError, data.sort, key=SortKiller)
 
     def test_key_with_mutating_del_and_exception(self):
@@ -224,9 +241,11 @@ class TestDecorateSortUndecorate(unittest.TestCase):
             def __init__(self, x):
                 if x > 2:
                     raise RuntimeError
+
             def __del__(self):
                 del data[:]
                 data[:] = list(range(20))
+
         self.assertRaises(RuntimeError, data.sort, key=SortKiller)
         ## major honking subtlety: we *can't* do:
         ##
@@ -241,25 +260,29 @@ class TestDecorateSortUndecorate(unittest.TestCase):
         data = list(range(100))
         random.shuffle(data)
         data.sort(reverse=True)
-        self.assertEqual(data, list(range(99,-1,-1)))
+        self.assertEqual(data, list(range(99, -1, -1)))
 
     def test_reverse_stability(self):
         data = [(random.randrange(100), i) for i in range(200)]
         copy1 = data[:]
         copy2 = data[:]
+
         def my_cmp(x, y):
             x0, y0 = x[0], y[0]
             return (x0 > y0) - (x0 < y0)
+
         def my_cmp_reversed(x, y):
             x0, y0 = x[0], y[0]
             return (y0 > x0) - (y0 < x0)
+
         data.sort(key=cmp_to_key(my_cmp), reverse=True)
         copy1.sort(key=cmp_to_key(my_cmp_reversed))
         self.assertEqual(data, copy1)
         copy2.sort(key=lambda x: x[0], reverse=True)
         self.assertEqual(data, copy2)
 
-#==============================================================================
+
+# ==============================================================================
 def check_against_PyObject_RichCompareBool(self, L):
     ## The idea here is to exploit the fact that unsafe_tuple_compare uses
     ## PyObject_RichCompareBool for the second elements of tuples. So we have,
@@ -283,25 +306,21 @@ def check_against_PyObject_RichCompareBool(self, L):
     L_3 = [((x,),) for x in L]
     for L in [L_1, L_2, L_3]:
         optimized = sorted(L)
-        reference = [y[1] for y in sorted([(0,x) for x in L])]
+        reference = [y[1] for y in sorted([(0, x) for x in L])]
         for (opt, ref) in zip(optimized, reference):
             self.assertIs(opt, ref)
-            #note: not assertEqual! We want to ensure *identical* behavior.
+            # note: not assertEqual! We want to ensure *identical* behavior.
+
 
 class TestOptimizedCompares(unittest.TestCase):
     def test_safe_object_compare(self):
-        heterogeneous_lists = [[0, 'foo'],
-                               [0.0, 'foo'],
-                               [('foo',), 'foo']]
+        heterogeneous_lists = [[0, "foo"], [0.0, "foo"], [("foo",), "foo"]]
         for L in heterogeneous_lists:
             self.assertRaises(TypeError, L.sort)
             self.assertRaises(TypeError, [(x,) for x in L].sort)
             self.assertRaises(TypeError, [((x,),) for x in L].sort)
 
-        float_int_lists = [[1,1.1],
-                           [1<<70,1.1],
-                           [1.1,1],
-                           [1.1,1<<70]]
+        float_int_lists = [[1, 1.1], [1 << 70, 1.1], [1.1, 1], [1.1, 1 << 70]]
         for L in float_int_lists:
             check_against_PyObject_RichCompareBool(self, L)
 
@@ -337,30 +356,30 @@ class TestOptimizedCompares(unittest.TestCase):
         class PointlessComparator:
             def __lt__(self, other):
                 return NotImplemented
+
         L = [PointlessComparator(), PointlessComparator()]
         self.assertRaises(TypeError, L.sort)
         self.assertRaises(TypeError, [(x,) for x in L].sort)
 
         # The following tests go through various types that would trigger
         # ms->key_compare = unsafe_object_compare
-        lists = [list(range(100)) + [(1<<70)],
-                 [str(x) for x in range(100)] + ['\uffff'],
-                 [bytes(x) for x in range(100)],
-                 [cmp_to_key(lambda x,y: x<y)(x) for x in range(100)]]
+        lists = [
+            list(range(100)) + [(1 << 70)],
+            [str(x) for x in range(100)] + ["\uffff"],
+            [bytes(x) for x in range(100)],
+            [cmp_to_key(lambda x, y: x < y)(x) for x in range(100)],
+        ]
         for L in lists:
             check_against_PyObject_RichCompareBool(self, L)
 
     def test_unsafe_latin_compare(self):
-        check_against_PyObject_RichCompareBool(self, [str(x) for
-                                                      x in range(100)])
+        check_against_PyObject_RichCompareBool(self, [str(x) for x in range(100)])
 
     def test_unsafe_long_compare(self):
-        check_against_PyObject_RichCompareBool(self, [x for
-                                                      x in range(100)])
+        check_against_PyObject_RichCompareBool(self, [x for x in range(100)])
 
     def test_unsafe_float_compare(self):
-        check_against_PyObject_RichCompareBool(self, [float(x) for
-                                                      x in range(100)])
+        check_against_PyObject_RichCompareBool(self, [float(x) for x in range(100)])
 
     def test_unsafe_tuple_compare(self):
         # This test was suggested by Tim Peters. It verifies that the tuple
@@ -370,15 +389,16 @@ class TestOptimizedCompares(unittest.TestCase):
         # Note that we don't have to put anything in tuples here, because
         # the check function does a tuple test automatically.
 
-        check_against_PyObject_RichCompareBool(self, [float('nan')]*100)
-        check_against_PyObject_RichCompareBool(self, [float('nan') for
-                                                      _ in range(100)])
+        check_against_PyObject_RichCompareBool(self, [float("nan")] * 100)
+        check_against_PyObject_RichCompareBool(self, [float("nan") for _ in range(100)])
 
     def test_not_all_tuples(self):
         self.assertRaises(TypeError, [(1.0, 1.0), (False, "A"), 6].sort)
-        self.assertRaises(TypeError, [('a', 1), (1, 'a')].sort)
-        self.assertRaises(TypeError, [(1, 'a'), ('a', 1)].sort)
-#==============================================================================
+        self.assertRaises(TypeError, [("a", 1), (1, "a")].sort)
+        self.assertRaises(TypeError, [(1, "a"), ("a", 1)].sort)
+
+
+# ==============================================================================
 
 if __name__ == "__main__":
     unittest.main()

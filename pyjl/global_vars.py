@@ -1,5 +1,5 @@
 # Decorator Names
-RESUMABLE = "resumable" 
+RESUMABLE = "resumable"
 CHANNELS = "channels"
 REMOVE_NESTED = "remove_nested"
 OFFSET_ARRAYS = "offset_arrays"

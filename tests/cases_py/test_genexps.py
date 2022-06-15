@@ -277,25 +277,29 @@ Verify that genexps are weakly referencable
 import sys
 
 # Trace function can throw off the tuple reuse test.
-if hasattr(sys, 'gettrace') and sys.gettrace():
+if hasattr(sys, "gettrace") and sys.gettrace():
     __test__ = {}
 else:
-    __test__ = {'doctests' : doctests}
+    __test__ = {"doctests": doctests}
+
 
 def test_main(verbose=None):
     from test import support
     from test import test_genexps
+
     support.run_doctest(test_genexps, verbose)
 
     # verify reference counting
     if verbose and hasattr(sys, "gettotalrefcount"):
         import gc
+
         counts = [None] * 5
         for i in range(len(counts)):
             support.run_doctest(test_genexps, verbose)
             gc.collect()
             counts[i] = sys.gettotalrefcount()
         print(counts)
+
 
 if __name__ == "__main__":
     test_main(verbose=True)

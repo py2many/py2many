@@ -151,7 +151,7 @@ class ImportTransformer(ast.NodeTransformer):
         self._generic_import_visit(node)
         return node
 
-    def _generic_import_visit(self, node, key = "default") -> Any:
+    def _generic_import_visit(self, node, key="default") -> Any:
         for name in node.names:
             name.imported_from = node
             scope = name.scopes[-1]

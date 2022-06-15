@@ -17,11 +17,11 @@ except ImportError:
 # This tests to make sure that if a SIGINT arrives just before we send into a
 # yield from chain, the KeyboardInterrupt is raised in the innermost
 # generator (see bpo-30039).
-@unittest.skipUnless(_testcapi is not None and
-                     hasattr(_testcapi, "raise_SIGINT_then_send_None"),
-                     "needs _testcapi.raise_SIGINT_then_send_None")
+@unittest.skipUnless(
+    _testcapi is not None and hasattr(_testcapi, "raise_SIGINT_then_send_None"),
+    "needs _testcapi.raise_SIGINT_then_send_None",
+)
 class SignalAndYieldFromTest(unittest.TestCase):
-
     def generator1(self):
         return (yield from self.generator2())
 
@@ -45,7 +45,6 @@ class SignalAndYieldFromTest(unittest.TestCase):
 
 
 class FinalizationTest(unittest.TestCase):
-
     def test_frame_resurrect(self):
         # A generator frame can be resurrected by a generator's finalization.
         def gen():
@@ -69,6 +68,7 @@ class FinalizationTest(unittest.TestCase):
         # A generator caught in a refcycle gets finalized anyway.
         old_garbage = gc.garbage[:]
         finalized = False
+
         def gen():
             nonlocal finalized
             try:
@@ -91,14 +91,20 @@ class FinalizationTest(unittest.TestCase):
         # Issue #23192: Test that a lambda returning a generator behaves
         # like the equivalent function
         f = lambda: (yield 1)
-        def g(): return (yield 1)
+
+        def g():
+            return (yield 1)
 
         # test 'yield from'
         f2 = lambda: (yield from g())
-        def g2(): return (yield from g())
+
+        def g2():
+            return (yield from g())
 
         f3 = lambda: (yield from f())
-        def g3(): return (yield from f())
+
+        def g3():
+            return (yield from f())
 
         for gen_fun in (f, g, f2, g2, f3, g3):
             gen = gen_fun()
@@ -109,7 +115,6 @@ class FinalizationTest(unittest.TestCase):
 
 
 class GeneratorTest(unittest.TestCase):
-
     def test_name(self):
         def func():
             yield 1
@@ -117,8 +122,7 @@ class GeneratorTest(unittest.TestCase):
         # check generator names
         gen = func()
         self.assertEqual(gen.__name__, "func")
-        self.assertEqual(gen.__qualname__,
-                         "GeneratorTest.test_name.<locals>.func")
+        self.assertEqual(gen.__qualname__, "GeneratorTest.test_name.<locals>.func")
 
         # modify generator names
         gen.__name__ = "name"
@@ -127,10 +131,10 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual(gen.__qualname__, "qualname")
 
         # generator names must be a string and cannot be deleted
-        self.assertRaises(TypeError, setattr, gen, '__name__', 123)
-        self.assertRaises(TypeError, setattr, gen, '__qualname__', 123)
-        self.assertRaises(TypeError, delattr, gen, '__name__')
-        self.assertRaises(TypeError, delattr, gen, '__qualname__')
+        self.assertRaises(TypeError, setattr, gen, "__name__", 123)
+        self.assertRaises(TypeError, setattr, gen, "__qualname__", 123)
+        self.assertRaises(TypeError, delattr, gen, "__name__")
+        self.assertRaises(TypeError, delattr, gen, "__qualname__")
 
         # modify names of the function creating the generator
         func.__qualname__ = "func_qualname"
@@ -141,14 +145,13 @@ class GeneratorTest(unittest.TestCase):
 
         # unnamed generator
         gen = (x for x in range(10))
-        self.assertEqual(gen.__name__,
-                         "<genexpr>")
-        self.assertEqual(gen.__qualname__,
-                         "GeneratorTest.test_name.<locals>.<genexpr>")
+        self.assertEqual(gen.__name__, "<genexpr>")
+        self.assertEqual(gen.__qualname__, "GeneratorTest.test_name.<locals>.<genexpr>")
 
     def test_copy(self):
         def f():
             yield 1
+
         g = f()
         with self.assertRaises(TypeError):
             copy.copy(g)
@@ -156,6 +159,7 @@ class GeneratorTest(unittest.TestCase):
     def test_pickle(self):
         def f():
             yield 1
+
         g = f()
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             with self.assertRaises((TypeError, pickle.PicklingError)):
@@ -164,6 +168,7 @@ class GeneratorTest(unittest.TestCase):
     def test_send_non_none_to_new_gen(self):
         def f():
             yield 1
+
         g = f()
         with self.assertRaises(TypeError):
             g.send(0)
@@ -288,7 +293,7 @@ class ExceptionTest(unittest.TestCase):
 
         gen = boring_generator()
 
-        err_msg = 'should have returned an instance of BaseException'
+        err_msg = "should have returned an instance of BaseException"
 
         with self.assertRaisesRegex(TypeError, err_msg):
             gen.throw(E)
@@ -311,7 +316,7 @@ class ExceptionTest(unittest.TestCase):
             raise StopIteration
             yield
 
-        with self.assertRaisesRegex(RuntimeError, 'raised StopIteration'):
+        with self.assertRaisesRegex(RuntimeError, "raised StopIteration"):
             next(gen())
 
     def test_tutorial_stopiteration(self):
@@ -320,12 +325,12 @@ class ExceptionTest(unittest.TestCase):
         def f():
             yield 1
             raise StopIteration
-            yield 2 # never reached
+            yield 2  # never reached
 
         g = f()
         self.assertEqual(next(g), 1)
 
-        with self.assertRaisesRegex(RuntimeError, 'raised StopIteration'):
+        with self.assertRaisesRegex(RuntimeError, "raised StopIteration"):
             next(g)
 
     def test_return_tuple(self):
@@ -351,11 +356,10 @@ class ExceptionTest(unittest.TestCase):
 
 
 class GeneratorThrowTest(unittest.TestCase):
-
     def test_exception_context_with_yield(self):
         def f():
             try:
-                raise KeyError('a')
+                raise KeyError("a")
             except Exception:
                 yield
 
@@ -364,29 +368,28 @@ class GeneratorThrowTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             gen.throw(ValueError)
         context = cm.exception.__context__
-        self.assertEqual((type(context), context.args), (KeyError, ('a',)))
+        self.assertEqual((type(context), context.args), (KeyError, ("a",)))
 
     def test_exception_context_with_yield_inside_generator(self):
         # Check that the context is also available from inside the generator
         # with yield, as opposed to outside.
         def f():
             try:
-                raise KeyError('a')
+                raise KeyError("a")
             except Exception:
                 try:
                     yield
                 except Exception as exc:
                     self.assertEqual(type(exc), ValueError)
                     context = exc.__context__
-                    self.assertEqual((type(context), context.args),
-                        (KeyError, ('a',)))
-                    yield 'b'
+                    self.assertEqual((type(context), context.args), (KeyError, ("a",)))
+                    yield "b"
 
         gen = f()
         gen.send(None)
         actual = gen.throw(ValueError)
         # This ensures that the assertions inside were executed.
-        self.assertEqual(actual, 'b')
+        self.assertEqual(actual, "b")
 
     def test_exception_context_with_yield_from(self):
         def f():
@@ -394,7 +397,7 @@ class GeneratorThrowTest(unittest.TestCase):
 
         def g():
             try:
-                raise KeyError('a')
+                raise KeyError("a")
             except Exception:
                 yield from f()
 
@@ -403,7 +406,7 @@ class GeneratorThrowTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             gen.throw(ValueError)
         context = cm.exception.__context__
-        self.assertEqual((type(context), context.args), (KeyError, ('a',)))
+        self.assertEqual((type(context), context.args), (KeyError, ("a",)))
 
     def test_exception_context_with_yield_from_with_context_cycle(self):
         # Check trying to create an exception context cycle:
@@ -421,10 +424,10 @@ class GeneratorThrowTest(unittest.TestCase):
                 try:
                     yield from f()
                 except Exception as exc:
-                    has_cycle = (exc is exc.__context__)
+                    has_cycle = exc is exc.__context__
             yield
 
-        exc = KeyError('a')
+        exc = KeyError("a")
         gen = g(exc)
         gen.send(None)
         gen.throw(exc)
@@ -450,13 +453,12 @@ class GeneratorThrowTest(unittest.TestCase):
 
 
 class GeneratorStackTraceTest(unittest.TestCase):
-
     def check_stack_names(self, frame, expected):
         names = []
         while frame:
             name = frame.f_code.co_name
             # Stop checking frames when we get to our test helper.
-            if name.startswith('check_') or name.startswith('call_'):
+            if name.startswith("check_") or name.startswith("call_"):
                 break
 
             names.append(name)
@@ -466,17 +468,17 @@ class GeneratorStackTraceTest(unittest.TestCase):
 
     def check_yield_from_example(self, call_method):
         def f():
-            self.check_stack_names(sys._getframe(), ['f', 'g'])
+            self.check_stack_names(sys._getframe(), ["f", "g"])
             try:
                 yield
             except Exception:
                 pass
-            self.check_stack_names(sys._getframe(), ['f', 'g'])
+            self.check_stack_names(sys._getframe(), ["f", "g"])
 
         def g():
-            self.check_stack_names(sys._getframe(), ['g'])
+            self.check_stack_names(sys._getframe(), ["g"])
             yield from f()
-            self.check_stack_names(sys._getframe(), ['g'])
+            self.check_stack_names(sys._getframe(), ["g"])
 
         gen = g()
         gen.send(None)
@@ -520,7 +522,7 @@ class YieldFromTests(unittest.TestCase):
 
         gen_b.send(None)
         self.assertEqual(inspect.getgeneratorstate(gen_b), inspect.GEN_SUSPENDED)
-        self.assertEqual(gen_b.gi_yieldfrom.gi_code.co_name, 'a')
+        self.assertEqual(gen_b.gi_yieldfrom.gi_code.co_name, "a")
 
         gen_b.send(None)
         self.assertEqual(inspect.getgeneratorstate(gen_b), inspect.GEN_SUSPENDED)
@@ -1438,6 +1440,7 @@ Lambdas shouldn't have their usual return behavior.
 # iterators have side-effects, so that which values *can* be generated at
 # each slot depend on the values iterated at previous slots.
 
+
 def simple_conjoin(gs):
 
     values = [None] * len(gs)
@@ -1447,17 +1450,19 @@ def simple_conjoin(gs):
             yield values
         else:
             for values[i] in gs[i]():
-                for x in gen(i+1):
+                for x in gen(i + 1):
                     yield x
 
     for x in gen(0):
         yield x
+
 
 # That works fine, but recursing a level and checking i against len(gs) for
 # each item produced is inefficient.  By doing manual loop unrolling across
 # generator boundaries, it's possible to eliminate most of that overhead.
 # This isn't worth the bother *in general* for generators, but conjoin() is
 # a core building block for some CPU-intensive generator applications.
+
 
 def conjoin(gs):
 
@@ -1471,8 +1476,8 @@ def conjoin(gs):
         if i >= n:
             yield values
 
-        elif (n-i) % 3:
-            ip1 = i+1
+        elif (n - i) % 3:
+            ip1 = i + 1
             for values[i] in gs[i]():
                 for x in gen(ip1):
                     yield x
@@ -1486,9 +1491,9 @@ def conjoin(gs):
     # gen's use.
 
     def _gen3(i):
-        assert i < n and (n-i) % 3 == 0
-        ip1, ip2, ip3 = i+1, i+2, i+3
-        g, g1, g2 = gs[i : ip3]
+        assert i < n and (n - i) % 3 == 0
+        ip1, ip2, ip3 = i + 1, i + 2, i + 3
+        g, g1, g2 = gs[i:ip3]
 
         if ip3 >= n:
             # These are the last three, so we can yield values directly.
@@ -1509,6 +1514,7 @@ def conjoin(gs):
     for x in gen(0):
         yield x
 
+
 # And one more approach:  For backtracking apps like the Knight's Tour
 # solver below, the number of backtracking levels can be enormous (one
 # level per square, for the Knight's Tour, so that e.g. a 100x100 board
@@ -1520,10 +1526,11 @@ def conjoin(gs):
 # much harder to achieve.  OTOH, this is much slower (up to a factor of 2)
 # than the fancy unrolled recursive conjoin.
 
+
 def flat_conjoin(gs):  # rename to conjoin to run tests with this instead
     n = len(gs)
     values = [None] * n
-    iters  = [None] * n
+    iters = [None] * n
     _StopIteration = StopIteration  # make local because caught a *lot*
     i = 0
     while 1:
@@ -1554,7 +1561,9 @@ def flat_conjoin(gs):  # rename to conjoin to run tests with this instead
             assert i < 0
             break
 
+
 # A conjoin-based N-Queens solver.
+
 
 class Queens:
     def __init__(self, n):
@@ -1574,10 +1583,12 @@ class Queens:
         # generates the possibilities for the columns in that row.
         self.rowgenerators = []
         for i in rangen:
-            rowuses = [(1 << j) |                  # column ordinal
-                       (1 << (n + i-j + n-1)) |    # NW-SE ordinal
-                       (1 << (n + 2*n-1 + i+j))    # NE-SW ordinal
-                            for j in rangen]
+            rowuses = [
+                (1 << j)
+                | (1 << (n + i - j + n - 1))  # column ordinal
+                | (1 << (n + 2 * n - 1 + i + j))  # NW-SE ordinal  # NE-SW ordinal
+                for j in rangen
+            ]
 
             def rowgen(rowuses=rowuses):
                 for j in rangen:
@@ -1606,10 +1617,12 @@ class Queens:
             print("|" + "|".join(squares) + "|")
             print(sep)
 
+
 # A conjoin-based Knight's Tour solver.  This is pretty sophisticated
 # (e.g., when used with flat_conjoin above, and passing hard=1 to the
 # constructor, a 200x200 Knight's Tour was found quickly -- note that we're
 # creating 10s of thousands of generators then!), and is lengthy.
+
 
 class Knights:
     def __init__(self, m, n, hard=0):
@@ -1676,8 +1689,8 @@ class Knights:
             # to (0, 0).  Save its index in self.final so that moves before
             # the last know it must be kept free.
             for i, j in (1, 2), (2, 1):
-                this  = self.coords2index(i, j)
-                final = self.coords2index(3-i, 3-j)
+                this = self.coords2index(i, j)
+                final = self.coords2index(3 - i, 3 - j)
                 self.final = final
 
                 remove_from_successors(this)
@@ -1714,7 +1727,7 @@ class Knights:
         # Since the # of backtracking levels is m*n, a poor move early on
         # can take eons to undo.  Smallest square board for which this
         # matters a lot is 52x52.
-        def advance_hard(vmid=(m-1)/2.0, hmid=(n-1)/2.0, len=len):
+        def advance_hard(vmid=(m - 1) / 2.0, hmid=(n - 1) / 2.0, len=len):
             # If some successor has only one exit, must take it.
             # Else favor successors with fewer exits.
             # Break ties via max distance from board centerpoint (favor
@@ -1727,7 +1740,7 @@ class Knights:
                     candidates = [(e, 0, i)]
                     break
                 i1, j1 = self.index2coords(i)
-                d = (i1 - vmid)**2 + (j1 - hmid)**2
+                d = (i1 - vmid) ** 2 + (j1 - hmid) ** 2
                 candidates.append((e, -d, i))
             else:
                 candidates.sort()
@@ -1744,12 +1757,14 @@ class Knights:
             assert self.final in succs[self.lastij]
             yield self.final
 
-        if m*n < 4:
+        if m * n < 4:
             self.squaregenerators = [first]
         else:
-            self.squaregenerators = [first, second] + \
-                [hard and advance_hard or advance] * (m*n - 3) + \
-                [last]
+            self.squaregenerators = (
+                [first, second]
+                + [hard and advance_hard or advance] * (m * n - 3)
+                + [last]
+            )
 
     def coords2index(self, i, j):
         assert 0 <= i < self.m
@@ -1766,14 +1781,24 @@ class Knights:
         m, n = self.m, self.n
         c2i = self.coords2index
 
-        offsets = [( 1,  2), ( 2,  1), ( 2, -1), ( 1, -2),
-                   (-1, -2), (-2, -1), (-2,  1), (-1,  2)]
+        offsets = [
+            (1, 2),
+            (2, 1),
+            (2, -1),
+            (1, -2),
+            (-1, -2),
+            (-2, -1),
+            (-2, 1),
+            (-1, 2),
+        ]
         rangen = range(n)
         for i in range(m):
             for j in rangen:
-                s = [c2i(i+io, j+jo) for io, jo in offsets
-                                     if 0 <= i+io < m and
-                                        0 <= j+jo < n]
+                s = [
+                    c2i(i + io, j + jo)
+                    for io, jo in offsets
+                    if 0 <= i + io < m and 0 <= j + jo < n
+                ]
                 succs.append(s)
 
     # Generate solutions.
@@ -1784,8 +1809,8 @@ class Knights:
 
     def printsolution(self, x):
         m, n = self.m, self.n
-        assert len(x) == m*n
-        w = len(str(m*n))
+        assert len(x) == m * n
+        w = len(str(m * n))
         format = "%" + str(w) + "d"
 
         squares = [[None] * n for i in range(m)]
@@ -1801,6 +1826,7 @@ class Knights:
             row = squares[i]
             print("|" + "|".join(row) + "|")
             print(sep)
+
 
 conjoin_tests = """
 
@@ -2368,16 +2394,17 @@ test_generators just happened to be the test that drew these out.
 
 """
 
-__test__ = {"tut":      tutorial_tests,
-            "pep":      pep_tests,
-            "email":    email_tests,
-            "fun":      fun_tests,
-            "syntax":   syntax_tests,
-            "conjoin":  conjoin_tests,
-            "weakref":  weakref_tests,
-            "coroutine":  coroutine_tests,
-            "refleaks": refleaks_tests,
-            }
+__test__ = {
+    "tut": tutorial_tests,
+    "pep": pep_tests,
+    "email": email_tests,
+    "fun": fun_tests,
+    "syntax": syntax_tests,
+    "conjoin": conjoin_tests,
+    "weakref": weakref_tests,
+    "coroutine": coroutine_tests,
+    "refleaks": refleaks_tests,
+}
 
 # Magic test name that regrtest.py invokes *after* importing this module.
 # This worms around a bootstrap problem.
@@ -2385,8 +2412,10 @@ __test__ = {"tut":      tutorial_tests,
 # so this works as expected in both ways of running regrtest.
 def test_main(verbose=None):
     from test import support, test_generators
+
     support.run_unittest(__name__)
     support.run_doctest(test_generators, verbose)
+
 
 # This part isn't needed for regrtest, but for running the test directly.
 if __name__ == "__main__":

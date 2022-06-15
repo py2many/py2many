@@ -4,6 +4,7 @@
 
 from typing import List
 
+
 def bisect_right(data: List[int], item: int) -> int:
     low = 0
     high: int = int(len(data))

@@ -7,29 +7,34 @@ import typing
 import datetime as dt
 import json as js
 
+
 def typing_test():
     a: typing.List[int] = [1, 2, 3]
     return a[1]
 
+
 def calendar_test():
     return dt.datetime.utcnow().isoformat()
 
-def date_to_json(objDate:dt.datetime) -> js:
+
+def date_to_json(objDate: dt.datetime) -> js:
     return {
         "__type__": "datetime",
         "year": objDate.year,
-        "month" : objDate.month,
-        "day" : objDate.day,
-        "hour" : objDate.hour,
-        "minute" : objDate.minute,
-        "second" : objDate.second,
-        "microsecond" : objDate.microsecond,
-        "tz": (objDate.tzinfo.tzname(objDate), objDate.utcoffset().total_seconds())
-    }  
+        "month": objDate.month,
+        "day": objDate.day,
+        "hour": objDate.hour,
+        "minute": objDate.minute,
+        "second": objDate.second,
+        "microsecond": objDate.microsecond,
+        "tz": (objDate.tzinfo.tzname(objDate), objDate.utcoffset().total_seconds()),
+    }
+
 
 def calendar_json_test() -> js:
-    now = dt.datetime.now(dt.timezone.utc) # Another way to import
+    now = dt.datetime.now(dt.timezone.utc)  # Another way to import
     return js.dumps(now, default=date_to_json)
+
 
 if __name__ == "__main__":
     b = typing_test()

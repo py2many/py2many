@@ -6,12 +6,12 @@
 
 import sys
 
-from time import perf_counter # Benchmarks
+from time import perf_counter  # Benchmarks
+
 
 def make_tree(depth: int) -> tuple:
     """ Trees or tuples, final leaves have None as values. """
-    return (None, None) if depth == 0 else (
-        make_tree(depth - 1), make_tree(depth - 1))
+    return (None, None) if depth == 0 else (make_tree(depth - 1), make_tree(depth - 1))
 
 
 # def check_node(left: tuple, right: tuple) -> int:
@@ -30,12 +30,12 @@ def run(depth: int) -> int:
     """
     return check_node(*make_tree(depth))
 
+
 def main(requested_max_depth, min_depth=4):
     max_depth = max(min_depth + 2, requested_max_depth)
     stretch_depth = max_depth + 1
 
-    print(f'stretch tree of depth {stretch_depth}'
-          f'\t check: {run(stretch_depth)}')
+    print(f"stretch tree of depth {stretch_depth}" f"\t check: {run(stretch_depth)}")
 
     long_lived_tree = make_tree(max_depth)
 
@@ -43,11 +43,13 @@ def main(requested_max_depth, min_depth=4):
     for test_depth in range(min_depth, stretch_depth, 2):
         tree_count = 2 ** (mmd - test_depth)
         check_sum = sum(map(run, (test_depth,) * tree_count))
-        print(f'{tree_count}\t trees of depth {test_depth}'
-                f'\t check: {check_sum}')
+        print(f"{tree_count}\t trees of depth {test_depth}" f"\t check: {check_sum}")
 
-    print(f'long lived tree of depth {max_depth}'
-          f'\t check: {check_node(*long_lived_tree)}')
+    print(
+        f"long lived tree of depth {max_depth}"
+        f"\t check: {check_node(*long_lived_tree)}"
+    )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main(int(sys.argv[1]))

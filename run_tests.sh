@@ -7,7 +7,7 @@ TESTS="tests"
 sudo ./setup.py install
 
 ## Base tests
-# py2many --julia=1 "$TESTS/cases" --outdir=../pyjl_tests/cases-py2many
+py2many --julia=1 "$TESTS/cases" --outdir=../pyjl_tests/cases-py2many
 # python py2many.py --julia=1 tests/cases --outdir=../pyjl_tests/cases-py2many # Temporary for windows
 # Example with config
 # py2many --julia=1 --config=pyjl/test_files/setup.ini "$TESTS/cases/sealed.py" --outdir=../pyjl_tests/cases-py2many
@@ -17,7 +17,7 @@ sudo ./setup.py install
 # python py2many.py --julia=1 "$TESTS/cases_py" --outdir=../pyjl_tests/cases_py-py2many # Temporary for windows
 
 ## Performance tests
-# py2many --julia=1 "$TESTS/performance_tests" --outdir=../pyjl_tests/performance_tests-py2many
+py2many --julia=1 "$TESTS/performance_tests" --outdir=../pyjl_tests/performance_tests-py2many
 #  TODO: Review this
 # python py2many.py --julia=1 tests/performance_tests --outdir=../pyjl_tests/performance_tests-py2many # Temporary for windows
 
@@ -33,8 +33,10 @@ sudo ./setup.py install
 # py2many --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many
 # python py2many.py --julia=1 "../pyjl_tests/network/" --outdir=../pyjl_tests/network-py2many # Temporary for windows
 
+# py2many --julia=1 "../python-zstd/zstd-lib/" --outdir=../python-zstd/zstd-lib-py2many
+
 # Misc (Testing the transpiler)
-py2many --julia=1 "$TESTS/cases/branch.py" --config=pyjl/test_files/setup.ini --outdir=../pyjl_tests/cases-py2many
+# py2many --julia=1 "$TESTS/cases/branch.py" --config=pyjl/test_files/setup.ini --outdir=../pyjl_tests/cases-py2many
 # py2many --julia=1 "$TESTS/performance_tests/" --config=pyjl/test_files/setup.ini --outdir=../pyjl_tests/performance_tests-py2many/
 # py2many --julia=1 "$TESTS/performance_tests/" --config=pyjl/test_files/setup.ini --outdir=../pyjl_tests/performance_tests-py2many
 

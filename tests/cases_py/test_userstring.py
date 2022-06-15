@@ -6,11 +6,12 @@ from test import string_tests
 
 from collections import UserString
 
+
 class UserStringTest(
     string_tests.CommonTest,
     string_tests.MixinStrUnicodeUserStringTest,
-    unittest.TestCase
-    ):
+    unittest.TestCase,
+):
 
     type2test = UserString
 
@@ -22,17 +23,14 @@ class UserStringTest(
         object = self.fixtype(object)
         # we don't fix the arguments, because UserString can't cope with it
         realresult = getattr(object, methodname)(*args, **kwargs)
-        self.assertEqual(
-            result,
-            realresult
-        )
+        self.assertEqual(result, realresult)
 
     def checkraises(self, exc, obj, methodname, *args):
         obj = self.fixtype(obj)
         # we don't fix the arguments, because UserString can't cope with it
         with self.assertRaises(exc) as cm:
             getattr(obj, methodname)(*args)
-        self.assertNotEqual(str(cm.exception), '')
+        self.assertNotEqual(str(cm.exception), "")
 
     def checkcall(self, object, methodname, *args):
         object = self.fixtype(object)
@@ -47,23 +45,23 @@ class UserStringTest(
             def __rmod__(self, other):
                 return super().__rmod__(other)
 
-        fmt2 = ustr2('value is %s')
-        str3 = ustr3('TEST')
-        self.assertEqual(fmt2 % str3, 'value is TEST')
+        fmt2 = ustr2("value is %s")
+        str3 = ustr3("TEST")
+        self.assertEqual(fmt2 % str3, "value is TEST")
 
     def test_encode_default_args(self):
-        self.checkequal(b'hello', 'hello', 'encode')
+        self.checkequal(b"hello", "hello", "encode")
         # Check that encoding defaults to utf-8
-        self.checkequal(b'\xf0\xa3\x91\x96', '\U00023456', 'encode')
+        self.checkequal(b"\xf0\xa3\x91\x96", "\U00023456", "encode")
         # Check that errors defaults to 'strict'
-        self.checkraises(UnicodeError, '\ud800', 'encode')
+        self.checkraises(UnicodeError, "\ud800", "encode")
 
     def test_encode_explicit_none_args(self):
-        self.checkequal(b'hello', 'hello', 'encode', None, None)
+        self.checkequal(b"hello", "hello", "encode", None, None)
         # Check that encoding defaults to utf-8
-        self.checkequal(b'\xf0\xa3\x91\x96', '\U00023456', 'encode', None, None)
+        self.checkequal(b"\xf0\xa3\x91\x96", "\U00023456", "encode", None, None)
         # Check that errors defaults to 'strict'
-        self.checkraises(UnicodeError, '\ud800', 'encode', None, None)
+        self.checkraises(UnicodeError, "\ud800", "encode", None, None)
 
 
 if __name__ == "__main__":

@@ -3,12 +3,17 @@
 
 import sys
 
-def test_method(fdesc, entry,
-            defaultNamedOptArg,
-            defaultNamedNotOptArg,
-            defaultUnnamedArg,
-            is_comment=True):
+
+def test_method(
+    fdesc,
+    entry,
+    defaultNamedOptArg,
+    defaultNamedNotOptArg,
+    defaultUnnamedArg,
+    is_comment=True,
+):
     return f"{fdesc}, {entry}, {defaultNamedOptArg},{defaultNamedNotOptArg},{defaultUnnamedArg}"
+
 
 def show():
     print("b")
@@ -21,10 +26,7 @@ def show():
     print(c)
     name = "test"
     val = True
-    print(
-        "%s_vtables_dispatch_ = %d" % (name, val),
-        file=sys.stdout,
-    )
+    print("%s_vtables_dispatch_ = %d" % (name, val), file=sys.stdout)
 
     name = "test_method"
     fdesc = "self"

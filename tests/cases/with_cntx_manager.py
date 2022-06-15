@@ -1,9 +1,8 @@
-
 from tempfile import NamedTemporaryFile
 from textwrap import wrap
 
 # Testing context manager
-class FileOp():
+class FileOp:
     def __init__(self, file_name, method):
         self.file_name = file_name
         self.method = method

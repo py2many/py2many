@@ -19,19 +19,19 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._pycall_import(t_self, node, "win32api")
 
     def visit_win32ui(t_self, node):
-        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")    
+        JuliaExternalModulePlugins._pycall_import(t_self, node, "win32ui")
 
     def _pycall_import(t_self, node: ast.Call, mod_name: str):
         t_self._usings.add("PyCall")
-        import_stmt = f"{mod_name} = pyimport(\"{mod_name}\")"
+        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
         t_self._globals.add(import_stmt)
 
     #######
-    
+
     def visit_pandas_readcsv(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"read_csv({vargs[1]})"
-    
+
     def visit_pandas_groupby(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pandas(t_self)
         return f"groupby({vargs[1]})"
@@ -46,7 +46,7 @@ class JuliaExternalModulePlugins:
 
     def _visit_pandas(t_self):
         t_self._usings.add("Pandas")
-    
+
     def visit_getopt(t_self, node: ast.Call, vargs: list[str]):
         t_self._usings.add("Getopt")
         return f"getopt({', '.join(vargs)})"
@@ -66,13 +66,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     pandas.read_csv: (JuliaExternalModulePlugins.visit_pandas_readcsv, False),
     pandas.DataFrame.groupby: (JuliaExternalModulePlugins.visit_pandas_groupby, False),
     pandas.DataFrame.to_excel: (JuliaExternalModulePlugins.visit_pandas_toexcel, False),
-    pandas.core.groupby.generic.DataFrameGroupBy.sum: (JuliaExternalModulePlugins.visit_pandas_dataframe_sum, False),
+    pandas.core.groupby.generic.DataFrameGroupBy.sum: (
+        JuliaExternalModulePlugins.visit_pandas_dataframe_sum,
+        False,
+    ),
     # Zipfile
     zipfile.ZipFile: (JuliaExternalModulePlugins.visit_zipfile, False),
     # Glob
     glob.glob: (JuliaExternalModulePlugins.visit_glob, False),
     # Getopt
-    getopt.getopt: (JuliaExternalModulePlugins.visit_getopt, False), 
+    getopt.getopt: (JuliaExternalModulePlugins.visit_getopt, False),
     # getopt.error: (lambda self, node, vargs: f"", False), # TODO: Nothing to support this
 }
 
@@ -85,16 +88,6 @@ IMPORT_DISPATCH_TABLE = {
 }
 
 
-IGNORED_MODULE_SET = set([
-    "pywintypes",
-    "datetime",
-    "pandas",
-    "win32api",
-    "win32ui",
-])
+IGNORED_MODULE_SET = set(["pywintypes", "datetime", "pandas", "win32api", "win32ui"])
 
-EXTERNAL_TYPE_MAP = {
-    BinaryIO: "IOBuffer"
-}
-
-
+EXTERNAL_TYPE_MAP = {BinaryIO: "IOBuffer"}

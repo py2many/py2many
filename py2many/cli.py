@@ -26,7 +26,11 @@ from .context import add_assignment_context, add_variable_context, add_list_call
 from .exceptions import AstErrorBase
 from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
-from .transformers import add_annotation_flags, detect_mutable_vars, detect_nesting_levels
+from .transformers import (
+    add_annotation_flags,
+    detect_mutable_vars,
+    detect_nesting_levels,
+)
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
@@ -47,12 +51,12 @@ from pyjl.rewriters import (
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
     JuliaImportRewriter,
-    JuliaAugAssignRewriter, 
+    JuliaAugAssignRewriter,
     JuliaClassRewriter,
     JuliaGeneratorRewriter,
     JuliaConditionRewriter,
     JuliaIndexingRewriter,
-    JuliaMainRewriter, 
+    JuliaMainRewriter,
     JuliaMethodCallRewriter,
     JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
@@ -105,6 +109,7 @@ STDIN = "-"
 STDOUT = "-"
 CWD = Path.cwd()
 
+
 def core_transformers(tree, trees, args):
     add_variable_context(tree, trees)
     add_scope_context(tree)
@@ -115,8 +120,7 @@ def core_transformers(tree, trees, args):
     add_annotation_flags(tree)
     add_imports(tree)
     infer_meta = (
-        infer_types_typpete(
-            tree) if args and args.typpete else infer_types(tree)
+        infer_types_typpete(tree) if args and args.typpete else infer_types(tree)
     )
     return tree, infer_meta
 
@@ -156,7 +160,9 @@ def _transpile(
     if settings.ext != ".jl":
         generic_rewriters.append(FStringJoinRewriter(language))
     if settings.ext != ".jl" and settings.ext != ".py":
-        generic_rewriters.append(PythonMainRewriter(settings.transpiler._main_signature_arg_names))
+        generic_rewriters.append(
+            PythonMainRewriter(settings.transpiler._main_signature_arg_names)
+        )
 
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
@@ -179,8 +185,15 @@ def _transpile(
     for filename, tree in zip(topo_filenames, trees):
         try:
             output = _transpile_one(
-                trees, tree, transpiler, rewriters, transformers, 
-                post_rewriters, optimization_rewriters, config_handler, args
+                trees,
+                tree,
+                transpiler,
+                rewriters,
+                transformers,
+                post_rewriters,
+                optimization_rewriters,
+                config_handler,
+                args,
             )
 
             successful.append(filename)
@@ -190,8 +203,7 @@ def _transpile(
 
             formatted_lines = traceback.format_exc().splitlines()
             if isinstance(e, AstErrorBase):
-                print(
-                    f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
                 print(f"{filename}: {formatted_lines[-1]}")
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
@@ -206,8 +218,15 @@ def _transpile(
 
 
 def _transpile_one(
-    trees, tree, transpiler, rewriters, transformers, post_rewriters, 
-    optimization_rewriters, config_handler, args
+    trees,
+    tree,
+    transpiler,
+    rewriters,
+    transformers,
+    post_rewriters,
+    optimization_rewriters,
+    config_handler,
+    args,
 ):
     # This is very basic and needs to be run before and after
     # rewrites. Revisit if running it twice becomes a perf issue
@@ -268,22 +287,24 @@ def _parse_expected(outputs, settings, args):
             name: str = f_name.name.split(".")[0]
             if name in dir_files:
                 comp_res = _compare_file_contents(
-                    f"{file_out}/{name}{settings.ext}", f"{path}")
+                    f"{file_out}/{name}{settings.ext}", f"{path}"
+                )
                 if not comp_res:
                     print(f"{name} does not have expected result")
-    elif(os.path.isfile(file_out)):
+    elif os.path.isfile(file_out):
         file_name, file_ext = file_out.split(".")
         if file_ext != settings.ext:
-            raise Exception(
-                "Attempting to parse a file with an incompatibel exception")
+            raise Exception("Attempting to parse a file with an incompatibel exception")
         if len(outputs) > 1:
             raise Exception(
-                "Attempting to parse one expected file with multiple outputs")
+                "Attempting to parse one expected file with multiple outputs"
+            )
 
         return _compare_file_contents(f"{file_out}", f"{path}")
     else:
         raise Exception(
-            f"Could not parse expected files. {file_out} could not be found.")
+            f"Could not parse expected files. {file_out} could not be found."
+        )
 
 
 def _compare_file_contents(file1_path, file2_path):
@@ -292,14 +313,14 @@ def _compare_file_contents(file1_path, file2_path):
     # Read data from files
     expected_data = None
     curr_file_data = None
-    with open(file1_path, encoding="utf-8") as f1, \
-            open(file2_path, encoding="utf-8") as f2:
+    with open(file1_path, encoding="utf-8") as f1, open(
+        file2_path, encoding="utf-8"
+    ) as f2:
         expected_data = f1.read()
         curr_file_data = f2.read()
 
     if expected_data == None or curr_file_data == None:
-        raise Exception(
-            f"File {file1_path} does not have an expected result file")
+        raise Exception(f"File {file1_path} does not have an expected result file")
 
     # Check if files match
     remove = string.whitespace
@@ -345,8 +366,7 @@ def cpp_settings(args, env=os.environ):
         cxx_flags += ["-stdlib=libc++"]
 
     if clang_format_style:
-        clang_format_cmd = ["clang-format",
-                            f"-style={clang_format_style}", "-i"]
+        clang_format_cmd = ["clang-format", f"-style={clang_format_style}", "-i"]
     else:
         clang_format_cmd = ["clang-format", "-i"]
 
@@ -369,8 +389,7 @@ def rust_settings(args, env=os.environ):
         ["rustfmt", "--edition=2018"],
         None,
         rewriters=[RustNoneCompareRewriter()],
-        transformers=[functools.partial(
-            infer_rust_types, extension=args.extension)],
+        transformers=[functools.partial(infer_rust_types, extension=args.extension)],
         post_rewriters=[RustLoopIndexRewriter(), RustStringJoinRewriter()],
         create_project=["cargo", "new", "--bin"],
         project_subdir="src",
@@ -380,8 +399,13 @@ def rust_settings(args, env=os.environ):
 def julia_settings(args, env=os.environ):
     format_jl = None
     if os.path.exists("pyjl/formatter"):
-        format_jl = ["julia", "-O0", "--compile=min",
-                     "--startup=no", "pyjl/formatter/format_files.jl"]
+        format_jl = [
+            "julia",
+            "-O0",
+            "--compile=min",
+            "--startup=no",
+            "pyjl/formatter/format_files.jl",
+        ]
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
         ext=".jl",
@@ -389,12 +413,29 @@ def julia_settings(args, env=os.environ):
         formatter=format_jl,
         indent=None,
         rewriters=[JuliaMainRewriter()],
-        transformers=[parse_decorators, infer_julia_types, analyse_variable_scope, optimize_loop_ranges, find_ordered_collections],
-        post_rewriters=[JuliaImportRewriter(), JuliaGeneratorRewriter(), JuliaOffsetArrayRewriter(), 
-            JuliaIndexingRewriter(), JuliaOrderedCollectionRewriter(), JuliaClassRewriter(), 
-            JuliaMethodCallRewriter(), JuliaAugAssignRewriter(), JuliaConditionRewriter(), 
-            VariableScopeRewriter(), JuliaModuleRewriter(), JuliaIORewriter(), JuliaArbitraryPrecisionRewriter()],
-        optimization_rewriters=[AlgebraicSimplification()]
+        transformers=[
+            parse_decorators,
+            infer_julia_types,
+            analyse_variable_scope,
+            optimize_loop_ranges,
+            find_ordered_collections,
+        ],
+        post_rewriters=[
+            JuliaImportRewriter(),
+            JuliaGeneratorRewriter(),
+            JuliaOffsetArrayRewriter(),
+            JuliaIndexingRewriter(),
+            JuliaOrderedCollectionRewriter(),
+            JuliaClassRewriter(),
+            JuliaMethodCallRewriter(),
+            JuliaAugAssignRewriter(),
+            JuliaConditionRewriter(),
+            VariableScopeRewriter(),
+            JuliaModuleRewriter(),
+            JuliaIORewriter(),
+            JuliaArbitraryPrecisionRewriter(),
+        ],
+        optimization_rewriters=[AlgebraicSimplification()],
     )
 
 
@@ -456,8 +497,7 @@ def go_settings(args, env=os.environ):
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
         linter=(
-            ["revive", "--config", str(revive_config)
-             ] if revive_config else ["revive"]
+            ["revive", "--config", str(revive_config)] if revive_config else ["revive"]
         ),
     )
 
@@ -538,7 +578,8 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if filename.name == STDIN:
         # special case for simple pipes
         output = _process_one_data(
-            sys.stdin.read(), Path("test.py"), settings, args, filename)
+            sys.stdin.read(), Path("test.py"), settings, args, filename
+        )
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
@@ -633,8 +674,12 @@ def _process_many(
             source_data.append(f.read())
 
     outputs, successful = _transpile(
-        filenames, source_data, settings, args, 
-        _suppress_exceptions=_suppress_exceptions, basedir=basedir
+        filenames,
+        source_data,
+        settings,
+        args,
+        _suppress_exceptions=_suppress_exceptions,
+        basedir=basedir,
     )
 
     output_paths = [
@@ -653,7 +698,9 @@ def _process_many(
         else:
             # TODO: Optimize to a single invocation
             for filename, output_path in zip(filenames, output_paths):
-                if filename in successful and not _format_one(settings, output_path, env):
+                if filename in successful and not _format_one(
+                    settings, output_path, env
+                ):
                     format_errors.add(Path(filename))
 
     # Compare with expected
@@ -723,11 +770,7 @@ def main(args=None, env=os.environ):
             default=False,
             help=f"Generate {settings.display_name} code",
         )
-    parser.add_argument(
-        "--outdir",
-        default=None,
-        help="Output directory"
-    )
+    parser.add_argument("--outdir", default=None, help="Output directory")
     parser.add_argument(
         "-i",
         "--indent",
@@ -752,8 +795,7 @@ def main(args=None, env=os.environ):
         default=None,
         help="Alternate suffix to use instead of the default one for the language",
     )
-    parser.add_argument("--no-prologue", action="store_true",
-                        default=False, help="")
+    parser.add_argument("--no-prologue", action="store_true", default=False, help="")
     parser.add_argument(
         "--force",
         action="store_true",
@@ -767,9 +809,7 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
-        "--project",
-        default=True,
-        help="Create a project when using directory mode",
+        "--project", default=True, help="Create a project when using directory mode"
     )
 
     # Configuration files.
@@ -855,11 +895,7 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings,
-                source,
-                outdir,
-                args,
-                env=env,
+                settings, source, outdir, args, env=env
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1

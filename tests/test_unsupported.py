@@ -227,9 +227,7 @@ class CodeGeneratorTests(unittest.TestCase):
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
         try:
-            result = _transpile([case_filename], [tree], settings,)[
-                0
-            ][0]
+            result = _transpile([case_filename], [tree], settings)[0][0]
         except NotImplementedError as e:
             raise unittest.SkipTest(str(e))
 
@@ -332,9 +330,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings.transpiler._throw_on_unimplemented = False
         try:
-            result = _transpile([case_filename], [tree], settings,)[
-                0
-            ][0]
+            result = _transpile([case_filename], [tree], settings)[0][0]
             print(result)
             assert "nonlocal unimplemented on line 5:8" in result
 

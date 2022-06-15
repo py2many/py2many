@@ -5,6 +5,7 @@ import operator
 import unittest
 from numbers import Complex, Real, Rational, Integral
 
+
 class TestNumbers(unittest.TestCase):
     def test_int(self):
         self.assertTrue(issubclass(int, Integral))
@@ -30,7 +31,7 @@ class TestNumbers(unittest.TestCase):
         self.assertFalse(issubclass(complex, Real))
         self.assertTrue(issubclass(complex, Complex))
 
-        c1, c2 = complex(3, 2), complex(4,1)
+        c1, c2 = complex(3, 2), complex(4, 1)
         # XXX: This is not ideal, but see the comment in math_trunc().
         self.assertRaises(TypeError, math.trunc, c1)
         self.assertRaises(TypeError, operator.mod, c1, c2)

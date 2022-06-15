@@ -6,15 +6,17 @@ MOD_DIR = f"external{os.sep}modules"
 
 # Alternative: ("plugins", [(_small_dispatch_map, "SMALL_DISPATCH_MAP"), ...]
 # This accounts for the self names (or just add "_" and lowercase)
-MOD_NAMES = set([
-    ("_small_dispatch_map", "SMALL_DISPATCH_MAP"), 
-    ("_module_dispatch_table", "MODULE_DISPATCH_TABLE"), 
-    ("_func_dispatch_table", "FUNC_DISPATCH_TABLE"),
-    ("_import_dispatch_table", "IMPORT_DISPATCH_TABLE"),
-    ("_ignored_module_set", "IGNORED_MODULE_SET"),
-    ("_external_type_map", "EXTERNAL_TYPE_MAP"),
-    ("_func_type_map", "FUNC_TYPE_MAP"),
-])
+MOD_NAMES = set(
+    [
+        ("_small_dispatch_map", "SMALL_DISPATCH_MAP"),
+        ("_module_dispatch_table", "MODULE_DISPATCH_TABLE"),
+        ("_func_dispatch_table", "FUNC_DISPATCH_TABLE"),
+        ("_import_dispatch_table", "IMPORT_DISPATCH_TABLE"),
+        ("_ignored_module_set", "IGNORED_MODULE_SET"),
+        ("_external_type_map", "EXTERNAL_TYPE_MAP"),
+        ("_func_type_map", "FUNC_TYPE_MAP"),
+    ]
+)
 
 LANG_MAP = {
     "Python": "py2py",
@@ -29,6 +31,7 @@ LANG_MAP = {
     "V": "pyv",
 }
 
+
 def import_external_modules(self, lang):
     """Updates all the dispatch maps to account for external modules"""
     external_mods: list[tuple[str, str]] = _get_external_modules(lang)
@@ -37,8 +40,7 @@ def import_external_modules(self, lang):
         mod_name = split_name[1]
         ext_mod: ModuleType = imp.load_source(mod_name, mod_path)
         for attr_name, map_name in MOD_NAMES:
-            if attr_name in self.__dict__ and \
-                    map_name in ext_mod.__dict__:
+            if attr_name in self.__dict__ and map_name in ext_mod.__dict__:
                 obj = ext_mod.__dict__[map_name]
                 curr_val = getattr(self, attr_name, None)
                 # Update value in default containers
@@ -49,6 +51,7 @@ def import_external_modules(self, lang):
                 elif isinstance(curr_val, set):
                     curr_val.update(obj)
 
+
 def _get_external_modules(lang) -> list[tuple[str, str]]:
     p_lang = lang
     if lang in LANG_MAP:
@@ -57,9 +60,11 @@ def _get_external_modules(lang) -> list[tuple[str, str]]:
         raise Exception("Language not supported")
     # Get files
     path = f"{os.getcwd()}{os.sep}{p_lang}{os.sep}{MOD_DIR}"
-    return [f"{path}{os.sep}{file}" for file in os.listdir(path) 
-        if os.path.isfile(os.path.join(path, file)) and 
-        file != "__init__.py"]
+    return [
+        f"{path}{os.sep}{file}"
+        for file in os.listdir(path)
+        if os.path.isfile(os.path.join(path, file)) and file != "__init__.py"
+    ]
 
 
 # class ExternalWrapper():

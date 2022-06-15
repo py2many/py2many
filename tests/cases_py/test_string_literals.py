@@ -62,7 +62,6 @@ def byte(i):
 
 
 class TestLiterals(unittest.TestCase):
-
     def setUp(self):
         self.save_path = sys.path[:]
         self.tmpdir = tempfile.mkdtemp()
@@ -76,18 +75,18 @@ class TestLiterals(unittest.TestCase):
         # Check that the template doesn't contain any non-printables
         # except for \n.
         for c in TEMPLATE:
-            assert c == '\n' or ' ' <= c <= '~', repr(c)
+            assert c == "\n" or " " <= c <= "~", repr(c)
 
     def test_eval_str_normal(self):
-        self.assertEqual(eval(""" 'x' """), 'x')
+        self.assertEqual(eval(""" 'x' """), "x")
         self.assertEqual(eval(r""" '\x01' """), chr(1))
         self.assertEqual(eval(""" '\x01' """), chr(1))
         self.assertEqual(eval(r""" '\x81' """), chr(0x81))
         self.assertEqual(eval(""" '\x81' """), chr(0x81))
         self.assertEqual(eval(r""" '\u1881' """), chr(0x1881))
         self.assertEqual(eval(""" '\u1881' """), chr(0x1881))
-        self.assertEqual(eval(r""" '\U0001d120' """), chr(0x1d120))
-        self.assertEqual(eval(""" '\U0001d120' """), chr(0x1d120))
+        self.assertEqual(eval(r""" '\U0001d120' """), chr(0x1D120))
+        self.assertEqual(eval(""" '\U0001d120' """), chr(0x1D120))
 
     def test_eval_str_incomplete(self):
         self.assertRaises(SyntaxError, eval, r""" '\x' """)
@@ -110,45 +109,45 @@ class TestLiterals(unittest.TestCase):
             if b in b"""\n\r"'01234567NU\\abfnrtuvx""":
                 continue
             with self.assertWarns(DeprecationWarning):
-                self.assertEqual(eval(r"'\%c'" % b), '\\' + chr(b))
+                self.assertEqual(eval(r"'\%c'" % b), "\\" + chr(b))
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('always', category=DeprecationWarning)
+            warnings.simplefilter("always", category=DeprecationWarning)
             eval("'''\n\\z'''")
         self.assertEqual(len(w), 1)
-        self.assertEqual(w[0].filename, '<string>')
+        self.assertEqual(w[0].filename, "<string>")
         self.assertEqual(w[0].lineno, 1)
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('error', category=DeprecationWarning)
+            warnings.simplefilter("error", category=DeprecationWarning)
             with self.assertRaises(SyntaxError) as cm:
                 eval("'''\n\\z'''")
             exc = cm.exception
         self.assertEqual(w, [])
-        self.assertEqual(exc.filename, '<string>')
+        self.assertEqual(exc.filename, "<string>")
         self.assertEqual(exc.lineno, 1)
         self.assertEqual(exc.offset, 1)
 
     def test_eval_str_raw(self):
-        self.assertEqual(eval(""" r'x' """), 'x')
-        self.assertEqual(eval(r""" r'\x01' """), '\\' + 'x01')
+        self.assertEqual(eval(""" r'x' """), "x")
+        self.assertEqual(eval(r""" r'\x01' """), "\\" + "x01")
         self.assertEqual(eval(""" r'\x01' """), chr(1))
-        self.assertEqual(eval(r""" r'\x81' """), '\\' + 'x81')
+        self.assertEqual(eval(r""" r'\x81' """), "\\" + "x81")
         self.assertEqual(eval(""" r'\x81' """), chr(0x81))
-        self.assertEqual(eval(r""" r'\u1881' """), '\\' + 'u1881')
+        self.assertEqual(eval(r""" r'\u1881' """), "\\" + "u1881")
         self.assertEqual(eval(""" r'\u1881' """), chr(0x1881))
-        self.assertEqual(eval(r""" r'\U0001d120' """), '\\' + 'U0001d120')
-        self.assertEqual(eval(""" r'\U0001d120' """), chr(0x1d120))
+        self.assertEqual(eval(r""" r'\U0001d120' """), "\\" + "U0001d120")
+        self.assertEqual(eval(""" r'\U0001d120' """), chr(0x1D120))
 
     def test_eval_bytes_normal(self):
-        self.assertEqual(eval(""" b'x' """), b'x')
+        self.assertEqual(eval(""" b'x' """), b"x")
         self.assertEqual(eval(r""" b'\x01' """), byte(1))
         self.assertEqual(eval(""" b'\x01' """), byte(1))
         self.assertEqual(eval(r""" b'\x81' """), byte(0x81))
         self.assertRaises(SyntaxError, eval, """ b'\x81' """)
-        self.assertEqual(eval(r""" br'\u1881' """), b'\\' + b'u1881')
+        self.assertEqual(eval(r""" br'\u1881' """), b"\\" + b"u1881")
         self.assertRaises(SyntaxError, eval, """ b'\u1881' """)
-        self.assertEqual(eval(r""" br'\U0001d120' """), b'\\' + b'U0001d120')
+        self.assertEqual(eval(r""" br'\U0001d120' """), b"\\" + b"U0001d120")
         self.assertRaises(SyntaxError, eval, """ b'\U0001d120' """)
 
     def test_eval_bytes_incomplete(self):
@@ -160,29 +159,29 @@ class TestLiterals(unittest.TestCase):
             if b in b"""\n\r"'01234567\\abfnrtvx""":
                 continue
             with self.assertWarns(DeprecationWarning):
-                self.assertEqual(eval(r"b'\%c'" % b), b'\\' + bytes([b]))
+                self.assertEqual(eval(r"b'\%c'" % b), b"\\" + bytes([b]))
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('always', category=DeprecationWarning)
+            warnings.simplefilter("always", category=DeprecationWarning)
             eval("b'''\n\\z'''")
         self.assertEqual(len(w), 1)
-        self.assertEqual(w[0].filename, '<string>')
+        self.assertEqual(w[0].filename, "<string>")
         self.assertEqual(w[0].lineno, 1)
 
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('error', category=DeprecationWarning)
+            warnings.simplefilter("error", category=DeprecationWarning)
             with self.assertRaises(SyntaxError) as cm:
                 eval("b'''\n\\z'''")
             exc = cm.exception
         self.assertEqual(w, [])
-        self.assertEqual(exc.filename, '<string>')
+        self.assertEqual(exc.filename, "<string>")
         self.assertEqual(exc.lineno, 1)
 
     def test_eval_bytes_raw(self):
-        self.assertEqual(eval(""" br'x' """), b'x')
-        self.assertEqual(eval(""" rb'x' """), b'x')
-        self.assertEqual(eval(r""" br'\x01' """), b'\\' + b'x01')
-        self.assertEqual(eval(r""" rb'\x01' """), b'\\' + b'x01')
+        self.assertEqual(eval(""" br'x' """), b"x")
+        self.assertEqual(eval(""" rb'x' """), b"x")
+        self.assertEqual(eval(r""" br'\x01' """), b"\\" + b"x01")
+        self.assertEqual(eval(r""" rb'\x01' """), b"\\" + b"x01")
         self.assertEqual(eval(""" br'\x01' """), byte(1))
         self.assertEqual(eval(""" rb'\x01' """), byte(1))
         self.assertEqual(eval(r""" br'\x81' """), b"\\" + b"x81")
@@ -205,9 +204,9 @@ class TestLiterals(unittest.TestCase):
         self.assertRaises(SyntaxError, eval, """ rbb'' """)
 
     def test_eval_str_u(self):
-        self.assertEqual(eval(""" u'x' """), 'x')
-        self.assertEqual(eval(""" U'\u00e4' """), 'ä')
-        self.assertEqual(eval(""" u'\N{LATIN SMALL LETTER A WITH DIAERESIS}' """), 'ä')
+        self.assertEqual(eval(""" u'x' """), "x")
+        self.assertEqual(eval(""" U'\u00e4' """), "ä")
+        self.assertEqual(eval(""" u'\N{LATIN SMALL LETTER A WITH DIAERESIS}' """), "ä")
         self.assertRaises(SyntaxError, eval, """ ur'' """)
         self.assertRaises(SyntaxError, eval, """ ru'' """)
         self.assertRaises(SyntaxError, eval, """ bu'' """)

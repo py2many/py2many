@@ -1,7 +1,7 @@
-
 class Hello:
     def test(self):
         return "ola"
+
 
 if __name__ == "__main__":
     # Test 1
@@ -20,8 +20,6 @@ if __name__ == "__main__":
     assert " ".join([Hello().test(), "adeus"]) == "ola adeus"
     # Test 5
     assert "\n".join([Hello().test(), "adeus"]) == "ola\nadeus"
-    
-    # All Tests pass 
+
+    # All Tests pass
     print("OK")
-
-

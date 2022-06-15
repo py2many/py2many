@@ -1,4 +1,3 @@
-
 """
     juliaAst
 
@@ -15,26 +14,31 @@ class AbstractType(ast.Expr):
     extends: ast.expr
     ctx: ast.expr_context
 
+
 class LetStmt(ast.Lambda):
     args: ast.arguments
     body: list[ast.expr]
     ctx: ast.expr_context
+
 
 class JuliaModule(ast.Module):
     name: ast.Name
     body: list[ast.expr]
     ctx: ast.expr_context
 
+
 class OrderedDict(ast.Dict):
     keys: list[ast.expr]
     values: list[ast.expr]
     annotation: ast.expr
+
 
 class OrderedDictComp(ast.DictComp):
     key: ast.expr
     value: ast.expr
     generators: list[ast.comprehension]
     annotation: ast.expr
+
 
 class OrderedSet(ast.Set):
     elts: list[ast.expr]
@@ -47,7 +51,6 @@ class OrderedSet(ast.Set):
 
 
 class JuliaNodeVisitor(ast.NodeVisitor):
-
     def visit_AbstractType(self, node: AbstractType) -> Any:
         """Visit abstract type node."""
         self.visit(node.value)
@@ -63,7 +66,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         """Visit Julia Module (a wrapper arround ast.Module)"""
         self.visit_Module(node)
         return node
-        
+
     def visit_OrderedDict(self, node: OrderedDict) -> Any:
         """Visit Julia Ordered Dictionary (maintain the insertion order)"""
         for k in node.keys:
@@ -71,7 +74,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         for v in node.values:
             self.visit(v)
         return node
-    
+
     def visit_OrderedDictComp(self, node: OrderedDictComp) -> Any:
         """Visit Julia Ordered Dictionary (maintain the insertion order)"""
         self.visit(node.key)
@@ -85,6 +88,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         for e in node.elts:
             self.visit(e)
         return node
+
 
 class JuliaNodeTransformer(JuliaNodeVisitor):
     def __init__(self) -> None:

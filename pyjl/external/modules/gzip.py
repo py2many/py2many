@@ -1,4 +1,3 @@
-
 import ast
 import gzip
 from typing import Callable, Dict, Tuple, Union
@@ -26,10 +25,11 @@ class JuliaExternalModulePlugins:
     def visit_gzipBadGzipFile(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._generic_gzip_visit(t_self)
         # TODO: Temporary
-        f"GZError(-1, \"gzopen failed\")"
+        f'GZError(-1, "gzopen failed")'
 
     def _generic_gzip_visit(t_self):
         t_self._usings.add("GZip")
+
 
 FuncType = Union[Callable, str]
 
@@ -40,6 +40,4 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     gzip.BadGzipFile: (JuliaExternalModulePlugins.visit_gzipBadGzipFile, True),
 }
 
-IGNORED_MODULE_SET = set([
-    "gzip"
-])
+IGNORED_MODULE_SET = set(["gzip"])

@@ -41,7 +41,7 @@ def show():
     assert a2 == 2.1
 
     # for loop
-    # Result array 
+    # Result array
     res = []
     for i in range(0, 10):
         res.append(i)
@@ -49,7 +49,32 @@ def show():
         res.append(i)
     for i in range(1, 10):
         res.append(i)
-    assert res == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 2, 4, 6, 8, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert res == [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        0,
+        2,
+        4,
+        6,
+        8,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+    ]
 
     # unary op
     a3 = -a1
@@ -76,7 +101,7 @@ def show():
 
     # Sets
     a6 = {1, 2, 3, 4}
-    i = iter(a6) # Might give problems in certain transpilers
+    i = iter(a6)  # Might give problems in certain transpilers
     assert len(a6) == 4
     assert next(i, None) == 1
     assert next(i, None) == 2
@@ -128,7 +153,7 @@ def show():
     s = "1\
     2"
     assert s == "1    2"
-    
+
     # Escape quotes
     _escape_quotes = """ foo "bar" baz """
     assert "bbc" in "aaabbccc"

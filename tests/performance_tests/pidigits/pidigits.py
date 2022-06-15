@@ -27,7 +27,7 @@ def eliminate_Digit(d):
 
 def next_Term(k):
     global acc, den, num
-    k2=k*2+1
+    k2 = k * 2 + 1
     acc = acc + num * 2
     acc = acc * k2
     den = den * k2
@@ -36,32 +36,30 @@ def next_Term(k):
 
 def main():
     global tmp1, tmp2, acc, den, num
-    n=int(sys.argv[1])
+    n = int(sys.argv[1])
 
-    tmp1 = 0 # type: BigInt
-    tmp2 = 0 # type: BigInt
-    acc = 0 # type: BigInt
-    den = 1 # type: BigInt
-    num = 1 # type: BigInt
+    tmp1 = 0  # type: BigInt
+    tmp2 = 0  # type: BigInt
+    acc = 0  # type: BigInt
+    den = 1  # type: BigInt
+    num = 1  # type: BigInt
 
-    i=0
-    k=0
-    while i<n:
-        k+=1
+    i = 0
+    k = 0
+    while i < n:
+        k += 1
         next_Term(k)
 
         if num > acc:
             continue
 
-
-        d=extract_Digit(3)
-        if d!=extract_Digit(4):
+        d = extract_Digit(3)
+        if d != extract_Digit(4):
             continue
 
-
-        print(chr(48+d), end="")
-        i+=1
-        if i%10==0:
+        print(chr(48 + d), end="")
+        i += 1
+        if i % 10 == 0:
             print("\t:%d" % (i))
         eliminate_Digit(d)
 

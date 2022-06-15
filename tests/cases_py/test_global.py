@@ -7,7 +7,6 @@ import warnings
 
 
 class GlobalTests(unittest.TestCase):
-
     def setUp(self):
         self._warnings_manager = check_warnings()
         self._warnings_manager.__enter__()
@@ -15,7 +14,6 @@ class GlobalTests(unittest.TestCase):
 
     def tearDown(self):
         self._warnings_manager.__exit__(None, None, None)
-
 
     def test1(self):
         prog_text_1 = """\

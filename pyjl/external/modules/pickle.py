@@ -1,7 +1,7 @@
-
 import ast
 import pickle
-from typing import Callable, Dict, Tuple, Union 
+from typing import Callable, Dict, Tuple, Union
+
 
 class JuliaExternalModulePlugins:
     def visit_picklestore(t_self, node: ast.Call, vargs: list[str]):
@@ -27,16 +27,15 @@ class JuliaExternalModulePlugins:
     def _visit_pickle(t_self):
         t_self._usings.add("Pickle")
 
+
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # pickle
-    pickle.load:  (JuliaExternalModulePlugins.visit_pickleload, False),
+    pickle.load: (JuliaExternalModulePlugins.visit_pickleload, False),
     pickle.Pickler: (JuliaExternalModulePlugins.visit_picklestore, False),
     pickle.Unpickler: (JuliaExternalModulePlugins.visit_pickleload, False),
     pickle.Pickler.dump: (JuliaExternalModulePlugins.visit_pickledump, False),
 }
 
-FUNC_TYPE_MAP = {
-    "pickle.Pickler": "pickle.Pickler"
-}
+FUNC_TYPE_MAP = {"pickle.Pickler": "pickle.Pickler"}

@@ -8,15 +8,16 @@ from py2many.exceptions import AstNotImplementedError
 
 from typing import Optional
 
+
 def decltype(node):
     """Create C++ decltype statement"""
     pass
 
+
 # is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
-        if isinstance(scope, ast.ClassDef) and \
-                scope.name == name:
+        if isinstance(scope, ast.ClassDef) and scope.name == name:
             return scope
         for entry in scope.body:
             if isinstance(entry, ast.ClassDef):
@@ -28,9 +29,11 @@ def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
                     return entry
     return None
 
+
 def is_class_or_module(name, scopes):
-    entry = _lookup_class_or_module(name, scopes) 
+    entry = _lookup_class_or_module(name, scopes)
     return entry is not None
+
 
 def is_enum(name, scopes):
     entry = _lookup_class_or_module(name, scopes)
@@ -69,10 +72,10 @@ def is_list(node):
     else:
         ann = getattr(node, "annotation", None)
         list_ann = lambda x: x == "list" or x == "List"
-        return ((isinstance(ann, ast.Name) and
-                    list_ann(get_id(ann))) or 
-                (isinstance(ann, ast.Subscript) and 
-                    list_ann(get_id(ann.value))))
+        return (isinstance(ann, ast.Name) and list_ann(get_id(ann))) or (
+            isinstance(ann, ast.Subscript) and list_ann(get_id(ann.value))
+        )
+
 
 ############################################
 # Added
@@ -81,6 +84,7 @@ def is_list(node):
 # object given a scope.
 def is_class_type(name, scopes):
     return get_class_scope(name, scopes) is not None
+
 
 # Gets the class scope given a name
 def get_class_scope(name, scopes):
@@ -92,17 +96,21 @@ def get_class_scope(name, scopes):
         entry = _lookup_class_or_module(get_id(entry), scopes)
     return entry
 
+
 # Searches for the closest scope using
 # the given scope (search in reverse order)
 def find_closest_scope(scopes):
     for i in range(len(scopes) - 1, 0, -1):
         sc = scopes[i]
-        if isinstance(sc, ast.FunctionDef) \
-                or isinstance(sc, ast.ClassDef) \
-                or isinstance(sc, ast.Module):
+        if (
+            isinstance(sc, ast.FunctionDef)
+            or isinstance(sc, ast.ClassDef)
+            or isinstance(sc, ast.Module)
+        ):
             return sc
 
     return None
+
 
 # Searches for the first node of type node_type using
 # the given scope (search in reverse order)
@@ -119,6 +127,7 @@ def find_node_by_type(node_type, scopes):
                 break
     return c_node
 
+
 def find_node_by_name(name, scopes):
     if name is None:
         return None
@@ -132,6 +141,7 @@ def find_node_by_name(name, scopes):
         c_node = find_in_body(sc.body, (lambda x: matches_name(x, name)))
     return c_node
 
+
 # Finds a node by its name and type
 def find_node_by_name_and_type(name, node_type, scopes):
     if name is None:
@@ -144,22 +154,25 @@ def find_node_by_name_and_type(name, node_type, scopes):
         if isinstance(sc, node_type) and matches_name(sc, name):
             c_node = sc
             break
-        c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type) 
-            and matches_name(x, name)))
+        c_node = find_in_body(
+            sc.body, (lambda x: isinstance(x, node_type) and matches_name(x, name))
+        )
         if c_node:
-            scope_name = (get_id(sc) 
+            scope_name = (
+                get_id(sc)
                 if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
-                else "module")
+                else "module"
+            )
             break
     return c_node, scope_name
+
 
 def find_in_body(body, fn):
     for i in range(len(body) - 1, -1, -1):
         node = body[i]
         if fn(node):
             return node
-        elif (isinstance(node, ast.Expr) and hasattr(node, "value")
-                and fn(node.value)):
+        elif isinstance(node, ast.Expr) and hasattr(node, "value") and fn(node.value):
             return node.value
         elif hasattr(node, "iter") and fn(node.iter):
             return node.iter
@@ -172,23 +185,24 @@ def find_in_body(body, fn):
 
     return None
 
+
 # Finds a node in a given scope
 def find_in_scope(body, fn):
     for i in range(len(body) - 1, -1, -1):
         node = body[i]
         if fn(node):
             return node
-        elif (isinstance(node, ast.Expr) and hasattr(node, "value")
-                and fn(node.value)):
+        elif isinstance(node, ast.Expr) and hasattr(node, "value") and fn(node.value):
             return node.value
-        elif hasattr(node, "body") and \
-                not (isinstance(node, ast.FunctionDef) 
-                    or isinstance(node, ast.ClassDef)):
+        elif hasattr(node, "body") and not (
+            isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef)
+        ):
             ret = find_in_scope(node.body, fn)
             if ret:
                 return ret
-        
+
     return None
+
 
 def find_parent(type, scopes):
     for i in range(len(scopes) - 1, -1, -1):
@@ -196,30 +210,40 @@ def find_parent(type, scopes):
         if isinstance(node, type):
             return node
 
-# Checks if a given node's name matches 
+
+# Checks if a given node's name matches
 # the supplied name
 def matches_name(node, name):
-    return ((isinstance(node, ast.Assign)
-                and get_id(node.targets[0]) == name) or 
-             ((isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign))
-                and get_id(node.target) == name) or
-             (hasattr(node, "func") and get_id(node.func) == name) or
-             (get_id(node) == name))
+    return (
+        (isinstance(node, ast.Assign) and get_id(node.targets[0]) == name)
+        or (
+            (isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign))
+            and get_id(node.target) == name
+        )
+        or (hasattr(node, "func") and get_id(node.func) == name)
+        or (get_id(node) == name)
+    )
 
 
 def _lookup_value_type_name(name, scopes):
     for scope in scopes:
         for entry in scope.body:
             if isinstance(entry, ast.Assign):
-                if (name in list(map(get_id, entry.targets))  and hasattr(entry, "value")
-                        and isinstance(entry.value, ast.Call) and hasattr(entry.value, "func")):
+                if (
+                    name in list(map(get_id, entry.targets))
+                    and hasattr(entry, "value")
+                    and isinstance(entry.value, ast.Call)
+                    and hasattr(entry.value, "func")
+                ):
                     return entry.value.func
             if isinstance(entry, ast.AnnAssign) or isinstance(entry, ast.AugAssign):
                 if name == get_id(entry.target) and hasattr(entry.value, "func"):
                     return entry.value.func
     return None
 
+
 #####################################
+
 
 def value_expr(node):
     """
@@ -359,10 +383,12 @@ def defined_before(node1, node2):
 
 
 def is_list_assignment(node):
-    return (hasattr(node, "value")
-            and isinstance(node.value, ast.List)
-            and hasattr(node, "targets")
-            and isinstance(node.targets[0].ctx, ast.Store))
+    return (
+        hasattr(node, "value")
+        and isinstance(node.value, ast.List)
+        and hasattr(node, "targets")
+        and isinstance(node.targets[0].ctx, ast.Store)
+    )
 
 
 def is_list_addition(node):

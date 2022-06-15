@@ -4,6 +4,7 @@ from test.support import cpython_only
 import pickle
 import unittest
 
+
 class ListTest(list_tests.CommonTest):
     type2test = list
 
@@ -15,12 +16,11 @@ class ListTest(list_tests.CommonTest):
         self.assertTrue(l0_3 is not l0_3_bis)
         self.assertEqual(list(()), [])
         self.assertEqual(list((0, 1, 2, 3)), [0, 1, 2, 3])
-        self.assertEqual(list(''), [])
-        self.assertEqual(list('spam'), ['s', 'p', 'a', 'm'])
-        self.assertEqual(list(x for x in range(10) if x % 2),
-                         [1, 3, 5, 7, 9])
+        self.assertEqual(list(""), [])
+        self.assertEqual(list("spam"), ["s", "p", "a", "m"])
+        self.assertEqual(list(x for x in range(10) if x % 2), [1, 3, 5, 7, 9])
 
-        if sys.maxsize == 0x7fffffff:
+        if sys.maxsize == 0x7FFFFFFF:
             # This test can currently only work on 32-bit machines.
             # XXX If/when PySequence_Length() returns a ssize_t, it should be
             # XXX re-enabled.
@@ -43,7 +43,7 @@ class ListTest(list_tests.CommonTest):
         self.assertEqual(x, [])
 
     def test_keyword_args(self):
-        with self.assertRaisesRegex(TypeError, 'keyword argument'):
+        with self.assertRaisesRegex(TypeError, "keyword argument"):
             list(sequence=[])
 
     def test_truth(self):
@@ -62,9 +62,14 @@ class ListTest(list_tests.CommonTest):
 
     def test_overflow(self):
         lst = [4, 5, 6, 7]
-        n = int((sys.maxsize*2+2) // len(lst))
-        def mul(a, b): return a * b
-        def imul(a, b): a *= b
+        n = int((sys.maxsize * 2 + 2) // len(lst))
+
+        def mul(a, b):
+            return a * b
+
+        def imul(a, b):
+            a *= b
+
         self.assertRaises((MemoryError, OverflowError), mul, lst, n)
         self.assertRaises((MemoryError, OverflowError), imul, lst, n)
 
@@ -73,9 +78,9 @@ class ListTest(list_tests.CommonTest):
         def check(n):
             l = [0] * n
             s = repr(l)
-            self.assertEqual(s,
-                '[' + ', '.join(['0'] * n) + ']')
-        check(10)       # check our checking code
+            self.assertEqual(s, "[" + ", ".join(["0"] * n) + "]")
+
+        check(10)  # check our checking code
         check(1000000)
 
     def test_iterator_pickle(self):
@@ -105,7 +110,7 @@ class ListTest(list_tests.CommonTest):
             it, a = pickle.loads(d)
             a[:] = data
             self.assertEqual(type(it), type(itorig))
-            self.assertEqual(list(it), data[len(orig):])
+            self.assertEqual(list(it), data[len(orig) :])
 
             # exhausted iterator
             self.assertRaises(StopIteration, next, itorig)
@@ -124,7 +129,7 @@ class ListTest(list_tests.CommonTest):
             it, a = pickle.loads(d)
             a[:] = data
             self.assertEqual(type(it), type(itorig))
-            self.assertEqual(list(it), data[len(orig)-1::-1])
+            self.assertEqual(list(it), data[len(orig) - 1 :: -1])
 
             # running iterator
             next(itorig)
@@ -132,7 +137,7 @@ class ListTest(list_tests.CommonTest):
             it, a = pickle.loads(d)
             a[:] = data
             self.assertEqual(type(it), type(itorig))
-            self.assertEqual(list(it), data[len(orig)-2::-1])
+            self.assertEqual(list(it), data[len(orig) - 2 :: -1])
 
             # empty iterator
             for i in range(1, len(orig)):
@@ -152,21 +157,23 @@ class ListTest(list_tests.CommonTest):
 
     def test_step_overflow(self):
         a = [0, 1, 2, 3, 4]
-        a[1::sys.maxsize] = [0]
-        self.assertEqual(a[3::sys.maxsize], [3])
+        a[1 :: sys.maxsize] = [0]
+        self.assertEqual(a[3 :: sys.maxsize], [3])
 
     def test_no_comdat_folding(self):
         # Issue 8847: In the PGO build, the MSVC linker's COMDAT folding
         # optimization causes failures in code that relies on distinct
         # function addresses.
-        class L(list): pass
+        class L(list):
+            pass
+
         with self.assertRaises(TypeError):
-            (3,) + L([1,2])
+            (3,) + L([1, 2])
 
     def test_equal_operator_modifying_operand(self):
         # test fix for seg fault reported in bpo-38588 part 2.
         class X:
-            def __eq__(self,other) :
+            def __eq__(self, other):
                 list2.clear()
                 return NotImplemented
 

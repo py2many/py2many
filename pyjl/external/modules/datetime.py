@@ -11,7 +11,7 @@ class JuliaExternalModulePlugins:
     def visit_time(t_self, node, vargs):
         JuliaExternalModulePlugins._visit_time(t_self)
         return f"Dates.datetime2unix(Dates.now())"
-    
+
     def _visit_time(t_self):
         t_self._usings.add("Dates")
 
@@ -19,7 +19,6 @@ class JuliaExternalModulePlugins:
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    time.ctime: (JuliaExternalModulePlugins.visit_ctime, False), 
-    time.time: (JuliaExternalModulePlugins.visit_time, False), 
+    time.ctime: (JuliaExternalModulePlugins.visit_ctime, False),
+    time.time: (JuliaExternalModulePlugins.visit_time, False),
 }
-

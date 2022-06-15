@@ -15,80 +15,85 @@ except ImportError:
 
 def isolated_context(func):
     """Needed to make reftracking test mode work."""
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         ctx = contextvars.Context()
         return ctx.run(func, *args, **kwargs)
+
     return wrapper
 
 
 class ContextTest(unittest.TestCase):
     def test_context_var_new_1(self):
-        with self.assertRaisesRegex(TypeError, 'takes exactly 1'):
+        with self.assertRaisesRegex(TypeError, "takes exactly 1"):
             contextvars.ContextVar()
 
-        with self.assertRaisesRegex(TypeError, 'must be a str'):
+        with self.assertRaisesRegex(TypeError, "must be a str"):
             contextvars.ContextVar(1)
 
-        c = contextvars.ContextVar('aaa')
-        self.assertEqual(c.name, 'aaa')
+        c = contextvars.ContextVar("aaa")
+        self.assertEqual(c.name, "aaa")
 
         with self.assertRaises(AttributeError):
-            c.name = 'bbb'
+            c.name = "bbb"
 
-        self.assertNotEqual(hash(c), hash('aaa'))
+        self.assertNotEqual(hash(c), hash("aaa"))
 
     @isolated_context
     def test_context_var_repr_1(self):
-        c = contextvars.ContextVar('a')
-        self.assertIn('a', repr(c))
+        c = contextvars.ContextVar("a")
+        self.assertIn("a", repr(c))
 
-        c = contextvars.ContextVar('a', default=123)
-        self.assertIn('123', repr(c))
+        c = contextvars.ContextVar("a", default=123)
+        self.assertIn("123", repr(c))
 
         lst = []
-        c = contextvars.ContextVar('a', default=lst)
+        c = contextvars.ContextVar("a", default=lst)
         lst.append(c)
-        self.assertIn('...', repr(c))
-        self.assertIn('...', repr(lst))
+        self.assertIn("...", repr(c))
+        self.assertIn("...", repr(lst))
 
         t = c.set(1)
         self.assertIn(repr(c), repr(t))
-        self.assertNotIn(' used ', repr(t))
+        self.assertNotIn(" used ", repr(t))
         c.reset(t)
-        self.assertIn(' used ', repr(t))
+        self.assertIn(" used ", repr(t))
 
     def test_context_subclassing_1(self):
-        with self.assertRaisesRegex(TypeError, 'not an acceptable base type'):
+        with self.assertRaisesRegex(TypeError, "not an acceptable base type"):
+
             class MyContextVar(contextvars.ContextVar):
                 # Potentially we might want ContextVars to be subclassable.
                 pass
 
-        with self.assertRaisesRegex(TypeError, 'not an acceptable base type'):
+        with self.assertRaisesRegex(TypeError, "not an acceptable base type"):
+
             class MyContext(contextvars.Context):
                 pass
 
-        with self.assertRaisesRegex(TypeError, 'not an acceptable base type'):
+        with self.assertRaisesRegex(TypeError, "not an acceptable base type"):
+
             class MyToken(contextvars.Token):
                 pass
 
     def test_context_new_1(self):
-        with self.assertRaisesRegex(TypeError, 'any arguments'):
+        with self.assertRaisesRegex(TypeError, "any arguments"):
             contextvars.Context(1)
-        with self.assertRaisesRegex(TypeError, 'any arguments'):
+        with self.assertRaisesRegex(TypeError, "any arguments"):
             contextvars.Context(1, a=1)
-        with self.assertRaisesRegex(TypeError, 'any arguments'):
+        with self.assertRaisesRegex(TypeError, "any arguments"):
             contextvars.Context(a=1)
         contextvars.Context(**{})
 
     def test_context_typerrors_1(self):
         ctx = contextvars.Context()
 
-        with self.assertRaisesRegex(TypeError, 'ContextVar key was expected'):
+        with self.assertRaisesRegex(TypeError, "ContextVar key was expected"):
             ctx[1]
-        with self.assertRaisesRegex(TypeError, 'ContextVar key was expected'):
+        with self.assertRaisesRegex(TypeError, "ContextVar key was expected"):
             1 in ctx
-        with self.assertRaisesRegex(TypeError, 'ContextVar key was expected'):
+        with self.assertRaisesRegex(TypeError, "ContextVar key was expected"):
             ctx.get(1)
 
     def test_context_get_context_1(self):
@@ -98,35 +103,31 @@ class ContextTest(unittest.TestCase):
     def test_context_run_1(self):
         ctx = contextvars.Context()
 
-        with self.assertRaisesRegex(TypeError, 'missing 1 required'):
+        with self.assertRaisesRegex(TypeError, "missing 1 required"):
             ctx.run()
 
     def test_context_run_2(self):
         ctx = contextvars.Context()
 
         def func(*args, **kwargs):
-            kwargs['spam'] = 'foo'
-            args += ('bar',)
+            kwargs["spam"] = "foo"
+            args += ("bar",)
             return args, kwargs
 
         for f in (func, functools.partial(func)):
             # partial doesn't support FASTCALL
 
-            self.assertEqual(ctx.run(f), (('bar',), {'spam': 'foo'}))
-            self.assertEqual(ctx.run(f, 1), ((1, 'bar'), {'spam': 'foo'}))
+            self.assertEqual(ctx.run(f), (("bar",), {"spam": "foo"}))
+            self.assertEqual(ctx.run(f, 1), ((1, "bar"), {"spam": "foo"}))
+
+            self.assertEqual(ctx.run(f, a=2), (("bar",), {"a": 2, "spam": "foo"}))
 
             self.assertEqual(
-                ctx.run(f, a=2),
-                (('bar',), {'a': 2, 'spam': 'foo'}))
-
-            self.assertEqual(
-                ctx.run(f, 11, a=2),
-                ((11, 'bar'), {'a': 2, 'spam': 'foo'}))
+                ctx.run(f, 11, a=2), ((11, "bar"), {"a": 2, "spam": "foo"})
+            )
 
             a = {}
-            self.assertEqual(
-                ctx.run(f, 11, **a),
-                ((11, 'bar'), {'spam': 'foo'}))
+            self.assertEqual(ctx.run(f, 11, **a), ((11, "bar"), {"spam": "foo"}))
             self.assertEqual(a, {})
 
     def test_context_run_3(self):
@@ -146,34 +147,34 @@ class ContextTest(unittest.TestCase):
     def test_context_run_4(self):
         ctx1 = contextvars.Context()
         ctx2 = contextvars.Context()
-        var = contextvars.ContextVar('var')
+        var = contextvars.ContextVar("var")
 
         def func2():
             self.assertIsNone(var.get(None))
 
         def func1():
             self.assertIsNone(var.get(None))
-            var.set('spam')
+            var.set("spam")
             ctx2.run(func2)
-            self.assertEqual(var.get(None), 'spam')
+            self.assertEqual(var.get(None), "spam")
 
             cur = contextvars.copy_context()
             self.assertEqual(len(cur), 1)
-            self.assertEqual(cur[var], 'spam')
+            self.assertEqual(cur[var], "spam")
             return cur
 
         returned_ctx = ctx1.run(func1)
         self.assertEqual(ctx1, returned_ctx)
-        self.assertEqual(returned_ctx[var], 'spam')
+        self.assertEqual(returned_ctx[var], "spam")
         self.assertIn(var, returned_ctx)
 
     def test_context_run_5(self):
         ctx = contextvars.Context()
-        var = contextvars.ContextVar('var')
+        var = contextvars.ContextVar("var")
 
         def func():
             self.assertIsNone(var.get(None))
-            var.set('spam')
+            var.set("spam")
             1 / 0
 
         with self.assertRaises(ZeroDivisionError):
@@ -183,7 +184,7 @@ class ContextTest(unittest.TestCase):
 
     def test_context_run_6(self):
         ctx = contextvars.Context()
-        c = contextvars.ContextVar('a', default=0)
+        c = contextvars.ContextVar("a", default=0)
 
         def fun():
             self.assertEqual(c.get(), 0)
@@ -199,14 +200,14 @@ class ContextTest(unittest.TestCase):
         ctx = contextvars.Context()
 
         def fun():
-            with self.assertRaisesRegex(RuntimeError, 'is already entered'):
+            with self.assertRaisesRegex(RuntimeError, "is already entered"):
                 ctx.run(fun)
 
         ctx.run(fun)
 
     @isolated_context
     def test_context_getset_1(self):
-        c = contextvars.ContextVar('c')
+        c = contextvars.ContextVar("c")
         with self.assertRaises(LookupError):
             c.get()
 
@@ -219,34 +220,34 @@ class ContextTest(unittest.TestCase):
         self.assertIs(t0.old_value, contextvars.Token.MISSING)
         self.assertIs(t0.var, c)
 
-        t = c.set('spam')
-        self.assertEqual(c.get(), 'spam')
-        self.assertEqual(c.get(None), 'spam')
+        t = c.set("spam")
+        self.assertEqual(c.get(), "spam")
+        self.assertEqual(c.get(None), "spam")
         self.assertEqual(t.old_value, 42)
         c.reset(t)
 
         self.assertEqual(c.get(), 42)
         self.assertEqual(c.get(None), 42)
 
-        c.set('spam2')
-        with self.assertRaisesRegex(RuntimeError, 'has already been used'):
+        c.set("spam2")
+        with self.assertRaisesRegex(RuntimeError, "has already been used"):
             c.reset(t)
-        self.assertEqual(c.get(), 'spam2')
+        self.assertEqual(c.get(), "spam2")
 
         ctx1 = contextvars.copy_context()
         self.assertIn(c, ctx1)
 
         c.reset(t0)
-        with self.assertRaisesRegex(RuntimeError, 'has already been used'):
+        with self.assertRaisesRegex(RuntimeError, "has already been used"):
             c.reset(t0)
         self.assertIsNone(c.get(None))
 
         self.assertIn(c, ctx1)
-        self.assertEqual(ctx1[c], 'spam2')
-        self.assertEqual(ctx1.get(c, 'aa'), 'spam2')
+        self.assertEqual(ctx1[c], "spam2")
+        self.assertEqual(ctx1.get(c, "aa"), "spam2")
         self.assertEqual(len(ctx1), 1)
-        self.assertEqual(list(ctx1.items()), [(c, 'spam2')])
-        self.assertEqual(list(ctx1.values()), ['spam2'])
+        self.assertEqual(list(ctx1.items()), [(c, "spam2")])
+        self.assertEqual(list(ctx1.values()), ["spam2"])
         self.assertEqual(list(ctx1.keys()), [c])
         self.assertEqual(list(ctx1), [c])
 
@@ -254,22 +255,22 @@ class ContextTest(unittest.TestCase):
         self.assertNotIn(c, ctx2)
         with self.assertRaises(KeyError):
             ctx2[c]
-        self.assertEqual(ctx2.get(c, 'aa'), 'aa')
+        self.assertEqual(ctx2.get(c, "aa"), "aa")
         self.assertEqual(len(ctx2), 0)
         self.assertEqual(list(ctx2), [])
 
     @isolated_context
     def test_context_getset_2(self):
-        v1 = contextvars.ContextVar('v1')
-        v2 = contextvars.ContextVar('v2')
+        v1 = contextvars.ContextVar("v1")
+        v2 = contextvars.ContextVar("v2")
 
         t1 = v1.set(42)
-        with self.assertRaisesRegex(ValueError, 'by a different'):
+        with self.assertRaisesRegex(ValueError, "by a different"):
             v2.reset(t1)
 
     @isolated_context
     def test_context_getset_3(self):
-        c = contextvars.ContextVar('c', default=42)
+        c = contextvars.ContextVar("c", default=42)
         ctx = contextvars.Context()
 
         def fun():
@@ -277,7 +278,7 @@ class ContextTest(unittest.TestCase):
             with self.assertRaises(KeyError):
                 ctx[c]
             self.assertIsNone(ctx.get(c))
-            self.assertEqual(ctx.get(c, 'spam'), 'spam')
+            self.assertEqual(ctx.get(c, "spam"), "spam")
             self.assertNotIn(c, ctx)
             self.assertEqual(list(ctx.keys()), [])
 
@@ -294,17 +295,17 @@ class ContextTest(unittest.TestCase):
 
     @isolated_context
     def test_context_getset_4(self):
-        c = contextvars.ContextVar('c', default=42)
+        c = contextvars.ContextVar("c", default=42)
         ctx = contextvars.Context()
 
         tok = ctx.run(c.set, 1)
 
-        with self.assertRaisesRegex(ValueError, 'different Context'):
+        with self.assertRaisesRegex(ValueError, "different Context"):
             c.reset(tok)
 
     @isolated_context
     def test_context_getset_5(self):
-        c = contextvars.ContextVar('c', default=42)
+        c = contextvars.ContextVar("c", default=42)
         c.set([])
 
         def fun():
@@ -317,7 +318,7 @@ class ContextTest(unittest.TestCase):
 
     def test_context_copy_1(self):
         ctx1 = contextvars.Context()
-        c = contextvars.ContextVar('c', default=42)
+        c = contextvars.ContextVar("c", default=42)
 
         def ctx1_fun():
             c.set(10)
@@ -342,7 +343,7 @@ class ContextTest(unittest.TestCase):
 
     @isolated_context
     def test_context_threads_1(self):
-        cvar = contextvars.ContextVar('cvar')
+        cvar = contextvars.ContextVar("cvar")
 
         def sub(num):
             for i in range(10):
@@ -372,7 +373,7 @@ class HashKey:
         self.error_on_eq_to = error_on_eq_to
 
     def __repr__(self):
-        return f'<Key name:{self.name} hash:{self.hash}>'
+        return f"<Key name:{self.name} hash:{self.hash}>"
 
     def __hash__(self):
         if self._crasher is not None and self._crasher.error_on_hash:
@@ -388,9 +389,9 @@ class HashKey:
             raise EqError
 
         if self.error_on_eq_to is not None and self.error_on_eq_to is other:
-            raise ValueError(f'cannot compare {self!r} to {other!r}')
+            raise ValueError(f"cannot compare {self!r} to {other!r}")
         if other.error_on_eq_to is not None and other.error_on_eq_to is self:
-            raise ValueError(f'cannot compare {other!r} to {self!r}')
+            raise ValueError(f"cannot compare {other!r} to {self!r}")
 
         return (self.name, self.hash) == (other.name, other.hash)
 
@@ -414,7 +415,7 @@ class HaskKeyCrasher:
 
     def __enter__(self):
         if HashKey._crasher is not None:
-            raise RuntimeError('cannot nest crashers')
+            raise RuntimeError("cannot nest crashers")
         HashKey._crasher = self
 
     def __exit__(self, *exc):
@@ -431,20 +432,19 @@ class EqError(Exception):
 
 @unittest.skipIf(hamt is None, '_testcapi lacks "hamt()" function')
 class HamtTest(unittest.TestCase):
-
     def test_hashkey_helper_1(self):
-        k1 = HashKey(10, 'aaa')
-        k2 = HashKey(10, 'bbb')
+        k1 = HashKey(10, "aaa")
+        k2 = HashKey(10, "bbb")
 
         self.assertNotEqual(k1, k2)
         self.assertEqual(hash(k1), hash(k2))
 
         d = dict()
-        d[k1] = 'a'
-        d[k2] = 'b'
+        d[k1] = "a"
+        d[k2] = "b"
 
-        self.assertEqual(d[k1], 'a')
-        self.assertEqual(d[k2], 'b')
+        self.assertEqual(d[k1], "a")
+        self.assertEqual(d[k2], "b")
 
     def test_hamt_basics_1(self):
         h = hamt()
@@ -454,78 +454,78 @@ class HamtTest(unittest.TestCase):
         h = hamt()
         self.assertEqual(len(h), 0)
 
-        h2 = h.set('a', 'b')
+        h2 = h.set("a", "b")
         self.assertIsNot(h, h2)
         self.assertEqual(len(h), 0)
         self.assertEqual(len(h2), 1)
 
-        self.assertIsNone(h.get('a'))
-        self.assertEqual(h.get('a', 42), 42)
+        self.assertIsNone(h.get("a"))
+        self.assertEqual(h.get("a", 42), 42)
 
-        self.assertEqual(h2.get('a'), 'b')
+        self.assertEqual(h2.get("a"), "b")
 
-        h3 = h2.set('b', 10)
+        h3 = h2.set("b", 10)
         self.assertIsNot(h2, h3)
         self.assertEqual(len(h), 0)
         self.assertEqual(len(h2), 1)
         self.assertEqual(len(h3), 2)
-        self.assertEqual(h3.get('a'), 'b')
-        self.assertEqual(h3.get('b'), 10)
+        self.assertEqual(h3.get("a"), "b")
+        self.assertEqual(h3.get("b"), 10)
 
-        self.assertIsNone(h.get('b'))
-        self.assertIsNone(h2.get('b'))
+        self.assertIsNone(h.get("b"))
+        self.assertIsNone(h2.get("b"))
 
-        self.assertIsNone(h.get('a'))
-        self.assertEqual(h2.get('a'), 'b')
+        self.assertIsNone(h.get("a"))
+        self.assertEqual(h2.get("a"), "b")
 
         h = h2 = h3 = None
 
     def test_hamt_basics_3(self):
         h = hamt()
         o = object()
-        h1 = h.set('1', o)
-        h2 = h1.set('1', o)
+        h1 = h.set("1", o)
+        h2 = h1.set("1", o)
         self.assertIs(h1, h2)
 
     def test_hamt_basics_4(self):
         h = hamt()
-        h1 = h.set('key', [])
-        h2 = h1.set('key', [])
+        h1 = h.set("key", [])
+        h2 = h1.set("key", [])
         self.assertIsNot(h1, h2)
         self.assertEqual(len(h1), 1)
         self.assertEqual(len(h2), 1)
-        self.assertIsNot(h1.get('key'), h2.get('key'))
+        self.assertIsNot(h1.get("key"), h2.get("key"))
 
     def test_hamt_collision_1(self):
-        k1 = HashKey(10, 'aaa')
-        k2 = HashKey(10, 'bbb')
-        k3 = HashKey(10, 'ccc')
+        k1 = HashKey(10, "aaa")
+        k2 = HashKey(10, "bbb")
+        k3 = HashKey(10, "ccc")
 
         h = hamt()
-        h2 = h.set(k1, 'a')
-        h3 = h2.set(k2, 'b')
+        h2 = h.set(k1, "a")
+        h3 = h2.set(k2, "b")
 
         self.assertEqual(h.get(k1), None)
         self.assertEqual(h.get(k2), None)
 
-        self.assertEqual(h2.get(k1), 'a')
+        self.assertEqual(h2.get(k1), "a")
         self.assertEqual(h2.get(k2), None)
 
-        self.assertEqual(h3.get(k1), 'a')
-        self.assertEqual(h3.get(k2), 'b')
+        self.assertEqual(h3.get(k1), "a")
+        self.assertEqual(h3.get(k2), "b")
 
-        h4 = h3.set(k2, 'cc')
-        h5 = h4.set(k3, 'aa')
+        h4 = h3.set(k2, "cc")
+        h5 = h4.set(k3, "aa")
 
-        self.assertEqual(h3.get(k1), 'a')
-        self.assertEqual(h3.get(k2), 'b')
-        self.assertEqual(h4.get(k1), 'a')
-        self.assertEqual(h4.get(k2), 'cc')
+        self.assertEqual(h3.get(k1), "a")
+        self.assertEqual(h3.get(k2), "b")
+        self.assertEqual(h4.get(k1), "a")
+        self.assertEqual(h4.get(k2), "cc")
         self.assertEqual(h4.get(k3), None)
-        self.assertEqual(h5.get(k1), 'a')
-        self.assertEqual(h5.get(k2), 'cc')
-        self.assertEqual(h5.get(k2), 'cc')
-        self.assertEqual(h5.get(k3), 'aa')
+        self.assertEqual(h5.get(k1), "a")
+        self.assertEqual(h5.get(k2), "cc")
+        self.assertEqual(h5.get(k2), "cc")
+        self.assertEqual(h5.get(k3), "aa")
 
         self.assertEqual(len(h), 0)
         self.assertEqual(len(h2), 1)
@@ -569,7 +569,7 @@ class HamtTest(unittest.TestCase):
             self.assertEqual(len(h), COLLECTION_SIZE)
 
             for key in range(COLLECTION_SIZE):
-                self.assertEqual(h.get(KeyStr(key), 'not found'), key)
+                self.assertEqual(h.get(KeyStr(key), "not found"), key)
 
             keys_to_delete = list(range(COLLECTION_SIZE))
             random.shuffle(keys_to_delete)
@@ -587,7 +587,7 @@ class HamtTest(unittest.TestCase):
                             h.delete(KeyStr(i))
 
                 h = h.delete(key)
-                self.assertEqual(h.get(key, 'not found'), 'not found')
+                self.assertEqual(h.get(key, "not found"), "not found")
                 del d[key]
                 self.assertEqual(len(d), len(h))
 
@@ -610,7 +610,7 @@ class HamtTest(unittest.TestCase):
 
             for i, key in enumerate(keys_to_delete):
                 hm = hm.delete(str(key))
-                self.assertEqual(hm.get(str(key), 'not found'), 'not found')
+                self.assertEqual(hm.get(str(key), "not found"), "not found")
                 dm.pop(str(key), None)
                 self.assertEqual(len(d), len(h))
 
@@ -623,21 +623,21 @@ class HamtTest(unittest.TestCase):
             self.assertEqual(list(h.items()), [])
 
     def test_hamt_delete_1(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(102, 'C')
-        D = HashKey(103, 'D')
-        E = HashKey(104, 'E')
-        Z = HashKey(-100, 'Z')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(102, "C")
+        D = HashKey(103, "D")
+        E = HashKey(104, "E")
+        Z = HashKey(-100, "Z")
 
-        Er = HashKey(103, 'Er', error_on_eq_to=D)
+        Er = HashKey(103, "Er", error_on_eq_to=D)
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
 
         orig_len = len(h)
 
@@ -651,7 +651,7 @@ class HamtTest(unittest.TestCase):
         h = h.delete(C)
         self.assertEqual(len(h), orig_len - 1)
 
-        with self.assertRaisesRegex(ValueError, 'cannot compare'):
+        with self.assertRaisesRegex(ValueError, "cannot compare"):
             h.delete(Er)
 
         h = h.delete(D)
@@ -664,25 +664,25 @@ class HamtTest(unittest.TestCase):
         self.assertEqual(len(h), orig_len - 3)
 
         self.assertEqual(h.get(A, 42), 42)
-        self.assertEqual(h.get(B), 'b')
-        self.assertEqual(h.get(E), 'e')
+        self.assertEqual(h.get(B), "b")
+        self.assertEqual(h.get(E), "e")
 
     def test_hamt_delete_2(self):
-        A = HashKey(100, 'A')
-        B = HashKey(201001, 'B')
-        C = HashKey(101001, 'C')
-        D = HashKey(103, 'D')
-        E = HashKey(104, 'E')
-        Z = HashKey(-100, 'Z')
+        A = HashKey(100, "A")
+        B = HashKey(201001, "B")
+        C = HashKey(101001, "C")
+        D = HashKey(103, "D")
+        E = HashKey(104, "E")
+        Z = HashKey(-100, "Z")
 
-        Er = HashKey(201001, 'Er', error_on_eq_to=B)
+        Er = HashKey(201001, "Er", error_on_eq_to=B)
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
 
         orig_len = len(h)
 
@@ -695,7 +695,7 @@ class HamtTest(unittest.TestCase):
         #             <Key name:B hash:201001>: 'b'
         #             <Key name:C hash:101001>: 'c'
 
-        with self.assertRaisesRegex(ValueError, 'cannot compare'):
+        with self.assertRaisesRegex(ValueError, "cannot compare"):
             h.delete(Er)
 
         h = h.delete(Z)
@@ -710,8 +710,8 @@ class HamtTest(unittest.TestCase):
         h = h.delete(A)
         self.assertEqual(len(h), orig_len - 3)
 
-        self.assertEqual(h.get(D), 'd')
-        self.assertEqual(h.get(E), 'e')
+        self.assertEqual(h.get(D), "d")
+        self.assertEqual(h.get(E), "e")
 
         h = h.delete(A)
         h = h.delete(B)
@@ -720,18 +720,18 @@ class HamtTest(unittest.TestCase):
         self.assertEqual(len(h), 0)
 
     def test_hamt_delete_3(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(100100, 'C')
-        D = HashKey(100100, 'D')
-        E = HashKey(104, 'E')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(100100, "C")
+        D = HashKey(100100, "D")
+        E = HashKey(104, "E")
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
 
         orig_len = len(h)
 
@@ -752,22 +752,22 @@ class HamtTest(unittest.TestCase):
         h = h.delete(E)
         self.assertEqual(len(h), orig_len - 2)
 
-        self.assertEqual(h.get(C), 'c')
-        self.assertEqual(h.get(B), 'b')
+        self.assertEqual(h.get(C), "c")
+        self.assertEqual(h.get(B), "b")
 
     def test_hamt_delete_4(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(100100, 'C')
-        D = HashKey(100100, 'D')
-        E = HashKey(100100, 'E')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(100100, "C")
+        D = HashKey(100100, "D")
+        E = HashKey(100100, "E")
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
 
         orig_len = len(h)
 
@@ -804,10 +804,10 @@ class HamtTest(unittest.TestCase):
         for i in range(17):
             key = HashKey(i, str(i))
             keys.append(key)
-            h = h.set(key, f'val-{i}')
+            h = h.set(key, f"val-{i}")
 
-        collision_key16 = HashKey(16, '18')
-        h = h.set(collision_key16, 'collision')
+        collision_key16 = HashKey(16, "18")
+        h = h.set(collision_key16, "collision")
 
         # ArrayNode(id=0x10f8b9318):
         #     0::
@@ -847,62 +847,62 @@ class HamtTest(unittest.TestCase):
         self.assertEqual(len(h), 0)
 
     def test_hamt_items_1(self):
-        A = HashKey(100, 'A')
-        B = HashKey(201001, 'B')
-        C = HashKey(101001, 'C')
-        D = HashKey(103, 'D')
-        E = HashKey(104, 'E')
-        F = HashKey(110, 'F')
+        A = HashKey(100, "A")
+        B = HashKey(201001, "B")
+        C = HashKey(101001, "C")
+        D = HashKey(103, "D")
+        E = HashKey(104, "E")
+        F = HashKey(110, "F")
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
-        h = h.set(F, 'f')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
+        h = h.set(F, "f")
 
         it = h.items()
         self.assertEqual(
-            set(list(it)),
-            {(A, 'a'), (B, 'b'), (C, 'c'), (D, 'd'), (E, 'e'), (F, 'f')})
+            set(list(it)), {(A, "a"), (B, "b"), (C, "c"), (D, "d"), (E, "e"), (F, "f")}
+        )
 
     def test_hamt_items_2(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(100100, 'C')
-        D = HashKey(100100, 'D')
-        E = HashKey(100100, 'E')
-        F = HashKey(110, 'F')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(100100, "C")
+        D = HashKey(100100, "D")
+        E = HashKey(100100, "E")
+        F = HashKey(110, "F")
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
-        h = h.set(F, 'f')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
+        h = h.set(F, "f")
 
         it = h.items()
         self.assertEqual(
-            set(list(it)),
-            {(A, 'a'), (B, 'b'), (C, 'c'), (D, 'd'), (E, 'e'), (F, 'f')})
+            set(list(it)), {(A, "a"), (B, "b"), (C, "c"), (D, "d"), (E, "e"), (F, "f")}
+        )
 
     def test_hamt_keys_1(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(100100, 'C')
-        D = HashKey(100100, 'D')
-        E = HashKey(100100, 'E')
-        F = HashKey(110, 'F')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(100100, "C")
+        D = HashKey(100100, "D")
+        E = HashKey(100100, "E")
+        F = HashKey(110, "F")
 
         h = hamt()
-        h = h.set(A, 'a')
-        h = h.set(B, 'b')
-        h = h.set(C, 'c')
-        h = h.set(D, 'd')
-        h = h.set(E, 'e')
-        h = h.set(F, 'f')
+        h = h.set(A, "a")
+        h = h.set(B, "b")
+        h = h.set(C, "c")
+        h = h.set(D, "d")
+        h = h.set(E, "e")
+        h = h.set(F, "f")
 
         self.assertEqual(set(list(h.keys())), {A, B, C, D, E, F})
         self.assertEqual(set(list(h)), {A, B, C, D, E, F})
@@ -913,41 +913,41 @@ class HamtTest(unittest.TestCase):
         self.assertEqual(list(h.items()), [])
 
     def test_hamt_eq_1(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
-        C = HashKey(100100, 'C')
-        D = HashKey(100100, 'D')
-        E = HashKey(120, 'E')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
+        C = HashKey(100100, "C")
+        D = HashKey(100100, "D")
+        E = HashKey(120, "E")
 
         h1 = hamt()
-        h1 = h1.set(A, 'a')
-        h1 = h1.set(B, 'b')
-        h1 = h1.set(C, 'c')
-        h1 = h1.set(D, 'd')
+        h1 = h1.set(A, "a")
+        h1 = h1.set(B, "b")
+        h1 = h1.set(C, "c")
+        h1 = h1.set(D, "d")
 
         h2 = hamt()
-        h2 = h2.set(A, 'a')
+        h2 = h2.set(A, "a")
 
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
-        h2 = h2.set(B, 'b')
+        h2 = h2.set(B, "b")
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
-        h2 = h2.set(C, 'c')
+        h2 = h2.set(C, "c")
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
-        h2 = h2.set(D, 'd2')
+        h2 = h2.set(D, "d2")
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
-        h2 = h2.set(D, 'd')
+        h2 = h2.set(D, "d")
         self.assertTrue(h1 == h2)
         self.assertFalse(h1 != h2)
 
-        h2 = h2.set(E, 'e')
+        h2 = h2.set(E, "e")
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
@@ -955,28 +955,28 @@ class HamtTest(unittest.TestCase):
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
-        h2 = h2.set(E, 'd')
+        h2 = h2.set(E, "d")
         self.assertFalse(h1 == h2)
         self.assertTrue(h1 != h2)
 
     def test_hamt_eq_2(self):
-        A = HashKey(100, 'A')
-        Er = HashKey(100, 'Er', error_on_eq_to=A)
+        A = HashKey(100, "A")
+        Er = HashKey(100, "Er", error_on_eq_to=A)
 
         h1 = hamt()
-        h1 = h1.set(A, 'a')
+        h1 = h1.set(A, "a")
 
         h2 = hamt()
-        h2 = h2.set(Er, 'a')
+        h2 = h2.set(Er, "a")
 
-        with self.assertRaisesRegex(ValueError, 'cannot compare'):
+        with self.assertRaisesRegex(ValueError, "cannot compare"):
             h1 == h2
 
-        with self.assertRaisesRegex(ValueError, 'cannot compare'):
+        with self.assertRaisesRegex(ValueError, "cannot compare"):
             h1 != h2
 
     def test_hamt_gc_1(self):
-        A = HashKey(100, 'A')
+        A = HashKey(100, "A")
 
         h = hamt()
         h = h.set(0, 0)  # empty HAMT node is memoized in hamt.c
@@ -999,11 +999,11 @@ class HamtTest(unittest.TestCase):
         self.assertIsNone(ref())
 
     def test_hamt_gc_2(self):
-        A = HashKey(100, 'A')
-        B = HashKey(101, 'B')
+        A = HashKey(100, "A")
+        B = HashKey(101, "B")
 
         h = hamt()
-        h = h.set(A, 'a')
+        h = h.set(A, "a")
         h = h.set(A, h)
 
         ref = weakref.ref(h)
@@ -1019,10 +1019,10 @@ class HamtTest(unittest.TestCase):
         self.assertIsNone(ref())
 
     def test_hamt_in_1(self):
-        A = HashKey(100, 'A')
-        AA = HashKey(100, 'A')
+        A = HashKey(100, "A")
+        AA = HashKey(100, "A")
 
-        B = HashKey(101, 'B')
+        B = HashKey(101, "B")
 
         h = hamt()
         h = h.set(A, 1)
@@ -1039,10 +1039,10 @@ class HamtTest(unittest.TestCase):
                 AA in h
 
     def test_hamt_getitem_1(self):
-        A = HashKey(100, 'A')
-        AA = HashKey(100, 'A')
+        A = HashKey(100, "A")
+        AA = HashKey(100, "A")
 
-        B = HashKey(101, 'B')
+        B = HashKey(101, "B")
 
         h = hamt()
         h = h.set(A, 1)

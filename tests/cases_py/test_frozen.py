@@ -17,13 +17,13 @@ from test.support import captured_stdout
 
 class TestFrozen(unittest.TestCase):
     def test_frozen(self):
-        name = '__hello__'
+        name = "__hello__"
         if name in sys.modules:
             del sys.modules[name]
         with captured_stdout() as out:
             import __hello__
-        self.assertEqual(out.getvalue(), 'Hello world!\n')
+        self.assertEqual(out.getvalue(), "Hello world!\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

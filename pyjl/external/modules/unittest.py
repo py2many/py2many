@@ -3,7 +3,8 @@ import ast
 from typing import Callable, Dict, Tuple, Union
 import unittest
 
-class JuliaExternalModulePlugins():
+
+class JuliaExternalModulePlugins:
     def visit_assertTrue(t_self, node, vargs):
         JuliaExternalModulePlugins._generic_test_visit(t_self)
         return f"@test {vargs[1]}"
@@ -30,7 +31,7 @@ class JuliaExternalModulePlugins():
 
     def visit_assertRaisesRegex(t_self, node, vargs):
         # 1. Checks if exceptiuon was thrown
-        # 2. "Tests that regex matches on the string representation 
+        # 2. "Tests that regex matches on the string representation
         # of the raised exception"
         # https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertRaisesRegex
         JuliaExternalModulePlugins._generic_test_visit(t_self)
@@ -52,7 +53,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertTrue: (JuliaExternalModulePlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaExternalModulePlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaExternalModulePlugins.visit_assertEqual, True),
-    unittest.TestCase.assertRaises: (JuliaExternalModulePlugins.visit_assertRaises, True),
-    unittest.TestCase.assertIsInstance: (JuliaExternalModulePlugins.visit_assertIsInstance, True),
-    unittest.TestCase.assertRaisesRegex: (JuliaExternalModulePlugins.visit_assertRaisesRegex, True),
+    unittest.TestCase.assertRaises: (
+        JuliaExternalModulePlugins.visit_assertRaises,
+        True,
+    ),
+    unittest.TestCase.assertIsInstance: (
+        JuliaExternalModulePlugins.visit_assertIsInstance,
+        True,
+    ),
+    unittest.TestCase.assertRaisesRegex: (
+        JuliaExternalModulePlugins.visit_assertRaisesRegex,
+        True,
+    ),
 }

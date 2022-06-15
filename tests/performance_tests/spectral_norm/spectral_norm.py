@@ -33,14 +33,8 @@ def At_sum(u, i):
 def multiply_AtAv(u):
     r = range(len(u))
 
-    tmp = pool.starmap(
-        A_sum,
-        zip(repeat(u), r)
-    )
-    return pool.starmap(
-        At_sum,
-        zip(repeat(tmp), r)
-    )
+    tmp = pool.starmap(A_sum, zip(repeat(u), r))
+    return pool.starmap(At_sum, zip(repeat(tmp), r))
 
 
 def main():
@@ -55,12 +49,12 @@ def main():
 
     for ue, ve in zip(u, v):
         vBv += ue * ve
-        vv  += ve * ve
+        vv += ve * ve
 
-    result = sqrt(vBv/vv)
+    result = sqrt(vBv / vv)
     print("{0:.9f}".format(result))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     with Pool(processes=1) as pool:
         main()

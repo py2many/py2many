@@ -4,33 +4,35 @@
 # contributed by Joerg Baumann
 
 from sys import stdin, stdout
+
 # from os import cpu_count
 
 from itertools import starmap
 
 reverse_translation = bytes.maketrans(
-    b'ABCDGHKMNRSTUVWYabcdghkmnrstuvwy',
-    b'TVGHCDMKNYSAABWRTVGHCDMKNYSAABWR')
+    b"ABCDGHKMNRSTUVWYabcdghkmnrstuvwy", b"TVGHCDMKNYSAABWRTVGHCDMKNYSAABWR"
+)
 
 
 def reverse_complement(header, sequence):
-    t = sequence.translate(reverse_translation, b'\n\r ')
+    t = sequence.translate(reverse_translation, b"\n\r ")
     output = bytearray()
     trailing_length = len(t) % 60
     if trailing_length:
-        output += b'\n' + t[:trailing_length]
+        output += b"\n" + t[:trailing_length]
     for i in range(trailing_length, len(t), 60):
-        output += b'\n' + t[i:i+60]
+        output += b"\n" + t[i : i + 60]
     return header, output[::-1]
+
 
 # @resumable
 def read_sequences(file):
     for line in file:
-        if line[0] == ord('>'):
+        if line[0] == ord(">"):
             header = line
             sequence = bytearray()
             for line in file:
-                if line[0] == ord('>'):
+                if line[0] == ord(">"):
                     yield header, sequence
                     header = line
                     sequence = bytearray()
@@ -38,6 +40,7 @@ def read_sequences(file):
                     sequence += line
             yield header, sequence
             break
+
 
 # Not used
 # def reverse_and_print_task(q, c, v):
@@ -56,7 +59,7 @@ def read_sequences(file):
 #             v.value = i + 1
 #             c.notify_all()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     write = stdout.buffer.write
     flush = stdout.buffer.flush
 
@@ -70,6 +73,7 @@ if __name__ == '__main__':
     def merge(v, g):
         yield v
         yield from g
+
     for h, r in starmap(reverse_complement, merge(data, s)):
         write(h)
         write(r)

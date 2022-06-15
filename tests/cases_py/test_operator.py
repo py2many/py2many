@@ -6,38 +6,49 @@ from test import support
 from test.support import import_helper
 
 
-py_operator = import_helper.import_fresh_module('operator',
-                                                blocked=['_operator'])
-c_operator = import_helper.import_fresh_module('operator',
-                                               fresh=['_operator'])
+py_operator = import_helper.import_fresh_module("operator", blocked=["_operator"])
+c_operator = import_helper.import_fresh_module("operator", fresh=["_operator"])
+
 
 class Seq1:
     def __init__(self, lst):
         self.lst = lst
+
     def __len__(self):
         return len(self.lst)
+
     def __getitem__(self, i):
         return self.lst[i]
+
     def __add__(self, other):
         return self.lst + other.lst
+
     def __mul__(self, other):
         return self.lst * other
+
     def __rmul__(self, other):
         return other * self.lst
+
 
 class Seq2(object):
     def __init__(self, lst):
         self.lst = lst
+
     def __len__(self):
         return len(self.lst)
+
     def __getitem__(self, i):
         return self.lst[i]
+
     def __add__(self, other):
         return self.lst + other.lst
+
     def __mul__(self, other):
         return self.lst * other
+
     def __rmul__(self, other):
         return other * self.lst
+
 
 class BadIterable:
     def __iter__(self):
@@ -69,9 +80,11 @@ class OperatorTestCase:
 
     def test_eq(self):
         operator = self.module
+
         class C(object):
             def __eq__(self, other):
                 raise SyntaxError
+
         self.assertRaises(TypeError, operator.eq)
         self.assertRaises(SyntaxError, operator.eq, C(), C())
         self.assertFalse(operator.eq(1, 0))
@@ -83,9 +96,11 @@ class OperatorTestCase:
 
     def test_ne(self):
         operator = self.module
+
         class C(object):
             def __ne__(self, other):
                 raise SyntaxError
+
         self.assertRaises(TypeError, operator.ne)
         self.assertRaises(SyntaxError, operator.ne, C(), C())
         self.assertTrue(operator.ne(1, 0))
@@ -134,13 +149,13 @@ class OperatorTestCase:
         operator = self.module
         self.assertRaises(TypeError, operator.and_)
         self.assertRaises(TypeError, operator.and_, None, None)
-        self.assertEqual(operator.and_(0xf, 0xa), 0xa)
+        self.assertEqual(operator.and_(0xF, 0xA), 0xA)
 
     def test_concat(self):
         operator = self.module
         self.assertRaises(TypeError, operator.concat)
         self.assertRaises(TypeError, operator.concat, None, None)
-        self.assertEqual(operator.concat('py', 'thon'), 'python')
+        self.assertEqual(operator.concat("py", "thon"), "python")
         self.assertEqual(operator.concat([1, 2], [3, 4]), [1, 2, 3, 4])
         self.assertEqual(operator.concat(Seq1([5, 6]), Seq1([7])), [5, 6, 7])
         self.assertEqual(operator.concat(Seq2([5, 6]), Seq2([7])), [5, 6, 7])
@@ -227,9 +242,11 @@ class OperatorTestCase:
         operator = self.module
         self.assertRaises(TypeError, operator.matmul)
         self.assertRaises(TypeError, operator.matmul, 42, 42)
+
         class M:
             def __matmul__(self, other):
                 return other - 1
+
         self.assertEqual(M() @ 42, 41)
 
     def test_neg(self):
@@ -245,7 +262,7 @@ class OperatorTestCase:
         operator = self.module
         self.assertRaises(TypeError, operator.or_)
         self.assertRaises(TypeError, operator.or_, None, None)
-        self.assertEqual(operator.or_(0xa, 0x5), 0xf)
+        self.assertEqual(operator.or_(0xA, 0x5), 0xF)
 
     def test_pos(self):
         operator = self.module
@@ -260,7 +277,7 @@ class OperatorTestCase:
         operator = self.module
         self.assertRaises(TypeError, operator.pow)
         self.assertRaises(TypeError, operator.pow, None, None)
-        self.assertEqual(operator.pow(3,5), 3**5)
+        self.assertEqual(operator.pow(3, 5), 3 ** 5)
         self.assertRaises(TypeError, operator.pow, 1)
         self.assertRaises(TypeError, operator.pow, 1, 2, 3)
 
@@ -297,9 +314,11 @@ class OperatorTestCase:
 
     def test_truth(self):
         operator = self.module
+
         class C(object):
             def __bool__(self):
                 raise SyntaxError
+
         self.assertRaises(TypeError, operator.truth)
         self.assertRaises(SyntaxError, operator.truth, C())
         self.assertTrue(operator.truth(5))
@@ -311,82 +330,85 @@ class OperatorTestCase:
         operator = self.module
         self.assertRaises(TypeError, operator.xor)
         self.assertRaises(TypeError, operator.xor, None, None)
-        self.assertEqual(operator.xor(0xb, 0xc), 0x7)
+        self.assertEqual(operator.xor(0xB, 0xC), 0x7)
 
     def test_is(self):
         operator = self.module
-        a = b = 'xyzpdq'
+        a = b = "xyzpdq"
         c = a[:3] + b[3:]
         self.assertRaises(TypeError, operator.is_)
         self.assertTrue(operator.is_(a, b))
-        self.assertFalse(operator.is_(a,c))
+        self.assertFalse(operator.is_(a, c))
 
     def test_is_not(self):
         operator = self.module
-        a = b = 'xyzpdq'
+        a = b = "xyzpdq"
         c = a[:3] + b[3:]
         self.assertRaises(TypeError, operator.is_not)
         self.assertFalse(operator.is_not(a, b))
-        self.assertTrue(operator.is_not(a,c))
+        self.assertTrue(operator.is_not(a, c))
 
     def test_attrgetter(self):
         operator = self.module
+
         class A:
             pass
+
         a = A()
-        a.name = 'arthur'
-        f = operator.attrgetter('name')
-        self.assertEqual(f(a), 'arthur')
+        a.name = "arthur"
+        f = operator.attrgetter("name")
+        self.assertEqual(f(a), "arthur")
         self.assertRaises(TypeError, f)
-        self.assertRaises(TypeError, f, a, 'dent')
-        self.assertRaises(TypeError, f, a, surname='dent')
-        f = operator.attrgetter('rank')
+        self.assertRaises(TypeError, f, a, "dent")
+        self.assertRaises(TypeError, f, a, surname="dent")
+        f = operator.attrgetter("rank")
         self.assertRaises(AttributeError, f, a)
         self.assertRaises(TypeError, operator.attrgetter, 2)
         self.assertRaises(TypeError, operator.attrgetter)
 
         # multiple gets
         record = A()
-        record.x = 'X'
-        record.y = 'Y'
-        record.z = 'Z'
-        self.assertEqual(operator.attrgetter('x','z','y')(record), ('X', 'Z', 'Y'))
-        self.assertRaises(TypeError, operator.attrgetter, ('x', (), 'y'))
+        record.x = "X"
+        record.y = "Y"
+        record.z = "Z"
+        self.assertEqual(operator.attrgetter("x", "z", "y")(record), ("X", "Z", "Y"))
+        self.assertRaises(TypeError, operator.attrgetter, ("x", (), "y"))
 
         class C(object):
             def __getattr__(self, name):
                 raise SyntaxError
-        self.assertRaises(SyntaxError, operator.attrgetter('foo'), C())
+
+        self.assertRaises(SyntaxError, operator.attrgetter("foo"), C())
 
         # recursive gets
         a = A()
-        a.name = 'arthur'
+        a.name = "arthur"
         a.child = A()
-        a.child.name = 'thomas'
-        f = operator.attrgetter('child.name')
-        self.assertEqual(f(a), 'thomas')
+        a.child.name = "thomas"
+        f = operator.attrgetter("child.name")
+        self.assertEqual(f(a), "thomas")
         self.assertRaises(AttributeError, f, a.child)
-        f = operator.attrgetter('name', 'child.name')
-        self.assertEqual(f(a), ('arthur', 'thomas'))
-        f = operator.attrgetter('name', 'child.name', 'child.child.name')
+        f = operator.attrgetter("name", "child.name")
+        self.assertEqual(f(a), ("arthur", "thomas"))
+        f = operator.attrgetter("name", "child.name", "child.child.name")
         self.assertRaises(AttributeError, f, a)
-        f = operator.attrgetter('child.')
+        f = operator.attrgetter("child.")
         self.assertRaises(AttributeError, f, a)
-        f = operator.attrgetter('.child')
+        f = operator.attrgetter(".child")
         self.assertRaises(AttributeError, f, a)
 
         a.child.child = A()
-        a.child.child.name = 'johnson'
-        f = operator.attrgetter('child.child.name')
-        self.assertEqual(f(a), 'johnson')
-        f = operator.attrgetter('name', 'child.name', 'child.child.name')
-        self.assertEqual(f(a), ('arthur', 'thomas', 'johnson'))
+        a.child.child.name = "johnson"
+        f = operator.attrgetter("child.child.name")
+        self.assertEqual(f(a), "johnson")
+        f = operator.attrgetter("name", "child.name", "child.child.name")
+        self.assertEqual(f(a), ("arthur", "thomas", "johnson"))
 
     def test_itemgetter(self):
         operator = self.module
-        a = 'ABCDE'
+        a = "ABCDE"
         f = operator.itemgetter(2)
-        self.assertEqual(f(a), 'C')
+        self.assertEqual(f(a), "C")
         self.assertRaises(TypeError, f)
         self.assertRaises(TypeError, f, a, 3)
         self.assertRaises(TypeError, f, a, size=3)
@@ -396,105 +418,143 @@ class OperatorTestCase:
         class C(object):
             def __getitem__(self, name):
                 raise SyntaxError
+
         self.assertRaises(SyntaxError, operator.itemgetter(42), C())
 
-        f = operator.itemgetter('name')
+        f = operator.itemgetter("name")
         self.assertRaises(TypeError, f, a)
         self.assertRaises(TypeError, operator.itemgetter)
 
-        d = dict(key='val')
-        f = operator.itemgetter('key')
-        self.assertEqual(f(d), 'val')
-        f = operator.itemgetter('nonkey')
+        d = dict(key="val")
+        f = operator.itemgetter("key")
+        self.assertEqual(f(d), "val")
+        f = operator.itemgetter("nonkey")
         self.assertRaises(KeyError, f, d)
 
         # example used in the docs
-        inventory = [('apple', 3), ('banana', 2), ('pear', 5), ('orange', 1)]
+        inventory = [("apple", 3), ("banana", 2), ("pear", 5), ("orange", 1)]
         getcount = operator.itemgetter(1)
         self.assertEqual(list(map(getcount, inventory)), [3, 2, 5, 1])
-        self.assertEqual(sorted(inventory, key=getcount),
-            [('orange', 1), ('banana', 2), ('apple', 3), ('pear', 5)])
+        self.assertEqual(
+            sorted(inventory, key=getcount),
+            [("orange", 1), ("banana", 2), ("apple", 3), ("pear", 5)],
+        )
 
         # multiple gets
         data = list(map(str, range(20)))
-        self.assertEqual(operator.itemgetter(2,10,5)(data), ('2', '10', '5'))
-        self.assertRaises(TypeError, operator.itemgetter(2, 'x', 5), data)
+        self.assertEqual(operator.itemgetter(2, 10, 5)(data), ("2", "10", "5"))
+        self.assertRaises(TypeError, operator.itemgetter(2, "x", 5), data)
 
         # interesting indices
-        t = tuple('abcde')
-        self.assertEqual(operator.itemgetter(-1)(t), 'e')
-        self.assertEqual(operator.itemgetter(slice(2, 4))(t), ('c', 'd'))
+        t = tuple("abcde")
+        self.assertEqual(operator.itemgetter(-1)(t), "e")
+        self.assertEqual(operator.itemgetter(slice(2, 4))(t), ("c", "d"))
 
         # interesting sequences
         class T(tuple):
-            'Tuple subclass'
+            "Tuple subclass"
             pass
-        self.assertEqual(operator.itemgetter(0)(T('abc')), 'a')
-        self.assertEqual(operator.itemgetter(0)(['a', 'b', 'c']), 'a')
+
+        self.assertEqual(operator.itemgetter(0)(T("abc")), "a")
+        self.assertEqual(operator.itemgetter(0)(["a", "b", "c"]), "a")
         self.assertEqual(operator.itemgetter(0)(range(100, 200)), 100)
 
     def test_methodcaller(self):
         operator = self.module
         self.assertRaises(TypeError, operator.methodcaller)
         self.assertRaises(TypeError, operator.methodcaller, 12)
+
         class A:
             def foo(self, *args, **kwds):
                 return args[0] + args[1]
+
             def bar(self, f=42):
                 return f
+
             def baz(*args, **kwds):
-                return kwds['name'], kwds['self']
+                return kwds["name"], kwds["self"]
+
         a = A()
-        f = operator.methodcaller('foo')
+        f = operator.methodcaller("foo")
         self.assertRaises(IndexError, f, a)
-        f = operator.methodcaller('foo', 1, 2)
+        f = operator.methodcaller("foo", 1, 2)
         self.assertEqual(f(a), 3)
         self.assertRaises(TypeError, f)
         self.assertRaises(TypeError, f, a, 3)
         self.assertRaises(TypeError, f, a, spam=3)
-        f = operator.methodcaller('bar')
+        f = operator.methodcaller("bar")
         self.assertEqual(f(a), 42)
         self.assertRaises(TypeError, f, a, a)
-        f = operator.methodcaller('bar', f=5)
+        f = operator.methodcaller("bar", f=5)
         self.assertEqual(f(a), 5)
-        f = operator.methodcaller('baz', name='spam', self='eggs')
-        self.assertEqual(f(a), ('spam', 'eggs'))
+        f = operator.methodcaller("baz", name="spam", self="eggs")
+        self.assertEqual(f(a), ("spam", "eggs"))
 
     def test_inplace(self):
         operator = self.module
+
         class C(object):
-            def __iadd__     (self, other): return "iadd"
-            def __iand__     (self, other): return "iand"
-            def __ifloordiv__(self, other): return "ifloordiv"
-            def __ilshift__  (self, other): return "ilshift"
-            def __imod__     (self, other): return "imod"
-            def __imul__     (self, other): return "imul"
-            def __imatmul__  (self, other): return "imatmul"
-            def __ior__      (self, other): return "ior"
-            def __ipow__     (self, other): return "ipow"
-            def __irshift__  (self, other): return "irshift"
-            def __isub__     (self, other): return "isub"
-            def __itruediv__ (self, other): return "itruediv"
-            def __ixor__     (self, other): return "ixor"
-            def __getitem__(self, other): return 5  # so that C is a sequence
+            def __iadd__(self, other):
+                return "iadd"
+
+            def __iand__(self, other):
+                return "iand"
+
+            def __ifloordiv__(self, other):
+                return "ifloordiv"
+
+            def __ilshift__(self, other):
+                return "ilshift"
+
+            def __imod__(self, other):
+                return "imod"
+
+            def __imul__(self, other):
+                return "imul"
+
+            def __imatmul__(self, other):
+                return "imatmul"
+
+            def __ior__(self, other):
+                return "ior"
+
+            def __ipow__(self, other):
+                return "ipow"
+
+            def __irshift__(self, other):
+                return "irshift"
+
+            def __isub__(self, other):
+                return "isub"
+
+            def __itruediv__(self, other):
+                return "itruediv"
+
+            def __ixor__(self, other):
+                return "ixor"
+
+            def __getitem__(self, other):
+                return 5  # so that C is a sequence
+
         c = C()
-        self.assertEqual(operator.iadd     (c, 5), "iadd")
-        self.assertEqual(operator.iand     (c, 5), "iand")
+        self.assertEqual(operator.iadd(c, 5), "iadd")
+        self.assertEqual(operator.iand(c, 5), "iand")
         self.assertEqual(operator.ifloordiv(c, 5), "ifloordiv")
-        self.assertEqual(operator.ilshift  (c, 5), "ilshift")
-        self.assertEqual(operator.imod     (c, 5), "imod")
-        self.assertEqual(operator.imul     (c, 5), "imul")
-        self.assertEqual(operator.imatmul  (c, 5), "imatmul")
-        self.assertEqual(operator.ior      (c, 5), "ior")
-        self.assertEqual(operator.ipow     (c, 5), "ipow")
-        self.assertEqual(operator.irshift  (c, 5), "irshift")
-        self.assertEqual(operator.isub     (c, 5), "isub")
-        self.assertEqual(operator.itruediv (c, 5), "itruediv")
-        self.assertEqual(operator.ixor     (c, 5), "ixor")
-        self.assertEqual(operator.iconcat  (c, c), "iadd")
+        self.assertEqual(operator.ilshift(c, 5), "ilshift")
+        self.assertEqual(operator.imod(c, 5), "imod")
+        self.assertEqual(operator.imul(c, 5), "imul")
+        self.assertEqual(operator.imatmul(c, 5), "imatmul")
+        self.assertEqual(operator.ior(c, 5), "ior")
+        self.assertEqual(operator.ipow(c, 5), "ipow")
+        self.assertEqual(operator.irshift(c, 5), "irshift")
+        self.assertEqual(operator.isub(c, 5), "isub")
+        self.assertEqual(operator.itruediv(c, 5), "itruediv")
+        self.assertEqual(operator.ixor(c, 5), "ixor")
+        self.assertEqual(operator.iconcat(c, c), "iadd")
 
     def test_length_hint(self):
         operator = self.module
+
         class X(object):
             def __init__(self, value):
                 self.value = value
@@ -521,59 +581,63 @@ class OperatorTestCase:
     def test_dunder_is_original(self):
         operator = self.module
 
-        names = [name for name in dir(operator) if not name.startswith('_')]
+        names = [name for name in dir(operator) if not name.startswith("_")]
         for name in names:
             orig = getattr(operator, name)
-            dunder = getattr(operator, '__' + name.strip('_') + '__', None)
+            dunder = getattr(operator, "__" + name.strip("_") + "__", None)
             if dunder:
                 self.assertIs(dunder, orig)
+
 
 class PyOperatorTestCase(OperatorTestCase, unittest.TestCase):
     module = py_operator
 
-@unittest.skipUnless(c_operator, 'requires _operator')
+
+@unittest.skipUnless(c_operator, "requires _operator")
 class COperatorTestCase(OperatorTestCase, unittest.TestCase):
     module = c_operator
 
 
 class OperatorPickleTestCase:
     def copy(self, obj, proto):
-        with support.swap_item(sys.modules, 'operator', self.module):
+        with support.swap_item(sys.modules, "operator", self.module):
             pickled = pickle.dumps(obj, proto)
-        with support.swap_item(sys.modules, 'operator', self.module2):
+        with support.swap_item(sys.modules, "operator", self.module2):
             return pickle.loads(pickled)
 
     def test_attrgetter(self):
         attrgetter = self.module.attrgetter
+
         class A:
             pass
+
         a = A()
-        a.x = 'X'
-        a.y = 'Y'
-        a.z = 'Z'
+        a.x = "X"
+        a.y = "Y"
+        a.z = "Z"
         a.t = A()
         a.t.u = A()
-        a.t.u.v = 'V'
+        a.t.u.v = "V"
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             with self.subTest(proto=proto):
-                f = attrgetter('x')
+                f = attrgetter("x")
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
                 # multiple gets
-                f = attrgetter('x', 'y', 'z')
+                f = attrgetter("x", "y", "z")
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
                 # recursive gets
-                f = attrgetter('t.u.v')
+                f = attrgetter("t.u.v")
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
 
     def test_itemgetter(self):
         itemgetter = self.module.itemgetter
-        a = 'ABCDE'
+        a = "ABCDE"
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             with self.subTest(proto=proto):
                 f = itemgetter(2)
@@ -588,50 +652,58 @@ class OperatorPickleTestCase:
 
     def test_methodcaller(self):
         methodcaller = self.module.methodcaller
+
         class A:
             def foo(self, *args, **kwds):
                 return args[0] + args[1]
+
             def bar(self, f=42):
                 return f
+
             def baz(*args, **kwds):
-                return kwds['name'], kwds['self']
+                return kwds["name"], kwds["self"]
+
         a = A()
         for proto in range(pickle.HIGHEST_PROTOCOL + 1):
             with self.subTest(proto=proto):
-                f = methodcaller('bar')
+                f = methodcaller("bar")
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
                 # positional args
-                f = methodcaller('foo', 1, 2)
+                f = methodcaller("foo", 1, 2)
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
                 # keyword args
-                f = methodcaller('bar', f=5)
+                f = methodcaller("bar", f=5)
                 f2 = self.copy(f, proto)
                 self.assertEqual(repr(f2), repr(f))
                 self.assertEqual(f2(a), f(a))
-                f = methodcaller('baz', self='eggs', name='spam')
+                f = methodcaller("baz", self="eggs", name="spam")
                 f2 = self.copy(f, proto)
                 # Can't test repr consistently with multiple keyword args
                 self.assertEqual(f2(a), f(a))
+
 
 class PyPyOperatorPickleTestCase(OperatorPickleTestCase, unittest.TestCase):
     module = py_operator
     module2 = py_operator
 
-@unittest.skipUnless(c_operator, 'requires _operator')
+
+@unittest.skipUnless(c_operator, "requires _operator")
 class PyCOperatorPickleTestCase(OperatorPickleTestCase, unittest.TestCase):
     module = py_operator
     module2 = c_operator
 
-@unittest.skipUnless(c_operator, 'requires _operator')
+
+@unittest.skipUnless(c_operator, "requires _operator")
 class CPyOperatorPickleTestCase(OperatorPickleTestCase, unittest.TestCase):
     module = c_operator
     module2 = py_operator
 
-@unittest.skipUnless(c_operator, 'requires _operator')
+
+@unittest.skipUnless(c_operator, "requires _operator")
 class CCOperatorPickleTestCase(OperatorPickleTestCase, unittest.TestCase):
     module = c_operator
     module2 = c_operator

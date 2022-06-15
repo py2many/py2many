@@ -13,7 +13,8 @@ import pickle
 # instead of wrestling with test "failures".  See the bottom of the
 # file for extensive notes on what we're testing here and why.
 RUN_ALL_HASH_TESTS = False
-JUST_SHOW_HASH_RESULTS = False # if RUN_ALL_HASH_TESTS, just display
+JUST_SHOW_HASH_RESULTS = False  # if RUN_ALL_HASH_TESTS, just display
+
 
 class TupleTest(seq_tests.CommonTest):
     type2test = tuple
@@ -22,7 +23,7 @@ class TupleTest(seq_tests.CommonTest):
         t = ()
         msg = "tuple indices must be integers or slices"
         with self.assertRaisesRegex(TypeError, msg):
-            t['a']
+            t["a"]
 
     def test_constructors(self):
         super().test_constructors()
@@ -33,19 +34,18 @@ class TupleTest(seq_tests.CommonTest):
         self.assertTrue(t0_3 is t0_3_bis)
         self.assertEqual(tuple([]), ())
         self.assertEqual(tuple([0, 1, 2, 3]), (0, 1, 2, 3))
-        self.assertEqual(tuple(''), ())
-        self.assertEqual(tuple('spam'), ('s', 'p', 'a', 'm'))
-        self.assertEqual(tuple(x for x in range(10) if x % 2),
-                         (1, 3, 5, 7, 9))
+        self.assertEqual(tuple(""), ())
+        self.assertEqual(tuple("spam"), ("s", "p", "a", "m"))
+        self.assertEqual(tuple(x for x in range(10) if x % 2), (1, 3, 5, 7, 9))
 
     def test_keyword_args(self):
-        with self.assertRaisesRegex(TypeError, 'keyword argument'):
+        with self.assertRaisesRegex(TypeError, "keyword argument"):
             tuple(sequence=())
 
     def test_truth(self):
         super().test_truth()
         self.assertTrue(not ())
-        self.assertTrue((42, ))
+        self.assertTrue((42,))
 
     def test_len(self):
         super().test_len()
@@ -72,6 +72,7 @@ class TupleTest(seq_tests.CommonTest):
         def f():
             for i in range(1000):
                 yield i
+
         self.assertEqual(list(tuple(f())), list(range(1000)))
 
     # We expect tuples whose base components have deterministic hashes to
@@ -89,8 +90,7 @@ class TupleTest(seq_tests.CommonTest):
         check_one_exact((0,), 1214856301, -8753497827991233192)
         check_one_exact((0, 0), -168982784, -8458139203682520985)
         check_one_exact((0.5,), 2077348973, -408149959306781352)
-        check_one_exact((0.5, (), (-2, 3, (4, 6))), 714642271,
-                        -1845940830829704396)
+        check_one_exact((0.5, (), (-2, 3, (4, 6))), 714642271, -1845940830829704396)
 
     # Various tests for hashing of tuples to check that we get few collisions.
     # Does something only if RUN_ALL_HASH_TESTS is true.
@@ -133,40 +133,53 @@ class TupleTest(seq_tests.CommonTest):
                 msg += f"coll {collisions:,} z {z:+.1f}"
                 if JUST_SHOW_HASH_RESULTS:
                     import sys
+
                     print(msg, file=sys.__stdout__)
                 else:
                     self.fail(msg)
 
-        def tryone(tag, xs,
-                   native32=None, native64=None, hi32=None, lo32=None,
-                   zlimit=None):
+        def tryone(
+            tag, xs, native32=None, native64=None, hi32=None, lo32=None, zlimit=None
+        ):
             NHASHBITS = support.NHASHBITS
             hashes = list(map(hash, xs))
-            tryone_inner(tag + f"; {NHASHBITS}-bit hash codes",
-                         1 << NHASHBITS,
-                         hashes,
-                         native32 if NHASHBITS == 32 else native64,
-                         zlimit)
+            tryone_inner(
+                tag + f"; {NHASHBITS}-bit hash codes",
+                1 << NHASHBITS,
+                hashes,
+                native32 if NHASHBITS == 32 else native64,
+                zlimit,
+            )
 
             if NHASHBITS > 32:
                 shift = NHASHBITS - 32
-                tryone_inner(tag + "; 32-bit upper hash codes",
-                             1 << 32,
-                             [h >> shift for h in hashes],
-                             hi32,
-                             zlimit)
+                tryone_inner(
+                    tag + "; 32-bit upper hash codes",
+                    1 << 32,
+                    [h >> shift for h in hashes],
+                    hi32,
+                    zlimit,
+                )
 
                 mask = (1 << 32) - 1
-                tryone_inner(tag + "; 32-bit lower hash codes",
-                             1 << 32,
-                             [h & mask for h in hashes],
-                             lo32,
-                             zlimit)
+                tryone_inner(
+                    tag + "; 32-bit lower hash codes",
+                    1 << 32,
+                    [h & mask for h in hashes],
+                    lo32,
+                    zlimit,
+                )
 
         # Tuples of smallish positive integers are common - nice if we
         # get "better than random" for these.
-        tryone("range(100) by 3", list(product(range(100), repeat=3)),
-               (0, 0), (0, 0), (4, 1), (0, 0))
+        tryone(
+            "range(100) by 3",
+            list(product(range(100), repeat=3)),
+            (0, 0),
+            (0, 0),
+            (4, 1),
+            (0, 0),
+        )
 
         # A previous hash had systematic problems when mixing integers of
         # similar magnitude but opposite sign, obscurely related to that
@@ -176,8 +189,14 @@ class TupleTest(seq_tests.CommonTest):
         # Note:  -1 is omitted because hash(-1) == hash(-2) == -2, and
         # there's nothing the tuple hash can do to avoid collisions
         # inherited from collisions in the tuple components' hashes.
-        tryone("-10 .. 8 by 4", list(product(cands, repeat=4)),
-               (0, 0), (0, 0), (0, 0), (0, 0))
+        tryone(
+            "-10 .. 8 by 4",
+            list(product(cands, repeat=4)),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+        )
         del cands
 
         # The hashes here are a weird mix of values where all the
@@ -187,18 +206,36 @@ class TupleTest(seq_tests.CommonTest):
         # right.  This is also complicated a bit in that there are
         # collisions among the hashes of the integers in L alone.
         L = [n << 60 for n in range(100)]
-        tryone("0..99 << 60 by 3", list(product(L, repeat=3)),
-               (0, 0), (0, 0), (0, 0), (324, 1))
+        tryone(
+            "0..99 << 60 by 3",
+            list(product(L, repeat=3)),
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (324, 1),
+        )
         del L
 
         # Used to suffer a massive number of collisions.
-        tryone("[-3, 3] by 18", list(product([-3, 3], repeat=18)),
-               (7, 1), (0, 0), (7, 1), (6, 1))
+        tryone(
+            "[-3, 3] by 18",
+            list(product([-3, 3], repeat=18)),
+            (7, 1),
+            (0, 0),
+            (7, 1),
+            (6, 1),
+        )
 
         # And even worse.  hash(0.5) has only a single bit set, at the
         # high end. A decent hash needs to propagate high bits right.
-        tryone("[0, 0.5] by 18", list(product([0, 0.5], repeat=18)),
-               (5, 1), (0, 0), (9, 1), (12, 1))
+        tryone(
+            "[0, 0.5] by 18",
+            list(product([0, 0.5], repeat=18)),
+            (5, 1),
+            (0, 0),
+            (9, 1),
+            (12, 1),
+        )
 
         # Hashes of ints and floats are the same across platforms.
         # String hashes vary even on a single platform across runs, due
@@ -209,9 +246,11 @@ class TupleTest(seq_tests.CommonTest):
         # own, the string hash is trying to be decently pseudo-random
         # (in all bit positions) on _its_ own.  We can at least test
         # that the tuple hash doesn't systematically ruin that.
-        tryone("4-char tuples",
-               list(product("abcdefghijklmnopqrstuvwxyz", repeat=4)),
-               zlimit=4.0)
+        tryone(
+            "4-char tuples",
+            list(product("abcdefghijklmnopqrstuvwxyz", repeat=4)),
+            zlimit=4.0,
+        )
 
         # The "old tuple test".  See https://bugs.python.org/issue942952.
         # Ensures, for example, that the hash:
@@ -221,17 +260,21 @@ class TupleTest(seq_tests.CommonTest):
         N = 50
         base = list(range(N))
         xp = list(product(base, repeat=2))
-        inps = base + list(product(base, xp)) + \
-                     list(product(xp, base)) + xp + list(zip(base))
-        tryone("old tuple test", inps,
-               (2, 1), (0, 0), (52, 49), (7, 1))
+        inps = (
+            base
+            + list(product(base, xp))
+            + list(product(xp, base))
+            + xp
+            + list(zip(base))
+        )
+        tryone("old tuple test", inps, (2, 1), (0, 0), (52, 49), (7, 1))
         del base, xp, inps
 
         # The "new tuple test".  See https://bugs.python.org/issue34751.
         # Even more tortured nesting, and a mix of signed ints of very
         # small magnitude.
         n = 5
-        A = [x for x in range(-n, n+1) if x != -1]
+        A = [x for x in range(-n, n + 1) if x != -1]
         B = A + [(a,) for a in A]
         L2 = list(product(A, repeat=2))
         L3 = L2 + list(product(A, repeat=3))
@@ -249,8 +292,7 @@ class TupleTest(seq_tests.CommonTest):
         T += product(L2, B, B)
         T += product(B, repeat=4)
         assert len(T) == 345130
-        tryone("new tuple test", T,
-               (9, 1), (0, 0), (21, 5), (6, 1))
+        tryone("new tuple test", T, (9, 1), (0, 0), (21, 5), (6, 1))
 
     def test_repr(self):
         l0 = tuple()
@@ -326,6 +368,7 @@ class TupleTest(seq_tests.CommonTest):
         # Tuple subtypes must always be tracked
         class MyTuple(tuple):
             pass
+
         self.check_track_dynamic(MyTuple, True)
 
     @support.cpython_only
@@ -338,9 +381,9 @@ class TupleTest(seq_tests.CommonTest):
         def check(n):
             l = (0,) * n
             s = repr(l)
-            self.assertEqual(s,
-                '(' + ', '.join(['0'] * n) + ')')
-        check(10)       # check our checking code
+            self.assertEqual(s, "(" + ", ".join(["0"] * n) + ")")
+
+        check(10)  # check our checking code
         check(1000000)
 
     def test_iterator_pickle(self):
@@ -377,9 +420,11 @@ class TupleTest(seq_tests.CommonTest):
         # Issue 8847: In the PGO build, the MSVC linker's COMDAT folding
         # optimization causes failures in code that relies on distinct
         # function addresses.
-        class T(tuple): pass
+        class T(tuple):
+            pass
+
         with self.assertRaises(TypeError):
-            [3,] + T((1,2))
+            [3] + T((1, 2))
 
     def test_lexicographic_ordering(self):
         # Issue 21100
@@ -388,6 +433,7 @@ class TupleTest(seq_tests.CommonTest):
         c = self.type2test([1, 3])
         self.assertLess(a, b)
         self.assertLess(b, c)
+
 
 # Notes on testing hash codes.  The primary thing is that Python doesn't
 # care about "random" hash codes.  To the contrary, we like them to be

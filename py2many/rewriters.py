@@ -92,7 +92,9 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
                 temps.append(ast.Name(id=self._get_temp()))
                 # The irony!
                 target.elts[i], orig[i] = temps[i], target.elts[i]
-                assign = ast.Assign(targets=[orig[i]], value=temps[i], scopes=node.scopes)
+                assign = ast.Assign(
+                    targets=[orig[i]], value=temps[i], scopes=node.scopes
+                )
                 ast.fix_missing_locations(assign)
                 body.append(assign)
             return create_ast_block(body=body, at_node=node)
@@ -145,12 +147,14 @@ class PythonMainRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_If(self, node):
-        is_main = (isinstance(node.test, ast.Compare)
-                and isinstance(node.test.left, ast.Name)
-                and node.test.left.id == "__name__"
-                and isinstance(node.test.ops[0], ast.Eq)
-                and isinstance(node.test.comparators[0], ast.Constant)
-                and node.test.comparators[0].value == "__main__")
+        is_main = (
+            isinstance(node.test, ast.Compare)
+            and isinstance(node.test.left, ast.Name)
+            and node.test.left.id == "__name__"
+            and isinstance(node.test.ops[0], ast.Eq)
+            and isinstance(node.test.comparators[0], ast.Constant)
+            and node.test.comparators[0].value == "__main__"
+        )
         if is_main:
             if hasattr(node, "scopes") and len(node.scopes) > 1:
                 rename(node.scopes[-2], "main", "main_func")
@@ -190,9 +194,10 @@ class FStringJoinRewriter(ast.NodeTransformer):
             elif isinstance(v, ast.FormattedValue):
                 arg0.elts.append(
                     ast.Call(
-                        func=ast.Name(id="str", ctx="Load"), 
-                        args=[v.value], keywords=[],
-                        scopes = ScopeList()
+                        func=ast.Name(id="str", ctx="Load"),
+                        args=[v.value],
+                        keywords=[],
+                        scopes=ScopeList(),
                     )
                 )
         new_node.lineno = node.lineno
@@ -213,7 +218,11 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
             if not isinstance(body[0], ast.Expr):
                 return None
             node_val = getattr(body[0], "value", None)
-            if node_val and isinstance(node_val, ast.Constant) and isinstance(node_val.value, str):
+            if (
+                node_val
+                and isinstance(node_val, ast.Constant)
+                and isinstance(node_val.value, str)
+            ):
                 return node_val
         return None
 
@@ -240,10 +249,11 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         if node in self._docstrings:
             parent = self._docstring_parent[node]
             parent.docstring_comment = ast.Constant(
-                value = node.value,
-                lineno = node.lineno,
-                col_offset = node.col_offset,
-                scopes = node.scopes)
+                value=node.value,
+                lineno=node.lineno,
+                col_offset=node.col_offset,
+                scopes=node.scopes,
+            )
             return None
         return node
 
@@ -364,8 +374,9 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
                     body.append(ast.Expr(value=node.value.elts[i]))
                     body[-1].unused = True
                     continue
-            assign = ast.Assign(targets=[target.elts[i]], value=node.value.elts[i], 
-                scopes=node.scopes)
+            assign = ast.Assign(
+                targets=[target.elts[i]], value=node.value.elts[i], scopes=node.scopes
+            )
             ast.fix_missing_locations(assign)
             body.append(assign)
         return create_ast_block(body=body, at_node=node)
@@ -434,11 +445,10 @@ class UnpackScopeRewriter(ast.NodeTransformer):
 
 class UnitTestRewriter(ast.NodeTransformer):
 
-    TEST_MODULE_SET = set([
-        "unittest.TestCase"
-    ])
+    TEST_MODULE_SET = set(["unittest.TestCase"])
 
     """Converts unittests and calls all the necessary functions in the main function"""
+
     def __init__(self, language):
         super().__init__()
         self._language = language
@@ -468,12 +478,12 @@ class UnitTestRewriter(ast.NodeTransformer):
                         function_defs.append(n.name)
                 self._test_classes.append((node.name, function_defs))
                 break
-                    
+
         return self.generic_visit(node)
-    
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self.generic_visit(node)
-        if getattr(node, "python_main", None) :
+        if getattr(node, "python_main", None):
             self._generic_main_visit(node)
         return node
 
@@ -488,39 +498,50 @@ class UnitTestRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             # Remove "unittest.main"
-            if not(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
-                    and isinstance(n.value.func, ast.Attribute)
-                    and f"{get_id(n.value.func.value)}.{n.value.func.attr}" == "unittest.main"):
+            if not (
+                isinstance(n, ast.Expr)
+                and isinstance(n.value, ast.Call)
+                and isinstance(n.value.func, ast.Attribute)
+                and f"{get_id(n.value.func.value)}.{n.value.func.attr}"
+                == "unittest.main"
+            ):
                 body.append(n)
         for (class_name, func_defs) in self._test_classes:
             # Convert to snake case
-            # (?<!^) --> Don't put underscore at beginning 
-            #    ?<! --> negative lookbehind: asserts that string 
+            # (?<!^) --> Don't put underscore at beginning
+            #    ?<! --> negative lookbehind: asserts that string
             #              is not equal to the beginning "^"
-            instance_name = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
-            body.append(ast.Assign(
-                targets = [ast.Name(id=instance_name)],
-                value = ast.Call(
-                    func = ast.Name(id = class_name, ctx = ast.Load()),
-                    args = [],
-                    keywords = [],
-                    lineno = l_no,
-                    col_offset = node.col_offset,
-                    scopes = ScopeList()),
-                lineno = l_no,
-                col_offset = 0))
-                    
+            instance_name = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
+            body.append(
+                ast.Assign(
+                    targets=[ast.Name(id=instance_name)],
+                    value=ast.Call(
+                        func=ast.Name(id=class_name, ctx=ast.Load()),
+                        args=[],
+                        keywords=[],
+                        lineno=l_no,
+                        col_offset=node.col_offset,
+                        scopes=ScopeList(),
+                    ),
+                    lineno=l_no,
+                    col_offset=0,
+                )
+            )
+
             l_no += 1
 
             # Create Function Calls
             for func_name in func_defs:
-                body.append(ast.Call(
-                    func = ast.Name(id = func_name, ctx = ast.Load()),
-                    args = [ast.Name(id = instance_name)],
-                    keywords = [],
-                    lineno = l_no,
-                    col_offset = node.col_offset,
-                    scopes = ScopeList()))
+                body.append(
+                    ast.Call(
+                        func=ast.Name(id=func_name, ctx=ast.Load()),
+                        args=[ast.Name(id=instance_name)],
+                        keywords=[],
+                        lineno=l_no,
+                        col_offset=node.col_offset,
+                        scopes=ScopeList(),
+                    )
+                )
                 l_no += 1
 
         # Update node.body
@@ -547,7 +568,7 @@ class ForElseRewriter(ast.NodeTransformer):
 
     def visit_With(self, node: ast.With) -> Any:
         self._visit_Scope(node)
-        return node    
+        return node
 
     def visit_For(self, node: ast.For) -> Any:
         self._visit_Scope(node)
@@ -563,41 +584,41 @@ class ForElseRewriter(ast.NodeTransformer):
         if len(node.orelse) > 0:
             lineno = node.orelse[0].lineno
             if_expr = ast.If(
-                test = ast.Compare(
-                    left = ast.Name(id=self._has_break_var_name),
-                    ops = [ast.NotEq()],
-                    comparators = [ast.Constant(value=True, scopes = node.scopes)],
-                    scopes = node.scopes),
-                body = [oe for oe in node.orelse],
-                orelse = [],
-                lineno = lineno,
-                scopes = node.scopes
+                test=ast.Compare(
+                    left=ast.Name(id=self._has_break_var_name),
+                    ops=[ast.NotEq()],
+                    comparators=[ast.Constant(value=True, scopes=node.scopes)],
+                    scopes=node.scopes,
+                ),
+                body=[oe for oe in node.orelse],
+                orelse=[],
+                lineno=lineno,
+                scopes=node.scopes,
             )
             node.if_expr = if_expr
 
     def _visit_Scope(self, node) -> Any:
         self.generic_visit(node)
         assign = ast.Assign(
-            targets = [ast.Name(id=self._has_break_var_name)],
-            value = None, # Fill up later
-            scopes = node.scopes
+            targets=[ast.Name(id=self._has_break_var_name)],
+            value=None,  # Fill up later
+            scopes=node.scopes,
         )
         ast.fix_missing_locations(assign)
         body = []
         for n in node.body:
             if hasattr(n, "if_expr"):
-                assign.value = ast.Constant(value=False, scopes = ScopeList())
+                assign.value = ast.Constant(value=False, scopes=ScopeList())
                 body.append(assign)
                 body.append(n)
                 body.append(n.if_expr)
             elif isinstance(n, ast.Break):
                 for_node = find_node_by_type(ast.For, node.scopes)
                 if hasattr(for_node, "if_expr"):
-                    assign.value = ast.Constant(value=True, scopes = ScopeList())
+                    assign.value = ast.Constant(value=True, scopes=ScopeList())
                     body.append(assign)
                 body.append(n)
             else:
                 body.append(n)
 
         node.body = body
-

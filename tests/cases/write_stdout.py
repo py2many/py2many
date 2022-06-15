@@ -1,4 +1,3 @@
-
 from sys import stdout
 
 if __name__ == "__main__":

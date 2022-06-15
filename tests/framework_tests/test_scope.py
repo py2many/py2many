@@ -25,5 +25,3 @@ class TestScopeList:
         definition = source.scopes.find("x")
         assert definition.lineno == 1
         assert isinstance(definition, ast.Assign)
-
-

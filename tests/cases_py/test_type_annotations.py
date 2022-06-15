@@ -1,7 +1,7 @@
 import unittest
 
-class TypeAnnotationTests(unittest.TestCase):
 
+class TypeAnnotationTests(unittest.TestCase):
     def test_lazy_create_annotations(self):
         # type objects lazy create their __annotations__ dict on demand.
         # the annotations dict is stored in type.__dict__.
@@ -12,18 +12,18 @@ class TypeAnnotationTests(unittest.TestCase):
             d = foo.__annotations__
             self.assertTrue("__annotations__" in foo.__dict__)
             self.assertEqual(foo.__annotations__, d)
-            self.assertEqual(foo.__dict__['__annotations__'], d)
+            self.assertEqual(foo.__dict__["__annotations__"], d)
             del foo.__annotations__
 
     def test_setting_annotations(self):
         foo = type("Foo", (), {})
         for i in range(3):
             self.assertFalse("__annotations__" in foo.__dict__)
-            d = {'a': int}
+            d = {"a": int}
             foo.__annotations__ = d
             self.assertTrue("__annotations__" in foo.__dict__)
             self.assertEqual(foo.__annotations__, d)
-            self.assertEqual(foo.__dict__['__annotations__'], d)
+            self.assertEqual(foo.__dict__["__annotations__"], d)
             del foo.__annotations__
 
     def test_annotations_getset_raises(self):
@@ -44,8 +44,9 @@ class TypeAnnotationTests(unittest.TestCase):
 
     def test_annotations_are_created_correctly(self):
         class C:
-            a:int=3
-            b:str=4
+            a: int = 3
+            b: str = 4
+
         self.assertTrue("__annotations__" in C.__dict__)
         del C.__annotations__
         self.assertFalse("__annotations__" in C.__dict__)
@@ -57,7 +58,7 @@ class TypeAnnotationTests(unittest.TestCase):
 
             @property
             def __annotations__(self):
-                if not hasattr(self, 'my_annotations'):
+                if not hasattr(self, "my_annotations"):
                     self.my_annotations = {}
                 if not isinstance(self.my_annotations, dict):
                     self.my_annotations = {}
@@ -71,13 +72,13 @@ class TypeAnnotationTests(unittest.TestCase):
 
             @__annotations__.deleter
             def __annotations__(self):
-                if getattr(self, 'my_annotations', False) is None:
-                    raise AttributeError('__annotations__')
+                if getattr(self, "my_annotations", False) is None:
+                    raise AttributeError("__annotations__")
                 self.my_annotations = None
 
         c = C()
         self.assertEqual(c.__annotations__, {})
-        d = {'a':'int'}
+        d = {"a": "int"}
         c.__annotations__ = d
         self.assertEqual(c.__annotations__, d)
         with self.assertRaises(ValueError):
@@ -87,12 +88,11 @@ class TypeAnnotationTests(unittest.TestCase):
             del c.__annotations__
         self.assertEqual(c.__annotations__, {})
 
-
         class D(metaclass=C):
             pass
 
         self.assertEqual(D.__annotations__, {})
-        d = {'a':'int'}
+        d = {"a": "int"}
         D.__annotations__ = d
         self.assertEqual(D.__annotations__, d)
         with self.assertRaises(ValueError):

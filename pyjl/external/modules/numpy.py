@@ -96,7 +96,7 @@ class JuliaExternalModulePlugins:
         keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
         axis = None
         if "axis" in keywords:
-            axis:str = keywords["axis"]
+            axis: str = keywords["axis"]
             if axis.isnumeric():
                 axis = int(axis) + 1
             else:
@@ -130,8 +130,10 @@ class JuliaExternalModulePlugins:
         return "reshape"
 
     def _get_keywords(t_self, node: ast.Call):
-        return {k.arg:(JuliaExternalModulePlugins._visit_val(t_self, k.value)) 
-            for k in node.keywords}
+        return {
+            k.arg: (JuliaExternalModulePlugins._visit_val(t_self, k.value))
+            for k in node.keywords
+        }
 
 
 FuncType = Union[Callable, str]
@@ -150,15 +152,20 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.sin: (lambda self, node, vargs: f"sin({vargs[0]})", True),
     np.cos: (lambda self, node, vargs: f"cos({vargs[0]})", True),
     np.tan: (lambda self, node, vargs: f"tan({vargs[0]})", True),
-    np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True), # See broadcasting
+    np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True),  # See broadcasting
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
-    np.flatnonzero: (lambda self, node, vargs: 
-        f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]", True),
+    np.flatnonzero: (
+        lambda self, node, vargs: f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]",
+        True,
+    ),
     np.exp: (JuliaExternalModulePlugins.visit_exp, True),
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
     np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
     np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
-    np.dot: (lambda self, node, vargs: f"({vargs[0]} .* {vargs[1]})" if vargs else "mult", True),
+    np.dot: (
+        lambda self, node, vargs: f"({vargs[0]} .* {vargs[1]})" if vargs else "mult",
+        True,
+    ),
     np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
@@ -191,6 +198,4 @@ EXTERNAL_TYPE_MAP = {
 # }
 
 
-IGNORED_MODULE_SET = set([
-    "numpy"
-])
+IGNORED_MODULE_SET = set(["numpy"])

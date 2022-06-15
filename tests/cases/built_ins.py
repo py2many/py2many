@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 def default_builtins():
     a = str()
     b = bool()
@@ -7,6 +8,7 @@ def default_builtins():
     assert a == ""
     assert b == False
     assert c == 0
+
 
 if __name__ == "__main__":
     default_builtins()

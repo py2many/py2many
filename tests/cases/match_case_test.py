@@ -1,14 +1,13 @@
-
 # Only for Python 3.10
 # def match_case_test(input):
 #     match input:
-#         case "a": 
+#         case "a":
 #             return "a"
 #         case "b":
 #             return "b"
 #         case "c":
 #             return "c"
-#         case _: 
+#         case _:
 #             return "Default"
 
 # if __name__ == "__main__":

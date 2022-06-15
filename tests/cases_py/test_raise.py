@@ -19,6 +19,7 @@ def get_tb():
 class Context:
     def __enter__(self):
         return self
+
     def __exit__(self, exc_type, exc_value, exc_tb):
         return True
 
@@ -54,6 +55,7 @@ class TestRaise(unittest.TestCase):
                 except KeyError:
                     pass
                 raise
+
         self.assertRaises(TypeError, reraise)
 
     def test_finally_reraise(self):
@@ -65,16 +67,19 @@ class TestRaise(unittest.TestCase):
                     raise KeyError("caught")
                 finally:
                     raise
+
         self.assertRaises(KeyError, reraise)
 
     def test_nested_reraise(self):
         def nested_reraise():
             raise
+
         def reraise():
             try:
                 raise TypeError("foo")
             except:
                 nested_reraise()
+
         self.assertRaises(TypeError, reraise)
 
     def test_raise_from_None(self):
@@ -95,6 +100,7 @@ class TestRaise(unittest.TestCase):
                 with Context():
                     pass
                 raise
+
         self.assertRaises(TypeError, reraise)
 
     def test_with_reraise2(self):
@@ -105,6 +111,7 @@ class TestRaise(unittest.TestCase):
                 with Context():
                     raise KeyError("caught")
                 raise
+
         self.assertRaises(TypeError, reraise)
 
     def test_yield_reraise(self):
@@ -114,6 +121,7 @@ class TestRaise(unittest.TestCase):
             except:
                 yield 1
                 raise
+
         g = reraise()
         next(g)
         self.assertRaises(TypeError, lambda: next(g))
@@ -147,9 +155,7 @@ class TestRaise(unittest.TestCase):
             self.assertEqual(str(e), "(3,)")
 
 
-
 class TestCause(unittest.TestCase):
-
     def testCauseSyntax(self):
         try:
             try:
@@ -208,7 +214,6 @@ class TestCause(unittest.TestCase):
 
 
 class TestTraceback(unittest.TestCase):
-
     def test_sets_traceback(self):
         try:
             raise IndexError()
@@ -229,7 +234,6 @@ class TestTraceback(unittest.TestCase):
 
 
 class TestTracebackType(unittest.TestCase):
-
     def raiser(self):
         raise ValueError
 
@@ -336,7 +340,7 @@ class TestContext(unittest.TestCase):
     def test_c_exception_context(self):
         try:
             try:
-                1/0
+                1 / 0
             except:
                 raise OSError
         except OSError as e:
@@ -347,7 +351,7 @@ class TestContext(unittest.TestCase):
     def test_c_exception_raise(self):
         try:
             try:
-                1/0
+                1 / 0
             except:
                 xyzzy
         except NameError as e:
@@ -369,7 +373,7 @@ class TestContext(unittest.TestCase):
     def test_raise_finally(self):
         try:
             try:
-                1/0
+                1 / 0
             finally:
                 raise OSError
         except OSError as e:
@@ -381,11 +385,13 @@ class TestContext(unittest.TestCase):
         class ContextManager:
             def __enter__(self):
                 pass
+
             def __exit__(self, t, v, tb):
                 xyzzy
+
         try:
             with ContextManager():
-                1/0
+                1 / 0
         except NameError as e:
             self.assertIsInstance(e.__context__, ZeroDivisionError)
         else:
@@ -395,7 +401,7 @@ class TestContext(unittest.TestCase):
         # Self-cycles (when re-raising a caught exception) are broken
         try:
             try:
-                1/0
+                1 / 0
             except ZeroDivisionError as e:
                 raise e
         except ZeroDivisionError as e:
@@ -409,7 +415,7 @@ class TestContext(unittest.TestCase):
                 xyzzy
             except NameError as a:
                 try:
-                    1/0
+                    1 / 0
                 except ZeroDivisionError:
                     raise a
         except NameError as e:
@@ -455,12 +461,13 @@ class TestContext(unittest.TestCase):
 
     def test_3611(self):
         import gc
+
         # A re-raised exception in a __del__ caused the __context__
         # to be cleared
         class C:
             def __del__(self):
                 try:
-                    1/0
+                    1 / 0
                 except:
                     raise
 
@@ -487,7 +494,7 @@ class TestContext(unittest.TestCase):
 class TestRemovedFunctionality(unittest.TestCase):
     def test_tuples(self):
         try:
-            raise (IndexError, KeyError) # This should be a tuple!
+            raise (IndexError, KeyError)  # This should be a tuple!
         except TypeError:
             pass
         else:

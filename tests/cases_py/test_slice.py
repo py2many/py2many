@@ -16,12 +16,13 @@ def evaluate_slice_index(arg):
     TypeError with a suitable message on failure.
 
     """
-    if hasattr(arg, '__index__'):
+    if hasattr(arg, "__index__"):
         return operator.index(arg)
     else:
         raise TypeError(
-            "slice indices must be integers or "
-            "None or have an __index__ method")
+            "slice indices must be integers or " "None or have an __index__ method"
+        )
+
 
 def slice_indices(slice, length):
     """
@@ -61,6 +62,7 @@ def slice_indices(slice, length):
 
 # Class providing an __index__ method.  Used for testing slice.indices.
 
+
 class MyIndexable(object):
     def __init__(self, value):
         self.value = value
@@ -70,7 +72,6 @@ class MyIndexable(object):
 
 
 class SliceTest(unittest.TestCase):
-
     def test_constructor(self):
         self.assertRaises(TypeError, slice)
         self.assertRaises(TypeError, slice, 1, 2, 3, 4)
@@ -156,12 +157,12 @@ class SliceTest(unittest.TestCase):
             self.assertEqual(actual, expected)
 
     def test_indices(self):
-        self.assertEqual(slice(None           ).indices(10), (0, 10,  1))
-        self.assertEqual(slice(None,  None,  2).indices(10), (0, 10,  2))
-        self.assertEqual(slice(1,     None,  2).indices(10), (1, 10,  2))
-        self.assertEqual(slice(None,  None, -1).indices(10), (9, -1, -1))
-        self.assertEqual(slice(None,  None, -2).indices(10), (9, -1, -2))
-        self.assertEqual(slice(3,     None, -2).indices(10), (3, -1, -2))
+        self.assertEqual(slice(None).indices(10), (0, 10, 1))
+        self.assertEqual(slice(None, None, 2).indices(10), (0, 10, 2))
+        self.assertEqual(slice(1, None, 2).indices(10), (1, 10, 2))
+        self.assertEqual(slice(None, None, -1).indices(10), (9, -1, -1))
+        self.assertEqual(slice(None, None, -2).indices(10), (9, -1, -2))
+        self.assertEqual(slice(3, None, -2).indices(10), (3, -1, -2))
         # issue 3004 tests
         self.assertEqual(slice(None, -9).indices(10), (0, 1, 1))
         self.assertEqual(slice(None, -10).indices(10), (0, 0, 1))
@@ -176,22 +177,18 @@ class SliceTest(unittest.TestCase):
         self.assertEqual(slice(None, 9, -1).indices(10), (9, 9, -1))
         self.assertEqual(slice(None, 10, -1).indices(10), (9, 9, -1))
 
+        self.assertEqual(slice(-100, 100).indices(10), slice(None).indices(10))
         self.assertEqual(
-            slice(-100,  100     ).indices(10),
-            slice(None).indices(10)
+            slice(100, -100, -1).indices(10), slice(None, None, -1).indices(10)
         )
-        self.assertEqual(
-            slice(100,  -100,  -1).indices(10),
-            slice(None, None, -1).indices(10)
-        )
-        self.assertEqual(slice(-100, 100, 2).indices(10), (0, 10,  2))
+        self.assertEqual(slice(-100, 100, 2).indices(10), (0, 10, 2))
 
-        self.assertEqual(list(range(10))[::sys.maxsize - 1], [0])
+        self.assertEqual(list(range(10))[:: sys.maxsize - 1], [0])
 
         # Check a variety of start, stop, step and length values, including
         # values exceeding sys.maxsize (see issue #14794).
-        vals = [None, -2**100, -2**30, -53, -7, -1, 0, 1, 7, 53, 2**30, 2**100]
-        lengths = [0, 1, 7, 53, 2**30, 2**100]
+        vals = [None, -2 ** 100, -2 ** 30, -53, -7, -1, 0, 1, 7, 53, 2 ** 30, 2 ** 100]
+        lengths = [0, 1, 7, 53, 2 ** 30, 2 ** 100]
         for slice_args in itertools.product(vals, repeat=3):
             s = slice(*slice_args)
             for length in lengths:
@@ -226,6 +223,7 @@ class SliceTest(unittest.TestCase):
 
     def test_setslice_without_getslice(self):
         tmp = []
+
         class X(object):
             def __setitem__(self, i, k):
                 tmp.append((i, k))
@@ -236,20 +234,23 @@ class SliceTest(unittest.TestCase):
 
     def test_pickle(self):
         s = slice(10, 20, 3)
-        for protocol in (0,1,2):
+        for protocol in (0, 1, 2):
             t = loads(dumps(s, protocol))
             self.assertEqual(s, t)
             self.assertEqual(s.indices(15), t.indices(15))
             self.assertNotEqual(id(s), id(t))
 
     def test_cycle(self):
-        class myobj(): pass
+        class myobj:
+            pass
+
         o = myobj()
         o.s = slice(o)
         w = weakref.ref(o)
         o = None
         support.gc_collect()
         self.assertIsNone(w())
+
 
 if __name__ == "__main__":
     unittest.main()

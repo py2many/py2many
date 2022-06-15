@@ -1,4 +1,5 @@
 import toposort
+
 # Test external import
 from fib import fib
 

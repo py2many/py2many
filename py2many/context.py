@@ -37,7 +37,6 @@ class ListCallTransformer(ast.NodeTransformer):
                 var.calls.append(node)
         return node
 
-
     def is_list_addition(self, node):
         """Check if operation is adding something to a list"""
         list_operations = ["append", "extend", "insert"]
@@ -170,13 +169,11 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         target.assigned_from = node
         if isinstance(target, ast.Name):
             self.scope.vars.append(target)
-        if isinstance(target, ast.Attribute) and \
-                get_id(target.value) == "self":
-            self_var = ast.Name(id = target.attr)
+        if isinstance(target, ast.Attribute) and get_id(target.value) == "self":
+            self_var = ast.Name(id=target.attr)
             self_var.target_node = target
             self._class_vars.append(self_var)
-        if isinstance(target, ast.Tuple) or \
-                isinstance(target, ast.List):
+        if isinstance(target, ast.Tuple) or isinstance(target, ast.List):
             self.scope.vars.extend([t for t in target.elts])
 
 

@@ -7,13 +7,16 @@ class base_set:
     def __init__(self, el):
         self.el = el
 
+
 class myset(base_set):
     def __contains__(self, el):
         return self.el == el
 
+
 class seq(base_set):
     def __getitem__(self, n):
         return [self.el][n]
+
 
 class TestContains(unittest.TestCase):
     def test_common_tests(self):
@@ -28,13 +31,13 @@ class TestContains(unittest.TestCase):
         self.assertRaises(TypeError, lambda: 1 not in a)
 
         # test char in string
-        self.assertIn('c', 'abc')
-        self.assertNotIn('d', 'abc')
+        self.assertIn("c", "abc")
+        self.assertNotIn("d", "abc")
 
-        self.assertIn('', '')
-        self.assertIn('', 'abc')
+        self.assertIn("", "")
+        self.assertIn("", "abc")
 
-        self.assertRaises(TypeError, lambda: None in 'abc')
+        self.assertRaises(TypeError, lambda: None in "abc")
 
     def test_builtin_sequence_types(self):
         # a collection of tests on builtin sequence types
@@ -56,7 +59,9 @@ class TestContains(unittest.TestCase):
             This class is designed to make sure that the contains code
             works when the list is modified during the check.
             """
+
             aList = list(range(15))
+
             def __eq__(self, other):
                 if other == 12:
                     self.aList.remove(12)
@@ -70,7 +75,7 @@ class TestContains(unittest.TestCase):
         # containment and equality tests involving elements that are
         # not necessarily equal to themselves
 
-        values = float('nan'), 1, None, 'abc', NEVER_EQ
+        values = float("nan"), 1, None, "abc", NEVER_EQ
         constructors = list, tuple, dict.fromkeys, set, frozenset, deque
         for constructor in constructors:
             container = constructor(values)
@@ -84,7 +89,9 @@ class TestContains(unittest.TestCase):
         class ByContains(object):
             def __contains__(self, other):
                 return False
+
         c = ByContains()
+
         class BlockContains(ByContains):
             """Is not a container
 
@@ -96,14 +103,18 @@ class TestContains(unittest.TestCase):
             of any(x==0 for x in bc), but here it's blocked from
             doing so.
             """
+
             def __iter__(self):
                 while False:
                     yield None
+
             __contains__ = None
+
         bc = BlockContains()
         self.assertFalse(0 in c)
         self.assertFalse(0 in list(bc))
         self.assertRaises(TypeError, lambda: 0 in bc)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -18,24 +18,24 @@ def fibonacci(n):
 
 
 def mul_list():
-    a:list = []
+    a: list = []
     for i in range(0, 5):
         a.append(i)
-    return 2*a 
+    return 2 * a
 
 
 def combinations(array):
     result = []
     for x in array:
         for y in array:
-            result.append((x,y))
+            result.append((x, y))
     return result
 
 
-def mul_recvd_list(a:list):
+def mul_recvd_list(a: list):
     for i in range(0, len(a)):
         a.append(i)
-    return 2*a 
+    return 2 * a
 
 
 # Runtime information
@@ -44,7 +44,7 @@ def plus_test(x, y):
 
 
 # Compile time information
-def plus_test(x:str, y:str):
+def plus_test(x: str, y: str):
     return x + y
 
 
