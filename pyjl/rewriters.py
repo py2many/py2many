@@ -52,7 +52,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             # Detect static class access
             class_node = node.scopes.find(val_id)
             is_static_access = is_class_or_module(val_id, node.scopes) and \
-                class_node and class_node.scopes.find(fname.attr)
+                class_node and find_node_by_name_and_type(fname.attr, 
+                    ast.FunctionDef, class_node.scopes)[1]
             if (is_module and not self._use_modules) or is_static_access:
                 # Handle separate module call when Julia defines no 'module'
                 new_func_name = fname.attr
