@@ -1,9 +1,11 @@
 
 import ast
 import logging
+import re
 from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
+from pyjl.helpers import get_ann_repr
 
 logger = logging.Logger("pyjl")
 
@@ -15,6 +17,11 @@ def analyse_variable_scope(node, extension=False):
 
 def optimize_loop_ranges(node, extension=False):
     visitor = JuliaLoopRangesOptimization()
+    visitor.visit(node)
+
+
+def detect_broadcast(node, extension=False):
+    visitor = JuliaBroadcastTransformer()
     visitor.visit(node)
 
 
@@ -244,4 +251,32 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
             self.visit(n)
         self._marking = False        
 
+        return node
+
+
+class JuliaBroadcastTransformer(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._pattern = r"^list|^List|^tuple|^Tuple"
+
+    def visit_BinOp(self, node: ast.BinOp) -> Any:
+        left_ann = get_ann_repr(getattr(node.left, "annotation", None))
+        right_ann = get_ann_repr(getattr(node.right, "annotation", None))
+        match_left = re.match(self._pattern, left_ann) if left_ann else None
+        match_right = re.match(self._pattern, right_ann) if right_ann else None
+        node.broadcast = match_left is not None or match_right is not None
+        print(node.broadcast)
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        target = node.targets[0]
+        ann = getattr(node.value, "annotation", None)
+        ann_id = get_id(ann.value) \
+            if isinstance(ann, ast.Subscript) else get_id(ann)
+        # cont_type = getattr(node, "container_type", None)
+        if ann_id:
+            is_list = re.match(self._pattern, ann_id) is not None
+            node.broadcast = isinstance(target, ast.Subscript) and \
+                    isinstance(target.slice, ast.Slice) and \
+                    not is_list
         return node

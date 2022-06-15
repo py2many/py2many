@@ -819,7 +819,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 if type_c == "HLiteral":
                     value = hex(value)
 
-        return f"{'='.join(targets)} = {value}"
+        op = f".=" if getattr(node, "broadcast", False) \
+            else "="
+        return f"{'='.join(targets)} {op} {value}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
         del_targets = []
