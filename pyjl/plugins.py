@@ -790,7 +790,7 @@ class JuliaTranspilerPlugins:
     def _parse_args(t_self, constructor_args: dict):
         args = []
         for name, (type, default) in constructor_args.items():
-            type = t_self.visit(type) if type else ""
+            type = t_self._map_type(t_self.visit(type)) if type else ""
             default = t_self.visit(default) if default else ""
             if type and default:
                 args.append(f"{name}::{type} = {default}")
