@@ -213,6 +213,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        # Don't parse Enums
+        base_ids = list(map(get_id, node.bases))
+        if "Enum" in base_ids:
+            return node
+
         class_name: str = get_id(node)
 
         decorator_list = list(map(get_id, node.decorator_list))

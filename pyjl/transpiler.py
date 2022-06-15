@@ -559,34 +559,28 @@ class JuliaTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "Int64", IntFlag)
 
     def _visit_enum(self, node, typename: str, caller_type) -> str:
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
-        declarations: dict[str, (str, Any)] = node.declarations_with_defaults
+        declarations = node.class_assignments.items()
+        sep = "=>" if typename == "String" else "="
 
         fields = []
-        for i, (declaration, (t_name, default)) in enumerate(declarations.items()):
-            val = self.visit(default)
+        for i, (field, value) in enumerate(declarations):
+            val = self.visit(value)
             if val == _AUTO_INVOKED:
                 if caller_type == IntFlag:
                     val = 1 << i
                 elif caller_type == int:
                     val = i
                 elif caller_type == str:
-                    val = f'"{default}"'
-            fields.append(f"{declaration} = {val}")
+                    val = f'"{value}"'
+            fields.append(f"{field} {sep} {val}")
         field_str = "\n".join(fields)
 
-        if("unique" in node.parsed_decorators or typename not in self._julia_integer_types):
-            return textwrap.dedent(
-                f"@enum {node.name}::{typename} begin\n{field_str}end"
-            )
+        if("unique" in node.parsed_decorators or typename in self._julia_integer_types):
+            return f"@enum {node.name} begin\n{field_str}end"
         else:
             # Cover case where values are not unique and not strings
             self._usings.add("SuperEnum")
-            return textwrap.dedent(
-                f"@se {node.name}::{typename} begin\n{field_str}end"
-            )
+            return f"@se {node.name} begin\n{field_str}end"
 
     def _import(self, name: str, alias: str) -> str:
         '''Formatting Julia Imports'''
