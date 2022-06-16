@@ -16,7 +16,6 @@ from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
 from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
-import importlib
 
 from numbers import Complex, Integral, Rational, Real
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -153,7 +152,6 @@ CONTAINER_TYPE_MAP = {
     frozenset: "pset",
     Tuple: "Tuple",
     tuple: "Tuple",
-    Optional: "nothing",
     bytearray: f"Vector{{Int8}}",
 }
 
@@ -210,7 +208,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         #     return (None, "self")
         # typename = "T"
         typename = ""
-        if hasattr(node, "annotation") and \
+        if getattr(node, "annotation", None):
+            typename = self.visit(node.annotation)
+        elif hasattr(node, "annotation") and \
                 (t_name := self._typename_from_annotation(node)):
             typename = t_name
         return (typename, node.arg)
