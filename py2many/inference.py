@@ -193,6 +193,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
         self._imported_names = None
+        self._comp_annotations = {}
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = node.imported_names
@@ -245,6 +246,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         annotation = get_inferred_type(node)
         if annotation is not None:
             node.annotation = annotation
+        if (id := get_id(node)) in self._comp_annotations:
+            node.annotation = self._comp_annotations[id]
         return node
 
     def visit_Constant(self, node):
@@ -742,3 +745,29 @@ class InferTypesTransformer(ast.NodeTransformer):
             self._annotate(node, f"generator[{anns.pop()}]")
 
         return node
+
+    def visit_ListComp(self, node: ast.ListComp):
+        self._generic_generator_visit(node)
+        return node
+
+    def visit_DictComp(self, node: ast.DictComp):
+        self._generic_generator_visit(node)
+        return node
+
+    def _generic_generator_visit(self, node):
+        self._comp_annotations = {}
+        gen_types: Set[str] = set()
+        for gen in node.generators:
+            iter_node = self.visit(gen.iter)
+            if ann := getattr(iter_node, "annotation", None):
+                comp_ann = ann.slice if isinstance(ann, ast.Subscript) else ann
+                if isinstance(gen.target, (ast.Tuple, ast.List)):
+                    for e in gen.target.elts:
+                        self._comp_annotations[get_id(e)] = comp_ann
+                else:
+                    self._comp_annotations[get_id(gen.target)] = comp_ann
+                gen_types.add(unparse(ann))
+        if len(gen_types) == 1:
+            self._annotate(node, gen_types.pop())
+        self.generic_visit(node)
+        self._comp_annotations = {}
