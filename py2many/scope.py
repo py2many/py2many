@@ -123,11 +123,11 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
         return node
 
     def visit_With(self, node: ast.With):
-        self.visit(node.target)
         for n in node.body:
             self.visit(n)
         for item in node.items:
-            self.visit(item.optional_vars)
+            if item.optional_vars:
+                self.visit(item.optional_vars)
         self._scope_header = True
         for item in node.items:
             self.visit(item.context_expr)
