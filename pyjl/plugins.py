@@ -923,7 +923,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.stdout.buffer.flush: (JuliaTranspilerPlugins.visit_flush, True),
     open: (JuliaTranspilerPlugins.visit_open, True),
     io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
-    io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
+    io.TextIOWrapper.write: (JuliaTranspilerPlugins.visit_textio_write, True),
     io.BytesIO: (lambda self, node, vargs: f"IOBuffer({vargs[0]})", True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),

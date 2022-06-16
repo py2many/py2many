@@ -170,6 +170,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
     np.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
+    np.ndarray.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
 }
 
 # Numpy Types
@@ -193,7 +194,7 @@ FUNC_TYPE_MAP = {
     # "numpy.sum": "list",
     # "numpy.append": "list",
     # "numpy.sqrt": "float",
-    # "np.dot": "float",
+    np.dot: "np.ndarray",
     np.zeros: "np.ndarray",
     np.exp: "np.ndarray",
 }

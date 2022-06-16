@@ -643,7 +643,8 @@ class JuliaConditionRewriter(ast.NodeTransformer):
         
         if hasattr(node.test, "annotation"):
             type_str: str = get_ann_repr(node.test.annotation)
-            match = re.match(r"^Optional|^list|^List|^tuple|^Tuple", type_str)
+            match = re.match(r"^Optional|^list|^List|^tuple|^Tuple", type_str) \
+                if type_str else False
             if match:
                 node.test = self._build_compare(node.test, 
                     ast.IsNot(), None)
@@ -668,7 +669,6 @@ class JuliaConditionRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         find_none = lambda x: isinstance(x, ast.Constant) and x.value == None
         comps_none = next(filter(find_none, node.comparators), None)
-
         if find_none(node.left) or comps_none:
             for i in range(len(node.ops)):
                 if isinstance(node.ops[i], ast.Eq):

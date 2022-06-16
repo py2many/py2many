@@ -1,5 +1,4 @@
 import ast
-import os
 from pathlib import PosixPath
 
 from py2many.ast_helpers import get_id

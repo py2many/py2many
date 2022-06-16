@@ -86,6 +86,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
     The scope contains the current scope (function, module, for loop)
     a node is part of.
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._scope_header = False
@@ -94,8 +95,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
     def visit(self, node):
         with self.enter_scope(node):
             node.scopes = ScopeList(self.scopes)
-            if self._scope_header and not self._named_expr and \
-                    len(node.scopes) > 1:
+            if self._scope_header and not self._named_expr and len(node.scopes) > 1:
                 node.scopes = ScopeList(self.scopes[:-1])
             return super().visit(node)
 
@@ -106,7 +106,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
         self.visit(node.test)
         self._scope_header = False
         return node
-    
+
     def visit_While(self, node: ast.While):
         self._generic_body_visit(node)
         self._scope_header = True
@@ -139,7 +139,7 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
             self.visit(n)
         for oe in node.orelse:
             self.visit(oe)
-    
+
     def visit_NamedExpr(self, node: ast.NamedExpr):
         self.visit(node.value)
         self._named_expr = True
