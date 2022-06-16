@@ -677,18 +677,21 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         definition = None
-        if isinstance(node.value, ast.Subscript):
+        if isinstance(node.value, ast.Attribute) and \
+                get_id(node.value.value) == "self":
+            # Search for node in class scope
+            class_scope = find_node_by_type(ast.ClassDef, node.scopes)
+            if class_scope:
+                attr = node.value.attr
+                attr_node = class_scope.scopes.find(attr)
+                if hasattr(attr_node, "target_node"):
+                    definition = attr_node.target_node
+        elif isinstance(node.value, ast.Subscript):
             definition = node.value
         else:
             definition = node.scopes.find(get_id(node.value))
 
-        if isinstance(node.value, ast.Attribute) and \
-                get_id(node.value.value) == "self":
-            attr = node.value.attr
-            ann = getattr(node.scopes.find(attr), "annotation", None)
-            if ann:
-                node.annotation = ann
-        elif hasattr(definition, "annotation"):
+        if hasattr(definition, "annotation"):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type") and \
                     not isinstance(node.slice, ast.Slice):
