@@ -638,19 +638,29 @@ class JuliaConditionRewriter(ast.NodeTransformer):
         annotation = getattr(node.test, "annotation", None)
         ann_id = get_id(annotation)
         if ann_id == "int" or ann_id == "float":
-            node.test = ast.Compare(
-                left = node.test,
-                ops = [ast.NotEq()],
+            node.test = self._build_compare(node.test, 
+                ast.NotEq(), 0)
+        
+        if hasattr(node.test, "annotation"):
+            type_str: str = get_ann_repr(node.test.annotation)
+            match = re.match(r"^Optional|^list|^List|^tuple|^Tuple", type_str)
+            if match:
+                node.test = self._build_compare(node.test, 
+                    ast.IsNot(), None)
+
+    def _build_compare(self, node, op, comp_value):
+        return ast.Compare(
+                left = node,
+                ops = [op],
                 comparators = [
                     ast.Constant(
-                        0,
-                        lineno = node.test.lineno,
-                        col_offset = node.test.col_offset,
-                        scopes = node.test.scopes)],
-                lineno = node.test.lineno,
-                col_offset = node.test.col_offset,
-                scopes = node.scopes
-            )
+                        comp_value,
+                        lineno = node.lineno,
+                        col_offset = node.col_offset,
+                        scopes = node.scopes)],
+                lineno = node.lineno, 
+                col_offset = node.col_offset,
+                scopes = node.scopes)
     
     def visit_Compare(self, node: ast.Compare) -> Any:
         # Julia comparisons with 'None' use Henry Baker's EGAL predicate
@@ -658,6 +668,7 @@ class JuliaConditionRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         find_none = lambda x: isinstance(x, ast.Constant) and x.value == None
         comps_none = next(filter(find_none, node.comparators), None)
+
         if find_none(node.left) or comps_none:
             for i in range(len(node.ops)):
                 if isinstance(node.ops[i], ast.Eq):
