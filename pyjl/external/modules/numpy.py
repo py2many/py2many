@@ -184,17 +184,18 @@ EXTERNAL_TYPE_MAP = {
     np.bool8: "Bool",
     np.byte: "UInt8",
     np.short: "Int8",
+    np.ndarray: "Vector",
 }
 
-# TODO: Results in wrong function annotations
+
 FUNC_TYPE_MAP = {
     # "numpy.multiply": "list",
     # "numpy.sum": "list",
     # "numpy.append": "list",
     # "numpy.sqrt": "float",
     # "np.dot": "float",
-    # "np.zeros": "np.ndarray",
-    "numpy.exp": "list"
+    np.zeros: "np.ndarray",
+    np.exp: "np.ndarray",
 }
 
 

@@ -79,13 +79,13 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # getopt.error: (lambda self, node, vargs: f"", False), # TODO: Nothing to support this
 }
 
-
-IMPORT_DISPATCH_TABLE = {
-    # "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
-    "datetime": JuliaExternalModulePlugins.visit_datetime,
-    "win32api": JuliaExternalModulePlugins.visit_win32api,
-    "win32ui": JuliaExternalModulePlugins.visit_win32ui,
-}
+# TODO: Find another way to do this
+# IMPORT_DISPATCH_TABLE = {
+#     # "pywintypes": JuliaExternalModulePlugins.visit_pywintypes,
+#     "datetime": JuliaExternalModulePlugins.visit_datetime,
+#     "win32api": JuliaExternalModulePlugins.visit_win32api,
+#     "win32ui": JuliaExternalModulePlugins.visit_win32ui,
+# }
 
 
 IGNORED_MODULE_SET = set(["pywintypes", "datetime", "pandas", "win32api", "win32ui"])
