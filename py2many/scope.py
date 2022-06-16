@@ -86,8 +86,63 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
     The scope contains the current scope (function, module, for loop)
     a node is part of.
     """
+    def __init__(self) -> None:
+        super().__init__()
+        self._scope_header = False
+        self._named_expr = False
 
     def visit(self, node):
         with self.enter_scope(node):
             node.scopes = ScopeList(self.scopes)
+            if self._scope_header and not self._named_expr and \
+                    len(node.scopes) > 1:
+                node.scopes = ScopeList(self.scopes[:-1])
             return super().visit(node)
+
+    def visit_If(self, node: ast.If):
+        self.generic_visit(node.test)
+        self._generic_body_visit(node)
+        self._scope_header = True
+        self.visit(node.test)
+        self._scope_header = False
+        return node
+    
+    def visit_While(self, node: ast.While):
+        self._generic_body_visit(node)
+        self._scope_header = True
+        self.visit(node.test)
+        self._scope_header = False
+        return node
+
+    def visit_For(self, node: ast.For):
+        self.visit(node.target)
+        self._generic_body_visit(node)
+        self._scope_header = True
+        self.visit(node.iter)
+        self._scope_header = False
+        return node
+
+    def visit_With(self, node: ast.With):
+        self.visit(node.target)
+        for n in node.body:
+            self.visit(n)
+        for item in node.items:
+            self.visit(item.optional_vars)
+        self._scope_header = True
+        for item in node.items:
+            self.visit(item.context_expr)
+        self._scope_header = False
+        return node
+
+    def _generic_body_visit(self, node):
+        for n in node.body:
+            self.visit(n)
+        for oe in node.orelse:
+            self.visit(oe)
+    
+    def visit_NamedExpr(self, node: ast.NamedExpr):
+        self.visit(node.value)
+        self._named_expr = True
+        self.visit(node.target)
+        self._named_expr = False
+        return node
