@@ -315,11 +315,15 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
-        imports = [
-            self._import(name)
-            for name, alias in names
-            if name not in self._ignored_module_set
-        ]
+        imports = []
+        for name, alias in names:
+            n_import = name.split(".")
+            for i in range(len(n_import)):
+                import_name = ".".join(n_import[0:i+1])
+                if import_name in self._ignored_module_set:
+                    break
+            else:
+                imports.append(self._import(name, alias))
         return "\n".join(imports)
 
     def visit_ImportFrom(self, node) -> str:
