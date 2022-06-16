@@ -761,10 +761,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             iter_node = self.visit(gen.iter)
             if ann := getattr(iter_node, "annotation", None):
                 comp_ann = ann.slice if isinstance(ann, ast.Subscript) else ann
-                if isinstance(gen.target, (ast.Tuple, ast.List)):
-                    for e in gen.target.elts:
-                        self._comp_annotations[get_id(e)] = comp_ann
-                else:
+                if isinstance(gen.target, ast.Name):
                     self._comp_annotations[get_id(gen.target)] = comp_ann
                 gen_types.add(unparse(ann))
         if len(gen_types) == 1:
