@@ -30,9 +30,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         super().__init__()
         self._default_type = DEFAULT_TYPE
         self._clike = CLikeTranspiler()
+        self._imported_names = None
+        self._func_type_map = InferTypesTransformer.FUNC_TYPE_MAP
         #
-        self._func_type_map = {}
         import_external_modules(self, "Julia")
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._imported_names = node.imported_names
+        self.generic_visit(node)
+        return node
 
     def _handle_overflow(self, op, left_id, right_id):
         widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
@@ -207,16 +213,21 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> Any:
         # TODO: This is just to keep inference language-independent for now
-        # Find annotation through node.func name/annotation 
         self.generic_visit(node)
         fname = get_id(node.func)
-        if fname:
+        if (func := class_for_typename(fname, None, locals=self._imported_names)) \
+                    in self._func_type_map:
+            InferTypesTransformer._annotate(node, self._func_type_map[func])
+        else:
+            # Use annotation
+            func_name = None
             if isinstance(node.func, ast.Attribute):
                 ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
                 if ann:
-                    fname = f"{get_id(ann)}.{node.func.attr}"
-            if fname in self._func_type_map:
-                InferTypesTransformer._annotate(node, self._func_type_map[fname])
+                    func_name = f"{get_id(ann)}.{node.func.attr}"
+            if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
+                    in self._func_type_map:
+                InferTypesTransformer._annotate(node, self._func_type_map[func])
         return node
 
     ######################################################
@@ -231,7 +242,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         map_ann = getattr(node.scopes.find(var_name), "annotation", None)
         map_ann_str = get_ann_repr(map_ann) if map_ann else None
         if(map_ann_str and getattr(map_ann, "is_inferred", False) == False and ann_str != self._default_type \
-                and map_ann_str != self._default_type and ann_str != map_ann_str):
+                and map_ann_str != self._default_type and ann_str.lower() != map_ann_str.lower()):
             raise AstIncompatibleAssign(
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
                 node

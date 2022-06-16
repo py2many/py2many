@@ -11,7 +11,6 @@ MOD_NAMES = set(
         ("_small_dispatch_map", "SMALL_DISPATCH_MAP"),
         ("_module_dispatch_table", "MODULE_DISPATCH_TABLE"),
         ("_func_dispatch_table", "FUNC_DISPATCH_TABLE"),
-        ("_import_dispatch_table", "IMPORT_DISPATCH_TABLE"),
         ("_ignored_module_set", "IGNORED_MODULE_SET"),
         ("_external_type_map", "EXTERNAL_TYPE_MAP"),
         ("_func_type_map", "FUNC_TYPE_MAP"),

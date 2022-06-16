@@ -853,9 +853,6 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
     "json": "JSON",
 }
 
-IMPORT_DISPATCH_TABLE = {
-}
-
 DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,

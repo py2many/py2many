@@ -3,6 +3,7 @@ import ast
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
+import math
 from typing import Any, Dict, List, Tuple, cast, Set, Optional
 
 from py2many.analysis import get_id
@@ -109,13 +110,12 @@ class InferTypesTransformer(ast.NodeTransformer):
         "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
     ])
     FUNC_TYPE_MAP = {
-        "len": "int",
-        "sqrt": "float",
-        "math.sqrt": "float",
-        "range": "int",
-        "str.encode": "bytes",
-        "bytes.translate": "bytes",
-        "bytearray.translate": "bytearray",
+        len: "int",
+        math.sqrt: "float",
+        range: "int",
+        str.encode: "bytes",
+        bytes.translate: "bytes",
+        bytearray.translate: "bytearray",
     }
     TYPE_DICT = {
         int: "int",
@@ -192,8 +192,10 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.has_fixed_width_ints = False
         # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
+        self._imported_names = None
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._imported_names = node.imported_names
         self.generic_visit(node)
         return node
 
@@ -651,9 +653,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                         node.annotation = return_type
             elif fname in self.TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
-            
-            if fname in self.FUNC_TYPE_MAP:
-                self._annotate(node, self.FUNC_TYPE_MAP[fname])
+
+            if (func := class_for_typename(fname, None, locals=self._imported_names)) \
+                    in self.FUNC_TYPE_MAP:
+                self._annotate(node, self.FUNC_TYPE_MAP[func])
             else:
                 # Use annotation
                 func_name = None
@@ -661,8 +664,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                     ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
                     if ann:
                         func_name = f"{get_id(ann)}.{node.func.attr}"
-                if func_name in self.FUNC_TYPE_MAP:
-                    self._annotate(node, self.FUNC_TYPE_MAP[func_name])
+                if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
+                        in self.FUNC_TYPE_MAP:
+                    self._annotate(node, self.FUNC_TYPE_MAP[func])
         self.generic_visit(node)
         return node
 

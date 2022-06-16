@@ -257,18 +257,21 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
 class JuliaBroadcastTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._pattern = r"^list|^List|^tuple|^Tuple"
+        self._pattern = r"^list|^List|^tuple|^Tuple|^np.ndarray"
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
+        self.generic_visit(node)
         left_ann = get_ann_repr(getattr(node.left, "annotation", None))
         right_ann = get_ann_repr(getattr(node.right, "annotation", None))
         match_left = re.match(self._pattern, left_ann) if left_ann else None
         match_right = re.match(self._pattern, right_ann) if right_ann else None
         node.broadcast = match_left is not None or match_right is not None
-        print(node.broadcast)
+        if node.broadcast:
+            node.annotation = ast.Name(id="List")
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
         target = node.targets[0]
         ann = getattr(node.value, "annotation", None)
         ann_id = get_id(ann.value) \

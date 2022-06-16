@@ -157,7 +157,6 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._globals = set([])
         self._external_type_map = {}
         self._module_dispatch_table = {}
-        self._import_dispatch_table = {}
 
     def headers(self, meta=None):
         return "\n".join(self._headers)
@@ -237,7 +236,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._usings.clear()
         self._globals.clear()
         self._headers.clear()
-        self._imported_names.clear()
+        self._imported_names = node.imported_names
         self._features.clear()
 
         # Get attributes
@@ -321,13 +320,6 @@ class CLikeTranspiler(ast.NodeVisitor):
             for name, alias in names
             if name not in self._ignored_module_set
         ]
-        for name, asname in names:
-            if asname is not None:
-                try:
-                    imported_name = importlib.import_module(name)
-                except ImportError:
-                    imported_name = name
-                self._imported_names[asname] = imported_name
         return "\n".join(imports)
 
     def visit_ImportFrom(self, node) -> str:
@@ -335,23 +327,11 @@ class CLikeTranspiler(ast.NodeVisitor):
             return ""
 
         imported_name = node.module
-        imported_module = None
-        if node.module:
-            try:
-                imported_module = importlib.import_module(node.module)
-            except ImportError:
-                pass
-        else:
+        if not node.module:
             # Import from '.'
             imported_name = "."
 
         names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            if imported_module:
-                self._imported_names[asname] = getattr(imported_module, name, None)
-            else:
-                self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 

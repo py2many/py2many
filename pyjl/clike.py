@@ -13,7 +13,7 @@ from py2many.external_modules import import_external_modules
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, IMPORT_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
+from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
 from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 import importlib
@@ -180,7 +180,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._use_modules = None
         self._external_type_map = {}
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
-        self._import_dispatch_table = IMPORT_DISPATCH_TABLE
         #
         import_external_modules(self, "Julia")
 
@@ -333,81 +332,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             index_type = ", ".join(index_type)
         return self._combine_value_index(value_type, index_type)
 
-    ######################################################
-    ################# For Julia Imports ##################
-    ######################################################
-
-    def visit_Import(self, node: ast.Import) -> str:
-        '''Adds extra function call to _import_str to add 
-        Julia import syntax'''
-
-        names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            try:
-                imported_name = importlib.import_module(name)
-            except ImportError:
-                imported_name = name
-
-            #  Handle external modules
-            if name in self._import_dispatch_table:
-                self._import_dispatch_table[name](self, node)
-                
-            # Add imports to _imported_names
-            if asname:
-                self._imported_names[asname] = imported_name
-            else:
-                self._imported_names[name] = imported_name
-
-        imports = []
-        for name, alias in names:
-            n_import = name.split(".")
-            for i in range(len(n_import)):
-                import_name = ".".join(n_import[0:i+1])
-                if import_name in self._ignored_module_set:
-                    break
-            else:
-                imports.append(self._import(name, alias))
-
-        return "\n".join(imports)
-
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> str:
-        '''Adds to import map even if it is ignored. 
-        This ensures that dispatch is correct'''
-
-        # Handle external modules
-        if node.module in self._import_dispatch_table:
-            self._import_dispatch_table[node.module](self, node)
-
-        imported_name = MODULE_DISPATCH_TABLE[node.module] \
-            if node.module in MODULE_DISPATCH_TABLE else node.module
-        imported_module = None
-        if node.module:
-            try:
-                imported_module = importlib.import_module(node.module)
-            except ImportError:
-                pass
-        else:
-            # Import from '.'
-            imported_name = "."
-
-        # Add imports to _imported_names
-        names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            if imported_module:
-                self._imported_names[asname] = getattr(imported_module, name, None)
-            else:
-                self._imported_names[asname] = (imported_name, name)
-        
-        if node.module in self._ignored_module_set:
-            return ""
-        
-        names = [n for n, _ in names]
-        return self._import_from(imported_name, names, node.level)
-
     ################################################
     ######### For Type Inference Mechanism #########
     ################################################
+
     def _func_for_lookup(self, fname) -> Union[str, object]:
         func = class_for_typename(fname, self._default_type, self._imported_names)
         if func is None:
