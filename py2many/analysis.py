@@ -151,12 +151,14 @@ class ImportTransformer(ast.NodeTransformer):
     def visit_Import(self, node) -> str:
         for (name, asname), imp_name in zip(self._get_aliases(node.names), node.names):
             self._add_scope_imports(node, imp_name)
+            try:
+                imported_name = importlib.import_module(name)
+            except ImportError:
+                imported_name = name
             if asname is not None:
-                try:
-                    imported_name = importlib.import_module(name)
-                except ImportError:
-                    imported_name = name
                 self._imported_names[asname] = imported_name
+            else:
+                self._imported_names[name] = imported_name
         return node
 
     def visit_ImportFrom(self, node) -> str:

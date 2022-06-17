@@ -379,11 +379,13 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
 
-        annotation = getattr(node.value, "annotation", None)
-        if annotation is None:
-            if node.type_comment:
-                annotation = ast.Name(id = node.type_comment)
-            else:
+        if node.type_comment:
+            annotation = ast.Name(id = node.type_comment)
+            # Propagate type-comment (Required for pyjl calls)
+            node.value.type_comment = node.type_comment
+        else:
+            annotation = getattr(node.value, "annotation", None)
+            if not annotation:
                 return node
 
         for target in node.targets:

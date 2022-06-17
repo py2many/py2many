@@ -12,13 +12,17 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._visit_pickle(t_self)
         parsed_args = []
         keywords = []
+        call = "Pickle.load"
+        print(getattr(node, "type_comment", None))
+        if getattr(node, "type_comment", None) == "numpy":
+            call = "Pickle.npyload"
         for arg in node.args:
             parsed_args.append(t_self.visit(arg))
         for kwarg in node.keywords:
             if kwarg.arg == "":
                 pass
             keywords.append(t_self.visit(kwarg))
-        return f"Pickle.load({', '.join(parsed_args)})"
+        return f"{call}({', '.join(parsed_args)})"
 
     def visit_pickledump(t_self, node: ast.Call, vargs: list[str]):
         JuliaExternalModulePlugins._visit_pickle(t_self)
