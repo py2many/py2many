@@ -4,7 +4,7 @@ from os import cpu_count
 from sys import argv, stdout
 
 
-def pixels(y, n, abs):
+def pixels(y: int, n: int, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
     c1 = 2.0 / float(n)
@@ -27,7 +27,7 @@ def pixels(y, n, abs):
         x += 8
 
 
-def compute_row(p):
+def compute_row(p: tuple[int, int]):
     y, n = p
 
     result = bytearray(islice(pixels(y, n, abs), (n + 7) // 8))
@@ -51,7 +51,7 @@ def ordered_rows(rows, n):
             i += 1
 
 
-def compute_rows(n, f):
+def compute_rows(n: int, f):
     row_jobs = ((y, n) for y in range(n))
 
     if cpu_count() < 2:
@@ -64,7 +64,7 @@ def compute_rows(n, f):
             yield from ordered_rows(unordered_rows, n)
 
 
-def mandelbrot(n):
+def mandelbrot(n: int):
     write = stdout.buffer.write
 
     with closing(compute_rows(n, compute_row)) as rows:

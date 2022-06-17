@@ -11,7 +11,7 @@ from sys import stdout
 
 
 @resumable
-def pixels(y, n, abs):
+def pixels(y: int, n: int, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
     c1 = 2.0 / float(n)
@@ -34,7 +34,7 @@ def pixels(y, n, abs):
         x += 8
 
 
-def compute_row(p):
+def compute_row(p: tuple[int, int]):
     y, n = p
 
     result = bytearray(islice(pixels(y, n, abs), (n + 7) // 8))
@@ -43,12 +43,12 @@ def compute_row(p):
 
 
 @resumable(lower_yield_from=True)
-def compute_rows(n, f):
+def compute_rows(n: int, f):
     row_jobs = ((y, n) for y in range(n))
     yield from map(f, row_jobs)
 
 
-def mandelbrot(n):
+def mandelbrot(n: int):
     write = stdout.buffer.write
 
     with closing(compute_rows(n, compute_row)) as rows:

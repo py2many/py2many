@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
 import re
-import typing
-
 # Other Imports
 import datetime as dt
 import json as js
 
 
 def typing_test():
-    a: typing.List[int] = [1, 2, 3]
+    a: list[int] = [1, 2, 3]
     return a[1]
 
 

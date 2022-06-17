@@ -10,7 +10,7 @@ from itertools import islice, starmap
 import sys
 
 
-def permutations(n, start, size):
+def permutations(n:int, start:int, size:int):
     p = bytearray(range(n))
     count = bytearray(n)
 
@@ -52,7 +52,7 @@ def permutations(n, start, size):
                     p[dst] = t[src]
 
 
-def alternating_flips_generator(n, start, size):
+def alternating_flips_generator(n:int, start:int, size:int):
     maximum_flips = 0
     alternating_factor = 1
     for permutation in islice(permutations(n, start, size), size):
@@ -74,12 +74,12 @@ def alternating_flips_generator(n, start, size):
     yield maximum_flips
 
 
-def task(n, start, size):
+def task(n:int, start:int, size:int):
     alternating_flips = alternating_flips_generator(n, start, size)
     return sum(islice(alternating_flips, size)), next(alternating_flips)
 
 
-def fannkuch(n):
+def fannkuch(n: int):
     if n < 0:
         for data in islice(permutations(-n, 0, factorial(-n)), factorial(-n)):
             print("".join(map(lambda n: str(n + 1), data)))
