@@ -65,12 +65,8 @@ TEST_CASES = [
     if not item.stem.startswith("test_") and not item.stem in ["generator"]
 ]
 
-CASE_ARGS = {
-    "sys_argv": ("arg1",),
-}
-CASE_EXPECTED_EXITCODE = {
-    "sys_exit": 1,
-}
+CASE_ARGS = {"sys_argv": ("arg1",)}
+CASE_EXPECTED_EXITCODE = {"sys_exit": 1}
 
 EXTENSION_TEST_CASES = [
     item.stem
@@ -265,11 +261,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
                 print(f"Invoking {cmd} ...")
-                proc = run(
-                    cmd,
-                    env=env,
-                    capture_output=True,
-                )
+                proc = run(cmd, env=env, capture_output=True)
 
                 stdout = proc.stdout
 

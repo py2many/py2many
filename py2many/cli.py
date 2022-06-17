@@ -13,6 +13,9 @@ from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
+from pyjl.inference import infer_julia_types
+from pyjl.rewriters import JuliaIndexingRewriter
+
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -296,14 +299,14 @@ def julia_settings(args, env=os.environ):
         format_jl = ["format.jl", "-v"]
 
     return LanguageSettings(
-        JuliaTranspiler(),
-        ".jl",
-        "Julia",
-        format_jl,
-        None,
-        [],
-        [],
-        [JuliaMethodCallRewriter()],
+        transpiler=JuliaTranspiler(),
+        ext=".jl",
+        display_name="Julia",
+        formatter=format_jl,
+        indent=None,
+        rewriters=[],
+        transformers=[infer_julia_types],
+        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()],
     )
 
 
@@ -662,9 +665,7 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
-        "--project",
-        default=True,
-        help="Create a project when using directory mode",
+        "--project", default=True, help="Create a project when using directory mode"
     )
     args, rest = parser.parse_known_args(args=args)
 
@@ -734,11 +735,7 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings,
-                source,
-                outdir,
-                args.project,
-                env=env,
+                settings, source, outdir, args.project, env=env
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1

@@ -25,3 +25,7 @@ tests/cases/*.rs
 tests/cases/*.cpp
 tests/cases/*.kt
 tests/cases/*.nim
+dist/
+tests/output
+target/
+Cargo.lock

@@ -89,16 +89,21 @@ class JuiliaTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0:{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}:{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
+        start = 0
+        stop = 0
+        step = None
+        if len(vargs) == 1:
+            stop = vargs[0]
+        else:
+            start = vargs[0]
+            stop = vargs[1]
+            if len(node.args) == 3:
+                step = vargs[2]
 
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
+        if step:
+            return f"{start}:{step}:{stop}"
+
+        return f"{start}:{stop}"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         args = ", ".join(vargs)
@@ -128,9 +133,7 @@ SMALL_DISPATCH_MAP = {
     "floor": lambda n, vargs: f"Int64(floor({vargs[0]}))",
 }
 
-SMALL_USINGS_MAP = {
-    "asyncio.run": "futures::executor::block_on",
-}
+SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
 
 DISPATCH_MAP = {
     "range": JuiliaTranspilerPlugins.visit_range,
@@ -146,7 +149,7 @@ DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_ap_datac
 CLASS_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_argparse_dataclass}
 
 ATTR_DISPATCH_TABLE = {
-    "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
+    "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
 }
 
 FuncType = Union[Callable, str]
