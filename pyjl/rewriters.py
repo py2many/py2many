@@ -328,9 +328,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     scopes = node.value.scopes)
 
             node_target = node.target
-            if isinstance(node.target, ast.Subscript):
-                # TODO: This is an expensive operation
-                node_target = copy.deepcopy(node.target)
 
             if isinstance(node.target, ast.Subscript) and \
                     isinstance(node.target.slice, ast.Slice):
@@ -363,7 +360,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     )
                     call.args.extend([node_target.value, new_slice, node.value])
                     return call
-
 
             return ast.Assign(
                 targets=[node_target],

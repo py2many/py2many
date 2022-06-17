@@ -193,7 +193,7 @@ FUNC_TYPE_MAP = {
     # "numpy.multiply": "list",
     # "numpy.sum": "list",
     # "numpy.append": "list",
-    # "numpy.sqrt": "float",
+    np.sqrt: "float",
     np.dot: "np.ndarray",
     np.zeros: "np.ndarray",
     np.exp: "np.ndarray",

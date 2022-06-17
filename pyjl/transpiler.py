@@ -713,8 +713,6 @@ class JuliaTranspiler(CLikeTranspiler):
             index_type = self._map_type(index)
             if value == "Optional":
                 return f"Union{{{index_type}, Nothing}}"
-            if value_type == "Tuple":
-                return f"({index})"
             return f"{value_type}{{{index_type}}}"
 
         return f"{value}[{index}]"
