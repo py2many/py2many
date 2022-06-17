@@ -13,6 +13,8 @@ from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
+from pyjl.rewriters import JuliaMainRewriter
+
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -120,12 +122,15 @@ def _transpile(
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
-        PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         FStringJoinRewriter(language),
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
     ]
+    if settings.ext != ".jl":
+        generic_rewriters.append(
+            PythonMainRewriter(settings.transpiler._main_signature_arg_names)
+        )
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
         PrintBoolRewriter(language),
@@ -301,7 +306,7 @@ def julia_settings(args, env=os.environ):
         "Julia",
         format_jl,
         None,
-        [],
+        [JuliaMainRewriter()],
         [],
         [JuliaMethodCallRewriter()],
     )
@@ -662,9 +667,7 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
-        "--project",
-        default=True,
-        help="Create a project when using directory mode",
+        "--project", default=True, help="Create a project when using directory mode"
     )
     args, rest = parser.parse_known_args(args=args)
 
@@ -734,11 +737,7 @@ def main(args=None, env=os.environ):
                 outdir = source.parent / f"{source.name}-py2many"
 
             successful, format_errors, failures = _process_dir(
-                settings,
-                source,
-                outdir,
-                args.project,
-                env=env,
+                settings, source, outdir, args.project, env=env
             )
             rv = not (failures or format_errors)
         rv = 0 if rv is True else 1

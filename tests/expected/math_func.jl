@@ -1,10 +1,8 @@
-function main_func()
+function main()
     a = 2^4
     println(join([a], " "))
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

@@ -7,11 +7,9 @@ function default_builtins()
     @assert(c == 0)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     a = max(1, 2)
     println(join([a], " "))
     b = min(1, 2)
     println(join([b], " "))
 end
-
-main()

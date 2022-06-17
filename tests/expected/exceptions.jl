@@ -26,8 +26,6 @@ function show()
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     show()
 end
-
-main()

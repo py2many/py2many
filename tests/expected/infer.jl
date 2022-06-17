@@ -5,8 +5,6 @@ function foo()
     println(join([b], " "))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     foo()
 end
-
-main()

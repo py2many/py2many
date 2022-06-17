@@ -5,8 +5,6 @@ function fib(i::Int64)::Int64
     return (fib((i - 1)) + fib((i - 2)))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     println(join([fib(5)], " "))
 end
-
-main()

@@ -6,10 +6,8 @@ function bar(self::Foo)::String
     return "a"
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     f = Foo()
     b = bar(f)
     println(join([b], " "))
 end
-
-main()

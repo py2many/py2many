@@ -44,11 +44,9 @@ function while_with_continue()
     end
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     for_with_break()
     for_with_continue()
     while_with_break()
     while_with_continue()
 end
-
-main()

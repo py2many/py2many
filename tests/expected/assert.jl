@@ -3,7 +3,7 @@ function compare_assert(a::Int64, b::Int64)
     @assert(!(0 == 1))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     @assert(true)
     @assert(!(false))
     compare_assert(1, 1)
@@ -11,5 +11,3 @@ function main()
     @assert(true)
     println(join(["OK"], " "))
 end
-
-main()

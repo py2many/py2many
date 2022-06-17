@@ -4,7 +4,7 @@ l_a = [code_0, code_1]
 code_a = "a"
 code_b = "b"
 l_b = [code_a, code_b]
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     for i in l_a
         println(join([i], " "))
     end
@@ -15,5 +15,3 @@ function main()
         println(join(["OK"], " "))
     end
 end
-
-main()

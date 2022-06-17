@@ -1,5 +1,5 @@
 
-function main_func()
+function main()
     ands::Array{Bool} = []
     ors::Array{Bool} = []
     xors::Array{Bool} = []
@@ -16,8 +16,6 @@ function main_func()
     println(join(["OK"], " "))
 end
 
-function main()
-    main_func()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
 end
-
-main()

@@ -88,8 +88,6 @@ function show()
     _c1, _c2 = (1, 3)
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     show()
 end
-
-main()

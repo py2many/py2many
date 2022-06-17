@@ -5,8 +5,6 @@ function do_unsupported()
     println(join([b ? ("True") : ("False")], " "))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     do_unsupported()
 end
-
-main()

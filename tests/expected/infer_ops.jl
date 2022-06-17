@@ -69,9 +69,7 @@ function show()
     println(join(["OK"], " "))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     foo()
     show()
 end
-
-main()

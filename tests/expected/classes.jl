@@ -10,11 +10,9 @@ function baz(self::Foo)::Int64
     return 10
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     f = Foo()
     b = bar(f)
     println(join([b], " "))
     @assert(b == 10)
 end
-
-main()

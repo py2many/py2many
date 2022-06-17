@@ -19,8 +19,6 @@ function show()
     println(join([length(color_map)], " "))
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     show()
 end
-
-main()

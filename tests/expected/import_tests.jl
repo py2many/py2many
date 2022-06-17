@@ -4,10 +4,8 @@ function test()::Int64
     return a[1+1]
 end
 
-function main()
+if abspath(PROGRAM_FILE) == @__FILE__
     b = test()
     @assert(b == 2)
     println(join(["OK"], " "))
 end
-
-main()
