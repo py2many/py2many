@@ -257,17 +257,26 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
 class JuliaBroadcastTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._pattern = r"^list|^List|^tuple|^Tuple|^np.ndarray"
+        self._list_pattern = r"^list|^List|^tuple|^Tuple"
+        self._matrix_pattern = r"^Matrix|^np.ndarray"
+        self._scalar_pattern = r"^int|^float|^bool"
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
         self.generic_visit(node)
         left_ann = get_ann_repr(getattr(node.left, "annotation", None))
         right_ann = get_ann_repr(getattr(node.right, "annotation", None))
-        match_left = re.match(self._pattern, left_ann) if left_ann else None
-        match_right = re.match(self._pattern, right_ann) if right_ann else None
-        node.broadcast = match_left is not None or match_right is not None
-        if node.broadcast:
-            node.annotation = ast.Name(id="List")
+        match_list = lambda x: re.match(self._list_pattern, x) is not None if x else None
+        match_matrix = lambda x: re.match(self._matrix_pattern, x) is not None if x else None
+        match_scalar = lambda x: re.match(self._scalar_pattern, x) is not None if x else None
+        node.broadcast = (match_list(left_ann) or match_list(right_ann)) or \
+            (match_matrix(left_ann) and not match_matrix(right_ann)) or \
+            (not match_matrix(left_ann) and match_matrix(right_ann))
+        if get_id(node.right) == "b":
+            print(get_id(node.right))
+            print(node.broadcast)
+        if not node.broadcast:
+            node.broadcast = (getattr(node.left, "broadcast", None) and match_scalar(right_ann)) or \
+                (getattr(node.right, "broadcast", None) and match_scalar(left_ann))
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
@@ -278,7 +287,7 @@ class JuliaBroadcastTransformer(ast.NodeTransformer):
             if isinstance(ann, ast.Subscript) else get_id(ann)
         # cont_type = getattr(node, "container_type", None)
         if ann_id:
-            is_list = re.match(self._pattern, ann_id) is not None
+            is_list = re.match(self._list_pattern, ann_id) is not None
             node.broadcast = isinstance(target, ast.Subscript) and \
                     isinstance(target.slice, ast.Slice) and \
                     not is_list
