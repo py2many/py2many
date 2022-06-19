@@ -137,9 +137,11 @@ TEST_CASES = {
 # NOTE: Inclusion here does not indicate that the case is comparable
 EXPECTED_SUCCESSES = [
     "all.v",
+    "all.jl",
     "annassign_List.dart",
     "annassign_List.v",
     "any.v",
+    "any.jl",
     "bool_plus_int.jl",
     "bool_plus_int.rs",
     "bool_plus_int.v",
@@ -181,6 +183,7 @@ EXPECTED_SUCCESSES = [
     "float_1.nim",
     "list_slice.nim",
     "list_slice.v",
+    "list_slice.jl",
     "list_destruct.v",
     "nested_class.kt",
     "nested_func.dart",
@@ -197,6 +200,8 @@ EXPECTED_SUCCESSES = [
     "str_format.kt",
     "str_mult.dart",
     "tuple_destruct.jl",
+    "str_compre.jl",
+    "list_compre.jl",
 ]
 
 TEST_ERROR_CASES = {
