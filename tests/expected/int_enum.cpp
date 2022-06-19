@@ -38,7 +38,7 @@ inline void show() {
     std::cout << std::string{"Not R"};
     std::cout << std::endl;
   }
-  assert(color_map.size() != 0);
+  assert(static_cast<int>(color_map.size()) != 0);
 }
 
 int main(int argc, char** argv) {

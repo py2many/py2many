@@ -29,7 +29,7 @@ inline void show() {
     std::cout << std::string{"Not green"};
     std::cout << std::endl;
   }
-  std::cout << color_map.size();
+  std::cout << static_cast<int>(color_map.size());
   std::cout << std::endl;
 }
 

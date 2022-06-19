@@ -61,15 +61,15 @@ inline void show() {
   std::cout << sum1;
   std::cout << std::endl;
   std::vector<int> a5 = {1, 2, 3};
-  std::cout << a5.size();
+  std::cout << static_cast<int>(a5.size());
   std::cout << std::endl;
   std::vector<std::string> a9 = {std::string{"a"}, std::string{"b"},
                                  std::string{"c"}, std::string{"d"}};
-  std::cout << a9.size();
+  std::cout << static_cast<int>(a9.size());
   std::cout << std::endl;
   std::map<std::string, int> a7 =
       std::map<std::string, int>{{std::string{"a"}, 1}, {std::string{"b"}, 2}};
-  std::cout << a7.size();
+  std::cout << static_cast<int>(a7.size());
   std::cout << std::endl;
   bool a8 = true;
   if (a8) {

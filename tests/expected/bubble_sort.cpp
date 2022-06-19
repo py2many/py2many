@@ -8,7 +8,7 @@
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline std::vector<int> bubble_sort(std::vector<int>& seq) {
-  auto L = seq.size();
+  auto L = static_cast<int>(seq.size());
   for (auto _ : rangepp::xrange(L)) {
     for (auto n : rangepp::xrange(1, L)) {
       if (seq[n] < seq[n - 1]) {

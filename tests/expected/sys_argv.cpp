@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
   } else {
     assert(cmd.find(std::string{"sys_argv"}) != std::string::npos);
   }
-  if (a.size() > 1) {
+  if (static_cast<int>(a.size()) > 1) {
     std::cout << a[1];
     std::cout << std::endl;
   } else {

@@ -10,13 +10,12 @@
 #include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 
 inline std::vector<int> comb_sort(std::vector<int>& seq) {
-  auto gap = seq.size();
+  auto gap = static_cast<int>(seq.size());
   bool swap = true;
   while (gap > 1 || swap) {
-    gap = std::max(static_cast<size_t>(1),
-                   static_cast<size_t>(floor(gap / 1.25)));
+    gap = std::max(1, static_cast<int>(floor(gap / 1.25)));
     swap = false;
-    for (auto i : rangepp::xrange((seq.size()) - gap)) {
+    for (auto i : rangepp::xrange((static_cast<int>(seq.size())) - gap)) {
       if (seq[i] > seq[i + gap]) {
         std::tie(seq[i], seq[i + gap]) = std::make_tuple(seq[i + gap], seq[i]);
         swap = true;
