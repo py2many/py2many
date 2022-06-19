@@ -103,6 +103,7 @@ TEST_CASES = {
     """
     ),
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
+    "float_str": "float('2.71')",
     "print_None": "print(None)",
     "class_vars": "class A:\n  B = 'FOO'\ndef main(): assert A.B == 'FOO'",  # https://github.com/adsharma/py2many/issues/144
     "default_init": dedent(
@@ -180,6 +181,7 @@ EXPECTED_SUCCESSES = [
     "intenum_iter.nim",
     "float_1.jl",
     "float_1.nim",
+    "float_str.kt",
     "list_slice.nim",
     "list_slice.v",
     "list_slice.jl",
@@ -306,7 +308,9 @@ class CodeGeneratorTests(unittest.TestCase):
                         f"Execution of {case}{ext} failed:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
-                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                    assert (
+                        proc.returncode
+                    ), f"{case}{ext} invoked successfully:\n{result}"
                 if expect_success:
                     assert not proc.returncode, f"{case}{ext} failed"
             elif exe.exists() and os.access(exe, os.X_OK):
@@ -316,7 +320,9 @@ class CodeGeneratorTests(unittest.TestCase):
                         f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
-                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                    assert (
+                        proc.returncode
+                    ), f"{case}{ext} invoked successfully:\n{result}"
                 if expect_success:
                     assert not proc.returncode, f"{case}{ext} failed"
             else:
