@@ -75,14 +75,14 @@ pub fn show() {
     let sum1: i32 = indexing();
     println!("{}", sum1);
     let a5: &Vec<i32> = &vec![1, 2, 3];
-    println!("{}", a5.len());
+    println!("{}", a5.len() as i32);
     let a9: Vec<&str> = vec!["a", "b", "c", "d"];
-    println!("{}", a9.len());
+    println!("{}", a9.len() as i32);
     let a7: &HashMap<&str, i32> = &[("a", 1), ("b", 2)]
         .iter()
         .cloned()
         .collect::<HashMap<_, _>>();
-    println!("{}", a7.len());
+    println!("{}", a7.len() as i32);
     let a8: bool = true;
     if a8 {
         println!("{}", "true");

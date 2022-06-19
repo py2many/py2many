@@ -168,14 +168,14 @@ class RustTranspilerPlugins:
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"&{vargs[0]}.to_string()" if vargs else '""',
-    "len": lambda n, vargs: f"{vargs[0]}.len()",
+    "len": lambda n, vargs: f"{vargs[0]}.len() as i32",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",
     "sum": lambda n, vargs: f"{vargs[0]}.iter().sum()",
     "int": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i32"),
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "float": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="f64"),
     # as usize below is a hack to pass comb_sort.rs. Need a better solution
-    "floor": lambda n, vargs: f"{vargs[0]}.floor() as usize",
+    "floor": lambda n, vargs: f"{vargs[0]}.floor() as i32",
     "reversed": lambda n, vargs: f"{vargs[0]}.iter().rev()",
     "map": lambda n, vargs: f"{vargs[1]}.iter().map({vargs[0]})",
     "filter": lambda n, vargs: f"{vargs[1]}.into_iter().filter({vargs[0]})",
