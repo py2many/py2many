@@ -634,7 +634,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):
-            return [self._generic_typename_from_type_node(e) for e in node.elts]
+            type_anns = [self._generic_typename_from_type_node(e) for e in node.elts]
+            return f"({', '.join(type_anns)})"
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):

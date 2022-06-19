@@ -273,8 +273,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 getattr(fndef.args, "args", None):
             converted = []
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
-                actual_type = self._typename_from_annotation(node_arg)
-                declared_type = self._typename_from_annotation(fnarg)
+                actual_type = self._generic_typename_from_annotation(node_arg)
+                declared_type = self._generic_typename_from_annotation(fnarg)
                 if declared_type and actual_type and declared_type != self._default_type \
                         and actual_type != self._default_type and actual_type != declared_type and \
                         not getattr(actual_type, "container_type", None): # TODO: Container types are source of conflict

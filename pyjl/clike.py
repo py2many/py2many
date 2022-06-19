@@ -23,6 +23,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 
+import numpy as np
+
 logger = logging.Logger("pyjl")
 
 # allowed as names in Python but treated as keywords in Julia
@@ -277,9 +279,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         if type_node := getattr(node, attr, None):
             typename = self._typename_from_type_node(type_node, default=self._default_type)
             if isinstance(type_node, ast.Subscript):
-                node.container_type = type_node.container_type
+                node.container_type = tuple(map(self._map_type, type_node.container_type))
             if isinstance(type_node, ast.Name):
-                id = get_id(node)
+                id = self._map_type(get_id(node))
                 if self._func_for_lookup(id) in self._container_type_map:
                     node.container_type = (id, "Any")
 
@@ -315,8 +317,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
             return self._map_type(node_id)
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
-                map(lambda x: 
-                        get_ann_repr(x, self._map_type, default), 
+                map(lambda x: self._typename_from_type_node(x), 
                     (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
@@ -329,7 +330,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
     def _visit_container_type(self, typename: Tuple) -> str:
         value_type, index_type = typename
         if isinstance(index_type, List):
-            index_type = ", ".join(index_type)
+            parsed_items = []
+            for it in index_type:
+                parsed_items.append(self._map_type(it))
+            index_type = ", ".join(parsed_items)
+        else:
+            index_type = self._map_type(index_type)
+        value_type = self._map_type(value_type)
         return self._combine_value_index(value_type, index_type)
 
     ################################################
