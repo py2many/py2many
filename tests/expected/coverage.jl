@@ -10,7 +10,7 @@ end
 function indexing()::Int64
     sum = 0
     a::Array{Int64} = []
-    for i in (0:10-1)
+    for i = 0:10-1
         push!(a, i)
         sum += a[i+1]
     end
@@ -32,14 +32,14 @@ function show()
     @assert(b9 == b10)
     a2::Float64 = 2.1
     println(join([a2], " "))
-    for i in (0:10-1)
+    for i = 0:10-1
         println(join([i], " "))
     end
-    for i in (0:2:10-1)
+    for i = 0:2:10-1
         println(join([i], " "))
     end
     a3 = -(a1)
-    a4 = (a3 + a1)
+    a4 = a3 + a1
     println(join([a4], " "))
     t1 = a1 > 5 ? (10) : (5)
     @assert(t1 == 10)
