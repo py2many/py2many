@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/adsharma/py2many/pygo/runtime"
+	"github.com/electrious/refutil"
 	iter "github.com/hgfischer/go-iter"
 	"strings"
 )
@@ -26,7 +26,7 @@ func Indexing() int {
 }
 
 func InferBool(code int) bool {
-	return pygo.Contains([]int{1, 2, 4}, code)
+	return refutil.Contains([]int{1, 2, 4}, code)
 }
 
 func Show() {

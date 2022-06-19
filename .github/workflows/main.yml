@@ -76,9 +76,13 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
         shell: bash
         run: |
-          go get github.com/hgfischer/go-iter
-          go get github.com/google/go-cmp/cmp
-          go get github.com/adsharma/py2many/pygo/runtime
+          mkdir -p tests/build
+          cd tests/build
+          go mod init github.com/py2many/py2many/tests
+          go get -u github.com/electrious/refutil
+          go get -u github.com/hgfischer/go-iter
+          go get -u github.com/google/go-cmp/cmp
+
           go get github.com/mgechev/revive
           if [[ -d /usr/local/bin && ! -f /usr/local/bin/golint && -f $HOME/go/bin/golint ]]; then
             (cd /usr/local/bin && sudo ln -fs $HOME/go/bin/golint)
@@ -148,8 +152,8 @@ jobs:
           set -ex
 
           # tests/build here must be the same as defined in test_cli
-          if [[ ! -d tests/build ]]; then
-            dart create --no-pub -t package-simple tests/build
+          if [[ ! -f tests/build/pubspec.yaml ]]; then
+            dart create --no-pub --force -t package-simple tests/build
             cat tests/build/pubspec.yaml
           fi
 

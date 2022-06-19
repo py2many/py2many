@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/adsharma/py2many/pygo/runtime"
+	"github.com/electrious/refutil"
 )
 
 var Code0 int = 0
@@ -19,7 +19,7 @@ func main() {
 	for _, j := range LB {
 		fmt.Printf("%v\n", j)
 	}
-	if pygo.Contains([]string{"a", "b"}, "a") {
+	if refutil.Contains([]string{"a", "b"}, "a") {
 		fmt.Printf("%v\n", "OK")
 	}
 }

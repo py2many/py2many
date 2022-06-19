@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/adsharma/py2many/pygo/runtime"
+	"github.com/electrious/refutil"
 )
 
 func NestedContainers() bool {
 	CODES := map[string][]int{"KEY": []int{1, 3}}
-	return pygo.Contains(CODES["KEY"], 1)
+	return refutil.Contains(CODES["KEY"], 1)
 }
 
 func main() {
