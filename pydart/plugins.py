@@ -137,6 +137,7 @@ SMALL_DISPATCH_MAP = {
     "int": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "floor": lambda n, vargs: f"{vargs[0]}.floor()",
+    "float": lambda n, vargs: f"{vargs[0]}.toDouble()" if vargs else "0",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}

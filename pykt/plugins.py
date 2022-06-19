@@ -124,6 +124,13 @@ class KotlinTranspilerPlugins:
             all_vargs = ", ".join(vargs)
             return f"{min_max}({all_vargs})"
 
+    @staticmethod
+    def visit_cast(node, vargs, cast_to: str) -> str:
+        if not vargs:
+            if cast_to == "Double":
+                return "0.0"
+        return f"{vargs[0]}.to{cast_to}()"
+
     def visit_floor(self, node, vargs) -> str:
         self._usings.add("kotlin.math.floor")
         return f"floor({vargs[0]}).toInt()"
@@ -135,6 +142,7 @@ SMALL_DISPATCH_MAP = {
     # TODO: strings use .length
     "len": lambda n, vargs: f"{vargs[0]}.size",
     "int": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "float": functools.partial(KotlinTranspilerPlugins.visit_cast, cast_to="Double"),
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "reversed": lambda n, vargs: f"{vargs[0]}.reversed()",
 }

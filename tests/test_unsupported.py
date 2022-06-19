@@ -103,7 +103,6 @@ TEST_CASES = {
     """
     ),
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
-    "float_1": "a = float(1)",  # https://github.com/adsharma/py2many/issues/129
     "print_None": "print(None)",
     "class_vars": "class A:\n  B = 'FOO'\ndef main(): assert A.B == 'FOO'",  # https://github.com/adsharma/py2many/issues/144
     "default_init": dedent(

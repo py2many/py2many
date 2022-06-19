@@ -8,9 +8,11 @@ def default_builtins():
     a: str = str()
     b: bool = bool()
     c: int = int()
+    d: float = float()
     assert a == ""
     assert b == False
     assert c == 0
+    assert d == 0.0
 
 
 if __name__ == "__main__":
@@ -18,3 +20,5 @@ if __name__ == "__main__":
     print(a)
     b: int = min(1, 2)
     print(b)
+    c: int = int(min(1.0, 2.0))
+    print(c)

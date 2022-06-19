@@ -10,10 +10,10 @@ fn foo() {
 	_c4 := (a / b)
 	_c5 := -a
 	d := 2.0
-	_e1 := (f32(a) + d)
-	_e2 := (f32(a) - d)
-	_e3 := (f32(a) * d)
-	_e4 := (f32(a) / d)
+	_e1 := (f64(a) + d)
+	_e2 := (f64(a) - d)
+	_e3 := (f64(a) * d)
+	_e4 := (f64(a) / d)
 	_f := -3.0
 	_g := -a
 }
@@ -62,8 +62,8 @@ fn mul(x i8, y i8) i16 {
 	return x * y
 }
 
-fn fadd1(x i8, y f32) f32 {
-	return f32(x) + y
+fn fadd1(x i8, y f64) f64 {
+	return f64(x) + y
 }
 
 fn show() {

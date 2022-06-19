@@ -7,9 +7,11 @@ inline void default_builtins() {
   std::string a = "";
   bool b = false;
   int c = 0;
+  double d = float();
   assert(a == std::string{""});
   assert(b == false);
   assert(c == 0);
+  assert(d == 0.0);
 }
 
 int main(int argc, char** argv) {
@@ -19,5 +21,8 @@ int main(int argc, char** argv) {
   std::cout << std::endl;
   int b = std::min(1, 2);
   std::cout << b;
+  std::cout << std::endl;
+  int c = pycpp::to_int(std::min(1.0, 2.0));
+  std::cout << c;
   std::cout << std::endl;
 }
