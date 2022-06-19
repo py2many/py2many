@@ -18,6 +18,8 @@ except:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
+from py2many.analysis import get_id
+
 
 class RustTranspilerPlugins:
     def visit_argparse_dataclass(self, node):
@@ -138,9 +140,16 @@ class RustTranspilerPlugins:
         if hasattr(node.args[0], "container_type"):
             node.result_type = True
             return f"{vargs[0]}.iter().{min_max}()"
-        else:
+
+        annotation = getattr(node.args[0], "annotation", None)
+        if annotation and get_id(annotation) == "float":
+            self._usings.add("float-ord::FloatOrd")
+            vargs = [f"FloatOrd({arg})" for arg in vargs]
             all_vargs = ", ".join(vargs)
-            return f"cmp::{min_max}({all_vargs})"
+            return f"cmp::{min_max}({all_vargs}).0"
+
+        all_vargs = ", ".join(vargs)
+        return f"cmp::{min_max}({all_vargs})"
 
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:

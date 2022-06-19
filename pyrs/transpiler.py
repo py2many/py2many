@@ -110,15 +110,17 @@ class RustTranspiler(CLikeTranspiler):
         deps = sorted(
             set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
         )
-        externs = [f"extern crate {dep};" for dep in deps]
+        crates = [dep.replace("-", "_") for dep in deps]
+        externs = [f"extern crate {dep};" for dep in crates]
         externs += [f"mod {dep};" for dep in self._rust_mods]
         deps_str = "\n//! ".join([f'{dep} = "*"' for dep in deps])
         externs = "\n".join(externs)
-        uses = "\n".join(
-            f"use {mod};"
+        uses = [
+            mod.replace("-", "_")
             for mod in usings
-            if mod not in ("strum", "lazy_static") and mod not in deps
-        )
+            if mod not in ("strum", "lazy_static", "float-ord") and mod not in deps
+        ]
+        uses = "\n".join(f"use {mod};" for mod in uses)
         # This should not contain lints which mask possibly erroneous semantics, e.g. float_cmp
         # Those, and lints triggered by explicitly bad test logic, belong in
         # .github/workflows/clippy.yml
