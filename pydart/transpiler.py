@@ -307,10 +307,6 @@ class DartTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{typename} {declaration};")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         fields = "\n".join(fields)
         body = [self.visit(b) for b in node.body]
         if node.is_dataclass:

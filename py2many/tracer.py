@@ -244,3 +244,22 @@ class RecursionFinder(ast.NodeVisitor):
             isinstance(node.func, ast.Name) and get_id(node.func) == self.function_name
         )
         self.generic_visit(node)
+
+
+def find_in_body(body, fn):
+    for i in range(len(body) - 1, -1, -1):
+        node = body[i]
+        if fn(node):
+            return node
+        elif isinstance(node, ast.Expr) and hasattr(node, "value") and fn(node.value):
+            return node.value
+        elif hasattr(node, "iter") and fn(node.iter):
+            return node.iter
+        elif hasattr(node, "test") and fn(node.test):
+            return node.test
+        elif hasattr(node, "body"):
+            ret = find_in_body(node.body, fn)
+            if ret:
+                return ret
+
+    return None

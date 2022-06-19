@@ -438,10 +438,6 @@ class GoTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{declaration} {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
-
         fields = "\n".join(fields)
         body = [self.visit(b) for b in node.body]
         body = "\n".join(body)
