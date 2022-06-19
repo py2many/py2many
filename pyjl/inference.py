@@ -216,8 +216,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         fname = get_id(node.func)
         if (func := class_for_typename(fname, None, locals=self._imported_names)) \
-                    in self._func_type_map:
-            InferTypesTransformer._annotate(node, self._func_type_map[func])
+                in self._func_type_map:
+            InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
         else:
             # Use annotation
             func_name = None
@@ -227,7 +227,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
                     func_name = f"{get_id(ann)}.{node.func.attr}"
             if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
                     in self._func_type_map:
-                InferTypesTransformer._annotate(node, self._func_type_map[func])
+                InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
         return node
 
     ######################################################

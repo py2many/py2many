@@ -99,6 +99,27 @@ def is_compatible(
     return True
 
 
+class FuncTypeDispatch():
+    def visit_zip(self, node, vargs):
+        ann_ids = []
+        for arg in node.args:
+            arg_id = get_id(arg)
+            if isinstance(arg, ast.Attribute) and get_id(arg.value) == "self":
+                class_scope = find_node_by_type(ast.ClassDef, node.scopes)
+                if class_scope:
+                    attr_node = class_scope.scopes.find(arg.attr)
+                    if hasattr(attr_node, "target_node"):
+                        ann = getattr(attr_node.target_node, 'annotation', None)
+            else:
+                ann = getattr(node.scopes.find(arg_id), 'annotation', None)
+            if ann:
+                ann_ids.append(unparse(ann))
+            else:
+                ann_ids.append("Any")
+        
+        return f"({', '.join(ann_ids)})"
+
+
 class InferTypesTransformer(ast.NodeTransformer):
     """
     Tries to infer types
@@ -110,12 +131,13 @@ class InferTypesTransformer(ast.NodeTransformer):
         "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
     ])
     FUNC_TYPE_MAP = {
-        len: "int",
-        math.sqrt: "float",
-        range: "int",
-        str.encode: "bytes",
-        bytes.translate: "bytes",
-        bytearray.translate: "bytearray",
+        len: lambda self, node, vargs: "int",
+        math.sqrt: lambda self, node, vargs: "float",
+        range: lambda self, node, vargs: "int",
+        str.encode: lambda self, node, vargs: "bytes",
+        bytes.translate: lambda self, node, vargs: "bytes",
+        bytearray.translate: lambda self, node, vargs: "bytearray",
+        zip: FuncTypeDispatch.visit_zip,
     }
     TYPE_DICT = {
         int: "int",
@@ -637,7 +659,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 fname = fname.split(".", 1)[1]
             fn = node.scopes.find(fname)
 
-            # TODO: Is thre a better method?
+            # TODO: Is there a better method?
             if fname in self.BUILTIN_TYPES:
                 self._annotate(node, fname)
             elif isinstance(fn, ast.ClassDef):
@@ -661,7 +683,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             if (func := class_for_typename(fname, None, locals=self._imported_names)) \
                     in self.FUNC_TYPE_MAP:
-                self._annotate(node, self.FUNC_TYPE_MAP[func])
+                self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
             else:
                 # Use annotation
                 func_name = None
@@ -671,13 +693,12 @@ class InferTypesTransformer(ast.NodeTransformer):
                         func_name = f"{get_id(ann)}.{node.func.attr}"
                 if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
                         in self.FUNC_TYPE_MAP:
-                    self._annotate(node, self.FUNC_TYPE_MAP[func])
+                    self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
         self.generic_visit(node)
         return node
 
     def visit_Subscript(self, node: ast.Subscript):
         self.generic_visit(node)
-
         definition = None
         if isinstance(node.value, ast.Attribute) and \
                 get_id(node.value.value) == "self":
@@ -711,17 +732,23 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_For(self, node: ast.For):
         self.visit(node.target)
         self.visit(node.iter)
-        if hasattr(node.iter, "annotation") and isinstance(
-            node.iter.annotation, ast.Subscript
-        ):
-            typ = self._clike._slice_value(node.iter.annotation)
+        if hasattr(node.iter, "annotation"):
+            if isinstance(node.iter.annotation, ast.Subscript):
+                typ = self._clike._slice_value(node.iter.annotation)
 
-            if isinstance(node.target, ast.Name):
-                node.target.annotation = typ
-            elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
-                typ = self._clike._slice_value(typ)
-                for e in node.target.elts:
-                    e.annotation = typ
+                if isinstance(node.target, ast.Name):
+                    node.target.annotation = typ
+                elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
+                    typ = self._clike._slice_value(typ)
+                    for e in node.target.elts:
+                        e.annotation = typ
+            elif isinstance(node.iter.annotation, ast.Tuple) and \
+                    isinstance(node.target, ast.Tuple):
+                for elt, ann in zip(node.target.elts, node.iter.annotation.elts):
+                    if isinstance(ann, ast.Subscript):
+                        elt.annotation = ann.slice
+                    else:
+                        elt.annotation = ann
         self.generic_visit(node)
         return node
 

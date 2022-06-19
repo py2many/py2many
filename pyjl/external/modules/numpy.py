@@ -185,7 +185,7 @@ EXTERNAL_TYPE_MAP = {
     np.bool8: "Bool",
     np.byte: "UInt8",
     np.short: "Int8",
-    np.ndarray: "Vector",
+    np.ndarray: "Matrix",
 }
 
 
@@ -193,10 +193,10 @@ FUNC_TYPE_MAP = {
     # "numpy.multiply": "list",
     # "numpy.sum": "list",
     # "numpy.append": "list",
-    np.sqrt: "float",
-    np.dot: "np.ndarray",
-    np.zeros: "np.ndarray",
-    np.exp: "np.ndarray",
+    np.sqrt: lambda self, node, vargs: "float",
+    np.dot: lambda self, node, vargs: "numpy.ndarray",
+    np.zeros: lambda self, node, vargs: "numpy.ndarray",
+    np.exp: lambda self, node, vargs: "np.ndarray",
 }
 
 
