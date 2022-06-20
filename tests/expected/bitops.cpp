@@ -2,8 +2,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 #include <vector>    // NOLINT(build/include_order)
 
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
-
 inline void main_func() {
   std::vector<bool> ands = {};
   std::vector<bool> ors = {};
@@ -31,7 +29,4 @@ inline void main_func() {
   std::cout << std::endl;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  main_func();
-}
+int main(int argc, char** argv) { main_func(); }

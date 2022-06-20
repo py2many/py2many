@@ -145,9 +145,16 @@ DECORATOR_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_ap_dataclas
 
 CLASS_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_argparse_dataclass}
 
+
+def emit_argv(self, node, value, attr):
+    self._usings.add("<string>")
+    self._usings.add("<vector>")
+    return "std::vector<std::string>(argv, argv + argc)"
+
+
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
-    "sys.argv": lambda self, node, value, attr: "pycpp::sys::argv",
+    "sys.argv": emit_argv,
 }
 
 FuncType = Union[Callable, str]

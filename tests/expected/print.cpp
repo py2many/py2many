@@ -1,6 +1,4 @@
 #include <iostream>  // NOLINT(build/include_order)
-
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline void show() {
   std::cout << std::string{"b"};
   std::cout << std::endl;
@@ -19,7 +17,4 @@ inline void show() {
   std::cout << std::endl;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

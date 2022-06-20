@@ -1,7 +1,5 @@
 #include <cassert>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
-
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline void default_builtins() {
   std::string a = "";
   bool b = false;
@@ -14,7 +12,6 @@ inline void default_builtins() {
 }
 
 int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   int a = std::max(1, 2);
   std::cout << a;
   std::cout << std::endl;

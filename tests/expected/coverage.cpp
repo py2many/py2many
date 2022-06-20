@@ -5,8 +5,6 @@
 #include <map>                     // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
-
 inline void inline_pass() {
 /* pass */}
 
@@ -115,7 +113,4 @@ inline void show() {
   int _c2 = 3;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

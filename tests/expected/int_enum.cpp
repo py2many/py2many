@@ -2,8 +2,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 #include <map>       // NOLINT(build/include_order)
 
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
-
 enum Colors : int {
   RED = 0,
   GREEN = 1,
@@ -40,7 +38,4 @@ inline void show() {
   assert(static_cast<int>(color_map.size()) != 0);
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

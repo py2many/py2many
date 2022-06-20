@@ -2,8 +2,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 #include <vector>    // NOLINT(build/include_order)
 
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
-
 inline int bisect_right(std::vector<int>& data, int item) {
   int low = 0;
   int high = static_cast<int>(static_cast<int>(data.size()));
@@ -31,7 +29,6 @@ inline std::vector<int> bin_it(std::vector<int>& limits,
 }
 
 int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   std::vector<int> limits = {23, 37, 43, 53, 67, 83};
   std::vector<int> data = {95, 21, 94, 12, 99, 4,  70, 75, 83, 93, 52, 80, 57,
                            5,  53, 86, 65, 17, 92, 83, 71, 61, 54, 58, 47, 16,

@@ -85,8 +85,7 @@ def test_print_program_args():
     # is not the main py2many wrapper, and notably doesnt use PythonMainRewriter.
     assert cpp == parse(
         "void main() {",
-        "pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);",
-        "for(auto arg : pycpp::sys::argv) {",
+        "for(auto arg : std::vector<std::string>(argv, argv + argc)) {",
         "std::cout << arg;",
         "std::cout << std::endl;",
         "}}",

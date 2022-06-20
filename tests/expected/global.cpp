@@ -1,8 +1,6 @@
 #include <algorithm>  // NOLINT(build/include_order)
 #include <iostream>   // NOLINT(build/include_order)
 #include <vector>     // NOLINT(build/include_order)
-
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 int code_0 = 0;
 int code_1 = 1;
 std::vector<int> l_a = {code_0, code_1};
@@ -10,7 +8,6 @@ std::string code_a = std::string{"a"};  // NOLINT(runtime/string)
 std::string code_b = std::string{"b"};  // NOLINT(runtime/string)
 std::vector<std::string> l_b = {code_a, code_b};
 int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   for (auto i : l_a) {
     std::cout << i;
     std::cout << std::endl;

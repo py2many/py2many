@@ -144,7 +144,6 @@ class CppTranspiler(CLikeTranspiler):
 
     def headers(self, meta: InferMeta):
         lint_exception = self._get_nolint_suffix()
-        self._headers.append('#include "pycpp/runtime/sys.h"')
         if self.use_catch_test_cases:
             self._headers.append("#include <catch2/catch_test_macros.hpp>")
         if meta.has_fixed_width_ints:
@@ -194,10 +193,6 @@ class CppTranspiler(CLikeTranspiler):
             template = f"template <{typedecls_str}>"
 
         if is_python_main:
-            body = (
-                "pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);\n"
-                + body
-            )
             template = ""
 
         if not is_void_function(node):
@@ -330,6 +325,7 @@ class CppTranspiler(CLikeTranspiler):
         fields = "\n".join([f for f in fields])
         definitions = "\n".join([d for d in definitions])
         lint_exception = self._get_nolint_suffix("runtime/explicit")
+        self._usings.add("<string>")
         return textwrap.dedent(
             f"""\
             class {node.name} : public std::string {{

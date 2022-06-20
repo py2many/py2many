@@ -4,8 +4,6 @@
 #include <tuple>                   // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
-
 inline std::vector<int> bubble_sort(std::vector<int>& seq) {
   auto L = static_cast<int>(seq.size());
   for (auto _ : iter::range(L)) {
@@ -19,7 +17,6 @@ inline std::vector<int> bubble_sort(std::vector<int>& seq) {
 }
 
 int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
   std::vector<int> unsorted = {14, 11, 19, 5, 16, 10, 19, 12, 5, 12};
   std::vector<int> expected = {5, 5, 10, 11, 12, 12, 14, 16, 19, 19};
   assert(bubble_sort(unsorted) == expected);
