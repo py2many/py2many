@@ -159,6 +159,12 @@ jobs:
         with:
           token: ${{ github.token }}
 
+      - name: Install V packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
+        shell: bash
+        run: |
+          v install div72.vexc
+
       - name: Install kscript (using sdkman)
         if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
         shell: bash
