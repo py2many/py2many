@@ -148,8 +148,6 @@ CLASS_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_argparse_datacl
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
     "sys.argv": lambda self, node, value, attr: "pycpp::sys::argv",
-    "math.pi": lambda self, node, value, attr: "pycpp::math::pi",
-    "math.e": lambda self, node, value, attr: "pycpp::math::e",
 }
 
 FuncType = Union[Callable, str]

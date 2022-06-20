@@ -169,21 +169,3 @@ def test_map_function():
         return results;}
     """
     assert cpp == textwrap.dedent(expected)
-
-
-def test_normal_pdf():
-    source = parse(
-        "def pdf(x, mean, std_dev):",
-        "    term1 = 1.0 / ((2 * math.pi) ** 0.5)",
-        "    term2 = (math.e ** (-1.0 * (x-mean) ** 2.0 / 2.0",
-        "             * (std_dev ** 2.0)))",
-        "    return term1 * term2",
-    )
-    cpp = transpile(source)
-    expected = """\
-        template <typename T0, typename T1, typename T2>auto pdf(T0 x, T1 mean, T2 std_dev) {
-        auto term1 = 1.0 / (std::pow(2 * (pycpp::math::pi), 0.5));
-        auto term2 = std::pow(pycpp::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
-        return term1 * term2;}
-    """
-    assert cpp == parse(textwrap.dedent(expected))
