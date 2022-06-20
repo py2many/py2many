@@ -1,8 +1,7 @@
 #include <cassert>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 /* This file implements a rectangle class  */
 
 class Rectangle {

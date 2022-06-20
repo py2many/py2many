@@ -3,8 +3,7 @@
 #include <map>        // NOLINT(build/include_order)
 #include <vector>     // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline bool nested_containers() {
   std::map<std::string, std::vector<int>> CODES =
       std::map<std::string, std::vector<int>>{{std::string{"KEY"}, {1, 3}}};

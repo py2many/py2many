@@ -145,7 +145,6 @@ class CppTranspiler(CLikeTranspiler):
     def headers(self, meta: InferMeta):
         lint_exception = self._get_nolint_suffix()
         self._headers.append('#include "pycpp/runtime/sys.h"')
-        self._headers.append('#include "pycpp/runtime/builtins.h"')
         if self.use_catch_test_cases:
             self._headers.append("#include <catch2/catch_test_macros.hpp>")
         if meta.has_fixed_width_ints:

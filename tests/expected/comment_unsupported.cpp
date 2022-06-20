@@ -1,7 +1,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline void do_unsupported() {
   int a = 1;
   /* dict comprehension (key + 1, value + 1) unimplemented on line 9:4 */;

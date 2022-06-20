@@ -1,8 +1,7 @@
 #include <cassert>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline void compare_assert(int a, int b) {
   assert(a == b);
   assert(!(0 == 1));

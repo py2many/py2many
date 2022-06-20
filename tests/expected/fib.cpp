@@ -1,7 +1,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 inline int fib(int i) {
   if (i == 0 || i == 1) {
     return 1;

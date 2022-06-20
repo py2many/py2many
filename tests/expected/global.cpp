@@ -2,8 +2,7 @@
 #include <iostream>   // NOLINT(build/include_order)
 #include <vector>     // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 int code_0 = 0;
 int code_1 = 1;
 std::vector<int> l_a = {code_0, code_1};

@@ -6,8 +6,7 @@
 #include <tuple>                   // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 
 inline std::vector<int> comb_sort(std::vector<int>& seq) {
   auto gap = static_cast<int>(seq.size());

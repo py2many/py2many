@@ -1,7 +1,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 class Foo {
  public:
   inline std::string bar() { return std::string{"a"}; }

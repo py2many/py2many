@@ -2,14 +2,13 @@
 #include <iostream>  // NOLINT(build/include_order)
 #include <vector>    // NOLINT(build/include_order)
 
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include "pycpp/runtime/sys.h"  // NOLINT(build/include_order)
 
 inline int bisect_right(std::vector<int>& data, int item) {
   int low = 0;
-  int high = pycpp::to_int(static_cast<int>(data.size()));
+  int high = static_cast<int>(static_cast<int>(data.size()));
   while (low < high) {
-    int middle = pycpp::to_int((low + high) / 2);
+    int middle = static_cast<int>((low + high) / 2);
     if (item < data[middle]) {
       high = middle;
     } else {
