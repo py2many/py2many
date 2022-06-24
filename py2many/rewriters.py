@@ -571,13 +571,13 @@ class ForElseRewriter(ast.NodeTransformer):
         return node
 
     def visit_For(self, node: ast.For) -> Any:
-        self._visit_Scope(node)
         self._generic_loop_visit(node)
+        self._visit_Scope(node)
         return node
 
     def visit_While(self, node: ast.While) -> Any:
-        self._visit_Scope(node)
         self._generic_loop_visit(node)
+        self._visit_Scope(node)
         return node
 
     def _generic_loop_visit(self, node):
