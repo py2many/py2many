@@ -1,4 +1,5 @@
 import ast
+import re
 from typing import Callable, Dict, Tuple, Union
 
 import numpy as np
@@ -105,10 +106,26 @@ class JuliaExternalModulePlugins:
             return f"map(x -> x[{axis}], argmax({vargs[0]}, dims={axis})"
         return f"argmax({vargs[0]})"
 
-    # Not really representative
-    # def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
-    #     t_self._usings.add("LinearAlgebra")
-    #     return f"LinearAlgebra.dot({', '.join(vargs)})"
+    def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
+        if not vargs:
+            return "mult"
+        match_list = lambda x: re.match(r"^list|^List|^tuple|^Tuple", x) is not None \
+            if x else False
+        match_scalar = lambda x: re.match(r"^int|^float|^bool", x) is not None \
+            if x else None
+        match_matrix = lambda x: re.match(r"^Matrix|^np.ndarray", x) is not None \
+            if x else None
+        types_0 = getattr(node.scopes.find(vargs[0]), "annotation", None)
+        types_1 = getattr(node.scopes.find(vargs[1]), "annotation", None)
+        types_0_str = t_self.visit(types_0) if types_0 else ""
+        types_1_str = t_self.visit(types_1) if types_1 else ""
+        if match_list(types_0_str) and match_list(types_1_str):
+            return f"({vargs[0]} ⋅ {vargs[1]})"
+        elif match_scalar(types_0_str) or match_scalar(types_1_str):
+            return f"({vargs[0]} * {vargs[1]})"
+        elif match_matrix(types_0_str) and match_matrix(types_1_str):
+            return f"({vargs[0]} * {vargs[1]})"
+        return f"({vargs[0]} .* {vargs[1]})"
 
     def visit_transpose(t_self, node: ast.Call, vargs: list[str]) -> str:
         t_self._usings.add("LinearAlgebra")
@@ -116,8 +133,9 @@ class JuliaExternalModulePlugins:
 
     def visit_exp(t_self, node: ast.Call, vargs: list[str]):
         arg = node.args[0]
+        # Identify scalar operations
         if isinstance(arg, ast.Name):
-            ann = node.scopes.find(arg)
+            ann = node.scopes.find(vargs[0])
             if ann == "int" or ann == "float":
                 return f"ℯ^{vargs[0]}"
         if isinstance(arg, ast.Constant):
@@ -129,6 +147,7 @@ class JuliaExternalModulePlugins:
             return f"reshape({vargs[0]}, {vargs[1]})"
         return "reshape"
 
+    @staticmethod
     def _get_keywords(t_self, node: ast.Call):
         return {
             k.arg: (JuliaExternalModulePlugins._visit_val(t_self, k.value))
@@ -162,10 +181,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
     np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
     np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
-    np.dot: (
-        lambda self, node, vargs: f"({vargs[0]} .* {vargs[1]})" if vargs else "mult",
-        True,
-    ),
+    np.dot: (JuliaExternalModulePlugins.visit_dotproduct, True),
     np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
@@ -186,15 +202,47 @@ EXTERNAL_TYPE_MAP = {
     np.byte: "UInt8",
     np.short: "Int8",
     np.ndarray: "Matrix",
+    np.array: "Vector",
 }
 
+class FuncTypeDispatch():
+    def visit_npdot(self, node, vargs):
+        # From Python docs (https://numpy.org/doc/stable/reference/generated/numpy.dot.html?highlight=numpy%20dot#numpy.dot)
+        # - If both a and b are 1-D arrays, it is inner product of vectors 
+        #   (without complex conjugation).
+        # - If both a and b are 2-D arrays, it is matrix multiplication, 
+        #   but using matmul or a @ b is preferred.
+        # - If either a or b is 0-D (scalar), it is equivalent to 
+        #   multiply and using numpy.multiply(a, b) or a * b is preferred.
+        # - If a is an N-D array and b is a 1-D array, it is a sum product 
+        #   over the last axis of a and b.
+        # - If a is an N-D array and b is an M-D array (where M>=2), it is a 
+        #   sum product over the last axis of a and the second-to-last axis of b.
+        match_list = lambda x: re.match(r"^list|^List|^tuple|^Tuple", x) is not None \
+            if x else False
+        match_scalar = lambda x: re.match(r"^int|^float|^bool", x) is not None \
+            if x else None
+        match_matrix = lambda x: re.match(r"^Matrix|^np.ndarray", x) is not None \
+            if x else None
+        types_0 = getattr(node.scopes.find(vargs[0]), "annotation", None)
+        types_1 = getattr(node.scopes.find(vargs[1]), "annotation", None)
+        types_0_str = self.visit(types_0) if types_0 else ""
+        types_1_str = self.visit(types_1) if types_1 else ""
+        if match_list(types_0_str) and match_list(types_1_str):
+            return "list"
+        elif (m0 := match_scalar(types_0_str)) or (m1 := match_scalar(types_1_str)):
+            return types_0_str if m0 else types_1_str
+        elif (match_matrix(types_0_str) and match_list(types_1_str)) or \
+                (match_matrix(types_1_str) and match_list(types_0_str)):
+            return "list"
+        return "numpy.ndarray"
 
 FUNC_TYPE_MAP = {
     # "numpy.multiply": "list",
     # "numpy.sum": "list",
     # "numpy.append": "list",
     np.sqrt: lambda self, node, vargs: "float",
-    np.dot: lambda self, node, vargs: "numpy.ndarray",
+    np.dot: FuncTypeDispatch.visit_npdot,
     np.zeros: lambda self, node, vargs: "numpy.ndarray",
     np.exp: lambda self, node, vargs: "np.ndarray",
 }
