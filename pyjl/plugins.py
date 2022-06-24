@@ -433,7 +433,7 @@ class JuliaTranspilerPlugins:
 
     def visit_islice(t_self, node, vargs: list[str]) -> str:
         node.is_gen_expr = True
-        return f"({vargs[0]} for _ in (0:{vargs[1]}))"
+        return f"({vargs[0]} for _ in (1:{vargs[1]}))"
 
     def visit_iter(t_self, node, vargs: list[str]) -> str:
         node.is_gen_expr = True
