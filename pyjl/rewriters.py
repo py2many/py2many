@@ -106,9 +106,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         annotation = getattr(node.scopes.find(get_id(node.value)), "annotation", None)
 
+        name = self._get_nested_attribute(node)
         node.dispatch = ast.Call(
-            func=ast.Name(id=node.attr, ctx=ast.Load()),
-            args=[node.value],
+            func=ast.Name(id=name, ctx=ast.Load()),
+            args=[],
             keywords=[],
             lineno=node.lineno,
             col_offset=node.col_offset,
@@ -116,6 +117,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             scopes = node.scopes,
             is_attr = True)
         return node
+
+    def _get_nested_attribute(self, node: ast.Attribute):
+        if isinstance(node.attr, ast.Attribute):
+            return f"{get_id(node.value)}.{self._get_nested_attribute(node.attr)}"
+        return f"{get_id(node.value)}.{node.attr}"
 
     def _handle_special_cases(self, node):
         # Bypass init module calls
