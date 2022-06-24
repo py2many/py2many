@@ -494,7 +494,7 @@ class JuliaTranspilerPlugins:
     ########## IO ##########
     def visit_print(t_self, node: ast.Call, vargs: List[str]) -> str:
         if len(vargs) == 0:
-            return "println"
+            return "println()"
         if len(vargs) == 1 and not node.keywords and \
                 not isinstance(node.args[0], ast.BinOp):
             return f"println({vargs[0]})"
