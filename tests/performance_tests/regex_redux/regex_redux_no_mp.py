@@ -40,6 +40,15 @@ def main():
     for f in zip(variants, map(var_find, variants)):
         print(f[0], f[1])
 
+    # Why not use a list of tuples if the intend is 
+    # Using it in a for loop anyway?
+    # subst = [
+    #     ("tHa[Nt]", "<4>"), 
+    #     ("aND|caN|Ha[DS]|WaS", "<3>"),
+    #     ("a[NSt]|BY", "<2>"),
+    #     ("<[^>]*>", "|"),
+    #     ("\\|[^|][^|]*\\|", "-")
+    # ]
     subst = {
         "tHa[Nt]": "<4>",
         "aND|caN|Ha[DS]|WaS": "<3>",

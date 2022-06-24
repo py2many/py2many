@@ -5,12 +5,12 @@
 
 from contextlib import closing
 from itertools import islice
-from sys import stdout
+import sys
 
 # from time import perf_counter
 
 
-@resumable
+# @resumable
 def pixels(y: int, n: int, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
@@ -42,14 +42,14 @@ def compute_row(p: tuple[int, int]):
     return y, result
 
 
-@resumable(lower_yield_from=True)
+# @resumable(lower_yield_from=True)
 def compute_rows(n: int, f):
     row_jobs = ((y, n) for y in range(n))
     yield from map(f, row_jobs)
 
 
 def mandelbrot(n: int):
-    write = stdout.buffer.write
+    write = sys.stdout.buffer.write
 
     with closing(compute_rows(n, compute_row)) as rows:
         write("P4\n{0} {0}\n".format(n).encode())
@@ -58,12 +58,5 @@ def mandelbrot(n: int):
 
 
 if __name__ == "__main__":
-    mandelbrot(20)
-    # mandelbrot(int(argv[1]))
+    mandelbrot(int(sys.argv[1]))
 
-# Benchmarks
-# if __name__ == '__main__':
-#     start_time = perf_counter()
-#     mandelbrot(2000)
-#     end_time = perf_counter()
-#     print(end_time-start_time)
