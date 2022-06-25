@@ -117,7 +117,7 @@ class FuncTypeDispatch():
             else:
                 ann_ids.append("Any")
         
-        return f"Tuple({', '.join(ann_ids)})"
+        return f"({', '.join(ann_ids)})"
 
 
 class InferTypesTransformer(ast.NodeTransformer):
@@ -650,6 +650,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
+        self.generic_visit(node)
         fname = get_id(node.func)
         if fname:
             # Handle methods calls by looking up the method name
@@ -686,15 +687,14 @@ class InferTypesTransformer(ast.NodeTransformer):
                 self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
             else:
                 # Use annotation
-                func_name = None
+                func_name = getattr(node.func, "annotation", None)
                 if isinstance(node.func, ast.Attribute):
-                    ann = getattr(node.scopes.find(get_id(node.func.value)), "annotation", None)
+                    ann = getattr(node.func.value, "annotation", None)
                     if ann:
-                        func_name = f"{get_id(ann)}.{node.func.attr}"
+                        func_name = f"{unparse(ann)}.{node.func.attr}"
                 if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
                         in self.FUNC_TYPE_MAP:
                     self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
-        self.generic_visit(node)
         return node
 
     def visit_Subscript(self, node: ast.Subscript):
