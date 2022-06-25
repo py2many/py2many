@@ -703,11 +703,34 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._curr_slice_val = None
+        self._valid_loop_vars = set()
 
     def visit_Module(self, node: ast.Module) -> Any:
         imports = getattr(node, "imports", [])
         self._imports = [get_id(a) for a in imports]
         self.generic_visit(node)
+        return node
+
+    def visit_For(self, node: ast.For) -> Any:
+        targets = set()
+        positive_and_ascending_range = isinstance(node.iter, ast.Call) and  \
+                get_id(node.iter.func) == "range" and \
+                ((len(node.iter.args) < 3 and isinstance(node.iter.args[0], ast.Constant)) or 
+                (len(node.iter.args) == 3 and isinstance(node.iter.args[0], ast.Constant) and
+                    isinstance(node.iter.args[2], ast.Constant)))
+        if positive_and_ascending_range:
+            # Iter is a call to range and has a positive start value and a 
+            # positive stepping value. This implies that if there is a USub 
+            # operation, that the values will be negative. The transpiler
+            # can only ensure that the values are positive if they are constants.
+            if isinstance(node.target, (ast.Tuple, ast.List)):
+                targets = {get_id(e) for e in node.target.elts}
+                self._valid_loop_vars.update(targets)
+            elif isinstance(node.target, ast.Name):
+                targets = {get_id(node.target)}
+                self._valid_loop_vars.add(get_id(node.target))
+        self.generic_visit(node)
+        self._valid_loop_vars.difference_update(targets)
         return node
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
@@ -719,27 +742,56 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         self._curr_slice_val = None
 
-        # Handle negative indexing 
-        if isinstance(node.slice, ast.UnaryOp) and \
-                isinstance(node.slice.op, ast.USub) and \
-                isinstance(node.slice.operand, ast.Constant):
-            end_val = ast.Name(
-                    id = "end",
-                    annotation = ast.Name(id="int"),
-                    preserve_keyword = True)
-            if node.slice.operand.value == 1:
-                node.slice = end_val
-            else:
+        # Handle negative indexing
+        is_usub = lambda x: (isinstance(x, ast.UnaryOp) and 
+                isinstance(x.op, ast.USub))
+        end_val = ast.Name(
+                id = "end",
+                annotation = ast.Name(id="int"),
+                preserve_keyword = True)
+        if is_usub(node.slice):
+            if isinstance(node.slice.operand, ast.Constant):
+                if node.slice.operand.value == 1:
+                    node.slice = end_val
+                else:
+                    node.slice = ast.BinOp(
+                        left = end_val,
+                        op = ast.Sub(),
+                        right = ast.Constant(value = node.slice.operand.value - 1),
+                        annotation = ast.Name(id = "int"),
+                        lineno = node.lineno, col_offset = node.col_offset,
+                        scopes = node.slice.scopes
+                    )
+                return node
+            elif get_id(node.slice.operand) in self._valid_loop_vars:
+                # Node operand is a unary operation, uses USub and is in the valid 
+                # loop variables (meaning the loop is in ascending order). 
+                # Therefore, the variable will have a negative value.
                 node.slice = ast.BinOp(
                     left = end_val,
                     op = ast.Sub(),
-                    right = ast.Constant(value = node.slice.operand.value - 1),
+                    right = node.slice.operand,
                     annotation = ast.Name(id = "int"),
                     lineno = node.lineno, col_offset = node.col_offset,
                     scopes = node.slice.scopes
                 )
-            return node
+        elif isinstance(node.slice, ast.BinOp) and \
+                isinstance(node.slice.right, ast.Constant) and \
+                is_usub(node.slice.left) and \
+                get_id(node.slice.left.operand) in self._valid_loop_vars:
+            # Binary operation where the left node is a unary operation, 
+            # uses USub and is in the valid loop variables. The variable 
+            # will have a negative value. (TODO: Is this assuming too much?)
+            node.slice.left = ast.BinOp(
+                left = end_val,
+                op = ast.Sub(),
+                right = node.slice.left.operand,
+                annotation = ast.Name(id = "int"),
+                lineno = node.lineno, col_offset = node.col_offset,
+                scopes = node.slice.scopes
+            )
 
+        # Handle non-negative indexing
         if not self._is_dict(node) and \
                 not isinstance(node.slice, ast.Slice):
             call_id = None
