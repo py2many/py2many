@@ -196,6 +196,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
 
     def visit_Module(self, node: ast.Module) -> str:
         self._use_modules = getattr(node, USE_MODULES, None)
+        self._imported_names = getattr(node, "imported_names", {})
         return super().visit_Module(node)
 
     def visit_Name(self, node) -> str:

@@ -240,9 +240,7 @@ class FuncTypeDispatch():
         return "numpy.ndarray"
 
 FUNC_TYPE_MAP = {
-    # "numpy.multiply": "list",
-    # "numpy.sum": "list",
-    # "numpy.append": "list",
+    np.random.randn: lambda self, node, vargs: "np.ndarray",
     np.sqrt: lambda self, node, vargs: "float",
     np.dot: FuncTypeDispatch.visit_npdot,
     np.zeros: lambda self, node, vargs: "numpy.ndarray",
