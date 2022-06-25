@@ -331,7 +331,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     right=node.value,
                     lineno=node.lineno,
                     col_offset=node.col_offset,
-                    scopes = node.value.scopes)
+                    scopes = node.value.scopes,
+                    inplace=True)
 
             node_target = node.target
 

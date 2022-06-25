@@ -451,7 +451,10 @@ class JuliaTranspiler(CLikeTranspiler):
             # Add two lists
             if ((isinstance(node.right, ast.List) and isinstance(node.left, ast.List))
                     or (is_list(right_jl_ann) and is_list(left_jl_ann))):
-                return f"append!({left}, {right})"
+                if getattr(node, "inplace", False):
+                    return f"append!({left}, {right})"
+                else:
+                    return f"[{left}; {right}]"
 
             # Cover Python String concatenation
             if ((isinstance(node.right, ast.Str) and isinstance(node.left, ast.Str))
