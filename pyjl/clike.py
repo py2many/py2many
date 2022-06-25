@@ -396,6 +396,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
                 dispatch = super()._dispatch(node, f"{var}.{fname}", vargs[1:])
                 if dispatch:
                     return dispatch
+        if hasattr(node, "orig_name"):
+            return super()._dispatch(node, node.orig_name, vargs)
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):
