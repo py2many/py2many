@@ -117,15 +117,12 @@ class JuliaExternalModulePlugins:
             if x else None
         match_matrix = lambda x: re.match(r"^Matrix|^np.ndarray", x) is not None \
             if x else None
-        types_0 = getattr(node.scopes.find(vargs[0]), "annotation", None)
-        types_1 = getattr(node.scopes.find(vargs[1]), "annotation", None)
-        types_0_str = t_self.visit(types_0) if types_0 else ""
-        types_1_str = t_self.visit(types_1) if types_1 else ""
+        types_0_str = ast.unparse(getattr(node.args[1], "annotation", ast.Name(id="")))
+        types_1_str = ast.unparse(getattr(node.args[2], "annotation", ast.Name(id="")))
         if match_list(types_0_str) and match_list(types_1_str):
             return f"({vargs[0]} ⋅ {vargs[1]})"
-        elif match_scalar(types_0_str) or match_scalar(types_1_str):
-            return f"({vargs[0]} * {vargs[1]})"
-        elif match_matrix(types_0_str) and match_matrix(types_1_str):
+        elif match_scalar(types_0_str) or match_scalar(types_1_str) or \
+                (match_matrix(types_0_str) and match_matrix(types_1_str)):
             return f"({vargs[0]} * {vargs[1]})"
         return f"({vargs[0]} .* {vargs[1]})"
 
@@ -237,14 +234,16 @@ class FuncTypeDispatch():
         elif (match_matrix(types_0_str) and match_list(types_1_str)) or \
                 (match_matrix(types_1_str) and match_list(types_0_str)):
             return "list"
-        return "numpy.ndarray"
+        return "np.ndarray"
 
 FUNC_TYPE_MAP = {
     np.random.randn: lambda self, node, vargs: "np.ndarray",
     np.sqrt: lambda self, node, vargs: "float",
     np.dot: FuncTypeDispatch.visit_npdot,
-    np.zeros: lambda self, node, vargs: "numpy.ndarray",
+    np.zeros: lambda self, node, vargs: "np.ndarray",
     np.exp: lambda self, node, vargs: "np.ndarray",
+    np.transpose: lambda self, node, vargs: "np.ndarray",
+    np.ndarray.transpose: lambda self, node, vargs: "np.ndarray",
 }
 
 
