@@ -220,7 +220,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
         else:
             # Use annotation
-            func_name = getattr(node.func, "annotation", None)
+            ann = getattr(node.func, "annotation", None)
+            func_name = ast.unparse(ann) if ann else None
             if isinstance(node.func, ast.Attribute):
                 ann = getattr(node.func.value, "annotation", None)
                 if ann:

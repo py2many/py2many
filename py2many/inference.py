@@ -687,7 +687,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                 self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
             else:
                 # Use annotation
-                func_name = getattr(node.func, "annotation", None)
+                ann = getattr(node.func, "annotation", None)
+                func_name = unparse(ann) if ann else None
                 if isinstance(node.func, ast.Attribute):
                     ann = getattr(node.func.value, "annotation", None)
                     if ann:
@@ -790,13 +791,19 @@ class InferTypesTransformer(ast.NodeTransformer):
         self._comp_annotations = {}
         gen_types: Set[str] = set()
 
+        attr = None
+        if isinstance(node, (ast.ListComp, ast.DictComp)):
+            attr = getattr(node, "elt", None)
+        else:
+            attr = getattr(node, "key", None)
+
         for gen in node.generators:
             gen_iter = self.visit(gen.iter)
             if (ann := getattr(gen_iter, "annotation", None)):
                 comp_ann = ann.slice if isinstance(ann, ast.Subscript) else ann
                 if isinstance(gen.target, ast.Name):
                     self._comp_annotations[get_id(gen.target)] = comp_ann
-                if isinstance(node.elt, ast.Name):
+                if isinstance(attr, ast.Name):
                     gen_types.add(unparse(ann))
         if len(gen_types) == 1 and not hasattr(node, "annotation"):
             self._annotate(node, gen_types.pop())
