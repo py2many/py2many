@@ -67,7 +67,10 @@ class DeclarationExtractor(ast.NodeVisitor):
                 node.body.remove(m)
         else:
             node.is_dataclass = False
-            self.generic_visit(node)
+            # Do not consider delcarations from nested classes
+            for n in node.body:
+                if not isinstance(n, ast.ClassDef):
+                    self.visit(n)
 
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)
@@ -80,7 +83,10 @@ class DeclarationExtractor(ast.NodeVisitor):
                 if names[i] not in self.typed_function_args:
                     self.typed_function_args[names[i]] = typename
 
-        self.generic_visit(node)
+        # Do not consider delcarations from nested classes
+        for n in node.body:
+            if not isinstance(n, ast.ClassDef):
+                self.visit(n)
 
     def visit_AnnAssign(self, node: ast.AnnAssign, dataclass=False):
         target = node.target

@@ -162,8 +162,10 @@ class JuliaClassRewriter(ast.NodeTransformer):
         self._hierarchy_map = {}
         self._nested_classes = []
         self._class_scopes = []
+        self._remove_nested = False
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._remove_nested = getattr(node, REMOVE_NESTED, False)
         self._hierarchy_map = {}
         self._nested_classes = []
         self._class_scopes = []
@@ -250,7 +252,15 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 
-        self.generic_visit(node)
+        body = []
+        for n in node.body:
+            if isinstance(n, ast.ClassDef):
+                n.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load()))
+                self._nested_classes.append(n)
+            else:
+                body.append(self.visit(n))
+        # Update body
+        node.body = body
 
         return node
 
@@ -267,12 +277,11 @@ class JuliaClassRewriter(ast.NodeTransformer):
                 is_class_or_module(node.self_type, node.scopes)):
             node.self_type = f"Abstract{node.self_type}"
 
-        # Remove any classes from function body 
-        # if @remove_nested decorator is present
         body = []
         for n in node.body:
             if isinstance(n, ast.ClassDef) and \
-                    REMOVE_NESTED in n.parsed_decorators:
+                    (REMOVE_NESTED in n.parsed_decorators or
+                    self._remove_nested):
                 self._nested_classes.append(n)
             else:
                 body.append(self.visit(n))
@@ -393,6 +402,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
+        self._remove_nested = False
 
     def _visit_func_defs(self, node):
         for n in node.body:
@@ -406,6 +416,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._remove_nested = getattr(node, REMOVE_NESTED, False)
         # Reset state
         self._replace_calls = {}
         self._replace_map: Dict = {}
@@ -447,8 +458,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         for n in node.body:
             if isinstance(n, ast.FunctionDef) and is_resumable(n):
                 resumable = n.parsed_decorators[RESUMABLE]
-                if resumable and REMOVE_NESTED in resumable \
-                        and resumable[REMOVE_NESTED]:
+                if (resumable and REMOVE_NESTED in resumable \
+                        and resumable[REMOVE_NESTED]) or \
+                        self._remove_nested:
                     self._nested_funcs.append(n)
                     continue
 
