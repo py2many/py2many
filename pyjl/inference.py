@@ -242,7 +242,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         var_name = get_id(target)
         map_ann = getattr(node.scopes.find(var_name), "annotation", None)
         map_ann_str = get_ann_repr(map_ann) if map_ann else None
-        if(map_ann_str and getattr(map_ann, "is_inferred", False) == False and ann_str != self._default_type \
+        if(map_ann_str and not getattr(map_ann, "is_inferred", True) and ann_str != self._default_type \
                 and map_ann_str != self._default_type and ann_str.lower() != map_ann_str.lower()):
             raise AstIncompatibleAssign(
                 f"Variable {var_name}: {ann_str} incompatible with {map_ann_str}", 
