@@ -345,22 +345,47 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 call.args.extend([node_target.value, node_target.slice, value])
                 return call
             elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
-                old_slice: ast.Slice = copy.deepcopy(node_target.slice)
-                lower = old_slice.lower
-                upper = old_slice.upper
-                if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
-                    lower = ast.Constant(value = int(lower.value) + 1, scopes = lower.scopes)
+                lower = node_target.slice.lower
+                upper = node_target.slice.upper
+                if isinstance(lower, ast.Constant) and isinstance(upper, ast.Constant) and \
+                        upper.value >= lower.value:
+                    lower_slice = ast.Constant(value = int(upper.value) + 1, scopes = lower.scopes)
+                else:
+                    lower_slice = ast.Constant(value = lower.value, scopes = lower.scopes)
                 new_slice = ast.Slice(
-                    lower = lower,
-                    upper = upper
+                    lower = lower_slice,
+                    upper = ast.Constant(value = upper.value, scopes = upper.scopes)
                 )
                 call.args.extend([node_target.value, new_slice, node.value])
                 return call
-        else:
+        elif isinstance(node.target, ast.Name) and \
+                self._is_collection(node.target):
             if isinstance(node.op, ast.Add):
                 call.func.id = "append!"
                 call.args.append(node.target)
                 call.args.append(node.value)
+                return call
+            elif isinstance(node.op, ast.Mult) and \
+                    self._is_number(node.value):
+                # append the result of repeating the value
+                call.func.id = "append!"
+                if isinstance(node.value, ast.Constant):
+                    value = ast.Constant(value = node.value.value - 1)
+                else:
+                    value = ast.BinOp(
+                        left = node.value,
+                        op = ast.Sub(),
+                        right = ast.Constant(value=1)
+                    )
+                ast.fix_missing_locations(value)
+                repeat_arg = ast.Call(
+                        func = ast.Name(id="repeat"),
+                        args = [node.target, value],
+                        keywords = []
+                    )
+                ast.fix_missing_locations(repeat_arg)
+                call.args.append(node.target)
+                call.args.append(repeat_arg)
                 return call
             elif is_class or \
                     isinstance(node.op, ast.BitXor) or \
@@ -372,14 +397,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     col_offset=node.col_offset,
                     scopes = node.scopes
                 )
-            # Last resort
-            return ast.Assign(
-                targets=[node_target],
-                value = call,
-                lineno=node.lineno,
-                col_offset=node.col_offset,
-                scopes = node.scopes
-            )
 
         return self.generic_visit(node)
 
@@ -389,6 +406,14 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 (isinstance(node, ast.Constant) and node.value.isdigit()) or \
                 (get_id(getattr(node, "annotation", None)) in 
                     InferTypesTransformer.FIXED_WIDTH_INTS)
+
+    @staticmethod
+    def _is_collection(node):
+        ann = getattr(node.scopes.find(get_id(node)), "annotation", None)
+        if ann:
+            ann_str = ast.unparse(ann)
+            return re.match(r"^List|^list|^Dict|^dict|^Set|^set", ann_str) is not None
+        return False
 
 
 class JuliaGeneratorRewriter(ast.NodeTransformer):
