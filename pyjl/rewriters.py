@@ -308,77 +308,80 @@ class JuliaClassRewriter(ast.NodeTransformer):
 
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
-    """Rewrites augmented assignments into assignments with
-    binary operations. This is required in certain cases where
-    Python uses operator overloading"""
+    """Rewrites augmented assignments into compatible 
+    Julia operations"""
     def __init__(self) -> None:
         super().__init__()
 
     def visit_AugAssign(self, node: ast.AugAssign) -> Any:
+        node_target = node.target
         is_class = is_class_type(get_id(node.target), node.scopes) or \
             is_class_type(get_id(node.value), node.scopes)
-        requires_lowering = (
-            is_class or
-            isinstance(node.op, ast.BitXor) or
-            isinstance(node.op, ast.BitAnd) or
-            ((isinstance(node.op, ast.Add) or
-              isinstance(node.op, ast.Mult) or
-              isinstance(node.op, ast.MatMult)) and
-                (is_list(node.target) or
-                 is_list(node.value)))
-        )
-        if requires_lowering:
-            # New binary operation
-            value = ast.BinOp(
-                    left=node.target,
-                    op=node.op,
-                    right=node.value,
-                    lineno=node.lineno,
-                    col_offset=node.col_offset,
-                    scopes = node.value.scopes,
-                    inplace=True)
+        # Template for call node
+        call = ast.Call(
+            func = ast.Name(
+                id = None,
+                lineno = node.lineno,
+                col_offset = node.col_offset),
+            args = [],
+            keywords = [],
+            lineno = node.lineno,
+            col_offset = node.col_offset,
+            scopes = node.target.lineno)
 
-            node_target = node.target
-
-            if isinstance(node.target, ast.Subscript) and \
-                    isinstance(node.target.slice, ast.Slice):
-                # Replace node with a call
-                call = ast.Call(
-                    func = ast.Name(
-                        id = "splice!",
-                        lineno = node.lineno,
-                        col_offset = node.col_offset),
-                    args = [],
-                    keywords = [],
-                    lineno = node.lineno,
-                    col_offset = node.col_offset,
-                    scopes = node.target.lineno)
-
-                if self._is_number(node.value) and isinstance(node.op, ast.Mult):
-                    call.args.extend([node_target.value, node_target.slice, value])
-                    return call
-                elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
-                    old_slice: ast.Slice = copy.deepcopy(node_target.slice)
-                    lower = old_slice.lower
-                    upper = old_slice.upper
-                    if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
-                        lower = ast.Constant(value = int(lower.value) + 1, scopes = lower.scopes)
-                    # else:
-                    #     lower.splice_increment = True
-                    new_slice = ast.Slice(
-                        lower = lower,
-                        upper = upper
-                    )
-                    call.args.extend([node_target.value, new_slice, node.value])
-                    return call
-
-            return ast.Assign(
-                targets=[node_target],
-                value = value,
+        # New binary operation
+        value = ast.BinOp(
+                left=node.target,
+                op=node.op,
+                right=node.value,
                 lineno=node.lineno,
                 col_offset=node.col_offset,
-                scopes = node.scopes
-            )
+                scopes = node.value.scopes)
+
+        if isinstance(node.target, ast.Subscript) and \
+                isinstance(node.target.slice, ast.Slice):
+            call.func.id = "splice!"
+            if self._is_number(node.value) and isinstance(node.op, ast.Mult):
+                call.args.extend([node_target.value, node_target.slice, value])
+                return call
+            elif not self._is_number(node.value) and isinstance(node.op, ast.Add):
+                old_slice: ast.Slice = copy.deepcopy(node_target.slice)
+                lower = old_slice.lower
+                upper = old_slice.upper
+                if isinstance(lower, ast.Constant) and isinstance(lower.value, int) :
+                    lower = ast.Constant(value = int(lower.value) + 1, scopes = lower.scopes)
+                new_slice = ast.Slice(
+                    lower = lower,
+                    upper = upper
+                )
+                call.args.extend([node_target.value, new_slice, node.value])
+                return call
+        else:
+            if isinstance(node.op, ast.Add):
+                call.func.id = "append!"
+                call.args.append(node.target)
+                call.args.append(node.value)
+                return call
+            elif isinstance(node.op, ast.Mult):
+                call.func.id = "repeat"
+                call.args.extend(node.target, node.value)
+                return ast.Assign(
+                    targets=[node_target],
+                    value = call,
+                    lineno=node.lineno,
+                    col_offset=node.col_offset,
+                    scopes = node.scopes
+                )
+            elif is_class or \
+                    isinstance(node.op, ast.BitXor) or \
+                    isinstance(node.op, ast.BitAnd):
+                return ast.Assign(
+                    targets=[node_target],
+                    value = value,
+                    lineno=node.lineno,
+                    col_offset=node.col_offset,
+                    scopes = node.scopes
+                )
 
         return self.generic_visit(node)
 
