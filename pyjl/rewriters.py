@@ -362,16 +362,6 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 call.args.append(node.target)
                 call.args.append(node.value)
                 return call
-            elif isinstance(node.op, ast.Mult):
-                call.func.id = "repeat"
-                call.args.extend(node.target, node.value)
-                return ast.Assign(
-                    targets=[node_target],
-                    value = call,
-                    lineno=node.lineno,
-                    col_offset=node.col_offset,
-                    scopes = node.scopes
-                )
             elif is_class or \
                     isinstance(node.op, ast.BitXor) or \
                     isinstance(node.op, ast.BitAnd):
@@ -382,6 +372,14 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                     col_offset=node.col_offset,
                     scopes = node.scopes
                 )
+            # Last resort
+            return ast.Assign(
+                targets=[node_target],
+                value = call,
+                lineno=node.lineno,
+                col_offset=node.col_offset,
+                scopes = node.scopes
+            )
 
         return self.generic_visit(node)
 
@@ -1099,7 +1097,8 @@ class JuliaIORewriter(ast.NodeTransformer):
         # Optimization for sys.argv
         if isinstance(node.value, ast.Attribute) and \
                 get_id(node.value) == "sys.argv" and \
-                isinstance(node.slice, (ast.Constant, ast.Name)):
+                isinstance(node.slice, ast.Constant) and \
+                node.slice.value > 0:
             node.value = ast.Name(id="ARGS")
             # Decrement value by 1, as ARGS does not include
             # module name. Optimization Rewriters will optimize
