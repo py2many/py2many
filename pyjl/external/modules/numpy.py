@@ -103,10 +103,11 @@ class JuliaExternalModulePlugins:
             else:
                 axis = f"{axis}+1"
 
-            return f"map(x -> x[{axis}], argmax({vargs[0]}, dims={axis})"
+            return f"argmax({vargs[0]}, dims={axis})"
         # By default, the index is into the flattened array
+        # Therefore, we create a view over the matrix
         # Decrement 1, as Julia indexes arrays from 1
-        return f"argmax({vargs[0]}[:]) - 1"
+        return f"argmax(@view {vargs[0]}[:]) - 1"
 
     def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
         if not vargs:
