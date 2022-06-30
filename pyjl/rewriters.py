@@ -1095,6 +1095,24 @@ class JuliaIORewriter(ast.NodeTransformer):
                 )
         return node
 
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        # Optimization for sys.argv
+        if isinstance(node.value, ast.Attribute) and \
+                get_id(node.value) == "sys.argv" and \
+                isinstance(node.slice, (ast.Constant, ast.Name)):
+            node.value = ast.Name(id="ARGS")
+            # Decrement value by 1, as ARGS does not include
+            # module name. Optimization Rewriters will optimize
+            # redundant binary operations
+            node.slice = ast.BinOp(
+                left = node.slice,
+                op = ast.Sub(),
+                right = ast.Constant(value=1)
+            )
+            ast.fix_missing_locations(node.slice)
+            ast.fix_missing_locations(node.value)
+        return node
+
 class JuliaOrderedCollectionRewriter(ast.NodeTransformer):
     """Rewrites normal collections into ordered collections. 
     This depends on the JuliaOrderedCollectionTransformer"""
