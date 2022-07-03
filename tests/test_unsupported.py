@@ -30,7 +30,7 @@ from py2many.exceptions import AstIncompatibleAssign
 
 import py2many.cli
 
-from tests.test_cli import (
+from test_cli import (
     BUILD_DIR,
     COMPILERS,
     ENV,

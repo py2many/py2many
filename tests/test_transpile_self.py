@@ -74,7 +74,7 @@ class SelfTranspileTests(unittest.TestCase):
             )
         )
 
-        expected_file = OUT_DIR / "tests" / "test_clike.rs"
+        expected_file = OUT_DIR / "transpiler.rs"
         assert expected_file.is_file(), f"{expected_file} missing"
 
         assert_only_reformat_failures(
@@ -199,7 +199,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, False, _suppress_exceptions=False
         )
-        assert len(successful) >= 11
+        assert len(successful) == 5
 
         successful, format_errors, failures = _process_dir(
             settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False
