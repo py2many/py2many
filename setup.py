@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-
-from setuptools import setup, find_packages
+from distutils.core import setup
 
 __version__ = "0.3"
 
@@ -10,6 +9,22 @@ tests_require = ["pytest", "unittest-expander", "argparse_dataclass"]
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
+
+packages = [
+    "py2many",
+    "pycpp",
+    "pydart",
+    "pygo",
+    "pyjl",
+    "pykt",
+    "pynim",
+    "pyrs",
+    "pysmt",
+    "pyv",
+]
+package_dir = dict((f"py2many.{pkg}", pkg) for pkg in packages if pkg != "py2many")
+package_dir["py2many"] = "py2many"
+packages = sorted(package_dir.keys())
 
 setup(
     name="py2many",
@@ -23,9 +38,8 @@ setup(
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
-    packages=find_packages(
-        exclude=["docs", "examples", "tests", "tests*", "pycpp.tests", "pyrs.tests"]
-    ),
+    packages=packages,
+    package_dir=package_dir,
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
