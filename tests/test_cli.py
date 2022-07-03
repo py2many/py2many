@@ -19,7 +19,11 @@ from py2many.cli import (
     _relative_to_cwd,
     main,
 )
-from pycpp import _conan_include_dirs
+
+try:
+    from py2many.pycpp import _conan_include_dirs
+except ImportError:
+    from pycpp import _conan_include_dirs
 
 import py2many.cli
 
