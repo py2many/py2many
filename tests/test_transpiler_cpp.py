@@ -1,7 +1,10 @@
 import sys
 import textwrap
 
-from pycpp.transpiler import transpile
+try:
+    from py2many.pycpp.transpiler import transpile
+except ImportError:
+    from pycpp.transpiler import transpile
 
 
 def parse(*args):

@@ -61,6 +61,10 @@ class SmtTranspiler(CLikeTranspiler):
         return f"(declare-fun {node.name}() {return_type})"
 
     def visit_FunctionDef(self, node):
+        is_python_main = getattr(node, "python_main", False)
+        if is_python_main:
+            return "\n".join([self.visit(n) for n in node.body])
+
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)
 
@@ -102,8 +106,8 @@ class SmtTranspiler(CLikeTranspiler):
                 value_type = get_inferred_smt_type(node.value)
                 if return_type != value_type and value_type is not None:
                     return f"return {return_type}({ret})"
-            return f"return {ret}"
-        return "return"
+            return f"{ret}"
+        return ""
 
     def visit_arg(self, node):
         id = get_id(node)
@@ -259,20 +263,25 @@ class SmtTranspiler(CLikeTranspiler):
                 return "-{0}".format(self.visit(node.operand))
             else:
                 return "-({0})".format(self.visit(node.operand))
+        elif isinstance(node.op, ast.Invert):
+            return "(not {0})".format(self.visit(node.operand))
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node):
+    def visit_Compare(self, node):
+        type_str = self._typename_from_annotation(node.left)
+        right = node.comparators[0]
+        op = self.visit(node.ops[0])
         if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
+            isinstance(node.left, ast.Name)
+            and op == "="
+            and isinstance(right, ast.Constant)
         ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        else:
-            return super().visit_BinOp(node)
+            if "BitVec" in type_str:
+                padding = 10
+                value = "#" + f"{right.value:#0{padding}x}"[1:]
+                return "(= {0} {1})".format(self.visit(node.left), value)
+        return super().visit_Compare(node)
 
     def visit_sealed_class(self, node):
         variants = []
@@ -465,10 +474,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        if val == None:
-            return f"(declare-const {target} {type_str})"
-        else:
-            raise AstNotImplementedError(f"{val} can't be assigned", node)
+        return f"(declare-const {target} {type_str})"
 
     def visit_Assign(self, node):
         lines = [self._visit_AssignOne(node, target) for target in node.targets]

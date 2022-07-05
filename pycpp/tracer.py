@@ -2,7 +2,8 @@
 import ast
 from py2many.analysis import get_id
 from py2many.tracer import is_list, ValueExpressionVisitor, ValueTypeVisitor
-from pycpp.clike import CLikeTranspiler
+
+from .clike import CLikeTranspiler
 
 
 def decltype(node):

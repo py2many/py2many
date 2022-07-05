@@ -9,4 +9,3 @@
 
 (assert demorgan)
 (check-sat)
-(get-value (a b))

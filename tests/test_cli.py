@@ -13,13 +13,17 @@ from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
 from py2many.cli import (
-    _conan_include_dirs,
     _create_cmd,
     _get_all_settings,
     _get_output_path,
     _relative_to_cwd,
     main,
 )
+
+try:
+    from py2many.pycpp import _conan_include_dirs
+except ImportError:
+    from pycpp import _conan_include_dirs
 
 import py2many.cli
 
@@ -50,7 +54,6 @@ COMPILERS = {
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "eval", "--build-only", "--debug"],
     "vlang": ["v"],
-    "smt": ["z3", "-smt2"],
 }
 INVOKER = {
     "dart": ["dart", "--enable-asserts"],
@@ -60,6 +63,7 @@ INVOKER = {
     "python": [sys.executable],
     "rust": ["cargo", "eval"],
     "vlang": ["v", "run"],
+    "smt": ["z3", "-smt2"],
 }
 
 TEST_CASES = [
@@ -135,12 +139,6 @@ def standardise_python(code):
     )
 
 
-def is_declarative(ext):
-    """The scripts in these languages can't be run. They declare some
-    constraints that could be verified later in the COMPILER. No INVOKER."""
-    return ext in {".smt"}
-
-
 @expand
 class CodeGeneratorTests(unittest.TestCase):
     maxDiff = None
@@ -184,16 +182,15 @@ class CodeGeneratorTests(unittest.TestCase):
         exe.unlink(missing_ok=True)
 
         is_script = has_main(case_filename)
-        if not is_declarative(ext):
-            self.assertTrue(is_script)
+        self.assertTrue(is_script)
 
-            main_args = CASE_ARGS.get(case, tuple())
-            expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
-            expected_output = get_python_case_output(
-                case_filename, main_args, expected_exit_code
-            )
-            self.assertTrue(expected_output, "Test cases must print something")
-            expected_output = expected_output.splitlines()
+        main_args = CASE_ARGS.get(case, tuple())
+        expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
+        expected_output = get_python_case_output(
+            case_filename, main_args, expected_exit_code
+        )
+        self.assertTrue(expected_output, "Test cases must print something")
+        expected_output = expected_output.splitlines()
 
         args = [
             f"--{lang}=1",
@@ -247,9 +244,6 @@ class CodeGeneratorTests(unittest.TestCase):
                 if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
                     with open(expected_filename, "w") as f:
                         f.write(generated)
-
-            if is_declarative(ext):
-                return
 
             stdout = None
             if ext == ".cpp" and (BUILD_DIR / a_dot_out).exists():

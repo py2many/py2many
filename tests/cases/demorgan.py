@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
-from py2many.smt import check_sat, get_value
+from smtfe import Function, Variable, check_sat, get_value
+
+a: bool = Variable("a")
+b: bool = Variable("b")
 
 
-def demorgan(a: bool, b: bool) -> bool:
-    (a and b) == (not ((not a) or (not b)))
+@Function.wrap
+def demorgan() -> bool:
+    return (a & b) == (~ ((~ a) | (~ b)))
 
 
-assert demorgan
-check_sat()
-get_value((a, b))
+if __name__ == "__main__":
+    assert demorgan
+    check_sat()
+    # get_value((a, b))
+
+# z3 -smt2 demorgan.smt prints: a = True, b = True
