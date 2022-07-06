@@ -327,7 +327,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
             keywords = [],
             lineno = node.lineno,
             col_offset = node.col_offset,
-            scopes = node.target.lineno)
+            scopes = node.target.scopes)
 
         # New binary operation
         value = ast.BinOp(

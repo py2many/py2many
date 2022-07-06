@@ -16,7 +16,7 @@ from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
-from pyjl.optimizations import AlgebraicSimplification
+from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
 from pynim.rewriters import WithToBlockRewriter
 
 
@@ -436,7 +436,7 @@ def julia_settings(args, env=os.environ):
             JuliaIORewriter(),
             JuliaArbitraryPrecisionRewriter(),
         ],
-        optimization_rewriters=[AlgebraicSimplification()],
+        optimization_rewriters=[AlgebraicSimplification(), OperationOptimizer()],
     )
 
 

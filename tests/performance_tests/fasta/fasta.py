@@ -40,7 +40,7 @@ def genRandom(ia=3877, ic=29573, im=139968):
 Random = genRandom()
 
 
-def makeCumulative(table):
+def make_cumulative(table: list[tuple[str, float]]):
     P = []
     C = []
     prob = 0.0
@@ -68,7 +68,7 @@ def randomFasta(table, n: int):
     gR = Random.__next__
     bb = bisect.bisect
     jn = "".join
-    probs, chars = makeCumulative(table)
+    probs, chars = make_cumulative(table)
     for j in range(n // width):
         x = jn([chars[bb(probs, gR())] for i in r])
         print(x)

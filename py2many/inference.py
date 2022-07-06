@@ -4,6 +4,7 @@ from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
 from dataclasses import dataclass
 import math
+import re
 from typing import Any, Dict, List, Tuple, cast, Set, Optional
 
 from py2many.analysis import get_id
@@ -741,8 +742,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                     node.target.annotation = typ
                 elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
                     typ = self._clike._slice_value(typ)
-                    for e in node.target.elts:
-                        e.annotation = typ
+                    for e, ann in zip(node.target.elts, typ.elts):
+                        e.annotation = ann
             elif isinstance(node.iter.annotation, ast.Tuple) and \
                     isinstance(node.target, ast.Tuple):
                 for elt, ann in zip(node.target.elts, node.iter.annotation.elts):

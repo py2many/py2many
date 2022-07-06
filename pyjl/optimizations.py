@@ -1,7 +1,9 @@
 import ast
+import re
 from typing import Any
 
 from py2many.ast_helpers import get_id
+from py2many.scope import ScopeList
 
 
 class AlgebraicSimplification(ast.NodeTransformer):
@@ -85,4 +87,24 @@ class AlgebraicSimplification(ast.NodeTransformer):
                         scopes=node.left.scopes,
                     )
         self.visit(node.right)
+        return node
+
+class OperationOptimizer(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        # Visit call node, as JuliaAugAssignRewirter translates
+        # augmented assignments into the corresponding Julia
+        # functions
+        primitive_type = lambda n: \
+            re.match(r"^int|^float|^str", 
+            ast.unparse(getattr(node.scopes.find(get_id(n)), "annotation", ast.Name("")))) is not None
+        if isinstance(node.func, ast.Name) and \
+                get_id(node.func) == "append!" and \
+                isinstance(node.args[1], ast.List) and \
+                len(node.args[1].elts) == 1 and \
+                primitive_type(node.args[1].elts[0]):
+            node.func.id = "push!"
+            node.args[1] = node.args[1].elts[0]
         return node
