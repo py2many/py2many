@@ -283,8 +283,7 @@ class JuliaBroadcastTransformer(ast.NodeTransformer):
             if isinstance(ann, ast.Subscript) else get_id(ann)
         # cont_type = getattr(node, "container_type", None)
         if ann_id:
-            is_list = self._match_list(ann_id) is not None
             node.broadcast = isinstance(target, ast.Subscript) and \
                     isinstance(target.slice, ast.Slice) and \
-                    not is_list
+                    not self._match_list(ann_id)
         return node

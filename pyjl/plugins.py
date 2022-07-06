@@ -929,7 +929,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
     pathlib.Path.cwd: (lambda self, node, vargs: "pwd()", True),
     # Instance checks
-    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {vargs[1]})", True),
+    isinstance: (lambda self, node, vargs: f"isa({vargs[0]}, {self._map_type(vargs[1])})", True),
     issubclass: (lambda self, node, vargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}", True),
     # Bisect
     bisect.bisect: (JuliaTranspilerPlugins.visit_bisect_right, True),
