@@ -737,13 +737,17 @@ class InferTypesTransformer(ast.NodeTransformer):
         if hasattr(node.iter, "annotation"):
             if isinstance(node.iter.annotation, ast.Subscript):
                 typ = self._clike._slice_value(node.iter.annotation)
-
                 if isinstance(node.target, ast.Name):
                     node.target.annotation = typ
-                elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
+                elif isinstance(node.target, ast.Tuple) and \
+                        isinstance(typ, ast.Subscript):
                     typ = self._clike._slice_value(typ)
-                    for e, ann in zip(node.target.elts, typ.elts):
-                        e.annotation = ann
+                    if isinstance(typ, ast.Tuple):
+                        for e, ann in zip(node.target.elts, typ.elts):
+                            e.annotation = ann
+                    else:
+                        for e in node.target.elts:
+                            e.annotation = typ
             elif isinstance(node.iter.annotation, ast.Tuple) and \
                     isinstance(node.target, ast.Tuple):
                 for elt, ann in zip(node.target.elts, node.iter.annotation.elts):

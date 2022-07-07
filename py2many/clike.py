@@ -630,6 +630,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         if isinstance(node, ast.Name):
             return get_id(node)
         elif isinstance(node, ast.Constant):
+            if node.value == None:
+                return "None"
             return node.value
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
