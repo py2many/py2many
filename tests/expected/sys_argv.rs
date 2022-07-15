@@ -36,7 +36,7 @@ pub fn main() -> Result<()> {
     } else {
         assert!(cmd.contains("sys_argv"));
     }
-    if (a.len() as i32) > 1 {
+    if (a.len() as i32 as i32) > 1 {
         println!("{}", a[1 as usize]);
     } else {
         println!("{}", "OK");

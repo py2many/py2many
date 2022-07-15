@@ -4,12 +4,24 @@ import unittest
 import sys
 
 from distutils import spawn
-from functools import lru_cache
+from functools import lru_cache, partial
 from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
 
-import astpretty
+try:
+    from astpretty import pprint as ast_pretty_print
+except ImportError:
+    if sys.version_info >= (3, 9):
+        from ast import dump as ast_dump_raw
+
+        ast_dump = partial(ast_dump_raw, indent=4)
+    else:
+        from ast import dump as ast_dump
+
+    def ast_pretty_print(node):
+        print(ast_dump(node))
+
 
 from unittest_expander import foreach, expand
 
@@ -18,7 +30,7 @@ from py2many.exceptions import AstIncompatibleAssign
 
 import py2many.cli
 
-from tests.test_cli import (
+from test_cli import (
     BUILD_DIR,
     COMPILERS,
     ENV,
@@ -70,6 +82,17 @@ TEST_CASES = {
     "str_format": "ab = '{}{}'.format('a', 'b')",  # https://github.com/adsharma/py2many/issues/73
     "percent_formatting": "a = '~ %s ~' % 'a'",  # https://github.com/adsharma/py2many/issues/176
     "str_mult": "'a' * 4",
+    "nested_class": dedent(
+        """
+        class Foo:
+            class Inner:
+                def f1(self):
+                    return self.f2()
+                def f2(self) -> int:
+                    return 20
+        def main(): Foo.Inner().f1()
+    """
+    ),
     "nested_func": dedent(
         """
         def foo():
@@ -80,7 +103,8 @@ TEST_CASES = {
     """
     ),
     "tuple_destruct": "foo, (baz, qux) = 4, (5, 6); assert foo != (baz != qux)",  # https://github.com/adsharma/py2many/issues/155
-    "float_1": "a = float(1)",  # https://github.com/adsharma/py2many/issues/129
+    "float_str": "float('2.71')",
+    "int_str": "int('7')",
     "print_None": "print(None)",
     "class_vars": "class A:\n  B = 'FOO'\ndef main(): assert A.B == 'FOO'",  # https://github.com/adsharma/py2many/issues/144
     "default_init": dedent(
@@ -114,9 +138,11 @@ TEST_CASES = {
 # NOTE: Inclusion here does not indicate that the case is comparable
 EXPECTED_SUCCESSES = [
     "all.v",
+    "all.jl",
     "annassign_List.dart",
     "annassign_List.v",
     "any.v",
+    "any.jl",
     "bool_plus_int.jl",
     "bool_plus_int.rs",
     "bool_plus_int.v",
@@ -156,9 +182,13 @@ EXPECTED_SUCCESSES = [
     "intenum_iter.nim",
     "float_1.jl",
     "float_1.nim",
+    "float_str.kt",
+    "int_str.kt",
     "list_slice.nim",
     "list_slice.v",
+    "list_slice.jl",
     "list_destruct.v",
+    "nested_class.kt",
     "nested_func.dart",
     "nested_func.kt",
     "nested_func.rs",
@@ -173,6 +203,8 @@ EXPECTED_SUCCESSES = [
     "str_format.kt",
     "str_mult.dart",
     "tuple_destruct.jl",
+    "str_compre.jl",
+    "list_compre.jl",
 ]
 
 TEST_ERROR_CASES = {
@@ -193,7 +225,7 @@ def get_tree(source_data, ext):
         source_data = f"if __name__ == '__main__':\n  {source_data}"
     print(f">{source_data}<")
     tree = ast.parse(source_data)
-    astpretty.pprint(tree)
+    ast_pretty_print(tree)
     proc = run([sys.executable, "-c", source_data], capture_output=True)
     if proc.returncode:
         raise RuntimeError(f"Invalid case {source_data}:\n{proc.stdout}{proc.stderr}")
@@ -278,7 +310,9 @@ class CodeGeneratorTests(unittest.TestCase):
                         f"Execution of {case}{ext} failed:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
-                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                    assert (
+                        proc.returncode
+                    ), f"{case}{ext} invoked successfully:\n{result}"
                 if expect_success:
                     assert not proc.returncode, f"{case}{ext} failed"
             elif exe.exists() and os.access(exe, os.X_OK):
@@ -288,7 +322,9 @@ class CodeGeneratorTests(unittest.TestCase):
                         f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
                     )
                 if not expect_success:
-                    assert proc.returncode, f"{case}{ext} invoked successfully"
+                    assert (
+                        proc.returncode
+                    ), f"{case}{ext} invoked successfully:\n{result}"
                 if expect_success:
                     assert not proc.returncode, f"{case}{ext} failed"
             else:

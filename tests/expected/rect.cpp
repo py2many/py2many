@@ -1,8 +1,5 @@
 #include <cassert>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
-
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
 /* This file implements a rectangle class  */
 
 class Rectangle {
@@ -28,7 +25,4 @@ inline void show() {
   std::cout << std::endl;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

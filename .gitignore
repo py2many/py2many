@@ -27,3 +27,7 @@ Cargo.lock
 pull_request_tests.sh
 target/
 run_tests.sh
+dist/
+tests/output
+target/
+Cargo.lock

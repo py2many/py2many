@@ -7,5 +7,6 @@
   (= (and a b) (not (or (not a) (not b)))))
 
 
-(assert (not demorgan))
+(assert demorgan)
 (check-sat)
+(get-value (a b))

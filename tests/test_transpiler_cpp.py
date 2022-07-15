@@ -39,7 +39,7 @@ def test_print_multiple_vars():
 def test_assert():
     source = parse("assert 1 == foo(3)")
     cpp = transpile(source, testing=True)
-    assert cpp == '#include "catch.hpp"\nREQUIRE(1 == foo(3));'
+    assert cpp == "#include <catch2/catch_test_macros.hpp>\nREQUIRE(1 == foo(3));"
 
 
 def test_augmented_assigns_with_counter():
@@ -85,8 +85,7 @@ def test_print_program_args():
     # is not the main py2many wrapper, and notably doesnt use PythonMainRewriter.
     assert cpp == parse(
         "void main() {",
-        "pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);",
-        "for(auto arg : pycpp::sys::argv) {",
+        "for(auto arg : std::vector<std::string>(argv, argv + argc)) {",
         "std::cout << arg;",
         "std::cout << std::endl;",
         "}}",
@@ -132,7 +131,10 @@ def test_create_catch_test_case():
     source = parse("def test_fun():", "   assert True")
     cpp = transpile(source, testing=True)
     assert cpp == parse(
-        '#include "catch.hpp"', 'TEST_CASE("test_fun") {', "REQUIRE(true);", "}"
+        "#include <catch2/catch_test_macros.hpp>",
+        'TEST_CASE("test_fun") {',
+        "REQUIRE(true);",
+        "}",
     )
 
 
@@ -166,21 +168,3 @@ def test_map_function():
         return results;}
     """
     assert cpp == textwrap.dedent(expected)
-
-
-def test_normal_pdf():
-    source = parse(
-        "def pdf(x, mean, std_dev):",
-        "    term1 = 1.0 / ((2 * math.pi) ** 0.5)",
-        "    term2 = (math.e ** (-1.0 * (x-mean) ** 2.0 / 2.0",
-        "             * (std_dev ** 2.0)))",
-        "    return term1 * term2",
-    )
-    cpp = transpile(source)
-    expected = """\
-        template <typename T0, typename T1, typename T2>auto pdf(T0 x, T1 mean, T2 std_dev) {
-        auto term1 = 1.0 / (std::pow(2 * (pycpp::math::pi), 0.5));
-        auto term2 = std::pow(pycpp::math::e, (((-1.0) * (std::pow(x - mean, 2.0))) / 2.0) * (std::pow(std_dev, 2.0)));
-        return term1 * term2;}
-    """
-    assert cpp == parse(textwrap.dedent(expected))

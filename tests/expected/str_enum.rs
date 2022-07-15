@@ -56,7 +56,7 @@ pub fn show() {
     } else {
         println!("{}", "Not green");
     }
-    println!("{}", color_map.len());
+    println!("{}", color_map.len() as i32);
 }
 
 pub fn main() -> Result<()> {

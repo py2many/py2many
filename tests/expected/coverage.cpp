@@ -1,12 +1,9 @@
-#include <algorithm>  // NOLINT(build/include_order)
-#include <cassert>    // NOLINT(build/include_order)
-#include <iostream>   // NOLINT(build/include_order)
-#include <map>        // NOLINT(build/include_order)
-#include <vector>     // NOLINT(build/include_order)
-
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/range.hpp"   // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include <algorithm>               // NOLINT(build/include_order)
+#include <cassert>                 // NOLINT(build/include_order)
+#include <cppitertools/range.hpp>  // NOLINT(build/include_order)
+#include <iostream>                // NOLINT(build/include_order)
+#include <map>                     // NOLINT(build/include_order)
+#include <vector>                  // NOLINT(build/include_order)
 
 inline void inline_pass() {
 /* pass */}
@@ -17,7 +14,7 @@ inline void inline_ellipsis() {
 inline int indexing() {
   int sum = 0;
   std::vector<int> a = {};
-  for (auto i : rangepp::xrange(10)) {
+  for (auto i : iter::range(10)) {
     a.push_back(i);
     sum += a[i];
   }
@@ -43,11 +40,11 @@ inline void show() {
   double a2 = 2.1;
   std::cout << a2;
   std::cout << std::endl;
-  for (auto i : rangepp::xrange(0, 10)) {
+  for (auto i : iter::range(0, 10)) {
     std::cout << i;
     std::cout << std::endl;
   }
-  for (auto i : rangepp::xrange(0, 10, 2)) {
+  for (auto i : iter::range(0, 10, 2)) {
     std::cout << i;
     std::cout << std::endl;
   }
@@ -61,15 +58,15 @@ inline void show() {
   std::cout << sum1;
   std::cout << std::endl;
   std::vector<int> a5 = {1, 2, 3};
-  std::cout << a5.size();
+  std::cout << static_cast<int>(a5.size());
   std::cout << std::endl;
   std::vector<std::string> a9 = {std::string{"a"}, std::string{"b"},
                                  std::string{"c"}, std::string{"d"}};
-  std::cout << a9.size();
+  std::cout << static_cast<int>(a9.size());
   std::cout << std::endl;
   std::map<std::string, int> a7 =
       std::map<std::string, int>{{std::string{"a"}, 1}, {std::string{"b"}, 2}};
-  std::cout << a7.size();
+  std::cout << static_cast<int>(a7.size());
   std::cout << std::endl;
   bool a8 = true;
   if (a8) {
@@ -116,7 +113,4 @@ inline void show() {
   int _c2 = 3;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

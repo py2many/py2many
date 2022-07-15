@@ -832,9 +832,7 @@ SMALL_DISPATCH_MAP = {
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
 }
 
-SMALL_USINGS_MAP = {
-    "asyncio.run": "futures::executor::block_on",
-}
+SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
 
 DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
@@ -866,7 +864,7 @@ CLASS_DISPATCH_TABLE = {
 }
 
 ATTR_DISPATCH_TABLE = {
-    "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
+    "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
 }
 
 FuncType = Union[Callable, str]

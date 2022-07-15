@@ -65,12 +65,9 @@ class CppTranspilerPlugins:
         return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
-        lint_exception = (
-            "  // NOLINT(build/include_order)" if not self._no_prologue else ""
-        )
-        self._headers.append(f'#include "pycpp/runtime/range.hpp"{lint_exception}')
+        self._usings.add("<cppitertools/range.hpp>")
         args = ", ".join(vargs)
-        return f"rangepp::xrange({args})"
+        return f"iter::range({args})"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         self._usings.add("<iostream>")
@@ -91,17 +88,12 @@ class CppTranspilerPlugins:
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
-        t1 = self._typename_from_annotation(node.args[0])
-        t2 = None
-        if len(node.args) > 1:
-            t2 = self._typename_from_annotation(node.args[1])
         if hasattr(node.args[0], "container_type"):
             self._usings.add("<algorithm>")
             return f"*std::{min_max}_element({vargs[0]}.begin(), {vargs[0]}.end());"
         else:
-            # C++ can't deal with max(1, size_t)
-            if t1 == "int" and t2 == self._default_type:
-                vargs[0] = f"static_cast<size_t>({vargs[0]})"
+            # C++ can't deal with max(1, size_t), but size_t support here has been
+            # removed as size_t support here causes other problems
             all_vargs = ", ".join(vargs)
             return f"std::{min_max}({all_vargs})"
 
@@ -115,7 +107,7 @@ class CppTranspilerPlugins:
 
     @staticmethod
     def visit_floor(node, vargs) -> str:
-        return f"static_cast<size_t>(floor({vargs[0]}))"
+        return f"static_cast<int>(floor({vargs[0]}))"
 
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
@@ -124,12 +116,10 @@ class CppTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "int": lambda n, vargs: f"pycpp::to_int({vargs[0]})" if vargs else "0",
-    # Is pycpp::to_int() necessary?
-    # "int": functools.partial(visit_cast, cast_to="i32"),
+    "int": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int"),
     "str": lambda n, vargs: f"std::to_string({vargs[0]})" if vargs else '""',
     "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})" if vargs else "false",
-    "len": lambda n, vargs: f"{vargs[0]}.size()",
+    "len": lambda n, vargs: f"static_cast<int>({vargs[0]}.size())",
     "float": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="float"),
     "floor": CppTranspilerPlugins.visit_floor,
 }
@@ -155,11 +145,16 @@ DECORATOR_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_ap_dataclas
 
 CLASS_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_argparse_dataclass}
 
+
+def emit_argv(self, node, value, attr):
+    self._usings.add("<string>")
+    self._usings.add("<vector>")
+    return "std::vector<std::string>(argv, argv + argc)"
+
+
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
-    "sys.argv": lambda self, node, value, attr: "pycpp::sys::argv",
-    "math.pi": lambda self, node, value, attr: "pycpp::math::pi",
-    "math.e": lambda self, node, value, attr: "pycpp::math::e",
+    "sys.argv": emit_argv,
 }
 
 FuncType = Union[Callable, str]

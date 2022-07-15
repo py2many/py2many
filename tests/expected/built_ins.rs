@@ -3,6 +3,7 @@
 //! edition = "2018"
 //! [dependencies]
 //! anyhow = "*"
+//! float-ord = "*"
 //! ```
 
 #![allow(clippy::collapsible_else_if)]
@@ -23,16 +24,20 @@
 #![allow(unused_parens)]
 
 extern crate anyhow;
+extern crate float_ord;
 use anyhow::Result;
+use float_ord::FloatOrd;
 use std::cmp;
 
 pub fn default_builtins() {
     let a: &str = "";
     let b: bool = false;
     let c: i32 = 0;
+    let d: f64 = 0.0;
     assert!(a == "");
     assert!(b == false);
     assert!(c == 0);
+    assert!(d == 0.0);
 }
 
 pub fn main() -> Result<()> {
@@ -40,5 +45,7 @@ pub fn main() -> Result<()> {
     println!("{}", a);
     let b: i32 = cmp::min(1, 2);
     println!("{}", b);
+    let c: i32 = cmp::min(FloatOrd(1.0), FloatOrd(2.0)).0 as i32;
+    println!("{}", c);
     Ok(())
 }

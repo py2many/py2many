@@ -19,11 +19,11 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [ '3.8' ]
+        python-version: [ '3.9' ]
         os:
           - ubuntu-22.04
           - macos-12
-          - windows-2019
+          - windows-2022
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -69,12 +69,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install V
-        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
-        uses: vlang/setup-v@v1
-        with:
-          token: ${{ github.token }}
-
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
 
@@ -82,9 +76,13 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
         shell: bash
         run: |
-          go get github.com/hgfischer/go-iter
-          go get github.com/google/go-cmp/cmp
-          go get github.com/adsharma/py2many/pygo/runtime
+          mkdir -p tests/build
+          cd tests/build
+          go mod init github.com/py2many/py2many/tests
+          go get -u github.com/electrious/refutil
+          go get -u github.com/hgfischer/go-iter
+          go get -u github.com/google/go-cmp/cmp
+
           go get github.com/mgechev/revive
           if [[ -d /usr/local/bin && ! -f /usr/local/bin/golint && -f $HOME/go/bin/golint ]]; then
             (cd /usr/local/bin && sudo ln -fs $HOME/go/bin/golint)
@@ -101,31 +99,71 @@ jobs:
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia -e 'using Pkg; Pkg.add("SuperEnum")'
-          if [[ -d /usr/local/bin && ! -f /usr/local/bin/format.jl ]]; then
-            (cd /usr/local/bin && sudo ln -fs $(find ~/.julia -name format.jl))
-          fi
+          JULIA_FORMATTER_ROOT=$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')
+          echo "${JULIA_FORMATTER_ROOT}/bin/" >> $GITHUB_PATH
 
       - name: Install dependencies for ${{ runner.os }}.
         shell: bash
         run: |
+          set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get install --yes \
                   astyle \
+                  catch2 \
                   clang-14 \
+                  libc++-14-dev \
+                  libc++abi-14-dev \
                   z3 \
                 && true
+              pip3 install conan
               echo "CXX=clang++-14" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.41.0/ktlint
               chmod a+x ktlint
               sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              # https://github.com/holgerbrandl/homebrew-tap/issues/1 broke
-              # brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-              brew install astyle clang-format cljstyle z3
+              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
+              brew install \
+                  astyle \
+                  catch2 \
+                  clang-format \
+                  cljstyle \
+                  conan \
+                  kscript \
+                  ktlint \
+                  z3 \
+                && true
+              # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
-              choco install zip curl astyle llvm
+              choco install \
+                  astyle \
+                  conan \
+                  curl \
+                  llvm \
+                  zip \
+                && true
+              echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
           fi
           echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install C++ packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'cpp' }}
+        shell: bash
+        run: |
+          conan download cppitertools/2.1@:5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9
+          conan download catch2/3.0.1@:a25d6c83542b56b72fdaa05a85db5d46f5f0f71c
+
+      - name: Install V
+        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
+        uses: vlang/setup-v@v1
+        with:
+          token: ${{ github.token }}
+
+      - name: Install V packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
+        shell: bash
+        run: |
+          v install div72.vexc
 
       - name: Install kscript (using sdkman)
         if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
@@ -144,8 +182,8 @@ jobs:
           set -ex
 
           # tests/build here must be the same as defined in test_cli
-          if [[ ! -d tests/build ]]; then
-            dart create --no-pub -t package-simple tests/build
+          if [[ ! -f tests/build/pubspec.yaml ]]; then
+            dart create --no-pub --force -t package-simple tests/build
             cat tests/build/pubspec.yaml
           fi
 
@@ -165,9 +203,11 @@ jobs:
             flutter pub add vnum
           fi
 
-      - name: Install cargo-script
+      - name: Install cargo-eval
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        run: cargo install cargo-script
+        run: |
+          cargo install cargo-quickinstall
+          cargo quickinstall cargo-eval
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
@@ -193,9 +233,9 @@ jobs:
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
           if [ "$FOCUS" ]; then
-            tox -- -k "$FOCUS"
+            tox -e py39 -- -k "$FOCUS"
           else
-            tox
+            tox -e py39
           fi
 
   lint:

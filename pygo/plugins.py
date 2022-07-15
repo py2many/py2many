@@ -119,6 +119,13 @@ class GoTranspilerPlugins:
         vargs_str = ", ".join(vargs)
         return f"{min_max}({vargs_str})"
 
+    @staticmethod
+    def visit_cast(node, vargs, cast_to: str) -> str:
+        if not vargs:
+            if cast_to == "float64":
+                return "0.0"
+        return f"{cast_to}({vargs[0]})"
+
     def visit_floor(self, node, vargs) -> str:
         self._usings.add('"math"')
         return f"math.Floor({vargs[0]})"
@@ -133,6 +140,7 @@ SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"String({vargs[0]})" if vargs else '""',
     "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
+    "float": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="float64"),
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}

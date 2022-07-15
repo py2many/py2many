@@ -66,7 +66,7 @@ pub fn show() {
     } else {
         println!("{}", "Not R");
     }
-    assert!((color_map.len() as i32) != 0);
+    assert!((color_map.len() as i32 as i32) != 0);
 }
 
 pub fn main() -> Result<()> {

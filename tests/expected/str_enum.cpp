@@ -1,8 +1,6 @@
 #include <iostream>  // NOLINT(build/include_order)
 #include <map>       // NOLINT(build/include_order)
-
-#include "pycpp/runtime/builtins.h"  // NOLINT(build/include_order)
-#include "pycpp/runtime/sys.h"       // NOLINT(build/include_order)
+#include <string>    // NOLINT(build/include_order)
 
 class Colors : public std::string {
  public:
@@ -29,11 +27,8 @@ inline void show() {
     std::cout << std::string{"Not green"};
     std::cout << std::endl;
   }
-  std::cout << color_map.size();
+  std::cout << static_cast<int>(color_map.size());
   std::cout << std::endl;
 }
 
-int main(int argc, char** argv) {
-  pycpp::sys::argv = std::vector<std::string>(argv, argv + argc);
-  show();
-}
+int main(int argc, char** argv) { show(); }

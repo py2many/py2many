@@ -18,6 +18,8 @@ from unittest.mock import Mock
 from py2many.input_configuration import config_rewriters, parse_input_configurations
 from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
 from pynim.rewriters import WithToBlockRewriter
+from pyjl.inference import infer_julia_types
+from pyjl.rewriters import JuliaIndexingRewriter
 
 
 from .analysis import add_imports
@@ -108,6 +110,7 @@ ROOT_DIR = PY2MANY_DIR.parent
 STDIN = "-"
 STDOUT = "-"
 CWD = Path.cwd()
+USER_HOME = os.path.expanduser("~/")
 
 
 def core_transformers(tree, trees, args):
@@ -341,6 +344,19 @@ def python_settings(args, env=os.environ):
     )
 
 
+def _conan_include_dirs():
+    CONAN_CATCH2 = "catch2/3.0.1/_/_/package/a25d6c83542b56b72fdaa05a85db5d46f5f0f71c"
+    CONAN_CPPITERTOOLS = (
+        "cppitertools/2.1/_/_/package/5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9"
+    )
+    return [
+        "-I",
+        f"{USER_HOME}/.conan/data/{CONAN_CATCH2}/include",
+        "-I",
+        f"{USER_HOME}/.conan/data/{CONAN_CPPITERTOOLS}/include",
+    ]
+
+
 def cpp_settings(args, env=os.environ):
     clang_format_style = env.get("CLANG_FORMAT_STYLE")
     cxx = env.get("CXX")
@@ -360,8 +376,8 @@ def cpp_settings(args, env=os.environ):
     if cxx_flags:
         cxx_flags = cxx_flags.split()
     else:
-        cxx_flags = ["-std=c++14", "-Wall", "-Werror"]
-    cxx_flags = ["-I", str(ROOT_DIR)] + cxx_flags
+        cxx_flags = ["-std=c++17", "-Wall", "-Werror"]
+    cxx_flags = ["-I", str(ROOT_DIR)] + _conan_include_dirs() + cxx_flags
     if cxx.startswith("clang++") and not sys.platform == "win32":
         cxx_flags += ["-stdlib=libc++"]
 
@@ -396,16 +412,28 @@ def rust_settings(args, env=os.environ):
     )
 
 
+@lru_cache()
+def _julia_formatter_path():
+    proc = run(
+        ["julia", "-e", "import JuliaFormatter;print(pathof(JuliaFormatter))"],
+        capture_output=True,
+    )
+    if not proc.returncode and proc.stdout:
+        return str(Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl")
+
+
 def julia_settings(args, env=os.environ):
-    format_jl = None
-    if os.path.exists("pyjl/formatter"):
-        format_jl = [
-            "julia",
-            "-O0",
-            "--compile=min",
-            "--startup=no",
-            "pyjl/formatter/format_files.jl",
-        ]
+    format_jl = spawn.find_executable("format.jl")
+    if not format_jl:
+        julia = spawn.find_executable("julia")
+        if julia:
+            format_jl = _julia_formatter_path()
+
+    if format_jl:
+        format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
+    else:
+        format_jl = ["format.jl", "-v"]
+
     return LanguageSettings(
         transpiler=JuliaTranspiler(),
         ext=".jl",
@@ -437,6 +465,9 @@ def julia_settings(args, env=os.environ):
             JuliaArbitraryPrecisionRewriter(),
         ],
         optimization_rewriters=[AlgebraicSimplification(), OperationOptimizer()],
+        rewriters=[],
+        transformers=[infer_julia_types],
+        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()],
     )
 
 

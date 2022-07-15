@@ -13,6 +13,7 @@ from unittest.mock import Mock
 from unittest_expander import foreach, expand
 
 from py2many.cli import (
+    _conan_include_dirs,
     _create_cmd,
     _get_all_settings,
     _get_output_path,
@@ -31,6 +32,7 @@ KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 
+
 CXX = os.environ.get("CXX", "clang++")
 LANGS = list(_get_all_settings(Mock(indent=4)).keys())
 ENV = {
@@ -38,14 +40,15 @@ ENV = {
     "rust": {"RUSTFLAGS": "--deny warnings"},
 }
 COMPILERS = {
-    "cpp": [CXX, "-std=c++14", "-I", str(ROOT_DIR)]
+    "cpp": [CXX, "-std=c++17", "-I", str(ROOT_DIR)]
+    + _conan_include_dirs()
     + (["-stdlib=libc++"] if CXX.startswith("clang++") else [])
     + (["-o", "{exe}", "{filename}"] if sys.platform == "win32" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
     "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["cargo", "script", "--build-only", "--debug"],
+    "rust": ["cargo", "eval", "--build-only", "--debug"],
     "vlang": ["v"],
     "smt": ["z3", "-smt2"],
 }
@@ -55,7 +58,7 @@ INVOKER = {
     "julia": ["julia", "--compiled-modules=yes"],
     "kotlin": ["kscript"],
     "python": [sys.executable],
-    "rust": ["cargo", "script"],
+    "rust": ["cargo", "eval"],
     "vlang": ["v", "run"],
 }
 
@@ -235,7 +238,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if expect_compile_failure:
                     return
                 cmd = _create_cmd(compiler, filename=case_output, exe=exe)
-                print(f"Running {cmd} ...")
+                print(f"Compiling {cmd} ...")
                 proc = run(cmd, env=env, check=not expect_failure)
 
                 if proc.returncode:
@@ -254,10 +257,13 @@ class CodeGeneratorTests(unittest.TestCase):
 
             if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
-                if not spawn.find_executable(invoker[0]):
+                if os.path.exists(invoker[0]):
+                    pass
+                elif not spawn.find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
+                print(f"Invoking {cmd} ...")
                 proc = run(cmd, env=env, capture_output=True)
 
                 stdout = proc.stdout
@@ -292,6 +298,7 @@ class CodeGeneratorTests(unittest.TestCase):
                     # KtLint does not support absolute path in globs
                     case_output = _relative_to_cwd(case_output)
                 linter = _create_cmd(settings.linter, case_output)
+                print(f"Running linter {linter} ...")
                 if ext == ".cpp":
                     linter.append("-Wno-unused-variable")
                     if case == "coverage":
@@ -330,7 +337,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         env = os.environ.copy()
         env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
-        env["CXXFLAGS"] = "-std=c++14 -Wall -Werror"
+        env["CXXFLAGS"] = "-std=c++17 -Wall -Werror"
 
         if not spawn.find_executable(env["CXX"]):
             raise unittest.SkipTest(f"{env['CXX']} not available")

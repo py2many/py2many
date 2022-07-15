@@ -3,8 +3,6 @@ include README.md
 include py2many.py
 graft doc
 recursive-include examples *.py
-recursive-include pycpp *.h
-recursive-include pycpp *.hpp
 recursive-include tests *.cpp
 recursive-include tests *.dart
 recursive-include tests *.go

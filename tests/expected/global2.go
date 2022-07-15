@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/adsharma/py2many/pygo/runtime"
+	"github.com/electrious/refutil"
 )
 
 var Code0 int = 0
@@ -13,7 +13,7 @@ var LB = map[string]bool{CodeA: true}
 var LC = map[string]int{CodeB: Code0}
 
 func main() {
-	if !(pygo.MapContains(LB, "a")) {
+	if !(refutil.ContainsKey(LB, "a")) {
 		panic("assert")
 	}
 	fmt.Printf("%v\n", "OK")

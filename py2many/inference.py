@@ -42,7 +42,7 @@ def infer_types_typpete(node) -> InferMeta:
         infer_types_ast(stmt, context, solver)
 
     solver.push()
-    
+
     return InferMeta(True)
 
 

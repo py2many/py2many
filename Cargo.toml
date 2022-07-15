@@ -16,6 +16,7 @@ strum_macros = "*"
 lazy_static = "*"
 pylib = "*"
 tempfile = "*"
+float-ord = "*"
 
 
 [lib]

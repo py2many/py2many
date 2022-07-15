@@ -10,14 +10,14 @@ show() {
     print(sprintf("%s", ["Finally"]));
   }
   try {
-    (3 ~/ 0);
-  } on IntegerDivisionByZeroException {
-    print(sprintf("%s", ["OK"]));
-  }
-  try {
     throw new Exception("foo");
   } catch (e) {
     print(sprintf("%s", ["Got it"]));
+  }
+  try {
+    throw new Exception("foo");
+  } on Exception catch (e) {
+    assert(e.toString().contains("foo"));
   }
 }
 

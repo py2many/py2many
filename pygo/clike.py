@@ -108,7 +108,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return f"({left} {op} {right})"
 
     def visit_In(self, node) -> str:
-        self._usings.add('"github.com/adsharma/py2many/pygo/runtime"')
+        self._usings.add('"github.com/electrious/refutil"')
         element = self.visit(node.left)
         container = node.comparators[0]
         self._generic_typename_from_annotation(container)
@@ -116,8 +116,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if hasattr(container, "generic_container_type"):
             container_type, _ = container.generic_container_type
             if container_type in {"Set" or "Dict"}:
-                return f"pygo.MapContains({container_str}, {element})"
-        return f"pygo.Contains({container_str}, {element})"
+                return f"refutil.ContainsKey({container_str}, {element})"
+        return f"refutil.Contains({container_str}, {element})"
 
     def _recursive_expand(self, slice_value):
         if isinstance(slice_value, ast.Name):

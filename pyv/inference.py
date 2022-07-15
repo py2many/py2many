@@ -11,7 +11,7 @@ from py2many.inference import get_inferred_type, InferTypesTransformer
 
 V_TYPE_MAP: Dict[type, str] = {
     int: "int",
-    float: "f32",
+    float: "f64",
     bytes: "[]byte",
     str: "string",
     bool: "bool",

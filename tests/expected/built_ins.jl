@@ -5,6 +5,7 @@ function default_builtins()
     @assert(a == "")
     @assert(b == false)
     @assert(c == 0)
+    @assert(d == 0.0)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

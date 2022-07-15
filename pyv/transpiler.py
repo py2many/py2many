@@ -491,10 +491,45 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Try(self, node: ast.Try, finallybody: bool = None) -> str:
-        raise AstNotImplementedError("Exceptions are not supported yet.", node)
+        self._usings.add("div72.vexc")
+        buf = []
+        buf.append("if C.try() {")
+        buf.extend(map(self.visit, node.body))
+        buf.append("vexc.end_try()")
+        buf.append("}")
+        if len(node.handlers) == 1 and not node.handlers[0].type:
+            # Just except:
+            buf.append("else {")
+            buf.extend(map(self.visit, node.handlers[0].body))
+            buf.append("}")
+        elif node.handlers:
+            buf.append("else {")
+            buf.append("match vexc.get_curr_exc().name {")
+            has_else: bool = False
+            for handler in node.handlers:
+                buf2 = self.visit(handler)
+                if buf2.startswith("else"):
+                    has_else = True
+                buf.append(buf2)
+            if not has_else:
+                buf.append("else {}")
+            buf.append("}")
+            buf.append("}")
+        if node.finalbody:
+            buf.extend(map(self.visit, node.finalbody))
+        return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
-        raise AstNotImplementedError("Exceptions are not supported yet.", node)
+        buf = []
+        if node.type:
+            buf.append(f"'{get_id(node.type)}' {{")
+        else:
+            buf.append("else {")
+        if node.name:
+            buf.append(f"{node.name} := vexc.get_curr_exc()")
+        buf.extend(map(self.visit, node.body))
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_Assert(self, node: ast.Assert) -> str:
         return f"assert {self.visit(node.test)}"
@@ -573,7 +608,16 @@ class VTranspiler(CLikeTranspiler):
         raise AstNotImplementedError("`delete` statements are not supported yet.", node)
 
     def visit_Raise(self, node: ast.Raise) -> str:
-        raise AstNotImplementedError("Exceptions are not supported yet.", node)
+        self._usings.add("div72.vexc")
+        name: str = f'"{get_id(node.exc)}"'
+        msg: str = '""'
+        if node.exc is None:
+            return "vexc.raise('Exception', '')"
+        elif isinstance(node.exc, ast.Call):
+            name = f'"{get_id(node.exc.func)}"'
+            if node.exc.args:
+                msg = self.visit(node.exc.args[0])
+        return f"vexc.raise({name}, {msg})"
 
     def visit_With(self, node: ast.With) -> str:
         raise AstNotImplementedError("`with` statements are not supported yet.", node)
