@@ -465,9 +465,6 @@ def julia_settings(args, env=os.environ):
             JuliaArbitraryPrecisionRewriter(),
         ],
         optimization_rewriters=[AlgebraicSimplification(), OperationOptimizer()],
-        rewriters=[],
-        transformers=[infer_julia_types],
-        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()],
     )
 
 
@@ -653,7 +650,7 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     return format_res
 
 
-def _format_one(settings: LanguageSettings, output_path, env=None):
+def _format_one(settings, output_path, env=None):
     try:
         restore_cwd = False
         if settings.ext == ".kt" and output_path.parts[0] == "..":
@@ -663,8 +660,17 @@ def _format_one(settings: LanguageSettings, output_path, env=None):
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env, capture_output=True, universal_newlines=True)
+        proc = run(cmd, env=env, capture_output=True)
         if proc.returncode:
+            # format.jl exit code is unreliable
+            if settings.ext == ".jl":
+                if proc.stderr is not None:
+                    print(
+                        f"{cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
+                    )
+                    if b"ERROR: " in proc.stderr:
+                        return False
+                return True
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
             )
