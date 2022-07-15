@@ -1,5 +1,4 @@
 import argparse
-import filecmp
 import logging
 import os.path
 import unittest
@@ -133,6 +132,13 @@ def standardise_python(code):
     return (
         code.replace("(", "").replace(")", "").replace("\n\n", "\n").replace(".0j", "j")
     )
+
+
+def standardise_eol(code):
+    """Ignore differences in EOLs."""
+    if sys.platform != "win32":
+        return code
+    return code.replace("\r\n", "\n").replace("\n\n", "\n")
 
 
 def is_declarative(ext):
@@ -456,6 +462,7 @@ class CodeGeneratorTests(unittest.TestCase):
             if not spawn.find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
+        ext = settings.ext
         TEST_OUTPUT = f"{case}-{lang}-generated"
         EXPECTED_OUTPUT = f"{case}-{lang}-expected"
         case_dirname = ROOT_DIR / Path("tests/dir_cases") / case
@@ -472,13 +479,25 @@ class CodeGeneratorTests(unittest.TestCase):
 
         try:
             rv = main(args=args, env=env)
-            if sys.platform == "win32" and rv != 0:
-                raise unittest.SkipTest("transpiler failed")
             assert rv == 0
-            output = filecmp.dircmp(expected_output_dir, output_dir)
-            if sys.platform == "win32" and output.diff_files != []:
-                raise unittest.SkipTest("directories don't match")
-            assert output.diff_files == []
+
+            filenames = list(expected_output_dir.glob(f"*{ext}"))
+            self.assertTrue(filenames)
+            for expected_filename in filenames:
+                output_filename = output_dir / (expected_filename.stem + ext)
+                print(f"Checking {expected_filename} vs {output_filename}")
+                with open(expected_filename) as fh:
+                    expected_contents = fh.read()
+                self.assertTrue(standardise_eol(expected_contents))
+
+                with open(output_filename) as fh:
+                    generated_contents = fh.read()
+                self.assertTrue(standardise_eol(generated_contents))
+
+                self.assertEqual(
+                    standardise_eol(generated_contents),
+                    standardise_eol(expected_contents),
+                )
         finally:
             if not self.KEEP_GENERATED:
                 self._rmdir_recursive(output_dir)
