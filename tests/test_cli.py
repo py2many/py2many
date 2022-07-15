@@ -66,11 +66,7 @@ INVOKER = {
     "vlang": ["v", "run"],
 }
 
-TEST_CASES = [
-    item.stem
-    for item in (TESTS_DIR / "cases").glob("*.py")
-    if not item.stem.startswith("test_")
-]
+TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
 
 CASE_ARGS = {"sys_argv": ("arg1",)}
 CASE_EXPECTED_EXITCODE = {"sys_exit": 1}
