@@ -6,20 +6,33 @@
 </div>
 
 ## What is PyJL?
-PyJL is Py2Many's transpiler implementation that translates Python into Julia. The goal of PyJL is to to produce human-readable Julia source code and preserve the pragmatics of the Julia programming language. The aim is to transpile Python source-code that has been judiciously annotated using Python's type hints.
+PyJL is Py2Many's transpiler implementation that translates Python into Julia. We are developing PyJL to generate human-readable and pragmatically correct Julia source code with the aim of speeding up the development of Julia by translating Python libraries. 
 
-## Code Annotation Mechanism
-PyJL's future iterations should also include a code annotation mechanism. The current mecanism is very basic and uses `JSON` or `Yaml` files to specify annotations. The goal is to integrate a DSL to allow programmers to specify code annotations and code generation mechanisms for the transpiler. The LARA DSL appears to fulfil our goals in this regard, although this is still under study.
+## External Code Annotation Mechanism
+PyJL includes a code annotation mechanism, which uses `JSON` or `Yaml` files to specify annotations. Currently, programmers can specify type hints on function definitions and also specify decorators. 
 
 ## Inference Mechanism
-The current mechanism included in PyJL only uses Python's type hints to correctly map operations and expressions to Julia. Operator overloading is currently one of the focuses of the translation. To solve these problems, a type inference mechanism could be integrated into PyJL. Current options include [MyPy](http://mypy-lang.org/) or a [MaxSMT based approach](https://link.springer.com/chapter/10.1007/978-3-319-96142-2_2) to infer types.
+Having a type-inference mechanism is crucial to transpile Python source code to Julia, as the translation outcome might depend on the type information available. Py2Many already offers a type-inference mechanism, which we extended with new inference rules for PyJL.
+
+The inference mechanism in Py2Many is implemented using a define-use set. This mechanism recursively walks the AST and aggregates type information from node assignments for each scope. 
+The defined scopes are more extensive than Python's scopes, to cover the scoping rules of all supported languages. The current scopes include `module`s, `function`s, `class`es, `for` and `while` loops, `if` statements, and `with`-statements. 
+
+Similarly to MyPy, PyJL also requires programmers to annotate function definitions. PyJL uses these definitions to mitigate type instability and to translate operations that depend on the operand types.
+
+Lastly, PyJL strictly enforces static typing using Python's type hints. Therefore, any user-annotated variables are only allowed to have one type within their scope.
+
+Currently, we are considering the addition of an external type inference mechanism. Our considerations include [pytype](https://github.com/google/pytype) or a [MaxSMT based approach](https://link.springer.com/chapter/10.1007/978-3-319-96142-2_2) to infer types.
 
 ## Requirements:
 - Python 3
-- Julia 1.6 (tested version, others may also work)
+- Julia 1.6, 1.7
 - Some features require the following Julia Packages:
+  - [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl) - Format Julia Files
   - [ResumableFunctions.jl](https://github.com/BenLauwens/ResumableFunctions.jl) - for yield mapping
-  - [DataClass.jl](https://github.com/MiguelMarcelino/Dataclass.jl") - uses a macro to map Python's dataclass decorator
+  - [SuperEnum.jl](https://github.com/kindlychung/SuperEnum.jl) - support Python string Enumerators
+  - [Classes.jl](https://github.com/rjplevin/Classes.jl) - Suport a Python-like class translation alternative
+  - [GZip.jl](https://github.com/JuliaIO/GZip.jl) - allow working with gzip files
+  <!-- - [DataClass.jl](https://github.com/MiguelMarcelino/Dataclass.jl") - uses a macro to map Python's dataclass decorator -->
 
 #
 ## PyJL Status
@@ -36,7 +49,7 @@ The following section describes the currently supported features of PyJL. All ma
   - [x] `True`
   - [x] `None`
   - [x] `and`
-  - [ ] `as`
+  - [x] `as`
   - [x] `assert`
   - [ ] `async`
   - [ ] `await`
@@ -75,15 +88,15 @@ The following section describes the currently supported features of PyJL. All ma
     - [ ] longstring 
     - [ ] stringescape
   - Bytes
-    - [ ] bytesliteral
-    - [ ] bytesprefix
+    - [x] bytesliteral
+    - [x] bytesprefix
     - [ ] shortbytes
     - [ ] longbytes
     - [ ] bytesescapeseq
   - Formatted String literals
     - [x] f_string &rarr; using string interpolation
     - [ ] replacement_field
-    - [ ] f_expression
+    - [x] f_expression
     - [ ] conversion
     - [ ] format_spec
     - [ ] literal_char
@@ -109,10 +122,19 @@ The following section describes the currently supported features of PyJL. All ma
     - [x] imagnumber
 - Operators (PLR 2.5)
   - See expressions below
-- Delimiters (PLR 2.6) &rarr; Read [issue #21](https://github.com/MiguelMarcelino/py2many/issues/21)
-  - [ ] `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `&=`, `|=`, `>>=`, `<<=` &rarr; direct translation
-  - [x] `^=`
-  - [ ] `@=`
+- Delimiters (PLR 2.6) &rarr; Read [issue #21](https://github.com/MiguelMarcelino/py2many/issues/21) &rarr; check `InplaceOps`
+  - [x] `+=`
+  - [ ] `-=`
+  - [x] `*=` &rarr; TODO: verify
+  - [ ] `/=`
+  - [ ] `//=`
+  - [ ] `%=`
+  - [x] `&=` &rarr; TODO: verify
+  - [ ] `|=` &rarr; TODO: verify
+  - [ ] `>>=` &rarr; TODO: verify
+  - [ ] `<<=` &rarr; TODO: verify
+  - [ ] `^=`
+  - [ ] `@=` 
   - [ ] `**=`
 
 ### <ins>Data Model</ins>
@@ -154,7 +176,8 @@ The following section describes the currently supported features of PyJL. All ma
   - Modules
     - [x] Import
 - Special method names
-  - [ ] `__new__`, `__init__`, `__del__`, `__repr__`, <br/>`__str__`, `__bytes__`, `__format__`, `__lt__`,  <br/>`__le__`, `__eq__`, `__ne__`, `__gt__`, `__ge__` <br/> `__hash__`, `__bool__` <br/> &rarr; some supported in `@dataclass` macro
+  - [x] `__init__`
+  - [ ] `__new__`, `__del__`, `__repr__`, <br/>`__str__`, `__bytes__`, `__format__`, `__lt__`,  <br/>`__le__`, `__eq__`, `__ne__`, `__gt__`, `__ge__` <br/> `__hash__`, `__bool__` <br/>
 
 ### <ins>Expressions</ins>
 Expression mapping includes the mapping of Python's overloading. The transpiler phase uses the information added by previous phases to correctly translate expressions to Julia.
@@ -186,17 +209,17 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [x] `+`
   - [x] `-`
   - [x] `*`
-  - [ ] `/`
-  - [ ] `//`
-  - [ ] `%`
-  - [ ] `@` matrix multiplication
+  - [x] `/`
+  - [x] `//`
+  - [x] `%`
+  - [x] `@` matrix multiplication
 - Shift operations (PLR 6.8)
   - [x] `<<`
   - [x] `>>`
 - Binary bitwise operations (PLR 6.9)
-  - [ ] `&`
-  - [ ] `|`
-  - [ ] `^`
+  - [ ] `&` &rarr; TODO: verify
+  - [ ] `|` &rarr; TODO: verify
+  - [ ] `^` &rarr; TODO: verify
 - Comparison (PLR 6.10)
   - [x] `<`
   - [x] `>`
@@ -225,7 +248,6 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
 - Python `with` statement uses context managers to allocate and release resources. Julia's do-block does not use context managers but is built with the same idea. (https://book.pythontips.com/en/latest/context_managers.html)
 - `with` and `try-finally` can be used for similar purposes. (Example of file closing)
 - `del` keyword mapping (probably not possible)
-- `__init__` should be mapped to a constructor in Julia
 - `__repr__` requires a `show()` implementation: show(io::IO, o::object) = print(io, "$(o.attr)")
 
 
@@ -249,7 +271,7 @@ py2many --julia=1 tests/performance_tests
 Currently there are some errors after merging. One possible alternative is to use the generated `.pyi` files and do the AST traversal using PyJL.
 
 ### `TYPPETE`
-Typpete only supports Python up to version 3.7.
+Typpete only supports Python up to version 3.6.
 
 ## Code Formatting
 For code formatting, PyJL uses JuliaFormatter.jl. If you want to specify your own formatting options, you need to create a `.JuliaFormatter.toml` file. A sample file is provided in the `pyjl/formatter` folder. You need to place this file in the same directory (or any parent directory) you are transpiling. You can find more instructions [here](https://github.com/domluna/JuliaFormatter.jl).
