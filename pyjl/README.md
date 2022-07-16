@@ -32,6 +32,7 @@ Currently, we are considering the addition of an external type inference mechani
   - [SuperEnum.jl](https://github.com/kindlychung/SuperEnum.jl) - support Python string Enumerators
   - [Classes.jl](https://github.com/rjplevin/Classes.jl) - Suport a Python-like class translation alternative
   - [GZip.jl](https://github.com/JuliaIO/GZip.jl) - allow working with gzip files
+  - [OrderedCollections.jl](https://github.com/JuliaCollections/OrderedCollections.jl) - Ensures that the output of Julia's collections, such as Dictionaries or Sets, respects the insertion order
   <!-- - [DataClass.jl](https://github.com/MiguelMarcelino/Dataclass.jl") - uses a macro to map Python's dataclass decorator -->
 
 #
