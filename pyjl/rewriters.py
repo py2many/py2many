@@ -387,9 +387,7 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 call.args.append(node.target)
                 call.args.append(repeat_arg)
                 return call
-            elif is_class or \
-                    isinstance(node.op, ast.BitXor) or \
-                    isinstance(node.op, ast.BitAnd):
+            elif is_class:
                 return ast.Assign(
                     targets=[node_target],
                     value = value,
