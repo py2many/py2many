@@ -707,6 +707,8 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+
+class SpecialFunctionsPlugins():
     ########## Special Functions ##########
 
     def visit_init(t_self, node: ast.FunctionDef): 
@@ -737,9 +739,9 @@ class JuliaTranspilerPlugins:
             class_node.constructor_arg_names = constructor_args.keys()
             # Parse args
             args = JuliaTranspilerPlugins._parse_args(t_self, constructor_args)
+            args_str = ", ".join(args)
             args_no_defaults = list(map(lambda x: x.split("=")[0], args))
             decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
-            args_str = ", ".join(args)
             decls_str = ", ".join(decls)
 
             # Visit constructor Body
@@ -754,15 +756,25 @@ class JuliaTranspilerPlugins:
             
             body = "\n".join(body)
             struct_name = get_id(class_node)
-
-            if body:
+        
+            if getattr(node, "oop", False):
+                assignments = "\n".join(args)
                 class_node.constructor_str = f"""
-                {struct_name}({args_str}) = begin
+                function new({args_str}) = 
                     {body}
-                    new({decls_str})
-                end"""
+                    @mk begin 
+                        {assignments}
+                    end
+                end""" 
             else:
-                class_node.constructor_str = f"{struct_name}({args_str}) = new({decls_str})"
+                if body:
+                    class_node.constructor_str = f"""
+                    {struct_name}({args_str}) = begin
+                        {body}
+                        new({decls_str})
+                    end"""
+                else:
+                    class_node.constructor_str = f"{struct_name}({args_str}) = new({decls_str})"
         # Julia does not require init
         return ""
 
@@ -982,7 +994,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 # Dispatches special Functions
 JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
-    "__init__": JuliaTranspilerPlugins.visit_init,
+    "__init__": SpecialFunctionsPlugins.visit_init,
 }
 
 JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {

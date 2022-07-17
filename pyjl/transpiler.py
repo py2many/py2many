@@ -493,12 +493,20 @@ class JuliaTranspiler(CLikeTranspiler):
         for base in node.jl_bases:
             bases.append(self.visit(base))
 
-        struct_def = f"mutable struct {struct_name} <: {bases[0]}" \
+        bases_str = f"{{{', '.join(bases)}}}" if len(bases) > 1 else bases[0]
+        struct_def = f"mutable struct {struct_name} <: {bases_str}" \
             if bases else f"mutable struct {struct_name}"
 
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
         maybe_constructor = f"\n{node.constructor_str}" if hasattr(node, "constructor_str") else ""
+
+        if getattr(node, "oop", False):
+            return f"""@oodef {struct_def}
+                            {node.fields_str}
+                            {maybe_constructor}
+                            {body}
+                        end"""
 
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 

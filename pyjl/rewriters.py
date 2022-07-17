@@ -1151,7 +1151,23 @@ class JuliaImportRewriter(ast.NodeTransformer):
 
 
 def jl_class_rewriter(node, extension=False):
-    return JuliaClassCompositionRewriter.visit(node)
+    if hasattr(node, OBJECT_ORIENTED):
+        return JuliaClassOOPRewriter.visit(node)
+    else:
+        return JuliaClassCompositionRewriter.visit(node)
+
+class JuliaClassOOPRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        if node.name == "__init__":
+            node.oop = True
+        return node
+    
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        node.oop = True
+        return node
 
 class JuliaClassCompositionRewriter(ast.NodeTransformer):
     """Simple Rewriter that transforms Python classes using Julia's composition"""
