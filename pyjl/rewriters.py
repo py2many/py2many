@@ -1,9 +1,10 @@
-from __future__ import annotations, nested_scopes
 import ast
 import copy
 import re
 import sys
 from typing import Any, Dict
+
+from libcst import FunctionDef
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
@@ -13,9 +14,10 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
 from pyjl.helpers import generate_var_name, get_ann_repr, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
+
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -151,162 +153,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             return node.value.value
 
 
-class JuliaClassRewriter(ast.NodeTransformer):
-    """Transforms Python classes into Julia compatible classes"""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._ignored_module_set = \
-            self._ignored_module_set = IGNORED_MODULE_SET.copy()\
-                .union(JL_IGNORED_MODULE_SET.copy())
-        self._hierarchy_map = {}
-        self._nested_classes = []
-        self._class_scopes = []
-        self._remove_nested = False
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        self._remove_nested = getattr(node, REMOVE_NESTED, False)
-        self._hierarchy_map = {}
-        self._nested_classes = []
-        self._class_scopes = []
-
-        node.lineno = 0
-        node.col_offset = 0
-
-        # Visit body nodes
-        body = []
-        for n in node.body:
-            self.visit(n)
-            if self._nested_classes:
-                # Add nested classes to top scope                 
-                for cls in self._nested_classes:
-                    body.append(self.visit(cls))
-                self._nested_classes = []
-
-            body.append(n)
-
-        # Create abstract types
-        abstract_types = []
-        l_no = node.import_cnt
-        for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
-            nameVal = ast.Name(id=class_name)
-            extends = None
-            if not is_jlClass and extends_lst:
-                core_module = extends_lst[0].split(
-                    ".")[0] if extends_lst[0] else None
-                # TODO: Investigate Julia traits
-                if extends_lst and core_module not in self._ignored_module_set:
-                    extends_name = f"Abstract{extends_lst[0]}" \
-                        if extends_lst[0] in self._hierarchy_map \
-                        else extends_lst[0]
-                    extends = ast.Name(id=f"{extends_name}") 
-            abstract_types.append(
-                juliaAst.AbstractType(value=nameVal, extends = extends,
-                                        ctx=ast.Load(), lineno=l_no, col_offset=0))
-            # increment linenumber
-            l_no += 1
-
-        if abstract_types:
-            body = body[:node.import_cnt] + \
-                abstract_types + body[node.import_cnt:]
-
-        node.body = body
-
-        return node
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        # Don't parse Enums
-        base_ids = list(map(get_id, node.bases))
-        if "Enum" in base_ids:
-            return node
-
-        class_name: str = get_id(node)
-
-        decorator_list = list(map(get_id, node.decorator_list))
-        is_jlClass = "jl_class" in decorator_list
-
-        extends = []
-        if not node.bases or len(node.bases) == 0:
-            node.jl_bases = [
-                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-        elif len(node.bases) == 1:
-            name = get_id(node.bases[0])
-            node.jl_bases = [
-                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-            # Julia does not have base-class object 
-            if name != "object":
-                extends = [name]
-        elif len(node.bases) > 1:
-            # TODO: Investigate Julia traits
-            new_bases = []
-            for base in node.bases:
-                name = get_id(base)
-                if is_class_or_module(name, node.scopes):
-                    b = ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)
-                    if b not in new_bases:
-                        new_bases.append(b)
-                else:
-                    new_bases.append(base)
-                extends.append(name)
-            node.jl_bases = new_bases
-
-        self._hierarchy_map[class_name] = (extends, is_jlClass)
-
-        body = []
-        for n in node.body:
-            if isinstance(n, ast.ClassDef):
-                n.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load()))
-                self._nested_classes.append(n)
-            else:
-                body.append(self.visit(n))
-        # Update body
-        node.body = body
-
-        return node
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self.generic_visit(node)
-
-        args = node.args
-        for arg in args.args:
-            if ((annotation := getattr(arg, "annotation", None)) and
-                    is_class_or_module(annotation, node.scopes)):
-                setattr(annotation, "id", f"Abstract{annotation}")
-
-        if (hasattr(node, "self_type") and
-                is_class_or_module(node.self_type, node.scopes)):
-            node.self_type = f"Abstract{node.self_type}"
-
-        body = []
-        for n in node.body:
-            if isinstance(n, ast.ClassDef) and \
-                    (REMOVE_NESTED in n.parsed_decorators or
-                    self._remove_nested):
-                self._nested_classes.append(n)
-            else:
-                body.append(self.visit(n))
-
-        node.body = body
-
-        return node
-
-    def visit_Call(self, node: ast.Call) -> Any:
-        func = node.func
-        if isinstance(func, ast.Attribute):
-            value_id = get_id(func.value)
-            val_node = find_node_by_name_and_type(value_id, ast.ClassDef, node.scopes)[0]
-            if isinstance(val_node, ast.ClassDef):
-                func_n = ast.Name(id=value_id, lineno=node.lineno) \
-                    if value_id else func.value
-
-                if func.attr == "__init__":
-                    func_n.annotation = getattr(node.func, "annotation", None)
-                    node.func = func_n
-                    node.args = node.args[1:]
-                    return node
-        return node
-
-
 class JuliaAugAssignRewriter(ast.NodeTransformer):
     """Rewrites augmented assignments into compatible 
     Julia operations"""
@@ -422,11 +268,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
-        self._nested_funcs = []
         self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
-        self._remove_nested = False
 
     def _visit_func_defs(self, node):
         for n in node.body:
@@ -440,30 +284,16 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._remove_nested = getattr(node, REMOVE_NESTED, False)
         # Reset state
         self._replace_calls = {}
         self._replace_map: Dict = {}
 
-        body = []
-        for n in node.body:
-            b_node = self.visit(n)
-            if isinstance(n, ast.FunctionDef):
-                self._nested_funcs = []
-                if self._nested_funcs:
-                    for nested in self._nested_funcs:
-                        body.append(self.visit(nested))
-
-            body.append(b_node)
+        self.generic_visit(node)
 
         # Sweep phase
         self._sweep = True
         self.generic_visit(node)
         self._sweep = False
-        
-        # Update node body
-        node.body = body
-
 
         return node
 
@@ -474,20 +304,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             return node
 
         body = []
-
-        # Check if function uses resumables
-        is_resumable = lambda x: RESUMABLE in x.parsed_decorators
-        
         node.n_body = []
         for n in node.body:
-            if isinstance(n, ast.FunctionDef) and is_resumable(n):
-                resumable = n.parsed_decorators[RESUMABLE]
-                if (resumable and REMOVE_NESTED in resumable \
-                        and resumable[REMOVE_NESTED]) or \
-                        self._remove_nested:
-                    self._nested_funcs.append(n)
-                    continue
-
             n_visit = self.visit(n)
             if node.n_body:
                 body.extend(node.n_body)
@@ -498,6 +316,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         # Update body
         node.body = body
 
+        # Check if function uses resumables
+        is_resumable = lambda x: RESUMABLE in x.parsed_decorators
+        
         if is_resumable(node) and \
                 CHANNELS in node.parsed_decorators:
             raise AstUnsupportedOperation(  
@@ -537,9 +358,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 dec = parent.parsed_decorators[RESUMABLE]
             lower_yield_from = dec and dec["lower_yield_from"]
             if lower_yield_from:
-                common_loop_vars = ["v", "w", "x", "y", "z"]
                 val = ast.Name(
-                        id = generate_var_name(parent, common_loop_vars),
+                        id = generate_var_name(parent, COMMON_LOOP_VARS),
                         lineno = node.lineno,
                         col_offset = node.col_offset)
                 new_node = ast.For(
@@ -1033,69 +853,6 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
         return ann == "Dict" or ann == "dict"
 
 
-class JuliaImportRewriter(ast.NodeTransformer):
-    """Rewrites nested imports to the module scope"""
-    def __init__(self) -> None:
-        super().__init__()
-        # The default module represents all Import nodes.
-        # ImportFrom nodes have the module as key.
-        self._import_names: Dict[str, list[str]] = {}
-        self._nested_imports = []
-        self._import_cnt = 0
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        self._import_names = {}
-        self._nested_imports = []
-        self._import_cnt = 0
-        self.generic_visit(node)
-        node.body = self._nested_imports + node.body
-        node.import_cnt = self._import_cnt
-        # Update imports
-        for imp in self._nested_imports:
-            for name in imp.names:
-                if name not in node.imports:
-                    node.imports.append(name)
-        return node
-
-    def visit_If(self, node: ast.If) -> Any:
-        return self._generic_import_scope_visit(node)
-
-    def visit_With(self, node: ast.With) -> Any:
-        return self._generic_import_scope_visit(node)
-
-    def _generic_import_scope_visit(self, node):
-        if hasattr(node, "imports"):
-            del node.imports
-        self.generic_visit(node)
-        return node
-    
-    def visit_Import(self, node: ast.Import) -> Any:
-        return self._generic_import_visit(node)
-
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-        return self._generic_import_visit(node, node.module)
-
-    def _generic_import_visit(self, node, key = "default"):
-        self._import_cnt += 1
-        if key not in self._import_names:
-            self._import_names[key] = []
-        aliases = []
-        for alias in node.names:
-            name = alias.name
-            if name not in self._import_names[key]:
-                self._import_names[key].append(name)
-                aliases.append(alias)
-        if not aliases:
-            return None
-        node.names = aliases
-        # self.generic_visit(node)
-        parent = node.scopes[-1] if len(node.scopes) >= 1 else None
-        if parent and not isinstance(parent, ast.Module):
-            self._nested_imports.append(node)
-            return None
-        return node
-
-
 class JuliaIORewriter(ast.NodeTransformer):
     """Rewrites IO operations into Julia compatible ones"""
     def __init__(self) -> None:
@@ -1259,6 +1016,253 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
                     annotation = ann,
                     scopes = node.scopes)
         return node
+
+
+###########################################################
+############### Removing nested constructs ################
+###########################################################
+
+class JuliaNestingRemoval(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._remove_nested = False
+        self._nested_classes = []
+        self._nested_generators = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._remove_nested = getattr(node, REMOVE_NESTED, False)
+        body = []
+        # Add nested classes and generator functions to top scope
+        for n in node.body:
+            b_node = self.visit(n)
+            if self._nested_generators:
+                for nested in self._nested_generators:
+                    body.append(self.visit(nested))
+                self._nested_generators = []
+            if self._nested_classes:
+                # Add nested classes to top scope                 
+                for cls in self._nested_classes:
+                    body.append(self.visit(cls))
+                self._nested_classes = []
+            body.append(b_node)
+
+        # Update Body
+        node.body = body
+
+        return node
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        is_resumable = lambda x: RESUMABLE in x.parsed_decorators
+
+        for n in node.body:
+            if isinstance(n, ast.FunctionDef) and is_resumable(n):
+                resumable = n.parsed_decorators[RESUMABLE]
+                if (resumable and REMOVE_NESTED in resumable \
+                        and resumable[REMOVE_NESTED]) or \
+                        self._remove_nested:
+                    self._nested_generators.append(n)
+                    continue
+            if isinstance(n, ast.ClassDef) and \
+                    (REMOVE_NESTED in n.parsed_decorators or
+                    self._remove_nested):
+                self._nested_classes.append(n)
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        class_name = node.name
+        body = []
+        for n in node.body:
+            if isinstance(n, ast.ClassDef):
+                n.bases.append(ast.Name(id=f"Abstract{class_name}", ctx=ast.Load()))
+                self._nested_classes.append(n)
+            else:
+                body.append(self.visit(n))
+        # Update body
+        node.body = body
+        return node
+
+
+class JuliaImportRewriter(ast.NodeTransformer):
+    """Rewrites nested imports to the module scope"""
+    def __init__(self) -> None:
+        super().__init__()
+        # The default module represents all Import nodes.
+        # ImportFrom nodes have the module as key.
+        self._import_names: Dict[str, list[str]] = {}
+        self._nested_imports = []
+        self._import_cnt = 0
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._import_names = {}
+        self._nested_imports = []
+        self._import_cnt = 0
+        self.generic_visit(node)
+        node.body = self._nested_imports + node.body
+        node.import_cnt = self._import_cnt
+        # Update imports
+        for imp in self._nested_imports:
+            for name in imp.names:
+                if name not in node.imports:
+                    node.imports.append(name)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def visit_With(self, node: ast.With) -> Any:
+        return self._generic_import_scope_visit(node)
+
+    def _generic_import_scope_visit(self, node):
+        if hasattr(node, "imports"):
+            del node.imports
+        self.generic_visit(node)
+        return node
+    
+    def visit_Import(self, node: ast.Import) -> Any:
+        return self._generic_import_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+        return self._generic_import_visit(node, node.module)
+
+    def _generic_import_visit(self, node, key = "default"):
+        self._import_cnt += 1
+        if key not in self._import_names:
+            self._import_names[key] = []
+        aliases = []
+        for alias in node.names:
+            name = alias.name
+            if name not in self._import_names[key]:
+                self._import_names[key].append(name)
+                aliases.append(alias)
+        if not aliases:
+            return None
+        node.names = aliases
+        # self.generic_visit(node)
+        parent = node.scopes[-1] if len(node.scopes) >= 1 else None
+        if parent and not isinstance(parent, ast.Module):
+            self._nested_imports.append(node)
+            return None
+        return node
+
+
+###########################################################
+###################### OOP Rewriters ######################
+###########################################################
+
+
+def jl_class_rewriter(node, extension=False):
+    return JuliaClassCompositionRewriter.visit(node)
+
+class JuliaClassCompositionRewriter(ast.NodeTransformer):
+    """Simple Rewriter that transforms Python classes using Julia's composition"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._ignored_module_set = \
+            self._ignored_module_set = IGNORED_MODULE_SET.copy()\
+                .union(JL_IGNORED_MODULE_SET.copy())
+        self._hierarchy_map = {}
+        self._class_scopes = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._hierarchy_map = {}
+        self._class_scopes = []
+
+        node.lineno = 0
+        node.col_offset = 0
+
+        # Visit body nodes
+        body = node.body
+
+        # Create abstract types
+        abstract_types = []
+        l_no = node.import_cnt
+        for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
+            nameVal = ast.Name(id=class_name)
+            extends = None
+            if not is_jlClass and extends_lst:
+                core_module = extends_lst[0].split(
+                    ".")[0] if extends_lst[0] else None
+                # TODO: Investigate Julia traits
+                if extends_lst and core_module not in self._ignored_module_set:
+                    extends_name = f"Abstract{extends_lst[0]}" \
+                        if extends_lst[0] in self._hierarchy_map \
+                        else extends_lst[0]
+                    extends = ast.Name(id=f"{extends_name}") 
+            abstract_types.append(
+                juliaAst.AbstractType(value=nameVal, extends = extends,
+                                        ctx=ast.Load(), lineno=l_no, col_offset=0))
+            # increment linenumber
+            l_no += 1
+
+        if abstract_types:
+            body = body[:node.import_cnt] + \
+                abstract_types + body[node.import_cnt:]
+
+        node.body = body
+
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        # Don't parse Enums
+        base_ids = list(map(get_id, node.bases))
+        if "Enum" in base_ids:
+            return node
+
+        class_name: str = get_id(node)
+
+        decorator_list = list(map(get_id, node.decorator_list))
+        is_jlClass = "jl_class" in decorator_list
+
+        extends = []
+        if not node.bases or len(node.bases) == 0:
+            node.jl_bases = [
+                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+        elif len(node.bases) == 1:
+            name = get_id(node.bases[0])
+            node.jl_bases = [
+                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+            # Julia does not have base-class object 
+            if name != "object":
+                extends = [name]
+        else:
+            raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
+
+        self._hierarchy_map[class_name] = (extends, is_jlClass)
+
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+
+        args = node.args
+        for arg in args.args:
+            if ((annotation := getattr(arg, "annotation", None)) and
+                    is_class_or_module(annotation, node.scopes)):
+                setattr(annotation, "id", f"Abstract{annotation}")
+
+        if (hasattr(node, "self_type") and
+                is_class_or_module(node.self_type, node.scopes)):
+            node.self_type = f"Abstract{node.self_type}"
+
+        return node
+
+    # def visit_Call(self, node: ast.Call) -> Any:
+    #     func = node.func
+    #     if isinstance(func, ast.Attribute):
+    #         value_id = get_id(func.value)
+    #         val_node = find_node_by_name_and_type(value_id, ast.ClassDef, node.scopes)[0]
+    #         if isinstance(val_node, ast.ClassDef):
+    #             func_n = ast.Name(id=value_id, lineno=node.lineno) \
+    #                 if value_id else func.value
+
+    #             if func.attr == "__init__":
+    #                 func_n.annotation = getattr(node.func, "annotation", None)
+    #                 node.func = func_n
+    #                 node.args = node.args[1:]
+    #                 return node
+    #     return node
+
 
 
 ###########################################################
