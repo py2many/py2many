@@ -44,6 +44,19 @@ class OrderedSet(ast.Set):
     elts: list[ast.expr]
     annotation: ast.expr
 
+class Block(ast.FunctionDef):
+    name: str
+    args: ast.arguments
+    body: list[ast.expr]
+    returns: ast.expr
+    ctx: ast.expr_context
+
+class Constructor(ast.FunctionDef):
+    name: str
+    args: ast.arguments
+    body: list[ast.expr]
+    returns: ast.expr
+    ctx: ast.expr_context
 
 ######################################
 ############### Parser ###############
@@ -87,6 +100,16 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         """Visit Julia Ordered Sets (maintain the insertion order)"""
         for e in node.elts:
             self.visit(e)
+        return node
+
+    def visit_Block(self, node: Block) -> Any:
+        """Visit Julia Block"""
+        self.visit_FunctionDef(node)
+        return node
+
+    def visit_Constructor(self, node: Block) -> Any:
+        """Visit Julia Constructor"""
+        self.visit_FunctionDef(node)
         return node
 
 

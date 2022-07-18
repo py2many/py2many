@@ -1,6 +1,7 @@
 import argparse
 from bisect import bisect, bisect_left, bisect_right
 import contextlib
+from copyreg import constructor
 import importlib
 import io
 import itertools
@@ -58,10 +59,11 @@ class JuliaTranspilerPlugins:
                 body.append(self.visit(b))
         body = "\n".join(body)
 
-        if hasattr(node, "constructor_str"):
+        if hasattr(node, "constructor"):
+            constructor_str = self.visit(constructor)
             return f"""@dataclass {struct_def} begin
                 {fields}
-                {node.constructor_str}
+                {constructor_str}
             end
             {body}"""
 
@@ -165,8 +167,9 @@ class JuliaTranspilerPlugins:
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
-        if hasattr(node, "constructor_str"):
-            return f"{struct_def}\n{fields}\n{node.constructor_str}\nend\n{body}"
+        if hasattr(node, "constructor"):
+            constructor_str = self.visit(node.constructor)
+            return f"{struct_def}\n{fields}\n{constructor_str}\nend\n{body}"
 
         return f"{struct_def}\n{fields}\nend\n{body}"
 
@@ -230,7 +233,8 @@ class JuliaTranspilerPlugins:
         body = "\n".join(body)
 
         if hasattr(node, "constructor"):
-            return f"@class {struct_def}begin\n{node.fields_str}\n{node.constructor_str}\nend\n{body}"
+            constructor_str = self.visit(node.constructor)
+            return f"@class {struct_def} begin\n{node.fields_str}\n{constructor_str}\nend\n{body}"
 
         return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
 
@@ -708,72 +712,6 @@ class JuliaTranspilerPlugins:
         return f"export {', '.join(values)}"
 
 
-class SpecialFunctionsPlugins():
-    def visit_init(self, node: ast.FunctionDef): 
-        is_oop = getattr(node, "oop", False)
-        # Get args and remove self 
-        args = self._get_args(node)[1:]
-        args_str = ", ".join(args)
-        constructor_calls = []
-        constructor_body = []
-        is_self = lambda x: isinstance(x, ast.Attribute) and \
-            get_id(x.value) == "self"
-        for n in node.body:
-            if isinstance(n, ast.Assign) and is_self(n.targets[0]) or \
-                    isinstance(n, ast.AnnAssign) and is_self(n.target):
-                continue
-            elif is_oop and isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) \
-                    and is_class_or_module(get_id(n.value.func), node.scopes):
-                constructor_calls.append(n)
-            else:
-                constructor_body.append(n)
-
-        class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
-        if class_node:
-            args_no_defaults = list(map(lambda x: x.split("=")[0], args))
-            decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
-
-            # Visit constructor Body
-            body = []
-            for n in constructor_body:
-                body.append(self.visit(n))
-
-            # Get docstring
-            docstring = self._get_docstring(node)
-            if docstring:
-                body.append(docstring)
-            
-            body = "\n".join(body)
-            struct_name = get_id(class_node)
-
-            if is_oop:
-                assignments = "\n".join([f"{declaration} = {declaration}" 
-                    for declaration in class_node.declarations.keys()])
-                constructor_calls_str = ", ".join([self.visit(c) for c in constructor_calls])
-                class_node.constructor_str = f"""
-                function new({args_str})
-                    {body}
-                    @mk begin
-                        {constructor_calls_str}
-                        {assignments}
-                    end
-                end""" 
-            else:
-                has_default = node.args.defaults != []
-                if constructor_body or has_default:
-                    decls_str = ", ".join(decls)
-                    if body:
-                        class_node.constructor_str = f"""
-                        {struct_name}({args_str}) = begin
-                            {body}
-                            new({decls_str})
-                        end"""
-                    else:
-                        class_node.constructor_str = f"{struct_name}({args_str}) = new({decls_str})"
-        # Julia does not require init
-        return ""
-
-
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -951,10 +889,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
 }
 
-# Dispatches special Functions
-JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
-    "__init__": SpecialFunctionsPlugins.visit_init,
-}
 
 JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {
     "__all__": JuliaTranspilerPlugins.visit_all

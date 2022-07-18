@@ -3,6 +3,7 @@ import copy
 import re
 import sys
 from typing import Any, Dict
+from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
@@ -15,7 +16,8 @@ from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
 from pyjl.helpers import generate_var_name, get_ann_repr, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
-
+from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
+from pyjl.transpiler import JuliaTranspiler
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -1161,12 +1163,12 @@ class JuliaClassWrapper(ast.NodeTransformer):
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self.generic_visit(node)
         if hasattr(node, OBJECT_ORIENTED):
             visitor = JuliaClassOOPRewriter()
         else:
             visitor = JuliaClassCompositionRewriter()
-        return visitor.visit(node)
+        node = visitor.visit(node)
+        return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
@@ -1185,6 +1187,26 @@ class JuliaClassWrapper(ast.NodeTransformer):
         if node.args and isinstance(node.args[0], ast.Name) and \
                 get_id(node.args[0]) == "self":
             node.args = node.args[1:]
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        # Extract declarations
+        # TODO: Declarations are extracted here, as __init__ will be replaced
+        # and we cannot get to the assignments
+        extractor = DeclarationExtractor(JuliaTranspiler())
+        extractor.visit(node)
+        node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        node.class_assignments = extractor.class_assignments
+        # Visit node
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        # Parse special functions
+        if node.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
+            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[node.name](self, node)
         return node
 
 class JuliaClassOOPRewriter(ast.NodeTransformer):

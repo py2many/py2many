@@ -2,7 +2,6 @@ from enum import IntFlag
 import ast
 
 import re
-from pyjl.plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import RESUMABLE
@@ -166,10 +165,6 @@ class JuliaTranspiler(CLikeTranspiler):
             body = ""
 
         node.is_python_main = is_python_main = getattr(node, "python_main", False)
-
-        # Parse special functions
-        if node.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[node.name](self, node)
 
         # Visit decorators
         for ((d_id, _), decorator) in zip(node.parsed_decorators.items(), node.decorator_list):
@@ -500,7 +495,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
-        maybe_constructor = f"\n{node.constructor_str}" if hasattr(node, "constructor_str") else ""
+        maybe_constructor = f"\n{self.visit(node.constructor)}" if hasattr(node, "constructor") else ""
 
         if getattr(node, "oop", False):
             self._usings.add("ObjectOriented")
@@ -513,28 +508,17 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
     def _visit_class_fields(self, node):
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-        node.declarations = extractor.get_declarations()
-        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
-        node.class_assignments = extractor.class_assignments
-
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         dec_items = []
-        init_func = find_in_body(node.body, lambda x: isinstance(x, ast.FunctionDef) \
-            and x.name == "__init__")
-
-        if not init_func:
+        if not hasattr(node, "constructor"):
             has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
-
             # Reorganize fields, so that defaults are last
             dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
                 if has_defaults \
                 else declarations.items()
         else:
-            # Gets args and removes self
-            init_args = [arg.split("::")[0] for arg in self._get_args(init_func)[1:]]
+            init_args = [arg.split("::")[0] for arg in self._get_args(node.constructor)]
             for arg in init_args:
                 if arg in declarations:
                     dec_items.append((arg, declarations[arg]))
@@ -1082,3 +1066,27 @@ class JuliaTranspiler(CLikeTranspiler):
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         return f"OrderedSet([{elements_str}])"
+
+    def visit_Constructor(self, node: juliaAst.Constructor):
+        # Get args and remove self
+        args = self._get_args(node)[1:]
+        args_str = ", ".join(args)
+
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+
+        # if len(node.body) > 1:
+        return f"""{node.name}({args_str}) = begin
+                        {body}
+                    end"""
+        # else:
+        #     return f"{node.name}({args_str}) = {body}"
+
+    def visit_Block(self, node: juliaAst.Block) -> Any:
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+        return f"{node.name} begin\n{body}\nend"
