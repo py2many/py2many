@@ -4,8 +4,6 @@ import re
 import sys
 from typing import Any, Dict
 
-from libcst import FunctionDef
-
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
@@ -29,12 +27,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         self._ignored_module_set = JL_IGNORED_MODULE_SET
         self._imports = []
         self._use_modules = None
+        self._oop = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._file = getattr(node, "__file__", ".")
         self._basedir = getattr(node, "__basedir__", None)
         self._use_modules = getattr(node, USE_MODULES, None)
         self._imports = list(map(get_id, getattr(node, "imports", [])))
+        self._oop = getattr(node, OBJECT_ORIENTED, False) 
         self.generic_visit(node)
         return node
 
@@ -50,6 +50,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         fname = node.func
         if isinstance(fname, ast.Attribute):
             val_id = get_id(fname.value)
+            # Bypass rewrite when using oop
+            if (is_class_type(val_id, node.scopes) or re.match(r"^self", val_id)) \
+                    and self._oop:
+                return node
+            # Check if value is module
             is_module = val_id and is_file(val_id, self._basedir)
             # Detect static class access
             class_node = node.scopes.find(val_id)
