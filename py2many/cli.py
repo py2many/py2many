@@ -19,7 +19,7 @@ from py2many.input_configuration import config_rewriters, parse_input_configurat
 from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
 from pynim.rewriters import WithToBlockRewriter
 from pyjl.inference import infer_julia_types
-from pyjl.rewriters import JuliaIndexingRewriter, JuliaNestingRemoval, jl_class_rewriter
+from pyjl.rewriters import JuliaClassWrapper, JuliaIndexingRewriter, JuliaNestingRemoval
 
 
 from .analysis import add_imports
@@ -450,9 +450,9 @@ def julia_settings(args, env=os.environ):
             detect_broadcast,
         ],
         post_rewriters=[
-            jl_class_rewriter,
             JuliaNestingRemoval(),
             JuliaImportRewriter(),
+            JuliaClassWrapper(),
             JuliaGeneratorRewriter(),
             JuliaOffsetArrayRewriter(),
             JuliaIndexingRewriter(),

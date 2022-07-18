@@ -1146,26 +1146,34 @@ class JuliaImportRewriter(ast.NodeTransformer):
 
 
 ###########################################################
-###################### OOP Rewriters ######################
+##################### Class Rewriters #####################
 ###########################################################
 
+class JuliaClassWrapper(ast.NodeTransformer):
+    # Currently a hack to support two alternatives of translating 
+    # Python classes to Julia
+    def __init__(self) -> None:
+        super().__init__()
 
-def jl_class_rewriter(node, extension=False):
-    if hasattr(node, OBJECT_ORIENTED):
-        return JuliaClassOOPRewriter.visit(node)
-    else:
-        return JuliaClassCompositionRewriter.visit(node)
+    def visit_Module(self, node: ast.Module) -> Any:
+        if hasattr(node, OBJECT_ORIENTED):
+            visitor = JuliaClassOOPRewriter()
+        else:
+            visitor = JuliaClassCompositionRewriter()
+        return visitor.visit(node)
 
 class JuliaClassOOPRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
         if node.name == "__init__":
             node.oop = True
         return node
     
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
         node.oop = True
         return node
 
@@ -1183,9 +1191,10 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         self._hierarchy_map = {}
         self._class_scopes = []
-
         node.lineno = 0
         node.col_offset = 0
+
+        self.generic_visit(node)
 
         # Visit body nodes
         body = node.body
@@ -1220,6 +1229,8 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
+
         # Don't parse Enums
         base_ids = list(map(get_id, node.bases))
         if "Enum" in base_ids:
@@ -1231,18 +1242,20 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         is_jlClass = "jl_class" in decorator_list
 
         extends = []
+        # Change bases to support Abstract Types
         if not node.bases or len(node.bases) == 0:
-            node.jl_bases = [
+            node.bases = [
                 ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
         elif len(node.bases) == 1:
             name = get_id(node.bases[0])
-            node.jl_bases = [
+            node.bases = [
                 ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             # Julia does not have base-class object 
             if name != "object":
                 extends = [name]
         else:
-            raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
+            raise Exception("Multiple inheritance is only supported with \
+                ObjectOriented.jl")
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 

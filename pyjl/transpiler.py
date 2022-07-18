@@ -487,21 +487,23 @@ class JuliaTranspiler(CLikeTranspiler):
                 if dec_ret:
                     return dec_ret
 
-        # TODO: Investigate Julia traits
         struct_name = get_id(node)
         bases = []
-        for base in node.jl_bases:
+        for base in node.bases:
             bases.append(self.visit(base))
 
-        bases_str = f"{{{', '.join(bases)}}}" if len(bases) > 1 else bases[0]
-        struct_def = f"mutable struct {struct_name} <: {bases_str}" \
-            if bases else f"mutable struct {struct_name}"
+        if bases:
+            bases_str = f"{{{', '.join(bases)}}}" if len(bases) > 1 else bases[0]
+            struct_def = f"mutable struct {struct_name} <: {bases_str}"
+        else:
+            struct_def = f"mutable struct {struct_name}"
 
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
         maybe_constructor = f"\n{node.constructor_str}" if hasattr(node, "constructor_str") else ""
 
         if getattr(node, "oop", False):
+            self._usings.add("ObjectOriented")
             return f"""@oodef {struct_def}
                             {node.fields_str}
                             {maybe_constructor}

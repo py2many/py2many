@@ -48,7 +48,7 @@ class JuliaTranspilerPlugins:
         ])
 
         # Struct definition
-        bases = [t_self.visit(base) for base in node.jl_bases]
+        bases = [t_self.visit(base) for base in node.bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -161,7 +161,7 @@ class JuliaTranspilerPlugins:
 
         body = "\n".join(body)
 
-        bases = [t_self.visit(base) for base in node.jl_bases]
+        bases = [t_self.visit(base) for base in node.bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -202,7 +202,7 @@ class JuliaTranspilerPlugins:
         # Struct definition
         fields = []
         bases = []
-        for b in node.jl_bases:
+        for b in node.bases:
             b_name = t_self.visit(b)
             if b_name != f"Abstract{node.name}":
                 bases.append(b_name)
@@ -713,7 +713,7 @@ class SpecialFunctionsPlugins():
 
     def visit_init(t_self, node: ast.FunctionDef): 
         # Visit Args
-        constructor_args = JuliaTranspilerPlugins._get_args(node.args)
+        constructor_args = SpecialFunctionsPlugins._get_args(node.args)
         has_default = node.args.defaults != []
 
         constructor_body = []
@@ -738,11 +738,10 @@ class SpecialFunctionsPlugins():
             # Use for organizing argument order in classes
             class_node.constructor_arg_names = constructor_args.keys()
             # Parse args
-            args = JuliaTranspilerPlugins._parse_args(t_self, constructor_args)
+            args = SpecialFunctionsPlugins._parse_args(t_self, constructor_args)
             args_str = ", ".join(args)
             args_no_defaults = list(map(lambda x: x.split("=")[0], args))
             decls = list(map(lambda x: x.split("::")[0], args_no_defaults))
-            decls_str = ", ".join(decls)
 
             # Visit constructor Body
             body = []
@@ -758,15 +757,16 @@ class SpecialFunctionsPlugins():
             struct_name = get_id(class_node)
         
             if getattr(node, "oop", False):
-                assignments = "\n".join(args)
+                assignments = "\n".join([f"{a} = {a}" for a in decls])
                 class_node.constructor_str = f"""
-                function new({args_str}) = 
+                function new({args_str})
                     {body}
                     @mk begin 
                         {assignments}
                     end
                 end""" 
             else:
+                decls_str = ", ".join(decls)
                 if body:
                     class_node.constructor_str = f"""
                     {struct_name}({args_str}) = begin
