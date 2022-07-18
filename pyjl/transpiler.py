@@ -21,7 +21,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -467,14 +467,14 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
+        # Get class declarations and assignments
+        self._visit_class_fields(node)
+
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 body.append(self.visit(b))
         body = "\n".join(body)
-
-        # Get class declarations and assignments
-        self._visit_class_fields(node)
 
         ret = super().visit_ClassDef(node)
         if ret is not None:
@@ -522,7 +522,10 @@ class JuliaTranspiler(CLikeTranspiler):
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         dec_items = []
-        if not hasattr(node, "constructor_arg_names"):
+        init_func = find_in_body(node.body, lambda x: isinstance(x, ast.FunctionDef) \
+            and x.name == "__init__")
+
+        if not init_func:
             has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
 
             # Reorganize fields, so that defaults are last
@@ -530,7 +533,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 if has_defaults \
                 else declarations.items()
         else:
-            for arg in node.constructor_arg_names:
+            # Gets args and removes self
+            init_args = [arg.split("::")[0] for arg in self._get_args(init_func)[1:]]
+            for arg in init_args:
                 if arg in declarations:
                     dec_items.append((arg, declarations[arg]))
 

@@ -7,7 +7,7 @@ from typing import Any, Dict
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type, is_enum, is_list
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum, is_list
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
@@ -1155,19 +1155,40 @@ class JuliaImportRewriter(ast.NodeTransformer):
 ###########################################################
 
 class JuliaClassWrapper(ast.NodeTransformer):
-    # Currently a hack to support two alternatives of translating 
+    # A hack to support two alternatives of translating 
     # Python classes to Julia
     def __init__(self) -> None:
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self.generic_visit(node)
         if hasattr(node, OBJECT_ORIENTED):
             visitor = JuliaClassOOPRewriter()
         else:
             visitor = JuliaClassCompositionRewriter()
         return visitor.visit(node)
 
+    def visit_Call(self, node: ast.Call) -> Any:
+        func_id = ast.unparse(node.func)
+        if isinstance(node.func, ast.Attribute) and \
+                re.match(r"^.*__init__$", func_id):
+            # Matches any call that ends with init
+            node.func = node.func.value
+        elif re.match(r"^super", func_id):
+            # Matches any call starting with super
+            # According to C3 MRO, a call to super() will select 
+            # the first base class
+            class_node = find_node_by_type(ast.ClassDef, node.scopes)
+            base = class_node.bases[0] if class_node else None
+            node.func = base
+        # Remove self
+        if node.args and isinstance(node.args[0], ast.Name) and \
+                get_id(node.args[0]) == "self":
+            node.args = node.args[1:]
+        return node
+
 class JuliaClassOOPRewriter(ast.NodeTransformer):
+    """A placeholder for future changes regarding OOP"""
     def __init__(self) -> None:
         super().__init__()
 
@@ -1259,8 +1280,7 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
             if name != "object":
                 extends = [name]
         else:
-            raise Exception("Multiple inheritance is only supported with \
-                ObjectOriented.jl")
+            raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
 
         self._hierarchy_map[class_name] = (extends, is_jlClass)
 
@@ -1280,23 +1300,6 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
             node.self_type = f"Abstract{node.self_type}"
 
         return node
-
-    # def visit_Call(self, node: ast.Call) -> Any:
-    #     func = node.func
-    #     if isinstance(func, ast.Attribute):
-    #         value_id = get_id(func.value)
-    #         val_node = find_node_by_name_and_type(value_id, ast.ClassDef, node.scopes)[0]
-    #         if isinstance(val_node, ast.ClassDef):
-    #             func_n = ast.Name(id=value_id, lineno=node.lineno) \
-    #                 if value_id else func.value
-
-    #             if func.attr == "__init__":
-    #                 func_n.annotation = getattr(node.func, "annotation", None)
-    #                 node.func = func_n
-    #                 node.args = node.args[1:]
-    #                 return node
-    #     return node
-
 
 
 ###########################################################
