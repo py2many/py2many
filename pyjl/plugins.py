@@ -205,23 +205,24 @@ class JuliaTranspilerPlugins:
         # Struct definition
         fields = []
         bases = []
-        for b in node.bases:
-            b_name = self.visit(b)
-            if b_name != f"Abstract{node.name}":
+
+        if node.bases:
+            for b in node.bases:
+                b_name = self.visit(b)
                 bases.append(b_name)
 
-            # Don't repeat elements of superclasses
-            base_class = find_node_by_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
-            if base_class:
-                base_class_decs = list(map(lambda x: x[0], base_class.fields))
-                for (declaration, typename, _) in node.fields:
-                    if declaration not in base_class_decs:
-                        fields.append((declaration, typename))
+                # Avoid repeating fields of superclasses
+                base_class = find_node_by_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
+                if base_class:
+                    base_class_decs = list(map(lambda x: x[0], base_class.fields))
+                    for (declaration, typename, _) in node.fields:
+                        if declaration not in base_class_decs:
+                            fields.append((declaration, typename))
 
-        # Change string representation if fields have been changed
-        if fields and fields != node.fields:
             fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
-            node.fields_str = ", ".join(fields_str) if fields else ""
+            fields_str = "\n".join(fields_str) if fields else ""
+        else:
+            fields_str = node.fields_str
 
         struct_def = f"{node.name} <: {', '.join(bases)}" \
             if bases else f"{node.name}"
@@ -234,9 +235,9 @@ class JuliaTranspilerPlugins:
 
         if hasattr(node, "constructor"):
             constructor_str = self.visit(node.constructor)
-            return f"@class {struct_def} begin\n{node.fields_str}\n{constructor_str}\nend\n{body}"
+            return f"@class {struct_def} begin\n{fields_str}\n{constructor_str}\nend\n{body}"
 
-        return f"@class {struct_def} begin\n{node.fields_str}\nend\n{body}"
+        return f"@class {struct_def} begin\n{fields_str}\nend\n{body}"
 
 
     def visit_resumables(self, node, decorator):

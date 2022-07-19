@@ -70,6 +70,9 @@ class SpecialFunctionsPlugins():
             constructor.parsed_decorators = node.parsed_decorators
             constructor.decorator_list = node.decorator_list
             class_node.constructor = constructor
+        
+        # Used to order the struct fields
+        class_node.constructor_args = node.args
 
         return None
 

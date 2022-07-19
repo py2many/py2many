@@ -140,6 +140,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Parse function args
         args_list = self._get_args(node)
+        if hasattr(node, "oop"):
+            f_arg = args_list[0].split("::")[0]
+            if f_arg == "self":
+                # Remove annotation
+                args_list[0] = f_arg
         args = ", ".join(args_list)
         node.parsed_args = args
 
@@ -511,14 +516,14 @@ class JuliaTranspiler(CLikeTranspiler):
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         dec_items = []
-        if not hasattr(node, "constructor"):
+        if not hasattr(node, "constructor_args"):
             has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
             # Reorganize fields, so that defaults are last
             dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
                 if has_defaults \
                 else declarations.items()
         else:
-            init_args = [arg.split("::")[0] for arg in self._get_args(node.constructor)]
+            init_args = [arg.arg for arg in node.constructor_args.args]
             for arg in init_args:
                 if arg in declarations:
                     dec_items.append((arg, declarations[arg]))
@@ -1068,8 +1073,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"OrderedSet([{elements_str}])"
 
     def visit_Constructor(self, node: juliaAst.Constructor):
-        # Get args and remove self
-        args = self._get_args(node)[1:]
+        args = self._get_args(node)
+        if args[0].split("::")[0] == "self":
+            # Remove self
+            args = args[1:]
         args_str = ", ".join(args)
 
         docstring_parsed: str = self._get_docstring(node)
@@ -1077,12 +1084,13 @@ class JuliaTranspiler(CLikeTranspiler):
         body.extend([self.visit(n) for n in node.body])
         body = "\n".join(body)
 
-        # if len(node.body) > 1:
-        return f"""{node.name}({args_str}) = begin
-                        {body}
-                    end"""
-        # else:
-        #     return f"{node.name}({args_str}) = {body}"
+        if len(node.body) == 1 and isinstance(node.body[0], ast.Call) \
+                and get_id(node.body[0].func) == "new":
+            return f"{node.name}({args_str}) = {body}"
+        else:
+            return f"""{node.name}({args_str}) = begin
+                            {body}
+                        end"""
 
     def visit_Block(self, node: juliaAst.Block) -> Any:
         body = []

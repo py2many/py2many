@@ -1172,17 +1172,17 @@ class JuliaClassWrapper(ast.NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
-        if isinstance(node.func, ast.Attribute) and \
-                re.match(r"^.*__init__$", func_id):
-            # Matches any call that ends with init
-            node.func = node.func.value
-        elif re.match(r"^super", func_id):
+        if re.match(r"^super", func_id) is not None:
             # Matches any call starting with super
             # According to C3 MRO, a call to super() will select 
             # the first base class
             class_node = find_node_by_type(ast.ClassDef, node.scopes)
             base = class_node.bases[0] if class_node else None
             node.func = base
+        elif isinstance(node.func, ast.Attribute) and \
+                re.match(r"^.*__init__$", func_id):
+            # Matches any call that ends with init
+            node.func = node.func.value
         # Remove self
         if node.args and isinstance(node.args[0], ast.Name) and \
                 get_id(node.args[0]) == "self":
@@ -1216,8 +1216,7 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self.generic_visit(node)
-        if node.name == "__init__":
-            node.oop = True
+        node.oop = True
         return node
     
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
@@ -1250,10 +1249,10 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         # Create abstract types
         abstract_types = []
         l_no = node.import_cnt
-        for (class_name, (extends_lst, is_jlClass)) in self._hierarchy_map.items():
+        for class_name, extends_lst in self._hierarchy_map.items():
             nameVal = ast.Name(id=class_name)
             extends = None
-            if not is_jlClass and extends_lst:
+            if extends_lst:
                 core_module = extends_lst[0].split(
                     ".")[0] if extends_lst[0] else None
                 # TODO: Investigate Julia traits
@@ -1287,7 +1286,8 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         class_name: str = get_id(node)
 
         decorator_list = list(map(get_id, node.decorator_list))
-        is_jlClass = "jl_class" in decorator_list
+        if "jl_class" in decorator_list:
+            return node
 
         extends = []
         # Change bases to support Abstract Types
@@ -1304,7 +1304,7 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         else:
             raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
 
-        self._hierarchy_map[class_name] = (extends, is_jlClass)
+        self._hierarchy_map[class_name] = extends
 
         return node
 
