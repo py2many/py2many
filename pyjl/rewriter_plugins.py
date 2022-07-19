@@ -51,6 +51,18 @@ class SpecialFunctionsPlugins():
             has_default = node.args.defaults != []
             if constructor_body or has_default:
                 decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args))
+                decorator_list = list(map(get_id, class_node.decorator_list))
+                if "jl_class" not in decorator_list:
+                    # If we are using composition and the class extends from super, 
+                    # it must contain its fields as well.
+                    # We assume that all the fields provided in the __init__ function 
+                    # as args are the ones required.
+                    for decl in decls:
+                        decl_id = get_id(decl)
+                        if decl_id not in class_node.declarations:
+                            class_node.declarations[decl_id] = None
+                            class_node.declarations_with_defaults[decl_id] = (None, None)
+                # decls = list(map(lambda x: ast.Name(id=x), class_node.declarations.keys()))
                 new_instance = ast.Call(
                                 func = ast.Name(id = "new"),
                                 args = decls,

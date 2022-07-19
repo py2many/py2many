@@ -1,5 +1,4 @@
-# @jl_class # For PyJL
-import math
+# Simple class translation
 
 class Foo:
     def bar(self):
@@ -28,14 +27,6 @@ class Square(Shape):
 
     def area(self):
         self.x * self.y
-
-class Circle(Shape):
-    def __init__(self, x, y, radius):
-        super().__init__(x, y)
-        self.radius = radius
-
-    def area(self):
-        math.pi * self.radius
 
 
 ######################################

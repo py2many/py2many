@@ -1167,8 +1167,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
             visitor = JuliaClassOOPRewriter()
         else:
             visitor = JuliaClassCompositionRewriter()
-        node = visitor.visit(node)
-        return self.generic_visit(node)
+        node = self.generic_visit(node)
+        return visitor.visit(node)
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)

@@ -67,7 +67,7 @@ class DeclarationExtractor(ast.NodeVisitor):
                 node.body.remove(m)
         else:
             node.is_dataclass = False
-            # Do not consider delcarations from nested classes
+            # Do not consider declarations from nested classes
             for n in node.body:
                 if not isinstance(n, ast.ClassDef):
                     self.visit(n)
