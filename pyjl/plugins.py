@@ -49,7 +49,7 @@ class JuliaTranspilerPlugins:
         ])
 
         # Struct definition
-        bases = [self.visit(base) for base in node.bases]
+        bases = [self.visit(base) for base in node.jl_bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -163,7 +163,7 @@ class JuliaTranspilerPlugins:
 
         body = "\n".join(body)
 
-        bases = [self.visit(base) for base in node.bases]
+        bases = [self.visit(base) for base in node.jl_bases]
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
@@ -206,8 +206,8 @@ class JuliaTranspilerPlugins:
         fields = []
         bases = []
 
-        if node.bases:
-            for b in node.bases:
+        if node.jl_bases:
+            for b in node.jl_bases:
                 b_name = self.visit(b)
                 bases.append(b_name)
 

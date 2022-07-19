@@ -489,7 +489,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         struct_name = get_id(node)
         bases = []
-        for base in node.bases:
+        for base in node.jl_bases:
             bases.append(self.visit(base))
 
         if bases:

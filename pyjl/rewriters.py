@@ -1167,8 +1167,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
             visitor = JuliaClassOOPRewriter()
         else:
             visitor = JuliaClassCompositionRewriter()
-        node = self.generic_visit(node)
-        return visitor.visit(node)
+        node = visitor.visit(node)
+        return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
@@ -1221,6 +1221,7 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
     
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
+        node.jl_bases = node.bases
         node.oop = True
         return node
 
@@ -1287,16 +1288,17 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
 
         decorator_list = list(map(get_id, node.decorator_list))
         if "jl_class" in decorator_list:
+            node.jl_bases = node.bases
             return node
 
         extends = []
         # Change bases to support Abstract Types
         if not node.bases or len(node.bases) == 0:
-            node.bases = [
+            node.jl_bases = [
                 ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
         elif len(node.bases) == 1:
             name = get_id(node.bases[0])
-            node.bases = [
+            node.jl_bases = [
                 ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
             # Julia does not have base-class object 
             if name != "object":
