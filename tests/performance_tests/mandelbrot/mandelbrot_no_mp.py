@@ -10,7 +10,7 @@ import sys
 # from time import perf_counter
 
 
-# @resumable
+@resumable
 def pixels(y: int, n: int, abs):
     range7 = bytearray(range(7))
     pixel_bits = bytearray(128 >> pos for pos in range(8))
@@ -42,7 +42,7 @@ def compute_row(p: tuple[int, int]):
     return y, result
 
 
-# @resumable(lower_yield_from=True)
+@resumable(lower_yield_from=True)
 def compute_rows(n: int, f):
     row_jobs = ((y, n) for y in range(n))
     yield from map(f, row_jobs)

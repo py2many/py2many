@@ -58,7 +58,7 @@ The following section describes the currently supported features of PyJL. All ma
   - [x] `class`
   - [x] `continue`
   - [x] `def`
-  - [ ] `del`
+  - [ ] `del` -> Partially supported
   - [x] `elif`
   - [x] `else`
   - [x] `except`

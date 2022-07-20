@@ -548,7 +548,7 @@ class UnitTestRewriter(ast.NodeTransformer):
         node.body = body
 
 
-class ForElseRewriter(ast.NodeTransformer):
+class LoopElseRewriter(ast.NodeTransformer):
     def __init__(self, language) -> None:
         super().__init__()
         self._language = language
@@ -601,7 +601,7 @@ class ForElseRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         assign = ast.Assign(
             targets=[ast.Name(id=self._has_break_var_name)],
-            value=None,  # Fill up later
+            value=None,
             scopes=node.scopes,
         )
         ast.fix_missing_locations(assign)

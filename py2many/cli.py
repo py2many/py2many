@@ -94,7 +94,7 @@ from pysmt.inference import infer_smt_types
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
     FStringJoinRewriter,
-    ForElseRewriter,
+    LoopElseRewriter,
     InferredAnnAssignRewriter,
     UnitTestRewriter,
     PythonMainRewriter,
@@ -172,7 +172,7 @@ def _transpile(
         PrintBoolRewriter(language),
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
-        ForElseRewriter(language),
+        LoopElseRewriter(language),
         UnitTestRewriter(language),
     ]
     rewriters = generic_rewriters + rewriters

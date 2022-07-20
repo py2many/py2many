@@ -53,7 +53,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             val_id = get_id(fname.value)
             # Bypass rewrite when using oop
-            if (is_class_type(val_id, node.scopes) or re.match(r"^self", val_id)) \
+            if val_id and (is_class_type(val_id, node.scopes) or 
+                    re.match(r"^self", val_id)) \
                     and self._oop:
                 return node
             # Check if value is module
