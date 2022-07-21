@@ -68,7 +68,7 @@ RUST_WIDTH_RANK = {
 RUST_RANK_TO_TYPE = {v: k for k, v in RUST_WIDTH_RANK.items()}
 
 
-class InferRustTypesTransformer(ast.NodeTransformer):
+class InferRustTypesTransformer(InferTypesTransformer):
     """Implements rust type inference logic as opposed to python type inference logic"""
 
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS

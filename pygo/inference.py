@@ -71,7 +71,7 @@ def get_inferred_go_type(node):
 
 
 # Copy pasta from rust. Double check for correctness
-class InferGoTypesTransformer(ast.NodeTransformer):
+class InferGoTypesTransformer(InferTypesTransformer):
     """Implements go type inference logic as opposed to python type inference logic"""
 
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS

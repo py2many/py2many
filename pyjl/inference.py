@@ -1,22 +1,22 @@
 import ast
 from ctypes import c_int64
 from typing import Any
-from py2many.external_modules import import_external_modules
+from py2many.external_modules import ExternalBase
 
-from py2many.inference import InferTypesTransformer
+from py2many.inference import InferMeta, InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.clike import class_for_typename
 from pyjl.clike import CLikeTranspiler
 from pyjl.helpers import get_ann_repr
-from pyjl.global_vars import NONE_TYPE
 from pyjl.global_vars import DEFAULT_TYPE
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
     visitor.visit(node)
+    return InferMeta(visitor.has_fixed_width_ints)
 
-class InferJuliaTypesTransformer(ast.NodeTransformer):
+class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
     """
     Implements Julia type inference logic
     """
@@ -32,8 +32,8 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self._clike = CLikeTranspiler()
         self._imported_names = None
         self._func_type_map = InferTypesTransformer.FUNC_TYPE_MAP
-        #
-        import_external_modules(self, "Julia")
+        # Get external module features
+        self.import_external_modules("Julia")
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = node.imported_names
@@ -133,7 +133,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
-        self.generic_visit(node)
+        super().visit(node)
         self._verify_annotation(node, node.annotation, node.target, inferred=False)
         return node
 
@@ -219,27 +219,7 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
 
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
-        return node
-
-    # def visit_Call(self, node: ast.Call) -> Any:
-    #     # TODO: This is just to keep inference language-independent for now
-    #     self.generic_visit(node)
-    #     fname = get_id(node.func)
-    #     if (func := class_for_typename(fname, None, locals=self._imported_names)) \
-    #             in self._func_type_map:
-    #         InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
-    #     else:
-    #         # Use annotation
-    #         ann = getattr(node.func, "annotation", None)
-    #         func_name = ast.unparse(ann) if ann else None
-    #         if isinstance(node.func, ast.Attribute):
-    #             ann = getattr(node.func.value, "annotation", None)
-    #             if ann:
-    #                 func_name = f"{ast.unparse(ann)}.{node.func.attr}"
-    #         if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
-    #                 in self._func_type_map:
-    #             InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
-    #     return node
+        return super().visit(node)
 
     ######################################################
     ################# Inference Methods ##################

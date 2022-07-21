@@ -72,7 +72,7 @@ def get_inferred_nim_type(node):
 
 
 # Copy pasta from rust. Double check for correctness
-class InferNimTypesTransformer(ast.NodeTransformer):
+class InferNimTypesTransformer(InferTypesTransformer):
     """Implements nim type inference logic as opposed to python type inference logic"""
 
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS

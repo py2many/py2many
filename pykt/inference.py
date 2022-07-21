@@ -72,7 +72,7 @@ def get_inferred_kotlin_type(node):
 
 
 # Copy pasta from rust. Double check for correctness
-class InferKotlinTypesTransformer(ast.NodeTransformer):
+class InferKotlinTypesTransformer(InferTypesTransformer):
     """Implements kotlin type inference logic as opposed to python type inference logic"""
 
     FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS

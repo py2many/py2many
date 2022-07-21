@@ -9,7 +9,7 @@ from py2many.ast_helpers import get_id
 import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
-from py2many.external_modules import import_external_modules
+from py2many.external_modules import ExternalBase
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
@@ -149,7 +149,7 @@ def jl_symbol(node):
     symbol_type = type(node)
     return jl_symbols[symbol_type]
 
-class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
+class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
@@ -167,8 +167,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         self._use_modules = None
         self._external_type_map = {}
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
-        #
-        import_external_modules(self, "Julia")
+        # Get external module features
+        self.import_external_modules("Julia")
 
     def usings(self):
         usings = sorted(list(set(self._usings)))

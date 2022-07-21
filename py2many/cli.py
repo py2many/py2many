@@ -123,10 +123,7 @@ def core_transformers(tree, trees, args):
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
     add_imports(tree)
-    infer_meta = (
-        infer_types_typpete(tree) if args and args.typpete else infer_types(tree)
-    )
-    return tree, infer_meta
+    return tree
 
 
 def _transpile(
@@ -142,6 +139,7 @@ def _transpile(
     target language
     """
     transpiler = settings.transpiler
+    inference = settings.inference
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
@@ -196,6 +194,7 @@ def _transpile(
                 transformers,
                 post_rewriters,
                 optimization_rewriters,
+                inference,
                 config_handler,
                 args,
             )
@@ -229,6 +228,7 @@ def _transpile_one(
     transformers,
     post_rewriters,
     optimization_rewriters,
+    inference,
     config_handler,
     args,
 ):
@@ -242,7 +242,15 @@ def _transpile_one(
     for rewriter in rewriters:
         tree = rewriter.visit(tree)
     # Language independent core transformers
-    tree, infer_meta = core_transformers(tree, trees, args)
+    tree = core_transformers(tree, trees, args)
+    # Type inference
+    if args and args.typpete:
+        infer_meta = infer_types_typpete(tree)
+    else:
+        if inference:
+            infer_meta = inference(tree)
+        else:
+            infer_meta = infer_types(tree)
     # Language specific transformers
     for tx in transformers:
         tx(tree)
@@ -254,7 +262,7 @@ def _transpile_one(
         tree = opt_rewriter.visit(tree)
 
     # Rerun core transformers
-    tree, infer_meta = core_transformers(tree, trees, args)
+    tree = core_transformers(tree, trees, args)
     out = []
 
     transpile_output = transpiler.visit(tree)
@@ -406,10 +414,11 @@ def rust_settings(args, env=os.environ):
         ["rustfmt", "--edition=2018"],
         None,
         rewriters=[RustNoneCompareRewriter()],
-        transformers=[functools.partial(infer_rust_types, extension=args.extension)],
+        transformers=[],
         post_rewriters=[RustLoopIndexRewriter(), RustStringJoinRewriter()],
         create_project=["cargo", "new", "--bin"],
         project_subdir="src",
+        inference = functools.partial(infer_rust_types, extension=args.extension),
     )
 
 
@@ -444,7 +453,6 @@ def julia_settings(args, env=os.environ):
         rewriters=[JuliaMainRewriter()],
         transformers=[
             parse_decorators,
-            infer_julia_types,
             analyse_variable_scope,
             optimize_loop_ranges,
             find_ordered_collections,
@@ -468,6 +476,7 @@ def julia_settings(args, env=os.environ):
             JuliaArbitraryPrecisionRewriter(),
         ],
         optimization_rewriters=[AlgebraicSimplification(), OperationOptimizer()],
+        inference = infer_julia_types
     )
 
 
@@ -526,11 +535,12 @@ def go_settings(args, env=os.environ):
         ["gofmt", "-w"],
         None,
         [GoNoneCompareRewriter(), GoVisibilityRewriter(), GoIfExpRewriter()],
-        [infer_go_types],
+        [],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
         linter=(
             ["revive", "--config", str(revive_config)] if revive_config else ["revive"]
         ),
+        inference = infer_go_types
     )
 
 
@@ -547,7 +557,8 @@ def vlang_settings(args, env=os.environ):
         ["v", *vfmt_args],
         None,
         [VNoneCompareRewriter(), VDictRewriter(), VComprehensionRewriter()],
-        [infer_v_types],
+        [],
+        inference = infer_v_types
     )
 
 
@@ -562,6 +573,7 @@ def smt_settings(args, env=os.environ):
         None,
         [],
         [infer_smt_types],
+        inference = infer_smt_types
     )
 
 
