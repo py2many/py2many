@@ -18,8 +18,6 @@ from unittest.mock import Mock
 from py2many.input_configuration import config_rewriters, parse_input_configurations
 from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
 from pynim.rewriters import WithToBlockRewriter
-from pyjl.inference import infer_julia_types
-from pyjl.rewriters import JuliaClassWrapper, JuliaIndexingRewriter, JuliaNestingRemoval
 
 
 from .analysis import add_imports
@@ -54,7 +52,6 @@ from pyjl.rewriters import (
     JuliaIORewriter,
     JuliaImportRewriter,
     JuliaAugAssignRewriter,
-    JuliaClassCompositionRewriter,
     JuliaGeneratorRewriter,
     JuliaConditionRewriter,
     JuliaIndexingRewriter,
@@ -63,6 +60,10 @@ from pyjl.rewriters import (
     JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
     JuliaOrderedCollectionRewriter,
+    JuliaCTypesRewriter, 
+    JuliaClassWrapper, 
+    JuliaIndexingRewriter, 
+    JuliaNestingRemoval
 )
 from pyjl.transpiler import JuliaTranspiler
 from pyjl.inference import infer_julia_types
@@ -457,6 +458,7 @@ def julia_settings(args, env=os.environ):
             JuliaOffsetArrayRewriter(),
             JuliaIndexingRewriter(),
             JuliaOrderedCollectionRewriter(),
+            JuliaCTypesRewriter(),
             JuliaMethodCallRewriter(),
             JuliaAugAssignRewriter(),
             JuliaConditionRewriter(),

@@ -58,6 +58,9 @@ class Constructor(ast.FunctionDef):
     returns: ast.expr
     ctx: ast.expr_context
 
+class Symbol(ast.Name):
+    id: str
+
 ######################################
 ############### Parser ###############
 ######################################
@@ -110,6 +113,11 @@ class JuliaNodeVisitor(ast.NodeVisitor):
     def visit_Constructor(self, node: Block) -> Any:
         """Visit Julia Constructor"""
         self.visit_FunctionDef(node)
+        return node
+
+    def visit_Symbol(self, node: Symbol) -> Any:
+        """Visit Julia Symbol"""
+        self.visit_Name(node)
         return node
 
 

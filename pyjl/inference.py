@@ -68,8 +68,15 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         self.visit(node.value)
 
-        ann = getattr(node.value, "annotation", None)
-        annotation = ann if ann else getattr(node, "annotation", None)
+        if node.type_comment:
+            annotation = ast.Name(id = node.type_comment)
+            # Propagate type-comment (Required for pyjl calls)
+            node.value.type_comment = node.type_comment
+        else:
+            annotation = getattr(node.value, "annotation", None)
+            if not annotation:
+                return node
+
         if annotation is None:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
@@ -110,6 +117,9 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             # TODO: We need to improve is_compatible to support a broader analysis
             # For now, _verify_annotation performs a string-based comparison as a fallback
             self._verify_annotation(node, annotation, target, inferred=inferred)
+            if (not target_has_annotation or inferred):
+                target.annotation = annotation
+                target.annotation.inferred = True
         return node
 
     def _find_annotated_assign(self, node):
@@ -211,25 +221,25 @@ class InferJuliaTypesTransformer(ast.NodeTransformer):
             raise AstUnrecognisedBinOp(left_id, right_id, node)
         return node
 
-    def visit_Call(self, node: ast.Call) -> Any:
-        # TODO: This is just to keep inference language-independent for now
-        self.generic_visit(node)
-        fname = get_id(node.func)
-        if (func := class_for_typename(fname, None, locals=self._imported_names)) \
-                in self._func_type_map:
-            InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
-        else:
-            # Use annotation
-            ann = getattr(node.func, "annotation", None)
-            func_name = ast.unparse(ann) if ann else None
-            if isinstance(node.func, ast.Attribute):
-                ann = getattr(node.func.value, "annotation", None)
-                if ann:
-                    func_name = f"{ast.unparse(ann)}.{node.func.attr}"
-            if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
-                    in self._func_type_map:
-                InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
-        return node
+    # def visit_Call(self, node: ast.Call) -> Any:
+    #     # TODO: This is just to keep inference language-independent for now
+    #     self.generic_visit(node)
+    #     fname = get_id(node.func)
+    #     if (func := class_for_typename(fname, None, locals=self._imported_names)) \
+    #             in self._func_type_map:
+    #         InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
+    #     else:
+    #         # Use annotation
+    #         ann = getattr(node.func, "annotation", None)
+    #         func_name = ast.unparse(ann) if ann else None
+    #         if isinstance(node.func, ast.Attribute):
+    #             ann = getattr(node.func.value, "annotation", None)
+    #             if ann:
+    #                 func_name = f"{ast.unparse(ann)}.{node.func.attr}"
+    #         if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
+    #                 in self._func_type_map:
+    #             InferTypesTransformer._annotate(node, self._func_type_map[func](self, node, node.args))
+    #     return node
 
     ######################################################
     ################# Inference Methods ##################

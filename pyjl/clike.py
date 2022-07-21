@@ -20,11 +20,6 @@ from pyjl.global_vars import DEFAULT_TYPE
 from numbers import Complex, Integral, Rational, Real
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
-
-import numpy as np
-
 logger = logging.Logger("pyjl")
 
 # allowed as names in Python but treated as keywords in Julia
@@ -113,14 +108,6 @@ JULIA_TYPE_MAP = {
     float: "Float64",
     bytes: "Array{UInt8}",
     str: "String",
-    c_int8: "Int8",
-    c_int16: "Int16",
-    c_int32: "Int32",
-    c_int64: "Int64",
-    c_uint8: "UInt8",
-    c_uint16: "UInt16",
-    c_uint32: "UInt32",
-    c_uint64: "UInt64",
     Integral: "Integer",
     complex: "Complex",
     Complex: "Complex",
@@ -204,6 +191,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor):
         if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
             return f"{node_id}_"
+        elif getattr(node, "is_annotation", False):
+            return self._map_type(node_id)
         return super().visit_Name(node)
 
     def visit_arg(self, node):

@@ -153,7 +153,9 @@ class JuliaTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 func_typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f"::{self._map_type(func_typename)}"
+                mapped_type = self._map_type(func_typename)
+                if mapped_type:
+                    return_type = f"::{self._map_type(func_typename)}"
         node.return_type = return_type
 
         template = ""
@@ -249,6 +251,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if not value_id:
             value_id = ""
+        
+        if getattr(node, "is_annotation", False):
+            return self._map_type(f"{value_id}.{attr}")
 
         return f"{value_id}.{attr}"
 
@@ -1098,3 +1103,6 @@ class JuliaTranspiler(CLikeTranspiler):
             body.append(self.visit(n))
         body = "\n".join(body)
         return f"{node.name} begin\n{body}\nend"
+
+    def visit_Symbol(self, node: juliaAst.Symbol) -> Any:
+        return f":{node.id}"

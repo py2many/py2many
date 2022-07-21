@@ -66,7 +66,7 @@ def _get_external_modules(lang) -> list[tuple[str, str]]:
     ]
 
 
-# class ExternalWrapper():
-#     """Wrapper to add external modules"""
-#     def __init__(self: CLikeTranspiler):
-#         import_external_modules(self)
+class ExternalWrapper():
+    """Wrapper to add external modules"""
+    def __init__(self, lang):
+        import_external_modules(self, lang)

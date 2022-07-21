@@ -187,6 +187,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
     np.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
     np.ndarray.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
+    # Types can also be called as functions to convert
+    np.int8: (lambda self, node, vargs: f"Int8({vargs[0]})", True),
+    np.int16: (lambda self, node, vargs: f"Int16({vargs[0]})", True),
+    np.int32: (lambda self, node, vargs: f"Int32({vargs[0]})", True),
+    np.int64: (lambda self, node, vargs: f"Int64({vargs[0]})", True),
 }
 
 # Numpy Types

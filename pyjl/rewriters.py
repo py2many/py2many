@@ -1,8 +1,12 @@
 import ast
 import copy
+import ctypes
 import re
 import sys
 from typing import Any, Dict
+
+from attr import Attribute
+from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
@@ -41,8 +45,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
-        # Don't parse annotations
-        if hasattr(node, "is_annotation"):
+        self.generic_visit(node)
+
+        # Don't parse annotations and special nodes
+        if getattr(node, "is_annotation", False) or \
+                getattr(node, "no_rewrite", False):
             return node
 
         args = []
@@ -82,8 +89,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
-        else:
-            self.generic_visit(node)
 
         node.args = args
         return node
@@ -91,8 +96,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
         
-        # Don't parse annotations
-        if getattr(node, "is_annotation", False):
+        # Don't parse annotations and special nodes
+        if getattr(node, "is_annotation", False) or \
+                getattr(node, "no_rewrite", False):
             return node
 
         if ret := self._handle_special_cases(node):
@@ -1717,4 +1723,155 @@ class JuliaModuleRewriter(ast.NodeTransformer):
             copy_attributes(node, julia_module)
 
             return julia_module
+        return node
+
+
+###########################################################
+######################### ctypes ##########################
+###########################################################
+
+class JuliaCTypesRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
+        self._ext_modules = {}
+        self.insert_before = []
+        self._imported_names = {}
+    
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._imported_names = node.imported_names
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        return self._generic_scope_visit(node)
+    
+    def visit_With(self, node: ast.With) -> Any:
+        return self._generic_scope_visit(node)
+
+    def visit_For(self, node: ast.For) -> Any:
+        return self._generic_scope_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        return self._generic_scope_visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        return self._generic_scope_visit(node)
+
+    def _generic_scope_visit(self, node):
+        if hasattr(node, "body"):
+            body = []
+            for n in node.body:
+                n = self.visit(n)
+                if self.insert_before:
+                    body.extend(self.insert_before)
+                    self.insert_before.clear()
+                if n == None:
+                    continue
+                body.append(n)
+            node.body = body
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
+        dll_target = None
+        for target in node.targets:
+            t_id = None
+            if isinstance(target, ast.Attribute):
+                t_id = get_id(target.value).split(".")[0]
+            else:
+                t_id = get_id(target)
+            t_node = node.scopes.find(t_id)
+            if hasattr(t_node, "annotation") and \
+                    get_id(t_node.annotation) == ("ctypes.CDLL" or "CDLL"):
+                dll_target = target
+        is_load_library = class_for_typename(get_id(node.value), None, self._imported_names) \
+            is ctypes.cdll.LoadLibrary
+        if dll_target and isinstance(dll_target, ast.Attribute) and \
+                isinstance(dll_target.value, ast.Attribute) and \
+                isinstance(dll_target.value.value, ast.Name) and \
+                not is_load_library:
+            # Adding information about modules and named functions
+            module_name = get_id(dll_target.value.value)
+            named_func = dll_target.value.attr
+            attr = dll_target.attr
+            if module_name not in self._ext_modules:
+                self._ext_modules[module_name] = {named_func: {attr: node.value}}
+            else:
+                if named_func not in self._ext_modules[module_name]:
+                    self._ext_modules[module_name][named_func] = {attr: node.value}
+                else:
+                    if attr not in self._ext_modules[module_name][named_func]:
+                        self._ext_modules[module_name][named_func][attr] = node.value
+            # We want to discard such nodes, as they are not used in Julia
+            return None
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Attribute) and \
+                isinstance(node.func.value, ast.Name):
+            dll_node = node.scopes.find(get_id(node.func.value))
+            has_dll_type = get_id(getattr(dll_node, "annotation", None)) == ("ctypes.CDLL" or "CDLL")
+            is_load_library = class_for_typename(get_id(node.func), None, self._imported_names) \
+                is ctypes.cdll.LoadLibrary
+            if has_dll_type and not is_load_library:
+                # Using the stored information
+                argtypes = None
+                rest_type = None
+                named_func = node.func.attr
+                module_name = get_id(node.func.value)
+                if module_name in self._ext_modules and \
+                        named_func in self._ext_modules[module_name]:
+                    args = self._ext_modules[module_name][named_func]
+                    if "argtypes" in args:
+                        t_argtypes = args["argtypes"]
+                        # Elements are all annotations
+                        for arg in t_argtypes.elts:
+                            arg.is_annotation = True
+                        if isinstance(t_argtypes, ast.List):
+                            argtypes = ast.Tuple(elts = t_argtypes.elts)
+                        else:
+                            argtypes = t_argtypes
+                    if "restype" in args:
+                        rest_type = args["restype"]
+                        rest_type.is_annotation = True
+                if not argtypes:
+                    argtypes = ast.Name("Cvoid")
+                if not rest_type:
+                    rest_type = ast.Name("Cvoid")
+
+                # Insert call to Libdl.dlsym
+                libdl_call = ast.Assign(
+                    targets = [ast.Name(id=named_func)],
+                    value = ast.Call(
+                        func = ast.Attribute(
+                            value = ast.Name(id = "Libdl"),
+                            attr = "dlsym",
+                            ctx = ast.Load(),
+                            scopes = node.scopes),
+                        args = [ast.Name(id=module_name), juliaAst.Symbol(id=named_func)],
+                        keywords = [],
+                        scopes = node.scopes,
+                        lineno = 0, col_offset = node.col_offset,
+                        no_rewrite = True), # Special attribute not to rewite call
+                    scopes = node.scopes)
+                ast.fix_missing_locations(libdl_call)
+                self.insert_before.append(libdl_call)
+
+                # Add ccall to named_func
+                ccall =  ast.Call(
+                    func = ast.Name(id="ccall"),
+                    args = [
+                        ast.Name(id = named_func),
+                        rest_type,
+                        argtypes
+                    ],
+                    lineno = node.lineno + 1,
+                    col_offset = node.col_offset,
+                    scopes = node.scopes)
+                ccall.args.extend(node.args)
+                ccall.keywords = node.keywords
+                ccall.no_rewrite = True # Special attribute not to rewite call
+                return ccall
         return node
