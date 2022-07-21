@@ -239,6 +239,11 @@ class InferTypesTransformer(ast.NodeTransformer):
             if class_type and not hasattr(node, "self_type"):
                 node.self_type = get_id(class_type)
 
+        if isinstance(node.body[-1], ast.Return) and \
+                hasattr(node.body[-1], "annotation") and \
+                node.returns == None:
+            node.returns = node.body[-1].annotation
+
         return node
 
     @staticmethod
