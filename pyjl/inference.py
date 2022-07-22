@@ -133,7 +133,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
-        super().visit(node)
+        self.generic_visit(node)
         self._verify_annotation(node, node.annotation, node.target, inferred=False)
         return node
 
@@ -219,7 +219,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
 
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
             raise AstUnrecognisedBinOp(left_id, right_id, node)
-        return super().visit(node)
+        return node
 
     ######################################################
     ################# Inference Methods ##################

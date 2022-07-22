@@ -233,7 +233,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._usings.clear()
         self._globals.clear()
         self._headers.clear()
-        self._imported_names = node.imported_names
+        self._imported_names = getattr(node, "imported_names", {})
         self._features.clear()
 
         # Get attributes

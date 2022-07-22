@@ -1079,7 +1079,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Constructor(self, node: juliaAst.Constructor):
         args = self._get_args(node)
-        if args[0].split("::")[0] == "self":
+        if args and args[0].split("::")[0] == "self":
             # Remove self
             args = args[1:]
         args_str = ", ".join(args)
