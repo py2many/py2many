@@ -889,7 +889,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),
     importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
     # sys special calls
-    sys.exit: (lambda self, node, vargs: "sys.exit", True),
+    sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})" if vargs else "exit()", True),
 }
 
 
