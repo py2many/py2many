@@ -888,6 +888,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),
     importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
+    # sys special calls
+    sys.exit: (lambda self, node, vargs: "sys.exit", True),
 }
 
 
