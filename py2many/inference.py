@@ -408,12 +408,33 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
 
         if node.type_comment:
+            # Propagate type-comment
             annotation = ast.Name(id = node.type_comment)
-            # Propagate type-comment (Required for pyjl calls)
             node.value.type_comment = node.type_comment
         else:
             annotation = getattr(node.value, "annotation", None)
-            if not annotation:
+
+        if not annotation:
+            # Attempt to get type
+            if isinstance(node.value, ast.Call):
+                typename = self._clike._generic_typename_from_annotation(node.value)
+                if typename:
+                    annotation = typename
+                else:
+                    func_node = node.scopes.find(get_id(node.value.func))
+                    if id_type := getattr(func_node, "annotation", None):
+                        annotation = id_type
+                    else:
+                        return node
+
+            elif isinstance(node.value, ast.Name):
+                # Try to get related assignment
+                assign_ann = self._find_annotated_assign(node.value)
+                if assign_ann:
+                    annotation = assign_ann
+                else: 
+                    return node
+            else:
                 return node
 
         for target in node.targets:
@@ -424,10 +445,28 @@ class InferTypesTransformer(ast.NodeTransformer):
                 else False
             )
             if (not target_has_annotation or inferred):
+                if isinstance(target, ast.Attribute) and \
+                        (attr_lst := get_id(target).split(".")):
+                    if attr_lst[0] == "self":
+                        class_node = find_node_by_type(ast.ClassDef, node.scopes)
+                        cls_node = class_node.scopes.find(attr_lst[1])
+                        if cls_node and not hasattr(cls_node, "annotation"):
+                            cls_node.annotation = annotation
+                            cls_node.annotation.inferred = True
                 target.annotation = annotation
                 target.annotation.inferred = True
         # TODO: Call is_compatible to check if the inferred and user provided annotations conflict
         return node
+
+    def _find_annotated_assign(self, node):
+        assign = node.scopes.find(get_id(node))
+        if assign:
+            if (assign_ann := getattr(assign, "annotation", None)):
+                return assign_ann
+            else:
+                if value := getattr(assign, "value", None):
+                    return self._find_annotated_assign(value)
+        return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)

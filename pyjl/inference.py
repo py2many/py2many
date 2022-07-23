@@ -1,5 +1,6 @@
 import ast
 from ctypes import c_int64
+import re
 from typing import Any
 from py2many.external_modules import ExternalBase
 
@@ -7,6 +8,7 @@ from py2many.inference import InferMeta, InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.clike import class_for_typename
+from py2many.tracer import find_node_by_type
 from pyjl.clike import CLikeTranspiler
 from pyjl.helpers import get_ann_repr
 from pyjl.global_vars import DEFAULT_TYPE
@@ -65,40 +67,8 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         return left_id if left_idx > right_idx else right_id
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
-        self.generic_visit(node)
-        self.visit(node.value)
-
-        if node.type_comment:
-            annotation = ast.Name(id = node.type_comment)
-            # Propagate type-comment (Required for pyjl calls)
-            node.value.type_comment = node.type_comment
-        else:
-            annotation = getattr(node.value, "annotation", None)
-            if not annotation:
-                return node
-
-        if annotation is None:
-            # Attempt to get type
-            if isinstance(node.value, ast.Call):
-                typename = self._clike._generic_typename_from_annotation(node.value)
-                if typename:
-                    annotation = typename
-                else:
-                    func_node = node.scopes.find(get_id(node.value.func))
-                    if id_type := getattr(func_node, "annotation", None):
-                        annotation = id_type
-                    else:
-                        return node
-
-            elif isinstance(node.value, ast.Name):
-                # Try to get related assignment
-                assign_ann = self._find_annotated_assign(node.value)
-                if assign_ann:
-                    annotation = assign_ann
-                else: 
-                    return node
-            else:
-                return node
+        # Get annotation
+        super().visit_Assign(node)
 
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
@@ -116,21 +86,10 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
             ###############
             # TODO: We need to improve is_compatible to support a broader analysis
             # For now, _verify_annotation performs a string-based comparison as a fallback
-            self._verify_annotation(node, annotation, target, inferred=inferred)
-            if (not target_has_annotation or inferred):
-                target.annotation = annotation
-                target.annotation.inferred = True
+            if hasattr(node, "annotation"):
+                self._verify_annotation(node, getattr(target, "annotation", None), 
+                    target, inferred=inferred)
         return node
-
-    def _find_annotated_assign(self, node):
-        assign = node.scopes.find(get_id(node))
-        if assign:
-            if (assign_ann := getattr(assign, "annotation", None)):
-                return assign_ann
-            else:
-                if value := getattr(assign, "value", None):
-                    return self._find_annotated_assign(value)
-        return None
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         self.generic_visit(node)
