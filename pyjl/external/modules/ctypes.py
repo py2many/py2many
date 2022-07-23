@@ -8,8 +8,19 @@ class JuliaExternalModulePlugins():
         self._usings.add("Libdl")
         return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
 
+    def visit_cdll(self, node, vargs):
+        self._usings.add("Libdl")
+        return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
+
+    def visit_cast(self, node, vargs):
+        self._usings.add("Libdl")
+        return f"cast({vargs[0]}, {self._map_type(vargs[1])})"
+
+
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ctypes.cdll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
+    ctypes.CDLL: (JuliaExternalModulePlugins.visit_cdll, True),
+    ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
 }
 
 EXTERNAL_TYPE_MAP = {
@@ -46,5 +57,6 @@ EXTERNAL_TYPE_MAP = {
 
 
 FUNC_TYPE_MAP = {
-    ctypes.cdll.LoadLibrary: lambda self, node, vargs: "ctypes.CDLL"
+    ctypes.cdll.LoadLibrary: lambda self, node, vargs: "ctypes.CDLL",
+    ctypes.CDLL: lambda self, node, vargs: "ctypes.CDLL",
 }

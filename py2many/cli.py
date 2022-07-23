@@ -461,12 +461,12 @@ def julia_settings(args, env=os.environ):
         post_rewriters=[
             JuliaNestingRemoval(),
             JuliaImportRewriter(),
-            JuliaClassWrapper(),
             JuliaGeneratorRewriter(),
             JuliaOffsetArrayRewriter(),
             JuliaIndexingRewriter(),
             JuliaOrderedCollectionRewriter(),
             JuliaCTypesRewriter(),
+            JuliaClassWrapper(),
             JuliaMethodCallRewriter(),
             JuliaAugAssignRewriter(),
             JuliaConditionRewriter(),
