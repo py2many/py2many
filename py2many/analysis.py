@@ -197,7 +197,6 @@ class ImportTransformer(ast.NodeTransformer):
     def visit_Module(self, node):
         self._imported_names = {}
         node.imports = []
-        self._imported_names = {}
         self.generic_visit(node)
         node.imported_names = self._imported_names
         return node

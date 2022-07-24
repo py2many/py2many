@@ -110,7 +110,7 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         self.visit_FunctionDef(node)
         return node
 
-    def visit_Constructor(self, node: Block) -> Any:
+    def visit_Constructor(self, node: Constructor) -> Any:
         """Visit Julia Constructor"""
         self.visit_FunctionDef(node)
         return node
