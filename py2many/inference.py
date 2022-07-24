@@ -1,3 +1,4 @@
+import argparse
 import ast
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
@@ -131,6 +132,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         "int", "float", "str", "bool", "bytes", "complex", 
         "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
     ])
+    # TODO: Change to use typeshed (https://github.com/python/typeshed)
     FUNC_TYPE_MAP = {
         len: lambda self, node, vargs: "int",
         math.sqrt: lambda self, node, vargs: "float",
@@ -139,6 +141,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytes.translate: lambda self, node, vargs: "bytes",
         bytearray.translate: lambda self, node, vargs: "bytearray",
         zip: FuncTypeDispatch.visit_zip,
+        argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",
     }
     TYPE_DICT = {
         int: "int",

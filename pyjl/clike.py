@@ -13,7 +13,7 @@ from py2many.external_modules import ExternalBase
 from py2many.tracer import find_node_by_type
 from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
+from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
 from pyjl.global_vars import NONE_TYPE, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 
@@ -167,6 +167,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._use_modules = None
         self._external_type_map = {}
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
+        self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE 
         # Get external module features
         self.import_external_modules("Julia")
 
@@ -192,6 +193,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return f"{node_id}_"
         elif getattr(node, "is_annotation", False):
             return self._map_type(node_id)
+        elif node_id in self._special_names_dispatch_table:
+            return self._special_names_dispatch_table[node_id]
         return super().visit_Name(node)
 
     def visit_arg(self, node):

@@ -106,7 +106,7 @@ class SpecialFunctionsPlugins():
 
     @staticmethod
     def _create_new_node(id):
-        """Wrapper arroudn create_ast_node"""
+        """Wrapper arround create_ast_node"""
         new_target = create_ast_node(id)
         if isinstance(new_target, ast.Expr):
             return new_target.value

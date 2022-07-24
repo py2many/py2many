@@ -49,6 +49,7 @@ class Block(ast.FunctionDef):
     args: ast.arguments
     body: list[ast.expr]
     returns: ast.expr
+    decorator_list: list[ast.expr]
     ctx: ast.expr_context
 
 class Constructor(ast.FunctionDef):

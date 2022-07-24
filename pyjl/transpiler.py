@@ -204,7 +204,7 @@ class JuliaTranspiler(CLikeTranspiler):
             arg_typename = typenames[i]
 
             if arg_typename and arg_typename != "T":
-                arg_typename = super()._map_type(arg_typename)
+                arg_typename = self._map_type(arg_typename)
 
             # Get default parameter values
             default = None
@@ -258,7 +258,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_Call(self, node: ast.Call) -> str:
-        fname = self.visit(node.func)
+        if isinstance(node.func, ast.Attribute):
+            fname = get_id(node.func)
+        else:
+            fname = self.visit(node.func)
         class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)[0]
         kw_args = not class_scope
         vargs = self._get_call_args(node, kw_args=kw_args)
@@ -1108,6 +1111,9 @@ class JuliaTranspiler(CLikeTranspiler):
         for n in node.body:
             body.append(self.visit(n))
         body = "\n".join(body)
+        if getattr(node, "decorator_list", None):
+            decorators = " ".join(list(map(lambda x: f"@{self.visit(x)}", node.decorator_list)))
+            return f"{decorators} {node.name} begin\n{body}\nend"
         return f"{node.name} begin\n{body}\nend"
 
     def visit_Symbol(self, node: juliaAst.Symbol) -> Any:

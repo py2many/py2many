@@ -316,6 +316,9 @@ class JuliaTranspilerPlugins:
                 parsed_args.append(self.visit(arg))
         return parsed_args
 
+    def visit_argument_parser(self, node, vargs: list[str]):
+        pass
+
 
     ########## Cast ##########
     def visit_cast_int(self, node, vargs) -> str:
@@ -777,6 +780,11 @@ ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
 }
 
+JULIA_SPECIAL_NAME_TABLE = {
+    "__file__": "@__FILE__"
+}
+
+
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
@@ -881,13 +889,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     os.unlink: (lambda self, node, vargs: f"rm({vargs[0]})", False),
     os.path.isdir: (lambda self, node, vargs: f"isdir({vargs[0]})", False),
     os.path.isfile: (lambda self, node, vargs: f"isfile({vargs[0]})", False),
-    os.path.exists: (lambda self, node, vargs: f"ispath({vargs[0]})", False), # TODO: Is tghis too generic? 
+    os.path.exists: (lambda self, node, vargs: f"ispath({vargs[0]})", False), # TODO: Is this too generic? 
+    os.path.realpath: (lambda self, node, vargs: f"realpath({vargs[0]})", False),
     # os (generic)
     os.cpu_count: (lambda self, node, vargs: f"length(Sys.cpu_info())", True),
     # importlib
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),
     importlib.invalidate_caches: (lambda self, node, vargs: "", True), # TODO: Nothing to support this
+    # parsing args
+    argparse.ArgumentParser: (JuliaTranspilerPlugins.visit_argument_parser, True),
     # sys special calls
     sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})" if vargs else "exit()", True),
 }
