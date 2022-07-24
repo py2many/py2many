@@ -1831,10 +1831,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                     if "restype" in args:
                         rest_type = args["restype"]
                         rest_type.is_annotation = True
-                if not argtypes:
-                    argtypes = ast.Name("Cvoid")
                 if not rest_type:
                     rest_type = ast.Name("Cvoid")
+                if not argtypes:
+                    argtypes = ast.Tuple(elts = [])
 
                 # Insert call to Libdl.dlsym
                 libdl_call = ast.Call(
@@ -1866,3 +1866,82 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 ccall.no_rewrite = True # Special attribute not to rewite call
                 return ccall
         return node
+
+
+class JuliaArgumentParserRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        # Maps {arg_settings_inst: {
+        #       "-arg_name"
+        #           arg_type = Int
+        #           default = 0
+        #       ...
+        #   }
+        self._args = {}
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._args = {}
+        body = []
+        for n in node.body:
+            n = self.visit(n)
+            if n:
+                body.append(n)
+        for (arg_settings_inst, (lineno, arg_vals)) in self._args.items():
+            arg_node = juliaAst.Block(
+                name = arg_settings_inst,
+                body = arg_vals,
+                vars = [],
+                decorator_list = [ast.Name(id = "add_arg_table", ctx=ast.Load())],
+                scope = ScopeList(),
+            )
+            ast.fix_missing_locations(arg_node)
+            idx = 0
+            for i in range(len(node.body)):
+                n = node.body[i]
+                if n.lineno > lineno:
+                    idx = i
+                    break
+            # Insert is innefficient. However, there should only be one call
+            # to ArgumentParser
+            body.insert(idx, arg_node)
+        node.body = body
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        if isinstance(node.value, ast.Call) and \
+                get_id(node.value.func) == "argparse.ArgumentParser":
+            # Avoid visiting the call that sets up the ArgumentParser instance
+            self._args[get_id(node.targets[0])] = (node.lineno, [])
+        else:
+            node = self.generic_visit(node)
+        return node
+
+    def visit_Expr(self, node: ast.Expr) -> Any:
+        node = self.generic_visit(node)
+        if not hasattr(node, "value"):
+            return None 
+        if node.value == None:
+            return None
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        if isinstance(node.func, ast.Attribute) and \
+                isinstance(node.func.value, ast.Name) and \
+                node.func.attr == "add_argument":
+            arg_settings_inst = get_id(node.func.value)
+            argparse_node = node.scopes.find(arg_settings_inst)
+            if get_id(getattr(argparse_node, "annotation", None)) == \
+                    "argparse.ArgumentParser":
+                if arg_settings_inst in self._args:
+                    self._args[arg_settings_inst][1].append(node.args[0])
+                    for keyword in node.keywords:
+                        self._args[arg_settings_inst][1].append(
+                            ast.Assign(
+                                targets=[ast.Name(id=keyword.arg)],
+                                value = keyword.value, 
+                                lineno = node.lineno,
+                                col_offset = node.col_offset,
+                                scope = node.scopes))
+                return None
+        return node
+

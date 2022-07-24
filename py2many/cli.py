@@ -47,6 +47,7 @@ from pyrs.transpiler import (
 from pyjl.analysis import analyse_variable_scope, detect_broadcast, optimize_loop_ranges
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
+    JuliaArgumentParserRewriter,
     VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
@@ -265,6 +266,7 @@ def _transpile_one(
     tree = core_transformers(tree, trees, args)
     out = []
 
+
     transpile_output = transpiler.visit(tree)
     headers = transpiler.headers(infer_meta)
     if headers:
@@ -466,6 +468,7 @@ def julia_settings(args, env=os.environ):
             JuliaIndexingRewriter(),
             JuliaOrderedCollectionRewriter(),
             JuliaCTypesRewriter(),
+            JuliaArgumentParserRewriter(),
             JuliaClassWrapper(),
             JuliaMethodCallRewriter(),
             JuliaAugAssignRewriter(),
