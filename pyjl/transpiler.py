@@ -532,6 +532,12 @@ class JuliaTranspiler(CLikeTranspiler):
             for arg in init_args:
                 if arg in declarations:
                     dec_items.append((arg, declarations[arg]))
+            for assign in node.assigns:
+                target = assign.targets[0] \
+                    if isinstance(assign, ast.Assign) else assign.target
+                ann = getattr(target, "annotation", None)
+                typename = ast.unparse(ann) if ann else None
+                dec_items.append((ast.unparse(target), (typename, ast.unparse(assign.value))))
 
         decs = []
         fields = []

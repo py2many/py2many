@@ -1731,6 +1731,8 @@ class JuliaModuleRewriter(ast.NodeTransformer):
 ###########################################################
 
 class JuliaCTypesRewriter(ast.NodeTransformer):
+    """Translate ctypes to Julia. Must run before JuliaClassWrapper and 
+    JuliaMethodCallRewriter"""
     def __init__(self) -> None:
         super().__init__()
         # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
@@ -1759,8 +1761,14 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             if hasattr(t_node, "annotation") and \
                     get_id(t_node.annotation) == ("ctypes.CDLL" or "CDLL"):
                 dll_target = target
-        is_load_library = class_for_typename(get_id(node.value), None, self._imported_names) \
-            is (ctypes.cdll.LoadLibrary or ctypes.CDLL)
+        val_id = None
+        if isinstance(node.value, ast.Call):
+            val_id = get_id(node.value.func)
+        else:
+            val_id = get_id(node.value)
+        val_instance = class_for_typename(val_id, None, self._imported_names)
+        is_load_library = (val_instance is ctypes.cdll.LoadLibrary) or \
+            (val_instance is ctypes.CDLL)
         if dll_target and isinstance(dll_target, ast.Attribute) and \
                 isinstance(dll_target.value, ast.Attribute) and \
                 not is_load_library:

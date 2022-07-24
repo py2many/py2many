@@ -2,7 +2,7 @@ import ast
 from py2many.scope import ScopeList
 import pyjl.juliaAst as juliaAst
 
-from py2many.ast_helpers import get_id
+from py2many.ast_helpers import create_ast_node, get_id
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import find_node_by_type, is_class_or_module
 from pyjl.transpiler import JuliaTranspiler
@@ -12,15 +12,30 @@ class SpecialFunctionsPlugins():
     def visit_init(self, node: ast.FunctionDef):
         # Remove self
         node.args.args = node.args.args[1:]
+        arg_ids = set(map(lambda x: x.arg, node.args.args))
         is_oop = getattr(node, "oop", False)
         constructor_calls = []
         constructor_body = []
+        assigns = []
         is_self = lambda x: isinstance(x, ast.Attribute) and \
             get_id(x.value) == "self"
         for n in node.body:
-            if isinstance(n, ast.Assign) and is_self(n.targets[0]) or \
-                    isinstance(n, ast.AnnAssign) and is_self(n.target):
-                continue
+            if isinstance(n, ast.Assign) and is_self(n.targets[0]):
+                new_id = get_id(n.targets[0]).split(".")[1:]
+                ann = getattr(n.targets[0], "annotation", None)
+                if new_id[0] not in arg_ids:
+                    n.targets[0] = SpecialFunctionsPlugins._create_new_node(".".join(new_id))
+                    if ann:
+                        n.targets[0].annotation = ann
+                    constructor_body.append(n)
+                    assigns.append(n)
+            elif isinstance(n, ast.AnnAssign) and is_self(n.target):
+                new_id = get_id(n.target).split(".")[1:]
+                if new_id[0] not in arg_ids:
+                    n.target = SpecialFunctionsPlugins._create_new_node(".".join(new_id))
+                    n.target.annotation = n.annotation
+                    constructor_body.append(n)
+                    assigns.append(n)
             elif is_oop and isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) \
                     and is_class_or_module(get_id(n.value.func), node.scopes):
                 constructor_calls.append(n)
@@ -78,15 +93,25 @@ class SpecialFunctionsPlugins():
 
         if constructor:
             ast.fix_missing_locations(constructor)
-            constructor.scopes = ScopeList(),
+            constructor.scopes = node.scopes,
             constructor.parsed_decorators = node.parsed_decorators
             constructor.decorator_list = node.decorator_list
             class_node.constructor = constructor
         
         # Used to order the struct fields
         class_node.constructor_args = node.args
+        class_node.assigns = assigns
 
         return None
+
+    @staticmethod
+    def _create_new_node(id):
+        """Wrapper arroudn create_ast_node"""
+        new_target = create_ast_node(id)
+        if isinstance(new_target, ast.Expr):
+            return new_target.value
+        else:
+            return new_target
 
 # Dispatches special Functions
 JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE = {
