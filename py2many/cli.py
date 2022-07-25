@@ -16,6 +16,7 @@ from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
+from py2many.pytype_inference import pytype_annotate_and_merge
 from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
 from pynim.rewriters import WithToBlockRewriter
 
@@ -146,6 +147,14 @@ def _transpile(
     post_rewriters = settings.post_rewriters
     optimization_rewriters = settings.optimization_rewriters
     tree_list = []
+
+    if args.pytype:
+        # Pytype only parses code as string at the moment
+        inferred_sources = []
+        for filename, source in zip(filenames, sources):
+            inferred_sources = pytype_annotate_and_merge(source, basedir, filename)
+        sources = inferred_sources
+
     for filename, source in zip(filenames, sources):
         tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
@@ -863,6 +872,12 @@ def main(args=None, env=os.environ):
         action="store_true",
         default=False,
         help="Use typpete for inference",
+    )
+    parser.add_argument(
+        "--pytype",
+        action="store_true",
+        default=False,
+        help="Use pytype for inference",
     )
     parser.add_argument(
         "--project", default=True, help="Create a project when using directory mode"
