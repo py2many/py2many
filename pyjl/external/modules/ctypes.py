@@ -21,6 +21,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ctypes.cdll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.CDLL: (JuliaExternalModulePlugins.visit_cdll, True),
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
+    ctypes.cast: (lambda self, node, vargs: f"convert({vargs[1]}, {vargs[0]})", True)
 }
 
 EXTERNAL_TYPE_MAP = {

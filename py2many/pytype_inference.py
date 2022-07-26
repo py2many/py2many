@@ -4,8 +4,6 @@ from pytype import analyze, errors, config, load_pytd
 from pytype.pytd import pytd_utils
 from pytype.tools.merge_pyi import merge_pyi
 
-import sys
-
 # Args class taken from pytd_utils
 class Args:
 
