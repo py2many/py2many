@@ -1874,7 +1874,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                             argtypes_lst.append(arg.args[1])
                         else:
                             argtypes_lst.append(ast.Name(
-                                id="ctypes.c_void", is_annotation = True))
+                                id="ctypes.c_void_p", is_annotation = True))
 
                     argtypes = ast.Tuple(elts = argtypes_lst)
                     

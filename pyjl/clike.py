@@ -191,12 +191,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
             return f"{node_id}_"
-        elif not getattr(node, "lhs", False) and \
-                hasattr(node, "scopes") and \
-                not node.scopes.find(node_id):
-            return self._map_type(node_id)
         elif node_id in self._special_names_dispatch_table:
             return self._special_names_dispatch_table[node_id]
+        elif getattr(node, "is_annotation", False) or \
+                (not getattr(node, "lhs", False) and
+                    hasattr(node, "scopes") and
+                    not node.scopes.find(node_id)):
+            return self._map_type(node_id)
         return super().visit_Name(node)
 
     def visit_arg(self, node):
@@ -252,7 +253,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def _map_type(self, typename: str, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = self._func_for_lookup(typename)
-        if typeclass in self._type_map:
+        if typeclass is None:
+            return typename
+        elif typeclass in self._type_map:
             return self._type_map[typeclass]
         elif typeclass in self._container_type_map:
             return self._container_type_map[typeclass]

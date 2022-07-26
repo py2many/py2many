@@ -1,3 +1,4 @@
+import ast
 import ctypes
 from typing import Callable, Dict, Tuple, Union
 
@@ -60,4 +61,6 @@ EXTERNAL_TYPE_MAP = {
 FUNC_TYPE_MAP = {
     ctypes.cdll.LoadLibrary: lambda self, node, vargs: "ctypes.CDLL",
     ctypes.CDLL: lambda self, node, vargs: "ctypes.CDLL",
+    # Why invalid syntax???
+    ctypes.cast: lambda self, node, vargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
 }

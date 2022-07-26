@@ -253,11 +253,12 @@ class JuliaTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
         
-        # If node is not on lhs and is not a variable, 
-        # it can be mapped
-        if not getattr(node, "lhs", False) and \
-                hasattr(node, "scopes") and \
-                not node.scopes.find(f"{value_id}.{attr}"):
+        # If node is an is_annotation or it is not on lhs 
+        # and is not a variable, it can be mapped
+        if getattr(node, "is_annotation", False) or \
+                (not getattr(node, "lhs", False) and 
+                    hasattr(node, "scopes") and 
+                    not node.scopes.find(f"{value_id}.{attr}")):
             return self._map_type(f"{value_id}.{attr}")
 
         return f"{value_id}.{attr}"
@@ -557,6 +558,8 @@ class JuliaTranspiler(CLikeTranspiler):
 
             if is_class_or_module(typename, node.scopes):
                 typename = f"Abstract{typename}"
+            else:
+                typename = self._map_type(typename)
 
             decs.append(declaration)
             fields_str.append(declaration 
