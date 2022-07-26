@@ -113,7 +113,7 @@ JULIA_TYPE_MAP = {
     Complex: "Complex",
     Rational: "Rational",
     Real: "Real",
-    None: "nothing",
+    None: "Nothing",
     Any: "Any"
 }
 
@@ -191,7 +191,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         if node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):
             return f"{node_id}_"
-        elif getattr(node, "is_annotation", False):
+        elif not getattr(node, "lhs", False) and \
+                hasattr(node, "scopes") and \
+                not node.scopes.find(node_id):
             return self._map_type(node_id)
         elif node_id in self._special_names_dispatch_table:
             return self._special_names_dispatch_table[node_id]

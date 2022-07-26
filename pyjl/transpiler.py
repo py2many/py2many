@@ -242,7 +242,8 @@ class JuliaTranspiler(CLikeTranspiler):
         attr = node.attr
         value_id = self.visit(node.value)
 
-        if dispatch := getattr(node, "dispatch", None):
+        if (dispatch := getattr(node, "dispatch", None)) and \
+                not getattr(node, "in_call", None):
             fname = self.visit(dispatch.func)
             vargs = self._get_call_args(dispatch)
             ret = self._dispatch(dispatch, fname, vargs)
@@ -252,16 +253,18 @@ class JuliaTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
         
-        if getattr(node, "is_annotation", False):
+        # If node is not on lhs and is not a variable, 
+        # it can be mapped
+        if not getattr(node, "lhs", False) and \
+                hasattr(node, "scopes") and \
+                not node.scopes.find(f"{value_id}.{attr}"):
             return self._map_type(f"{value_id}.{attr}")
 
         return f"{value_id}.{attr}"
 
     def visit_Call(self, node: ast.Call) -> str:
-        if isinstance(node.func, ast.Attribute):
-            fname = get_id(node.func)
-        else:
-            fname = self.visit(node.func)
+        node.func.in_call = True
+        fname = self.visit(node.func)
         class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)[0]
         kw_args = not class_scope
         vargs = self._get_call_args(node, kw_args=kw_args)
