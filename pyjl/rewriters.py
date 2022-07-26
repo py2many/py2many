@@ -1733,6 +1733,24 @@ class JuliaModuleRewriter(ast.NodeTransformer):
 class JuliaCTypesRewriter(ast.NodeTransformer):
     """Translate ctypes to Julia. Must run before JuliaClassWrapper and 
     JuliaMethodCallRewriter"""
+
+    CTYPES_CONVERSION_MAP = {
+        "int": "ctypes.c_int",
+        "float": "ctypes.c_float",
+        "bool": "ctypes.c_bool",
+    }
+    # The idea is to keep the ctypes module in pyjl/external/modules isolated
+    # from any rewriters
+    CTYPES_LIST = [
+        ctypes.c_int, ctypes.c_int8, ctypes.c_int16, ctypes.c_int32,
+        ctypes.c_int64, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint32,
+        ctypes.c_uint64, ctypes.c_bool, ctypes.c_float, ctypes.c_double,
+        ctypes.c_short, ctypes.c_ushort, ctypes.c_long, ctypes.c_ulong,
+        ctypes.c_longlong, ctypes.c_ulonglong, ctypes.c_longdouble,
+        ctypes.c_byte, ctypes.c_ubyte, ctypes.c_char, ctypes.c_size_t,
+        ctypes.c_ssize_t, ctypes.c_char_p, ctypes.c_wchar_p, ctypes.c_void_p,
+    ]
+
     def __init__(self) -> None:
         super().__init__()
         # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
@@ -1797,6 +1815,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
     def visit_Call(self, node: ast.Call) -> Any:
         self.generic_visit(node)
         if isinstance(node.func, ast.Attribute):
+            # Convert calls to dlls
             module_name = None
             if isinstance(node.func.value, ast.Name):
                 dll_node = node.scopes.find(get_id(node.func.value))
@@ -1812,7 +1831,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             is_load_library = class_for_typename(get_id(node.func), None, self._imported_names) \
                 is ctypes.cdll.LoadLibrary
             if has_dll_type and not is_load_library:
-                # Using the stored information
+                # Attempt to use the stored information
                 argtypes = None
                 rest_type = None
                 named_func = node.func.attr
@@ -1831,10 +1850,39 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                     if "restype" in args:
                         rest_type = args["restype"]
                         rest_type.is_annotation = True
-                if not rest_type:
-                    rest_type = ast.Name("Cvoid")
+
                 if not argtypes:
-                    argtypes = ast.Tuple(elts = [])
+                    # Try to get the types from type casts or from 
+                    # type annotations
+                    argtypes_lst = []
+                    for arg in node.args:
+                        if hasattr(arg, "annotation"):
+                            if (id := get_id(arg.annotation)) in self.CTYPES_CONVERSION_MAP:
+                                converted_type = self.CTYPES_CONVERSION_MAP[id]
+                                argtypes_lst.append(ast.Name(id=converted_type))
+                                arg.is_annotation = True
+                            else:
+                                argtypes_lst.append(arg.annotation)
+                        elif isinstance(arg, ast.Call) and \
+                                class_for_typename(get_id(arg.func), None, 
+                                    self._imported_names) in self.CTYPES_LIST:
+                            arg.func.is_annotation = True
+                            argtypes_lst.append(arg.func)
+                        elif isinstance(arg, ast.Call) and \
+                                get_id(arg.func) == "ctypes.cast":
+                            arg.args[1].is_annotation = True
+                            argtypes_lst.append(arg.args[1])
+                        else:
+                            argtypes_lst.append(ast.Name(
+                                id="ctypes.c_void", is_annotation = True))
+
+                    argtypes = ast.Tuple(elts = argtypes_lst)
+                    
+                if not rest_type:
+                    rest_type = ast.Name(id="Cvoid")
+                
+                ast.fix_missing_locations(rest_type)
+                ast.fix_missing_locations(argtypes)
 
                 # Insert call to Libdl.dlsym
                 libdl_call = ast.Call(
@@ -1853,11 +1901,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 # Add ccall to named_func
                 ccall =  ast.Call(
                     func = ast.Name(id="ccall"),
-                    args = [
-                        libdl_call,
-                        rest_type,
-                        argtypes
-                    ],
+                    args = [libdl_call, rest_type, argtypes],
                     lineno = node.lineno + 1,
                     col_offset = node.col_offset,
                     scopes = node.scopes)
