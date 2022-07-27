@@ -16,7 +16,6 @@ class SpecialFunctionsPlugins():
         is_oop = getattr(node, "oop", False)
         constructor_calls = []
         constructor_body = []
-        assigns = []
         is_self = lambda x: isinstance(x, ast.Attribute) and \
             get_id(x.value) == "self"
         for n in node.body:
@@ -24,24 +23,21 @@ class SpecialFunctionsPlugins():
                 new_id = get_id(n.targets[0]).split(".")[1:]
                 ann = getattr(n.targets[0], "annotation", None)
                 if new_id[0] not in arg_ids:
-                    n.targets[0] = SpecialFunctionsPlugins._create_new_node(".".join(new_id))
-                    if ann:
-                        n.targets[0].annotation = ann
-                    constructor_body.append(n)
-                    assigns.append(n)
+                    arg_node = ast.arg(arg = ".".join(new_id))
+                    arg_node.annotation = ann
+                    node.args.args.append(arg_node)
+                    node.args.defaults.append(n.value)
             elif isinstance(n, ast.AnnAssign) and is_self(n.target):
                 new_id = get_id(n.target).split(".")[1:]
                 if new_id[0] not in arg_ids:
-                    n.target = SpecialFunctionsPlugins._create_new_node(".".join(new_id))
-                    n.target.annotation = n.annotation
-                    constructor_body.append(n)
-                    assigns.append(n)
+                    arg_node = ast.arg(arg = ".".join(new_id), annotation=n.annotation)
+                    node.args.args.append(arg_node)
+                    node.args.defaults.append(n.value)
             elif is_oop and isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) \
                     and is_class_or_module(get_id(n.value.func), node.scopes):
                 constructor_calls.append(n)
             else:
                 constructor_body.append(n)
-
         
         constructor = None
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
@@ -100,7 +96,6 @@ class SpecialFunctionsPlugins():
         
         # Used to order the struct fields
         class_node.constructor_args = node.args
-        class_node.assigns = assigns
 
         return None
 

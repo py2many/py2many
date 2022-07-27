@@ -4,7 +4,7 @@ import ast
 import re
 
 from py2many.exceptions import AstUnsupportedOperation
-from pyjl.global_vars import RESUMABLE
+from pyjl.global_vars import DEFAULT_TYPE, RESUMABLE
 from pyjl.helpers import is_dir, is_file
 
 import pyjl.juliaAst as juliaAst
@@ -289,7 +289,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 if declared_type and actual_type and declared_type != self._default_type \
                         and actual_type != self._default_type and actual_type != declared_type and \
                         not actual_type.startswith("Optional"): # TODO: Skip conversion of Optional for now
-                    converted.append(f"convert({declared_type}, {varg})")
+                    converted.append(f"convert({self._map_type(declared_type)}, {varg})")
                 else:
                     converted.append(varg)
         else:
@@ -535,16 +535,15 @@ class JuliaTranspiler(CLikeTranspiler):
                 if has_defaults \
                 else declarations.items()
         else:
-            init_args = [arg.arg for arg in node.constructor_args.args]
+            init_args: list[ast.arg] = [arg for arg in node.constructor_args.args]
             for arg in init_args:
-                if arg in declarations:
-                    dec_items.append((arg, declarations[arg]))
-            for assign in node.assigns:
-                target = assign.targets[0] \
-                    if isinstance(assign, ast.Assign) else assign.target
-                ann = getattr(target, "annotation", None)
-                typename = self.visit(ann) if ann else None
-                dec_items.append((ast.unparse(target), (typename, ast.unparse(assign.value))))
+                arg_str = arg.arg
+                if arg_str in declarations:
+                    typename, default = declarations[arg_str]
+                    # Attempt to propagate types
+                    if not typename or typename == self._default_type:
+                        typename = self.visit(arg.annotation)
+                    dec_items.append((arg_str, (typename, default)))
 
         decs = []
         fields = []
