@@ -152,7 +152,7 @@ def _transpile(
         # Pytype only parses code as string at the moment
         inferred_sources = []
         for filename, source in zip(filenames, sources):
-            inferred_sources = pytype_annotate_and_merge(source, basedir, filename)
+            inferred_sources.append(pytype_annotate_and_merge(source, basedir, filename))
         sources = inferred_sources
 
     for filename, source in zip(filenames, sources):
