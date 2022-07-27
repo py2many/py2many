@@ -196,7 +196,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         elif getattr(node, "is_annotation", False) or \
                 (not getattr(node, "lhs", False) and
                     hasattr(node, "scopes") and
-                    not node.scopes.find(node_id)):
+                    not node.scopes.find(node_id) and 
+                    not getattr(node, "in_call", None)):
             return self._map_type(node_id)
         return super().visit_Name(node)
 

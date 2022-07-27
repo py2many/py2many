@@ -543,7 +543,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 target = assign.targets[0] \
                     if isinstance(assign, ast.Assign) else assign.target
                 ann = getattr(target, "annotation", None)
-                typename = ast.unparse(ann) if ann else None
+                typename = self.visit(ann) if ann else None
                 dec_items.append((ast.unparse(target), (typename, ast.unparse(assign.value))))
 
         decs = []
@@ -558,8 +558,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
             if is_class_or_module(typename, node.scopes):
                 typename = f"Abstract{typename}"
-            else:
-                typename = self._map_type(typename)
 
             decs.append(declaration)
             fields_str.append(declaration 
