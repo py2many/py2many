@@ -5,6 +5,8 @@ from pytype.pytd import pytd_utils
 from pytype.tools.merge_pyi import merge_pyi
 import hashlib
 
+from py2many.helpers import parse_path
+
 # Args class taken from pytd_utils
 class Args:
 
@@ -23,17 +25,18 @@ class Args:
 log_errors = errors.ErrorLog()
 
 def pytype_annotate_and_merge(src: str, basedir: PosixPath, filename: PosixPath):
-    pyi_dir = f"{os.getcwd()}{os.sep}{basedir}_pyi" \
+    pre_parsed_base_dir = f"{os.getcwd()}{os.sep}{basedir}" \
         if os.path.isdir(f"{os.getcwd()}{os.sep}{basedir}") \
-        else f"{os.getcwd()}{os.sep}{basedir.parent}_pyi"
+        else f"{os.getcwd()}{os.sep}{basedir.parent}"
+    base_dir = parse_path(pre_parsed_base_dir.split(os.sep), os.sep)
+    pyi_dir = f"{base_dir}_pyi"
     pyi_file = f"{pyi_dir}{os.sep}{filename.stem}.pyi"
-    full_path = f"{os.getcwd()}{os.sep}{filename}"
-    log_data: dict[str, str] = _read_log_file_contents(pyi_dir)  
+    file_path = f"{base_dir}{os.sep}{filename}"
+    pyi_log_file = f"{pyi_dir}{os.sep}.log"
+    log_data: dict[str, str] = _read_log_file_contents(pyi_log_file)
     hash = _hashcontents(src)
-    if os.path.isdir(pyi_dir) and \
-            os.path.isfile(pyi_file) and \
-            full_path in log_data and \
-            hash == log_data[full_path]:
+    if file_path in log_data and \
+            hash == log_data[file_path]:
         # If a file already exists and is up-to-date, 
         # use that instead of infering the types again
         print("Types already up-to-date")
@@ -44,8 +47,7 @@ def pytype_annotate_and_merge(src: str, basedir: PosixPath, filename: PosixPath)
         print("Infering Types")
         pyi_src = _infer_types(src)
         _write_to_pyi_file(pyi_dir, pyi_file, pyi_src)
-        log_data[full_path] = hash
-        _write_log_file_contents(pyi_dir, log_data)
+        _append_to_log_file(pyi_log_file, (file_path, hash))
     # Create .gitignore to ignore .pyi data
     _create_gitignore(pyi_dir)
     # Set as_comments to 0
@@ -70,27 +72,28 @@ def _hashcontents(contents: str):
     hash_object = hashlib.sha256(bytes(contents, 'utf-8'))
     return hash_object.hexdigest()
 
-def _read_log_file_contents(pyi_dir):
+def _read_log_file_contents(pyi_log_file):
     """Reads stored contents containing 
     data about inferred python modules"""
-    pyi_log_file = f"{pyi_dir}{os.sep}.log"
     log_data = {}
-    if os.path.exists(pyi_log_file):
+    if os.path.isfile(pyi_log_file):
         with open(pyi_log_file, "r") as log:
-            line = log.readline()
             try:
-                mod_name, hash = line.split("-")
-                log_data[mod_name] = hash
+                line = log.readline()
+                while line:
+                    mod_name, hash = line.split("-")
+                    log_data[mod_name] = hash.strip()
+                    line = log.readline()
             except:
                 raise Exception("Wrong format for pytype log data")
     return log_data
 
-def _write_log_file_contents(pyi_dir, log_data: dict[str, str]):
+def _append_to_log_file(pyi_log_file, data: tuple[str, str]):
     """Writes data of inferred python modules"""
-    pyi_log_file = f"{pyi_dir}{os.sep}.log"
-    with open(pyi_log_file, "w") as log:
-        for mod_name, hash in log_data.items():
-            log.write(f"{mod_name}-{hash}")
+    mod_name, hash = data
+    with open(pyi_log_file, "a") as log:
+        log.write(f"{mod_name}-{hash}\n")
+        # log.writelines([f"{mod_name}-{hash}\n" for mod_name, hash in log_data.items()])
 
 def _create_gitignore(pyi_dir):
     """Create a .gitignore similarly to how pytype does it"""

@@ -6,6 +6,7 @@ import random
 import re
 
 from py2many.ast_helpers import get_id
+from py2many.helpers import parse_path
 from py2many.scope import ScopeList
 
 from py2many.tracer import find_node_by_name_and_type
@@ -167,6 +168,7 @@ def obj_id(node):
         return get_id(node)
 
 def _parse_path(import_name: str, basedir) -> str:
+        """Small wrapper around py2many's parse_file function"""
         cwd = os.getcwd().split(os.sep)
         base_dir = basedir.as_posix().split("/")
         if os.path.isfile(basedir.as_posix()):
@@ -177,15 +179,7 @@ def _parse_path(import_name: str, basedir) -> str:
             full_path = cwd + base_dir[0:idx+1] + path
         else:
             full_path = cwd + base_dir + path
-        parsed_path = []
-        i = 0
-        while i < len(full_path):
-            if i+1 < len(full_path) and full_path[i+1] == "..":
-                i+=2
-            else:
-                parsed_path.append(full_path[i])
-                i+=1
-        return os.sep.join(parsed_path)
+        return parse_path(full_path, os.sep)
 
 def is_file(path: str, basedir, extension="py"):
     """Takes a dot separated file path"""
