@@ -102,7 +102,10 @@ class DeclarationExtractor(ast.NodeVisitor):
         if type_str is None:
             type_str = self.transpiler._typename_from_annotation(node)
         if target_id not in self.annotated_members:
-            self.annotated_members[target_id] = (type_str, node.value)
+            if self.is_member(target):
+                self.annotated_members[target.attr] = (type_str, node.value)
+            else:
+                self.annotated_members[target_id] = (type_str, node.value)
 
         if not self.is_member(target):
             node.class_assignment = True
