@@ -10,6 +10,7 @@ from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
+from py2many.helpers import get_ann_repr
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_enum, is_list
@@ -17,8 +18,8 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, USE_MODULES
-from pyjl.helpers import generate_var_name, get_ann_repr, get_default_val, get_func_def, is_dir, is_file, obj_id
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
 from pyjl.transpiler import JuliaTranspiler
@@ -52,9 +53,8 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 getattr(node, "no_rewrite", False):
             return node
 
-        args = []
-        if node.args:
-            args += [self.visit(a) for a in node.args]
+        args = [self.visit(a) for a in node.args] \
+            if node.args else []
 
         fname = node.func
         if isinstance(fname, ast.Attribute):
@@ -78,14 +78,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
             elif not is_class_or_module(val_id, node.scopes):
                 self._handle_special_cases(fname)
-
-                value_id = val_id
-                if value_id:
-                    node0 = ast.Name(id=value_id, lineno=node.lineno)
-                else:
-                    node0 = fname.value
-
-                args = [node0] + node.args
+                args = [fname.value] + args
                 new_func_name = fname.attr
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
@@ -120,7 +113,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                     value_id.startswith("self")):
             return node
 
-        annotation = getattr(node.scopes.find(get_id(node.value)), "annotation", None)
+        annotation = getattr(node, "annotation", None)
 
         node.dispatch = ast.Call(
             func=ast.Name(id=node.attr, ctx=ast.Load()),
@@ -510,7 +503,7 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                 ast.NotEq(), 0)
         
         if hasattr(node.test, "annotation"):
-            type_str: str = get_ann_repr(node.test.annotation)
+            type_str: str = get_ann_repr(node.test.annotation, sep=SEP)
             match = re.match(r"^Optional|^list|^List|^tuple|^Tuple", type_str) \
                 if type_str else False
             if match:
@@ -1508,7 +1501,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         let_assignments = []
         for arg in node.args.args:
             arg_id = arg.arg
-            annotation_id = get_ann_repr(arg.annotation)
+            annotation_id = get_ann_repr(arg.annotation, sep=SEP)
             is_list = re.match(r"^List|^list", annotation_id)
             if not hasattr(arg, "annotation") or \
                     (hasattr(arg, "annotation") and not is_list) or \

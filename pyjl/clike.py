@@ -10,11 +10,11 @@ import logging
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.external_modules import ExternalBase
+from py2many.helpers import get_ann_repr
 from py2many.tracer import find_node_by_type
-from pyjl.helpers import get_ann_repr
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
-from pyjl.global_vars import NONE_TYPE, USE_MODULES
+from pyjl.global_vars import NONE_TYPE, SEP, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 
 from numbers import Complex, Integral, Rational, Real
@@ -320,7 +320,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
-        return get_ann_repr(node, self._map_type, default)
+        return get_ann_repr(node, self._map_type, default, SEP)
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
@@ -363,7 +363,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
             if class_node:
                 for base in class_node.bases:
-                    base_str = get_ann_repr(base)
+                    base_str = get_ann_repr(base, sep = SEP)
                     dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
                     if dispatch_func:
                         return dispatch_func

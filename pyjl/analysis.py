@@ -5,7 +5,8 @@ import re
 from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
-from pyjl.helpers import get_ann_repr
+from py2many.helpers import get_ann_repr
+from pyjl.global_vars import SEP
 
 logger = logging.Logger("pyjl")
 
@@ -270,9 +271,6 @@ class JuliaBroadcastTransformer(ast.NodeTransformer):
             ((self._match_list(right_ann) or self._match_matrix(right_ann)) and self._match_scalar(left_ann)) or \
             (getattr(node.left, "broadcast", None) and self._match_scalar(right_ann)) or \
             (getattr(node.right, "broadcast", None) and self._match_scalar(left_ann))
-            # Caught by the first check
-            # (self._match_list(left_ann) and self._match_matrix(right_ann)) or \
-            # (self._match_list(right_ann) and self._match_matrix(left_ann)) or \
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:

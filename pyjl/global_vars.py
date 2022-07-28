@@ -16,3 +16,4 @@ NONE_TYPE = "nothing"
 ###################################
 # Helpers
 COMMON_LOOP_VARS = ["v", "w", "x", "y", "z"]
+SEP = ["{", "}"]

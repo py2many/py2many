@@ -6,10 +6,11 @@ import random
 import re
 
 from py2many.ast_helpers import get_id
-from py2many.helpers import parse_path
+from py2many.helpers import get_ann_repr, parse_path
 from py2many.scope import ScopeList
 
 from py2many.tracer import find_node_by_name_and_type
+from pyjl.global_vars import SEP
 
 # TODO: Currently not in use
 def get_range_from_for_loop(node):
@@ -38,8 +39,8 @@ def get_range_from_for_loop(node):
             return 0
 
         # Calculate iter value
-        start_val = get_ann_repr(start_val)
-        end_val = get_ann_repr(end_val)
+        start_val = get_ann_repr(start_val, sep=SEP)
+        end_val = get_ann_repr(end_val, sep=SEP)
         if not isinstance(start_val, int): 
             start_val = int(start_val)
         if not isinstance(end_val, int):
@@ -50,45 +51,6 @@ def get_range_from_for_loop(node):
         if(iter < 0):
             iter *= -1
     return iter
-
-# Returns a string representation of the node
-def get_ann_repr(node, parse_func = None, default = None):
-    if node == None:
-        return default
-    elif isinstance(node, str):
-        if parse_func:
-            return parse_func(node)
-        return node
-    elif id := get_id(node):
-        if parse_func:
-            return parse_func(id)
-        return id
-    elif isinstance(node, ast.Call):
-        func = get_ann_repr(node.func, parse_func, default)
-        args = []
-        for arg in node.args:
-            args.append(get_ann_repr(arg, parse_func, default))
-        return f"{'.'.join(args)}.{func}"
-    elif isinstance(node, ast.Attribute):
-        return f"{get_ann_repr(node.value, parse_func, default)}.\
-            {get_ann_repr(node.attr, parse_func, default)}"
-    elif isinstance(node, ast.Constant):
-        return ast.unparse(node)
-    elif isinstance(node, ast.Subscript):
-        id = get_ann_repr(node.value, parse_func, default)
-        slice_val = get_ann_repr(node.slice, parse_func, default)
-        return f"{id}{{{slice_val}}}"
-    elif isinstance(node, ast.Tuple) \
-            or isinstance(node, ast.List):
-        elts = list(map(lambda x: get_ann_repr(x, parse_func, default), node.elts))
-        return ", ".join(elts)
-    elif ann := ast.unparse(node):
-        # Not in expected cases
-        if parse_func and (parsed_ann := parse_func(ann)):
-            return parsed_ann
-        return ann
-
-    return default
 
 # def get_variable_name(scope):
 #     common_vars = ["v", "w", "x", "y", "z"]

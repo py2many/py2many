@@ -21,6 +21,8 @@ from ctypes import (
     c_uint64 as u64,
 )
 
+from py2many.helpers import get_ann_repr
+
 ilong = i64
 ulong = u64
 isize = i64
@@ -198,9 +200,11 @@ class CLikeTranspiler(ast.NodeVisitor):
         if isinstance(index_type, List):
             index_contains_default = "Any" in index_type
             if not index_contains_default:
-                if any(t is None for t in index_type):
-                    raise TypeNotSupported(typename)
-                index_type = ", ".join(index_type)
+                if isinstance(index_type, List):
+                    parsed_items = []
+                    for it in index_type:
+                        parsed_items.append(it)
+                    index_type = ", ".join(parsed_items)
         else:
             index_contains_default = index_type == "Any"
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
@@ -589,39 +593,27 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _map_container_type(self, typename) -> str:
         return self._container_type_map.get(typename, self._default_type)
 
-    def _typename_from_type_node(self, node) -> Union[List, str, None]:
+    def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
+        if node == None:
+            return default
         if isinstance(node, ast.Name):
-            return self._map_type(
-                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
-            )
-        elif isinstance(node, ast.Constant) and node.value is not None:
-            if node.value == Ellipsis:
-                return "..."
-            return node.value
-        elif isinstance(node, ast.ClassDef):
             return get_id(node)
-        elif isinstance(node, ast.Tuple):
-            return [self._typename_from_type_node(e) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
-            if node_id.startswith("typing."):
+            if node_id and node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return node_id
         elif isinstance(node, ast.Subscript):
-            # Store a tuple like (List, int) or (Dict, (str, int)) for container types
-            # in node.container_type
-            # And return a target specific type
-            slice_value = self._slice_value(node)
             (value_type, index_type) = tuple(
-                map(self._typename_from_type_node, (node.value, slice_value))
+                map(lambda x: self._typename_from_type_node(x), 
+                    (node.value, node.slice))
             )
-            value_type = self._map_container_type(value_type)
             node.container_type = (value_type, index_type)
-            return self._combine_value_index(value_type, index_type)
-        return self._default_type
+            return f"{value_type}[{index_type}]"
+        return get_ann_repr(node, default=default)
 
     def _combine_value_index(self, value_type, index_type) -> str:
-        return f"{value_type}<{index_type}>"
+        return f"{value_type}[{index_type}]"
 
     def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
