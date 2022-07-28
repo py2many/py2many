@@ -8,6 +8,8 @@ import math
 import re
 from typing import Any, Dict, List, Tuple, cast, Set, Optional
 
+from libcst import Subscript
+
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
@@ -48,6 +50,8 @@ def infer_types_typpete(node) -> InferMeta:
 
 
 def get_inferred_type(node):
+    if hasattr(node, "annotation"):
+        return node.annotation
     if isinstance(node, ast.Name):
         if not hasattr(node, "scopes"):
             return None
@@ -57,8 +61,6 @@ def get_inferred_type(node):
             return get_inferred_type(definition)
     elif isinstance(node, ast.Constant) or isinstance(node, ast.NameConstant):
         return InferTypesTransformer._infer_primitive(node.value)
-    if hasattr(node, "annotation"):
-        return node.annotation
     return None
 
 
@@ -127,11 +129,6 @@ class InferTypesTransformer(ast.NodeTransformer):
     Tries to infer types
     """
 
-    # TODO: Is this a good method?
-    BUILTIN_TYPES = set([
-        "int", "float", "str", "bool", "bytes", "complex", 
-        "list", "List", "Dict", "Set", "tuple", "Tuple", "Optional", "bytearray"
-    ])
     # TODO: Change to use typeshed (https://github.com/python/typeshed)
     FUNC_TYPE_MAP = {
         len: lambda self, node, vargs: "int",
@@ -142,6 +139,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytearray.translate: lambda self, node, vargs: "bytearray",
         zip: FuncTypeDispatch.visit_zip,
         argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",
+        max: lambda self, node, vargs: get_inferred_type(vargs[0]),
+        min: lambda self, node, vargs: get_inferred_type(vargs[0]),
     }
     TYPE_DICT = {
         int: "int",
@@ -585,16 +584,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
-
-        if left is None and right is not None:
-            node.annotation = right
-            return node
-
-        if right is None and left is not None:
-            node.annotation = left
-            return node
-
-        if right is None and left is None:
+        # If one node is None, skip other conditions
+        if left is None or right is None:
             return node
 
         # Both operands are annotated. Now we have interesting cases
@@ -703,15 +694,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         if fname:
             # Handle methods calls by looking up the method name
             # without the prefix
-            # TODO: use remove suffix
-            if fname.startswith("self."):
-                fname = fname.split(".", 1)[1]
             fn = node.scopes.find(fname)
 
-            # TODO: Is there a better method?
-            if fname in self.BUILTIN_TYPES:
-                self._annotate(node, fname)
-            elif isinstance(fn, ast.ClassDef):
+            if isinstance(fn, ast.ClassDef):
                 self._annotate(node, fn.name)
             elif isinstance(fn, ast.FunctionDef):
                 return_type = (
@@ -722,12 +707,8 @@ class InferTypesTransformer(ast.NodeTransformer):
                     lifetime = getattr(fn.returns, "lifetime", None)
                     if lifetime is not None:
                         node.annotation.lifetime = lifetime
-            elif fname in {"max", "min"}:
-                if node.args:
-                    return_type = get_inferred_type(node.args[0])
-                    if return_type is not None:
-                        node.annotation = return_type
-            elif fname in self.TYPE_DICT.values():
+            elif fname in self.TYPE_DICT.values() or \
+                    fname in self.CONTAINER_TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
 
             if (func := class_for_typename(fname, None, locals=self._imported_names)) \
@@ -735,12 +716,15 @@ class InferTypesTransformer(ast.NodeTransformer):
                 self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
             else:
                 # Use annotation
-                ann = getattr(node.func, "annotation", None)
-                func_name = unparse(ann) if ann else None
+                parse_ann = lambda x: x.value if isinstance(x, ast.Subscript) else x
                 if isinstance(node.func, ast.Attribute):
-                    ann = getattr(node.func.value, "annotation", None)
-                    if ann:
-                        func_name = f"{unparse(ann)}.{node.func.attr}"
+                    ann = parse_ann(getattr(node.func.value, "annotation", None))
+                    func_name = f"{unparse(ann)}.{node.func.attr}" \
+                        if ann else None
+                else:
+                    ann = parse_ann(getattr(node.func, "annotation", None))
+                    func_name = unparse(ann) if ann else None
+                # Try to match to table entries
                 if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
                         in self.FUNC_TYPE_MAP:
                     self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
@@ -748,21 +732,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Subscript(self, node: ast.Subscript):
         self.generic_visit(node)
-        definition = None
-        if isinstance(node.value, ast.Attribute) and \
-                get_id(node.value.value) == "self":
-            # Search for node in class scope
-            class_scope = find_node_by_type(ast.ClassDef, node.scopes)
-            if class_scope:
-                attr = node.value.attr
-                attr_node = class_scope.scopes.find(attr)
-                if hasattr(attr_node, "target_node"):
-                    definition = attr_node.target_node
-        elif isinstance(node.value, ast.Subscript):
-            definition = node.value
-        else:
-            definition = node.scopes.find(get_id(node.value))
-
+        definition = node.value
         if hasattr(definition, "annotation"):
             self._clike._typename_from_annotation(definition)
             if hasattr(definition, "container_type") and \
@@ -770,7 +740,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 container_type, element_type = definition.container_type
                 if container_type[0] == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
-                node.annotation = ast.Name(id = element_type)
+                self._annotate(node, element_type)
                 node.container_type = definition.container_type
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
@@ -798,7 +768,8 @@ class InferTypesTransformer(ast.NodeTransformer):
             elif isinstance(node.iter.annotation, ast.Tuple) and \
                     isinstance(node.target, ast.Tuple):
                 for elt, ann in zip(node.target.elts, node.iter.annotation.elts):
-                    if isinstance(ann, ast.Subscript):
+                    if isinstance(ann, ast.Subscript) and \
+                            re.match(r"list|List|tuple|Tuple", get_id(ann.value)):
                         elt.annotation = ann.slice
                     else:
                         elt.annotation = ann

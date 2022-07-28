@@ -1,17 +1,11 @@
 import ast
-from ctypes import c_int64
-import re
-from typing import Any
 from py2many.external_modules import ExternalBase
+from py2many.helpers import get_ann_repr
 
 from py2many.inference import InferMeta, InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
-from py2many.clike import class_for_typename
-from py2many.tracer import find_node_by_type
-from pyjl.clike import CLikeTranspiler
-from pyjl.helpers import get_ann_repr
-from pyjl.global_vars import DEFAULT_TYPE
+from pyjl.global_vars import DEFAULT_TYPE, SEP
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
@@ -31,40 +25,9 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
     def __init__(self):
         super().__init__()
         self._default_type = DEFAULT_TYPE
-        self._clike = CLikeTranspiler()
-        self._imported_names = None
-        self._func_type_map = InferTypesTransformer.FUNC_TYPE_MAP
+        self._func_type_map = self.FUNC_TYPE_MAP
         # Get external module features
         self.import_external_modules("Julia")
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        self._imported_names = node.imported_names
-        self.generic_visit(node)
-        return node
-
-    def _handle_overflow(self, op, left_id, right_id):
-        widening_op = isinstance(op, ast.Add) or isinstance(op, ast.Mult)
-        left_class = class_for_typename(left_id, None)
-        right_class = class_for_typename(right_id, None)
-        left_idx = (
-            self.FIXED_WIDTH_INTS_LIST.index(left_class)
-            if left_class in self.FIXED_WIDTH_INTS
-            else -1
-        )
-        right_idx = (
-            self.FIXED_WIDTH_INTS_LIST.index(right_class)
-            if right_class in self.FIXED_WIDTH_INTS
-            else -1
-        )
-        max_idx = max(left_idx, right_idx)
-        cint64_idx = self.FIXED_WIDTH_INTS_LIST.index(c_int64)
-        if widening_op:
-            if max_idx not in {-1, cint64_idx, len(self.FIXED_WIDTH_INTS_LIST) - 1}:
-                # i8 + i8 => i16 for example
-                return self.FIXED_WIDTH_INTS_NAME_LIST[max_idx + 1]
-        if left_id == "float" or right_id == "float":
-            return "float"
-        return left_id if left_idx > right_idx else right_id
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         # Get annotation
@@ -92,7 +55,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
-        self.generic_visit(node)
+        super().visit_AnnAssign(node)
         self._verify_annotation(node, node.annotation, node.target, inferred=False)
         return node
 
@@ -118,20 +81,16 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         left = lvar.annotation if lvar and hasattr(lvar, "annotation") else None
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
+        # If one node is None, skip other conditions
+        if left is None or right is None:
+            return node
+
         left_id = get_id(left.value) if isinstance(left, ast.Subscript) else get_id(left)
         right_id = get_id(right.value) if isinstance(right, ast.Subscript) else get_id(right)
 
         is_numeric = (lambda x: x == "int" or "float" or "complex"
             or (isinstance(x, str) and 
                 (x.startswith("c_int") or x.startswith("c_uint"))))
-
-        # If one or more nodes are None, skip other conditions
-        if ((left is None and right is not None) 
-                or (right is None and left is not None)
-                or (right is None and left is None)):
-            node.annotation = ast.Name(id="Any")
-            self._assign_annotation(node, left, right)
-            return node
 
         if (left_id in self.FIXED_WIDTH_INTS_NAME
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
@@ -156,6 +115,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
             # By default, assign left
             node.annotation = left
         else:
+            # promotion
             if ((left_id == "int" and right_id == "float") or 
                     (right_id == "int" and left == "float")):
                 node.annotation = ast.Name(id="float")
@@ -170,10 +130,29 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                 node.annotation = ast.Name(id="complex")
                 self._assign_annotation(node, node.annotation, node.annotation)
                 return node
+            if isinstance(node.op, ast.Mult):
+                # Container multiplication
+                if (left_id, right_id) in [
+                        ("bytes", "int"),
+                        ("str", "int"),
+                        ("tuple", "int"),
+                        ("List", "int"),
+                        ("int", "bool")]:
+                    node.annotation = ast.Name(id=left_id)
+                    return node
+                elif (left_id, right_id) in [
+                        ("int", "bytes"),
+                        ("int", "str"),
+                        ("int", "tuple"),
+                        ("int", "List"),
+                        ("bool", "int")]:
+                    node.annotation = ast.Name(id=right_id)
+                    return node
 
         # By default (if no translation possible), the types are left_id and right_id respectively
         self._assign_annotation(node, left, right)
 
+        # Changed legal for illegal combinations
         ILLEGAL_COMBINATIONS = {}
 
         if left_id is not None and right_id is not None and (left_id, right_id, type(node.op)) in ILLEGAL_COMBINATIONS:
@@ -186,11 +165,11 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
 
     def _verify_annotation(self, node, annotation, target, inferred = False):
         annotation.is_inferred = inferred
-        ann_str = get_ann_repr(annotation)
+        ann_str = get_ann_repr(annotation, sep=SEP)
         # Find another variable
         var_name = get_id(target)
         map_ann = getattr(node.scopes.find(var_name), "annotation", None)
-        map_ann_str = get_ann_repr(map_ann) if map_ann else None
+        map_ann_str = get_ann_repr(map_ann, sep=SEP) if map_ann else None
         if(map_ann_str and not getattr(map_ann, "is_inferred", True) and ann_str != self._default_type \
                 and map_ann_str != self._default_type and ann_str.lower() != map_ann_str.lower()):
             raise AstIncompatibleAssign(

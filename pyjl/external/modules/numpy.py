@@ -115,11 +115,18 @@ class JuliaExternalModulePlugins:
         match_list = lambda x: re.match(r"^list|^List|^tuple|^Tuple", x) is not None \
             if x else False
         match_scalar = lambda x: re.match(r"^int|^float|^bool", x) is not None \
-            if x else None
+            if x else False
         match_matrix = lambda x: re.match(r"^Matrix|^np.ndarray", x) is not None \
-            if x else None
-        types_0_str = ast.unparse(getattr(node.args[1], "annotation", ast.Name(id="")))
-        types_1_str = ast.unparse(getattr(node.args[2], "annotation", ast.Name(id="")))
+            if x else False
+        # Accounts for JuliaMethodCallRewriter when getting node.args
+        if t1 := getattr(node.args[1], "annotation", None):
+            types_0_str = t_self.visit(t1)
+        else:
+            types_0_str = t_self.visit(getattr(node.scopes.find(vargs[0]), "annotation", ast.Name(id="")))
+        if t2 := getattr(node.args[2], "annotation", None):
+            types_1_str = t_self.visit(t2)
+        else:
+            types_1_str = t_self.visit(getattr(node.scopes.find(vargs[1]), "annotation", ast.Name(id="")))
         if match_list(types_0_str) and match_list(types_1_str):
             return f"({vargs[0]} ⋅ {vargs[1]})"
         elif match_scalar(types_0_str) or match_scalar(types_1_str) or \
@@ -229,10 +236,10 @@ class FuncTypeDispatch():
             if x else None
         match_matrix = lambda x: re.match(r"^Matrix|^np.ndarray", x) is not None \
             if x else None
-        types_0 = getattr(node.scopes.find(vargs[0]), "annotation", None)
-        types_1 = getattr(node.scopes.find(vargs[1]), "annotation", None)
-        types_0_str = self.visit(types_0) if types_0 else ""
-        types_1_str = self.visit(types_1) if types_1 else ""
+        types_0 = getattr(vargs[0], "annotation", None)
+        types_1 = getattr(vargs[1], "annotation", None)
+        types_0_str = ast.unparse(types_0) if types_0 else ""
+        types_1_str = ast.unparse(types_1) if types_1 else ""
         if match_list(types_0_str) and match_list(types_1_str):
             return "list"
         elif (m0 := match_scalar(types_0_str)) or (m1 := match_scalar(types_1_str)):
