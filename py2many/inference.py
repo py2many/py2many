@@ -123,6 +123,12 @@ class FuncTypeDispatch():
         
         return f"({', '.join(ann_ids)})"
 
+    def visit_min_max(self, node, vargs):
+        node_type = get_inferred_type(vargs[0])
+        if node_type:
+            return ast.unparse(node_type)
+        return None
+
 
 class InferTypesTransformer(ast.NodeTransformer):
     """
@@ -139,8 +145,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytearray.translate: lambda self, node, vargs: "bytearray",
         zip: FuncTypeDispatch.visit_zip,
         argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",
-        max: lambda self, node, vargs: get_inferred_type(vargs[0]),
-        min: lambda self, node, vargs: get_inferred_type(vargs[0]),
+        max: FuncTypeDispatch.visit_min_max,
+        min: FuncTypeDispatch.visit_min_max,
     }
     TYPE_DICT = {
         int: "int",
@@ -713,7 +719,9 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             if (func := class_for_typename(fname, None, locals=self._imported_names)) \
                     in self.FUNC_TYPE_MAP:
-                self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
+                ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
+                if ann:
+                    self._annotate(node, ann)
             else:
                 # Use annotation
                 parse_ann = lambda x: x.value if isinstance(x, ast.Subscript) else x
@@ -727,7 +735,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 # Try to match to table entries
                 if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
                         in self.FUNC_TYPE_MAP:
-                    self._annotate(node, self.FUNC_TYPE_MAP[func](self, node, node.args))
+                    ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
+                    if ann:
+                        self._annotate(node, ann)
         return node
 
     def visit_Subscript(self, node: ast.Subscript):
@@ -773,6 +783,10 @@ class InferTypesTransformer(ast.NodeTransformer):
                         elt.annotation = ann.slice
                     else:
                         elt.annotation = ann
+            elif isinstance(node.iter, ast.Call) and \
+                    get_id(node.iter.func) == "range" and \
+                    isinstance(node.target, ast.Name):
+                self._annotate(node.target, "int")
         self.generic_visit(node)
         return node
 

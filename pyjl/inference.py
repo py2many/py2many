@@ -114,6 +114,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
 
             # By default, assign left
             node.annotation = left
+            self._assign_annotation(node, left, left)
         else:
             # promotion
             if ((left_id == "int" and right_id == "float") or 
@@ -139,6 +140,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                         ("List", "int"),
                         ("int", "bool")]:
                     node.annotation = ast.Name(id=left_id)
+                    self._assign_annotation(node, node.annotation, node.annotation)
                     return node
                 elif (left_id, right_id) in [
                         ("int", "bytes"),
@@ -147,6 +149,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                         ("int", "List"),
                         ("bool", "int")]:
                     node.annotation = ast.Name(id=right_id)
+                    self._assign_annotation(node, node.annotation, node.annotation)
                     return node
 
         # By default (if no translation possible), the types are left_id and right_id respectively
