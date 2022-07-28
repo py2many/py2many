@@ -741,7 +741,7 @@ SMALL_DISPATCH_MAP = {
     "bool": lambda n, vargs: f"Bool({vargs[0]})" if vargs else f"false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     # "floor": lambda n, vargs: f"floor({vargs[0]})",
-    "None": lambda n, vargs: f"nothing",
+    "None": lambda n, vargs: f"Nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
 }
 

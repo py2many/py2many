@@ -254,9 +254,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def _map_type(self, typename: str, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = self._func_for_lookup(typename)
-        if typeclass is None:
-            return typename
-        elif typeclass in self._type_map:
+        if typeclass in self._type_map:
             return self._type_map[typeclass]
         elif typeclass in self._container_type_map:
             return self._container_type_map[typeclass]
@@ -275,7 +273,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if type_node := getattr(node, attr, None):
-            typename = self._typename_from_type_node(type_node, default=self._default_type)
+            typename = self._typename_from_type_node(type_node, 
+                parse_func=self._map_type, default=self._default_type)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = tuple(map(self._map_type, type_node.container_type))
             if isinstance(type_node, ast.Name):
@@ -302,8 +301,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         )
     
     def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
-        if node == None:
-            return default
         if isinstance(node, ast.Name):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
@@ -315,12 +312,22 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return self._map_type(node_id)
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
-                map(lambda x: self._typename_from_type_node(x), 
+                map(lambda x: self._typename_from_type_node(x, parse_func, default), 
                     (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
-        return get_ann_repr(node, self._map_type, default, SEP)
+        elif isinstance(node, ast.Attribute):
+            return f"{self._typename_from_type_node(node.value, parse_func, default)}.\
+                {self._map_type(node.attr)}"
+        elif isinstance(node, ast.Constant):
+            return self._map_type(node.value)
+        elif isinstance(node, ast.Tuple) \
+                or isinstance(node, ast.List):
+            elts = list(map(
+                lambda x: self._typename_from_type_node(x, parse_func, default), node.elts))
+            return ", ".join(elts)
+        return default
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"

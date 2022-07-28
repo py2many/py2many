@@ -105,7 +105,10 @@ class JuliaTranspiler(CLikeTranspiler):
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return self._none_type
+            if getattr(node, "is_annotation", None):
+                return "Nothing"
+            else:
+                return self._none_type
         elif isinstance(node.value, str):
             return self.visit_Str(node, quotes, docstring)
         elif isinstance(node.value, bytes):
@@ -405,8 +408,9 @@ class JuliaTranspiler(CLikeTranspiler):
             getattr(node.right, "annotation", self._default_type), 
             default=self._default_type)
 
-        is_list = lambda x: x.startswith("Array") or x.startswith("Vector")
-        is_tuple = lambda x: x.startswith("Tuple")
+        is_list = lambda x: re.match(r"^Array|^Vector", x)
+        is_tuple = lambda x: re.match(r"^Tuple", x)
+        is_num = lambda x: re.match(r"^Int|^Float", x)
 
         # Modulo string formatting
         # TODO: Provide two translation alternatives (sprintf)
@@ -437,14 +441,14 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List/Tuple and Int
-            if isinstance(node.right, ast.Num) or right_jl_ann.startswith("Int"):
+            if isinstance(node.right, ast.Num) or is_num(right_jl_ann):
                 if ((isinstance(node.left, ast.List) or is_list(left_jl_ann))  or
                         (isinstance(node.left, ast.Str) or left_jl_ann == "String")):
                     return f"repeat({left},{right})"
                 elif isinstance(node.left, ast.Tuple) or is_tuple(left_jl_ann):
                     return f"repeat([{left}...],{right})"
 
-            if isinstance(node.left, ast.Num) or left_jl_ann.startswith("Int"):
+            if isinstance(node.left, ast.Num) or is_num(left_jl_ann):
                 if ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
                         (isinstance(node.right, ast.Str) or right_jl_ann == "String")):
                     return f"repeat({right},{left})"
