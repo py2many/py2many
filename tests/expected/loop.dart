@@ -20,8 +20,13 @@ for_with_continue() {
 }
 
 for_with_else() {
+  final bool has_break = false;
   for (final i in ([for (var i = 0; i < 4; i += 1) i])) {
     print(sprintf("%s", [i]));
+  }
+
+  if (has_break != true) {
+    print(sprintf("%s", ["OK"]));
   }
 }
 
@@ -51,6 +56,7 @@ while_with_continue() {
 main(List<String> argv) {
   for_with_break();
   for_with_continue();
+  for_with_else();
   while_with_break();
   while_with_continue();
 }

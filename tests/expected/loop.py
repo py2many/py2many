@@ -46,5 +46,6 @@ def while_with_continue():
 if __name__ == "__main__":
     for_with_break()
     for_with_continue()
+    for_with_else()
     while_with_break()
     while_with_continue()

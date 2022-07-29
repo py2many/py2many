@@ -21,8 +21,13 @@ inline void for_with_continue() {
 }
 
 inline void for_with_else() {
+  bool has_break = false;
   for (auto i : iter::range(4)) {
     std::cout << i;
+    std::cout << std::endl;
+  }
+  if (has_break != true) {
+    std::cout << std::string{"OK"};
     std::cout << std::endl;
   }
 }
@@ -54,6 +59,7 @@ inline void while_with_continue() {
 int main(int argc, char** argv) {
   for_with_break();
   for_with_continue();
+  for_with_else();
   while_with_break();
   while_with_continue();
 }

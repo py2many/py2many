@@ -71,6 +71,42 @@ def is_list(node):
         return False
 
 
+# Searches for the first node of type node_type using
+# the given scope (search in reverse order)
+def find_node_by_type(node_type, scopes):
+    c_node = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if isinstance(sc, node_type):
+            c_node = sc
+            break
+        if hasattr(sc, "body"):
+            c_node = find_in_body(sc.body, (lambda x: isinstance(x, node_type)))
+            if c_node is not None:
+                break
+    return c_node
+
+
+# Finds a node in the given body if it satisfies fn
+def find_in_body(body, fn):
+    for i in range(len(body) - 1, -1, -1):
+        node = body[i]
+        if fn(node):
+            return node
+        elif isinstance(node, ast.Expr) and hasattr(node, "value") and fn(node.value):
+            return node.value
+        elif hasattr(node, "iter") and fn(node.iter):
+            return node.iter
+        elif hasattr(node, "test") and fn(node.test):
+            return node.test
+        elif hasattr(node, "body"):
+            ret = find_in_body(node.body, fn)
+            if ret:
+                return ret
+
+    return None
+
+
 def value_expr(node):
     """
     Follow all assignments down the rabbit hole in order to find

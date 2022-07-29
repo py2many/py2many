@@ -13,8 +13,12 @@ proc for_with_continue() =
     echo i
 
 proc for_with_else() =
+  let has_break = false
   for i in (0..4 - 1):
     echo i
+  if has_break != true:
+    echo "OK"
+
 
 proc while_with_break() =
   var i = 0
@@ -37,6 +41,7 @@ proc while_with_continue() =
 proc main() =
   for_with_break()
   for_with_continue()
+  for_with_else()
   while_with_break()
   while_with_continue()
 

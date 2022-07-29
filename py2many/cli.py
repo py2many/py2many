@@ -67,6 +67,7 @@ from py2many.rewriters import (
     ComplexDestructuringRewriter,
     FStringJoinRewriter,
     InferredAnnAssignRewriter,
+    LoopElseRewriter,
     PythonMainRewriter,
     DocStringToCommentRewriter,
     PrintBoolRewriter,
@@ -136,6 +137,9 @@ def _transpile(
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
     ]
+    if settings.ext != ".py":
+        generic_post_rewriters.append(LoopElseRewriter(language))
+
     rewriters = generic_rewriters + rewriters
     post_rewriters = generic_post_rewriters + post_rewriters
     outputs = {}

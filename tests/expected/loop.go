@@ -24,8 +24,12 @@ func ForWithContinue() {
 }
 
 func ForWithElse() {
+	var has_break bool = false
 	for _, i := range iter.NewIntSeq(iter.Start(0), iter.Stop(4)).All() {
 		fmt.Printf("%v\n", i)
+	}
+	if has_break != true {
+		fmt.Printf("%v\n", "OK")
 	}
 }
 
@@ -54,6 +58,7 @@ func WhileWithContinue() {
 func main() {
 	ForWithBreak()
 	ForWithContinue()
+	ForWithElse()
 	WhileWithBreak()
 	WhileWithContinue()
 }

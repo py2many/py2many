@@ -17,8 +17,12 @@ function for_with_continue()
 end
 
 function for_with_else()
+    has_break = false
     for i = 0:4-1
         println(join([i], " "))
+    end
+    if has_break != true
+        println(join(["OK"], " "))
     end
 end
 
@@ -47,6 +51,7 @@ end
 function main()
     for_with_break()
     for_with_continue()
+    for_with_else()
     while_with_break()
     while_with_continue()
 end
