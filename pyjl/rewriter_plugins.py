@@ -1,5 +1,6 @@
 import ast
 from py2many.scope import ScopeList
+from pyjl.global_vars import JL_CLASS
 import pyjl.juliaAst as juliaAst
 
 from py2many.ast_helpers import create_ast_node, get_id
@@ -63,7 +64,7 @@ class SpecialFunctionsPlugins():
             if constructor_body or has_default:
                 decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args))
                 decorator_list = list(map(get_id, class_node.decorator_list))
-                if "jl_class" not in decorator_list:
+                if JL_CLASS not in decorator_list:
                     # If we are using composition and the class extends from super, 
                     # it must contain its fields as well.
                     # We assume that all the fields provided in the __init__ function 

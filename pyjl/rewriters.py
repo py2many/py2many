@@ -18,7 +18,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
@@ -1287,7 +1287,7 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         class_name: str = get_id(node)
 
         decorator_list = list(map(get_id, node.decorator_list))
-        if "jl_class" in decorator_list:
+        if JL_CLASS in decorator_list:
             node.jl_bases = node.bases
             return node
 

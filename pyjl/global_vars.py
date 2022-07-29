@@ -3,6 +3,8 @@ RESUMABLE = "resumable"
 CHANNELS = "channels"
 REMOVE_NESTED = "remove_nested"
 OFFSET_ARRAYS = "offset_arrays"
+FIX_SCOPE_BOUNDS="fix_scope_bounds"
+JL_CLASS="jl_class"
 OBJECT_ORIENTED = "oop"
 
 # Flags

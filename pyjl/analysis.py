@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
-from pyjl.global_vars import SEP
+from pyjl.global_vars import FIX_SCOPE_BOUNDS, SEP
 
 logger = logging.Logger("pyjl")
 
@@ -60,7 +60,7 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
                         f"{elems_str}\033[0m")
 
     def visit_Module(self, node: ast.Module) -> Any:
-        if getattr(node, "fix_scope_bounds", False) or \
+        if getattr(node, FIX_SCOPE_BOUNDS, False) or \
                 getattr(node, "loop_scope_warning", False):
             self.generic_visit(node)
             if getattr(node, "loop_scope_warning", False):
@@ -163,7 +163,7 @@ class JuliaLoopRangesOptimization(ast.NodeTransformer):
         self._subscript_vars = set()
 
     def visit_Module(self, node: ast.Module) -> Any:
-        if getattr(node, "optimize_loop_ranges", False):
+        if getattr(node, FIX_SCOPE_BOUNDS, False):
             self.generic_visit(node)
         return node
 
