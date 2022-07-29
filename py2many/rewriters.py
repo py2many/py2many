@@ -1,4 +1,5 @@
 import ast
+from typing import Union
 import textwrap
 
 from py2many.analysis import get_id
@@ -6,8 +7,11 @@ from py2many.ast_helpers import create_ast_block, create_ast_node
 from py2many.astx import ASTxFunctionDef
 from py2many.clike import CLikeTranspiler
 from py2many.inference import get_inferred_type
+from py2many.scope import ScopeList
 
-from typing import cast, Optional
+from typing import Any, cast, Optional
+
+from py2many.tracer import find_node_by_type
 
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
@@ -453,3 +457,79 @@ class UnpackScopeRewriter(ast.NodeTransformer):
 
     def visit_While(self, node: ast.With) -> ast.With:
         return self._visit_assign_node_body(node)
+
+
+class LoopElseRewriter(ast.NodeTransformer):
+    def __init__(self, language) -> None:
+        super().__init__()
+        self._language = language
+        self._has_break_var_name = "has_break"
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        self._visit_Scope(node)
+        return node
+
+    def visit_For(self, node: ast.For) -> Any:
+        self._generic_loop_visit(node)
+        self._visit_Scope(node)
+        return node
+
+    def visit_While(self, node: ast.While) -> Any:
+        self._generic_loop_visit(node)
+        self._visit_Scope(node)
+        return node
+
+    def _generic_loop_visit(self, node: Union[ast.For, ast.While]):
+        scopes = getattr(node, "scopes", ScopeList())
+        if len(node.orelse) > 0:
+            lineno = node.orelse[0].lineno
+            if_expr = ast.If(
+                test=ast.Compare(
+                    left=ast.Name(id=self._has_break_var_name),
+                    ops=[ast.NotEq()],
+                    comparators=[ast.Constant(value=True, scopes=scopes)],
+                    scopes=scopes,
+                ),
+                body=[oe for oe in node.orelse],
+                orelse=[],
+                lineno=lineno,
+                scopes=scopes,
+            )
+            node.if_expr = if_expr
+
+    def _visit_Scope(self, node) -> Any:
+        self.generic_visit(node)
+        scopes = getattr(node, "scopes", ScopeList())
+        assign = ast.Assign(
+            targets=[ast.Name(id=self._has_break_var_name)], value=None, scopes=scopes
+        )
+        ast.fix_missing_locations(assign)
+        body = []
+        for n in node.body:
+            if hasattr(n, "if_expr"):
+                assign.value = ast.Constant(value=False, scopes=scopes)
+                body.append(assign)
+                body.append(n)
+                body.append(n.if_expr)
+            elif isinstance(n, ast.Break):
+                for_node = find_node_by_type((ast.For, ast.While), scopes)
+                if hasattr(for_node, "if_expr"):
+                    assign.value = ast.Constant(value=True, scopes=scopes)
+                    body.append(assign)
+                body.append(n)
+            else:
+                body.append(n)
+
+        node.body = body

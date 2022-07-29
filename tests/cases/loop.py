@@ -41,6 +41,6 @@ if __name__ == "__main__":
     for_with_break()
     for_with_continue()
     # https://github.com/adsharma/py2many/issues/415
-    # for_with_else()
+    for_with_else()
     while_with_break()
     while_with_continue()

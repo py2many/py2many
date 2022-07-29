@@ -15,8 +15,12 @@ fun for_with_continue() {
     } }
 
 fun for_with_else() {
+    val has_break = false
     for (i in (0..4 - 1)) {
         println("$i")
+    }
+    if (has_break != true) {
+        println("OK")
     } }
 
 fun while_with_break() {
@@ -42,5 +46,6 @@ fun while_with_continue() {
 fun main(argv: Array<String>) {
     for_with_break()
     for_with_continue()
+    for_with_else()
     while_with_break()
     while_with_continue() }

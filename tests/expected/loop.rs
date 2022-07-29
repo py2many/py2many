@@ -44,8 +44,12 @@ pub fn for_with_continue() {
 }
 
 pub fn for_with_else() {
+    let has_break: bool = false;
     for i in (0..4) {
         println!("{}", i);
+    }
+    if has_break != true {
+        println!("{}", "OK");
     }
 }
 
@@ -74,6 +78,7 @@ pub fn while_with_continue() {
 pub fn main() -> Result<()> {
     for_with_break();
     for_with_continue();
+    for_with_else();
     while_with_break();
     while_with_continue();
     Ok(())
