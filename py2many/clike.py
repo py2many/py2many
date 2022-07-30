@@ -98,6 +98,14 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval
         typeclass = eval(typename, globals(), locals)
+        if hasattr(typeclass, "__self__") and not isinstance(
+            typeclass.__self__, type(sys)
+        ):
+            # Method of an instance instead of a class.
+            return getattr(typeclass.__self__.__class__, typeclass.__name__)
+
+        if not isinstance(typeclass, type):
+            return typeclass.__class__
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):
         logger.info(f"could not evaluate {typename}")
