@@ -10,6 +10,8 @@ import time
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
 
+from py2many.analysis import get_id
+
 try:
     from argparse_dataclass import dataclass as ap_dataclass
     from argparse_dataclass import ArgumentParser
@@ -52,13 +54,27 @@ class CppTranspilerPlugins:
         node.result_type = True
         return "NamedTempFile::new()"
 
+    def _translate_file(file: str) -> str:
+        FILE_MAP: Dict[object, str] = {
+            "sys.stdout": "std::cout",
+            "sys.stdin": "std::cin",
+            "sys.stderr": "std::cerr",
+        }
+        return FILE_MAP.get(file, file)
+
     def visit_textio_read(self, node, vargs):
         # TODO
         return None
 
     def visit_textio_write(self, node, vargs):
-        # TODO
-        return None
+        self._usings.add("<iostream>")
+        return f"{CppTranspilerPlugins._translate_file(get_id(node.func.value))} << {vargs[0]}"
+
+    def visit_textio_flush(self, node, vargs):
+        self._usings.add("<iostream>")
+        return (
+            f"{CppTranspilerPlugins._translate_file(get_id(node.func.value))}.flush()"
+        )
 
     def visit_ap_dataclass(self, cls):
         # Do whatever transformation the decorator does to cls here
@@ -117,6 +133,7 @@ class CppTranspilerPlugins:
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "int": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int"),
+    "chr": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="char"),
     "str": lambda n, vargs: f"std::to_string({vargs[0]})" if vargs else '""',
     "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})" if vargs else "false",
     "len": lambda n, vargs: f"static_cast<int>({vargs[0]}.size())",
@@ -171,6 +188,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     NamedTemporaryFile: (CppTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.write: (CppTranspilerPlugins.visit_textio_write, True),
+    io.TextIOWrapper.flush: (CppTranspilerPlugins.visit_textio_flush, True),
     math.asin: (lambda self, node, vargs: f"std::asin({vargs[0]})", False),
     math.acos: (lambda self, node, vargs: f"std::acos({vargs[0]})", False),
     math.cos: (lambda self, node, vargs: f"std::cos({vargs[0]})", False),
