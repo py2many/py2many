@@ -20,16 +20,16 @@ MOD_NAMES = set(
 )
 
 LANG_MAP = {
-    "Python": "py2py",
-    "C++": "pycpp",
-    "Dart": "pydart",
-    "Go": "pygo",
-    "Julia": "pyjl",
-    "Kotlin": "pykt",
-    "Nim": "pynim",
-    "Rust": "pyrs",
-    "SMT": "pysmt",
-    "V": "pyv",
+    "python": "py2py",
+    "cpp": "pycpp",
+    "dart": "pydart",
+    "go": "pygo",
+    "julia": "pyjl",
+    "kotlin": "pykt",
+    "nim": "pynim",
+    "rust": "pyrs",
+    "smt": "pysmt",
+    "v": "pyv",
 }
 
 
@@ -63,7 +63,7 @@ class ExternalBase():
         if lang in LANG_MAP:
             p_lang = LANG_MAP[lang]
         else:
-            raise Exception("Language not supported")
+            raise Exception(f"Language not supported: {lang}")
         # Get files
         path = f"{os.getcwd()}{os.sep}{p_lang}{os.sep}{MOD_DIR}"
         if not os.path.isdir(path):

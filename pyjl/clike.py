@@ -169,7 +169,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
         self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE 
         # Get external module features
-        self.import_external_modules("Julia")
+        self.import_external_modules(self.NAME)
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -309,7 +309,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             node_id = get_id(node)
             if node_id and node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
-            return self._map_type(node_id)
+            if (mapped_id := self._map_type(node_id)) != node_id:
+                return mapped_id
+            return f"{self._typename_from_type_node(node.value, parse_func, default)}.{self._map_type(node.attr)}"
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
                 map(lambda x: self._typename_from_type_node(x, parse_func, default), 
@@ -317,9 +319,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
-        elif isinstance(node, ast.Attribute):
-            return f"{self._typename_from_type_node(node.value, parse_func, default)}.\
-                {self._map_type(node.attr)}"
         elif isinstance(node, ast.Constant):
             return self._map_type(node.value)
         elif isinstance(node, ast.Tuple) \

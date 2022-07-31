@@ -20,9 +20,9 @@ def parse_path(path: list[str], sep):
 
 # Returns a string representation of the node
 def get_ann_repr(node, parse_func = None, default = None, sep=["[", "]"]):
-    if node == None:
+    if node is None:
         return default
-    elif isinstance(node, str):
+    if isinstance(node, str):
         if parse_func:
             return parse_func(node)
         return node
@@ -38,13 +38,11 @@ def get_ann_repr(node, parse_func = None, default = None, sep=["[", "]"]):
             args.append(get_ann_repr(arg, parse_func, default, sep))
         return f"{'.'.join(args)}.{func}"
     elif isinstance(node, ast.Attribute):
-        return f"{get_ann_repr(node.value, parse_func, default, sep)}.\
-            {get_ann_repr(node.attr, parse_func, default, sep)}"
+        return f"{get_ann_repr(node.value, parse_func, default, sep)}.{get_ann_repr(node.attr, parse_func, default, sep)}"
     elif isinstance(node, ast.Constant):
-        const_repr = ast.unparse(node)
         if parse_func:
-            return parse_func(const_repr)
-        return const_repr
+            return parse_func(node.value)
+        return f"{node.value}"
     elif isinstance(node, ast.Subscript):
         id = get_ann_repr(node.value, parse_func, default, sep)
         slice_val = get_ann_repr(node.slice, parse_func, default, sep)

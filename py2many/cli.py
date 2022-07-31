@@ -141,7 +141,8 @@ def _transpile(
     target language
     """
     transpiler = settings.transpiler
-    inference = settings.inference
+    inference = settings.inference \
+        if settings.inference else infer_types
     rewriters = settings.rewriters
     transformers = settings.transformers
     post_rewriters = settings.post_rewriters
@@ -257,10 +258,7 @@ def _transpile_one(
     if args and args.typpete:
         infer_meta = infer_types_typpete(tree)
     else:
-        if inference:
-            infer_meta = inference(tree)
-        else:
-            infer_meta = infer_types(tree)
+        infer_meta = inference(tree)
     # Language specific transformers
     for tx in transformers:
         tx(tree)

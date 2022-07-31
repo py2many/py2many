@@ -594,23 +594,30 @@ class CLikeTranspiler(ast.NodeVisitor):
         return self._container_type_map.get(typename, self._default_type)
 
     def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
-        if node == None:
-            return default
         if isinstance(node, ast.Name):
             return get_id(node)
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
             if node_id and node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
-            return node_id
+            if (mapped_id := self._map_type(node_id)) != node_id:
+                return mapped_id
+            return f"{self._typename_from_type_node(node.value, parse_func, default)}.{node.attr}"
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
-                map(lambda x: self._typename_from_type_node(x), 
+                map(lambda x: self._typename_from_type_node(x, parse_func, default), 
                     (node.value, node.slice))
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}[{index_type}]"
-        return get_ann_repr(node, default=default)
+        elif isinstance(node, ast.Constant):
+            return f"{node.value}"
+        elif isinstance(node, ast.Tuple) \
+                or isinstance(node, ast.List):
+            elts = list(map(
+                lambda x: self._typename_from_type_node(x, parse_func, default), node.elts))
+            return ", ".join(elts)
+        return default
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
