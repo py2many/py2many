@@ -13,6 +13,7 @@ def infer_julia_types(node, extension=False):
     return InferMeta(visitor.has_fixed_width_ints)
 
 class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
+    NAME = "julia"
     """
     Implements Julia type inference logic
     """
@@ -27,7 +28,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         self._default_type = DEFAULT_TYPE
         self._func_type_map = self.FUNC_TYPE_MAP
         # Get external module features
-        self.import_external_modules("Julia")
+        self.import_external_modules(self.NAME)
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         # Get annotation

@@ -1189,26 +1189,6 @@ class JuliaClassWrapper(ast.NodeTransformer):
             node.args = node.args[1:]
         return node
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        # Extract declarations
-        # TODO: Declarations are extracted here, as __init__ will be replaced
-        # and we cannot get to the assignments
-        extractor = DeclarationExtractor(JuliaTranspiler())
-        extractor.visit(node)
-        node.declarations = extractor.get_declarations()
-        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
-        node.class_assignments = extractor.class_assignments
-        # Visit node
-        self.generic_visit(node)
-        return node
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        self.generic_visit(node)
-        # Parse special functions
-        if node.name in JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE:
-            return JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE[node.name](self, node)
-        return node
-
 class JuliaClassOOPRewriter(ast.NodeTransformer):
     """A placeholder for future changes regarding OOP"""
     def __init__(self) -> None:

@@ -1,10 +1,11 @@
+from copyreg import constructor
 from enum import IntFlag
 import ast
 
 import re
 
 from py2many.exceptions import AstUnsupportedOperation
-from pyjl.global_vars import DEFAULT_TYPE, RESUMABLE
+from pyjl.global_vars import DEFAULT_TYPE, JL_CLASS, RESUMABLE
 from pyjl.helpers import is_dir, is_file
 
 import pyjl.juliaAst as juliaAst
@@ -15,6 +16,7 @@ from .plugins import (
     JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
+    SpecialFunctionsPlugins,
 )
 
 from py2many.analysis import get_id, is_void_function
@@ -483,14 +485,17 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
-        # Get class declarations and assignments
-        self._visit_class_fields(node)
-
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
-                body.append(self.visit(b))
+                if b.name == "__init__":
+                    node.constructor = SpecialFunctionsPlugins.visit_init(self, b)
+                else:
+                    body.append(self.visit(b))
         body = "\n".join(body)
+
+        # Get class declarations and assignments
+        self._visit_class_fields(node)
 
         ret = super().visit_ClassDef(node)
         if ret is not None:
@@ -516,7 +521,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
-        maybe_constructor = f"\n{self.visit(node.constructor)}" if hasattr(node, "constructor") else ""
+        maybe_constructor = f"\n{self.visit(node.constructor)}" if getattr(node, "constructor", None) else ""
 
         if getattr(node, "oop", False):
             self._usings.add("ObjectOriented")
@@ -526,10 +531,30 @@ class JuliaTranspiler(CLikeTranspiler):
                             {body}
                         end"""
 
+
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
-    def _visit_class_fields(self, node):
+    def _visit_class_fields(self, node: ast.ClassDef):
+        # Extract declarations
+        extractor = DeclarationExtractor(self)
+        extractor.visit(node)
+        node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        node.class_assignments = extractor.class_assignments
+        
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
+
+        decorator_list = list(map(get_id, node.decorator_list))
+        if JL_CLASS not in decorator_list and not getattr(node, "oop", None):
+            # If we are using composition and the class extends from super, 
+            # it must contain its fields as well.
+            for cls in node.bases:
+                base_node = node.scopes.find(get_id(cls))
+                if decls := getattr(base_node, "declarations_with_defaults", None):
+                    for decl_id, (t_name, val) in decls.items():
+                        if decl_id not in declarations:
+                            node.declarations[decl_id] = t_name
+                            node.declarations_with_defaults[decl_id] = (t_name, val)
 
         dec_items = []
         if not hasattr(node, "constructor_args"):
@@ -539,15 +564,16 @@ class JuliaTranspiler(CLikeTranspiler):
                 if has_defaults \
                 else declarations.items()
         else:
-            init_args: list[ast.arg] = [arg for arg in node.constructor_args.args]
+            init_args = node.constructor_args.args if hasattr(node, "constructor_args") else []
             for arg in init_args:
                 arg_str = arg.arg
                 if arg_str in declarations:
                     typename, default = declarations[arg_str]
                     # Attempt to propagate types
-                    if not typename or typename == self._default_type:
-                        typename = self.visit(arg.annotation)
-                    dec_items.append((arg_str, (typename, default)))
+                    if (not typename or typename == self._default_type) and \
+                            (arg_ann := getattr(arg, "annotation", None)):
+                        typename = self.visit(arg_ann)
+                    dec_items.append((arg_str, (typename, self.visit(default))))
 
         decs = []
         fields = []

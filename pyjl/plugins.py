@@ -16,8 +16,10 @@ import re
 import sys
 import traceback
 import bisect
+from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
+from py2many.scope import ScopeList
 from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import get_func_def
 
@@ -27,6 +29,8 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 from py2many.ast_helpers import get_id
 
 from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
+
+from pyjl import juliaAst
 
 try:
     from dataclasses import dataclass
@@ -167,7 +171,7 @@ class JuliaTranspilerPlugins:
         struct_def = f"mutable struct {node.name} <: {bases[0]}" \
             if bases else f"mutable struct {node.name}"
 
-        if hasattr(node, "constructor"):
+        if getattr(node, "constructor", None):
             constructor_str = self.visit(node.constructor)
             return f"{struct_def}\n{fields}\n{constructor_str}\nend\n{body}"
 
@@ -233,7 +237,7 @@ class JuliaTranspilerPlugins:
                 body.append(f"{self.visit(b)}")
         body = "\n".join(body)
 
-        if hasattr(node, "constructor"):
+        if getattr(node, "constructor", None):
             constructor_str = self.visit(node.constructor)
             return f"@class {struct_def} begin\n{fields_str}\n{constructor_str}\nend\n{body}"
 
@@ -715,6 +719,88 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+
+class SpecialFunctionsPlugins():
+    def visit_init(self, node: ast.FunctionDef):
+        # Remove self
+        node.args.args = node.args.args[1:]
+        arg_ids = set(map(lambda x: x.arg, node.args.args))
+        is_oop = getattr(node, "oop", False)
+        constructor_calls = []
+        constructor_body = []
+        is_self = lambda x: isinstance(x, ast.Attribute) and \
+            get_id(x.value) == "self"
+        for n in node.body:
+            if isinstance(n, ast.Assign) and is_self(n.targets[0]):
+                new_id = get_id(n.targets[0]).split(".")[1:]
+                ann = getattr(n.targets[0], "annotation", None)
+                if new_id[0] not in arg_ids:
+                    arg_node = ast.arg(arg = ".".join(new_id))
+                    arg_node.annotation = ann
+                    node.args.args.append(arg_node)
+                    node.args.defaults.append(n.value)
+            elif isinstance(n, ast.AnnAssign) and is_self(n.target):
+                new_id = get_id(n.target).split(".")[1:]
+                if new_id[0] not in arg_ids:
+                    arg_node = ast.arg(arg = ".".join(new_id), annotation=n.annotation)
+                    node.args.args.append(arg_node)
+                    node.args.defaults.append(n.value)
+            elif is_oop and isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) \
+                    and is_class_or_module(get_id(n.value.func), node.scopes):
+                constructor_calls.append(n)
+            else:
+                constructor_body.append(n)
+        
+        constructor = None
+        class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+        if is_oop:
+            extractor = DeclarationExtractor(self)
+            extractor.visit(node)
+            declarations = extractor.get_declarations()
+            assignments = [ast.Assign(
+                    targets = [ast.Name(id=arg)],
+                    value = ast.Name(id=arg))
+                for arg in declarations.keys()]
+            body = constructor_calls + assignments
+            make_block = juliaAst.Block(
+                            name = "@mk",
+                            body = body)
+            ast.fix_missing_locations(make_block)
+            constructor_body.append(make_block)
+            constructor = ast.FunctionDef(
+                name = "new",
+                args = node.args,
+                body = constructor_body,
+            )
+        else:
+            struct_name = get_id(class_node)
+            has_default = node.args.defaults != []
+            if constructor_body or has_default:
+                decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args))
+                new_instance = ast.Call(
+                                func = ast.Name(id = "new"),
+                                args = decls,
+                                keywords = [],
+                                scopes = ScopeList())
+                ast.fix_missing_locations(new_instance)
+                constructor_body.append(new_instance)
+                constructor = juliaAst.Constructor(
+                    name = struct_name,
+                    args = node.args,
+                    body = constructor_body,
+                )
+
+        if constructor:
+            ast.fix_missing_locations(constructor)
+            constructor.scopes = node.scopes,
+            constructor.parsed_decorators = node.parsed_decorators
+            constructor.decorator_list = node.decorator_list
+            constructor.is_constructor = True
+        
+        # Used to order the struct fields
+        class_node.constructor_args = node.args
+
+        return constructor
 
 TYPE_CODE_MAP = {
     "u": "Char",

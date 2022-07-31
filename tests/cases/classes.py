@@ -1,5 +1,5 @@
 # Simple class translation
-
+# @jl_class # For PyJL
 class Foo:
     def bar(self):
         return self.baz()
@@ -10,6 +10,7 @@ class Foo:
     def bar_str(self):
         return "a"
 
+# @jl_class # For PyJL
 class Shape():
     def __init__(self, x, y):
         # Center on a 2-dimensional plane
@@ -18,7 +19,8 @@ class Shape():
 
     def position(self):
         return f"({self.x}, {self.y})"
-    
+
+# @jl_class # For PyJL
 class Square(Shape):
     """Two-dimensional square"""
     def __init__(self, x, y, side):
