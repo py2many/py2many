@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
-from pyjl.global_vars import FIX_SCOPE_BOUNDS, SEP
+from pyjl.global_vars import FIX_SCOPE_BOUNDS, LOOP_SCOPE_WARNING, SEP
 
 logger = logging.Logger("pyjl")
 
@@ -61,9 +61,9 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
 
     def visit_Module(self, node: ast.Module) -> Any:
         if getattr(node, FIX_SCOPE_BOUNDS, False) or \
-                getattr(node, "loop_scope_warning", False):
+                getattr(node, LOOP_SCOPE_WARNING, False):
             self.generic_visit(node)
-            if getattr(node, "loop_scope_warning", False):
+            if getattr(node, LOOP_SCOPE_WARNING, False):
                 self._emit_warning(node)
         return node
 

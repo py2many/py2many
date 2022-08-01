@@ -239,9 +239,9 @@ class JuliaTranspilerPlugins:
 
         if getattr(node, "constructor", None):
             constructor_str = self.visit(node.constructor)
-            return f"@class {struct_def} begin\n{fields_str}\n{constructor_str}\nend\n{body}"
+            return f"@class mutable {struct_def} begin\n{fields_str}\n{constructor_str}\nend\n{body}"
 
-        return f"@class {struct_def} begin\n{fields_str}\nend\n{body}"
+        return f"@class mutable {struct_def} begin\n{fields_str}\nend\n{body}"
 
 
     def visit_resumables(self, node, decorator):
@@ -757,7 +757,7 @@ class SpecialFunctionsPlugins():
             assignments = [ast.Assign(
                     targets = [ast.Name(id=arg)],
                     value = ast.Name(id=arg))
-                for arg in node.declarations.keys()]
+                for arg in class_node.declarations.keys()]
             body = constructor_calls + assignments
             make_block = juliaAst.Block(
                             name = "@mk",

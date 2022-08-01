@@ -485,6 +485,13 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
+        # Check validity of function translation
+        dec_ids = node.parsed_decorators.keys()
+        if getattr(node, "oop", False) and \
+                "jl_class" in dec_ids:
+            raise AstUnsupportedOperation("Cannot invoke a class using both "
+                "ObjectOriented.jl and Classes.jl", node)
+
         # Extract declarations
         extractor = DeclarationExtractor(self)
         extractor.visit(node)
@@ -498,8 +505,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 if b.name == "__init__":
                     node.constructor = SpecialFunctionsPlugins.visit_init(self, b)
                 else:
-                    body.append(self.visit(b))
-        body = "\n".join(body)
+                    body.append(b)
+        node.body = body
+        body = "\n".join(list(map(self.visit, body)))
 
         # Get class fields
         self._visit_class_fields(node)

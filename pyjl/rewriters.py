@@ -18,7 +18,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
@@ -1322,7 +1322,7 @@ class VariableScopeRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         self._variables_out_of_scope = None
         self._target_vals = []
-        if getattr(node, "fix_scope_bounds", False):
+        if getattr(node, FIX_SCOPE_BOUNDS, False):
             self._generic_scope_visit(node)
         return node
 
