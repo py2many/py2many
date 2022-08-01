@@ -754,13 +754,10 @@ class SpecialFunctionsPlugins():
         constructor = None
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
         if is_oop:
-            extractor = DeclarationExtractor(self)
-            extractor.visit(node)
-            declarations = extractor.get_declarations()
             assignments = [ast.Assign(
                     targets = [ast.Name(id=arg)],
                     value = ast.Name(id=arg))
-                for arg in declarations.keys()]
+                for arg in node.declarations.keys()]
             body = constructor_calls + assignments
             make_block = juliaAst.Block(
                             name = "@mk",

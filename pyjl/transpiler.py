@@ -485,6 +485,13 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
+        # Extract declarations
+        extractor = DeclarationExtractor(self)
+        extractor.visit(node)
+        node.declarations = extractor.get_declarations()
+        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
+        node.class_assignments = extractor.class_assignments
+
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
@@ -494,7 +501,7 @@ class JuliaTranspiler(CLikeTranspiler):
                     body.append(self.visit(b))
         body = "\n".join(body)
 
-        # Get class declarations and assignments
+        # Get class fields
         self._visit_class_fields(node)
 
         ret = super().visit_ClassDef(node)
@@ -534,14 +541,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
-    def _visit_class_fields(self, node: ast.ClassDef):
-        # Extract declarations
-        extractor = DeclarationExtractor(self)
-        extractor.visit(node)
-        node.declarations = extractor.get_declarations()
-        node.declarations_with_defaults = extractor.get_declarations_with_defaults()
-        node.class_assignments = extractor.class_assignments
-        
+    def _visit_class_fields(self, node: ast.ClassDef):        
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         decorator_list = list(map(get_id, node.decorator_list))
