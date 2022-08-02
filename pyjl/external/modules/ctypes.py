@@ -1,4 +1,5 @@
 import ast
+from builtins import WindowsError
 import ctypes
 from typing import Callable, Dict, Tuple, Union
 
@@ -9,20 +10,40 @@ class JuliaExternalModulePlugins():
         self._usings.add("Libdl")
         return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
 
-    def visit_cdll(self, node, vargs):
-        self._usings.add("Libdl")
-        return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
-
     def visit_cast(self, node, vargs):
         self._usings.add("Libdl")
-        return f"cast({vargs[0]}, {self._map_type(vargs[1])})"
+        return f"cconvert({vargs[0]}, {self._map_type(vargs[1])})"
+
+    def visit_wintypes(self, node, vargs):
+        self._usings.add("WinTypes")
+        return "WinTypes"
+
+    def visit_create_unicode_buffer(self, node, vargs):
+        # TODO: Change to ccall
+        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+    
+    def _pycall_import(self, node: ast.Call, mod_name: str):
+        self._usings.add("PyCall")
+        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
+        self._globals.add(import_stmt)
 
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ctypes.cdll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
-    ctypes.CDLL: (JuliaExternalModulePlugins.visit_cdll, True),
+    ctypes.CDLL: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
-    ctypes.cast: (lambda self, node, vargs: f"convert({vargs[1]}, {vargs[0]})", True)
+    ctypes.byref: (lambda self, node, vargs: f"pointer_from_objref({vargs[0]})", True),
+    ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True), # TODO: Calling ctypes 
+    ctypes.memset: (lambda self, node, vargs: 
+        f"ccall('memset', Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})", True),
+    ctypes.POINTER: (lambda self, node, vargs: f"pointer({', '.join(vargs)})", True),
+    # Hard to map
+    ctypes.pythonapi: (lambda self, node, vargs: f"", True),
+    # Windows-specific
+    ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_wintypes, True),
+    ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+    ctypes.wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
+    WindowsError: (lambda self, node, vargs: f"windowserror({', '.join(vargs)})", True),
 }
 
 EXTERNAL_TYPE_MAP = {
