@@ -1161,6 +1161,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
     # Python classes to Julia
     def __init__(self) -> None:
         super().__init__()
+        self._has_dict = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         if hasattr(node, OBJECT_ORIENTED):
@@ -1168,7 +1169,44 @@ class JuliaClassWrapper(ast.NodeTransformer):
         else:
             visitor = JuliaClassCompositionRewriter()
         node = visitor.visit(node)
-        return self.generic_visit(node)
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+            if isinstance(n, ast.ClassDef) and self._has_dict:
+                call_node = ast.Call(
+                    func = ast.Attribute(
+                        value = ast.Name("Base"),
+                        attr = "getproperty",
+                        scopes = node.scopes
+                    ),
+                    args = [
+                        ast.AnnAssign(
+                            target = ast.Name(id="x"), 
+                            annotation = ast.Name(id=n.name)), # The classe's name
+                        ast.AnnAssign(
+                            target = ast.Name(id="property"), 
+                            annotation = ast.Name(id="Symbol"),
+                        )],
+                    scopes = node.scopes
+                )
+                get_field = ast.Subscript(
+                    value = ast.Call(
+                        func = ast.Name("getfield"),
+                        args=[ast.Name(id="x"), ast.Name(id=":__init__")],
+                        scopes = node.scopes
+                    ),
+                    slice = ast.Name(id="property"),
+                    scopes = node.scopes,
+                )
+                assign_node = ast.Assign(
+                    targets = [call_node],
+                    value = get_field,
+                    scopes = node.scopes,
+                )
+                ast.fix_missing_locations(assign_node)
+                body.append(assign_node)
+                self._has_dict = False
+        return node
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
@@ -1187,6 +1225,15 @@ class JuliaClassWrapper(ast.NodeTransformer):
         if node.args and isinstance(node.args[0], ast.Name) and \
                 get_id(node.args[0]) == "self":
             node.args = node.args[1:]
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        target = node.targets[0]
+        if isinstance(target, ast.Subscript) and \
+                get_id(target.value) == "self.__dict__":
+            self._has_dict = True
+        elif get_id(target) == "self.__dict__":
+            self._has_dict = True
         return node
 
 class JuliaClassOOPRewriter(ast.NodeTransformer):
