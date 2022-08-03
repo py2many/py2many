@@ -1169,7 +1169,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
                     func = ast.Attribute(
                         value = ast.Name("Base"),
                         attr = "getproperty",
-                        scopes = node.scopes
+                        scopes = node.scopes,
+                        ctx = ast.Load(),
                     ),
                     args = [
                         ast.AnnAssign(
@@ -1179,12 +1180,14 @@ class JuliaClassWrapper(ast.NodeTransformer):
                             target = ast.Name(id="property"), 
                             annotation = ast.Name(id="Symbol"),
                         )],
+                    keywords = [],
                     scopes = node.scopes
                 )
                 get_field = ast.Subscript(
                     value = ast.Call(
                         func = ast.Name("getfield"),
-                        args=[ast.Name(id="x"), ast.Name(id=":__init__")],
+                        args=[ast.Name(id="x"), ast.Name(id=":__dict__")],
+                        keywords = [],
                         scopes = node.scopes
                     ),
                     slice = ast.Name(id="property"),
@@ -1198,6 +1201,37 @@ class JuliaClassWrapper(ast.NodeTransformer):
                 ast.fix_missing_locations(assign_node)
                 body.append(assign_node)
                 self._has_dict = False
+        node.body = body
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
+        if self._has_dict:
+            body = []
+            assign = ast.AnnAssign(
+                target=ast.Attribute(
+                    value = ast.Name(id="self"),
+                    attr = "__dict__", 
+                    scopes = ScopeList()),
+                value = ast.Dict(keys=[], values=[]),
+                annotation = ast.Subscript(
+                    value = ast.Name(id="Dict"),
+                    slice = ast.Tuple(
+                        elts=[ast.Name(id="Symbol"), ast.Name(id="Any")])
+                    )
+                )
+            if isinstance(node.body[0], ast.FunctionDef):
+                if node.body[0].name != "__init__":
+                    # Build a dunder init to get arround new __dict__ arg
+                    init_func = ast.FunctionDef(
+                        name="__init__", args = ast.arguments(args=[], defaults=[]), body = [assign], 
+                        decorator_list = [], parsed_decorators = {})
+                    ast.fix_missing_locations(init_func)
+                    body.append(init_func)
+                else:
+                    ast.fix_missing_locations(assign)
+                    node.body[0].body.append(assign)
+            node.body = body + node.body
         return node
 
     def visit_Call(self, node: ast.Call) -> Any:
@@ -1221,6 +1255,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         target = node.targets[0]
+        # Detect if objects are being added as fields
         if isinstance(target, ast.Subscript) and \
                 get_id(target.value) == "self.__dict__":
             self._has_dict = True
