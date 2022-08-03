@@ -526,19 +526,20 @@ class JuliaTranspilerPlugins:
                     parsed_args.append(parsed_bin_op)
             elif isinstance(node_arg, ast.Constant):
                 parsed_args.append(arg)
+            elif isinstance(node_arg, ast.Call) and \
+                    get_id(node_arg.func) == "format":
+                parsed_args.append(arg)
             else:
                 parsed_args.append(f"$({arg})")
 
         func_name = "println"
         sep = " "
         end = "\\n"
+        flush = False
         print_repr = []
         for k in node.keywords:
             if k.arg == "file":
                 func_name = "write"
-                print_repr.append(self.visit(k.value))
-            if k.arg == "flush":
-                func_name = "flush"
                 print_repr.append(self.visit(k.value))
             if k.arg == "end":
                 val = ""
@@ -547,6 +548,8 @@ class JuliaTranspilerPlugins:
                 end = val
             if k.arg == "sep":
                 sep = self.visit(k.value)
+            if k.arg == "flush":
+                flush = True
 
         if args_str and not print_repr:
             self._usings.add("Printf")
@@ -555,9 +558,15 @@ class JuliaTranspilerPlugins:
         # Append parsed arguments
         print_repr.append(f"\"{sep.join(parsed_args)}\"")
 
+        maybe_flush = ""
+        if flush:
+            maybe_flush = f"\nflush({print_repr[0]})" \
+                if func_name == "write" \
+                else f"\nflush(stdout)"
+
         if end != "\\n" and func_name == "println":
-            return f"print({', '.join(print_repr)}{end})"
-        return f"{func_name}({', '.join(print_repr)})"
+            return f"print({', '.join(print_repr)}{end}){maybe_flush}"
+        return f"{func_name}({', '.join(print_repr)}){maybe_flush}"
 
     def _parse_bin_op(self, node: ast.BinOp):
         left: str

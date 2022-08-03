@@ -642,8 +642,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _import(self, name: str, alias: str) -> str:
         '''Formatting Julia Imports'''
-        if name in MODULE_DISPATCH_TABLE:
-            name = MODULE_DISPATCH_TABLE[name] 
         import_str = self._get_import_str(name)
         if import_str:
             if self._use_modules:
@@ -653,6 +651,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     return f"{import_str}\nimport {mod_name} as {alias}"
             return import_str
 
+        if name in MODULE_DISPATCH_TABLE:
+            name = MODULE_DISPATCH_TABLE[name]
         import_str = f"import {name}"
         return f"{import_str} as {alias}" if alias else import_str
 
@@ -673,10 +673,11 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 imports.append(name)
 
-        import_str = self._get_import_str(module_name)
+        import_str = self._get_import_str(module_name, level)
         if import_str:
             if self._use_modules:
-                import_names = f"using {module_name}: {', '.join(names)}"
+                maybe_dot = "." if level == 1 else ""
+                import_names = f"using {maybe_dot}{module_name}: {', '.join(names)}"
                 return "\n".join([import_str, import_names])
             else:
                 # If it imports a file that defines no module, just use "include"
@@ -685,7 +686,9 @@ class JuliaTranspiler(CLikeTranspiler):
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
-    def _get_import_str(self, name: str):
+    def _get_import_str(self, name: str, level:int = 0):
+        if level == 1:
+            return f"include(\"{name}.jl\")"
         if (is_mod := is_file(name, self._basedir)) or \
                 (is_folder := is_dir(name, self._basedir)):
             # Find path from current file

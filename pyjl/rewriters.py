@@ -1181,7 +1181,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
                             annotation = ast.Name(id="Symbol"),
                         )],
                     keywords = [],
-                    scopes = node.scopes
+                    scopes = node.scopes,
+                    no_rewrite = True,
                 )
                 get_field = ast.Subscript(
                     value = ast.Call(
