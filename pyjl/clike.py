@@ -254,7 +254,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def _map_type(self, typename: str, lifetime=LifeTime.UNKNOWN) -> str:
         typeclass = self._func_for_lookup(typename)
-        if typeclass in self._type_map:
+        if typeclass is None and typename != "None":
+            return typename
+        elif typeclass in self._type_map:
             return self._type_map[typeclass]
         elif typeclass in self._container_type_map:
             return self._container_type_map[typeclass]
@@ -401,6 +403,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                     return dispatch
         if hasattr(node, "orig_name"):
             return super()._dispatch(node, node.orig_name, vargs)
+
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):
