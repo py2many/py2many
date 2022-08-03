@@ -5,9 +5,7 @@ import re
 import sys
 from typing import Any, Dict
 
-from attr import Attribute
 from py2many.clike import class_for_typename
-from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.helpers import get_ann_repr
@@ -21,8 +19,6 @@ from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
-from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
-from pyjl.transpiler import JuliaTranspiler
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -125,6 +121,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             scopes = node.scopes,
             is_attr = True,
             orig_name = get_id(node))
+
         return node
 
     def _handle_special_cases(self, node):
@@ -278,11 +275,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
-
-    def _visit_func_defs(self, node):
-        for n in node.body:
-            if isinstance(n, ast.FunctionDef):
-                self.visit(n)
 
     def visit_Name(self, node: ast.Name) -> Any:
         self.generic_visit(node)
