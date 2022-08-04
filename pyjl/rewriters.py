@@ -1173,40 +1173,51 @@ class JuliaClassWrapper(ast.NodeTransformer):
         for n in node.body:
             body.append(self.visit(n))
             if isinstance(n, ast.ClassDef) and self._has_dict:
-                call_node = ast.Call(
-                    func = ast.Attribute(
-                        value = ast.Name("Base"),
-                        attr = "getproperty",
-                        scopes = node.scopes
-                    ),
-                    args = [
-                        ast.AnnAssign(
-                            target = ast.Name(id="x"), 
-                            annotation = ast.Name(id=n.name)), # The classe's name
-                        ast.AnnAssign(
-                            target = ast.Name(id="property"), 
-                            annotation = ast.Name(id="Symbol"),
-                        )],
-                    scopes = node.scopes
-                )
-                get_field = ast.Subscript(
-                    value = ast.Call(
-                        func = ast.Name("getfield"),
-                        args=[ast.Name(id="x"), ast.Name(id=":__init__")],
-                        scopes = node.scopes
-                    ),
-                    slice = ast.Name(id="property"),
-                    scopes = node.scopes,
-                )
-                assign_node = ast.Assign(
-                    targets = [call_node],
-                    value = get_field,
-                    scopes = node.scopes,
-                )
-                ast.fix_missing_locations(assign_node)
-                body.append(assign_node)
+                get_property_func = self._build_get_property_func(n, node.scopes)
+                body.append(get_property_func)
                 self._has_dict = False
         return node
+
+    def _build_get_property_func(self, class_node: ast.ClassDef, scopes):
+        get_property_func = ast.FunctionDef(
+            name = "Base.getproperty", # Hack to set the correct name
+            args = [ast.arguments(
+                ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
+                ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))
+            )],
+            body = [
+                ast.Assign(
+                    targets = [ast.Name(id="__dict__")],
+                    value = ast.Call(
+                        func = ast.Attribute(
+                            value = ast.Name("Base"), 
+                            attr = "getattribute", 
+                            scopes = scopes),
+                        args=[ast.Name(id="obj"), juliaAst.Symbol(id="__init__")],
+                        scopes = scopes
+                    ),
+                    scopes = scopes,
+                ),
+                ast.If(
+                    test = ast.Call(
+                        func=ast.Name(id="haskey"), 
+                        args = [ast.Name(id="__init__"), ast.Name(id="property")],
+                        scopes = scopes),
+                    body = [ast.Subscript(
+                        value=ast.Name(id="__dict__"), 
+                        slice=ast.Name(id="property"))],
+                    orelse = [ast.Call(
+                        func = ast.Attribute(
+                            value = ast.Name("Base"), 
+                            attr = "getfield", 
+                            scopes = scopes),
+                        args=[ast.Name(id="obj"), ast.Name(id="property")],
+                        scopes = scopes)],
+                )],
+            scopes = scopes
+        )
+        ast.fix_missing_locations(get_property_func)
+        return get_property_func
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
