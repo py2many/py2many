@@ -116,18 +116,32 @@ class MutabilityTransformer(ast.NodeTransformer):
         self.lvalue = False
 
     def increase_use_count(self, name):
-        if not name in self.var_usage_count:
+        if name not in self.var_usage_count:
             self.var_usage_count[name] = 0
         self.var_usage_count[name] += 1
 
-    def visit_FunctionDef(self, node):
-        self.var_usage_count = {}
+    def get_mutable_vars(self, node):
+        keys = set(self.var_usage_count.keys())
         self.generic_visit(node)
         mutable_vars = []
         for var, count in self.var_usage_count.items():
             if count > 1:
                 mutable_vars.append(var)
+        # Remove the vars found only in the current scope
+        diff_keys = set(self.var_usage_count.keys())
+        diff_keys.difference_update(keys)
+        print(diff_keys)
+        for k in diff_keys:
+            self.var_usage_count.pop(k)
         node.mutable_vars = mutable_vars
+
+    def visit_Module(self, node: ast.Module):
+        # There is no old scope, so set current scope as module scope
+        self.get_mutable_vars(node)
+        return node
+
+    def visit_FunctionDef(self, node):
+        self.get_mutable_vars(node)
         return node
 
     def visit_Assign(self, node):

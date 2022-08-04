@@ -19,7 +19,7 @@ from .plugins import (
     SpecialFunctionsPlugins,
 )
 
-from py2many.analysis import get_id, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, is_class_or_module, is_class_type
@@ -873,6 +873,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
         op = f".=" if getattr(node, "broadcast", False) \
             else "="
+
+        assign_scope = node.scopes[-1]
+        if isinstance(node.scopes[-1], ast.Module) and \
+                len(node.targets) == 1 and \
+                targets[0] not in assign_scope.mutable_vars:
+            return f"const {targets[0]} {op} {value}"
+        
         return f"{'='.join(targets)} {op} {value}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
