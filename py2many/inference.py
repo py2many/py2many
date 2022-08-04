@@ -397,20 +397,6 @@ class InferTypesTransformer(ast.NodeTransformer):
                 self._annotate(node, "Dict")
         return node
 
-    def visit_DictComp(self, node: ast.DictComp) -> Any:
-        gen_types = set()
-        for g in node.generators:
-            if isinstance(g.iter, ast.Name):
-                ann = getattr(node.scopes.find(get_id(g.iter)), "annotation", None)
-                gen_types.add(get_id(ann))
-
-        if len(gen_types) == 1:
-            self._annotate(node, f"Dict[{gen_types.pop()}]")
-        else:
-            self._annotate(node, "Dict")
-        self.generic_visit(node)
-        return node
-
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         self.generic_visit(node)
 
@@ -818,6 +804,20 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_ListComp(self, node: ast.ListComp):
         self._generic_generator_visit(node)
         return node
+
+    # def visit_DictComp(self, node: ast.DictComp) -> Any:
+    #     gen_types = set()
+    #     for g in node.generators:
+    #         if isinstance(g.iter, ast.Name):
+    #             ann = getattr(node.scopes.find(get_id(g.iter)), "annotation", None)
+    #             gen_types.add(get_id(ann))
+
+    #     if len(gen_types) == 1:
+    #         self._annotate(node, f"Dict[{gen_types.pop()}]")
+    #     else:
+    #         self._annotate(node, "Dict")
+    #     self.generic_visit(node)
+    #     return node
 
     def visit_DictComp(self, node: ast.DictComp):
         self._generic_generator_visit(node)
