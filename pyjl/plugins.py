@@ -205,32 +205,18 @@ class JuliaTranspilerPlugins:
 
     def visit_JuliaClass(self, node: ast.ClassDef, decorator) -> Any:
         self._usings.add("Classes")
-
-        # Struct definition
-        fields = []
+        # Parse bases
         bases = []
-
-        if node.jl_bases:
-            for b in node.jl_bases:
-                b_name = self.visit(b)
-                bases.append(b_name)
-
-                # Avoid repeating fields of superclasses
-                base_class = find_node_by_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
-                if base_class:
-                    base_class_decs = list(map(lambda x: x[0], base_class.fields))
-                    for (declaration, typename, _) in node.fields:
-                        if declaration not in base_class_decs:
-                            fields.append((declaration, typename))
-
-            fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
-            fields_str = "\n".join(fields_str) if fields else ""
-        else:
-            fields_str = node.fields_str
-
-        struct_def = f"{node.name} <: {', '.join(bases)}" \
-            if bases else f"{node.name}"
-
+        for base in node.jl_bases:
+            bases.append(self.visit(base))
+        # Build struct definition
+        bases_str = ', '.join(bases) if len(bases) <= 1 else f"{{{', '.join(bases)}}}"
+        # Parse fields
+        fields_str = JuliaTranspilerPlugins._get_node_fields(self, node)
+        # Structure definition
+        struct_def = f"{node.name} <: {', '.join(bases_str)}" \
+            if bases_str else f"{node.name}"
+        # Parse body
         body = []
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
@@ -243,6 +229,61 @@ class JuliaTranspilerPlugins:
 
         return f"@class mutable {struct_def} begin\n{fields_str}\nend\n{body}"
 
+    def _get_node_fields(self, node: ast.ClassDef):
+        fields = []
+        fields_str = ""
+        if node.jl_bases:
+            # Avoid repeating fields of superclasses
+            base_class_decs = []
+            for b in node.jl_bases:
+                b_name = self.visit(b)
+                base_class = find_node_by_name_and_type(b_name, ast.ClassDef, node.scopes)[0]
+                if base_class:
+                    base_class_decs.extend(list(map(lambda x: x[0], base_class.fields)))
+            
+            for (declaration, typename, _) in node.fields:
+                if declaration not in base_class_decs:
+                    fields.append((declaration, typename))
+
+            fields_str = list(map(lambda x: f"{x[0]}::{x[1]}" if x[1] else x[0], fields))
+            fields_str = "\n".join(fields_str) if fields else ""
+        else:
+            fields_str = node.fields_str
+        return fields_str
+
+    def visit_OOPClass(self, node: ast.ClassDef, decorator):
+        self._usings.add("ObjectOriented")
+        # Parse bases
+        bases = []
+        for base in node.jl_bases:
+            bases.append(self.visit(base))
+        # Build struct definition
+        bases_str = ', '.join(bases) if len(bases) <= 1 else f"{{{', '.join(bases)}}}"
+        struct_def = f"mutable struct {node.name} <: {bases_str}" \
+            if bases else f"mutable struct {node.name}"
+        # Get docstring
+        docstring = self._get_docstring(node)
+        maybe_docstring = f"{docstring}\n" if docstring else ""
+        # Get constructor (if present)
+        maybe_constructor = f"\n{self.visit(node.constructor)}" if getattr(node, "constructor", None) else ""
+        # Parse body as string
+        body = "\n".join(list(map(self.visit, node.body)))
+        # Parse fields
+        oop_parsed_decs = node.parsed_decorators["oop_class"]
+        if oop_parsed_decs and "oop_nested_funcs" in oop_parsed_decs and \
+                oop_parsed_decs["oop_nested_funcs"]:
+            return f"""@oodef {struct_def}
+                        {maybe_docstring}
+                        {node.fields_str}
+                        {maybe_constructor}
+                        {body}
+                    end"""
+        return f"""@oodef {struct_def}
+                    {maybe_docstring}
+                    {node.fields_str}
+                    {maybe_constructor}
+                end
+                {body}"""
 
     def visit_resumables(self, node, decorator):
         # node.scopes[-2] because node.scopes[-1] is the current function
@@ -526,19 +567,20 @@ class JuliaTranspilerPlugins:
                     parsed_args.append(parsed_bin_op)
             elif isinstance(node_arg, ast.Constant):
                 parsed_args.append(arg)
+            elif isinstance(node_arg, ast.Call) and \
+                    get_id(node_arg.func) == "format":
+                parsed_args.append(arg)
             else:
                 parsed_args.append(f"$({arg})")
 
         func_name = "println"
         sep = " "
         end = "\\n"
+        flush = False
         print_repr = []
         for k in node.keywords:
             if k.arg == "file":
                 func_name = "write"
-                print_repr.append(self.visit(k.value))
-            if k.arg == "flush":
-                func_name = "flush"
                 print_repr.append(self.visit(k.value))
             if k.arg == "end":
                 val = ""
@@ -547,6 +589,8 @@ class JuliaTranspilerPlugins:
                 end = val
             if k.arg == "sep":
                 sep = self.visit(k.value)
+            if k.arg == "flush":
+                flush = True
 
         if args_str and not print_repr:
             self._usings.add("Printf")
@@ -555,9 +599,15 @@ class JuliaTranspilerPlugins:
         # Append parsed arguments
         print_repr.append(f"\"{sep.join(parsed_args)}\"")
 
+        maybe_flush = ""
+        if flush:
+            maybe_flush = f"\nflush({print_repr[0]})" \
+                if func_name == "write" \
+                else f"\nflush(stdout)"
+
         if end != "\\n" and func_name == "println":
-            return f"print({', '.join(print_repr)}{end})"
-        return f"{func_name}({', '.join(print_repr)})"
+            return f"print({', '.join(print_repr)}{end}){maybe_flush}"
+        return f"{func_name}({', '.join(print_repr)}){maybe_flush}"
 
     def _parse_bin_op(self, node: ast.BinOp):
         left: str
@@ -725,7 +775,7 @@ class SpecialFunctionsPlugins():
         # Remove self
         node.args.args = node.args.args[1:]
         arg_ids = set(map(lambda x: x.arg, node.args.args))
-        is_oop = getattr(node, "oop", False)
+        is_oop = hasattr(node, "oop")
         constructor_calls = []
         constructor_body = []
         is_self = lambda x: isinstance(x, ast.Attribute) and \
@@ -851,6 +901,7 @@ DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
     "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
+    "oop_class": JuliaTranspilerPlugins.visit_OOPClass,
     "resumable": JuliaTranspilerPlugins.visit_resumables,
     "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays
 }

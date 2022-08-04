@@ -76,7 +76,7 @@ class JuliaDecoratorTransformer(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def _parse_decorators(self, node):
-        parsed_decorators: Dict[str, Dict[str, str]] = {}
+        parsed_decorators: dict[str, dict[str, str]] = {}
         if decorator_list := getattr(node, "decorator_list", None):
             for decorator in decorator_list:
                 if isinstance(decorator, ast.Name):

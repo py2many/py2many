@@ -5,9 +5,7 @@ import re
 import sys
 from typing import Any, Dict
 
-from attr import Attribute
 from py2many.clike import class_for_typename
-from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.helpers import get_ann_repr
@@ -18,11 +16,9 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
-from pyjl.rewriter_plugins import JULIA_SPECIAL_FUNCTION_DISPATCH_TABLE
-from pyjl.transpiler import JuliaTranspiler
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -34,14 +30,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         self._ignored_module_set = JL_IGNORED_MODULE_SET
         self._imports = []
         self._use_modules = None
-        self._oop = False
+        self._oop_nested_funcs = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._file = getattr(node, "__file__", ".")
         self._basedir = getattr(node, "__basedir__", None)
         self._use_modules = getattr(node, USE_MODULES, None)
         self._imports = list(map(get_id, getattr(node, "imports", [])))
-        self._oop = getattr(node, OBJECT_ORIENTED, False) 
+        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, False) 
         self.generic_visit(node)
         return node
 
@@ -59,10 +55,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         fname = node.func
         if isinstance(fname, ast.Attribute):
             val_id = get_id(fname.value)
-            # Bypass rewrite when using oop
+            # Bypass rewrite when using oop with nested functions
             if val_id and (is_class_type(val_id, node.scopes) or 
                     re.match(r"^self", val_id)) \
-                    and self._oop:
+                    and self._oop_nested_funcs:
                 return node
             # Check if value is module
             is_module = val_id and is_file(val_id, self._basedir)
@@ -125,6 +121,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             scopes = node.scopes,
             is_attr = True,
             orig_name = get_id(node))
+
         return node
 
     def _handle_special_cases(self, node):
@@ -278,11 +275,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
-
-    def _visit_func_defs(self, node):
-        for n in node.body:
-            if isinstance(n, ast.FunctionDef):
-                self.visit(n)
 
     def visit_Name(self, node: ast.Name) -> Any:
         self.generic_visit(node)
@@ -1173,9 +1165,74 @@ class JuliaClassWrapper(ast.NodeTransformer):
         for n in node.body:
             body.append(self.visit(n))
             if isinstance(n, ast.ClassDef) and self._has_dict:
-                get_property_func = self._build_get_property_func(n, node.scopes)
-                body.append(get_property_func)
+                call_node = ast.Call(
+                    func = ast.Attribute(
+                        value = ast.Name("Base"),
+                        attr = "getproperty",
+                        scopes = node.scopes,
+                        ctx = ast.Load(),
+                    ),
+                    args = [
+                        ast.AnnAssign(
+                            target = ast.Name(id="x"), 
+                            annotation = ast.Name(id=n.name)), # The classe's name
+                        ast.AnnAssign(
+                            target = ast.Name(id="property"), 
+                            annotation = ast.Name(id="Symbol"),
+                        )],
+                    keywords = [],
+                    scopes = node.scopes,
+                    no_rewrite = True,
+                )
+                get_field = ast.Subscript(
+                    value = ast.Call(
+                        func = ast.Name("getfield"),
+                        args=[ast.Name(id="x"), ast.Name(id=":__dict__")],
+                        keywords = [],
+                        scopes = node.scopes
+                    ),
+                    slice = ast.Name(id="property"),
+                    scopes = node.scopes,
+                )
+                assign_node = ast.Assign(
+                    targets = [call_node],
+                    value = get_field,
+                    scopes = node.scopes,
+                )
+                ast.fix_missing_locations(assign_node)
+                body.append(assign_node)
                 self._has_dict = False
+        node.body = body
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
+        if self._has_dict:
+            body = []
+            assign = ast.AnnAssign(
+                target=ast.Attribute(
+                    value = ast.Name(id="self"),
+                    attr = "__dict__", 
+                    scopes = ScopeList()),
+                value = ast.Dict(keys=[], values=[]),
+                annotation = ast.Subscript(
+                    value = ast.Name(id="Dict"),
+                    slice = ast.Tuple(
+                        elts=[ast.Name(id="Symbol"), ast.Name(id="Any")])
+                    )
+                )
+            if isinstance(node.body[0], ast.FunctionDef):
+                if node.body[0].name != "__init__":
+                    # Build a dunder init to get arround new __dict__ arg
+                    init_func = ast.FunctionDef(
+                        name="__init__", args = ast.arguments(args=[], defaults=[]), body = [assign], 
+                        decorator_list = [], parsed_decorators = {})
+                    ast.fix_missing_locations(init_func)
+                    body.append(init_func)
+                else:
+                    ast.fix_missing_locations(assign)
+                    node.body[0].body.append(assign)
+            node.body = body + node.body
         return node
 
     def _build_get_property_func(self, class_node: ast.ClassDef, scopes):
@@ -1240,6 +1297,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         target = node.targets[0]
+        # Detect if objects are being added as fields
         if isinstance(target, ast.Subscript) and \
                 get_id(target.value) == "self.__dict__":
             self._has_dict = True
@@ -1248,19 +1306,48 @@ class JuliaClassWrapper(ast.NodeTransformer):
         return node
 
 class JuliaClassOOPRewriter(ast.NodeTransformer):
-    """A placeholder for future changes regarding OOP"""
+    """Adds decorators to OOP classes and differentiate 
+    functions within OOP classes"""
     def __init__(self) -> None:
         super().__init__()
+        self._is_oop = False
+        self._oop_nested_funcs = False
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, False)
+        self.generic_visit(node)
+        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self.generic_visit(node)
-        node.oop = True
+        if self._is_oop:
+            node.oop = True
+            node.oop_nested_func = self._oop_nested_funcs
         return node
     
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self.generic_visit(node)
+        # Add OO decorator
+        decorator = ast.Call(
+            func=ast.Name(id="oop_class"), 
+            args=[], 
+            keywords=[])
+        keywords = None
+        if self._oop_nested_funcs:
+            decorator.keywords.append(ast.keyword(
+                arg = "oop_nested_funcs", 
+                value = ast.Constant(value=True)))
+            keywords = {"oop_nested_funcs": True}
+        node.decorator_list.append(decorator)
+        node.parsed_decorators["oop_class"] = keywords
         node.jl_bases = node.bases
-        node.oop = True
+        # Visit OOP class
+        self._is_oop = True
+        for n in node.body:
+            if isinstance(n, ast.ClassDef):
+                n.is_nested = True
+            self.visit(n)
+        if not getattr(node, "is_nested", False):
+            self._is_oop = False
         return node
 
 class JuliaClassCompositionRewriter(ast.NodeTransformer):

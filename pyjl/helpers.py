@@ -130,7 +130,7 @@ def obj_id(node):
         return get_id(node)
 
 def _parse_path(import_name: str, basedir) -> str:
-        """Small wrapper around py2many's parse_file function"""
+        """Small wrapper around py2many's parse_path function"""
         cwd = os.getcwd().split(os.sep)
         base_dir = basedir.as_posix().split("/")
         if os.path.isfile(basedir.as_posix()):

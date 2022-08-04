@@ -145,7 +145,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Parse function args
         args_list = self._get_args(node)
-        if hasattr(node, "oop"):
+        if getattr(node, "oop_nested_func", False):
             f_arg = args_list[0].split("::")[0]
             if f_arg == "self":
                 # Remove annotation
@@ -199,7 +199,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(typenames) > 0 and \
                 (typenames[0] == self._default_type or not typenames[0]) \
                 and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
+            if getattr(node, "oop", False) and not getattr(node, "_oop_nested_funcs", False):
+                typenames[0] = f"@like({node.self_type})"
+            else:
+                typenames[0] = node.self_type
 
         defaults = node.args.defaults
         len_defaults = len(defaults)
@@ -485,9 +488,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return super().visit_UnaryOp(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
-        # Check validity of function translation
         dec_ids = node.parsed_decorators.keys()
-        if getattr(node, "oop", False) and \
+        # Check validity of function translation
+        if "oop_class" in dec_ids and \
                 "jl_class" in dec_ids:
             raise AstUnsupportedOperation("Cannot invoke a class using both "
                 "ObjectOriented.jl and Classes.jl", node)
@@ -523,29 +526,16 @@ class JuliaTranspiler(CLikeTranspiler):
                 if dec_ret:
                     return dec_ret
 
-        struct_name = get_id(node)
         bases = []
         for base in node.jl_bases:
             bases.append(self.visit(base))
-
-        if bases:
-            bases_str = f"{{{', '.join(bases)}}}" if len(bases) > 1 else bases[0]
-            struct_def = f"mutable struct {struct_name} <: {bases_str}"
-        else:
-            struct_def = f"mutable struct {struct_name}"
+        # Build struct definition
+        struct_def = f"mutable struct {node.name} <: {', '.join(bases)}" \
+            if bases else f"mutable struct {node.name}"
 
         docstring = self._get_docstring(node)
         maybe_docstring = f"{docstring}\n" if docstring else ""
         maybe_constructor = f"\n{self.visit(node.constructor)}" if getattr(node, "constructor", None) else ""
-
-        if getattr(node, "oop", False):
-            self._usings.add("ObjectOriented")
-            return f"""@oodef {struct_def}
-                            {node.fields_str}
-                            {maybe_constructor}
-                            {body}
-                        end"""
-
 
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
@@ -553,7 +543,8 @@ class JuliaTranspiler(CLikeTranspiler):
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         decorator_list = list(map(get_id, node.decorator_list))
-        if JL_CLASS not in decorator_list and not getattr(node, "oop", None):
+        if JL_CLASS not in decorator_list and \
+                "oop_class" not in node.parsed_decorators:
             # If we are using composition and the class extends from super, 
             # it must contain its fields as well.
             for cls in node.bases:
@@ -642,8 +633,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def _import(self, name: str, alias: str) -> str:
         '''Formatting Julia Imports'''
-        if name in MODULE_DISPATCH_TABLE:
-            name = MODULE_DISPATCH_TABLE[name] 
         import_str = self._get_import_str(name)
         if import_str:
             if self._use_modules:
@@ -653,6 +642,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     return f"{import_str}\nimport {mod_name} as {alias}"
             return import_str
 
+        if name in MODULE_DISPATCH_TABLE:
+            name = MODULE_DISPATCH_TABLE[name]
         import_str = f"import {name}"
         return f"{import_str} as {alias}" if alias else import_str
 
@@ -673,10 +664,11 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 imports.append(name)
 
-        import_str = self._get_import_str(module_name)
+        import_str = self._get_import_str(module_name, level)
         if import_str:
             if self._use_modules:
-                import_names = f"using {module_name}: {', '.join(names)}"
+                maybe_dot = "." if level == 1 else ""
+                import_names = f"using {maybe_dot}{module_name}: {', '.join(names)}"
                 return "\n".join([import_str, import_names])
             else:
                 # If it imports a file that defines no module, just use "include"
@@ -685,7 +677,9 @@ class JuliaTranspiler(CLikeTranspiler):
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
-    def _get_import_str(self, name: str):
+    def _get_import_str(self, name: str, level:int = 0):
+        if level == 1:
+            return f"include(\"{name}.jl\")"
         if (is_mod := is_file(name, self._basedir)) or \
                 (is_folder := is_dir(name, self._basedir)):
             # Find path from current file

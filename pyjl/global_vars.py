@@ -3,13 +3,14 @@ RESUMABLE = "resumable"
 CHANNELS = "channels"
 REMOVE_NESTED = "remove_nested"
 OFFSET_ARRAYS = "offset_arrays"
-FIX_SCOPE_BOUNDS="fix_scope_bounds"
 JL_CLASS="jl_class"
-OBJECT_ORIENTED = "oop"
-LOOP_SCOPE_WARNING = "loop_scope_warning"
 
 # Flags
 USE_MODULES = "use_modules"
+FIX_SCOPE_BOUNDS="fix_scope_bounds"
+LOOP_SCOPE_WARNING = "loop_scope_warning"
+OBJECT_ORIENTED = "oop"
+OOP_NESTED_FUNCS = "oop_nested_funcs"
 
 ###################################
 # Julia Types

@@ -8,8 +8,6 @@ import math
 import re
 from typing import Any, Dict, List, Tuple, cast, Set, Optional
 
-from libcst import Subscript
-
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
@@ -228,6 +226,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = node.imported_names
+        self._clike._imported_names = self._imported_names
         self.generic_visit(node)
         return node
 
@@ -717,7 +716,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                     fname in self.CONTAINER_TYPE_DICT.values():
                 node.annotation = ast.Name(id=fname)
 
-            if (func := class_for_typename(fname, None, locals=self._imported_names)) \
+            if (func := self._clike._func_for_lookup(fname)) \
                     in self.FUNC_TYPE_MAP:
                 ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
                 if ann:
@@ -733,7 +732,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                     ann = parse_ann(getattr(node.func, "annotation", None))
                     func_name = unparse(ann) if ann else None
                 # Try to match to table entries
-                if (func := class_for_typename(func_name, None, locals=self._imported_names)) \
+                if (func := self._clike._func_for_lookup(func_name)) \
                         in self.FUNC_TYPE_MAP:
                     ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
                     if ann:
