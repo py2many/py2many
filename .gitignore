@@ -31,3 +31,6 @@ dist/
 tests/output
 target/
 Cargo.lock
+.vscode/
+ktlint
+ktlint.asc
