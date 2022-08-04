@@ -12,6 +12,11 @@ LOOP_SCOPE_WARNING = "loop_scope_warning"
 OBJECT_ORIENTED = "oop"
 OOP_NESTED_FUNCS = "oop_nested_funcs"
 
+# List holding all global flags
+GLOBAL_FLAGS = [USE_MODULES, FIX_SCOPE_BOUNDS,
+    LOOP_SCOPE_WARNING, OBJECT_ORIENTED, 
+    OOP_NESTED_FUNCS]
+
 ###################################
 # Julia Types
 DEFAULT_TYPE = "Any"
