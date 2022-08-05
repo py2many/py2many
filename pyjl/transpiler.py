@@ -900,14 +900,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 node_name = self.visit(t.value)
 
             if type_ann and (ann_str := self.visit(type_ann)):
-                if ann_str.startswith("Dict"):
-                    if isinstance(t, ast.Subscript):
+                if isinstance(t, ast.Subscript):
+                    if ann_str.startswith("Dict"):
                         del_targets.append(f"delete!({node_name}, {self.visit(t.slice)})")
-                    else:
-                        del_targets.append(f"delete!({node_name})")
-                elif ann_str.startswith("Vector") or ann_str.startswith("Array"):
-                    del_targets.append(f"empty!({node_name})")
-            
+                    elif ann_str.startswith("Vector") or ann_str.startswith("Array"):
+                        del_targets.append(f"deleteat!({node_name}, {self.visit(t.slice)})")
+
         if not del_targets:
             del_targets.extend(["#Delete Unsupported", f"del({node_name})"])
         
