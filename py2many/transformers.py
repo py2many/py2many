@@ -130,7 +130,6 @@ class MutabilityTransformer(ast.NodeTransformer):
         # Remove the vars found only in the current scope
         diff_keys = set(self.var_usage_count.keys())
         diff_keys.difference_update(keys)
-        print(diff_keys)
         for k in diff_keys:
             self.var_usage_count.pop(k)
         node.mutable_vars = mutable_vars

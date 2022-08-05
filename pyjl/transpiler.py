@@ -874,10 +874,10 @@ class JuliaTranspiler(CLikeTranspiler):
         op = f".=" if getattr(node, "broadcast", False) \
             else "="
 
-        assign_scope = node.scopes[-1]
-        if isinstance(node.scopes[-1], ast.Module) and \
+        scopes = getattr(node, "scopes", None)
+        if scopes and isinstance(scopes[-1], ast.Module) and \
                 len(node.targets) == 1 and \
-                targets[0] not in assign_scope.mutable_vars:
+                targets[0] not in scopes[-1].mutable_vars:
             return f"const {targets[0]} {op} {value}"
         
         return f"{'='.join(targets)} {op} {value}"

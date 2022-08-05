@@ -2054,7 +2054,7 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
                 body = arg_vals,
                 vars = [],
                 decorator_list = [ast.Name(id = "add_arg_table", ctx=ast.Load())],
-                scope = ScopeList(),
+                scopes = ScopeList(),
             )
             ast.fix_missing_locations(arg_node)
             idx = 0
@@ -2103,7 +2103,7 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
                                 value = keyword.value, 
                                 lineno = node.lineno,
                                 col_offset = node.col_offset,
-                                scope = node.scopes))
+                                scopes = node.scopes))
                 return None
         return node
 
