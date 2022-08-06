@@ -62,9 +62,9 @@ julia_keywords = frozenset(
 )
 
 jl_symbols = {
-    ast.BitXor: " ⊻ ", 
-    ast.And: " && ", 
-    ast.Or: " || ",
+    ast.BitXor: "⊻", 
+    ast.And: "&&", 
+    ast.Or: "||",
     ast.Invert: "~",
     ast.Pow: "^",
     ast.MatMult: "*",
@@ -386,12 +386,14 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
             # Account for JuliaMethodCallRewriter
             annotation = None
-            if ann := getattr(node.args[0], "annotation", None):
+            if ann := getattr(node, "annotation", None):
                 annotation = ann
-            if not annotation and (v := node.scopes.find(var)):
+            elif ann := getattr(node.args[0], "annotation", None):
+                annotation = ann
+            elif not annotation and (v := node.scopes.find(var)):
                 annotation = getattr(v, "annotation", None)
 
-            if ann := self._generic_typename_from_type_node(annotation):
+            if ann := self._generic_typename_from_type_node(annotation):    
                 if isinstance(ann, list):
                     ann = ann[0]
                 # Get main type

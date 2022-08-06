@@ -446,40 +446,53 @@ class UnpackScopeRewriter(ast.NodeTransformer):
 class UnitTestRewriter(ast.NodeTransformer):
 
     TEST_MODULE_SET = set(["unittest.TestCase"])
+    SETUP_METHODS = set(["setUp"])
+    TEARDOWN_METHODS = set(["tearDown"])
 
-    """Converts unittests and calls all the necessary functions in the main function"""
+    """Extracts unittests and calls all the necessary functions 
+    in the main function"""
 
-    def __init__(self, language):
+    def __init__(self, language) -> None:
         super().__init__()
         self._language = language
-        self._test_classes: list[str, list[str]] = []
-        self._test_modules = self.TEST_MODULE_SET
-
-    def visit_Module(self, node: ast.Module) -> Any:
+        self.test_base: str = None
         self._test_classes = []
-        funcs = []
-        for n in node.body:
-            if isinstance(n, ast.FunctionDef) and n.name == "main":
-                funcs.append(n)
-                continue
-            self.visit(n)
 
-        for n in funcs:
-            self.visit(n)
-
-        return node
+    # def visit_Module(self, node: ast.Module) -> Any:
+    #     body = []
+    #     for n in node.body:
+    #         n = self.visit(n)
+    #         if isinstance(n, ast.ClassDef) and \
+    #                 getattr(n, "is_unit_test", None):
+    #             body.extend(self.test_setUp)
+    #             body.extend(self.test_funcs)
+    #             body.extend(self.test_teardown)
+    #             continue
+    #         body.append(n)
+    #     node.body = body
+    #     return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        for b in node.bases:
-            if get_id(b) in self._test_modules:
-                function_defs = []
-                for n in node.body:
-                    if isinstance(n, ast.FunctionDef):
-                        function_defs.append(n.name)
-                self._test_classes.append((node.name, function_defs))
-                break
-
-        return self.generic_visit(node)
+        self.generic_visit(node)
+        base_ids = set([get_id(b) for b in node.bases])
+        if base_ids.intersection(self.TEST_MODULE_SET):
+            node.is_unit_test = True
+            set_up = []
+            teardown = []
+            funcs = []
+            for n in node.body:
+                self.test_base = node.bases[0]
+                if isinstance(n, ast.FunctionDef):
+                    if n.name in self.SETUP_METHODS:
+                        set_up.append(n.name)
+                    elif n.name in self.TEARDOWN_METHODS:
+                        teardown.append(n.name)
+                    else:
+                        funcs.append(n.name)
+                n = self.visit(n)
+                self.test_base = None
+            self._test_classes.append((node.name, set_up + funcs + teardown))
+        return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self.generic_visit(node)
@@ -493,8 +506,15 @@ class UnitTestRewriter(ast.NodeTransformer):
             self._generic_main_visit(node)
         return node
 
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        # Add annotation, as functions are changed to global scope
+        self.generic_visit(node)
+        if get_id(node.value) == "self" and \
+                self.test_base:
+            node.value.annotation = self.test_base
+        return node
+
     def _generic_main_visit(self, node):
-        l_no = node.body[-1].lineno + 1
         body = []
         for n in node.body:
             # Remove "unittest.main"
@@ -506,43 +526,35 @@ class UnitTestRewriter(ast.NodeTransformer):
                 == "unittest.main"
             ):
                 body.append(n)
+        # Create Function Calls
         for (class_name, func_defs) in self._test_classes:
             # Convert to snake case
             # (?<!^) --> Don't put underscore at beginning
             #    ?<! --> negative lookbehind: asserts that string
             #              is not equal to the beginning "^"
             instance_name = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
-            body.append(
-                ast.Assign(
-                    targets=[ast.Name(id=instance_name)],
-                    value=ast.Call(
-                        func=ast.Name(id=class_name, ctx=ast.Load()),
-                        args=[],
-                        keywords=[],
-                        lineno=l_no,
-                        col_offset=node.col_offset,
-                        scopes=ScopeList(),
-                    ),
-                    lineno=l_no,
-                    col_offset=0,
-                )
+            class_instance = ast.Assign(
+                targets=[ast.Name(id=instance_name)],
+                value=ast.Call(
+                    func=ast.Name(id=class_name, ctx=ast.Load()),
+                    args=[],
+                    keywords=[],
+                    scopes=ScopeList(),
+                ),
             )
-
-            l_no += 1
+            ast.fix_missing_locations(class_instance)
+            body.append(class_instance)
 
             # Create Function Calls
             for func_name in func_defs:
-                body.append(
-                    ast.Call(
-                        func=ast.Name(id=func_name, ctx=ast.Load()),
-                        args=[ast.Name(id=instance_name)],
-                        keywords=[],
-                        lineno=l_no,
-                        col_offset=node.col_offset,
-                        scopes=ScopeList(),
-                    )
+                call_node = ast.Call(
+                    func=ast.Name(id=func_name, ctx=ast.Load()),
+                    args=[ast.Name(id=instance_name)],
+                    keywords=[],
+                    scopes=ScopeList(),
                 )
-                l_no += 1
+                ast.fix_missing_locations(call_node)
+                body.append(call_node)
 
         # Update node.body
         node.body = body
