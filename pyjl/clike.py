@@ -14,7 +14,7 @@ from py2many.helpers import get_ann_repr
 from py2many.tracer import find_node_by_type
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
-from pyjl.global_vars import FIX_SCOPE_BOUNDS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
+from pyjl.global_vars import FIX_SCOPE_BOUNDS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_GLOBAL_CONSTANTS, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 
 from numbers import Complex, Integral, Rational, Real
@@ -184,8 +184,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def visit_Module(self, node: ast.Module) -> str:
         self._use_modules = getattr(node, USE_MODULES, None)
+        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, None)
         parsed_module = super().visit_Module(node)
-        flags_in_use = [f"# - {flag}" for flag in GLOBAL_FLAGS if hasattr(node, flag)]
+        flags_in_use = [f"# - {flag}" for flag in GLOBAL_FLAGS 
+            if getattr(node, flag, False)]
         if flags_in_use:
             flags_in_use = '\n'.join(flags_in_use)
             flags = f"# Transpiled with flags: \n{flags_in_use}"
