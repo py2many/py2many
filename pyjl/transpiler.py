@@ -22,7 +22,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, is_class_or_module, is_class_type
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -145,11 +145,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Parse function args
         args_list = self._get_args(node)
-        if getattr(node, "oop_nested_func", False):
-            f_arg = args_list[0].split("::")[0]
-            if f_arg == "self":
-                # Remove annotation
-                args_list[0] = f_arg
         args = ", ".join(args_list)
         node.parsed_args = args
 
@@ -196,10 +191,15 @@ class JuliaTranspiler(CLikeTranspiler):
         typenames, args = self.visit(node.args)
         args_list = []
 
+        # Get self type. Only avoid if:
+        #  - _oop_nested_funcs is being used, as the @oodef macro will do it automatically. 
+        #  - the "classmethod" decorator is used
         if len(typenames) > 0 and \
-                (typenames[0] == self._default_type or not typenames[0]) \
-                and hasattr(node, "self_type"):
-            if getattr(node, "oop", False) and not getattr(node, "_oop_nested_funcs", False):
+                (not typenames[0] or typenames[0] == self._default_type) and \
+                hasattr(node, "self_type") and \
+                not getattr(node, "_oop_nested_funcs", False) and \
+                "classmethod" not in node.parsed_decorators:
+            if getattr(node, "oop", False):
                 typenames[0] = f"@like({node.self_type})"
             else:
                 typenames[0] = node.self_type
