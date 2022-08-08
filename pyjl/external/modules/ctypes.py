@@ -37,10 +37,12 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ctypes.cdll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.CDLL: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
-    ctypes.byref: (lambda self, node, vargs: f"pointer_from_objref({vargs[0]})", True),
+    ctypes.byref: (lambda self, node, vargs: f"pointer_from_objref({vargs[1]})" 
+        if len(vargs) > 1 else "pointer_from_objref", True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True), # TODO: Calling ctypes 
     ctypes.POINTER: (lambda self, node, vargs: f"pointer({', '.join(vargs)})", True),
-    ctypes.sizeof: (lambda self, node, vargs: f"sizeof({self._map_type(vargs[0])})", True),
+    ctypes.sizeof: (lambda self, node, vargs: f"sizeof({self._map_type(vargs[0])})" 
+        if vargs else "sizeof", True),
     # Search for DLL
     ctypes.pythonapi: (JuliaExternalModulePlugins.visit_pythonapi, True),
     # Windows-specific
@@ -71,7 +73,7 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_ushort: "Cushort",
     ctypes.c_long: "Clong",
     ctypes.c_ulong: "Culong",
-    ctypes.c_longlong: "Clonglong",
+    ctypes.c_longlong: "Clonglong", # Is recognized as ctypes.c_ssize_t
     ctypes.c_ulonglong: "Culonglong",
     # ctypes.c_longdouble: "", # No mapping
     ctypes.c_byte: "Cuint", # TODO: Check this
@@ -79,6 +81,7 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_char: "Cchar",
     ctypes.c_size_t: "Csize_t",
     ctypes.c_ssize_t: "Cssize_t",
+    ctypes.c_wchar: "Cwchar_t",
     # Pointers
     ctypes.c_char_p: "Ptr{Cchar}",
     ctypes.c_wchar_p: "Ptr{Cwchar_t}",
