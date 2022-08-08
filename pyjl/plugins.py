@@ -800,9 +800,19 @@ class SpecialFunctionsPlugins():
                 constructor_calls.append(n)
             else:
                 constructor_body.append(n)
+
+        # Class assignments
+        class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+        for name, value in class_node.class_assignments.items():
+            scopes = getattr(value, "scopes", None)
+            if scopes and isinstance(scopes[-1], ast.ClassDef):
+                arg_node = ast.arg(arg = name)
+                if typename := self.visit(getattr(value, "annotation", None)):
+                    arg_node.annotation = typename
+                node.args.args.append(arg_node)
+                node.args.defaults.append(value)
         
         constructor = None
-        class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
         if is_oop:
             assignments = [ast.Assign(
                     targets = [ast.Name(id=arg)],

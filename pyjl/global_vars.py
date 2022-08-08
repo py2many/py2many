@@ -3,6 +3,7 @@ RESUMABLE = "resumable"
 CHANNELS = "channels"
 OFFSET_ARRAYS = "offset_arrays"
 JL_CLASS="jl_class"
+OOP_CLASS="oop_class"
 
 # Flags
 USE_MODULES = "use_modules"

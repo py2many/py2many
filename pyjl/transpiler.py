@@ -5,7 +5,7 @@ import ast
 import re
 
 from py2many.exceptions import AstUnsupportedOperation
-from pyjl.global_vars import DEFAULT_TYPE, JL_CLASS, RESUMABLE
+from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
 from pyjl.helpers import is_dir, is_file
 
 import pyjl.juliaAst as juliaAst
@@ -490,8 +490,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_ClassDef(self, node: ast.ClassDef) -> str:
         dec_ids = node.parsed_decorators.keys()
         # Check validity of function translation
-        if "oop_class" in dec_ids and \
-                "jl_class" in dec_ids:
+        if OOP_CLASS in dec_ids and \
+                JL_CLASS in dec_ids:
             raise AstUnsupportedOperation("Cannot invoke a class using both "
                 "ObjectOriented.jl and Classes.jl", node)
 
@@ -544,7 +544,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         decorator_list = list(map(get_id, node.decorator_list))
         if JL_CLASS not in decorator_list and \
-                "oop_class" not in node.parsed_decorators:
+                JL_CLASS not in node.parsed_decorators:
             # If we are using composition and the class extends from super, 
             # it must contain its fields as well.
             for cls in node.bases:
@@ -556,12 +556,21 @@ class JuliaTranspiler(CLikeTranspiler):
                             node.declarations_with_defaults[decl_id] = (t_name, val)
 
         dec_items = []
+        has_defaults = False
         if not hasattr(node, "constructor_args"):
-            has_defaults = any(list(map(lambda x: x[1][1] is not None, declarations.items())))
+            items = list(declarations.items())
+            # Cover any class assignments
+            for name, value in node.class_assignments.items():
+                scopes = getattr(value, "scopes", None)
+                if scopes and isinstance(scopes[-1], ast.ClassDef):
+                    typename = self.visit(getattr(value, "annotation", None))
+                    items.append((name, (typename, (self.visit(value), value))))
+            # Check if there are default values
+            has_defaults = any(list(map(lambda x: x[1][1] is not None, items)))
             # Reorganize fields, so that defaults are last
-            dec_items = sorted(declarations.items(), key = lambda x: (x[1][1] != None, x), reverse=False) \
+            dec_items = sorted(items, key = lambda x: (x[1][1] != None, x), reverse=False) \
                 if has_defaults \
-                else declarations.items()
+                else items
         else:
             init_args = node.constructor_args.args if hasattr(node, "constructor_args") else []
             for arg in init_args:
@@ -572,12 +581,12 @@ class JuliaTranspiler(CLikeTranspiler):
                     if (not typename or typename == self._default_type) and \
                             (arg_ann := getattr(arg, "annotation", None)):
                         typename = self.visit(arg_ann)
-                    dec_items.append((arg_str, (typename, self.visit(default))))
+                    dec_items.append((arg_str, (typename, (self.visit(default), default))))
 
         decs = []
         fields = []
         fields_str = []
-        for declaration, (typename, default) in dec_items:
+        for declaration, (typename, (default,_)) in dec_items:
             dec = declaration.split(".")
             if dec[0] == "self" and len(dec) > 1:
                 declaration = dec[1]
@@ -594,9 +603,33 @@ class JuliaTranspiler(CLikeTranspiler):
             
             # Default field values
             fields.append((declaration, typename, default))
+        
+        if not hasattr(node, "constructor_args") and has_defaults:
+            node.constructor = self._build_constructor(node, dec_items)
 
         node.fields = fields
         node.fields_str = "\n".join(fields_str)
+
+    def _build_constructor(self, node: ast.ClassDef, dec_items: dict[str, tuple[Any, Any]]):
+        args = ast.arguments(args=[], defaults=[])
+        assigns = []
+        for declaration, (typename, (default, default_node)) in dec_items:
+            args.args.append(ast.arg(arg=declaration, annotation = ast.Name(id=typename)))
+            args.defaults.append(default_node)
+            assigns.append(ast.Assign(targets=[ast.Name(id=declaration)], value = ast.Name(id=declaration)))
+        is_oop = OOP_CLASS in node.parsed_decorators
+        if is_oop:
+            constructor = ast.FunctionDef(
+                name = "new", args = args, body = [],
+            )
+        else:
+            constructor = juliaAst.Constructor(
+                name = node.name, args = args, body = [],
+            )
+        constructor.body = assigns
+        constructor.scopes = node.scopes
+        ast.fix_missing_locations(constructor)
+        return constructor
 
     def visit_StrEnum(self, node) -> str:
         return self._visit_enum(node, "String", str)

@@ -16,7 +16,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 
@@ -1328,7 +1328,7 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         # Add OO decorator
         decorator = ast.Call(
-            func=ast.Name(id="oop_class"), 
+            func=ast.Name(id=OOP_CLASS), 
             args=[], 
             keywords=[])
         keywords = None
