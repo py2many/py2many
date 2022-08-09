@@ -305,6 +305,20 @@ class JuliaTranspilerPlugins:
         return f"@resumable {funcdef}\n{body}\nend\n{maybe_main}"
 
 
+    def visit_channels(self, node, decorator):
+        funcdef = f"function {node.name}{node.template}({node.parsed_args}){node.return_type}"
+        # Visit function body
+        body = "\n".join(self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
+        maybe_main = "\nmain()" if node.is_python_main else ""
+        return f"""{funcdef}
+                Channel() do ch_{node.name}
+                    {body}
+                end
+            end
+            {maybe_main}"""
+
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
 
@@ -905,6 +919,7 @@ SMALL_DISPATCH_MAP = {
     # "floor": lambda n, vargs: f"floor({vargs[0]})",
     "None": lambda n, vargs: f"Nothing",
     "sys.argv": lambda n, vargs: "append!([PROGRAM_FILE], ARGS)",
+    "os.environ": lambda n, vargs: "ENV",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
@@ -932,6 +947,7 @@ DECORATOR_DISPATCH_TABLE = {
     "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
     "oop_class": JuliaTranspilerPlugins.visit_OOPClass,
     "resumable": JuliaTranspilerPlugins.visit_resumables,
+    "channels": JuliaTranspilerPlugins.visit_channels,
     "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays
 }
 

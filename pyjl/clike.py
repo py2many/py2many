@@ -168,8 +168,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         #
         self._use_modules = None
         self._external_type_map = {}
+        self._flags = None
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
-        self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE 
+        self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE
         # Get external module features
         self.import_external_modules(self.NAME)
 
@@ -177,6 +178,11 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"using {mod}" for mod in usings)
         return uses
+
+    def headers(self, meta=None):
+        if self._flags:
+            flags_in_use = '\n'.join(self._flags)
+            return f"# Transpiled with flags: \n{flags_in_use}"
         
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
@@ -186,14 +192,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def visit_Module(self, node: ast.Module) -> str:
         self._use_modules = getattr(node, USE_MODULES, None)
-        parsed_module = super().visit_Module(node)
-        flags_in_use = [f"# - {flag}" for flag in GLOBAL_FLAGS 
+        self._flags = [f"# - {flag}" for flag in GLOBAL_FLAGS 
             if getattr(node, flag, False)]
-        if flags_in_use:
-            flags_in_use = '\n'.join(flags_in_use)
-            flags = f"# Transpiled with flags: \n{flags_in_use}"
-            return f"{flags}\n\n{parsed_module}"
-        return parsed_module
+        return super().visit_Module(node)
 
     def visit_Name(self, node) -> str:
         node_id = get_id(node)
@@ -414,8 +415,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 if dispatch:
                     return dispatch
         if hasattr(node, "orig_name"):
+            print(node.orig_name)
             return super()._dispatch(node, node.orig_name, vargs)
-
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):

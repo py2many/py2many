@@ -113,9 +113,10 @@ class OperationOptimizer(ast.NodeTransformer):
 class PerformanceOptimizations(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self._use_global_constants = False
     
     def visit_Module(self, node: ast.Module) -> Any:
-        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, None)
+        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, False)
         self.generic_visit(node)
         return node
 

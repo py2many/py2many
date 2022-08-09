@@ -6,6 +6,8 @@ JL_CLASS="jl_class"
 OOP_CLASS="oop_class"
 
 # Flags
+USE_RESUMABLES = "use_resumables"
+LOWER_YIELD_FROM = "lower_yield_from"
 USE_MODULES = "use_modules"
 FIX_SCOPE_BOUNDS="fix_scope_bounds"
 LOOP_SCOPE_WARNING = "loop_scope_warning"

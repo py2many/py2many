@@ -16,7 +16,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 
@@ -272,6 +272,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 
     def __init__(self):
         super().__init__()
+        self._use_resumables = False
+        self._lower_yield_from = False
         self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
@@ -286,6 +288,9 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         # Reset state
         self._replace_calls = {}
         self._replace_map: Dict = {}
+        # Get flags
+        self._use_resumables = getattr(node, USE_RESUMABLES, False)
+        self._lower_yield_from = getattr(node, LOWER_YIELD_FROM, False)
 
         self.generic_visit(node)
 
@@ -315,33 +320,21 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         # Update body
         node.body = body
 
-        # Check if function uses resumables
-        is_resumable = lambda x: RESUMABLE in x.parsed_decorators
-        
-        if is_resumable(node) and \
-                CHANNELS in node.parsed_decorators:
-            raise AstUnsupportedOperation(  
-                "Function cannot have both @resumable and @channels decorators", 
-                node)
-
         ann_id = get_id(getattr(node, "annotation", None))
-        if ann_id == "Generator" and not is_resumable(node):
-            # Body contains yield and is not resumable function
-            node.body = [
-                ast.With(
-                    items = [ast.withitem(
-                        context_expr = ast.Call(
-                            func=ast.Name(id = "Channel"),
-                            args = [],
-                            keywords = [],
-                            scopes = ScopeList(),
-                            lineno = node.lineno,
-                            col_offset = node.col_offset),
-                        optional_vars = ast.Name(id = f"ch_{node.name}"))],
-                    body = node.body,
-                    lineno = node.lineno,
-                    col_offset = node.col_offset)]
-
+        if ann_id == "Generator":
+            is_resumable = self._use_resumables or (RESUMABLE in node.parsed_decorators)
+            is_channels = CHANNELS in node.parsed_decorators
+            if is_resumable and is_channels:
+                raise AstUnsupportedOperation(  
+                    "Function cannot have both @resumable and @channels decorators", 
+                    node)
+            elif self._use_resumables and RESUMABLE not in node.parsed_decorators:
+                node.parsed_decorators[RESUMABLE] = None
+                node.decorator_list.append(ast.Name(id=RESUMABLE))
+            elif not is_resumable and not is_channels:
+                # Body contains yield and is not resumable function
+                node.parsed_decorators[CHANNELS] = None
+                node.decorator_list.append(ast.Name(id=CHANNELS))
         return node
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
@@ -355,7 +348,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 dec = parent.parsed_decorators[CHANNELS]
             elif RESUMABLE in parent.parsed_decorators:
                 dec = parent.parsed_decorators[RESUMABLE]
-            lower_yield_from = dec and dec["lower_yield_from"]
+            lower_yield_from = (dec and dec["lower_yield_from"]) or \
+                self._lower_yield_from
             if lower_yield_from:
                 val = ast.Name(
                         id = generate_var_name(parent, COMMON_LOOP_VARS),
@@ -1037,11 +1031,13 @@ class JuliaNestingRemoval(ast.NodeTransformer):
             b_node = self.visit(n)
             if self._nested_generators:
                 for nested in self._nested_generators:
+                    nested.scopes = getattr(node, "scopes", nested.scopes)
                     body.append(self.visit(nested))
                 self._nested_generators = []
             if self._nested_classes:
                 # Add nested classes to top scope                 
                 for cls in self._nested_classes:
+                    cls.scopes = getattr(node, "scopes", cls.scopes)
                     body.append(self.visit(cls))
                 self._nested_classes = []
             body.append(b_node)
