@@ -859,6 +859,25 @@ class SpecialFunctionsPlugins():
 
         return constructor
 
+    def visit_getattr(self, node: ast.FunctionDef):
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+        return f"""function Base.getproperty({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_show(self, node: ast.FunctionDef):
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+        return f"""function Base.show({node.parsed_args})
+                {body}
+            end"""
+
+
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -1050,4 +1069,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {
     "__all__": JuliaTranspilerPlugins.visit_all
+}
+
+JULIA_SPECIAL_FUNCTIONS = {
+    "__getattr__": SpecialFunctionsPlugins.visit_getattr,
+    "__repr__": SpecialFunctionsPlugins.visit_show
 }

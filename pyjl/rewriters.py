@@ -750,7 +750,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                         id = "length",
                         lineno = node.lineno, col_offset = node.col_offset,
                         annotation = ast.Name(id = "int")),
-                    args = [self._curr_slice_val], keywords = [],
+                    args = [self._curr_slice_val], 
+                    keywords = [],
                     annotation = ast.Name(id="int"),
                     lineno = node.lineno, col_offset = node.col_offset,
                     scopes = node.lower.scopes)
@@ -1154,6 +1155,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._has_dict = False
+        self._has_getfield = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         if hasattr(node, OBJECT_ORIENTED):
@@ -1164,46 +1166,73 @@ class JuliaClassWrapper(ast.NodeTransformer):
         body = []
         for n in node.body:
             body.append(self.visit(n))
-            if isinstance(n, ast.ClassDef) and self._has_dict:
-                call_node = ast.Call(
-                    func = ast.Attribute(
-                        value = ast.Name("Base"),
-                        attr = "getproperty",
-                        scopes = node.scopes,
-                        ctx = ast.Load(),
-                    ),
-                    args = [
-                        ast.AnnAssign(
-                            target = ast.Name(id="x"), 
-                            annotation = ast.Name(id=n.name)), # The classe's name
-                        ast.AnnAssign(
-                            target = ast.Name(id="property"), 
-                            annotation = ast.Name(id="Symbol"),
-                        )],
-                    keywords = [],
-                    scopes = node.scopes,
-                    no_rewrite = True,
-                )
-                get_field = ast.Subscript(
-                    value = ast.Call(
-                        func = ast.Name("getfield"),
-                        args=[ast.Name(id="x"), ast.Name(id=":__dict__")],
-                        keywords = [],
-                        scopes = node.scopes
-                    ),
-                    slice = ast.Name(id="property"),
-                    scopes = node.scopes,
-                )
-                assign_node = ast.Assign(
-                    targets = [call_node],
-                    value = get_field,
-                    scopes = node.scopes,
-                )
-                ast.fix_missing_locations(assign_node)
-                body.append(assign_node)
+            if isinstance(n, ast.ClassDef) and self._has_dict \
+                    and not self._has_getfield:
+                body.append(self._build_get_property_func(n, node.scopes))
                 self._has_dict = False
+                self._has_getfield = False
         node.body = body
         return node
+
+    def _build_get_property_func(self, class_node: ast.ClassDef, scopes):
+        get_property_func = ast.FunctionDef(
+            name = "Base.getproperty", # Hack to set the correct name
+            args = ast.arguments(
+                args = [
+                    ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
+                    ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))],
+                defaults = []
+            ),
+            body = [
+                    ast.Assign(
+                        targets = [ast.Name(id="__dict__")],
+                        value = ast.Call(
+                            func = ast.Attribute(
+                                value = ast.Name("Base"), 
+                                attr = "getattribute", 
+                                ctx = ast.Load(),
+                                scopes = scopes),
+                            args=[ast.Name(id="obj"), juliaAst.Symbol(id="__init__")],
+                            keywords = [],
+                            no_rewrite=True,
+                            scopes = scopes
+                        ),
+                        scopes = scopes,
+                    ),
+                    ast.If(
+                        test = ast.Call(
+                            func=ast.Name(id="haskey"), 
+                            args = [ast.Name(id="__init__"), ast.Name(id="property")],
+                            keywords = [],
+                            no_rewrite=True,
+                            scopes = scopes),
+                        body = [
+                            ast.Return(value = 
+                                ast.Subscript(
+                                    value=ast.Name(id="__dict__"), 
+                                    slice=ast.Name(id="property"))
+                            )],
+                        orelse = []
+                    ),
+                    ast.Return(value = 
+                        ast.Call(
+                            func = ast.Attribute(
+                                value = ast.Name("Base"), 
+                                attr = "getfield", 
+                                ctx = ast.Load(),
+                                scopes = scopes),
+                            args=[ast.Name(id="obj"), ast.Name(id="property")],
+                            keywords = [],
+                            no_rewrite=True,
+                            scopes = scopes)
+                    ),
+                ],
+            decorator_list = [],
+            scopes = scopes,
+            parsed_decorators = {},
+        )
+        ast.fix_missing_locations(get_property_func)
+        return get_property_func
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
@@ -1213,7 +1242,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
                 target=ast.Attribute(
                     value = ast.Name(id="self"),
                     attr = "__dict__", 
-                    scopes = ScopeList()),
+                    ctx = ast.Load(),
+                    scopes = node.scopes),
                 value = ast.Dict(keys=[], values=[]),
                 annotation = ast.Subscript(
                     value = ast.Name(id="Dict"),
@@ -1235,46 +1265,11 @@ class JuliaClassWrapper(ast.NodeTransformer):
             node.body = body + node.body
         return node
 
-    def _build_get_property_func(self, class_node: ast.ClassDef, scopes):
-        get_property_func = ast.FunctionDef(
-            name = "Base.getproperty", # Hack to set the correct name
-            args = [ast.arguments(
-                ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
-                ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))
-            )],
-            body = [
-                ast.Assign(
-                    targets = [ast.Name(id="__dict__")],
-                    value = ast.Call(
-                        func = ast.Attribute(
-                            value = ast.Name("Base"), 
-                            attr = "getattribute", 
-                            scopes = scopes),
-                        args=[ast.Name(id="obj"), juliaAst.Symbol(id="__init__")],
-                        scopes = scopes
-                    ),
-                    scopes = scopes,
-                ),
-                ast.If(
-                    test = ast.Call(
-                        func=ast.Name(id="haskey"), 
-                        args = [ast.Name(id="__init__"), ast.Name(id="property")],
-                        scopes = scopes),
-                    body = [ast.Subscript(
-                        value=ast.Name(id="__dict__"), 
-                        slice=ast.Name(id="property"))],
-                    orelse = [ast.Call(
-                        func = ast.Attribute(
-                            value = ast.Name("Base"), 
-                            attr = "getfield", 
-                            scopes = scopes),
-                        args=[ast.Name(id="obj"), ast.Name(id="property")],
-                        scopes = scopes)],
-                )],
-            scopes = scopes
-        )
-        ast.fix_missing_locations(get_property_func)
-        return get_property_func
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        if node.name == "__getattr__":
+            self._has_getfield = True
+        return node
 
     def visit_Call(self, node: ast.Call) -> Any:
         func_id = ast.unparse(node.func)
@@ -1296,6 +1291,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
         target = node.targets[0]
         # Detect if objects are being added as fields
         if isinstance(target, ast.Subscript) and \
@@ -1303,6 +1299,19 @@ class JuliaClassWrapper(ast.NodeTransformer):
             self._has_dict = True
         elif get_id(target) == "self.__dict__":
             self._has_dict = True
+        return node
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        self.generic_visit(node)
+        if isinstance(node.value, ast.Attribute) and \
+                node.value.attr == "__dict__":
+            # Wrap __dict__ values into Julia Symbols
+            node.slice = ast.Call(
+                func=ast.Name(id="Symbol"),
+                args = [node.slice], 
+                keywords=[],
+                scopes = getattr(node, "scopes", None))
+            ast.fix_missing_locations(node.slice)
         return node
 
 class JuliaClassOOPRewriter(ast.NodeTransformer):
@@ -2020,6 +2029,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 ccall =  ast.Call(
                     func = ast.Name(id="ccall"),
                     args = [libdl_call, rest_type, argtypes],
+                    keywords = [],
                     lineno = node.lineno + 1,
                     col_offset = node.col_offset,
                     scopes = node.scopes)

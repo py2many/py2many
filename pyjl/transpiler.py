@@ -14,6 +14,7 @@ from .clike import JULIA_INTEGER_TYPES, JULIA_NUM_TYPES, CLikeTranspiler
 from .plugins import (
     DECORATOR_DISPATCH_TABLE,
     JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE,
+    JULIA_SPECIAL_FUNCTIONS,
     MODULE_DISPATCH_TABLE,
     DISPATCH_MAP,
     SpecialFunctionsPlugins,
@@ -163,15 +164,11 @@ class JuliaTranspiler(CLikeTranspiler):
             template = "{{{0}}}".format(", ".join(typedecls))
         node.template = template
 
-        # Visit function body
-        docstring_parsed: str = self._get_docstring(node)
-        body = [docstring_parsed] if docstring_parsed else []
-        body.extend([self.visit(n) for n in node.body])
-        body = "\n".join(body)
-        if body == "...":
-            body = ""
-
         node.is_python_main = is_python_main = getattr(node, "python_main", False)
+
+        # Visit special functions:
+        if node.name in JULIA_SPECIAL_FUNCTIONS:
+            return JULIA_SPECIAL_FUNCTIONS[node.name](self, node)
 
         # Visit decorators
         for ((d_id, _), decorator) in zip(node.parsed_decorators.items(), node.decorator_list):
@@ -180,6 +177,13 @@ class JuliaTranspiler(CLikeTranspiler):
                 if ret is not None:
                     return ret
         
+        # Visit function body
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+        if body == "...":
+            body = ""
         
         funcdef = f"function {node.name}{template}({args}){return_type}"
 
