@@ -236,6 +236,10 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
             args_list.append(arg_signature)
+
+        if node.args.vararg:
+            _, arg = self.visit(node.args.vararg)
+            args_list.append(f"{arg}...")
         
         return args_list
 
@@ -543,7 +547,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         return f"{struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
-    def _visit_class_fields(self, node: ast.ClassDef):        
+    def _visit_class_fields(self, node: ast.ClassDef):
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
         decorator_list = list(map(get_id, node.decorator_list))
@@ -567,8 +571,9 @@ class JuliaTranspiler(CLikeTranspiler):
             for name, value in node.class_assignments.items():
                 scopes = getattr(value, "scopes", None)
                 if scopes and isinstance(scopes[-1], ast.ClassDef):
-                    typename = self.visit(getattr(value, "annotation", None))
-                    items.append((name, (typename, (self.visit(value), value))))
+                    typename = getattr(value, "annotation", None)
+                    typename = self.visit(typename) if typename else None
+                    items.append((name, (typename, value)))
             # Check if there are default values
             has_defaults = any(list(map(lambda x: x[1][1] is not None, items)))
             # Reorganize fields, so that defaults are last
@@ -585,12 +590,12 @@ class JuliaTranspiler(CLikeTranspiler):
                     if (not typename or typename == self._default_type) and \
                             (arg_ann := getattr(arg, "annotation", None)):
                         typename = self.visit(arg_ann)
-                    dec_items.append((arg_str, (typename, (self.visit(default), default))))
+                    dec_items.append((arg_str, (typename, default)))
 
         decs = []
         fields = []
         fields_str = []
-        for declaration, (typename, (default,_)) in dec_items:
+        for declaration, (typename, default) in dec_items:
             dec = declaration.split(".")
             if dec[0] == "self" and len(dec) > 1:
                 declaration = dec[1]
@@ -610,14 +615,14 @@ class JuliaTranspiler(CLikeTranspiler):
         
         if not hasattr(node, "constructor_args") and has_defaults:
             node.constructor = self._build_constructor(node, dec_items)
-
+  
         node.fields = fields
         node.fields_str = "\n".join(fields_str)
 
-    def _build_constructor(self, node: ast.ClassDef, dec_items: dict[str, tuple[Any, Any]]):
+    def _build_constructor(self, node: ast.ClassDef, dec_items: dict[str, Any]):
         args = ast.arguments(args=[], defaults=[])
         assigns = []
-        for declaration, (typename, (default, default_node)) in dec_items:
+        for declaration, (typename, default_node) in dec_items:
             args.args.append(ast.arg(arg=declaration, annotation = ast.Name(id=typename)))
             args.defaults.append(default_node)
             assigns.append(ast.Assign(targets=[ast.Name(id=declaration)], value = ast.Name(id=declaration)))

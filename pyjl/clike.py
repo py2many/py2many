@@ -12,6 +12,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_ty
 from py2many.external_modules import ExternalBase
 from py2many.helpers import get_ann_repr
 from py2many.tracer import find_node_by_type
+from pycpp.plugins import DISPATCH_MAP
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
 from pyjl.global_vars import FIX_SCOPE_BOUNDS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_GLOBAL_CONSTANTS, USE_MODULES
@@ -159,6 +160,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._statement_separator = ""
         self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
         self._julia_keywords = julia_keywords
+        self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
@@ -392,6 +394,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 annotation = ann
             elif not annotation and (v := node.scopes.find(var)):
                 annotation = getattr(v, "annotation", None)
+
 
             if ann := self._generic_typename_from_type_node(annotation):    
                 if isinstance(ann, list):

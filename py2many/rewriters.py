@@ -458,20 +458,6 @@ class UnitTestRewriter(ast.NodeTransformer):
         self.test_base: str = None
         self._test_classes = []
 
-    # def visit_Module(self, node: ast.Module) -> Any:
-    #     body = []
-    #     for n in node.body:
-    #         n = self.visit(n)
-    #         if isinstance(n, ast.ClassDef) and \
-    #                 getattr(n, "is_unit_test", None):
-    #             body.extend(self.test_setUp)
-    #             body.extend(self.test_funcs)
-    #             body.extend(self.test_teardown)
-    #             continue
-    #         body.append(n)
-    #     node.body = body
-    #     return node
-
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
         base_ids = set([get_id(b) for b in node.bases])

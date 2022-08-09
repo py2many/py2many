@@ -10,6 +10,7 @@ MOD_DIR = f"external{os.sep}modules"
 # This accounts for the self names (or just add "_" and lowercase)
 MOD_NAMES = set(
     [
+        ("_dispatch_map", "DISPATCH_MAP"),
         ("_small_dispatch_map", "SMALL_DISPATCH_MAP"),
         ("_module_dispatch_table", "MODULE_DISPATCH_TABLE"),
         ("_func_dispatch_table", "FUNC_DISPATCH_TABLE"),

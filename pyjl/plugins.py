@@ -1041,6 +1041,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # builtin functions
     getattr: (JuliaTranspilerPlugins.visit_getattr , False),
     hasattr: (JuliaTranspilerPlugins.visit_hasattr , False),
+    setattr: (lambda self, node, vargs: f"setfield!({vargs[0]}, :{vargs[1]}, {vargs[2]})" 
+        if vargs else "setfield", True),
     chr: (lambda self, node, vargs: f"Char({vargs[0]})", False),
     ord: (JuliaTranspilerPlugins.visit_ord, False),
     # Path
