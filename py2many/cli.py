@@ -17,7 +17,7 @@ from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
 from py2many.pytype_inference import pytype_annotate_and_merge
-from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer
+from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer, PerformanceOptimizations
 from pynim.rewriters import WithToBlockRewriter
 
 
@@ -45,7 +45,7 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.analysis import analyse_variable_scope, detect_broadcast, optimize_loop_ranges
+from pyjl.analysis import analyse_variable_scope, detect_broadcast, loop_range_optimization_analysis
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
     JuliaArgumentParserRewriter,
@@ -463,7 +463,7 @@ def julia_settings(args, env=os.environ):
         transformers=[
             parse_decorators,
             analyse_variable_scope,
-            optimize_loop_ranges,
+            loop_range_optimization_analysis,
             find_ordered_collections,
             detect_broadcast,
         ],
@@ -485,7 +485,10 @@ def julia_settings(args, env=os.environ):
             JuliaIORewriter(),
             JuliaArbitraryPrecisionRewriter(),
         ],
-        optimization_rewriters=[AlgebraicSimplification(), OperationOptimizer()],
+        optimization_rewriters=[
+            AlgebraicSimplification(), 
+            OperationOptimizer(), 
+            PerformanceOptimizations()],
         inference = infer_julia_types
     )
 
@@ -497,9 +500,9 @@ def kotlin_settings(args, env=os.environ):
         "Kotlin",
         ["ktlint", "-F"],
         rewriters=[KotlinBitOpRewriter()],
-        transformers=[infer_kotlin_types],
         post_rewriters=[KotlinPrintRewriter()],
         linter=["ktlint"],
+        inference = infer_kotlin_types
     )
 
 

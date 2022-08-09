@@ -4,6 +4,7 @@ from typing import Any
 
 from py2many.ast_helpers import get_id
 from py2many.scope import ScopeList
+from pyjl.global_vars import USE_GLOBAL_CONSTANTS
 
 
 class AlgebraicSimplification(ast.NodeTransformer):
@@ -108,3 +109,24 @@ class OperationOptimizer(ast.NodeTransformer):
             node.func.id = "push!"
             node.args[1] = node.args[1].elts[0]
         return node
+
+class PerformanceOptimizations(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, None)
+        self.generic_visit(node)
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        self.generic_visit(node)
+        target = get_id(node.targets[0])
+        if self._use_global_constants:
+            scopes = getattr(node, "scopes", None)
+            if scopes and isinstance(scopes[-1], ast.Module) and \
+                    len(node.targets) == 1 and \
+                    target not in scopes[-1].mutable_vars:
+                node.use_constant = True
+        return node
+    

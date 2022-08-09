@@ -16,8 +16,8 @@ def analyse_variable_scope(node, extension=False):
     visitor.visit(node)
 
 
-def optimize_loop_ranges(node, extension=False):
-    visitor = JuliaLoopRangesOptimization()
+def loop_range_optimization_analysis(node, extension=False):
+    visitor = JuliaLoopRangesOptimizationAnalysis()
     visitor.visit(node)
 
 
@@ -150,7 +150,7 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         return node
 
 
-class JuliaLoopRangesOptimization(ast.NodeTransformer):
+class JuliaLoopRangesOptimizationAnalysis(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._is_subscript = False
