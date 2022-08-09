@@ -1,7 +1,7 @@
 import ast
-from builtins import WindowsError
 import ctypes
-from ctypes import wintypes
+import sys
+
 from typing import Callable, Dict, Tuple, Union
 
 class JuliaExternalModulePlugins():
@@ -33,7 +33,7 @@ class JuliaExternalModulePlugins():
 
 FuncType = Union[Callable, str]
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
+GENERIC_DISPATCH_TABLE = {
     ctypes.cdll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.CDLL: (JuliaExternalModulePlugins.visit_load_library, True),
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
@@ -45,12 +45,23 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         if vargs else "sizeof", True),
     # Search for DLL
     ctypes.pythonapi: (JuliaExternalModulePlugins.visit_pythonapi, True),
-    # Windows-specific
-    ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_wintypes, True),
-    ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
-    wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
-    # WindowsError: (lambda self, node, vargs: f"windowserror({', '.join(vargs)})", True),
 }
+
+if sys.platform.startswith('win32'):
+    # Import windows ctypes modules
+    from builtins import WindowsError
+    from ctypes import wintypes
+
+    WIN_DISPATCH_TABLE = {
+        # Windows-specific
+        ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_wintypes, True),
+        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+        wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
+        # WindowsError: (lambda self, node, vargs: f"windowserror({', '.join(vargs)})", True),
+    }
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
+else:
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE
 
 SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
