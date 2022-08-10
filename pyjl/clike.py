@@ -415,7 +415,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 if dispatch:
                     return dispatch
         if hasattr(node, "orig_name"):
-            print(node.orig_name)
             return super()._dispatch(node, node.orig_name, vargs)
         return super()._dispatch(node, fname, vargs)
 

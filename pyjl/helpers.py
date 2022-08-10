@@ -138,7 +138,7 @@ def _parse_path(import_name: str, basedir) -> str:
         path = import_name.split(".")
         indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
         if indexes and (idx := indexes[0]) < len(base_dir):
-            full_path = cwd + base_dir[0:idx+1] + path
+            full_path = cwd + base_dir[0:idx] + path
         else:
             full_path = cwd + base_dir + path
         return parse_path(full_path, os.sep)

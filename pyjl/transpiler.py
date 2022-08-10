@@ -1,8 +1,10 @@
 from copyreg import constructor
 from enum import IntFlag
 import ast
+import os
 
 import re
+from xml.etree.ElementInclude import include
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
@@ -696,6 +698,11 @@ class JuliaTranspiler(CLikeTranspiler):
                 import_names.append(f"include(\"{n}.jl\")")
             return "\n".join(import_names)
 
+        include_stmts = []
+        if level > 0:
+            dirs = "../" * (level - 1)
+            include_stmts.append(f"include(\"{dirs}{module_name}.jl\")")
+
         jl_module_name = module_name
         imports = []
         for name in names:
@@ -705,49 +712,61 @@ class JuliaTranspiler(CLikeTranspiler):
                 imports.append(jl_name)
             else:
                 imports.append(name)
+            if (imp := self._get_import_str(lookup)):
+                # Names can also be modules
+                include_stmts.append(imp)
+        
+        # As a backup, try to import using the module_name
+        if not include_stmts:
+            include_stmts.append(self._get_import_str(module_name))
 
-        import_str = self._get_import_str(module_name, level)
-        if import_str:
+        if include_stmts:
             if self._use_modules:
                 maybe_dot = "." if level == 1 else ""
-                import_names = f"using {maybe_dot}{module_name}: {', '.join(names)}"
-                return "\n".join([import_str, import_names])
+                # We only require the module's name, as the include will get the module
+                mod_name = module_name.split(".")[-1]
+                # Separate modules
+                name_set = set(names)
+                modules = set([n for n in names if is_file(f"{module_name}.{n}", self._basedir)])
+                name_set.difference_update(modules)
+                import_names = []
+                if name_set:
+                    import_names.append(f"using {maybe_dot}{mod_name}: {', '.join(name_set)}")
+                if modules:
+                    import_names.append(f"using {', '.join(modules)}")
+                return "\n".join(include_stmts + import_names)
             else:
                 # If it imports a file that defines no module, just use "include"
-                return import_str
+                return "\n".join(include_stmts)
 
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"
 
-    def _get_import_str(self, name: str, level:int = 0):
-        if level == 1:
-            return f"include(\"{name}.jl\")"
+    def _get_import_str(self, name: str):
         if (is_mod := is_file(name, self._basedir)) or \
                 (is_folder := is_dir(name, self._basedir)):
             # Find path from current file
-            extension = ""
-            if is_mod:
-                extension = ".jl"
-            elif is_folder and not is_mod:
-                extension = ".__init__.jl"
             sep = "/"
+            extension = ".jl" if is_mod else "/__init__.jl"
             import_path = name.split(".")
-            out_filepath = self._filename.as_posix().split("/")
-            if out_filepath[:-1] == import_path[:-1]:
+            out_filepath = self._filename.as_posix().split("/")[:-1]
+            if import_path[0] == self._basedir.stem:
+                import_path = import_path[1:]
+            if out_filepath == import_path[:-1]:
                 # Shortcut if paths are the same
                 return f'include(\"{import_path[-1]}{extension}\")'
-            i, j = len(import_path) - 2, len(out_filepath) - 2
+            i, j = - 1, - 1
             rev_cnt = 0
-            match = False
-            while i >= 0 and j >= 0:
+            while i >= -len(import_path) and j >= -len(out_filepath):
                 if import_path[i] != out_filepath[j]:
                     rev_cnt += 1
                 else:
-                    match = True
+                    break
                 i, j = i - 1, j - 1
-            if match and rev_cnt > 0 and rev_cnt < len(import_path):
+            if rev_cnt > 0 and rev_cnt <= len(import_path):
+                # Get relative path from current file
                 rev_path = "../" * rev_cnt
-                parsed_path = sep.join(import_path[rev_cnt:])
+                parsed_path = sep.join(import_path)
                 return f'include(\"{rev_path}{parsed_path}{extension}\")'
             return f'include(\"{sep.join(import_path)}{extension}\")'
         return None
