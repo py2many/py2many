@@ -8,6 +8,7 @@ import itertools
 import math
 import operator
 import pathlib
+import tempfile
 import time
 import os
 import ast
@@ -783,6 +784,15 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+    ########## PyCall ##########
+    def visit_tempfile(self, node: ast.Assign, vargs):
+        JuliaTranspilerPlugins._pycall_import(self, node, "tempfile")
+
+    def _pycall_import(self, node: ast.Call, mod_name: str):
+        self._usings.add("PyCall")
+        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
+        self._globals.add(import_stmt)
+
 
 class SpecialFunctionsPlugins():
     def visit_init(self, node: ast.FunctionDef):
@@ -1082,6 +1092,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     argparse.ArgumentParser: (JuliaTranspilerPlugins.visit_argument_parser, True),
     # sys special calls
     sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})" if vargs else "exit()", True),
+    sys.maxsize: (lambda self, node, vargs: "typemax(Int)", True),
+    # calls invoking PyCall
+    tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
 }
 
 

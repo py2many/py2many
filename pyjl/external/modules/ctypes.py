@@ -24,6 +24,18 @@ class JuliaExternalModulePlugins():
             return self.visit(node.args[0])
 
     # Using Pycall
+    def visit_pointer(self, node, vargs):
+        # TODO: Change to ccall
+        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+        # Unparse args to avoid mapping them to the corresponding Julia types
+        args = []
+        for arg in node.args:
+            if (func := self._func_for_lookup(ast.unparse(arg))) != self._default_type:
+                args.append(f"ctypes.{func.__name__}")
+            else:
+                args.append(ast.unparse(arg))
+        return f"ctypes.POINTER({', '.join(args)})"
+
     def visit_create_unicode_buffer(self, node, vargs):
         # TODO: Change to ccall
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
@@ -31,13 +43,11 @@ class JuliaExternalModulePlugins():
     def visit_pythonapi(self, node, vargs):
         # TODO: Search for DLL
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+        return "ctypes.pythonapi"
 
     def visit_pyobject(self, node, vargs):
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
         return f"ctypes.py_object({', '.join(vargs())})"
-
-    def visit_ctypes(self, node, vargs):
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
     
     def visit_winfunctype(self, node, vargs):
         # There is no equivalent call in Julia 
@@ -69,10 +79,10 @@ GENERIC_DISPATCH_TABLE = {
     ctypes._SimpleCData.value: (JuliaExternalModulePlugins.visit_cdata_value, True),
     ctypes.byref: (lambda self, node, vargs: f"pointer_from_objref({vargs[1]})" 
         if len(vargs) > 1 else "pointer_from_objref", True),
-    ctypes.POINTER: (lambda self, node, vargs: f"pointer({', '.join(vargs)})", True),
     ctypes.sizeof: (lambda self, node, vargs: f"sizeof({self._map_type(vargs[0])})" 
         if vargs else "sizeof", True),
     # Using PythonCall
+    ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
     ctypes.pythonapi: (JuliaExternalModulePlugins.visit_pythonapi, True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True),
     ctypes.py_object: (JuliaExternalModulePlugins.visit_pyobject, True)
@@ -80,6 +90,7 @@ GENERIC_DISPATCH_TABLE = {
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
+    "pythonapi.PyBytes_FromStringAndSize": lambda node, vargs: "ctypes.pythonapi.PyBytes_FromStringAndSize",
 }
 
 if sys.platform.startswith('win32'):
