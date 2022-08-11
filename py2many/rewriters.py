@@ -465,7 +465,7 @@ class UnitTestRewriter(ast.NodeTransformer):
             node.is_unit_test = True
             set_up = []
             teardown = []
-            funcs = []
+            test_funcs = []
             for n in node.body:
                 self.test_base = node.bases[0]
                 if isinstance(n, ast.FunctionDef):
@@ -473,11 +473,11 @@ class UnitTestRewriter(ast.NodeTransformer):
                         set_up.append(n.name)
                     elif n.name in self.TEARDOWN_METHODS:
                         teardown.append(n.name)
-                    else:
-                        funcs.append(n.name)
+                    elif n.name.startswith("test"):
+                        test_funcs.append(n.name)
                 n = self.visit(n)
                 self.test_base = None
-            self._test_classes.append((node.name, set_up + funcs + teardown))
+            self._test_classes.append((node.name, set_up + test_funcs + teardown))
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
