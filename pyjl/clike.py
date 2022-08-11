@@ -100,7 +100,8 @@ JL_IGNORED_MODULE_SET = set([
     "traceback",
     "types",
     "io",
-    "random"
+    "random",
+    "tempfile",
 ])
 
 JULIA_TYPE_MAP = {

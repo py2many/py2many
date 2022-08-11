@@ -49,6 +49,7 @@ from pyjl.analysis import analyse_variable_scope, detect_broadcast, loop_range_o
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
     JuliaArgumentParserRewriter,
+    JuliaImportNameRewriter,
     VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
@@ -459,7 +460,9 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[JuliaMainRewriter()],
+        rewriters=[
+            JuliaMainRewriter(),
+            JuliaImportNameRewriter()],
         transformers=[
             parse_decorators,
             analyse_variable_scope,

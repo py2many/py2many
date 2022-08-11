@@ -717,27 +717,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 include_stmts.append(imp)
         
         # As a backup, try to import using the module_name
-        if not include_stmts:
-            include_stmts.append(self._get_import_str(module_name))
+        if not include_stmts and \
+                (include_stmt := self._get_import_str(module_name)):
+            include_stmts.append(include_stmt)
 
         if include_stmts:
-            if self._use_modules:
-                maybe_dot = "." if level == 1 else ""
-                # We only require the module's name, as the include will get the module
-                mod_name = module_name.split(".")[-1]
-                # Separate modules
-                name_set = set(names)
-                modules = set([n for n in names if is_file(f"{module_name}.{n}", self._basedir)])
-                name_set.difference_update(modules)
-                import_names = []
-                if name_set:
-                    import_names.append(f"using {maybe_dot}{mod_name}: {', '.join(name_set)}")
-                if modules:
-                    import_names.append(f"using {', '.join(modules)}")
-                return "\n".join(include_stmts + import_names)
-            else:
-                # If it imports a file that defines no module, just use "include"
-                return "\n".join(include_stmts)
+            return "\n".join(include_stmts)
 
         str_imports = ", ".join(imports)
         return f"using {jl_module_name}: {str_imports}"

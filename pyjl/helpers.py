@@ -136,6 +136,13 @@ def _parse_path(import_name: str, basedir) -> str:
         if os.path.isfile(basedir.as_posix()):
             base_dir = base_dir[:-1]
         path = import_name.split(".")
+        # In case there are empty list positions, 
+        # replace them with ".."  to go back one directory
+        for i in range(len(path)):
+            p = path[i]
+            if p == "":
+                path[i] = ".."
+        # Check for a matching position and retrieve its index
         indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
         if indexes and (idx := indexes[0]) < len(base_dir):
             full_path = cwd + base_dir[0:idx] + path

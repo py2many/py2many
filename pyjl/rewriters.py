@@ -41,17 +41,16 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
-    def visit_Call(self, node):
-        self.generic_visit(node)
+    def visit_Call(self, node: ast.Call):
+        node = self.generic_visit(node)
 
         # Don't parse annotations and special nodes
         if getattr(node, "is_annotation", False) or \
-                getattr(node, "no_rewrite", False):
+                getattr(node, "no_rewrite", False) or \
+                getattr(node.func, "no_rewrite", False):
             return node
 
-        args = [self.visit(a) for a in node.args] \
-            if node.args else []
-
+        args = node.args
         fname = node.func
         if isinstance(fname, ast.Attribute):
             val_id = get_id(fname.value)
@@ -156,6 +155,50 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             node.attr = "__init__"
             return node.value.value
 
+
+class JuliaImportNameRewriter(ast.NodeTransformer):
+    "Rewrites import names when using modules"
+    def __init__(self) -> None:
+        super().__init__()
+        self._names = {}
+        self._basedir = None
+    
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._basedir = getattr(node, "__basedir__", None)
+        self._names = {}
+        if getattr(node, USE_MODULES, False):
+            return self.generic_visit(node)
+        return node
+    
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+        if not node.module:
+            return node
+        mod_name = node.module.split(".")[-1]
+        is_dir_or_path = is_dir(f"{node.module}", self._basedir) or \
+            is_file(f"{node.module}", self._basedir) or \
+            node.level > 0 or \
+            node.module == "."
+        for name in node.names:
+            if is_dir_or_path and \
+                    not is_file(f"{node.module}.{name.name}", self._basedir) and \
+                    not is_dir(f"{node.module}.{name.name}", self._basedir):
+                if name.asname:
+                    self._names[name.asname] = mod_name
+                else:
+                    self._names[name.name] = mod_name
+        return node
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        if node.id in self._names:
+            attr_node = ast.Attribute(
+                value = ast.Name(id=self._names[node.id]),
+                attr = node.id,
+                ctx = ast.Load(),
+                scopes = node.scopes,
+                no_rewrite = True)
+            ast.fix_missing_locations(attr_node)
+            return attr_node
+        return node
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
     """Rewrites augmented assignments into compatible 
@@ -1176,7 +1219,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
             args = ast.arguments(
                 args = [
                     ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
-                    ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))],
+                    ast.arg(arg = "property", annotation = ast.Name(id="Any"))],
                 defaults = []
             ),
             body = [
@@ -1244,7 +1287,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
                 annotation = ast.Subscript(
                     value = ast.Name(id="Dict"),
                     slice = ast.Tuple(
-                        elts=[ast.Name(id="Symbol"), ast.Name(id="Any")])
+                        elts=[ast.Name(id="Any"), ast.Name(id="Any")])
                     )
                 )
             if isinstance(node.body[0], ast.FunctionDef):
@@ -1303,7 +1346,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
                 node.value.attr == "__dict__":
             # Wrap __dict__ values into Julia Symbols
             node.slice = ast.Call(
-                func=ast.Name(id="Symbol"),
+                func=ast.Name(id="Any"),
                 args = [node.slice], 
                 keywords=[],
                 scopes = getattr(node, "scopes", None))
