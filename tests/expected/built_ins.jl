@@ -2,6 +2,7 @@ function default_builtins()
     a = string()
     b = false
     c = zero(Int)
+    d = zero(Float64)
     @assert(a == "")
     @assert(b == false)
     @assert(c == 0)

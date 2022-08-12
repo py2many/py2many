@@ -10,7 +10,6 @@ class Foo:
     def bar_str(self):
         return "a"
 
-# @jl_class # For PyJL
 class Shape():
     def __init__(self, x, y):
         # Center on a 2-dimensional plane
@@ -20,7 +19,6 @@ class Shape():
     def position(self):
         return f"({self.x}, {self.y})"
 
-# @jl_class # For PyJL
 class Square(Shape):
     """Two-dimensional square"""
     def __init__(self, x, y, side):
@@ -35,7 +33,6 @@ class Square(Shape):
 ### Example of the Diamond Problem ###
 ######################################
 
-# @jl_class # For PyJL
 class Person:
     def __init__(self, name: str):
         self.name = name
@@ -43,14 +40,10 @@ class Person:
     def get_id(self):
         return self.name
 
-
-# @jl_class # For PyJL
 class Student(Person):
     def __init__(
         self, name: str, student_number: int, domain: str = "school.student.pt"
     ):
-        if student_number < 0:
-            raise ValueError("Student number must be a positive number")
         self.name = name
         self.student_number = student_number
         self.domain = domain
@@ -58,7 +51,6 @@ class Student(Person):
     def get_id(self):
         return f"{self.name} - {self.student_number}"
 
-# @jl_class # For PyJL
 class Worker(Person):
     def __init__(
         self, name: str, company_name: str, hours_per_week: int
@@ -67,13 +59,12 @@ class Worker(Person):
         self.company_name = company_name
         self.hours_per_week = hours_per_week
 
-
-class StudentWorker(Student, Worker):
-    def __init__(self, name: str, student_number: int, domain: str,
-            company_name: str, hours_per_week: int, is_exhausted:bool):
-        Student.__init__(self, name, student_number, domain)
-        Worker.__init__(self, name, company_name, hours_per_week)
-        self.is_exhausted = is_exhausted
+# class StudentWorker(Student, Worker):
+#     def __init__(self, name: str, student_number: int, domain: str,
+#             company_name: str, hours_per_week: int, is_exhausted:bool):
+#         Student.__init__(self, name, student_number, domain)
+#         Worker.__init__(self, name, company_name, hours_per_week)
+#         self.is_exhausted = is_exhausted
 
 
 if __name__ == "__main__":
@@ -108,15 +99,16 @@ if __name__ == "__main__":
     # Exceptions
     # Student("S2", -1) # Raises an exception if uncommented
 
+    # Commented, as most languages do not support multiple inheritance
     # Multiple inheritance
-    sw = StudentWorker("Timo Marcello", 1111, "school.student.pt",
-        "Cisco", 40, True)
-    assert sw.company_name == "Cisco"
-    assert sw.is_exhausted == True
-    assert sw.name == "Timo Marcello"
-    assert sw.student_number == 1111
-    assert sw.domain == "school.student.pt"
-    assert sw.company_name == "Cisco"
-    assert sw.hours_per_week == 40
-    assert sw.is_exhausted == True
+    # sw = StudentWorker("Timo Marcello", 1111, "school.student.pt",
+    #     "Cisco", 40, True)
+    # assert sw.company_name == "Cisco"
+    # assert sw.is_exhausted == True
+    # assert sw.name == "Timo Marcello"
+    # assert sw.student_number == 1111
+    # assert sw.domain == "school.student.pt"
+    # assert sw.company_name == "Cisco"
+    # assert sw.hours_per_week == 40
+    # assert sw.is_exhausted == True
     print("OK")

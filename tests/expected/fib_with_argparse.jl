@@ -3,17 +3,19 @@ abstract type AbstractOptions end
 mutable struct Options <: AbstractOptions
     n::Int64
     v::Bool
+    Options(n::Int64 = 0, v::Bool = false) = begin
+        n = n
+        v = v
+    end
 end
 
 function __repr__(self::AbstractOptions)::String
     return AbstractOptions(self.n, self.v)
 end
 
-
 function __eq__(self::AbstractOptions, other::AbstractOptions)::Bool
     return __key(self) == __key(other)
 end
-
 
 function __key(self::AbstractOptions)
     (self.n, self.v)

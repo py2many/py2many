@@ -978,19 +978,19 @@ class ABCTestCase(unittest.TestCase):
             )
 
 
-@resumable
+
 def _test_gen():
     yield
 
 
 class TestOneTrickPonyABCs(ABCTestCase):
     def test_Awaitable(self):
-        @resumable
+        
         def gen():
             yield
 
         @types.coroutine
-        @resumable
+        
         def coro():
             yield
 
@@ -998,7 +998,7 @@ class TestOneTrickPonyABCs(ABCTestCase):
             pass
 
         class Bar:
-            @resumable
+            
             def __await__(self):
                 yield
 
@@ -1009,7 +1009,7 @@ class TestOneTrickPonyABCs(ABCTestCase):
             def throw(self, typ, val=None, tb=None):
                 super().throw(typ, val, tb)
 
-            @resumable
+            
             def __await__(self):
                 yield
 
@@ -1043,12 +1043,12 @@ class TestOneTrickPonyABCs(ABCTestCase):
         support.gc_collect()  # Kill CoroLike to clean-up ABCMeta cache
 
     def test_Coroutine(self):
-        @resumable
+        
         def gen():
             yield
 
         @types.coroutine
-        @resumable
+        
         def coro():
             yield
 
@@ -1056,7 +1056,7 @@ class TestOneTrickPonyABCs(ABCTestCase):
             pass
 
         class Bar:
-            @resumable
+            
             def __await__(self):
                 yield
 
@@ -1067,7 +1067,7 @@ class TestOneTrickPonyABCs(ABCTestCase):
             def throw(self, typ, val=None, tb=None):
                 super().throw(typ, val, tb)
 
-            @resumable
+            
             def __await__(self):
                 yield
 
@@ -1474,14 +1474,14 @@ class TestOneTrickPonyABCs(ABCTestCase):
 
         # Issue 10565
         class NextOnly:
-            @resumable
+            
             def __next__(self):
                 yield 1
                 return
 
         self.assertNotIsInstance(NextOnly(), Iterator)
 
-    @resumable(remove_nested=True)
+    (remove_nested=True)
     def test_Generator(self):
         class NonGen1:
             def __iter__(self):
@@ -1563,7 +1563,7 @@ class TestOneTrickPonyABCs(ABCTestCase):
             def throw(self, typ, val=None, tb=None):
                 super().throw(typ, val, tb)
 
-        @resumable(remove_nested=True)
+        (remove_nested=True)
         def gen():
             yield 1
 

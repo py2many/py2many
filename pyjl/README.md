@@ -252,30 +252,78 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
 - `__repr__` requires a `show()` implementation: show(io::IO, o::object) = print(io, "$(o.attr)")
 
 
-#
-## Inference
-### `pytype`
-This section is reserved for `pytype` testing. This is an example on how to run it with the N-Body benchmark:
-
-```
-pytype tests/performance_tests/n_body_problem.py -o tests/performance_tests/annotations/
-
-merge-pyi -i tests/performance_tests/n_body_problem.py tests/performance_tests/annotations/pyi/n_body_problem.pyi
-```
-
-Then run py2many to convert it to Julia
-```
-sudo ./setup.py install
-
-py2many --julia=1 tests/performance_tests
-```
-Currently there are some errors after merging. One possible alternative is to use the generated `.pyi` files and do the AST traversal using PyJL.
-
-### `TYPPETE`
-Typpete only supports Python up to version 3.6.
-
 ## Code Formatting
 For code formatting, PyJL uses JuliaFormatter.jl. If you want to specify your own formatting options, you need to create a `.JuliaFormatter.toml` file. A sample file is provided in the `pyjl/formatter` folder. You need to place this file in the same directory (or any parent directory) you are transpiling. You can find more instructions [here](https://github.com/domluna/JuliaFormatter.jl).
+
+
+## Test Status
+All tests that are striked are currently failing
+
+- `assert.jl`
+- `assign_list_test.jl`
+- `~~asyncio_test.jl~~`
+- `binit.jl`
+- `binomial_coefficient.jl`
+- `bin_op.jl`
+- `bin_op_no_annotations.jl`
+- `bitops.jl`
+- `branch.jl`
+- `bubble_sort.jl`
+- `built_ins.jl`
+- `bytearray_test.jl`
+- `byte_literals.jl`
+- `classes.jl`
+- `classes_dataclass.jl` --> Review (change special methods)
+- `classes_scopes.jl`
+- `cls.jl`
+- `comb_sort.jl`
+- `comment_unsupported.jl`
+- `complex.jl`
+- `~~coverage.jl~~` --> Fails because of next
+- `datatypes.jl`
+- `~~demorgan.jl~~` --> Fails because Julia has no check_sat function
+- `dict.jl`
+- `equations.jl`
+- `~~exceptions.jl~~` --> ZeroDivisionError
+- `~~expression_lists.jl~~` --> Splat
+- `fib.jl`
+- `find_factors.jl`
+- `fib_with_argparse.jl`
+- `f_string.jl`
+- `generator_expressions.jl`
+- `global.jl`
+- `global2.jl`
+- `import.jl`
+- `infer.jl`
+- `infer_ops.jl`
+- `int_enum.jl`
+- `join_test.jl`
+- `lambda.jl`
+- `langcomp_bench.jl` --> All except `del`
+- `~~library_import.jl~~` --> No support for datetime
+- `list_op.jl`
+- `literals.jl`
+- `match_case_test.jl` --> Only Python 9 is supported
+- `math_ops.jl`
+- `nested_dict.jl`
+- `newman_conway_sequence.jl`
+- `n_bonacci_sequence.jl`
+- `print.jl`
+- `rect.jl`
+- `~~sealed.jl~~` --> No field VALUE
+- `smt_types.jl`
+- `str_enum.jl`
+- `subscript_test.jl`
+- `sys_argv.jl`
+- `sys_exit.jl`
+- `test_indexing.jl`
+- `unary_op.jl`
+- `walruss.jl`
+- `~~with_cntx_manager.jl~~` --> No Package textwrap
+- `~~with_open.jl~~` --> NamedTempFile
+- `write_stdout.jl`
+- `yield_from_test.jl`
+- `yield_test.jl`
 
 #
 ## Keywords

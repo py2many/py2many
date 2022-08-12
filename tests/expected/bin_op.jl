@@ -4,7 +4,7 @@ function mult_int_and_int()::Int64
     return a * 2
 end
 
-function mult_float_and_int()::Float64
+function mult_float_and_int()
     a = 2.0
     return a * 2
 end
@@ -51,7 +51,7 @@ function add_two_lists()
         push!(a, i)
         push!(b, i)
     end
-    return append!(a, b)
+    return [a; b]
 end
 
 function and_op_int_and_int()::Int64

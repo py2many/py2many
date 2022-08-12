@@ -1,16 +1,15 @@
-@resumable
+
 def generator1():
     for i in range(3):
         yield i
 
 
-@resumable
+
 def generator2():
     for j in range(3, 5):
         yield j
 
 
-@resumable(lower_yield_from=True)
 def yield_from():
     yield from generator1()
     yield from generator2()

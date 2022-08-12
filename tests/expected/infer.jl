@@ -39,7 +39,7 @@ function mul_recvd_list(a::Vector)
     return repeat(a, 2)
 end
 
-function plus_test(x, y)::Any
+function plus_test(x, y)
     return x + y
 end
 
@@ -52,7 +52,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     @assert(fibonacci(10) == 55)
     @assert((repeat("test", fibonacci(3))) == "testtest")
     a = []
-    a_mul = mul_recvd_list(a)
+    a_mul = mul_recvd_list(convert(Vector, a))
     @assert(a_mul == [])
     x = "ss"
     y = "zz"

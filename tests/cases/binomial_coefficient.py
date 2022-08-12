@@ -12,5 +12,4 @@ def binomial_coef(n: int, k: int):
 if __name__ == "__main__":
     assert binomial_coef(10, 6) == 210
     assert binomial_coef(20, 6) == 38760
-    assert binomial_coef(4000, 6) == 38760
     assert binomial_coef(4000, 6) == 5667585757783866000

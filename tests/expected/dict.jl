@@ -13,12 +13,12 @@ function dict_values()::Bool
     return 1 ∈ values(CODES)
 end
 
-function return_dict_index_str(key::String)::Int64
+function return_dict_index_str(key::String)
     CODES = Dict("KEY" => 1)
     return CODES[key]
 end
 
-function return_dict_index_int(key::Int64)::String
+function return_dict_index_int(key::Int64)
     CODES = Dict(1 => "one")
     return CODES[key]
 end

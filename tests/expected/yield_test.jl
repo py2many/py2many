@@ -1,70 +1,85 @@
-using ResumableFunctions
 abstract type AbstractTestClass end
-@resumable function generator_func()
-    num = 1
-    @yield num
-    num = 5
-    @yield num
-    num = 10
-    @yield num
-end
-
-@resumable function generator_func_loop()
-    num = 0
-    for n = 0:2
-        @yield num + n
+function generator_func()
+    Channel() do ch_generator_func
+        num = 1
+        put!(ch_generator_func, num)
+        num = 5
+        put!(ch_generator_func, num)
+        num = 10
+        put!(ch_generator_func, num)
     end
 end
 
-@resumable function generator_func_loop_using_var()
-    num = 0
-    end_ = 2
-    end_ = 3
-    for n = 0:end_-1
-        @yield num + n
-    end
-end
-
-@resumable function generator_func_nested_loop()
-    for n = 0:1
-        for i = 0:1
-            @yield (n, i)
+function generator_func_loop()
+    Channel() do ch_generator_func_loop
+        num = 0
+        for n = 0:2
+            put!(ch_generator_func_loop, num + n)
         end
     end
 end
 
-@resumable function file_reader(file_name::String)
-    for file_row in readline(file_name)
-        @yield file_row
+function generator_func_loop_using_var()
+    Channel() do ch_generator_func_loop_using_var
+        num = 0
+        end_ = 2
+        end_ = 3
+        for n = 0:end_-1
+            put!(ch_generator_func_loop_using_var, num + n)
+        end
     end
 end
 
-@resumable function testgen()
-    println("first")
-    @yield 1
-    println("second")
-    @yield 2
+function generator_func_nested_loop()
+    Channel() do ch_generator_func_nested_loop
+        for n = 0:1
+            for i = 0:1
+                put!(ch_generator_func_nested_loop, (n, i))
+            end
+        end
+    end
 end
 
-@resumable function fib()
-    a = 0
-    b = 1
-    while true
-        @yield a
-        (a, b) = (b, a + b)
+function file_reader(file_name::String)
+    Channel() do ch_file_reader
+        for file_row in readline(file_name)
+            put!(ch_file_reader, file_row)
+        end
+    end
+end
+
+function testgen()
+    Channel() do ch_testgen
+        println("first")
+        put!(ch_testgen, 1)
+        println("second")
+        put!(ch_testgen, 2)
+    end
+end
+
+function fib()
+    Channel() do ch_fib
+        a = 0
+        b = 1
+        while true
+            put!(ch_fib, a)
+            (a, b) = (b, a + b)
+        end
     end
 end
 
 mutable struct TestClass <: AbstractTestClass
 
 end
-@resumable function generator_func(self::AbstractTestClass)
-    num = 123
-    @yield num
-    num = 5
-    @yield num
-    num = 10
-    @yield num
+function generator_func(self::AbstractTestClass)
+    Channel() do ch_generator_func
+        num = 123
+        put!(ch_generator_func, num)
+        num = 5
+        put!(ch_generator_func, num)
+        num = 10
+        put!(ch_generator_func, num)
+    end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -84,7 +99,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     end
     @assert(arr3 == [0, 1, 2])
     arr4 = []
-    testClass1::TestClass = TestClass()
+    testClass1 = TestClass()
     for i in generator_func(testClass1)
         push!(arr4, i)
     end
@@ -94,15 +109,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
         push!(arr5, i)
     end
     @assert(arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)])
-    arr6 = []
-    for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt")
-        push!(arr6, res)
-    end
-    @assert(arr6 == ["test\n", "test\n", "test"])
     arr7 = []
     res = fib()
     for i = 0:5
-        push!(arr7, res())
+        push!(arr7, take!(res))
     end
     @assert(arr7 == [0, 1, 1, 2, 3, 5])
     for i in testgen()

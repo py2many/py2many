@@ -1,11 +1,12 @@
 abstract type AbstractFoo end
+abstract type AbstractShape end
+abstract type AbstractSquare end
 abstract type AbstractPerson end
-abstract type AbstractStudent <: AbstractPerson end
-abstract type AbstractStudent2 <: AbstractPerson end
+abstract type AbstractStudent end
+abstract type AbstractWorker end
 mutable struct Foo <: AbstractFoo
-
 end
-function bar(self::AbstractFoo)::Int64
+function bar(self::AbstractFoo)
     return baz(self)
 end
 
@@ -17,11 +18,32 @@ function bar_str(self::AbstractFoo)::String
     return "a"
 end
 
+mutable struct Shape <: AbstractShape
+    x
+    y
+end
+function position(self::AbstractShape)
+    return "($(self.x), $(self.y))"
+end
+
+mutable struct Square <: AbstractSquare
+    #= Two-dimensional square =#
+    x
+    y
+    side
+    Square(x, y, side) = begin
+        Shape(x, y)
+        new(x, y, side)
+    end
+end
+function area(self::AbstractSquare)
+    self.x * self.y
+end
+
 mutable struct Person <: AbstractPerson
     name::String
 end
-
-function get_name(self::AbstractPerson)::String
+function get_id(self::AbstractPerson)::String
     return self.name
 end
 
@@ -32,23 +54,14 @@ mutable struct Student <: AbstractStudent
     Student(name::String, student_number::Int64, domain::String = "school.student.pt") =
         new(name, student_number, domain)
 end
-
-function get_name(self::AbstractStudent)
+function get_id(self::AbstractStudent)
     return "$(self.name) - $(self.student_number)"
 end
 
-mutable struct Student2 <: AbstractStudent2
+mutable struct Worker <: AbstractWorker
     name::String
-    student_number::Int64
-    domain::String
-
-    Student2(name::String, student_number::Int64, domain::String = "school.student.pt") =
-        begin
-            if student_number < 0
-                throw(ValueError("Student number must be a positive number"))
-            end
-            new(name, student_number, domain)
-        end
+    company_name::String
+    hours_per_week::Int64
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -57,10 +70,21 @@ if abspath(PROGRAM_FILE) == @__FILE__
     @assert(b == 10)
     c = bar_str(f)
     @assert(c == "a")
+    shape = Shape(1, 3)
+    square = Square(2, 4, 5)
+    @assert(position(square) == "(2, 4)")
     p = Person("P")
+    @assert(p.name == "P")
+    @assert(get_id(p) == "P")
     s = Student("S", 111111)
-    @assert(get_name(p) == "P")
-    @assert(get_name(s) == "S - 111111")
-    s2 = Student2("S2", 123)
+    @assert(s.name == "S")
+    @assert(s.student_number == 111111)
+    @assert(s.domain == "school.student.pt")
+    @assert(get_id(s) == "S - 111111")
+    w = Worker("John", "Siemens", 35)
+    @assert(w.name == "John")
+    @assert(w.company_name == "Siemens")
+    @assert(w.hours_per_week == 35)
+    @assert(get_id(w) == "John")
     println("OK")
 end

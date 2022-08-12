@@ -1,7 +1,7 @@
 
 function test_python(iterations::Int64)
     iteration = 0
-    total = float(0.0)
+    total = Float64(0.0)
     array_length = 1000
     array::Vector{Int64} = [i for i = 0:array_length-1]
     println("iterations $(iterations)")
@@ -16,7 +16,8 @@ function test_python(iterations::Int64)
     if total == 15150
         println("OK")
     end
-    empty!(array)
+    # Delete Unsupported
+    # del(array)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

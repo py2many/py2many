@@ -10,7 +10,6 @@ from itertools import islice, starmap
 import sys
 
 
-@resumable
 def permutations(n:int, start:int, size:int):
     p = bytearray(range(n))
     count = bytearray(n)
@@ -53,7 +52,7 @@ def permutations(n:int, start:int, size:int):
                     p[dst] = t[src]
 
 
-@resumable
+
 def alternating_flips_generator(n:int, start:int, size:int):
     maximum_flips = 0
     alternating_factor = 1

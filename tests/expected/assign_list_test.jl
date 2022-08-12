@@ -3,8 +3,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     @assert(a == 1)
     @assert(b == 2)
     @assert(c == 3)
-    pairs = [(([2, 3, 4], 5, 6), ([7, 8, 9], 10, 11))]
-    for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs
+    pairs_ = [(([2, 3, 4], 5, 6), ([7, 8, 9], 10, 11))]
+    for (((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2)) in pairs_
         @assert(x1 == 2)
         @assert(y1 == 3)
         @assert(z1 == 4)

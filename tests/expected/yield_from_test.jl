@@ -1,22 +1,25 @@
-using ResumableFunctions
-@resumable function generator1()
-    for i = 0:2
-        @yield i
+function generator1()
+    Channel() do ch_generator1
+        for i = 0:2
+            put!(ch_generator1, i)
+        end
     end
 end
 
-@resumable function generator2()
-    for j = 3:4
-        @yield j
+function generator2()
+    Channel() do ch_generator2
+        for j = 3:4
+            put!(ch_generator2, j)
+        end
     end
 end
 
-@resumable function yield_from()
-    for v in generator1()
-        @yield v
-    end
-    for v in generator2()
-        @yield v
+function yield_from()
+    Channel() do ch_yield_from
+        # Unsupported
+        @yield_from generator1()
+        # Unsupported
+        @yield_from generator2()
     end
 end
 

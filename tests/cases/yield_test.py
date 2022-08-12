@@ -1,4 +1,4 @@
-@resumable  # For PyJL
+  # For PyJL
 def generator_func():
     num = 1
     yield num
@@ -8,14 +8,12 @@ def generator_func():
     yield num
 
 
-@resumable
 def generator_func_loop():
     num = 0
     for n in range(0, 3):
         yield num + n
 
 
-@resumable
 def generator_func_loop_using_var():
     num = 0
     end = 2
@@ -24,20 +22,17 @@ def generator_func_loop_using_var():
         yield num + n
 
 
-@resumable
 def generator_func_nested_loop():
     for n in range(0, 2):
         for i in range(0, 2):
             yield (n, i)
 
 
-@resumable
 def file_reader(file_name: str):
     for file_row in open(file_name, "r"):
         yield file_row
 
 
-@resumable
 def testgen():
     print("first")
     yield 1
@@ -45,7 +40,6 @@ def testgen():
     yield 2
 
 
-@resumable
 def fib():
     a = 0
     b = 1
@@ -55,7 +49,7 @@ def fib():
 
 
 class TestClass:
-    @resumable
+    
     def generator_func(self):
         num = 123
         yield num
@@ -100,13 +94,6 @@ if __name__ == "__main__":
     assert arr5 == [(0, 0), (0, 1), (1, 0), (1, 1)]
 
     # -----------------------
-    arr6 = []
-    # Create file before executing
-    for res in file_reader("C:/Users/Miguel Marcelino/Desktop/test.txt"):
-        arr6.append(res)
-    assert arr6 == ["test\n", "test\n", "test"]
-
-    # -----------------------
     arr7 = []
     res = fib()
     for i in range(0, 6):
@@ -118,7 +105,7 @@ if __name__ == "__main__":
         print(i)
 
     # -----------------------------------
-    # Calling functions using loop (unsupported in PyJL)
+    # Calling functions using loop (unsupported)
     # testClass2: TestClass = TestClass()
     # funcs = [generator_func, generator_func_loop, generator_func_loop_using_var, testClass2.generator_func,
     #     generator_func_nested_loop]

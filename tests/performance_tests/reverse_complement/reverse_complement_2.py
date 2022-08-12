@@ -25,7 +25,7 @@ def reverse_complement(header, sequence):
     return header, output[::-1]
 
 
-# @resumable
+# 
 def read_sequences(file):
     for line in file:
         if line[0] == ord(">"):
@@ -69,7 +69,6 @@ if __name__ == "__main__":
     # if cpu_count() == 1 or len(data[1]) < 1000000:
     #     from itertools import starmap
 
-    @resumable(remove_nested=True, lower_yield_from=True)
     def merge(v, g):
         yield v
         yield from g

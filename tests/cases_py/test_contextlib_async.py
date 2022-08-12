@@ -277,7 +277,7 @@ class AsyncContextManagerTestCase(unittest.TestCase):
 
         @asynccontextmanager
         @attribs(foo="bar")
-        @resumables
+        s
         async def baz(spam):
             """Whee!"""
             yield

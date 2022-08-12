@@ -11,8 +11,8 @@ from typing import Callable
 
 def show():
     myfunc = lambda x, y: x + y
-    print(myfunc(1, 2))
+    return myfunc(1, 2)
 
 
 if __name__ == "__main__":
-    show()
+    assert show() == 3

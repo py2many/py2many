@@ -27,7 +27,6 @@ def started_process(target, args):
 
 
 @contextmanager
-@resumable
 def lock_pair(pre_lock=None, post_lock=None, locks=None):
     pre, post = locks if locks else (pre_lock, post_lock)
     if pre:
