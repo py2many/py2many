@@ -25,7 +25,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -85,7 +85,7 @@ class JuliaTranspiler(CLikeTranspiler):
         ast.Pow: "__pow__"
     }
 
-    def __init__(self):
+    def __init__(self, jl_func_list):
         super().__init__()
         self._headers = set([])
         self._dispatch_map = DISPATCH_MAP
@@ -97,12 +97,25 @@ class JuliaTranspiler(CLikeTranspiler):
         self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
         self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
         self._special_method_table = self.SPECIAL_METHOD_TABLE
+        self._julia_function_names = jl_func_list
 
     def comment(self, text: str) -> str:
         return f"#= {text} =#"
 
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
+
+    def visit_Name(self, node: ast.Name) -> str:
+        node_id = node.id
+        if node_id in self._julia_function_names and \
+                not getattr(node, "preserve_keyword", False) and \
+                node.scopes.find(node_id) and \
+                not isinstance(node.scopes.find(node_id), (ast.FunctionDef, ast.ClassDef)) and \
+                not isinstance(getattr(node.scopes.find(node_id), "assigned_from", None), ast.FunctionDef):
+            # Verify if any names override Julia's 
+            # built-in function names
+            return f"{node_id}_"
+        return super().visit_Name(node)
 
     def visit_Constant(self, node: ast.Constant, quotes = True, docstring = False) -> str:
         if node.value is True:
@@ -166,8 +179,6 @@ class JuliaTranspiler(CLikeTranspiler):
             template = "{{{0}}}".format(", ".join(typedecls))
         node.template = template
 
-        node.is_python_main = is_python_main = getattr(node, "python_main", False)
-
         # Visit special functions:
         if node.name in JULIA_SPECIAL_FUNCTIONS:
             return JULIA_SPECIAL_FUNCTIONS[node.name](self, node)
@@ -188,10 +199,7 @@ class JuliaTranspiler(CLikeTranspiler):
             body = ""
         
         funcdef = f"function {node.name}{template}({args}){return_type}"
-
-        is_python_main = getattr(node, "python_main", False)
-        maybe_main = "\nmain()" if is_python_main else ""
-        return f"{funcdef}\n{body}\nend\n{maybe_main}"
+        return f"{funcdef}\n{body}\nend\n"
 
     def _get_args(self, node) -> list[str]:
         typenames, args = self.visit(node.args)
@@ -258,10 +266,12 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
+        node.value.preserve_keyword = True
         value_id = self.visit(node.value)
 
         if (dispatch := getattr(node, "dispatch", None)) and \
                 not getattr(node, "in_call", None):
+            dispatch.func.preserve_keyword = True
             fname = self.visit(dispatch.func)
             vargs = self._get_call_args(dispatch)
             ret = self._dispatch(dispatch, fname, vargs)
@@ -572,7 +582,8 @@ class JuliaTranspiler(CLikeTranspiler):
             # Cover any class assignments
             for name, value in node.class_assignments.items():
                 scopes = getattr(value, "scopes", None)
-                if scopes and isinstance(scopes[-1], ast.ClassDef):
+                if scopes and isinstance(scopes[-1], ast.ClassDef) and \
+                        name not in declarations:
                     typename = getattr(value, "annotation", None)
                     typename = self.visit(typename) if typename else None
                     items.append((name, (typename, value)))
@@ -669,11 +680,11 @@ class JuliaTranspiler(CLikeTranspiler):
         field_str = "\n".join(fields)
 
         if("unique" in node.parsed_decorators or typename in self._julia_integer_types):
-            return f"@enum {node.name} begin\n{field_str}end"
+            return f"@enum {node.name} begin\n{field_str}\nend"
         else:
             # Cover case where values are not unique and not strings
             self._usings.add("SuperEnum")
-            return f"@se {node.name} begin\n{field_str}end"
+            return f"@se {node.name} begin\n{field_str}\nend"
 
     def _import(self, name: str, alias: str) -> str:
         '''Formatting Julia Imports'''
@@ -799,7 +810,8 @@ class JuliaTranspiler(CLikeTranspiler):
                     kv_pairs.append(f"{self.visit(value)}...")
         
         kv_pairs = ", ".join(kv_pairs)
-        return f"Dict({kv_pairs})"
+        maybe_ann = f"{{{node.container_type[1]}}}" if hasattr(node, "container_type") else ""
+        return f"Dict{maybe_ann}({kv_pairs})"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
@@ -880,6 +892,12 @@ class JuliaTranspiler(CLikeTranspiler):
         val = None
         if node.value is not None:
             val = self.visit(node.value)
+        
+        parent_scope = node.scopes[-1]
+        if (isinstance(parent_scope, ast.Module) or 
+                getattr(parent_scope, "is_python_main", False)) and \
+                not self._allow_annotations_on_globals:
+            type_str = None
 
         if val:
             if not type_str or type_str == self._default_type:
@@ -901,8 +919,9 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(node.targets) == 1:
             if (target := self.visit(node.targets[0])) in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
                 return JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE[target](self, node, value)
-            
+
         targets = [self.visit(target) for target in node.targets]
+        
         if value == None:
             value = self._none_type
 
@@ -951,7 +970,7 @@ class JuliaTranspiler(CLikeTranspiler):
                         del_targets.append(f"deleteat!({node_name}, {self.visit(t.slice)})")
 
         if not del_targets:
-            del_targets.extend(["#Delete Unsupported", f"del({node_name})"])
+            del_targets.extend(["# Delete Unsupported", f"# del({node_name})"])
         
         return "\n".join(del_targets)
 

@@ -445,6 +445,17 @@ def _julia_formatter_path():
         return str(Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl")
 
 
+def _find_julia_base_funcs():
+    """Finds Julia base functions"""
+    proc = run(
+        ["julia", "-e", "println([n for n in names(Base, all=true) if isdefined(Base, n) && isa(getfield(Base, n), Function)])"],
+        capture_output=True,
+    )
+    if not proc.returncode and proc.stdout:
+        return proc.stdout
+    return b""
+
+
 def julia_settings(args, env=os.environ):
     format_jl = spawn.find_executable("format.jl")
     if not format_jl:
@@ -457,8 +468,19 @@ def julia_settings(args, env=os.environ):
     else:
         format_jl = ["format.jl", "-v"]
 
+    # Parse Julia base functions 
+    # (TODO: Improve time it takes to import all functions)
+    output = _find_julia_base_funcs().decode(encoding="utf-8")
+    output = output.split(", ")
+    jl_func_list: set[str] = set()
+    for func in output:
+        # Remove ":", as elements are Symbols
+        jl_func_list.add(func[1:])
+    # Remove all Python builtin functions
+    jl_func_list.difference_update(set(dir(builtins)))
+
     return LanguageSettings(
-        transpiler=JuliaTranspiler(),
+        transpiler=JuliaTranspiler(jl_func_list),
         ext=".jl",
         display_name="Julia",
         formatter=format_jl,
