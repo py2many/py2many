@@ -15,6 +15,10 @@ def detect_mutable_vars(node):
     return MutabilityTransformer().visit(node)
 
 
+def correct_node_attributes(node):
+    return CorrectNodeAttributes().visit(node)
+
+
 class AnnotationTransformer(ast.NodeTransformer):
     """
     Adds a flag for every type annotation and nested types so they can be differentiated from array
@@ -190,4 +194,15 @@ class MutabilityTransformer(ast.NodeTransformer):
             if node.func.attr == "append":
                 self.increase_use_count(get_id(node.func.value))
         self.generic_visit(node)
+        return node
+
+
+class CorrectNodeAttributes(ast.NodeTransformer):
+    """Avoid that newly created nodes are missing any attributes"""
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit(self, node: ast.AST):
+        node = self.generic_visit(node)
+        ast.fix_missing_locations(node)
         return node

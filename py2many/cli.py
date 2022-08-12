@@ -1,5 +1,6 @@
 import argparse
 import ast
+import builtins
 import os
 import functools
 import string
@@ -29,6 +30,7 @@ from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .transformers import (
     add_annotation_flags,
+    correct_node_attributes,
     detect_mutable_vars,
     detect_nesting_levels,
 )
@@ -126,6 +128,7 @@ def core_transformers(tree, trees, args):
     detect_nesting_levels(tree)
     add_annotation_flags(tree)
     add_imports(tree)
+    correct_node_attributes(tree)
     return tree
 
 
