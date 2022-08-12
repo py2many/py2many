@@ -25,7 +25,7 @@ from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import get_func_def
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
@@ -67,10 +67,11 @@ class JuliaTranspilerPlugins:
         if hasattr(node, "constructor"):
             constructor_str = self.visit(constructor)
             return f"""@dataclass {struct_def} begin
-                {fields}
-                {constructor_str}
-            end
-            {body}"""
+                    {fields}
+                    {constructor_str}
+                end
+                {body}
+            """
 
         return f"""
             @dataclass {struct_def} begin
@@ -176,7 +177,7 @@ class JuliaTranspilerPlugins:
             constructor_str = self.visit(node.constructor)
             return f"{struct_def}\n{fields}\n{constructor_str}\nend\n{body}"
 
-        return f"{struct_def}\n{fields}\nend\n{body}"
+        return f"{struct_def}\n{fields}\nend\n{body}\n"
 
 
     def _generic_dataclass_visit(node, decorator):
@@ -228,7 +229,7 @@ class JuliaTranspilerPlugins:
             constructor_str = self.visit(node.constructor)
             return f"@class mutable {struct_def} begin\n{fields_str}\n{constructor_str}\nend\n{body}"
 
-        return f"@class mutable {struct_def} begin\n{fields_str}\nend\n{body}"
+        return f"@class mutable {struct_def} begin\n{fields_str}\nend\n{body}\n"
 
     def _get_node_fields(self, node: ast.ClassDef):
         fields = []
@@ -284,7 +285,7 @@ class JuliaTranspilerPlugins:
                     {node.fields_str}
                     {maybe_constructor}
                 end
-                {body}"""
+                {body}\n"""
 
     def visit_resumables(self, node, decorator):
         # node.scopes[-2] because node.scopes[-1] is the current function
@@ -302,8 +303,7 @@ class JuliaTranspilerPlugins:
         if body == "...":
             body = ""
 
-        maybe_main = "\nmain()" if node.is_python_main else ""
-        return f"@resumable {funcdef}\n{body}\nend\n{maybe_main}"
+        return f"@resumable {funcdef}\n{body}\nend\n"
 
 
     def visit_channels(self, node, decorator):
@@ -312,13 +312,11 @@ class JuliaTranspilerPlugins:
         body = "\n".join(self.visit(n) for n in node.body)
         if body == "...":
             body = ""
-        maybe_main = "\nmain()" if node.is_python_main else ""
         return f"""{funcdef}
                 Channel() do ch_{node.name}
                     {body}
                 end
-            end
-            {maybe_main}"""
+            end\n"""
 
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
@@ -402,6 +400,20 @@ class JuliaTranspilerPlugins:
             else:
                 return f"Int({vargs[0]})"
         return f"zero(Int)"  # Default int value
+
+    def visit_cast_float(self, node: ast.Call, vargs) -> str:
+        if len(vargs) > 0:
+            arg_typename = self._typename_from_annotation(node.args[0])
+            if arg_typename.startswith("String"):
+                return f"parse(Float64, {vargs[0]})"
+            else:
+                return f"Float64({vargs[0]})"
+        return f"zero(Float64)"  # Default float value
+
+    # Math
+    def visit_fsum(self, node: ast.Call, vargs):
+        self._usings.add("Xsum")
+        return f"xsum({', '.join(vargs)})"
 
     ########## String operations ##########
     def visit_maketrans(self, node, vargs: list[str]):
@@ -509,17 +521,20 @@ class JuliaTranspilerPlugins:
 
     def visit_next(self, node: ast.Call, vargs: list[str]) -> str:
         func_def = get_func_def(node, vargs[0])
-        if get_id(getattr(func_def, "annotation", None)) == "Generator":
+        annotation = getattr(func_def, "annotation", ast.Name(""))
+        ann_id: str = self.visit(annotation)
+        if ann_id == "Generator":
             decs = getattr(func_def, "parsed_decorators", None)
             if RESUMABLE in decs:
                 if len(vargs) > 1:
                     return f"{vargs[0]}({', '.split(vargs[1:])})"
                 elif getattr(node, "is_attr", None):
                     return f"{vargs[0]}" 
-                else :
+                else:
                     return f"{vargs[0]}()"
             else:
                 return f"take!({vargs[0]})"
+            
         # TODO: Is this valid? Is this undecidable?
         # else:
         #     getattr(node, "is_gen_expr", None)
@@ -647,26 +662,15 @@ class JuliaTranspilerPlugins:
             return f"$({self.visit(node)})"
 
     def visit_write(self, node, vargs: list[str]):
-        func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "write")
-
         if not vargs:
             # TODO: Is there a better way to name the variable?
-            return f"x -> {func_name}(stdout, x)"
-        return f"{func_name}(stdout, {vargs[0]})"
+            return f"x -> write(stdout, x)"
+        return f"write(stdout, {vargs[0]})"
 
     def visit_flush(self, node, vargs: list[str]):
-        func_name = JuliaTranspilerPlugins._handle_base_funcs(node, "flush")
-
         if not vargs:
-            return f"{func_name}(stdout)"
-        return f"{func_name}({vargs[0]})"
-
-    def _handle_base_funcs(node, func_name):
-        new_func_name = func_name
-        # Searches for a variable with the functions name
-        if node.scopes.find(func_name):
-            new_func_name = f"Base.{func_name}"
-        return new_func_name
+            return f"flush(stdout)"
+        return f"flush({vargs[0]})"
 
     def visit_textio_read(self, node, vargs):
         # TODO
@@ -938,9 +942,11 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
+    "float": JuliaTranspilerPlugins.visit_cast_float,
     "join": JuliaTranspilerPlugins.visit_join,
     "format": JuliaTranspilerPlugins.visit_format,
     "__next__": JuliaTranspilerPlugins.visit_next,
+    "Generator.__next__": JuliaTranspilerPlugins.visit_next,
     "encode": JuliaTranspilerPlugins.visit_encode,
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
@@ -1005,7 +1011,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     math.acos: (lambda self, node, vargs: f"acos({vargs[0]})", False),
     math.atan: (lambda self, node, vargs: f"atan({vargs[0]})", False),
     math.radians: (lambda self, node, vargs: f"deg2rad({vargs[0]})", False),
-    math.fsum: (lambda self, node, vargs: f"fsum({', '.join(vargs)})", False),
+    math.fsum: (JuliaTranspilerPlugins.visit_fsum , False),
     math.sqrt: (lambda self, node, vargs: f"sqrt({vargs[0]})", False),
     math.trunc: (lambda self, node, vargs: f"trunc({vargs[0]})" if vargs else "trunc", False),
     sum: (lambda self, node, vargs: f"sum({', '.join(vargs)})", False),

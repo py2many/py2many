@@ -127,6 +127,18 @@ class FuncTypeDispatch():
             return ast.unparse(node_type)
         return None
 
+    def visit_iter(self, node, vargs):
+        node_type = get_inferred_type(vargs[0])
+        if node_type:
+            return ast.unparse(node_type)
+        return None
+
+    def visit_next(self, node, vargs):
+        node_type = get_inferred_type(vargs[0])
+        if isinstance(node_type, ast.Subscript):
+            return ast.unparse(node_type.slice)
+        return None
+
 
 class InferTypesTransformer(ast.NodeTransformer):
     """
@@ -141,10 +153,12 @@ class InferTypesTransformer(ast.NodeTransformer):
         str.encode: lambda self, node, vargs: "bytes",
         bytes.translate: lambda self, node, vargs: "bytes",
         bytearray.translate: lambda self, node, vargs: "bytearray",
-        zip: FuncTypeDispatch.visit_zip,
         argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",
+        zip: FuncTypeDispatch.visit_zip,
         max: FuncTypeDispatch.visit_min_max,
         min: FuncTypeDispatch.visit_min_max,
+        iter: FuncTypeDispatch.visit_iter,
+        next: FuncTypeDispatch.visit_next,
     }
     TYPE_DICT = {
         int: "int",

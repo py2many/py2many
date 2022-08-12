@@ -100,6 +100,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
             self._assign_annotation(node, ret, ret)
             return node
 
+
         if left_id == right_id:
             # Cover division with ints
             if ((isinstance(node.left, ast.Num) or is_numeric(left_id)) and 
@@ -141,7 +142,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                         ("List", "int"),
                         ("int", "bool")]:
                     node.annotation = ast.Name(id=left_id)
-                    self._assign_annotation(node, node.annotation, node.annotation)
+                    self._assign_annotation(node, left, right)
                     return node
                 elif (left_id, right_id) in [
                         ("int", "bytes"),
@@ -150,7 +151,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                         ("int", "List"),
                         ("bool", "int")]:
                     node.annotation = ast.Name(id=right_id)
-                    self._assign_annotation(node, node.annotation, node.annotation)
+                    self._assign_annotation(node, left, right)
                     return node
 
         # By default (if no translation possible), the types are left_id and right_id respectively

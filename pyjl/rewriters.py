@@ -42,7 +42,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node: ast.Call):
-        node = self.generic_visit(node)
+        self.generic_visit(node)
+
+        # Special attribute used for dispatching
+        node.orig_name = get_id(node.func)
 
         # Don't parse annotations and special nodes
         if getattr(node, "is_annotation", False) or \
@@ -72,7 +75,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 node.func = ast.Name(
                     id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
             elif not is_class_or_module(val_id, node.scopes):
-                self._handle_special_cases(fname)
                 args = [fname.value] + args
                 new_func_name = fname.attr
                 node.func = ast.Name(
@@ -83,35 +85,15 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
-        
         # Don't parse annotations and special nodes
         if getattr(node, "is_annotation", False) or \
                 getattr(node, "no_rewrite", False):
             return node
-
-        if ret := self._handle_special_cases(node):
-            return ret
-
-        value_id = None
-        if node_id := get_id(node.value):
-            value_id = node_id
-        elif isinstance(node.value, ast.Call)\
-                and (call_id := get_id(node.value.func)):
-            value_id = call_id
-
-        if value_id and value_id not in sys.builtin_module_names \
-                and value_id not in self._ignored_module_set \
-                and (is_enum(value_id, node.scopes) or
-                    ((is_class_or_module(value_id, node.scopes) or
-                    is_class_type(value_id, node.scopes))
-                    and self._use_modules) or
-                    value_id.startswith("self")):
-            return node
-
+        # Get annotation
         annotation = getattr(node, "annotation", None)
-
+        # Adds a dispatch attribute, as functions can be assigned to variables
         node.dispatch = ast.Call(
-            func=ast.Name(id=node.attr, ctx=ast.Load()),
+            func = ast.Name(id=node.attr, ctx=ast.Load(), lineno = node.lineno),
             args=[node.value],
             keywords=[],
             lineno=node.lineno,
@@ -119,41 +101,9 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             annotation = annotation,
             scopes = node.scopes,
             is_attr = True,
-            orig_name = get_id(node))
-
+            orig_name = get_id(node), # Special attribute used for dispatching
+        )
         return node
-
-    def _handle_special_cases(self, node):
-        # Bypass init module calls
-        func_repr = get_id(node)
-        split_repr = func_repr.split(".") if func_repr else []
-        if split_repr and is_dir(".".join(split_repr), self._basedir):
-            self._insert_init(node)
-            return node
-
-        # Bypass imports
-        for i in range(1,len(split_repr)):
-            if is_dir('.'.join(split_repr[:i]), self._basedir):
-                return node
-
-        return None
-
-    def _insert_init(self, node):
-        if isinstance(node.value, ast.Attribute):
-            self._insert_init(node.value)
-        else:
-            # Avoid referencing the same object
-            value = copy.deepcopy(node.value)
-            node.value = ast.Attribute(
-                value = value,
-                attr = node.attr,
-                ctx = ast.Load(),
-                scopes = node.scopes,
-                lineno = node.lineno,
-                col_offset = node.col_offset
-            )
-            node.attr = "__init__"
-            return node.value.value
 
 
 class JuliaImportNameRewriter(ast.NodeTransformer):
@@ -191,7 +141,7 @@ class JuliaImportNameRewriter(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name) -> Any:
         if node.id in self._names:
             attr_node = ast.Attribute(
-                value = ast.Name(id=self._names[node.id]),
+                value = ast.Name(id=self._names[node.id], lineno = node.lineno),
                 attr = node.id,
                 ctx = ast.Load(),
                 scopes = node.scopes,
@@ -199,6 +149,38 @@ class JuliaImportNameRewriter(ast.NodeTransformer):
             ast.fix_missing_locations(attr_node)
             return attr_node
         return node
+    
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        # Rewrite module calls to calls to __init__
+        func_repr = get_id(node)
+        split_repr = func_repr.split(".") if func_repr else []
+        if split_repr and is_dir(".".join(split_repr), self._basedir):
+            self._insert_init(node)
+            return node
+
+        # Bypass imports
+        for i in range(1,len(split_repr)):
+            if is_dir('.'.join(split_repr[:i]), self._basedir):
+                return node
+        return node
+
+    def _insert_init(self, node: ast.Attribute):
+        if isinstance(node.value, ast.Attribute):
+            self._insert_init(node.value)
+        else:
+            # Avoid referencing the same object (TODO: Is this necessary?)
+            value = copy.deepcopy(node.value)
+            node.value = ast.Attribute(
+                value = value,
+                attr = node.attr,
+                ctx = ast.Load(),
+                scopes = node.scopes,
+                no_rewrite = True,
+                lineno = node.lineno,
+                col_offset = node.col_offset,
+            )
+            node.attr = "__init__"
+            return node.value.value
 
 class JuliaAugAssignRewriter(ast.NodeTransformer):
     """Rewrites augmented assignments into compatible 
@@ -369,7 +351,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             is_channels = CHANNELS in node.parsed_decorators
             if is_resumable and is_channels:
                 raise AstUnsupportedOperation(  
-                    "Function cannot have both @resumable and @channels decorators", 
+                    "Function cannot have both  and @channels decorators", 
                     node)
             elif self._use_resumables and RESUMABLE not in node.parsed_decorators:
                 node.parsed_decorators[RESUMABLE] = None
@@ -986,16 +968,18 @@ class JuliaMainRewriter(ast.NodeTransformer):
                 and isinstance(node.test.ops[0], ast.Eq)
                 and isinstance(node.test.comparators[0], ast.Constant)
                 and node.test.comparators[0].value == "__main__")
+        node.is_python_main = is_main
         if is_main:
             node.python_main = is_main
             node.test.left = ast.Call(
-                func = ast.Name(id="abspath"),
+                func = ast.Name(id="abspath", preserve_keyword=True),
                 args = [ast.Name(id="PROGRAM_FILE")],
                 keywords = [],
                 scopes = node.test.left.scopes,
                 lineno = node.test.left.lineno,
                 col_offset = node.test.left.col_offset)
             node.test.comparators[0] = ast.Name(id="@__FILE__")
+            ast.fix_missing_locations(node.test)
         return node
 
 class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
@@ -1200,7 +1184,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
         if hasattr(node, OBJECT_ORIENTED):
             visitor = JuliaClassOOPRewriter()
         else:
-            visitor = JuliaClassCompositionRewriter()
+            visitor = JuliaClassSubtypingRewriter()
         node = visitor.visit(node)
         body = []
         for n in node.body:
@@ -1219,7 +1203,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
             args = ast.arguments(
                 args = [
                     ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
-                    ast.arg(arg = "property", annotation = ast.Name(id="Any"))],
+                    ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))],
                 defaults = []
             ),
             body = [
@@ -1275,6 +1259,13 @@ class JuliaClassWrapper(ast.NodeTransformer):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
+        ann = ast.Subscript(
+            value = ast.Name(id="Dict"),
+            slice = ast.Tuple(
+                elts=[ast.Name(id="Symbol"), ast.Name(id="Any")],
+                is_annotation = True),
+            is_annotation = True,
+        )
         if self._has_dict:
             body = []
             assign = ast.AnnAssign(
@@ -1283,12 +1274,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
                     attr = "__dict__", 
                     ctx = ast.Load(),
                     scopes = node.scopes),
-                value = ast.Dict(keys=[], values=[]),
-                annotation = ast.Subscript(
-                    value = ast.Name(id="Dict"),
-                    slice = ast.Tuple(
-                        elts=[ast.Name(id="Any"), ast.Name(id="Any")])
-                    )
+                value = ast.Dict(keys=[], values=[], annotation=ann),
+                annotation = ann
                 )
             if isinstance(node.body[0], ast.FunctionDef):
                 if node.body[0].name != "__init__":
@@ -1346,7 +1333,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
                 node.value.attr == "__dict__":
             # Wrap __dict__ values into Julia Symbols
             node.slice = ast.Call(
-                func=ast.Name(id="Any"),
+                func=ast.Name(id="Symbol"),
                 args = [node.slice], 
                 keywords=[],
                 scopes = getattr(node, "scopes", None))
@@ -1398,8 +1385,15 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
             self._is_oop = False
         return node
 
-class JuliaClassCompositionRewriter(ast.NodeTransformer):
-    """Simple Rewriter that transforms Python classes using Julia's composition"""
+class JuliaClassSubtypingRewriter(ast.NodeTransformer):
+    """Simple Rewriter that transforms Python classes using Julia's subtyping"""
+
+    IGNORE_EXTENDS_SET = set([
+        "IntEnum",
+        "IntFlag",
+        "Enum",
+        "Object",
+    ])
 
     def __init__(self) -> None:
         super().__init__()
@@ -1423,21 +1417,18 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
         # Create abstract types
         abstract_types = []
         l_no = node.import_cnt
-        for class_name, extends_lst in self._hierarchy_map.items():
+        for class_name, extends in self._hierarchy_map.items():
             nameVal = ast.Name(id=class_name)
             extends = None
-            if extends_lst:
-                core_module = extends_lst[0].split(
-                    ".")[0] if extends_lst[0] else None
-                # TODO: Investigate Julia traits
-                if extends_lst and core_module not in self._ignored_module_set:
-                    extends_name = f"Abstract{extends_lst[0]}" \
-                        if extends_lst[0] in self._hierarchy_map \
-                        else extends_lst[0]
-                    extends = ast.Name(id=f"{extends_name}") 
-            abstract_types.append(
-                juliaAst.AbstractType(value=nameVal, extends = extends,
-                                        ctx=ast.Load(), lineno=l_no, col_offset=0))
+            core_module = extends.split(
+                ".")[0] if extends else None
+            if extends and core_module not in self._ignored_module_set:
+                extends_name = f"Abstract{extends}" \
+                    if extends in self._hierarchy_map \
+                    else extends
+                extends = ast.Name(id=f"{extends_name}")
+            abstract_types.append(juliaAst.AbstractType(value=nameVal, extends = extends,
+                                    ctx=ast.Load(), lineno=l_no, col_offset=0))
             # increment linenumber
             l_no += 1
 
@@ -1452,9 +1443,9 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
 
-        # Don't parse Enums
-        base_ids = list(map(get_id, node.bases))
-        if "Enum" in base_ids:
+        # Certain classes do not need a hierarchy
+        base_ids = set(map(get_id, node.bases))
+        if base_ids.intersection(self.IGNORE_EXTENDS_SET):
             return node
 
         class_name: str = get_id(node)
@@ -1464,19 +1455,14 @@ class JuliaClassCompositionRewriter(ast.NodeTransformer):
             node.jl_bases = node.bases
             return node
 
-        extends = []
+        extends = None
         # Change bases to support Abstract Types
-        if not node.bases or len(node.bases) == 0:
-            node.jl_bases = [
-                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-        elif len(node.bases) == 1:
+        node.jl_bases = [
+            ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
+        if len(node.bases) == 1:
             name = get_id(node.bases[0])
-            node.jl_bases = [
-                ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
-            # Julia does not have base-class object 
-            if name != "object":
-                extends = [name]
-        else:
+            extends = name
+        elif len(node.bases) > 1:
             raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
 
         self._hierarchy_map[class_name] = extends
@@ -1569,6 +1555,7 @@ class VariableScopeRewriter(ast.NodeTransformer):
                 col_offset = node.col_offset,
                 scopes = node.scopes)
             node.target.id = new_loop_id
+            ast.fix_missing_locations(new_var_assign)
             node.body.insert(0, new_var_assign)
             # We provide int as an annotation, as we are 
             # dealing with a for loop with a call to range 
@@ -1589,7 +1576,9 @@ class VariableScopeRewriter(ast.NodeTransformer):
             _, ann = self._variables_out_of_scope[id]
             target_default = get_default_val(node, opt_ann) \
                 if opt_ann else get_default_val(node, ann)
-            self._target_vals.append((ast.Name(id=id), target_default))
+            target_val = ast.Name(id=id)
+            ast.fix_missing_locations(target_val)
+            self._target_vals.append((target_val, target_default))
             self._variables_out_of_scope.pop(id)
 
 
@@ -1692,6 +1681,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
                     col_offset = node.col_offset,
                     scopes = node.scopes # TODO: Remove the return statement form scopes
                 )
+            ast.fix_missing_locations(assign)
             let_assignments.append(assign)
         
         # Construct new body
@@ -1846,7 +1836,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
 
     def _build_offset_array_call(self, list_arg, annotation, lineno, col_offset, scopes):
         return ast.Call(
-            func = ast.Name(id="OffsetArray"),
+            func = ast.Name(id="OffsetArray", lineno=lineno, col_offset=col_offset),
             args = [list_arg, ast.Constant(value=-1, scopes=scopes)],
             keywords = [],
             annotation = annotation,
@@ -1859,7 +1849,7 @@ class JuliaOffsetArrayRewriter(ast.NodeTransformer):
         arg_id = get_id(node)
         new_annotation = getattr(self._current_scope.find(arg_id), "annotation", None)
         return ast.Call(
-            func=ast.Name(id = "parent"),
+            func=ast.Name(id = "parent", lineno = lineno, col_offset = col_offset),
             args = [node],
             keywords = [],
             annotation = new_annotation,
@@ -1884,6 +1874,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
                 lineno = 0,
                 col_offset = 0
             )
+            ast.fix_missing_locations(julia_module)
 
             # Populate remaining fields
             copy_attributes(node, julia_module)
@@ -2025,7 +2016,8 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                         if hasattr(arg, "annotation"):
                             if (id := get_id(arg.annotation)) in self.CTYPES_CONVERSION_MAP:
                                 converted_type = self.CTYPES_CONVERSION_MAP[id]
-                                argtypes_lst.append(ast.Name(id=converted_type))
+                                argtypes_lst.append(ast.Name(id=converted_type, 
+                                    lineno=node.lineno, col_offset=node.col_offset))
                                 arg.is_annotation = True
                             else:
                                 argtypes_lst.append(arg.annotation)
@@ -2040,7 +2032,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                             argtypes_lst.append(arg.args[1])
                         else:
                             argtypes_lst.append(ast.Name(
-                                id="ctypes.c_void_p", is_annotation = True))
+                                id="ctypes.c_void_p", 
+                                is_annotation = True,
+                                lineno=node.lineno,
+                                col_offset=node.col_offset))
 
                     argtypes = ast.Tuple(elts = argtypes_lst)
                     

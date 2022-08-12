@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
-from pyjl.global_vars import FIX_SCOPE_BOUNDS, LOOP_SCOPE_WARNING, SEP
+from pyjl.global_vars import FIX_SCOPE_BOUNDS, LOOP_SCOPE_WARNING
 
 logger = logging.Logger("pyjl")
 

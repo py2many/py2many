@@ -14,6 +14,7 @@ LOOP_SCOPE_WARNING = "loop_scope_warning"
 OBJECT_ORIENTED = "oop"
 OOP_NESTED_FUNCS = "oop_nested_funcs"
 USE_GLOBAL_CONSTANTS = "use_global_constants"
+ALLOW_ANNOTATIONS_ON_GLOBALS = "allow_annotations_on_globals"
 
 # Decorators and Flags
 REMOVE_NESTED = "remove_nested"

@@ -15,7 +15,7 @@ from py2many.tracer import find_node_by_type
 from pycpp.plugins import DISPATCH_MAP
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
-from pyjl.global_vars import GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
+from pyjl.global_vars import ALLOW_ANNOTATIONS_ON_GLOBALS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 
 from numbers import Complex, Integral, Rational, Real
@@ -102,6 +102,7 @@ JL_IGNORED_MODULE_SET = set([
     "io",
     "random",
     "tempfile",
+    "toposort",
 ])
 
 JULIA_TYPE_MAP = {
@@ -143,7 +144,7 @@ CONTAINER_TYPE_MAP = {
     frozenset: "pset",
     Tuple: "Tuple",
     tuple: "Tuple",
-    bytearray: f"Vector{{Int8}}",
+    bytearray: f"Vector{{UInt8}}",
 }
 
 def jl_symbol(node):
@@ -172,6 +173,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._flags = None
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
         self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE
+        self._allow_annotations_on_globals = False
         # Get external module features
         self.import_external_modules(self.NAME)
 
@@ -195,6 +197,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._use_modules = getattr(node, USE_MODULES, None)
         self._flags = [f"# - {flag}" for flag in GLOBAL_FLAGS 
             if getattr(node, flag, False)]
+        self._allow_annotations_on_globals = \
+            getattr(node, ALLOW_ANNOTATIONS_ON_GLOBALS, False)
         return super().visit_Module(node)
 
     def visit_Name(self, node) -> str:
@@ -333,7 +337,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
         elif isinstance(node, ast.Constant):
-            return self._map_type(node.value)
+            if node.value in JULIA_TYPE_MAP:
+                return self._map_type(node.value)
         elif isinstance(node, ast.Tuple) \
                 or isinstance(node, ast.List):
             elts = list(map(
@@ -378,34 +383,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                     (id := get_id(node.args[0].func)):
                 var = id
 
-            # Self argument type lookup
-            class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
-            if class_node:
-                for base in class_node.bases:
-                    base_str = get_ann_repr(base, sep = SEP)
-                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
-                    if dispatch_func:
-                        return dispatch_func
-
-            # Account for JuliaMethodCallRewriter
-            annotation = None
-            if ann := getattr(node, "annotation", None):
-                annotation = ann
-            elif ann := getattr(node.args[0], "annotation", None):
-                annotation = ann
-            elif not annotation and (v := node.scopes.find(var)):
-                annotation = getattr(v, "annotation", None)
-
-
-            if ann := self._generic_typename_from_type_node(annotation):    
-                if isinstance(ann, list):
-                    ann = ann[0]
-                # Get main type
-                ann: str = re.split(r"\[|\]", ann)[0]
-                dispatch_func = self._get_dispatch_func(node, ann, fname, vargs)
-                if dispatch_func:
-                    return dispatch_func
-
             dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:])
             if dispatch_func:
                 return dispatch_func
@@ -415,7 +392,37 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 dispatch = super()._dispatch(node, f"{var}.{fname}", vargs[1:])
                 if dispatch:
                     return dispatch
+
+            # Self argument type lookup
+            class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
+            if class_node:
+                for base in class_node.bases:
+                    base_str = get_ann_repr(base, sep = SEP)
+                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
+                    if dispatch_func:
+                        return dispatch_func
+
+            # Dispatch based on annotations
+            annotation = None
+            if ann := getattr(node, "annotation", None):
+                annotation = ann
+            elif ann := getattr(node.args[0], "annotation", None):
+                annotation = ann
+            elif not annotation and (v := node.scopes.find(var)):
+                annotation = getattr(v, "annotation", None)
+
+            if ann := self._generic_typename_from_type_node(annotation):    
+                if isinstance(ann, list):
+                    ann = ann[0]
+                # Get main type
+                ann: str = re.split(r"\[|\]", ann)[0]
+                if dispatch_func := self._get_dispatch_func(node, ann, fname, vargs):
+                    return dispatch_func
+                elif dispatch_func := super()._dispatch(node, f"{ann}.{fname}", vargs):
+                    return dispatch_func
+
         if hasattr(node, "orig_name"):
+            # Special attribute used for dispatching
             return super()._dispatch(node, node.orig_name, vargs)
         return super()._dispatch(node, fname, vargs)
 
