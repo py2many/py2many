@@ -678,13 +678,9 @@ class JuliaTranspiler(CLikeTranspiler):
                     val = f'"{value}"'
             fields.append(f"{field} {sep} {val}")
         field_str = "\n".join(fields)
-
-        if("unique" in node.parsed_decorators or typename in self._julia_integer_types):
-            return f"@enum {node.name} begin\n{field_str}\nend"
-        else:
-            # Cover case where values are not unique and not strings
-            self._usings.add("SuperEnum")
-            return f"@se {node.name} begin\n{field_str}\nend"
+        # Use SuperEnum to translate
+        self._usings.add("SuperEnum")
+        return f"@se {node.name} begin\n{field_str}\nend\n"
 
     def _import(self, name: str, alias: str) -> str:
         '''Formatting Julia Imports'''
