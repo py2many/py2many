@@ -1011,7 +1011,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported
-        return f"# Unsupported\n@yield_from {self.visit(node.value)}"
+        return f"# Unsupported\n# yield_from {self.visit(node.value)}"
 
     def visit_Print(self, node) -> str:
         buf = []

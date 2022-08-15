@@ -404,12 +404,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
             # Dispatch based on annotations
             annotation = None
-            if ann := getattr(node, "annotation", None):
-                annotation = ann
-            elif ann := getattr(node.args[0], "annotation", None):
+            if ann := getattr(node.args[0], "annotation", None):
                 annotation = ann
             elif not annotation and (v := node.scopes.find(var)):
                 annotation = getattr(v, "annotation", None)
+            elif ann := getattr(node, "annotation", None):
+                annotation = ann
 
             if ann := self._generic_typename_from_type_node(annotation):    
                 if isinstance(ann, list):

@@ -152,6 +152,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         math.sqrt: lambda self, node, vargs: "float",
         range: lambda self, node, vargs: "int",
         str.encode: lambda self, node, vargs: "bytes",
+        str.format: lambda self, node, vargs: "str",
         bytes.translate: lambda self, node, vargs: "bytes",
         bytearray.translate: lambda self, node, vargs: "bytearray",
         argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",

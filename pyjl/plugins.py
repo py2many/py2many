@@ -407,7 +407,7 @@ class JuliaTranspilerPlugins:
             if arg_typename.startswith("String"):
                 return f"parse(Float64, {vargs[0]})"
             else:
-                return f"Float64({vargs[0]})"
+                return f"float({vargs[0]})"
         return f"zero(Float64)"  # Default float value
 
     # Math
@@ -662,13 +662,12 @@ class JuliaTranspilerPlugins:
             return f"$({self.visit(node)})"
 
     def visit_write(self, node, vargs: list[str]):
-        if not vargs:
-            # TODO: Is there a better way to name the variable?
+        if not vargs or getattr(node, "is_attr", False):
             return f"x -> write(stdout, x)"
         return f"write(stdout, {vargs[0]})"
 
     def visit_flush(self, node, vargs: list[str]):
-        if not vargs:
+        if not vargs or getattr(node, "is_attr", False):
             return f"flush(stdout)"
         return f"flush({vargs[0]})"
 
@@ -1099,6 +1098,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # sys special calls
     sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})" if vargs else "exit()", True),
     sys.maxsize: (lambda self, node, vargs: "typemax(Int)", True),
+    str.encode: (JuliaTranspilerPlugins.visit_encode, True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
 }
