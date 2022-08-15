@@ -13,6 +13,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
+from py2many.scope import ScopeList
 from py2many.tracer import find_in_body, find_node_by_type, find_parent, is_enum
 
 try:
@@ -444,6 +445,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             else:
                 return node
 
+
         for target in node.targets:
             target_has_annotation = hasattr(target, "annotation")
             inferred = (
@@ -859,3 +861,56 @@ class InferTypesTransformer(ast.NodeTransformer):
             self._annotate(node, gen_types.pop())
         self.generic_visit(node)
         self._comp_annotations = {}
+
+    def visit_If(self, node: ast.If) -> Any:
+        # Cover Optional types
+        if isinstance(node.test, ast.Name):
+            # If body has the Optional's type, as None is falsy
+            ann = get_inferred_type(node.test)
+            self._visit_val_branch(node, ann, get_id(node.test))
+        elif isinstance(node.test, ast.UnaryOp) and \
+                isinstance(node.test.op, ast.Not):
+            # If body value has None type, as None is falsy
+            ann = get_inferred_type(node.test.operand)
+            self._visit_none_branch(node, ann, get_id(node.test.operand))
+        elif isinstance(node.test, ast.BinOp) and \
+                isinstance(node.test.right, ast.Constant) and \
+                node.test.right.value is None:
+            # Cover comparison with "None" value 
+            ann = get_inferred_type(node.test.left)
+            if isinstance(node.test.op, ast.IsNot) or \
+                    isinstance(node.test.op, ast.NotEq):
+                self._visit_val_branch(node, ann, get_id(node.test.left))
+            elif isinstance(node.test.op, ast.Is) or \
+                    isinstance(node.test.op, ast.Eq):
+                self._visit_none_branch(node, ann, get_id(node.test.left))
+        else:
+            self.generic_visit(node)
+        return node
+
+    def _visit_val_branch(self, node: ast.If, ann, ann_node_id):
+        if self._is_optional(ann):
+            self.visit(node.test)
+            ann_node = node.scopes.find(ann_node_id)
+            ann_node.annotation = ann.slice
+            for n in node.body:
+                self.visit(n)
+            ann_node.annotation = ast.Name(id="None")
+            for n in node.orelse:
+                self.visit(n)
+
+    def _visit_none_branch(self, node: ast.If, ann, ann_node_id):
+        if self._is_optional(ann):
+            self.visit(node.test)
+            ann_node = node.scopes.find(ann_node_id)
+            ann_node.annotation = ast.Name(id="None")
+            for n in node.body:
+                self.visit(n)
+            ann_node.annotation = ann.slice
+            for n in node.orelse:
+                self.visit(n)
+
+    def _is_optional(self, annotation):
+        is_optional = lambda x: get_id(x) == "Optional"
+        return isinstance(annotation, ast.Subscript) and \
+                is_optional(annotation.value)
