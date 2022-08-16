@@ -107,7 +107,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Name(self, node: ast.Name) -> str:
         node_id = node.id
-        if node_id in self._julia_function_names and \
+        if hasattr(node, "lineno") and \
+                hasattr(node, "scopes") and \
+                node_id in self._julia_function_names and \
                 not getattr(node, "preserve_keyword", False) and \
                 node.scopes.find(node_id) and \
                 not isinstance(node.scopes.find(node_id), (ast.FunctionDef, ast.ClassDef)) and \
@@ -266,7 +268,6 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
-        node.value.preserve_keyword = True
         value_id = self.visit(node.value)
 
         if (dispatch := getattr(node, "dispatch", None)) and \
@@ -804,9 +805,17 @@ class JuliaTranspiler(CLikeTranspiler):
             else:
                 if isinstance(value, ast.Dict):
                     kv_pairs.append(f"{self.visit(value)}...")
-        
         kv_pairs = ", ".join(kv_pairs)
-        maybe_ann = f"{{{node.container_type[1]}}}" if hasattr(node, "container_type") else ""
+
+        # Get the annotation
+        maybe_ann = ""
+        if hasattr(node, "annotation") and \
+                isinstance(node.annotation, ast.Subscript):
+            maybe_ann = f"{{{self.visit(node.annotation.slice)}}}"
+        if not maybe_ann and \
+                hasattr(node, "container_type"):
+            maybe_ann = f"{{{node.container_type[1]}}}"
+
         return f"Dict{maybe_ann}({kv_pairs})"
 
     def visit_Subscript(self, node) -> str:

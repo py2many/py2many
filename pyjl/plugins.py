@@ -891,7 +891,22 @@ class SpecialFunctionsPlugins():
         body = [docstring_parsed] if docstring_parsed else []
         body.extend([self.visit(n) for n in node.body])
         body = "\n".join(body)
-        return f"""function Base.getproperty({node.parsed_args})
+        # Parse arguments
+        args: list[str] = node.parsed_args.split(", ")
+        self_arg = args[0].split("::")
+        if len(self_arg) == 2:
+            self_arg[1] = self_arg[1].removeprefix("Abstract")
+            args[0] = "::".join(self_arg)
+        property_arg = args[1].split("::")
+        property_arg_name = property_arg[0]
+        if len(property_arg) == 1:
+            args[1] = f"{args[1]}::Symbol"
+        parsed_args = ", ".join(args)
+        
+        return f"""function Base.getproperty({parsed_args})
+                if hasproperty(self, Symbol({property_arg_name}))
+                    return Base.getfield(self, Symbol({property_arg_name}))
+                end
                 {body}
             end"""
 
@@ -1099,6 +1114,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.exit: (lambda self, node, vargs: f"exit({vargs[0]})" if vargs else "exit()", True),
     sys.maxsize: (lambda self, node, vargs: "typemax(Int)", True),
     str.encode: (JuliaTranspilerPlugins.visit_encode, True),
+    sys.executable: (lambda self, node, vargs: "Base.julia_exename()", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
 }

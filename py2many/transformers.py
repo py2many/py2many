@@ -1,6 +1,7 @@
 import ast
 
 from py2many.ast_helpers import get_id
+from .scope import ScopeList
 
 
 def add_annotation_flags(node):
@@ -204,5 +205,7 @@ class CorrectNodeAttributes(ast.NodeTransformer):
 
     def visit(self, node: ast.AST):
         node = self.generic_visit(node)
+        if not hasattr(node, "scopes"):
+            node.scopes = ScopeList()
         ast.fix_missing_locations(node)
         return node

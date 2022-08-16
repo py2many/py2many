@@ -1181,6 +1181,8 @@ class JuliaClassWrapper(ast.NodeTransformer):
         self._has_getfield = False
 
     def visit_Module(self, node: ast.Module) -> Any:
+        self._has_dict = False
+        self._has_getfield = False
         if hasattr(node, OBJECT_ORIENTED):
             visitor = JuliaClassOOPRewriter()
         else:
@@ -1202,7 +1204,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
             name = "Base.getproperty", # Hack to set the correct name
             args = ast.arguments(
                 args = [
-                    ast.arg(arg = "obj", annotation = ast.Name(id=class_node.name)),
+                    ast.arg(arg = "self", annotation = ast.Name(id=class_node.name)),
                     ast.arg(arg = "property", annotation = ast.Name(id="Symbol"))],
                 defaults = []
             ),
@@ -1215,7 +1217,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
                                 attr = "getattribute", 
                                 ctx = ast.Load(),
                                 scopes = scopes),
-                            args=[ast.Name(id="obj"), juliaAst.Symbol(id="__init__")],
+                            args=[ast.Name(id="self"), juliaAst.Symbol(id="__init__")],
                             keywords = [],
                             no_rewrite=True,
                             scopes = scopes
@@ -1244,7 +1246,7 @@ class JuliaClassWrapper(ast.NodeTransformer):
                                 attr = "getfield", 
                                 ctx = ast.Load(),
                                 scopes = scopes),
-                            args=[ast.Name(id="obj"), ast.Name(id="property")],
+                            args=[ast.Name(id="self"), ast.Name(id="property")],
                             keywords = [],
                             no_rewrite=True,
                             scopes = scopes)

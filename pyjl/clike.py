@@ -12,9 +12,8 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_ty
 from py2many.external_modules import ExternalBase
 from py2many.helpers import get_ann_repr
 from py2many.tracer import find_node_by_type
-from pycpp.plugins import DISPATCH_MAP
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP
+from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP, DISPATCH_MAP
 from pyjl.global_vars import ALLOW_ANNOTATIONS_ON_GLOBALS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
 from pyjl.global_vars import DEFAULT_TYPE
 
