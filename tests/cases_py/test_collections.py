@@ -1481,7 +1481,6 @@ class TestOneTrickPonyABCs(ABCTestCase):
 
         self.assertNotIsInstance(NextOnly(), Iterator)
 
-    (remove_nested=True)
     def test_Generator(self):
         class NonGen1:
             def __iter__(self):
@@ -1563,7 +1562,6 @@ class TestOneTrickPonyABCs(ABCTestCase):
             def throw(self, typ, val=None, tb=None):
                 super().throw(typ, val, tb)
 
-        (remove_nested=True)
         def gen():
             yield 1
 

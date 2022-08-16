@@ -91,7 +91,6 @@ class ContextManagerTestCase(unittest.TestCase):
 
     def test_contextmanager_no_reraise(self):
         @contextmanager
-        s
         def whee():
             yield
 

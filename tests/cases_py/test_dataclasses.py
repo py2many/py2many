@@ -108,7 +108,7 @@ class TestCase(unittest.TestCase):
             @dataclass
             class C:
                 x: int = 0
-                y: int
+                y: int = 0
 
         # A derived class adds a non-default field after a default one.
         with self.assertRaisesRegex(
@@ -121,7 +121,7 @@ class TestCase(unittest.TestCase):
 
             @dataclass
             class C(B):
-                y: int
+                y: int = 0
 
         # Override a base class field and add a default to
         #  a field which didn't use to have a default.
@@ -1236,7 +1236,7 @@ class TestCase(unittest.TestCase):
             repr(InitVar[List[int]]), "dataclasses.InitVar[typing.List[int]]"
         )
         self.assertEqual(repr(InitVar[list[int]]), "dataclasses.InitVar[list[int]]")
-        self.assertEqual(repr(InitVar[int | str]), "dataclasses.InitVar[int | str]")
+        # self.assertEqual(repr(InitVar[int | str]), "dataclasses.InitVar[int | str]") # Python 3.10
 
     def test_init_var_inheritance(self):
         # Note that this deliberately tests that a dataclass need not
@@ -2242,7 +2242,7 @@ class TestDocString(unittest.TestCase):
     def test_docstring_one_field_with_default_none(self):
         @dataclass
         class C:
-            x: Union[int, type(None)] = None
+            x: Union[int, None] = None
 
         self.assertDocStrEqual(C.__doc__, "C(x:Optional[int]=None)")
 
@@ -4240,10 +4240,10 @@ class TestKeywordArgs(unittest.TestCase):
         @dataclass
         class A:
             a: int = 0
-            _: KW_ONLY
-            b: int
+            _: KW_ONLY = 0
+            b: int = 0
             c: int = 1
-            d: int
+            d: int = 0
 
         a = A(d=4, b=3)
         self.assertEqual(a.a, 0)
@@ -4259,11 +4259,11 @@ class TestKeywordArgs(unittest.TestCase):
             @dataclass
             class A:
                 a: int = 0
-                z: int
-                _: KW_ONLY
-                b: int
+                z: int = 0
+                _: KW_ONLY = 0
+                b: int = 0
                 c: int = 1
-                d: int
+                d: int = 0
 
     def test_make_dataclass(self):
         A = make_dataclass("A", ["a"], kw_only=True)

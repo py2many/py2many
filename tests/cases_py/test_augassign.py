@@ -72,7 +72,6 @@ class AugAssignTest(unittest.TestCase):
 
     # TODO: Support Python custom methods
     def testCustomMethods1(self):
-        @remove_nested
         class aug_test:
             def __init__(self, value):
                 self.val = value
@@ -83,18 +82,15 @@ class AugAssignTest(unittest.TestCase):
             def __add__(self, val):
                 return aug_test(self.val + val)
 
-        @remove_nested
         class aug_test2(aug_test):
             def __iadd__(self, val):
                 self.val = self.val + val
                 return self
 
-        @remove_nested
         class aug_test3(aug_test):
             def __iadd__(self, val):
                 return aug_test3(self.val + val)
 
-        @remove_nested
         class aug_test4(aug_test3):
             """Blocks inheritance, and fallback to __add__"""
 
@@ -132,7 +128,6 @@ class AugAssignTest(unittest.TestCase):
         # output was moved to global scope
         # output = []
 
-        @remove_nested
         class testall:
             def __add__(self, val):
                 output.append("__add__ called")
