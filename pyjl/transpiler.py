@@ -651,6 +651,8 @@ class JuliaTranspiler(CLikeTranspiler):
             )
         constructor.body = assigns
         constructor.scopes = node.scopes
+        constructor.parsed_decorators = {}
+        constructor.decorator_list = []
         ast.fix_missing_locations(constructor)
         return constructor
 
@@ -1089,7 +1091,10 @@ class JuliaTranspiler(CLikeTranspiler):
             if isinstance(value, ast.Constant):
                 str_repr.append(self.visit_Constant(value, quotes=False))
             elif isinstance(value, ast.FormattedValue):
-                str_repr.append(f"$({self.visit(value)})")
+                val_str = self.visit(value)
+                if re.match(r"^'.*'$", val_str):
+                    val_str = val_str[1:-1]
+                str_repr.append(f"$({val_str})")
             else:
                 str_repr.append(self.visit(value))
         return f"\"{''.join(str_repr)}\""

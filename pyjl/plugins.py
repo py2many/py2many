@@ -17,7 +17,6 @@ import re
 import sys
 import traceback
 import bisect
-from py2many.declaration_extractor import DeclarationExtractor
 
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.scope import ScopeList
@@ -25,7 +24,7 @@ from pyjl.global_vars import RESUMABLE
 from pyjl.helpers import get_func_def
 
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, Generator, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
@@ -289,8 +288,12 @@ class JuliaTranspilerPlugins:
 
     def visit_resumables(self, node, decorator):
         # node.scopes[-2] because node.scopes[-1] is the current function
-        parent = node.scopes[-2]
+        scopes = getattr(node, "scopes", None)
+        parent = None
+        if scopes and len(scopes) >= 2:
+            parent = node.scopes[-2]
         if isinstance(parent, ast.FunctionDef):
+            print(scopes)
             raise AstUnsupportedOperation(
                 "Cannot use resumable functions when function is nested", node)
 
@@ -834,7 +837,7 @@ class SpecialFunctionsPlugins():
             scopes = getattr(value, "scopes", None)
             if scopes and isinstance(scopes[-1], ast.ClassDef):
                 arg_node = ast.arg(arg = name)
-                if typename := self.visit(getattr(value, "annotation", None)):
+                if typename := getattr(value, "annotation", None):
                     arg_node.annotation = typename
                 node.args.args.append(arg_node)
                 node.args.defaults.append(value)
@@ -855,6 +858,8 @@ class SpecialFunctionsPlugins():
                 name = "new",
                 args = node.args,
                 body = constructor_body,
+                parsed_decorators = {},
+                decorator_list = [],
             )
         else:
             struct_name = get_id(class_node)

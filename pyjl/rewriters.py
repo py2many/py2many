@@ -16,7 +16,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 
@@ -1047,24 +1047,26 @@ class JuliaNestingRemoval(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self._remove_nested = False
+        self._remove_nested_resumables = False
         self._nested_classes = []
         self._nested_generators = []
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._remove_nested = getattr(node, REMOVE_NESTED, False)
+        self._remove_nested_resumables = getattr(node, REMOVE_NESTED_RESUMABLES, False)
         body = []
         # Add nested classes and generator functions to top scope
         for n in node.body:
             b_node = self.visit(n)
             if self._nested_generators:
                 for nested in self._nested_generators:
-                    nested.scopes = getattr(node, "scopes", nested.scopes)
+                    nested.scopes = getattr(node, "scopes", ScopeList())
                     body.append(self.visit(nested))
                 self._nested_generators = []
             if self._nested_classes:
                 # Add nested classes to top scope                 
                 for cls in self._nested_classes:
-                    cls.scopes = getattr(node, "scopes", cls.scopes)
+                    cls.scopes = getattr(node, "scopes", ScopeList())
                     body.append(self.visit(cls))
                 self._nested_classes = []
             body.append(b_node)
@@ -1077,18 +1079,24 @@ class JuliaNestingRemoval(ast.NodeTransformer):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         is_resumable = lambda x: RESUMABLE in x.parsed_decorators
 
+        body = []
         for n in node.body:
-            if isinstance(n, ast.FunctionDef) and is_resumable(n):
-                resumable = n.parsed_decorators[RESUMABLE]
-                if (resumable and REMOVE_NESTED in resumable \
-                        and resumable[REMOVE_NESTED]) or \
-                        self._remove_nested:
+            if isinstance(n, ast.FunctionDef):
+                if self._remove_nested_resumables:
                     self._nested_generators.append(n)
-                    continue
-            if isinstance(n, ast.ClassDef) and \
+                elif is_resumable(n):
+                    resumable_dec = n.parsed_decorators[RESUMABLE]
+                    if resumable_dec and \
+                            REMOVE_NESTED in resumable_dec \
+                            and resumable_dec[REMOVE_NESTED]:
+                        self._nested_generators.append(n)
+            elif isinstance(n, ast.ClassDef) and \
                     (REMOVE_NESTED in n.parsed_decorators or
                     self._remove_nested):
                 self._nested_classes.append(n)
+            else:
+                body.append(n)
+        node.body = body
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:

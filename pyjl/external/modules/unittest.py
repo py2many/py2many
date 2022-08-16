@@ -15,7 +15,7 @@ class JuliaExternalModulePlugins:
 
     def visit_assertEqual(t_self, node, vargs):
         JuliaExternalModulePlugins._generic_test_visit(t_self)
-        arg = t_self.visit(ast.Name(id=vargs[2]))
+        arg = t_self.visit(ast.Name(id=vargs[2], preserve_keyword=True))
         return f"@test ({vargs[1]} == {arg})"
 
     def visit_assertRaises(t_self, node, vargs):

@@ -15,6 +15,7 @@ OBJECT_ORIENTED = "oop"
 OOP_NESTED_FUNCS = "oop_nested_funcs"
 USE_GLOBAL_CONSTANTS = "use_global_constants"
 ALLOW_ANNOTATIONS_ON_GLOBALS = "allow_annotations_on_globals"
+REMOVE_NESTED_RESUMABLES = "remove_nested_resumables"
 
 # Decorators and Flags
 REMOVE_NESTED = "remove_nested"
