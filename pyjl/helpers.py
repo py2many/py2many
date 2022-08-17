@@ -150,11 +150,15 @@ def _parse_path(import_name: str, basedir) -> str:
 
 def is_file(path: str, basedir, extension="py"):
     """Takes a dot separated file path"""
+    if not path or not basedir:
+        return False
     maybe_path = _parse_path(path, basedir)
     return os.path.isfile(f"{maybe_path}.{extension}")
 
 def is_dir(path: str, basedir):
     """Takes a dot separated directory path"""
+    if not path or not basedir:
+        return False
     maybe_path = _parse_path(path, basedir)
     return os.path.isdir(maybe_path)
 

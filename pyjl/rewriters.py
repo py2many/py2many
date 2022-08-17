@@ -120,7 +120,7 @@ class JuliaImportNameRewriter(ast.NodeTransformer):
         return node
     
     def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-        if not node.module:
+        if not node.module or not self._basedir:
             return node
         mod_name = node.module.split(".")[-1]
         is_dir_or_path = is_dir(f"{node.module}", self._basedir) or \
@@ -1883,6 +1883,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
                 lineno = 0,
                 col_offset = 0,
                 vars = getattr(node, "vars", None),
+                __basedir__ = getattr(node, "__basedir__", None)
             )
             ast.fix_missing_locations(julia_module)
 
@@ -2005,8 +2006,8 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         mod = get_id(node.func).split(".")
         func = node.func
-        if self._use_modules and \
-                isinstance(node.func, ast.Attribute) and \
+        # Handle module calls
+        if isinstance(node.func, ast.Attribute) and \
                 mod[0] in self._imported_names:
             if isinstance(node.func.value, ast.Attribute):
                 func.value = node.func.value.value

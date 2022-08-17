@@ -485,9 +485,7 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[
-            JuliaMainRewriter(),
-            JuliaImportNameRewriter()],
+        rewriters=[JuliaMainRewriter()],
         transformers=[
             parse_decorators,
             analyse_variable_scope,
@@ -509,9 +507,10 @@ def julia_settings(args, env=os.environ):
             JuliaAugAssignRewriter(),
             JuliaConditionRewriter(),
             VariableScopeRewriter(),
-            JuliaModuleRewriter(),
             JuliaIORewriter(),
             JuliaArbitraryPrecisionRewriter(),
+            JuliaImportNameRewriter(), # Moved here, as it influences inference
+            JuliaModuleRewriter(),
         ],
         optimization_rewriters=[
             AlgebraicSimplification(), 
