@@ -54,6 +54,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def __init__(self, trees):
         super().__init__()
+        self._basedir = None
         if len(trees) == 1:
             self._trees = {}
         else:
@@ -104,6 +105,26 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             if hasattr(m, "scopes"):
                 resolved_names = [m.scopes.find(n) for n in names]
                 node.scopes[-1].vars += resolved_names
+        else:
+            mod_path_str = ""
+            if node.module:
+                mod_path = node.module.split(".")
+                base_dir = self._basedir.stem if self._basedir else ""
+                if mod_path[0] == base_dir:
+                    mod_path = mod_path[1:]
+                mod_path_str = ".".join(mod_path)
+            # Names can also be modules
+            for n in names:
+                name = f"{mod_path_str}.{n}"
+                if name in self._trees and \
+                        hasattr((m := self._trees[name]), "scopes"):
+                    # Get all the variables defined in the global scope
+                    node.scopes[-1].vars.extend(m.scopes[-1].vars)
+                elif n in self._trees and \
+                        hasattr((m := self._trees[n]), "scopes"):
+                    # Get all the variables defined in the global scope
+                    node.scopes[-1].vars.extend(m.scopes[-1].vars)
+
         return node
 
     def visit_If(self, node):
@@ -139,6 +160,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Module(self, node):
         node.vars = []
+        self._basedir = getattr(node, "__basedir__", None)
         self.generic_visit(node)
         return node
 

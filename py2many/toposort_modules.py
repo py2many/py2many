@@ -15,14 +15,31 @@ class ImportDependencyVisitor(ast.NodeVisitor):
     def __init__(self, modules):
         self.deps = defaultdict(set)
         self._modules = modules
+        self._basedir = None
 
     def visit_Module(self, node):
         self._current = module_for_path(node.__file__)
+        self._basedir = getattr(node, "__basedir__", None)
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
         if node.module in self._modules:
             self.deps[self._current].add(node.module)
+        # Names can also be modules
+        mod_path_str = ""
+        if node.module:
+            mod_path = node.module.split(".")
+            base_dir = self._basedir.stem if self._basedir else ""
+            if mod_path[0] == base_dir:
+                mod_path = mod_path[1:]
+            mod_path_str = ".".join(mod_path)
+        names = [alias.name for alias in node.names]
+        for name in names:
+            mod_name = f"{mod_path_str}.{name}"
+            if name in self._modules:
+                self.deps[self._current].add(name)
+            elif mod_name in self._modules:
+                self.deps[self._current].add(mod_name)
         self.generic_visit(node)
 
     def visit_Import(self, node):
