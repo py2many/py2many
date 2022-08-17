@@ -1,9 +1,7 @@
 # Gets range from for loop
 import ast
 import os
-from random import Random
 import random
-import re
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr, parse_path

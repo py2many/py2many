@@ -3,7 +3,6 @@ import re
 from typing import Any
 
 from py2many.ast_helpers import get_id
-from py2many.scope import ScopeList
 from pyjl.global_vars import USE_GLOBAL_CONSTANTS
 
 

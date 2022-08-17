@@ -11,7 +11,7 @@ import tempfile
 
 from distutils import spawn
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PosixPath
 from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
@@ -138,7 +138,7 @@ def _transpile(
     settings: LanguageSettings,
     args: Optional[argparse.Namespace] = None,
     _suppress_exceptions=Exception,
-    basedir: str = None,
+    basedir: PosixPath = None,
 ):
     """
     Transpile a single python translation unit (a python script) into

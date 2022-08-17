@@ -1,10 +1,8 @@
 from copyreg import constructor
 from enum import IntFlag
 import ast
-import os
 
 import re
-from xml.etree.ElementInclude import include
 
 from py2many.exceptions import AstUnsupportedOperation
 from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
@@ -22,10 +20,10 @@ from .plugins import (
     SpecialFunctionsPlugins,
 )
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
+from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -788,10 +786,10 @@ class JuliaTranspiler(CLikeTranspiler):
         elts = []
         for e in node.elts:
             e_str = self.visit(e)
-            if hasattr(node, "is_annotation"):
+            if getattr(e, "is_annotation", False):
                 elts.append(self._map_type(e_str))
-                continue
-            elts.append(e_str)
+            else:
+                elts.append(e_str)
         return ", ".join(elts)
 
     def visit_Set(self, node) -> str:
