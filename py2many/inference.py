@@ -36,6 +36,10 @@ def infer_types(node) -> InferMeta:
     return InferMeta(visitor.has_fixed_width_ints)
 
 
+def add_is_annotation(node):
+    return AnnotationVisitor().visit(node)
+
+
 def infer_types_typpete(node) -> InferMeta:
     solver = TypesSolver(node)
     context = Context(node, node.body, solver)
@@ -138,6 +142,40 @@ class FuncTypeDispatch():
             return ast.unparse(node_type.slice)
         return None
 
+class AnnotationVisitor(ast.NodeTransformer):
+    """Add _is_annotation attribute to all annotations"""
+    def __init__(self) -> None:
+        super().__init__()
+        self._is_annotation = False
+
+    def visit(self, node: ast.AST) -> Any:
+        if getattr(node, "annotation", None):
+            node.annotation.is_annotation = True
+            super().visit(node.annotation)
+        super().visit(node)
+        return node
+
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "is_annotation", False):
+            print("here")
+            node.value.is_annotation = True
+            node.slice.is_annotation = True
+        return node
+
+    def visit_List(self, node: ast.List) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "is_annotation", False):
+            for n in node.elts:
+                n.is_annotation = True
+        return node
+    
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "is_annotation", False):
+            for n in node.elts:
+                n.is_annotation = True
+        return node
 
 class InferTypesTransformer(ast.NodeTransformer):
     """

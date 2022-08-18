@@ -26,7 +26,7 @@ from .analysis import add_imports
 
 from .context import add_assignment_context, add_variable_context, add_list_calls
 from .exceptions import AstErrorBase
-from .inference import infer_types, infer_types_typpete
+from .inference import add_is_annotation, infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .transformers import (
     add_annotation_flags,
@@ -129,6 +129,7 @@ def core_transformers(tree, trees, args):
     add_annotation_flags(tree)
     add_imports(tree)
     correct_node_attributes(tree)
+    add_is_annotation(tree)
     return tree
 
 
