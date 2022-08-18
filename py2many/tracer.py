@@ -182,6 +182,11 @@ def find_in_body(body, fn):
             ret = find_in_body(node.body, fn)
             if ret:
                 return ret
+        elif hasattr(node, "handlers"):
+            # Visit exception handlers
+            ret = find_in_body(node.handlers, fn)
+            if ret:
+                return ret
 
     return None
 

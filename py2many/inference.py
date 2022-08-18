@@ -123,8 +123,7 @@ class FuncTypeDispatch():
         return f"({', '.join(ann_ids)})"
 
     def visit_min_max(self, node, vargs):
-        node_type = get_inferred_type(vargs[0])
-        if node_type:
+        if vargs and (node_type := get_inferred_type(vargs[0])):
             return ast.unparse(node_type)
         return None
 
@@ -239,6 +238,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         self._clike = CLikeTranspiler()
         self._imported_names = None
         self._comp_annotations = {}
+        self._has_generators = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = node.imported_names
@@ -252,9 +252,9 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._has_generators = False
         self.generic_visit(node)
-        if find_in_body(node.body, lambda x: 
-                isinstance(x, ast.Yield) or isinstance(x, ast.YieldFrom)):
+        if self._has_generators:
             node.annotation = ast.Name(id="Generator")
 
         if len(node.scopes) > 1:
@@ -262,7 +262,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             if class_type and not hasattr(node, "self_type"):
                 node.self_type = get_id(class_type)
 
-        if isinstance(node.body[-1], ast.Return) and \
+        if len(node.body) > 0 and isinstance(node.body[-1], ast.Return) and \
                 hasattr(node.body[-1], "annotation") and \
                 node.returns == None:
             node.returns = node.body[-1].annotation
@@ -915,3 +915,13 @@ class InferTypesTransformer(ast.NodeTransformer):
         is_optional = lambda x: get_id(x) == "Optional"
         return isinstance(annotation, ast.Subscript) and \
                 is_optional(annotation.value)
+
+    def visit_Yield(self, node: ast.Yield) -> Any:
+        self.generic_visit(node)
+        self._has_generators = True
+        return node
+
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
+        self.generic_visit(node)
+        self._has_generators = True
+        return node

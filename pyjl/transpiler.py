@@ -23,7 +23,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, is_class_or_module, is_class_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -1005,8 +1005,8 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"@async function {node.name}({args})\n{body}\nend"
 
     def visit_Yield(self, node: ast.Yield) -> str:
-        func_scope = find_closest_scope(node.scopes)
-        if isinstance(func_scope, ast.FunctionDef):
+        func_scope = find_node_by_type(ast.FunctionDef, node.scopes)
+        if func_scope:
             if RESUMABLE in func_scope.parsed_decorators:
                 return f"@yield {self.visit(node.value)}" \
                     if node.value \

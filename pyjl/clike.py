@@ -420,9 +420,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 elif dispatch_func := super()._dispatch(node, f"{ann}.{fname}", vargs):
                     return dispatch_func
 
-        if hasattr(node, "orig_name"):
+        if orig_name := getattr(node, "orig_name", None):
             # Special attribute used for dispatching
-            return super()._dispatch(node, node.orig_name, vargs)
+            return super()._dispatch(node, orig_name, vargs)
         return super()._dispatch(node, fname, vargs)
 
     def _get_dispatch_func(self, node, class_name, fname, vargs):

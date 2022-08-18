@@ -40,7 +40,9 @@ except ImportError:
 
 
 class JuliaTranspilerPlugins:
-    ########## Decorators ##########
+    # =====================================
+    # Decorators
+    # =====================================
     def visit_jl_dataclass(self, node: ast.ClassDef, decorator):
         self._usings.add("DataClass")
 
@@ -331,7 +333,9 @@ class JuliaTranspilerPlugins:
     #         return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
 
     ######################################################################
-    ########## Range ##########
+    # =====================================
+    # Range
+    # =====================================
     def visit_range(self, node, vargs: List[str]) -> str:
         start = 0
         stop = 0
@@ -349,7 +353,9 @@ class JuliaTranspilerPlugins:
 
         return f"{start}:{stop}"
 
-    ########## Builtin Functions ##########
+    # =====================================
+    # Builtin Functions
+    # =====================================
     def visit_getattr(self, node, vargs: list[str]):
         parsed_args = JuliaTranspilerPlugins._parse_attrs(self, node)
 
@@ -380,8 +386,9 @@ class JuliaTranspilerPlugins:
     def visit_argument_parser(self, node, vargs: list[str]):
         pass
 
-
-    ########## Cast ##########
+    # =====================================
+    # Cast
+    # =====================================
     def visit_cast_int(self, node, vargs) -> str:
         if hasattr(node, "args") and node.args:
             needs_parsing = False
@@ -413,12 +420,33 @@ class JuliaTranspilerPlugins:
                 return f"float({vargs[0]})"
         return f"zero(Float64)"  # Default float value
 
+    # =====================================
     # Math
+    # =====================================
     def visit_fsum(self, node: ast.Call, vargs):
         self._usings.add("Xsum")
         return f"xsum({', '.join(vargs)})"
 
-    ########## String operations ##########
+    # =====================================
+    # Conversions
+    # =====================================
+    def visit_inttobytes(self, node: ast.Call, vargs):
+        # Thanks to Steven G. Johnson for this function
+        # https://discourse.julialang.org/t/julia-equivalent-to-pythons-int-to-bytes/44038/9
+        func = """function to_bytes(n::Integer; bigendian=true, len=sizeof(n))
+           bytes = Array{UInt8}(undef, len)
+           for byte in (bigendian ? (1:len) : reverse(1:len))
+               bytes[byte] = n & 0xff
+               n >>= 8
+           end
+           return bytes
+        end"""
+        self._globals.add(func)
+        return f"to_bytes({', '.join(vargs[0])})"
+
+    # =====================================
+    # String operations
+    # =====================================
     def visit_maketrans(self, node, vargs: list[str]):
         original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
         replacement_lst = []
@@ -502,7 +530,9 @@ class JuliaTranspilerPlugins:
             translation_map = f"merge!({vargs[1]}, Dict({key_map}))"
         return f"replace!(collect({vargs[0]}), {translation_map}...)"
 
-    ########## Array Operations ##########
+    # =====================================
+    # Array Operations
+    # =====================================
     def visit_bytearray(self, node, vargs: list[str]):
         if len(vargs) == 0:
             return "Vector{UInt8}()"
@@ -530,7 +560,7 @@ class JuliaTranspilerPlugins:
             decs = getattr(func_def, "parsed_decorators", None)
             if RESUMABLE in decs:
                 if len(vargs) > 1:
-                    return f"{vargs[0]}({', '.split(vargs[1:])})"
+                    return f"{vargs[0]}({', '.join(vargs[1:])})"
                 elif getattr(node, "is_attr", None):
                     return f"{vargs[0]}" 
                 else:
@@ -565,7 +595,9 @@ class JuliaTranspilerPlugins:
         return f"{vargs[1]} in {vargs[0]}" \
             if len(vargs) == 2 else "x::pset, y -> y in x"
 
-    ########## Bisect ##########
+    # =====================================
+    # Bisection
+    # =====================================
     def visit_bisect_right(self, node, vargs: list[str]):
         JuliaTranspilerPlugins._generic_bisect_visit(self)
         return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
@@ -577,7 +609,9 @@ class JuliaTranspilerPlugins:
     def _generic_bisect_visit(self):
         self._usings.add("BisectPy")
 
-    ########## IO ##########
+    # =====================================
+    # IO
+    # =====================================
     def visit_print(self, node: ast.Call, vargs: List[str]) -> str:
         if len(vargs) == 0:
             return "println()"
@@ -707,7 +741,9 @@ class JuliaTranspilerPlugins:
         node.result_type = True
         return "NamedTempFile::new()"
 
-    ########## regex ##########
+    # =====================================
+    # regex
+    # =====================================
     def visit_refindall(self, node, vargs):
         if len(vargs) == 1:
             return f"""
@@ -743,13 +779,17 @@ class JuliaTranspilerPlugins:
             varg = f"{val2}{varg}"
         return varg
 
-    ########## importlib ##########
+    # =====================================
+    # importlib
+    # =====================================
     def visit_import(self, node, vargs):
         # Try to split 'path' from 'name'
         path, name = os.path.split(vargs[0])
         return f"@eval @from {path} import Symbol({name})"
 
-    ########## Path ##########
+    # =====================================
+    # path
+    # =====================================
     def visit_makedirs(self, node: ast.Call, vargs):
         parsed_args = []
         # Ignore "exist_ok" parameter
@@ -762,7 +802,9 @@ class JuliaTranspilerPlugins:
                 parsed_args.append(self.visit(keyword))
         return f"mkpath({', '.join(parsed_args)})"
 
-    ###### Random ######
+    # =====================================
+    # random
+    # =====================================
     def visit_random(self, node: ast.Call, vargs: list[str]):
         self._usings.add("Random")
         return f"rand({', '.join(vargs)})"
@@ -777,12 +819,16 @@ class JuliaTranspilerPlugins:
         self._usings.add("Random")
         return f"Random.seed!({','.join(vargs)})"
 
-    ########## Async ##########
+    # =====================================
+    # async
+    # =====================================
     @staticmethod
     def visit_asyncio_run(self, node, vargs) -> str:
         return f"block_on({vargs[0]})"
 
-    ########## Special Assignments ##########
+    # =====================================
+    # special assignments
+    # =====================================
     def visit_all(self, node: ast.Assign, vargs):
         assert isinstance(node.value, ast.List)
         values = []
@@ -790,7 +836,9 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
-    ########## PyCall ##########
+    # =====================================
+    # PyCall
+    # =====================================
     def visit_tempfile(self, node: ast.Assign, vargs):
         JuliaTranspilerPlugins._pycall_import(self, node, "tempfile")
 
@@ -1038,6 +1086,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     operator.mod: (lambda self, node, vargs: f"mod({vargs[0]}, {vargs[1]})" if vargs else "mod", True),
     operator.floordiv: (lambda self, node, vargs: f"div({vargs[0]}, {vargs[1]})" if vargs else "div", True),
     int.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
+    int.to_bytes: (JuliaTranspilerPlugins.visit_inttobytes, True),
     float.conjugate: (lambda self, node, vargs: f"conj({vargs[0]})" if vargs else "conj", True),
     math.floor:  (lambda self, node, vargs: f"floor(Int, {vargs[0]})" if vargs else "floor", True),
     divmod: (lambda self, node, vargs: f"div({vargs[0]})" if vargs else "div", True), # Fallback

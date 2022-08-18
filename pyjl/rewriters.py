@@ -350,7 +350,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
             is_channels = CHANNELS in node.parsed_decorators
             if is_resumable and is_channels:
                 raise AstUnsupportedOperation(  
-                    "Function cannot have both  and @channels decorators", 
+                    "Function cannot have both @resumable and @channels decorators", 
                     node)
             elif self._use_resumables and RESUMABLE not in node.parsed_decorators:
                 node.parsed_decorators[RESUMABLE] = None
@@ -2004,11 +2004,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> Any:
         self.generic_visit(node)
-        mod = get_id(node.func).split(".")
         func = node.func
         # Handle module calls
         if isinstance(node.func, ast.Attribute) and \
-                mod[0] in self._imported_names:
+                get_id(node.func).split(".")[0] in self._imported_names:
             if isinstance(node.func.value, ast.Attribute):
                 func.value = node.func.value.value
             else:
@@ -2104,7 +2103,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             # type annotations
             argtypes_lst = []
             for arg in node.args:
-                if hasattr(arg, "annotation"):
+                if getattr(arg, "annotation", None):
                     if (id := get_id(arg.annotation)) in self.CTYPES_CONVERSION_MAP:
                         converted_type = self.CTYPES_CONVERSION_MAP[id]
                         argtypes_lst.append(ast.Name(id=converted_type, 
