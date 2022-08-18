@@ -209,7 +209,7 @@ def find_in_scope(body, fn):
     return None
 
 
-def find_parent(type, scopes):
+def find_parent_of_type(type, scopes):
     for i in range(len(scopes) - 1, -1, -1):
         node = scopes[i]
         if isinstance(node, type):

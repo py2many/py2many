@@ -344,7 +344,6 @@ class JuliaTranspilerPlugins:
         if scopes and len(scopes) >= 2:
             parent = node.scopes[-2]
         if isinstance(parent, ast.FunctionDef):
-            print(scopes)
             raise AstUnsupportedOperation(
                 "Cannot use resumable functions when function is nested", node
             )

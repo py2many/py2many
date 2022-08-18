@@ -6,8 +6,6 @@ import torch
 class JuliaExternalModulePlugins():
     def visit_torch_zeros(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("Torch")
-        # print(node.args)
-        # print(f"Torch.zeros({', '.join(vargs)})")
         return f"Torch.zeros({', '.join(vargs)})"
 
     def visit_torch_zeros_numpy(self, node: ast.Call, vargs: list[str], kwargs: list[str]):

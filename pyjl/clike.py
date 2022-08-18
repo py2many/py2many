@@ -337,7 +337,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return f"{value_type}{{{index_type}}}"
         elif isinstance(node, ast.Constant):
             if node.value in JULIA_TYPE_MAP:
-                return self._map_type(node.value)
+                # Can't use self._map_type, as it uses self._func_for_lookup.
+                # By supplying the type None, it will not work
+                return JULIA_TYPE_MAP[node.value]
         elif isinstance(node, ast.Tuple) \
                 or isinstance(node, ast.List):
             elts = list(map(

@@ -23,7 +23,7 @@ from .plugins import (
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
-from py2many.tracer import find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type, find_parent_of_type, is_class_or_module, is_class_type
 
 from typing import Any, List
 
@@ -261,6 +261,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Lambda(self, node) -> str:
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
+        node.body.is_lambda_body = True
         body = self.visit(node.body)
         return f"({args_string}) -> {body}"
 
@@ -1019,8 +1020,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 if node.value:
                     return f"put!(ch_{func_scope.name}, {self.visit(node.value)})"
                 else:
-                    raise AstUnsupportedOperation(
-                            "yield requires a value when using channels", node)
+                    if getattr(node, "is_lambda_body", False):
+                        raise AstUnsupportedOperation(
+                            "yield cannot be used withing anonymous functions", node)
+                    else:
+                        raise AstUnsupportedOperation(
+                                "yield requires a value when using channels", node)
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> str:
         # Currently not supported

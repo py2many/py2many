@@ -1077,7 +1077,7 @@ class JuliaNestingRemoval(ast.NodeTransformer):
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         is_resumable = lambda x: RESUMABLE in x.parsed_decorators
-        is_generator = lambda x: getattr(x, "annotation", False) == "Generator"
+        is_generator = lambda x: get_id(getattr(x, "annotation", False)) == "Generator"
 
         body = []
         for n in node.body:

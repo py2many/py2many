@@ -13,7 +13,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.tracer import find_node_by_type, find_parent, is_enum
+from py2many.tracer import find_node_by_type, find_parent_of_type, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -158,7 +158,6 @@ class AnnotationVisitor(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         self.generic_visit(node)
         if getattr(node, "is_annotation", False):
-            print("here")
             node.value.is_annotation = True
             node.slice.is_annotation = True
         return node
@@ -295,7 +294,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id="Generator")
 
         if len(node.scopes) > 1:
-            class_type = find_parent(ast.ClassDef, node.scopes)
+            class_type = find_parent_of_type(ast.ClassDef, node.scopes)
             if class_type and not hasattr(node, "self_type"):
                 node.self_type = get_id(class_type)
 
