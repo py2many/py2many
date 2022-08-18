@@ -1,9 +1,10 @@
 
+import ast
 import tqdm
 from typing import Callable, Dict, Tuple, Union
 
 class JuliaExternalModulePlugins():
-    def visit_tqdm(self, node, vargs):
+    def visit_tqdm(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("ProgressBars")
         # Using tqdm alias (Identical to using ProgressBar)
         return f"tqdm({', '.join(vargs)})"

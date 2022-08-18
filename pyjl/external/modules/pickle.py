@@ -41,4 +41,4 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     pickle.Pickler.dump: (JuliaExternalModulePlugins.visit_pickledump, False),
 }
 
-FUNC_TYPE_MAP = {pickle.Pickler: lambda self, node, vargs: "pickle.Pickler"}
+FUNC_TYPE_MAP = {pickle.Pickler: lambda self, node, vargs, kwargs: "pickle.Pickler"}

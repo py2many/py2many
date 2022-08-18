@@ -23,7 +23,7 @@ FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     multiprocessing.cpu_count: (
-        lambda self, node, vargs: f"length(Sys.cpu_info())",
+        lambda self, node, vargs, kwargs: f"length(Sys.cpu_info())",
         True,
     ),
     multiprocessing.Pool: (JuliaExternalModulePlugins.visit_Pool, True),

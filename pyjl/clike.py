@@ -375,20 +375,20 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return None
         return func
 
-    def _dispatch(self, node: ast.Call, fname: str, vargs: List[str]) -> Optional[str]:
+    def _dispatch(self, node: ast.Call, fname: str, vargs: List[str], kwargs: List[str]) -> Optional[str]:
         if len(node.args) > 0:
             var = vargs[0]
             if isinstance(node.args[0], ast.Call) and \
                     (id := get_id(node.args[0].func)):
                 var = id
 
-            dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:])
+            dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:], kwargs)
             if dispatch_func:
                 return dispatch_func
 
             # Remove any extra values
             if re.match(r"\w+", var):
-                dispatch = super()._dispatch(node, f"{var}.{fname}", vargs[1:])
+                dispatch = self._clike_dispatch(node, f"{var}.{fname}", vargs[1:], kwargs)
                 if dispatch:
                     return dispatch
 
@@ -397,7 +397,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             if class_node:
                 for base in class_node.bases:
                     base_str = get_ann_repr(base, sep = SEP)
-                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs)
+                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs, kwargs)
                     if dispatch_func:
                         return dispatch_func
 
@@ -415,22 +415,58 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                     ann = ann[0]
                 # Get main type
                 ann: str = re.split(r"\[|\]", ann)[0]
-                if dispatch_func := self._get_dispatch_func(node, ann, fname, vargs):
+                if dispatch_func := self._get_dispatch_func(node, ann, fname, vargs, kwargs):
                     return dispatch_func
-                elif dispatch_func := super()._dispatch(node, f"{ann}.{fname}", vargs):
+                elif dispatch_func := self._clike_dispatch(node, f"{ann}.{fname}", vargs, kwargs):
                     return dispatch_func
 
         if orig_name := getattr(node, "orig_name", None):
             # Special attribute used for dispatching
-            return super()._dispatch(node, orig_name, vargs)
-        return super()._dispatch(node, fname, vargs)
+            return self._clike_dispatch(node, orig_name, vargs, kwargs)
+        return self._clike_dispatch(node, fname, vargs, kwargs)
 
-    def _get_dispatch_func(self, node, class_name, fname, vargs):
+    # Adds kwargs to clike dispatch 
+    def _clike_dispatch(self, node, fname: str, vargs: List[str], kwargs: List[str]) -> Optional[str]:
+        if fname in self._dispatch_map:
+            try:
+                return self._dispatch_map[fname](self, node, vargs, kwargs)
+            except IndexError:
+                return None
+
+        if fname in self._small_dispatch_map:
+            if fname in self._small_usings_map:
+                self._usings.add(self._small_usings_map[fname])
+            try:
+                return self._small_dispatch_map[fname](node, vargs, kwargs)
+            except IndexError:
+                return None
+
+        func = self._func_for_lookup(fname)
+        if func is not None and func in self._func_dispatch_table:
+            if func in self._func_usings_map:
+                self._usings.add(self._func_usings_map[func])
+            ret, node.result_type = self._func_dispatch_table[func]
+            try:
+                return ret(self, node, vargs, kwargs)
+            except IndexError:
+                return None
+
+        # string based fallback
+        fname_stem, fname_leaf = self._func_name_split(fname)
+        if fname_leaf in self._func_dispatch_table:
+            ret, node.result_type = self._func_dispatch_table[fname_leaf]
+            try:
+                return fname_stem + ret(self, node, vargs, kwargs)
+            except IndexError:
+                return None
+        return None
+
+    def _get_dispatch_func(self, node, class_name, fname, vargs, kwargs):
         py_type = self._func_for_lookup(f"{class_name}.{fname}")
         if py_type in self._func_dispatch_table:
             ret, node.result_type = self._func_dispatch_table[py_type]
             try:
-                return ret(self, node, vargs)
+                return ret(self, node, vargs, kwargs)
             except (IndexError, Exception):
                 return None
 

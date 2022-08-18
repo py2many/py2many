@@ -272,8 +272,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 not getattr(node, "in_call", None):
             dispatch.func.preserve_keyword = True
             fname = self.visit(dispatch.func)
-            vargs = self._get_call_args(dispatch)
-            ret = self._dispatch(dispatch, fname, vargs)
+            vargs, _ = self._get_call_args(dispatch)
+            ret = self._dispatch(dispatch, fname, vargs, [])
             if ret is not None:
                 return ret
 
@@ -293,11 +293,9 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Call(self, node: ast.Call) -> str:
         node.func.in_call = True
         fname = self.visit(node.func)
-        class_scope = find_node_by_name_and_type(fname, ast.ClassDef, node.scopes)[0]
-        kw_args = not class_scope
-        vargs = self._get_call_args(node, kw_args=kw_args)
+        vargs, kwargs = self._get_call_args(node)
 
-        ret = self._dispatch(node, fname, vargs)
+        ret = self._dispatch(node, fname, vargs, kwargs)
         if ret is not None:
             return ret
 
@@ -306,6 +304,9 @@ class JuliaTranspiler(CLikeTranspiler):
         fndef = node.scopes.find(fname)
         if vargs and (arg_cls_scope := find_node_by_name_and_type(vargs[0], ast.ClassDef, node.scopes)[0]):
             fndef = arg_cls_scope.scopes.find(fname)
+
+        # Join kwargs to vargs
+        vargs.extend([f"{k[0]} = {k[1]}" for k in kwargs])
 
         if fndef and hasattr(fndef, "args") and \
                 getattr(fndef.args, "args", None):
@@ -325,14 +326,17 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(converted)
         return f"{fname}({args})"
 
-    def _get_call_args(self, node: ast.Call, kw_args = True):
+    def _get_call_args(self, node: ast.Call):
         vargs = []
+        kwargs = []
         if node.args:
-            vargs += [self.visit(a) for a in node.args]
+            for a in node.args:
+                vargs.append(self.visit(a))
         if node.keywords:
-            kw_visitor = lambda x: self.visit(x) if kw_args else self.visit(x.value)
-            vargs += [kw_visitor(kw) for kw in node.keywords]
-        return vargs
+            for n in node.keywords:
+                arg_str = n.arg if n.arg not in self._julia_keywords else f"{n.arg}_"
+                kwargs.append((arg_str, self.visit(n.value)))
+        return vargs, kwargs
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -811,11 +815,11 @@ class JuliaTranspiler(CLikeTranspiler):
         maybe_ann = ""
         if hasattr(node, "annotation") and \
                 isinstance(node.annotation, ast.Subscript):
+            # node.annotation.slice.is_annotation = True
             maybe_ann = f"{{{self.visit(node.annotation.slice)}}}"
         if not maybe_ann and \
                 hasattr(node, "container_type"):
             maybe_ann = f"{{{node.container_type[1]}}}"
-
         return f"Dict{maybe_ann}({kv_pairs})"
 
     def visit_Subscript(self, node) -> str:

@@ -20,7 +20,7 @@ FuncType = Union[Callable, str]
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # ErrorException is very generic
     RuntimeError: (
-        lambda self, node, vargs: f"ErrorException({', '.join(vargs)})",
+        lambda self, node, vargs, kwargs: f"ErrorException({', '.join(vargs)})",
         True,
     )
 }

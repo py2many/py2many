@@ -7,7 +7,7 @@ from typing import Callable, Dict, Tuple, Union
 from py2many.ast_helpers import get_id
 
 class JuliaExternalModulePlugins():
-    def visit_load_library(self, node, vargs):
+    def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("Libdl")
         return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
 
@@ -29,20 +29,20 @@ class JuliaExternalModulePlugins():
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
         return f"ctypes.pythonapi.{self.visit(node.func)}"
 
-    def visit_cast(self, node, vargs):
+    def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # (TODO) From Documentation: Neither convert nor cconvert should 
         # take a Julia object and turn it into a Ptr.
         self._usings.add("Libdl")
         return f"Base.cconvert({self._map_type(vargs[1])}, {vargs[0]})"
 
-    def visit_cdata_value(self, node, vargs):
+    def visit_cdata_value(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # Remove the call to value (apparently, Julia already 
         # returns the value)
         if get_id(node.func) == "value":
             return self.visit(node.args[0])
 
     # Using Pycall
-    def visit_pointer(self, node, vargs):
+    def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
         # Unparse args to avoid mapping them to the corresponding Julia types
@@ -54,19 +54,19 @@ class JuliaExternalModulePlugins():
                 args.append(ast.unparse(arg))
         return f"ctypes.POINTER({', '.join(args)})"
 
-    def visit_create_unicode_buffer(self, node, vargs):
+    def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
 
-    def visit_pyobject(self, node, vargs):
+    def visit_pyobject(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
         return f"ctypes.py_object({', '.join(vargs())})"
     
-    def visit_winfunctype(self, node, vargs):
+    def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # There is no equivalent call in Julia 
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
 
-    def visit_ctypes(self, node, vargs):
+    def visit_ctypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
     
     def _pycall_import(self, node: ast.Call, mod_name: str):
@@ -75,11 +75,11 @@ class JuliaExternalModulePlugins():
         self._globals.add(import_stmt)
 
     # Windows-specific calls
-    def visit_wintypes(self, node, vargs):
+    def visit_wintypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("WinTypes")
         return f"WinTypes({', '.join(vargs)})"
 
-    def visit_winerror(self, node, vargs):
+    def visit_winerror(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         if len(vargs) == 5:
             parsed_args = f"{vargs[1]}, {vargs[4]}"
             return f"Base.windowserror({parsed_args})"
@@ -95,9 +95,9 @@ GENERIC_DISPATCH_TABLE = {
     ctypes.pythonapi: (JuliaExternalModulePlugins.visit_pythonapi, True), # Not working
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
     ctypes._SimpleCData.value: (JuliaExternalModulePlugins.visit_cdata_value, True),
-    ctypes.byref: (lambda self, node, vargs: f"pointer_from_objref({vargs[1]})" 
+    ctypes.byref: (lambda self, node, vargs, kwargs: f"pointer_from_objref({vargs[1]})" 
         if len(vargs) > 1 else "pointer_from_objref", True),
-    ctypes.sizeof: (lambda self, node, vargs: f"sizeof({self._map_type(vargs[0])})" 
+    ctypes.sizeof: (lambda self, node, vargs, kwargs: f"sizeof({self._map_type(vargs[0])})" 
         if vargs else "sizeof", True),
     # Using PythonCall
     ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
@@ -129,8 +129,8 @@ if sys.platform.startswith('win32'):
 
     WIN_DISPATCH_TABLE = {
         ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
-        # ctypes.GetLastError: (lambda self, node, vargs: "Base.Libc.GetLastError", True),
-        ctypes.FormatError: (lambda self, node, vargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
+        # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
+        ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
         ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_winfunctype, True),
         # Exceptions
@@ -178,13 +178,13 @@ EXTERNAL_TYPE_MAP = {
 
 
 FUNC_TYPE_MAP = {
-    ctypes.cdll.LoadLibrary: lambda self, node, vargs: "ctypes.CDLL",
-    ctypes.CDLL: lambda self, node, vargs: "ctypes.CDLL",
-    ctypes.WinDLL: lambda self, node, vargs: "ctypes.WinDLL",
-    ctypes.PyDLL: lambda self, node, vargs: "ctypes.CDLL", # Hack, for now
+    ctypes.cdll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.CDLL",
+    ctypes.CDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL",
+    ctypes.WinDLL: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
+    ctypes.PyDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL", # Hack, for now
     # Why invalid syntax???
-    # ctypes.cast: lambda self, node, vargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
-    ctypes.cast: lambda self, node, vargs: "ctypes._SimpleCData",
+    # ctypes.cast: lambda self, node, vargs, kwargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
+    ctypes.cast: lambda self, node, vargs, kwargs: "ctypes._SimpleCData",
 }
 
 IGNORED_MODULE_SET = set([

@@ -13,8 +13,7 @@ from py2many.ast_helpers import create_ast_node, unparse
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign
-from py2many.scope import ScopeList
-from py2many.tracer import find_in_body, find_node_by_type, find_parent, is_enum
+from py2many.tracer import find_node_by_type, find_parent, is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
@@ -103,7 +102,7 @@ def is_compatible(
 
 
 class FuncTypeDispatch():
-    def visit_zip(self, node, vargs):
+    def visit_zip(self, node, vargs, kwargs):
         ann_ids = []
         for arg in node.args:
             arg_id = get_id(arg)
@@ -122,18 +121,18 @@ class FuncTypeDispatch():
         
         return f"({', '.join(ann_ids)})"
 
-    def visit_min_max(self, node, vargs):
+    def visit_min_max(self, node, vargs, kwargs):
         if vargs and (node_type := get_inferred_type(vargs[0])):
             return ast.unparse(node_type)
         return None
 
-    def visit_iter(self, node, vargs):
+    def visit_iter(self, node, vargs, kwargs):
         node_type = get_inferred_type(vargs[0])
         if node_type:
             return ast.unparse(node_type)
         return None
 
-    def visit_next(self, node, vargs):
+    def visit_next(self, node, vargs, kwargs):
         node_type = get_inferred_type(vargs[0])
         if isinstance(node_type, ast.Subscript):
             return ast.unparse(node_type.slice)
@@ -147,14 +146,14 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     # TODO: Change to use typeshed (https://github.com/python/typeshed)
     FUNC_TYPE_MAP = {
-        len: lambda self, node, vargs: "int",
-        math.sqrt: lambda self, node, vargs: "float",
-        range: lambda self, node, vargs: "int",
-        str.encode: lambda self, node, vargs: "bytes",
-        str.format: lambda self, node, vargs: "str",
-        bytes.translate: lambda self, node, vargs: "bytes",
-        bytearray.translate: lambda self, node, vargs: "bytearray",
-        argparse.ArgumentParser: lambda self, node, vargs: "argparse.ArgumentParser",
+        len: lambda self, node, vargs, kwargs: "int",
+        math.sqrt: lambda self, node, vargs, kwargs: "float",
+        range: lambda self, node, vargs, kwargs: "int",
+        str.encode: lambda self, node, vargs, kwargs: "bytes",
+        str.format: lambda self, node, vargs, kwargs: "str",
+        bytes.translate: lambda self, node, vargs, kwargs: "bytes",
+        bytearray.translate: lambda self, node, vargs, kwargs: "bytearray",
+        argparse.ArgumentParser: lambda self, node, vargs, kwargs: "argparse.ArgumentParser",
         zip: FuncTypeDispatch.visit_zip,
         max: FuncTypeDispatch.visit_min_max,
         min: FuncTypeDispatch.visit_min_max,
@@ -426,8 +425,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         if not annotation:
             # Attempt to get type
             if isinstance(node.value, ast.Call):
-                typename = self._clike._generic_typename_from_annotation(node.value)
-                if typename:
+                if typename := getattr(node.value, "annotation", None):
                     annotation = typename
                 else:
                     func_node = node.scopes.find(get_id(node.value.func))
@@ -721,7 +719,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             if (func := self._clike._func_for_lookup(fname)) \
                     in self.FUNC_TYPE_MAP:
-                ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
+                ann = self.FUNC_TYPE_MAP[func](self, node, node.args, node.keywords)
                 if ann:
                     self._annotate(node, ann)
             else:
@@ -737,7 +735,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 # Try to match to table entries
                 if (func := self._clike._func_for_lookup(func_name)) \
                         in self.FUNC_TYPE_MAP:
-                    ann = self.FUNC_TYPE_MAP[func](self, node, node.args)
+                    ann = self.FUNC_TYPE_MAP[func](self, node, node.args, node.keywords)
                     if ann:
                         self._annotate(node, ann)
         return node

@@ -171,34 +171,34 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.append: (JuliaExternalModulePlugins.visit_npappend, True),
     np.zeros: (JuliaExternalModulePlugins.visit_npzeros, True),
     np.multiply: (JuliaExternalModulePlugins.visit_npmultiply, True),
-    np.sqrt: (lambda self, node, vargs: f"sqrt({vargs[0]})" if vargs else "√", True),
-    np.arccos: (lambda self, node, vargs: f"acos({vargs[0]})", True),
-    np.arcsin: (lambda self, node, vargs: f"asin({vargs[0]})", True),
-    np.arctan: (lambda self, node, vargs: f"atan({vargs[0]})", True),
-    np.sin: (lambda self, node, vargs: f"sin({vargs[0]})", True),
-    np.cos: (lambda self, node, vargs: f"cos({vargs[0]})", True),
-    np.tan: (lambda self, node, vargs: f"tan({vargs[0]})", True),
+    np.sqrt: (lambda self, node, vargs, kwargs: f"sqrt({vargs[0]})" if vargs else "√", True),
+    np.arccos: (lambda self, node, vargs, kwargs: f"acos({vargs[0]})", True),
+    np.arcsin: (lambda self, node, vargs, kwargs: f"asin({vargs[0]})", True),
+    np.arctan: (lambda self, node, vargs, kwargs: f"atan({vargs[0]})", True),
+    np.sin: (lambda self, node, vargs, kwargs: f"sin({vargs[0]})", True),
+    np.cos: (lambda self, node, vargs, kwargs: f"cos({vargs[0]})", True),
+    np.tan: (lambda self, node, vargs, kwargs: f"tan({vargs[0]})", True),
     np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True),  # See broadcasting
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
     np.flatnonzero: (
-        lambda self, node, vargs: f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]",
+        lambda self, node, vargs, kwargs: f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]",
         True,
     ),
     np.exp: (JuliaExternalModulePlugins.visit_exp, True),
     np.argmax: (JuliaExternalModulePlugins.visit_argmax, True),
-    np.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
-    np.random.randn: (lambda self, node, vargs: f"randn({', '.join(vargs)})", True),
+    np.shape: (lambda self, node, vargs, kwargs: f"size({vargs[0]})", True),
+    np.random.randn: (lambda self, node, vargs, kwargs: f"randn({', '.join(vargs)})", True),
     np.dot: (JuliaExternalModulePlugins.visit_dotproduct, True),
     np.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.transpose: (JuliaExternalModulePlugins.visit_transpose, True),
     np.ndarray.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
     np.reshape: (JuliaExternalModulePlugins.visit_reshape, True),
-    np.ndarray.shape: (lambda self, node, vargs: f"size({vargs[0]})", True),
+    np.ndarray.shape: (lambda self, node, vargs, kwargs: f"size({vargs[0]})", True),
     # Types can also be called as functions to convert
-    np.int8: (lambda self, node, vargs: f"Int8({vargs[0]})", True),
-    np.int16: (lambda self, node, vargs: f"Int16({vargs[0]})", True),
-    np.int32: (lambda self, node, vargs: f"Int32({vargs[0]})", True),
-    np.int64: (lambda self, node, vargs: f"Int64({vargs[0]})", True),
+    np.int8: (lambda self, node, vargs, kwargs: f"Int8({vargs[0]})", True),
+    np.int16: (lambda self, node, vargs, kwargs: f"Int16({vargs[0]})", True),
+    np.int32: (lambda self, node, vargs, kwargs: f"Int32({vargs[0]})", True),
+    np.int64: (lambda self, node, vargs, kwargs: f"Int64({vargs[0]})", True),
 }
 
 # Numpy Types
@@ -218,7 +218,7 @@ EXTERNAL_TYPE_MAP = {
 }
 
 class FuncTypeDispatch():
-    def visit_npdot(self, node, vargs):
+    def visit_npdot(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # From Python docs (https://numpy.org/doc/stable/reference/generated/numpy.dot.html?highlight=numpy%20dot#numpy.dot)
         # - If both a and b are 1-D arrays, it is inner product of vectors 
         #   (without complex conjugation).
@@ -250,13 +250,13 @@ class FuncTypeDispatch():
         return "np.ndarray"
 
 FUNC_TYPE_MAP = {
-    np.random.randn: lambda self, node, vargs: "np.ndarray",
-    np.sqrt: lambda self, node, vargs: "float",
+    np.random.randn: lambda self, node, vargs, kwargs: "np.ndarray",
+    np.sqrt: lambda self, node, vargs, kwargs: "float",
     np.dot: FuncTypeDispatch.visit_npdot,
-    np.zeros: lambda self, node, vargs: "np.ndarray",
-    np.exp: lambda self, node, vargs: "np.ndarray",
-    np.transpose: lambda self, node, vargs: "np.ndarray",
-    np.ndarray.transpose: lambda self, node, vargs: "np.ndarray",
+    np.zeros: lambda self, node, vargs, kwargs: "np.ndarray",
+    np.exp: lambda self, node, vargs, kwargs: "np.ndarray",
+    np.transpose: lambda self, node, vargs, kwargs: "np.ndarray",
+    np.ndarray.transpose: lambda self, node, vargs, kwargs: "np.ndarray",
 }
 
 

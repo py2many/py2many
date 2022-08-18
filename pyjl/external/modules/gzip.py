@@ -4,8 +4,8 @@ from typing import Callable, Dict, Tuple, Union
 
 
 class JuliaExternalModulePlugins:
-    def visit_gzipopen(t_self, node: ast.Call, vargs: list[str]):
-        JuliaExternalModulePlugins._generic_gzip_visit(t_self)
+    def visit_gzipopen(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_gzip_visit(self)
         if vargs:
             return f"GZip.open({', '.join(vargs)})"
         # elif len(vargs) == 2:
@@ -14,21 +14,21 @@ class JuliaExternalModulePlugins:
         #     return f"GZip.open({vargs[0]}, gzmode = {vargs[1]}, buf_size = {vargs[2]})"
         return "GZip.open"
 
-    def visit_gzipcompress(t_self, node: ast.Call, vargs: list[str]):
-        JuliaExternalModulePlugins._generic_gzip_visit(t_self)
+    def visit_gzipcompress(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_gzip_visit(self)
         return f"#Unsupported\nGZip.compress"
 
-    def visit_gzipdecompress(t_self, node: ast.Call, vargs: list[str]):
-        JuliaExternalModulePlugins._generic_gzip_visit(t_self)
+    def visit_gzipdecompress(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_gzip_visit(self)
         return f"#Unsupported\nGZip.decompress"
 
-    def visit_gzipBadGzipFile(t_self, node: ast.Call, vargs: list[str]):
-        JuliaExternalModulePlugins._generic_gzip_visit(t_self)
+    def visit_gzipBadGzipFile(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_gzip_visit(self)
         # TODO: Temporary
         f'GZError(-1, "gzopen failed")'
 
-    def _generic_gzip_visit(t_self):
-        t_self._usings.add("GZip")
+    def _generic_gzip_visit(self):
+        self._usings.add("GZip")
 
 
 FuncType = Union[Callable, str]

@@ -1,19 +1,20 @@
+import ast
 import time
 from typing import Callable, Dict, Tuple, Union
 
 
 class JuliaExternalModulePlugins:
-    def visit_ctime(t_self, node, vargs):
-        JuliaExternalModulePlugins._visit_time(t_self)
+    def visit_ctime(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._visit_time(self)
         # Format date to Python format
         return f"Dates.format(Dates.epochms2datetime({vargs[0]}), Dates.RFC1123Format)"
 
-    def visit_time(t_self, node, vargs):
-        JuliaExternalModulePlugins._visit_time(t_self)
+    def visit_time(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._visit_time(self)
         return f"Dates.datetime2unix(Dates.now())"
 
-    def _visit_time(t_self):
-        t_self._usings.add("Dates")
+    def _visit_time(self):
+        self._usings.add("Dates")
 
 
 FuncType = Union[Callable, str]

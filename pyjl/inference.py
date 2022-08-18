@@ -97,7 +97,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                 and right_id in self.FIXED_WIDTH_INTS_NAME):
             ret = self._handle_overflow(node.op, left_id, right_id)
             node.annotation = ast.Name(id=ret)
-            self._assign_annotation(node, ret, ret)
+            self._assign_annotation(node, ast.Name(id=ret), ast.Name(id=ret))
             return node
 
 

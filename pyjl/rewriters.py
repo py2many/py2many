@@ -1077,11 +1077,12 @@ class JuliaNestingRemoval(ast.NodeTransformer):
     
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         is_resumable = lambda x: RESUMABLE in x.parsed_decorators
+        is_generator = lambda x: getattr(x, "annotation", False) == "Generator"
 
         body = []
         for n in node.body:
             if isinstance(n, ast.FunctionDef):
-                if self._remove_nested_resumables:
+                if is_generator(n) and self._remove_nested_resumables:
                     self._nested_generators.append(n)
                 elif is_resumable(n):
                     resumable_dec = n.parsed_decorators[RESUMABLE]
@@ -1089,6 +1090,8 @@ class JuliaNestingRemoval(ast.NodeTransformer):
                             REMOVE_NESTED in resumable_dec \
                             and resumable_dec[REMOVE_NESTED]:
                         self._nested_generators.append(n)
+                else:
+                    body.append(n)
             elif isinstance(n, ast.ClassDef) and \
                     (REMOVE_NESTED in n.parsed_decorators or
                     self._remove_nested):
