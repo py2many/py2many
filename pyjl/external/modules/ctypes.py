@@ -2,7 +2,7 @@ import ast
 import ctypes
 import sys
 
-from typing import Callable, Dict, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union
 
 from py2many.ast_helpers import get_id
 
@@ -24,7 +24,7 @@ class JuliaExternalModulePlugins():
     #         return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
     #     return f"ccall({', '.join(vargs)})"
   
-    def visit_pythonapi(self, node: ast.Call, vargs):
+    def visit_pythonapi(self, node: ast.Call, vargs, kwargs):
         # TODO: Search for DLL
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
         return f"ctypes.pythonapi.{self.visit(node.func)}"
@@ -41,6 +41,13 @@ class JuliaExternalModulePlugins():
         if get_id(node.func) == "value":
             return self.visit(node.args[0])
 
+    def visit_byref(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        if len(vargs) == 1:
+            return f"pointer_from_objref({vargs[0]})" 
+        elif len(vargs) > 1:
+            return f"pointer_from_objref({vargs[1]})" 
+        return "pointer_from_objref"
+
     # Using Pycall
     def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
@@ -52,7 +59,7 @@ class JuliaExternalModulePlugins():
                 args.append(f"ctypes.{func.__name__}")
             else:
                 args.append(ast.unparse(arg))
-        return f"ctypes.POINTER({', '.join(args)})"
+        return f"pointer_from_objref({', '.join(args)})"
 
     def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
@@ -63,15 +70,32 @@ class JuliaExternalModulePlugins():
         return f"ctypes.py_object({', '.join(vargs())})"
     
     def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        # There is no equivalent call in Julia 
+        # Cannot pass stdcall function pointer in Julia
+        # https://github.com/JuliaLang/julia/issues/5613
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+        has_wintypes = False
+        args = []
+        for arg in node.args:
+            # Avoid visit, as that would translate ctype
+            arg_str = ast.unparse(arg)
+            if arg_str.isupper():
+                # Currently a hack to get wintypes
+                has_wintypes = True
+                arg_str = f"wintypes.{arg_str}"
+            args.append(arg_str)
+        if has_wintypes:
+            JuliaExternalModulePlugins._pycall_import(self, node, "ctypes.wintypes", "wintypes")
+        return f"ctypes.WINFUNCTYPE({', '.join(args)})"
 
     def visit_ctypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
     
-    def _pycall_import(self, node: ast.Call, mod_name: str):
+    def _pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
         self._usings.add("PyCall")
-        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
+        if opt_name:
+            import_stmt = f'{opt_name} = pyimport("{mod_name}")'
+        else:
+            import_stmt = f'{mod_name} = pyimport("{mod_name}")'
         self._globals.add(import_stmt)
 
     # Windows-specific calls
@@ -85,6 +109,11 @@ class JuliaExternalModulePlugins():
             return f"Base.windowserror({parsed_args})"
         return "Base.windowserror"
 
+    def visit_windll(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        # Alternative that returns function pointers
+        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+        return f"ctypes.WinDLL({', '.join(vargs)})"
+
 
 FuncType = Union[Callable, str]
 
@@ -95,8 +124,7 @@ GENERIC_DISPATCH_TABLE = {
     ctypes.pythonapi: (JuliaExternalModulePlugins.visit_pythonapi, True), # Not working
     ctypes.cast: (JuliaExternalModulePlugins.visit_cast, True),
     ctypes._SimpleCData.value: (JuliaExternalModulePlugins.visit_cdata_value, True),
-    ctypes.byref: (lambda self, node, vargs, kwargs: f"pointer_from_objref({vargs[1]})" 
-        if len(vargs) > 1 else "pointer_from_objref", True),
+    ctypes.byref: (JuliaExternalModulePlugins.visit_byref, True),
     ctypes.sizeof: (lambda self, node, vargs, kwargs: f"sizeof({self._map_type(vargs[0])})" 
         if vargs else "sizeof", True),
     # Using PythonCall
@@ -111,7 +139,7 @@ DISPATCH_MAP = {
 }
 
 GENERIC_SMALL_DISPATCH_MAP = {
-    "ctypes.memset": lambda node, vargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
+    "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
     # "pythonapi.PyBytes_FromStringAndSize": lambda node, vargs: "ctypes.pythonapi.PyBytes_FromStringAndSize",
 }
 
@@ -121,14 +149,15 @@ if sys.platform.startswith('win32'):
     from ctypes import wintypes
 
     WIN_SMALL_DISPATCH_MAP = {
-        "GetLastError": lambda node, vargs: "Base.Libc.GetLastError",
-        "ctypes.GetLastError": lambda node, vargs: "Base.Libc.GetLastError",
+        "GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError",
+        "ctypes.GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError",
     }
 
     SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
 
     WIN_DISPATCH_TABLE = {
-        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+        # ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_windll, True),
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),

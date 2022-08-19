@@ -917,16 +917,6 @@ class JuliaTranspilerPlugins:
         return f"block_on({vargs[0]})"
 
     # =====================================
-    # special assignments
-    # =====================================
-    def visit_all(self, node: ast.Assign, vargs: list[str], kwargs: list[str]) -> str:
-        assert isinstance(node.value, ast.List)
-        values = []
-        for value in node.value.elts:
-            values.append(value.value)
-        return f"export {', '.join(values)}"
-
-    # =====================================
     # PyCall
     # =====================================
     def visit_tempfile(
@@ -939,6 +929,15 @@ class JuliaTranspilerPlugins:
         import_stmt = f'{mod_name} = pyimport("{mod_name}")'
         self._globals.add(import_stmt)
 
+    # =====================================
+    # special assignments
+    # =====================================
+    def visit_all(self, node: ast.Assign, vargs: list[str]) -> str:
+        assert isinstance(node.value, ast.List)
+        values = []
+        for value in node.value.elts:
+            values.append(value.value)
+        return f"export {', '.join(values)}"
 
 
 class SpecialFunctionsPlugins:
@@ -1092,7 +1091,7 @@ SMALL_DISPATCH_MAP = {
     # "floor": lambda n, vargs, kwargs: f"floor({vargs[0]})",
     "None": lambda n, vargs, kwargs: f"Nothing",
     "sys.argv": lambda n, vargs, kwargs: "append!([PROGRAM_FILE], ARGS)",
-    "os.environ": lambda n, vargs, kwargs: "ENV",
+    "os.environ": lambda n, vargs, kwargs: "keys(ENV)",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
@@ -1183,6 +1182,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         False,
     ),
     dict.items: (lambda self, node, vargs, kwargs: f"collect({vargs[0]})", True),
+    set: (lambda self, node, vargs, kwargs: f"Set({', '.join(vargs)})", True),
     # Math operations
     math.pow: (lambda self, node, vargs, kwargs: f"{vargs[0]}^({vargs[1]})", False),
     math.sin: (lambda self, node, vargs, kwargs: f"sin({vargs[0]})", False),

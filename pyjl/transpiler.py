@@ -5,6 +5,7 @@ import ast
 import re
 
 from py2many.exceptions import AstUnsupportedOperation
+from py2many.scope import ScopeList
 from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
 from pyjl.helpers import is_dir, is_file
 
@@ -639,9 +640,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def _build_constructor(self, node: ast.ClassDef, dec_items: dict[str, Any]):
         args = ast.arguments(args=[], defaults=[])
         assigns = []
+        declarations = []
         for declaration, (typename, default_node) in dec_items:
             args.args.append(ast.arg(arg=declaration, annotation = ast.Name(id=typename)))
             args.defaults.append(default_node)
+            declarations.append(ast.Name(id=declaration))
             assigns.append(ast.Assign(targets=[ast.Name(id=declaration)], value = ast.Name(id=declaration)))
         is_oop = OOP_CLASS in node.parsed_decorators
         if is_oop:
@@ -653,6 +656,10 @@ class JuliaTranspiler(CLikeTranspiler):
                 name = node.name, args = args, body = [],
             )
         constructor.body = assigns
+        obj_builder = ast.Call(func=ast.Name(id="new", 
+            args=declarations, keywords=[], scope=ScopeList()))
+        ast.fix_missing_locations(obj_builder)
+        constructor.body.append(obj_builder)
         constructor.scopes = node.scopes
         constructor.parsed_decorators = {}
         constructor.decorator_list = []

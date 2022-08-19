@@ -13,7 +13,7 @@ from py2many.scope import ScopeList
 from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_list
 from py2many.analysis import IGNORED_MODULE_SET
 
-from py2many.ast_helpers import copy_attributes, get_id
+from py2many.ast_helpers import copy_attributes, create_ast_node, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
 from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
@@ -1906,9 +1906,9 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
     JuliaMethodCallRewriter"""
 
     CTYPES_CONVERSION_MAP = {
-        "int": "ctypes.c_int",
-        "float": "ctypes.c_float",
-        "bool": "ctypes.c_bool",
+        "int": "Cint",
+        "float": "Cfloat",
+        "bool": "Cbool",
     }
     # The idea is to keep the ctypes module in pyjl/external/modules isolated
     # from any rewriters
@@ -2109,8 +2109,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 if getattr(arg, "annotation", None):
                     if (id := get_id(arg.annotation)) in self.CTYPES_CONVERSION_MAP:
                         converted_type = self.CTYPES_CONVERSION_MAP[id]
-                        argtypes_lst.append(ast.Name(id=converted_type, 
-                            lineno=node.lineno, col_offset=node.col_offset))
+                        ann = create_ast_node(converted_type, node)
+                        ann = ann.value if isinstance(ann, ast.Expr) else ann
+                        ann.scopes = node.scopes
+                        argtypes_lst.append(ann)
                     else:
                         argtypes_lst.append(arg.annotation)
                 elif isinstance(arg, ast.Call) and \
