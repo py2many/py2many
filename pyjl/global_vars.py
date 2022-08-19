@@ -4,6 +4,7 @@ CHANNELS = "channels"
 OFFSET_ARRAYS = "offset_arrays"
 JL_CLASS="jl_class"
 OOP_CLASS="oop_class"
+PARAMETERIZED="parameterized"
 
 # Flags
 USE_RESUMABLES = "use_resumables"

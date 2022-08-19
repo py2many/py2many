@@ -375,6 +375,17 @@ class JuliaTranspilerPlugins:
                 end
             end\n"""
 
+    def visit_parameterized_struct(self, node, decorator):
+        self._usings.add("Parameters")
+        funcdef = (
+            f"function {node.name}{node.template}({node.parsed_args}){node.return_type}"
+        )
+        # Visit function body
+        body = "\n".join(self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
+        return f"@kwdef {funcdef}\n{body}\nend\n"
+
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
 
@@ -929,6 +940,7 @@ class JuliaTranspilerPlugins:
         self._globals.add(import_stmt)
 
 
+
 class SpecialFunctionsPlugins:
     def visit_init(self, node: ast.FunctionDef):
         # Remove self
@@ -1111,6 +1123,7 @@ DECORATOR_DISPATCH_TABLE = {
     "oop_class": JuliaTranspilerPlugins.visit_OOPClass,
     "resumable": JuliaTranspilerPlugins.visit_resumables,
     "channels": JuliaTranspilerPlugins.visit_channels,
+    "parameterized": JuliaTranspilerPlugins.visit_parameterized_struct,
     "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays,
 }
 
@@ -1353,6 +1366,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.executable: (lambda self, node, vargs, kwargs: "Base.julia_exename()", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
+    eval: (lambda self, node, vargs, kwargs: f"py\"{', '.join(vargs)}\"", True),
+    exec: (lambda self, node, vargs, kwargs: f"py\"\"\"{', '.join(vargs)}\"\"\"", True),
 }
 
 
