@@ -104,7 +104,7 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
             # Method of an instance instead of a class.
             return getattr(typeclass.__self__.__class__, typeclass.__name__)
 
-        if not isinstance(typeclass, type):
+        if not isinstance(typeclass, (type, type(open))):
             return typeclass.__class__
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):
@@ -425,9 +425,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Str(self, node) -> str:
         node_str = node.value
         node_str = node_str.replace('"', '\\"')
-        node_str = node_str.replace('\n', '\\n')
-        node_str = node_str.replace('\r', '\\r')
-        node_str = node_str.replace('\t', '\\t')
+        node_str = node_str.replace("\n", "\\n")
+        node_str = node_str.replace("\r", "\\r")
+        node_str = node_str.replace("\t", "\\t")
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
