@@ -375,8 +375,22 @@ class JuliaTranspilerPlugins:
                 end
             end\n"""
 
-    def visit_parameterized_struct(self, node, decorator):
-        self._usings.add("Parameters")
+    def visit_parameterized_struct(self, node: ast.ClassDef, decorator):
+        body = "\n".join(list(map(self.visit, body)))
+        bases = []
+        for base in node.jl_bases:
+            bases.append(self.visit(base))
+        # Build struct definition
+        struct_def = f"mutable struct {node.name} <: {', '.join(bases)}" \
+            if bases else f"mutable struct {node.name}"
+
+        docstring = self._get_docstring(node)
+        maybe_docstring = f"{docstring}\n" if docstring else ""
+        maybe_constructor = f"\n{self.visit(node.constructor)}" if getattr(node, "constructor", None) else ""
+
+        return f"@kwdef {struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
+
+    def visit_parameterized_function(self, node: ast.FunctionDef, decorator):
         funcdef = (
             f"function {node.name}{node.template}({node.parsed_args}){node.return_type}"
         )
@@ -384,7 +398,15 @@ class JuliaTranspilerPlugins:
         body = "\n".join(self.visit(n) for n in node.body)
         if body == "...":
             body = ""
-        return f"@kwdef {funcdef}\n{body}\nend\n"
+        kw_funcs = []
+        if hasattr(node, "args_list"):
+            arg_lst = ", ".join([arg.arg for arg in node.args.args])
+            for i in range(len(node.args_list)):
+                kw_funcs.append(f"{node.name}({', '.join(node.args_list[:i])};"
+                    f"{', '.join(node.args_list[i:])}) = {node.name}({arg_lst})")
+
+        kw_funcs = '\n'.join(kw_funcs)
+        return f"{funcdef}\n{body}\nend\n{kw_funcs}\n"
 
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
@@ -548,34 +570,20 @@ class JuliaTranspilerPlugins:
             return f"x -> join(x, {vargs[0]})"
         return "join"
 
-    # TODO: Optimize (possibly using regex)
     def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
         subst_values: list[str] = vargs[1:]
-        res: str = re.split("{|}", vargs[0])
-        # Fill in empty curly braces
+        res: str = re.split(r"{|}", vargs[0])
+        kw_arg_names = {kwarg[0]: kwarg[1] for kwarg in kwargs}
+        # Replace elements in string
         cnt = 0
-        for i in range(len(res)):
-            r = res[i]
-            if r == "":
-                res[i] = f"{cnt}"
-                cnt += 1
-        # Create replacement map to replace original strings
-        replacement_map = {}
-        for i in range(len(subst_values)):
-            subst_val = re.split("\s*=\s*", subst_values[i])
-            if len(subst_val) > 1:
-                original = subst_val[0]
-                replacement = subst_val[1]
-            else:
-                original = f"{i}"
-                replacement = subst_val[0]
-            replacement_map[original] = replacement
-        # Replace placeholders for values
-        for j in range(1, len(res), 2):
-            split_res = res[j].split(".")
-            split_res[0] = split_res[0].translate(str.maketrans(replacement_map))
-            res[j] = f"$({'.'.join(split_res)})"
-
+        for i in range(1, len(res)-1, 2):
+            if res[i] == "":
+                res[i] = f"$({subst_values[cnt]})"
+            elif re.match(r"!r|n", res[i]):
+                res[i] = f"$({subst_values[cnt]})"
+            elif res[i] in kw_arg_names:
+                res[i] = kw_arg_names[res[i]]
+            cnt += 1
         return "".join(res)
 
     def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
@@ -804,6 +812,17 @@ class JuliaTranspilerPlugins:
             return f'encode({self.visit(node.args[0])}, "UTF-8")'
         return f"encode({vargs[0]}, {vargs[1]})"
 
+    def visit_splitlines(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+        if vargs:
+            if isinstance(node.args[0], ast.Constant) and \
+                    isinstance(node.args[0].value, str):
+                v0 = node.args[0].value.removesuffix('\n')
+                v0 = f"\"{v0}\""
+            else:
+                v0 = vargs[0].removesuffix('\n')
+            return f"split({v0}, r\"\\n|\\r\\n\")"
+        return "lambda x: split(x.removesuffix('\n'), r\"\\n|\\r\\n\")"
+
     def visit_ord(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
         v0 = vargs[0].replace('"', "'")
         return f"Int(codepoint({v0}))"
@@ -953,14 +972,14 @@ class SpecialFunctionsPlugins:
             if isinstance(n, ast.Assign) and is_self(n.targets[0]):
                 new_id = get_id(n.targets[0]).split(".")[1:]
                 ann = getattr(n.targets[0], "annotation", None)
-                if new_id[0] not in arg_ids:
+                if new_id[0] not in arg_ids and get_id(n.value) not in arg_ids:
                     arg_node = ast.arg(arg=".".join(new_id))
                     arg_node.annotation = ann
                     node.args.args.append(arg_node)
                     node.args.defaults.append(n.value)
             elif isinstance(n, ast.AnnAssign) and is_self(n.target):
                 new_id = get_id(n.target).split(".")[1:]
-                if new_id[0] not in arg_ids:
+                if new_id[0] not in arg_ids and get_id(n.value) not in arg_ids:
                     arg_node = ast.arg(arg=".".join(new_id), annotation=n.annotation)
                     node.args.args.append(arg_node)
                     node.args.defaults.append(n.value)
@@ -1123,6 +1142,7 @@ DECORATOR_DISPATCH_TABLE = {
     "resumable": JuliaTranspilerPlugins.visit_resumables,
     "channels": JuliaTranspilerPlugins.visit_channels,
     "parameterized": JuliaTranspilerPlugins.visit_parameterized_struct,
+    "parameterized_func": JuliaTranspilerPlugins.visit_parameterized_function,
     "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays,
 }
 
@@ -1220,10 +1240,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     int.to_bytes: (JuliaTranspilerPlugins.visit_inttobytes, True),
+    int.real: (lambda self, node, vargs, kwargs: f"real({vargs[0]})", True),
+    int.imag: (lambda self, node, vargs, kwargs: f"imag({vargs[0]})", True),
+    int.denominator: (lambda self, node, vargs, kwargs: f"denominator({vargs[0]})", True),
+    int.numerator: (lambda self, node, vargs, kwargs: f"numerator({vargs[0]})", True),
     float.conjugate: (
         lambda self, node, vargs, kwargs: f"conj({vargs[0]})" if vargs else "conj",
         True,
     ),
+    float.real: (lambda self, node, vargs, kwargs: f"real({vargs[0]})", True),
+    float.imag: (lambda self, node, vargs, kwargs: f"imag({vargs[0]})", True),
     math.floor: (
         lambda self, node, vargs, kwargs: f"floor(Int, {vargs[0]})"
         if vargs
@@ -1363,6 +1389,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     sys.maxsize: (lambda self, node, vargs, kwargs: "typemax(Int)", True),
     str.encode: (JuliaTranspilerPlugins.visit_encode, True),
+    str.splitlines: (JuliaTranspilerPlugins.visit_splitlines, True),
     sys.executable: (lambda self, node, vargs, kwargs: "Base.julia_exename()", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),

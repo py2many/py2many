@@ -11,7 +11,7 @@ import logging
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
 from py2many.external_modules import ExternalBase
 from py2many.helpers import get_ann_repr
-from py2many.tracer import find_node_by_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type
 from pyjl.juliaAst import JuliaNodeVisitor
 from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP, DISPATCH_MAP
 from pyjl.global_vars import ALLOW_ANNOTATIONS_ON_GLOBALS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
@@ -385,24 +385,23 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                     (id := get_id(node.args[0].func)):
                 var = id
 
-            dispatch_func = self._get_dispatch_func(node, var, fname, vargs[1:], kwargs)
+            dispatch_func = self._get_dispatch_func(node, var, fname, vargs, kwargs)
             if dispatch_func:
                 return dispatch_func
 
             # Remove any extra values
             if re.match(r"\w+", var):
-                dispatch = self._clike_dispatch(node, f"{var}.{fname}", vargs[1:], kwargs)
+                dispatch = self._clike_dispatch(node, f"{var}.{fname}", vargs, kwargs)
                 if dispatch:
                     return dispatch
 
             # Self argument type lookup
             class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
             if class_node:
-                for base in class_node.bases:
-                    base_str = get_ann_repr(base, sep = SEP)
-                    dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs, kwargs)
-                    if dispatch_func:
-                        return dispatch_func
+                base_str = self._find_last_base(class_node, "")
+                dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs, kwargs)
+                if dispatch_func:
+                    return dispatch_func
 
             # Dispatch based on annotations
             annotation = None
@@ -474,4 +473,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 return None
 
         return None
+
+    def _find_last_base(self, node: ast.ClassDef, base_str):
+        for base in node.bases:
+            base_str = get_ann_repr(base, sep = SEP)
+            if superclass := find_node_by_name_and_type(base_str, ast.ClassDef, node.scopes)[0]:
+                # print(superclass.bases)
+                return self._find_last_base(superclass, base_str)
+        return base_str
         

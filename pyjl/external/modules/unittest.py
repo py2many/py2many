@@ -21,12 +21,26 @@ class JuliaExternalModulePlugins:
             val = self.visit(node.args[2])
         return f"@test ({vargs[1]} == {val})"
 
+    def visit_assertNonEqual(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_test_visit(self)
+        val = vargs[2]
+        if isinstance(node.args[2], ast.Name):
+            node.args[2].preserve_keyword=True
+            val = self.visit(node.args[2])
+        return f"@test ({vargs[1]} != {val})"
+
     def visit_assertRaises(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._generic_test_visit(self)
-        exception = vargs[1]
-        func = vargs[2]
-        values = ", ".join(vargs[3:])
-        return f"@test_throws {exception} {func}({values})"
+        if vargs[0] == "self":
+            vargs = vargs[1:]
+        if len(vargs) == 1:
+            return f"@test_throws {vargs[0]}"
+        elif len(vargs) > 1:
+            exception = vargs[0]
+            func = vargs[1]
+            values = ", ".join(vargs[2:]) if len(vargs) > 2 else ""
+            f"@test_throws {exception} {func}({values})"
+        return "@test_throws"
 
     def visit_assertIsInstance(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._generic_test_visit(self)
@@ -60,6 +74,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertTrue: (JuliaExternalModulePlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaExternalModulePlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaExternalModulePlugins.visit_assertEqual, True),
+    unittest.TestCase.assertNotEqual: (JuliaExternalModulePlugins.visit_assertNonEqual, True),
     unittest.TestCase.assertRaises: (
         JuliaExternalModulePlugins.visit_assertRaises,
         True,

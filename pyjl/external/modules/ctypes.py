@@ -67,7 +67,7 @@ class JuliaExternalModulePlugins():
 
     def visit_pyobject(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        return f"ctypes.py_object({', '.join(vargs())})"
+        return f"ctypes.py_object({', '.join(vargs)})"
     
     def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # Cannot pass stdcall function pointer in Julia

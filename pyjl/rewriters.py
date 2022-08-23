@@ -1407,6 +1407,10 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         "Object",
     ])
 
+    SPECIAL_EXTENDS = set([
+        "unittest.TestCase"
+    ])
+
     def __init__(self) -> None:
         super().__init__()
         self._ignored_module_set = \
@@ -1434,11 +1438,13 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
             extends = None
             core_module = extends.split(
                 ".")[0] if extends else None
-            if extends and core_module not in self._ignored_module_set:
+            if extends and core_module not in self._ignored_module_set and \
+                    extends not in self.SPECIAL_EXTENDS:
                 extends_name = f"Abstract{extends}" \
                     if extends in self._hierarchy_map \
                     else extends
                 extends = ast.Name(id=f"{extends_name}")
+                ast.fix_missing_locations(extends)
             abstract_types.append(juliaAst.AbstractType(value=nameVal, extends = extends,
                                     ctx=ast.Load(), lineno=l_no, col_offset=0))
             # increment linenumber
@@ -1458,6 +1464,7 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         # Certain classes do not need a hierarchy
         base_ids = set(map(get_id, node.bases))
         if base_ids.intersection(self.IGNORE_EXTENDS_SET):
+            node.jl_bases = []
             return node
 
         class_name: str = get_id(node)
@@ -1472,8 +1479,7 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         node.jl_bases = [
             ast.Name(id=f"Abstract{class_name}", ctx=ast.Load)]
         if len(node.bases) == 1:
-            name = get_id(node.bases[0])
-            extends = name
+            extends = get_id(node.bases[0])
         elif len(node.bases) > 1:
             raise Exception("Multiple inheritance is only supported with ObjectOriented.jl")
 

@@ -478,6 +478,8 @@ class UnitTestRewriter(ast.NodeTransformer):
                 n = self.visit(n)
                 self.test_base = None
             self._test_classes.append((node.name, set_up + test_funcs + teardown))
+            # TODO: commented because it affects dispatch
+            # node.bases.clear()
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
