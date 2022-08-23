@@ -425,6 +425,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Str(self, node) -> str:
         node_str = node.value
         node_str = node_str.replace('"', '\\"')
+        node_str = node_str.replace('\n', '\\n')
+        node_str = node_str.replace('\r', '\\r')
+        node_str = node_str.replace('\t', '\\t')
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
