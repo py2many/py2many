@@ -22,11 +22,11 @@ class ValueHolder:
 if __name__ == "__main__":
     # Test ValueHolder
     c1 = ValueHolder(10, "10")
-    assert c1.__eq__(ValueHolder(val=10, strVal="10"))
+    assert c1.__eq__(ValueHolder(10, "10"))
     c2 = ValueHolder(10, "10")
     assert c1.__le__(c2)
     assert c1.__ge__(c2)
-    c1 = ValueHolder(val=11, strVal="10")
+    c1 = ValueHolder(11, "10")
     assert c2.__lt__(c1)
     assert c1.__gt__(c2)
 

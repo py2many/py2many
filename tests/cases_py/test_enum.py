@@ -520,7 +520,6 @@ class TestEnum(unittest.TestCase):
                 red = 1
                 green = 2
                 blue = 3
-                red = 4
 
         with self.assertRaises(TypeError):
 
