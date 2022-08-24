@@ -109,10 +109,16 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
             mod_path_str = ""
             if node.module:
                 mod_path = node.module.split(".")
-                base_dir = self._basedir.stem if self._basedir else ""
+                base_dir = ""
+                if self._basedir:
+                    base_dir = self._basedir.stem
+                elif b_dir := getattr(node.scopes[0], "__basedir__", None):
+                    # Hack, as visit calls super()
+                    base_dir = b_dir.stem
                 if mod_path[0] == base_dir:
                     mod_path = mod_path[1:]
                 mod_path_str = ".".join(mod_path)
+            
             # Names can also be modules
             for n in names:
                 name = f"{mod_path_str}.{n}"
@@ -160,7 +166,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Module(self, node):
         node.vars = []
-        self._basedir = getattr(node, "__basedir__", None)
+        self._basedir = node.__basedir__
         self.generic_visit(node)
         return node
 
