@@ -1,5 +1,6 @@
 import ast
 import ctypes
+from ctypes import wintypes
 import sys
 
 from typing import Callable, Dict, Optional, Tuple, Union
@@ -86,9 +87,6 @@ class JuliaExternalModulePlugins():
         if has_wintypes:
             JuliaExternalModulePlugins._pycall_import(self, node, "ctypes.wintypes", "wintypes")
         return f"ctypes.WINFUNCTYPE({', '.join(args)})"
-
-    def visit_ctypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
     
     def _pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
         self._usings.add("PyCall")
@@ -109,10 +107,10 @@ class JuliaExternalModulePlugins():
             return f"Base.windowserror({parsed_args})"
         return "Base.windowserror"
 
-    def visit_windll(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        # Alternative that returns function pointers
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        return f"ctypes.WinDLL({', '.join(vargs)})"
+    # def visit_windll(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    #     # Alternative that returns function pointers
+    #     JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+    #     return f"ctypes.WinDLL({', '.join(vargs)})"
 
 
 FuncType = Union[Callable, str]
@@ -131,7 +129,6 @@ GENERIC_DISPATCH_TABLE = {
     ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True),
     ctypes.py_object: (JuliaExternalModulePlugins.visit_pyobject, True),
-    # ctypes: (JuliaExternalModulePlugins.visit_ctypes, True),
 }
 
 DISPATCH_MAP = {
@@ -156,8 +153,9 @@ if sys.platform.startswith('win32'):
     SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
 
     WIN_DISPATCH_TABLE = {
-        # ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
-        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_windll, True),
+        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+        ctypes.windll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
+        # ctypes.WinDLL: (JuliaExternalModulePlugins.visit_windll, True),
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
@@ -208,12 +206,14 @@ EXTERNAL_TYPE_MAP = {
 
 FUNC_TYPE_MAP = {
     ctypes.cdll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.CDLL",
+    ctypes.windll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
     ctypes.CDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL",
     ctypes.WinDLL: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
     ctypes.PyDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL", # Hack, for now
     # Why invalid syntax???
     # ctypes.cast: lambda self, node, vargs, kwargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
     ctypes.cast: lambda self, node, vargs, kwargs: "ctypes._SimpleCData",
+    ctypes.WINFUNCTYPE: lambda self, node, vargs, kwargs: "PyObject",
 }
 
 IGNORED_MODULE_SET = set([

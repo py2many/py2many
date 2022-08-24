@@ -1968,8 +1968,8 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 not admissible_args:
             return node
 
-        if get_id(annotation) == ("ctypes.CDLL" or "CDLL" or 
-                    "ctypes.WinDLL" or "WinDLL") and \
+        if get_id(annotation) in {"ctypes.CDLL", "CDLL", 
+                    "ctypes.WinDLL","WinDLL"} and \
                 isinstance(target, ast.Attribute) and \
                 isinstance(target.value, ast.Attribute):
             # Adding information about modules and named functions
@@ -2018,9 +2018,12 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
         if isinstance(node.func, ast.Attribute) and \
                 get_id(node.func).split(".")[0] in self._imported_names:
             if isinstance(node.func.value, ast.Attribute):
-                func.value = node.func.value.value
+                func = ast.Attribute(
+                    value = ast.Name(id=node.func.value.attr),
+                    attr = node.func.attr)
             else:
                 func = ast.Name(id=node.func.attr)
+        ast.fix_missing_locations(func)
 
         # Ignore calls that Load the library
         if class_for_typename(get_id(func), None, self._imported_names) \
@@ -2043,7 +2046,9 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 module_name = func.value.attr
             else:
                 return node
-            if get_id(getattr(dll_node, "annotation", None)) == ("ctypes.CDLL" or "CDLL"):
+
+            if get_id(getattr(dll_node, "annotation", None)) in {"ctypes.CDLL", "CDLL", 
+                    "ctypes.WinDLL","WinDLL"}:
                 # Attempt to use the stored information
                 named_func = func.attr
                 if module_name in self._ext_modules and \
@@ -2059,8 +2064,8 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                         scopes = node.scopes),
                     args = [ast.Name(id=module_name), juliaAst.Symbol(id=named_func)],
                     keywords = [])
-        elif get_id(getattr(node.scopes.find(get_id(func)), "annotation", None)) == \
-                ("ctypes._NamedFuncPointer" or "_NamedFuncPointer"):
+        elif get_id(getattr(node.scopes.find(get_id(func)), "annotation", None)) in \
+                {"ctypes._NamedFuncPointer", "_NamedFuncPointer"}:
             # Using node.func to consider the original name
             func_id = get_id(node.func).removeprefix("self") # remove self, if any
             args = self._ext_modules[func_id] \
@@ -2079,7 +2084,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             ccall_func.scopes = node.scopes
             ast.fix_missing_locations(ccall_func)
             # Add ccall
-            ccall =  ast.Call(
+            ccall = ast.Call(
                 func = ast.Name(id="ccall"),
                 args = [ccall_func, restype, argtypes],
                 keywords = [],
@@ -2102,8 +2107,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             # Elements are all annotations
             if isinstance(t_argtypes, ast.List):
                 argtypes = ast.Tuple(elts = t_argtypes.elts)
-            else:
+            elif isinstance(t_argtypes, ast.Tuple):
                 argtypes = t_argtypes
+            else:
+                argtypes = ast.Tuple(elts = [t_argtypes])
         if "restype" in args:
             restype = args["restype"]
         # Assign defaults if necessary
@@ -2140,8 +2147,21 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
         if not restype:
             restype = ast.Name(id="Cvoid")
 
+        idxs = []
+        i = 0
         for arg in argtypes.elts:
+            if hasattr(arg, "annotation") and \
+                    get_id(arg.annotation) == "PyObject":
+                idxs.append(i)
             arg.is_annotation = True
+            i += 1
+        # Replace all PyObject types with Ptr{void}
+        for idx in idxs:
+            argtypes.elts[idx] = ast.Subscript(
+                value = ast.Name(id="Ptr"),
+                slice=ast.Name(id="Cvoid"),
+                lineno=node.lineno,
+                col_offset=node.col_offset)
         restype.is_annotation = True
         
         ast.fix_missing_locations(restype)
