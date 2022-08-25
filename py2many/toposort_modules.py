@@ -1,5 +1,6 @@
 import ast
-from pathlib import Path
+from pathlib import Path, PosixPath, WindowsPath
+import sys
 from toposort import toposort_flatten
 from collections import defaultdict
 from typing import Tuple
@@ -16,19 +17,29 @@ class ImportDependencyVisitor(ast.NodeVisitor):
         self.deps = defaultdict(set)
         self._modules = modules
         self._basedir = None
+        self._filename = None
 
     def visit_Module(self, node):
         self._current = module_for_path(node.__file__)
         self._basedir = getattr(node, "__basedir__", None)
+        self._filename = getattr(node, "__file__", None)
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
-        if node.module in self._modules:
-            self.deps[self._current].add(node.module)
+        # Consider import_from level
+        module_path = node.module
+        if node.level >= 1:
+            # get path (excluding name of the file)
+            path = self._filename.as_posix().split("/")[:-node.level]
+            path_str = ".".join(path)
+            module_path = f"{path_str}.{module_path}" if path_str else module_path
+
+        if module_path in self._modules:
+            self.deps[self._current].add(module_path)
         # Names can also be modules
         mod_path_str = ""
-        if node.module:
-            mod_path = node.module.split(".")
+        if module_path:
+            mod_path = module_path.split(".")
             base_dir = self._basedir.stem if self._basedir else ""
             if mod_path[0] == base_dir:
                 mod_path = mod_path[1:]

@@ -1,5 +1,6 @@
 import ast
-from pathlib import PosixPath
+from pathlib import PosixPath, WindowsPath
+import sys
 
 from py2many.ast_helpers import get_id
 from py2many.tracer import is_list_assignment
@@ -55,6 +56,7 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     def __init__(self, trees):
         super().__init__()
         self._basedir = None
+        self._filename = None
         if len(trees) == 1:
             self._trees = {}
         else:
@@ -100,6 +102,17 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
     def visit_ImportFrom(self, node):
         module_path = node.module
         names = [n.name for n in node.names]
+        if node.level >= 1:
+            filename = WindowsPath() if sys.platform.startswith('win32') else PosixPath()
+            if self._filename:
+                filename = self._filename
+            elif f_name := getattr(node.scopes[0], "__file__", None):
+                filename = f_name
+            # get path (excluding name of the file)
+            path = filename.as_posix().split("/")[:-node.level]
+            path_str = ".".join(path)
+            module_path = f"{path_str}.{module_path}" if path_str else module_path
+
         if module_path in self._trees:
             m = self._trees[module_path]
             if hasattr(m, "scopes"):
@@ -166,7 +179,8 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_Module(self, node):
         node.vars = []
-        self._basedir = node.__basedir__
+        self._basedir = getattr(node, "__basedir__", None)
+        self._filename = getattr(node, "__file__", None)
         self.generic_visit(node)
         return node
 
