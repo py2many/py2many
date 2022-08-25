@@ -176,6 +176,9 @@ class AnnotationVisitor(ast.NodeTransformer):
                 n.is_annotation = True
         return node
 
+# TODO: Cross-Module support
+_class_attribute_types = {}
+
 class InferTypesTransformer(ast.NodeTransformer):
     """
     Tries to infer types
@@ -293,8 +296,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         if self._has_generators:
             node.annotation = ast.Name(id="Generator")
 
+        class_type = find_parent_of_type(ast.ClassDef, node.scopes)
         if len(node.scopes) > 1:
-            class_type = find_parent_of_type(ast.ClassDef, node.scopes)
             if class_type and not hasattr(node, "self_type"):
                 node.self_type = get_id(class_type)
 
@@ -302,6 +305,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 hasattr(node.body[-1], "annotation") and \
                 node.returns == None:
             node.returns = node.body[-1].annotation
+
+        if node.name == "__getattr__" and class_type:
+            _class_attribute_types[class_type.name] = node.returns
 
         return node
 
@@ -712,6 +718,11 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         value_id = get_id(node.value)
         if not getattr(node, "annotation", None):
+            if isinstance(node.value, ast.Name):
+                val = node.scopes.find(get_id(node.value))
+                ann = get_id(getattr(val, "annotation", None))
+                if ann in _class_attribute_types:
+                    node.annotation = _class_attribute_types[ann]
             if value_id == "self":
                 class_node = find_node_by_type(ast.ClassDef, node.scopes)
                 attr_node = getattr(class_node.scopes.find(node.attr), "target_node", None) \
