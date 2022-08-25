@@ -502,6 +502,18 @@ class UnitTestRewriter(ast.NodeTransformer):
             node.value.annotation = self.test_base
         return node
 
+    def visit_With(self, node: ast.With) -> Any:
+        # Rewriting with statements with assertRaises
+        self.generic_visit(node)
+        ctx = node.items[0].context_expr
+        if len(node.body) == 1 and \
+                isinstance(ctx, ast.Call) and \
+                isinstance(ctx.func, ast.Attribute) and \
+                ctx.func.attr == "assertRaises":
+            ctx.args.append(node.body[0]) 
+            return ctx
+        return node
+
     def _generic_main_visit(self, node):
         body = []
         for n in node.body:
