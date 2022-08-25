@@ -1,6 +1,8 @@
 import ast
+import subprocess
 import ctypes
 from ctypes import wintypes
+import os
 import sys
 
 from typing import Callable, Dict, Optional, Tuple, Union
@@ -14,21 +16,23 @@ class JuliaExternalModulePlugins():
 
     # Unfortunately, ctypes fields are evaluated at compile time, 
     # forcing one to set the argument- and return types for the functions
-    # def visit_pythonapi(self, node: ast.Call, vargs):
-    #     self._usings.add("Libdl")
-    #     # Checks the path of the dll for Python 3.9
-    #     python_39_path = subprocess.check_output('where python39.dll').decode().strip()
-    #     python_39 = f"\"{'/'.join(python_39_path.split(os.sep))}\""
-    #     self._globals.add(f"pythonapi = Libdl.dlopen({python_39})")
-    #     if getattr(node, "is_attr", None):
-    #         func = self.visit(node.func)
-    #         return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
-    #     return f"ccall({', '.join(vargs)})"
+    def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        self._usings.add("Libdl")
+        # Checks the path of the dll for Python 3.9
+        python_39_path = subprocess.check_output('where python39.dll').decode().strip()
+        python_39 = f"\"{'/'.join(python_39_path.split(os.sep))}\""
+        self._globals.add(f"pythonapi = Libdl.dlopen({python_39})")
+        func = self.visit(node.func)
+        if getattr(node, "in_ccall", None):
+            return f"Libdl.dlsym(pythonapi, :{func})"
+        elif getattr(node, "is_attr", None):
+            return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
+        return f"ccall({', '.join(vargs)})"
   
-    def visit_pythonapi(self, node: ast.Call, vargs, kwargs):
-        # TODO: Search for DLL
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        return f"ctypes.pythonapi.{self.visit(node.func)}"
+    # def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    #     # TODO: Search for DLL
+    #     JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
+    #     return f"ctypes.pythonapi.{self.visit(node.func)}"
 
     def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # (TODO) From Documentation: Neither convert nor cconvert should 
@@ -137,7 +141,6 @@ DISPATCH_MAP = {
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
-    # "pythonapi.PyBytes_FromStringAndSize": lambda node, vargs: "ctypes.pythonapi.PyBytes_FromStringAndSize",
 }
 
 if sys.platform.startswith('win32'):
