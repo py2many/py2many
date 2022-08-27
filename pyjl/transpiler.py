@@ -633,6 +633,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 if name not in args_str:
                     dec_items.append((name, (typename, default)))
 
+        check_reserved_names = lambda item: (f"{item[0]}_", item[1]) \
+            if (item[0] in self._julia_function_names) \
+            else (item[0], item[1])
+
+        dec_items = list(map(check_reserved_names, dec_items))
+
         decs = []
         fields = []
         fields_str = []
@@ -1224,6 +1230,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_JuliaModule(self, node: juliaAst.JuliaModule) -> Any:
         body = self.visit_Module(node)
         mod_name = self.visit(node.name)
+        if mod_name == "__init__":
+            return f"module {self._filename.parent.stem}\n{body}\nend"
         return f"module {mod_name}\n{body}\nend"
 
     def visit_OrderedDict(self, node: juliaAst.OrderedDict):

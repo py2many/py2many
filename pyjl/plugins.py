@@ -1111,6 +1111,7 @@ SMALL_DISPATCH_MAP = {
     "None": lambda n, vargs, kwargs: f"Nothing",
     "sys.argv": lambda n, vargs, kwargs: "append!([PROGRAM_FILE], ARGS)",
     "os.environ": lambda n, vargs, kwargs: "keys(ENV)",
+    "sys.meta_path": lambda node, vargs, kwargs: "Base.LOAD_PATH",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}

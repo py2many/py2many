@@ -117,7 +117,8 @@ JULIA_TYPE_MAP = {
     Rational: "Rational",
     Real: "Real",
     None: "Nothing",
-    Any: "Any"
+    Any: "Any",
+    object: "DataType",
 }
 
 JULIA_INTEGER_TYPES = \

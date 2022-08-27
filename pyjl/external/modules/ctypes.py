@@ -47,51 +47,33 @@ class JuliaExternalModulePlugins():
             return self.visit(node.args[0])
 
     def visit_byref(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        if len(vargs) == 1:
-            return f"pointer_from_objref({vargs[0]})" 
-        elif len(vargs) > 1:
-            return f"pointer_from_objref({vargs[1]})" 
+        if getattr(node, "is_attr", None):
+            return "x -> pointer_from_objref(x)"
+        if len(vargs) > 0:
+            return f"pointer_from_objref({vargs[0]})"
         return "pointer_from_objref"
 
-    # Using Pycall
     def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        # TODO: Change to ccall
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        # Unparse args to avoid mapping them to the corresponding Julia types
-        args = []
-        for arg in node.args:
-            if (func := self._func_for_lookup(ast.unparse(arg))) != self._default_type:
-                args.append(f"ctypes.{func.__name__}")
-            else:
-                args.append(ast.unparse(arg))
-        return f"pointer_from_objref({', '.join(args)})"
+        return f"pointer_from_objref({vargs[0]})"
 
+    # def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    #     return_type = vargs[0]
+    #     arg_types = vargs[1:]
+    #     arg_types_str = f"({', '.join(arg_types)})" \
+    #         if len(arg_types) > 1 else f"({', '.join(arg_types)},)"
+    #     return f"""(arg = nothing) -> begin
+    #             if arg !== Nothing
+    #                 return @cfunction(@static arg, {return_type}, {arg_types_str})
+    #             else 
+    #                 return Ptr{{Cvoid}}
+    #             end
+    #         end"""
+    
+    # Using Pycall
     def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
         JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
 
-    def visit_pyobject(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        return f"ctypes.py_object({', '.join(vargs)})"
-    
-    def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        # Cannot pass stdcall function pointer in Julia
-        # https://github.com/JuliaLang/julia/issues/5613
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-        has_wintypes = False
-        args = []
-        for arg in node.args:
-            # Avoid visit, as that would translate ctype
-            arg_str = ast.unparse(arg)
-            if arg_str.isupper():
-                # Currently a hack to get wintypes
-                has_wintypes = True
-                arg_str = f"wintypes.{arg_str}"
-            args.append(arg_str)
-        if has_wintypes:
-            JuliaExternalModulePlugins._pycall_import(self, node, "ctypes.wintypes", "wintypes")
-        return f"ctypes.WINFUNCTYPE({', '.join(args)})"
-    
     def _pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
         self._usings.add("PyCall")
         if opt_name:
@@ -132,7 +114,6 @@ GENERIC_DISPATCH_TABLE = {
     # Using PythonCall
     ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True),
-    ctypes.py_object: (JuliaExternalModulePlugins.visit_pyobject, True),
 }
 
 DISPATCH_MAP = {
@@ -162,7 +143,7 @@ if sys.platform.startswith('win32'):
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
-        ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_winfunctype, True),
+        # ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_winfunctype, True),
         # Exceptions
         WindowsError: (JuliaExternalModulePlugins.visit_winerror, True),
     }
@@ -203,7 +184,7 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_void_p: "Ptr{Cvoid}",
     ctypes.CDLL: "", # TODO: Temporary
     ctypes.WinDLL: "",
-    ctypes.py_object: "ctypes.py_object",
+    ctypes.py_object: "Ptr{Cvoid}",
 }
 
 
@@ -217,6 +198,7 @@ FUNC_TYPE_MAP = {
     # ctypes.cast: lambda self, node, vargs, kwargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
     ctypes.cast: lambda self, node, vargs, kwargs: "ctypes._SimpleCData",
     ctypes.WINFUNCTYPE: lambda self, node, vargs, kwargs: "PyObject",
+    ctypes.POINTER: lambda self, node, vargs, kwargs: "ctypes.POINTER",
 }
 
 IGNORED_MODULE_SET = set([

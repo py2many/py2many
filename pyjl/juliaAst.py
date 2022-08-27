@@ -16,7 +16,7 @@ class AbstractType(ast.Expr):
 
 
 class LetStmt(ast.Lambda):
-    args: ast.arguments
+    args: list[ast.expr]
     body: list[ast.expr]
     ctx: ast.expr_context
 

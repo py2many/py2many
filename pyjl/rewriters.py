@@ -300,20 +300,19 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         super().__init__()
         self._use_resumables = False
         self._lower_yield_from = False
-        self._replace_map: Dict = {}
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
+        self._replace_map: Dict[str, ast.Expr] = {}
 
     def visit_Name(self, node: ast.Name) -> Any:
-        self.generic_visit(node)
-        if (id := get_id(node)) in self._replace_map:
-            return self._replace_map[id]
+        if get_id(node) in self._replace_map:
+            return self._replace_map[get_id(node)]
         return node
 
     def visit_Module(self, node: ast.Module) -> Any:
         # Reset state
         self._replace_calls = {}
-        self._replace_map: Dict = {}
+        self._replace_map = {}
         # Get flags
         self._use_resumables = getattr(node, USE_RESUMABLES, False)
         self._lower_yield_from = getattr(node, LOWER_YIELD_FROM, False)
@@ -399,27 +398,31 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
     def visit_With(self, node: ast.With) -> Any:
         if self._sweep:
             return node
+
+        for n in node.body:
+            n.nested_with = True
+
         parent = node.scopes[-2] if len(node.scopes) >= 2 else None
         context_expr = node.items[0].context_expr
-        # Bypass call to closing
-        if isinstance(context_expr, ast.Call) and \
-                get_id(context_expr.func) == "closing":
-            context_expr = context_expr.args[0]
-
         opt_var = node.items[0].optional_vars
         if isinstance(context_expr, ast.Call):
-            func_id = get_id(context_expr.func)
+            if isinstance(context_expr.func, ast.Attribute) and \
+                    get_id(context_expr.func.value) == "self":
+                func_id = context_expr.func.attr
+            else:
+                func_id = get_id(context_expr.func)
             func_def = find_node_by_name_and_type(func_id, ast.FunctionDef, node.scopes)[0]
             if func_def and RESUMABLE in func_def.parsed_decorators \
                     and parent and hasattr(parent, "body"):
                 # Resumable functions cannot be called from annonymous functions
                 # https://github.com/BenLauwens/ResumableFunctions.jl/blob/master/docs/src/manual.md
-                prev = self._replace_map
-                self._replace_map = {get_id(opt_var): context_expr}
+                self._replace_map[get_id(opt_var)] = context_expr
                 self.generic_visit(node)
-                self._replace_map = prev
+                if not getattr(node, "nested_with", None):
+                    self._replace_map.clear()
                 parent.body.extend(node.body)
                 return None
+
         return node
     
     def visit_Call(self, node: ast.Call) -> Any:
@@ -1406,11 +1409,12 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         "IntEnum",
         "IntFlag",
         "Enum",
-        "Object",
     ])
 
     SPECIAL_EXTENDS = set([
-        "unittest.TestCase"
+        "unittest.TestCase",
+        "object",
+        "Object",
     ])
 
     def __init__(self) -> None:
@@ -1909,7 +1913,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
 ######################### ctypes ##########################
 ###########################################################
 
-class JuliaCTypesRewriter(ast.NodeTransformer):
+class JuliaCtypesRewriter(ast.NodeTransformer):
     """Translate ctypes to Julia. Must run before JuliaClassWrapper and 
     JuliaMethodCallRewriter"""
 
@@ -1930,6 +1934,10 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
         ctypes.c_ssize_t, ctypes.c_char_p, ctypes.c_wchar_p, ctypes.c_void_p,
     ]
 
+    SPECIAL_CALLS = {
+        "ctypes.WINFUNCTYPE"
+    }
+
     def __init__(self) -> None:
         super().__init__()
         # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
@@ -1937,6 +1945,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
         self._imported_names = {}
         self._factory_funcs = {}
         self._module = None
+        self._special_assignments: dict[str, ast.Call] = {}
     
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = getattr(node, "imported_names", None)
@@ -1957,6 +1966,16 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
 
     def _ctypes_assign_visit(self, node, target) -> Any:
         self.generic_visit(node)
+
+        # Check for any special calls to replace
+        if isinstance(node.value, ast.Call) and \
+                get_id(node.value.func) in self.SPECIAL_CALLS:
+            if isinstance(node, ast.Assign):
+                self._special_assignments[get_id(node.targets[0])] = node.value
+            elif isinstance(node, ast.AnnAssign):
+                self._special_assignments[get_id(node.target)] = node.value
+            return None
+
         # Check if the target is what we are looking for
         admissible_args = re.match(r".*argtypes$|.*restype$|.*errcheck$", get_id(target)) \
             if get_id(target) else False
@@ -2010,6 +2029,22 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
     def visit_Call(self, node: ast.Call) -> Any:
         node.func.is_call_func = True
         self.generic_visit(node)
+
+        # Check for any special calls to replace
+        if get_id(node.func) in self._special_assignments:
+            func_name = node.args[0]
+            if isinstance(func_name, ast.Name):
+                func_name.id = f"${get_id(func_name)}"
+            call_node = self._special_assignments[get_id(node.func)]
+            restype = call_node.args[0]
+            argtypes = ast.Tuple(elts = call_node.args[1:])
+            cfunc = ast.Call(
+                func = ast.Name(id = "@cfunction"),
+                args = [func_name, restype, argtypes],
+                keywords = [],
+            )
+            ast.fix_missing_locations(cfunc)
+            return cfunc
 
         func = node.func
         mod_name = ""
@@ -2082,6 +2117,8 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 else None
             ccall_func = get_field(0)
             argtypes = get_field(1)
+            if argtypes and hasattr(argtypes, "elts"):
+                argtypes = ast.Tuple(elts = argtypes.elts)
             restype = get_field(2)
             errcheck = get_field(3)
             is_factory = True
@@ -2101,6 +2138,20 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             # Handle cases where there is no return type 
             if restype is None:
                 restype = ast.Name(id="Cvoid")
+            if isinstance(argtypes, ast.Constant) and \
+                    argtypes.value is None:
+                argtypes = ast.Tuple(elts = [argtypes])
+            # Replace unwanted argtypes with Ptr{void}
+            ptr_node = ast.Subscript(value = ast.Name(id="Ptr"),
+                    slice=ast.Name(id="Cvoid"))
+            ast.fix_missing_locations(ptr_node)
+            replace_cond = lambda x: get_id(getattr(x, "annotation", None)) in \
+                        {"PyObject", "ctypes._FuncPointer", "_FuncPointer", "ctypes.POINTER"}
+            argtypes.elts = list(map(lambda x: ptr_node if replace_cond(x) else x, argtypes.elts))
+            # Set all as annotation
+            for arg in argtypes.elts:
+                arg.is_annotation = True
+            restype.is_annotation = True
             # Add ccall
             ccall = ast.Call(
                 func = ast.Name(id="ccall"),
@@ -2114,7 +2165,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             if is_factory:
                 # If it is a factory, build a lamdba expression
                 var_list: list[str] = []
-                for i in range(len(node.args)):
+                for i in range(len(argtypes.elts)):
                     var_list.append(f"a{i}")
                 args = ast.arguments(args=[ast.arg(arg=var) for var in var_list], defaults=[])
                 ccall_builder = ast.Lambda(args = args, body=ccall)
@@ -2177,23 +2228,6 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
             
         if not restype:
             restype = ast.Name(id="Cvoid")
-
-        idxs = []
-        i = 0
-        for arg in argtypes.elts:
-            if hasattr(arg, "annotation") and \
-                    get_id(arg.annotation) == "PyObject":
-                idxs.append(i)
-            arg.is_annotation = True
-            i += 1
-        # Replace all PyObject types with Ptr{void}
-        for idx in idxs:
-            argtypes.elts[idx] = ast.Subscript(
-                value = ast.Name(id="Ptr"),
-                slice=ast.Name(id="Cvoid"),
-                lineno=node.lineno,
-                col_offset=node.col_offset)
-        restype.is_annotation = True
         
         ast.fix_missing_locations(restype)
         ast.fix_missing_locations(argtypes)
@@ -2228,6 +2262,7 @@ class JuliaCTypesRewriter(ast.NodeTransformer):
                 self._factory_funcs[f"{self._module}.{node.name}"] = val
             else:
                 self._factory_funcs[node.name] = val
+            return None
 
         return node
 

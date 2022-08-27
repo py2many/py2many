@@ -51,6 +51,7 @@ from pyjl.analysis import analyse_variable_scope, detect_broadcast, loop_range_o
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
     JuliaArgumentParserRewriter,
+    JuliaCtypesRewriter,
     JuliaImportNameRewriter,
     VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
@@ -65,7 +66,6 @@ from pyjl.rewriters import (
     JuliaModuleRewriter,
     JuliaOffsetArrayRewriter,
     JuliaOrderedCollectionRewriter,
-    JuliaCTypesRewriter, 
     JuliaClassWrapper, 
     JuliaIndexingRewriter, 
     JuliaNestingRemoval
@@ -501,7 +501,7 @@ def julia_settings(args, env=os.environ):
             JuliaOffsetArrayRewriter(),
             JuliaIndexingRewriter(),
             JuliaOrderedCollectionRewriter(),
-            JuliaCTypesRewriter(),
+            JuliaCtypesRewriter(),
             JuliaArgumentParserRewriter(),
             JuliaClassWrapper(),
             JuliaMethodCallRewriter(),
