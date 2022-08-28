@@ -1,4 +1,5 @@
 import ast
+from typing import Any
 from py2many.external_modules import ExternalBase
 from py2many.helpers import get_ann_repr
 
@@ -6,6 +7,7 @@ from py2many.inference import InferMeta, InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from pyjl.global_vars import DEFAULT_TYPE, SEP
+from pyjl.helpers import is_dir, is_file
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()
@@ -27,11 +29,19 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         super().__init__()
         self._default_type = DEFAULT_TYPE
         self._func_type_map = self.FUNC_TYPE_MAP
+        self._basedir = None
         # Get external module features
         self.import_external_modules(self.NAME)
+    
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._basedir = getattr(node, "__basedir__", None)
+        return super().visit_Module(node)
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         # Get annotation
+        # Verify if the value is a module
+        self._get_import_type(node.value)  
+
         super().visit_Assign(node)
 
         for target in node.targets:
@@ -54,6 +64,32 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                 self._verify_annotation(node, getattr(target, "annotation", None), 
                     target, inferred=inferred)
         return node
+
+    def _get_import_type(self, node):
+        node_id = get_id(node)
+        split = node_id.split(".") if node_id else None
+        # Verify if the id is amongst the imports and r
+        # retrieve the module's name
+        mod_name = None
+        check_imports = lambda x: x in self._imported_names and \
+            self._imported_names[x]
+        get_mod_name = lambda x: x[0] \
+            if isinstance(x, tuple) \
+            else x.__name__
+        if check_imports(node_id):
+            mod_name = get_mod_name(self._imported_names[node_id])
+        elif split and check_imports(split[0]):
+            mod_name = get_mod_name(self._imported_names[split[0]])
+            if len(split) > 1:
+                # TODO: Check this
+                mod_name = f"{mod_name}.{split[1]}"
+        if mod_name:
+            # Test to see if it is a module
+            is_dir_or_path = is_dir(f"{mod_name}", self._basedir) or \
+                is_file(f"{mod_name}", self._basedir)
+            if is_dir_or_path:
+                node.annotation = ast.Name(id="Module")
+        
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AST:
         super().visit_AnnAssign(node)

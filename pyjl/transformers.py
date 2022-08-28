@@ -79,7 +79,8 @@ class JuliaDecoratorTransformer(ast.NodeTransformer):
         parsed_decorators: dict[str, dict[str, str]] = {}
         if decorator_list := getattr(node, "decorator_list", None):
             for decorator in decorator_list:
-                if isinstance(decorator, ast.Name):
+                if isinstance(decorator, ast.Name) or \
+                        isinstance(decorator, ast.Attribute):
                     parsed_decorators[get_id(decorator)] = None
                 elif isinstance(decorator, ast.Call):
                     keywords = {}

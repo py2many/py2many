@@ -46,11 +46,19 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
         # Special attribute used for dispatching
         node.orig_name = get_id(node.func)
+        ann = None
+        if id := get_id(node.func):
+            module_name = id.split(".")
+            module_node = node.scopes.find(module_name[1]) \
+                if module_name[0] == "self" \
+                else node.scopes.find(module_name[0])
+            ann = getattr(module_node, "annotation", None)
 
         # Don't parse annotations and special nodes
         if getattr(node, "is_annotation", False) or \
                 getattr(node, "no_rewrite", False) or \
-                getattr(node.func, "no_rewrite", False):
+                getattr(node.func, "no_rewrite", False) or \
+                get_id(ann) == "Module":
             return node
 
         args = node.args
@@ -85,7 +93,7 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         self.generic_visit(node)
-        # Don't parse annotations and special nodes
+        # Don't parse annotations or special nodes
         if getattr(node, "is_annotation", False) or \
                 getattr(node, "no_rewrite", False):
             return node
@@ -132,11 +140,10 @@ class JuliaImportNameRewriter(ast.NodeTransformer):
         for name in node.names:
             if is_dir_or_path and \
                     not is_file(f"{node.module}.{name.name}", self._basedir) and \
-                    not is_dir(f"{node.module}.{name.name}", self._basedir):
-                if name.asname:
-                    self._names[name.asname] = mod_name
-                else:
-                    self._names[name.name] = mod_name
+                    not is_dir(f"{node.module}.{name.name}", self._basedir) and \
+                    not name.asname:
+                # Aliases are mapped as globals in pyjl/transpiler.py (method _import_from)
+                self._names[name.name] = mod_name
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
@@ -257,7 +264,8 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                 repeat_arg = ast.Call(
                         func = ast.Name(id="repeat"),
                         args = [node.target, value],
-                        keywords = []
+                        keywords = [],
+                        scopes = node.scopes
                     )
                 ast.fix_missing_locations(repeat_arg)
                 call.args.append(node.target)
@@ -477,7 +485,8 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
                 func = node.value,
                 args = [],
                 keywords = [],
-                annotation = getattr(node.value, "annotation", None)
+                annotation = getattr(node.value, "annotation", None),
+                scopes = node.scopes,
             )
             return None
         return node
@@ -1382,7 +1391,8 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
         decorator = ast.Call(
             func=ast.Name(id=OOP_CLASS), 
             args=[], 
-            keywords=[])
+            keywords=[],
+            scopes = node.scopes)
         keywords = None
         if self._oop_nested_funcs:
             decorator.keywords.append(ast.keyword(
@@ -2042,6 +2052,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 func = ast.Name(id = "@cfunction"),
                 args = [func_name, restype, argtypes],
                 keywords = [],
+                scopes = node.scopes
             )
             ast.fix_missing_locations(cfunc)
             return cfunc
@@ -2099,7 +2110,8 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             ccall_func = ast.Call(
                 func = self._build_libdl_call(node.scopes),
                 args = [ast.Name(id=module_name), juliaAst.Symbol(id=named_func)],
-                keywords = [])
+                keywords = [],
+                scopes = node.scopes)
         elif get_id(getattr(node.scopes.find(get_id(func)), "returns", None)) in \
                 {"ctypes._NamedFuncPointer", "_NamedFuncPointer"}:
             # Detected factory function that populates named functions with fields

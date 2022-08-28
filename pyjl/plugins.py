@@ -337,6 +337,23 @@ class JuliaTranspilerPlugins:
                 end
                 {body}\n"""
 
+    def visit_contextmanager(self, node, decorator):
+        self._usings.add("DataTypesBasic")
+        # Using ContextManager macro 
+        funcdef = (
+            f"{node.name}{node.template}({node.parsed_args}) = @ContextManager function(cont)"
+        )
+        # Visit function body
+        body = "\n".join(self.visit(n) for n in node.body)
+        if body == "...":
+            body = ""
+
+        return f"""{funcdef}
+                {body}
+                res
+            end\n"""
+
+
     def visit_resumables(self, node, decorator):
         # node.scopes[-2] because node.scopes[-1] is the current function
         scopes = getattr(node, "scopes", None)
@@ -1139,6 +1156,7 @@ DECORATOR_DISPATCH_TABLE = {
     "jl_dataclass": JuliaTranspilerPlugins.visit_jl_dataclass,
     "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
     "jl_class": JuliaTranspilerPlugins.visit_JuliaClass,
+    "contextlib.contextmanager": JuliaTranspilerPlugins.visit_contextmanager,
     "oop_class": JuliaTranspilerPlugins.visit_OOPClass,
     "resumable": JuliaTranspilerPlugins.visit_resumables,
     "channels": JuliaTranspilerPlugins.visit_channels,
@@ -1391,7 +1409,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     sys.maxsize: (lambda self, node, vargs, kwargs: "typemax(Int)", True),
     str.encode: (JuliaTranspilerPlugins.visit_encode, True),
     str.splitlines: (JuliaTranspilerPlugins.visit_splitlines, True),
-    sys.executable: (lambda self, node, vargs, kwargs: "Base.julia_exename()", True),
+    sys.executable: (lambda self, node, vargs, kwargs: "joinpath(Base.Sys.BINDIR,Base.julia_exename())", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
     eval: (lambda self, node, vargs, kwargs: f"py\"{', '.join(vargs)}\"", True),

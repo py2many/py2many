@@ -180,7 +180,7 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_wchar: "Cwchar_t",
     # Pointers
     ctypes.c_char_p: "Ptr{Cchar}",
-    ctypes.c_wchar_p: "Ptr{Cwchar_t}",
+    ctypes.c_wchar_p: "Cwstring",
     ctypes.c_void_p: "Ptr{Cvoid}",
     ctypes.CDLL: "", # TODO: Temporary
     ctypes.WinDLL: "",

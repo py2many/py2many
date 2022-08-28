@@ -264,6 +264,19 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         arg_str = node.arg if node.arg not in self._julia_keywords else f"{node.arg}_"
         return f"{arg_str} = {self.visit(node.value)}"
 
+    def visit_ImportFrom(self, node) -> str:
+        if node.module in self._ignored_module_set:
+            return ""
+
+        imported_name = node.module
+        if not node.module:
+            # Import from '.'
+            imported_name = "."
+
+        # PyJL requires aliases
+        names = [self.visit(n) for n in node.names]
+        return self._import_from(imported_name, names, node.level)
+
     ######################################################
     ################### Type Mappings ####################
     ######################################################

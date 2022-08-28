@@ -266,13 +266,11 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"({args_string}) -> {body}"
 
     def visit_Attribute(self, node) -> str:
-        # Account for any attributes referring to variables 
-        # (E.g when calling self)
-        if node.attr in self._julia_function_names and \
-                node.scopes.find(node.attr):
-            attr = f"{node.attr}_"
-        else:
-            attr = node.attr
+        # Account for any attributes referring to variables
+        attr = f"{node.attr}_" \
+            if (node.attr in self._julia_function_names or
+                node.attr in self._julia_keywords) \
+            else node.attr
         value_id = self.visit(node.value)
 
         if (dispatch := getattr(node, "dispatch", None)) and \
@@ -747,13 +745,15 @@ class JuliaTranspiler(CLikeTranspiler):
         import_str = f"import {name}"
         return f"{import_str} as {alias}" if alias else import_str
 
-    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+    def _import_from(self, module_name: str, names: List[tuple[str, str]], level: int = 0) -> str:
         if module_name == ".":
             import_names = []
             for n in names:
-                import_names.append(f"include(\"{n}.jl\")")
+                name = n[0]
+                import_names.append(f"include(\"{name}.jl\")")
             return "\n".join(import_names)
 
+        aliases = []
         include_stmts = []
         if level > 0:
             dirs = "../" * (level - 1)
@@ -761,7 +761,9 @@ class JuliaTranspiler(CLikeTranspiler):
 
         jl_module_name = module_name
         imports = []
-        for name in names:
+        for n in names:
+            name = n[0]
+            alias = n[1]
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
@@ -771,6 +773,12 @@ class JuliaTranspiler(CLikeTranspiler):
             if (imp := self._get_import_str(lookup)):
                 # Names can also be modules
                 include_stmts.append(imp)
+            if alias:
+                if self._use_modules:
+                    mod_name = module_name.split(".")[-1]
+                    aliases.append(f"{alias} = {mod_name}.{name}")
+                else:
+                    aliases.append(f"{alias} = {name}")
         
         # As a backup, try to import using the module_name
         if not include_stmts and \
@@ -778,6 +786,8 @@ class JuliaTranspiler(CLikeTranspiler):
             include_stmts.append(include_stmt)
 
         if include_stmts:
+            if aliases:
+                return "\n".join(include_stmts + aliases)
             return "\n".join(include_stmts)
 
         str_imports = ", ".join(imports)
@@ -942,6 +952,10 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self._typename_from_type_node(node.annotation)
 
+        # Removing TypeAlias nodes, as they are handled by the transpiler
+        if type_str == "TypeAlias":
+            return ""
+
         val = None
         if node.value is not None:
             val = self.visit(node.value)
@@ -965,6 +979,7 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)
+
         # Use special methods if it is a class instance
         if class_node := get_class_scope(target, node.scopes):
             op_type = type(node.op)
@@ -1067,7 +1082,13 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Yield(self, node: ast.Yield) -> str:
         func_scope = find_node_by_type(ast.FunctionDef, node.scopes)
         if func_scope:
+            if "contextlib.contextmanager" in func_scope.parsed_decorators:
+                # Using DataTypesBasic package
+                return f"res = cont({self.visit(node.value)})" \
+                    if node.value \
+                    else "res = cont(nothing)"
             if RESUMABLE in func_scope.parsed_decorators:
+                # Using resumables package
                 return f"@yield {self.visit(node.value)}" \
                     if node.value \
                     else "@yield"
