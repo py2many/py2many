@@ -2416,3 +2416,49 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
                 return None
         return node
 
+
+
+class JuliaContextManagerRewriter(ast.NodeTransformer):
+    """Rewrites calls to context manager nodes. This rewriter 
+    assumes the use of the DataTypesBasic package """
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_With(self, node: ast.With) -> Any:
+        expr = node.items[0].context_expr
+        if isinstance(expr, ast.Call):
+            func_node = node.scopes.find(get_id(expr.func))
+            if isinstance(func_node, ast.FunctionDef) \
+                    and "contextlib.contextmanager" in func_node.parsed_decorators:
+                if len(node.body) == 1:
+                    if isinstance(node.body[0], ast.Return):
+                        expr.args.append(node.body[0].value)
+                        run_call = self._build_run_call(expr)
+                        node.body[0].value = run_call
+                        return node.body[0]
+                    else:
+                        expr.args.append(node.body[0])
+                        return self._build_run_call(expr)
+                else:
+                    # TODO: For later
+                    pass
+        self.generic_visit(node)
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        func_node = node.scopes.find(get_id(node.func))
+        if isinstance(func_node, ast.FunctionDef) and \
+                "contextlib.contextmanager" in func_node.parsed_decorators:
+            return self._build_run_call(node)
+        return node
+    
+    def _build_run_call(self, node):
+        run_call = ast.Call(
+            func = ast.Name(id="run"),
+            args = [node], keywords = [],
+            scopes = node.scopes,
+        )
+        ast.fix_missing_locations(run_call)
+        return run_call
+
