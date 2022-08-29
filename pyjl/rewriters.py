@@ -1950,11 +1950,17 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
 
     def __init__(self) -> None:
         super().__init__()
+        self._module = None
+        self._imported_names = {}
         # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
         self._ext_modules = {}
-        self._imported_names = {}
+        # Mapps factory functions to their respective types
         self._factory_funcs = {}
-        self._module = None
+        # Temporarily holds factory function types from calls
+        self._ctypes_func_types = None
+        # Mapps assignment target id's to ctypes call types
+        self._assign_ctypes_funcs = {}
+        # Mapps special assignment target ids to their respective values
         self._special_assignments: dict[str, ast.Call] = {}
     
     def visit_Module(self, node: ast.Module) -> Any:
@@ -1976,6 +1982,11 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
 
     def _ctypes_assign_visit(self, node, target) -> Any:
         self.generic_visit(node)
+
+        if self._ctypes_func_types:
+            # If there are any types from a call to ctypes
+            self._assign_ctypes_funcs[get_id(target)] = self._ctypes_func_types
+            self._ctypes_func_types = None
 
         # Check for any special calls to replace
         if isinstance(node.value, ast.Call) and \
@@ -2076,6 +2087,24 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             else:
                 func = ast.Name(id=node.func.attr)
 
+        # Check if values for ccalls are valid
+        if get_id(func) in self._assign_ctypes_funcs:
+            assign_types = self._assign_ctypes_funcs[get_id(func)]
+            arg_types = assign_types[1:] # Removing return type
+            for i in range(0, len(node.args)):
+                ccall_func_arg = get_id(arg_types[i])
+                arg = node.args[i]
+                arg_ann = get_id(getattr(arg, "annotation", None))
+                if arg_ann == "int" and ccall_func_arg in {"c_void_p", "HANDLE"}:
+                    node.args[i] = ast.Call(
+                        func = ast.Subscript(
+                            value = ast.Name(id="Ref"),
+                            slice = ast.Name(id="Int64"),
+                            is_annotation = True),
+                        args = [arg], keywords = [],
+                        scopes = node.scopes)
+                    ast.fix_missing_locations(node.args[i])
+
         # Ignore calls that Load the library
         if class_for_typename(get_id(func), None, self._imported_names) \
                 is ctypes.cdll.LoadLibrary:
@@ -2164,6 +2193,8 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             for arg in argtypes.elts:
                 arg.is_annotation = True
             restype.is_annotation = True
+            # Aggregate factory_func_types
+            self._ctypes_func_types = [restype] + argtypes.elts
             # Add ccall
             ccall = ast.Call(
                 func = ast.Name(id="ccall"),

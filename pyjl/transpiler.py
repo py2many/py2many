@@ -1084,9 +1084,11 @@ class JuliaTranspiler(CLikeTranspiler):
         if func_scope:
             if "contextlib.contextmanager" in func_scope.parsed_decorators:
                 # Using DataTypesBasic package
+                # If there is no value, use the default set by 
+                #   "visit_contextmanager" in "pyjl/plugins"
                 return f"res = cont({self.visit(node.value)})" \
                     if node.value \
-                    else "res = cont(nothing)"
+                    else "res = cont(ctx_default)" 
             if RESUMABLE in func_scope.parsed_decorators:
                 # Using resumables package
                 return f"@yield {self.visit(node.value)}" \

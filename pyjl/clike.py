@@ -103,6 +103,7 @@ JL_IGNORED_MODULE_SET = set([
     "tempfile",
     "toposort",
     "importlib",
+    "importlib.abc",
 ])
 
 JULIA_TYPE_MAP = {

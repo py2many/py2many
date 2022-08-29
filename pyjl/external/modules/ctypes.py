@@ -93,6 +93,10 @@ class JuliaExternalModulePlugins():
             return f"Base.windowserror({parsed_args})"
         return "Base.windowserror"
 
+    # Hacks
+    def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        self._usings.add("Libdl")
+
     # def visit_windll(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
     #     # Alternative that returns function pointers
     #     JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
@@ -118,6 +122,7 @@ GENERIC_DISPATCH_TABLE = {
 
 DISPATCH_MAP = {
     "pythonapi.PyBytes_FromStringAndSize": JuliaExternalModulePlugins.visit_pythonapi,
+    "ccall": JuliaExternalModulePlugins.visit_Libdl # Small hack to import Libdl
 }
 
 GENERIC_SMALL_DISPATCH_MAP = {

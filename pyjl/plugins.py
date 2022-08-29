@@ -338,10 +338,12 @@ class JuliaTranspilerPlugins:
                 {body}\n"""
 
     def visit_contextmanager(self, node, decorator):
+        # Using ContextManager from DataTypesBasic.jl
         self._usings.add("DataTypesBasic")
-        # Using ContextManager macro 
+        # There must be at least one argument
+        args = node.parsed_args if node.parsed_args else "ctx_default"
         funcdef = (
-            f"{node.name}{node.template}({node.parsed_args}) = @ContextManager function(cont)"
+            f"{node.name}{node.template}({args}) = @ContextManager function(cont)"
         )
         # Visit function body
         body = "\n".join(self.visit(n) for n in node.body)
@@ -349,6 +351,7 @@ class JuliaTranspilerPlugins:
             body = ""
 
         return f"""{funcdef}
+                res = nothing
                 {body}
                 res
             end\n"""
