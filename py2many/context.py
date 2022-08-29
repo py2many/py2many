@@ -3,6 +3,7 @@ from pathlib import PosixPath, WindowsPath
 import sys
 
 from py2many.ast_helpers import get_id
+from py2many.helpers import get_import_module_name
 from py2many.tracer import is_list_assignment
 from .scope import ScopeMixin
 
@@ -100,50 +101,68 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         return node
 
     def visit_ImportFrom(self, node):
-        module_path = node.module
-        names = [n.name for n in node.names]
-        if node.level >= 1:
-            filename = WindowsPath() if sys.platform.startswith('win32') else PosixPath()
-            if self._filename:
-                filename = self._filename
-            elif f_name := getattr(node.scopes[0], "__file__", None):
-                filename = f_name
-            # get path (excluding name of the file)
-            path = filename.as_posix().split("/")[:-node.level]
-            path_str = ".".join(path)
-            module_path = f"{path_str}.{module_path}" if path_str else module_path
+        # Get module path
+        module_path = get_import_module_name(
+            node, node.scopes[0].__file__, node.scopes[0].__basedir__
+        )
 
+        names = [n.name for n in node.names]
+        resolved_names = None
         if module_path in self._trees:
             m = self._trees[module_path]
             if hasattr(m, "scopes"):
                 resolved_names = [m.scopes.find(n) for n in names]
-                node.scopes[-1].vars += resolved_names
         else:
-            mod_path_str = ""
-            if node.module:
-                mod_path = node.module.split(".")
-                base_dir = ""
-                if self._basedir:
-                    base_dir = self._basedir.stem
-                elif b_dir := getattr(node.scopes[0], "__basedir__", None):
-                    # Hack, as visit calls super()
-                    base_dir = b_dir.stem
-                if mod_path[0] == base_dir:
-                    mod_path = mod_path[1:]
-                mod_path_str = ".".join(mod_path)
-            
             # Names can also be modules
-            for n in names:
-                name = f"{mod_path_str}.{n}"
-                if name in self._trees and \
-                        hasattr((m := self._trees[name]), "scopes"):
-                    # Get all the variables defined in the global scope
-                    node.scopes[-1].vars.extend(m.scopes[-1].vars)
-                elif n in self._trees and \
-                        hasattr((m := self._trees[n]), "scopes"):
-                    # Get all the variables defined in the global scope
-                    node.scopes[-1].vars.extend(m.scopes[-1].vars)
+            for name in names:
+                parsed_name = f"{module_path}.{name}"
+                if parsed_name in self._trees and hasattr(
+                    (m := self._trees[parsed_name]), "scopes"
+                ):
+                    resolved_names = m.scopes[-1].vars
+                elif name in self._trees and hasattr(
+                    (m := self._trees[name]), "scopes"
+                ):
+                    resolved_names = m.scopes[-1].vars
+        if resolved_names:
+            name_map = {n.name: n.asname for n in node.names}
+            for var in resolved_names:
+                var_id = get_id(var)
+                if var_id in name_map and (a_name := name_map[var_id]):
+                    # Append node with asname (Important for scope searches)
+                    node.scopes[-1].vars.append(self._build_node_with_id(var, a_name))
+                else:
+                    node.scopes[-1].vars.append(var)
 
+        return node
+
+    def _build_node_with_id(self, node, new_id):
+        scopes = getattr(node, "scopes", None)
+        if isinstance(node, ast.Name):
+            node = ast.Name(id=new_id, scopes=scopes)
+        elif isinstance(node, ast.FunctionDef):
+            return ast.FunctionDef(
+                name=new_id,
+                args=node.args,
+                body=node.body,
+                decorator_list=node.decorator_list,
+                returns=node.returns,
+                parsed_decorators=getattr(node, "parsed_decorators", None),
+                scopes=scopes,
+            )
+        elif isinstance(node, ast.ClassDef):
+            return ast.ClassDef(
+                name=new_id,
+                bases=node.bases,
+                keywords=node.keywords,
+                body=node.body,
+                decorator_list=getattr(node, "decorator_list", None),
+            )
+
+        annotation = getattr(node, "annotation", None)
+        if annotation:
+            node.annotation = annotation
+        ast.fix_missing_locations(node)
         return node
 
     def visit_If(self, node):

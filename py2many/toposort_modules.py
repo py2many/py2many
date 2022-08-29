@@ -5,6 +5,8 @@ from toposort import toposort_flatten
 from collections import defaultdict
 from typing import Tuple
 
+from py2many.helpers import get_import_module_name
+
 
 def module_for_path(path: Path) -> str:
     # strip out .py at the end
@@ -26,27 +28,14 @@ class ImportDependencyVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
-        # Consider import_from level
-        module_path = node.module
-        if node.level >= 1:
-            # get path (excluding name of the file)
-            path = self._filename.as_posix().split("/")[:-node.level]
-            path_str = ".".join(path)
-            module_path = f"{path_str}.{module_path}" if path_str else module_path
-
+        # Get module path
+        module_path = get_import_module_name(node, self._filename, self._basedir)
         if module_path in self._modules:
             self.deps[self._current].add(module_path)
         # Names can also be modules
-        mod_path_str = ""
-        if module_path:
-            mod_path = module_path.split(".")
-            base_dir = self._basedir.stem if self._basedir else ""
-            if mod_path[0] == base_dir:
-                mod_path = mod_path[1:]
-            mod_path_str = ".".join(mod_path)
         names = [alias.name for alias in node.names]
         for name in names:
-            mod_name = f"{mod_path_str}.{name}"
+            mod_name = f"{module_path}.{name}"
             if name in self._modules:
                 self.deps[self._current].add(name)
             elif mod_name in self._modules:
