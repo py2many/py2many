@@ -2415,3 +2415,67 @@ class JuliaContextManagerRewriter(ast.NodeTransformer):
         ast.fix_missing_locations(run_call)
         return run_call
 
+class JuliaExceptionRewriter(ast.NodeTransformer):
+    ERROR_FUNCTIONS = {
+        "WindowsError": ["function", "winerror"] # "strerror"
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Mapps exception calls as: {node_name: 
+        #   {err_name: <err_name>, winerror: <err>, function_: <func>, strerror: <str_err>}}
+        self._exceptions: dict[str, Any] = {}
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self._exceptions = {}
+        self.generic_visit(node)
+        return node
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        node_id = node.id
+        if node_id in self._exceptions and \
+                not getattr(node, "is_attr", None):
+            exception = self._exceptions[node_id]
+            err_name = exception["err_name"]
+            # We only add functions that are in ERROR_FUNCTIONS, 
+            # so no need to check if key is in dictionary
+            args = []
+            for arg in self.ERROR_FUNCTIONS[err_name]:
+                exc = exception[arg]
+                if exc:
+                    args.append(exc)
+            if len(args) == len(self.ERROR_FUNCTIONS[err_name]):
+                exception_call = ast.Call(
+                    func=ast.Name(id = err_name), 
+                    args = args,
+                    keywords = [],
+                    scopes = getattr(node, "scopes", ScopeList()))
+                ast.fix_missing_locations(exception_call)
+                return exception_call
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        target = node.targets[0]
+        return self._generic_assign_visit(node, target)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        return self._generic_assign_visit(node, node.target)
+
+    def _generic_assign_visit(self, node, target):
+        # Error functions
+        if isinstance(node.value, ast.Call) and \
+                get_id(node.value.func) in self.ERROR_FUNCTIONS:
+            if isinstance(target, ast.Name):
+                err_name = get_id(node.value.func)
+                self._exceptions[get_id(target)] = \
+                    {"err_name": err_name}
+                for arg in self.ERROR_FUNCTIONS[err_name]:
+                    self._exceptions[get_id(target)][arg] = None
+                return None
+        elif isinstance(target, ast.Attribute) and \
+                get_id(target.value) in self._exceptions:
+            if target.attr in self._exceptions[get_id(target.value)]:
+                self._exceptions[get_id(target.value)][target.attr] = node.value
+            return None
+
+        return node

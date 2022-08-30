@@ -53,6 +53,7 @@ from pyjl.rewriters import (
     JuliaArgumentParserRewriter,
     JuliaContextManagerRewriter,
     JuliaCtypesRewriter,
+    JuliaExceptionRewriter,
     VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
@@ -511,7 +512,7 @@ def julia_settings(args, env=os.environ):
             JuliaIORewriter(),
             JuliaArbitraryPrecisionRewriter(),
             JuliaContextManagerRewriter(),
-            # JuliaImportNameRewriter(), # Moved here, as it influences inference
+            JuliaExceptionRewriter(),
             JuliaModuleRewriter(),
         ],
         optimization_rewriters=[
