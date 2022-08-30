@@ -14,8 +14,6 @@ class JuliaExternalModulePlugins():
         self._usings.add("Libdl")
         return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
 
-    # Unfortunately, ctypes fields are evaluated at compile time, 
-    # forcing one to set the argument- and return types for the functions
     def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("Libdl")
         # Checks the path of the dll for Python 3.9
@@ -127,6 +125,7 @@ DISPATCH_MAP = {
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
+    "LPCWSTR": lambda node, vargs, kwargs: f"Cwstring({', '.join(vargs)})" #TODO: Review
 }
 
 if sys.platform.startswith('win32'):

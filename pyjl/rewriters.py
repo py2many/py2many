@@ -55,10 +55,15 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
             ann = getattr(module_node, "annotation", None)
 
         # Don't parse annotations and special nodes
+        is_module_call = False
+        if isinstance(node.func, ast.Attribute):
+            is_module_call = \
+                get_id(getattr(node.func.value, "annotation", None)) == "Module"
         if getattr(node, "is_annotation", False) or \
                 getattr(node, "no_rewrite", False) or \
                 getattr(node.func, "no_rewrite", False) or \
-                get_id(ann) == "Module":
+                get_id(ann) == "Module" or \
+                is_module_call:
             return node
 
         args = node.args
@@ -144,6 +149,16 @@ class JuliaImportNameRewriter(ast.NodeTransformer):
                     not name.asname:
                 # Aliases are mapped as globals in pyjl/transpiler.py (method _import_from)
                 self._names[name.name] = mod_name
+        return node
+
+    def visit_Import(self, node: ast.Import) -> Any:
+        is_dir_or_path = lambda x: is_dir(x, self._basedir) or \
+            is_file(x, self._basedir)
+        for n in node.names:
+            name = n.name
+            alias = n.asname
+            if is_dir_or_path(name):
+                self._names[alias] = alias
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
@@ -310,17 +325,10 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         self._lower_yield_from = False
         self._replace_calls: Dict[str, ast.Call] = {}
         self._sweep = False
-        self._replace_map: Dict[str, ast.Expr] = {}
-
-    def visit_Name(self, node: ast.Name) -> Any:
-        if get_id(node) in self._replace_map:
-            return self._replace_map[get_id(node)]
-        return node
 
     def visit_Module(self, node: ast.Module) -> Any:
         # Reset state
         self._replace_calls = {}
-        self._replace_map = {}
         # Get flags
         self._use_resumables = getattr(node, USE_RESUMABLES, False)
         self._lower_yield_from = getattr(node, LOWER_YIELD_FROM, False)
@@ -403,35 +411,6 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
 
         return node
 
-    def visit_With(self, node: ast.With) -> Any:
-        if self._sweep:
-            return node
-
-        for n in node.body:
-            n.nested_with = True
-
-        parent = node.scopes[-2] if len(node.scopes) >= 2 else None
-        context_expr = node.items[0].context_expr
-        opt_var = node.items[0].optional_vars
-        if isinstance(context_expr, ast.Call):
-            if isinstance(context_expr.func, ast.Attribute) and \
-                    get_id(context_expr.func.value) == "self":
-                func_id = context_expr.func.attr
-            else:
-                func_id = get_id(context_expr.func)
-            func_def = find_node_by_name_and_type(func_id, ast.FunctionDef, node.scopes)[0]
-            if func_def and RESUMABLE in func_def.parsed_decorators \
-                    and parent and hasattr(parent, "body"):
-                # Resumable functions cannot be called from annonymous functions
-                # https://github.com/BenLauwens/ResumableFunctions.jl/blob/master/docs/src/manual.md
-                self._replace_map[get_id(opt_var)] = context_expr
-                self.generic_visit(node)
-                if not getattr(node, "nested_with", None):
-                    self._replace_map.clear()
-                parent.body.extend(node.body)
-                return None
-
-        return node
     
     def visit_Call(self, node: ast.Call) -> Any:
         self.generic_visit(node)
@@ -2417,33 +2396,11 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
         return node
 
 
-
 class JuliaContextManagerRewriter(ast.NodeTransformer):
     """Rewrites calls to context manager nodes. This rewriter 
     assumes the use of the DataTypesBasic package """
     def __init__(self) -> None:
         super().__init__()
-
-    def visit_With(self, node: ast.With) -> Any:
-        expr = node.items[0].context_expr
-        if isinstance(expr, ast.Call):
-            func_node = node.scopes.find(get_id(expr.func))
-            if isinstance(func_node, ast.FunctionDef) \
-                    and "contextlib.contextmanager" in func_node.parsed_decorators:
-                if len(node.body) == 1:
-                    if isinstance(node.body[0], ast.Return):
-                        expr.args.append(node.body[0].value)
-                        run_call = self._build_run_call(expr)
-                        node.body[0].value = run_call
-                        return node.body[0]
-                    else:
-                        expr.args.append(node.body[0])
-                        return self._build_run_call(expr)
-                else:
-                    # TODO: For later
-                    pass
-        self.generic_visit(node)
-        return node
 
     def visit_Call(self, node: ast.Call) -> Any:
         self.generic_visit(node)

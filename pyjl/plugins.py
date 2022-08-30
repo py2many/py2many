@@ -341,9 +341,8 @@ class JuliaTranspilerPlugins:
         # Using ContextManager from DataTypesBasic.jl
         self._usings.add("DataTypesBasic")
         # There must be at least one argument
-        args = node.parsed_args if node.parsed_args else "ctx_default"
         funcdef = (
-            f"{node.name}{node.template}({args}) = @ContextManager function(cont)"
+            f"{node.name}{node.template}({node.parsed_args}) = @ContextManager function(cont)"
         )
         # Visit function body
         body = "\n".join(self.visit(n) for n in node.body)
@@ -978,6 +977,14 @@ class JuliaTranspilerPlugins:
             values.append(value.value)
         return f"export {', '.join(values)}"
 
+    def visit_exportall(self, node: ast.Assign, vargs: list[str]):
+        assert isinstance(node.value, ast.List)
+        self._usings.add("Reexport")
+        reexports = []
+        for value in node.value.elts:
+            reexports.append(f"@reexport using .{value.value}")
+        return "\n".join(reexports)
+
 
 class SpecialFunctionsPlugins:
     def visit_init(self, node: ast.FunctionDef):
@@ -1420,7 +1427,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 }
 
 
-JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {"__all__": JuliaTranspilerPlugins.visit_all}
+JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {
+    "__all__": JuliaTranspilerPlugins.visit_all,
+    "__exportall__": JuliaTranspilerPlugins.visit_exportall
+}
 
 JULIA_SPECIAL_FUNCTIONS = {
     "__getattr__": SpecialFunctionsPlugins.visit_getattr,

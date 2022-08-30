@@ -37,6 +37,15 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         self._basedir = getattr(node, "__basedir__", None)
         return super().visit_Module(node)
 
+    def visit_Call(self, node: ast.Call):
+        # Verify if the func is a module
+        if isinstance(node.func, ast.Attribute):
+            # Remove any function or class names
+            self._get_import_type(node.func.value)
+        else:
+            self._get_import_type(node.func)
+        return super().visit_Call(node)
+
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         # Get annotation
         # Verify if the value is a module
@@ -85,9 +94,9 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                 mod_name = f"{mod_name}.{split[1]}"
         if mod_name:
             # Test to see if it is a module
-            is_dir_or_path = is_dir(f"{mod_name}", self._basedir) or \
+            is_dir_or_module = is_dir(f"{mod_name}", self._basedir) or \
                 is_file(f"{mod_name}", self._basedir)
-            if is_dir_or_path:
+            if is_dir_or_module:
                 node.annotation = ast.Name(id="Module")
         
 

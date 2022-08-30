@@ -737,7 +737,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 # Module has the same name as file
                 mod_name = name.split(".")[-1]
                 if alias:
-                    return f"{import_str}\nimport {mod_name} as {alias}"
+                    return f"{import_str}\nimport .{mod_name} as {alias}"
             return import_str
 
         if name in MODULE_DISPATCH_TABLE:
@@ -1088,7 +1088,7 @@ class JuliaTranspiler(CLikeTranspiler):
                 #   "visit_contextmanager" in "pyjl/plugins"
                 return f"res = cont({self.visit(node.value)})" \
                     if node.value \
-                    else "res = cont(ctx_default)" 
+                    else "res = cont()" 
             if RESUMABLE in func_scope.parsed_decorators:
                 # Using resumables package
                 return f"@yield {self.visit(node.value)}" \
