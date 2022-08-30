@@ -736,7 +736,7 @@ class JuliaTranspiler(CLikeTranspiler):
             if self._use_modules:
                 # Module has the same name as file
                 mod_name = name.split(".")[-1]
-                if alias:
+                if alias and alias != mod_name:
                     return f"{import_str}\nimport .{mod_name} as {alias}"
             return import_str
 
@@ -765,33 +765,34 @@ class JuliaTranspiler(CLikeTranspiler):
             name = n[0]
             alias = n[1]
             lookup = f"{module_name}.{name}"
-            if lookup in MODULE_DISPATCH_TABLE:
-                jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
-                imports.append(jl_name)
-            else:
-                imports.append(name)
             if (imp := self._get_import_str(lookup)):
                 # Names can also be modules
                 include_stmts.append(imp)
-            if alias:
-                if self._use_modules:
-                    mod_name = module_name.split(".")[-1]
-                    aliases.append(f"{alias} = {mod_name}.{name}")
+            else:
+                if lookup in MODULE_DISPATCH_TABLE:
+                    jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
+                    imports.append(jl_name)
                 else:
-                    aliases.append(f"{alias} = {name}")
+                    if alias:
+                        imports.append(f"{name} as {alias}")
+                    else:
+                        imports.append(name)
         
         # As a backup, try to import using the module_name
         if not include_stmts and \
                 (include_stmt := self._get_import_str(module_name)):
             include_stmts.append(include_stmt)
 
-        if include_stmts:
-            if aliases:
-                return "\n".join(include_stmts + aliases)
-            return "\n".join(include_stmts)
-
+        import_stmt = []
+        import_stmt.extend(include_stmts)
         str_imports = ", ".join(imports)
-        return f"using {jl_module_name}: {str_imports}"
+        if str_imports and jl_module_name != self._basedir.stem:
+            mod_name = jl_module_name.split(".")[-1]
+            import_stmt.append(f"using .{mod_name}: {str_imports}")
+        if aliases:
+            import_stmt.extend(aliases)
+
+        return "\n".join(import_stmt)
 
     def _get_import_str(self, name: str):
         if (is_mod := is_file(name, self._basedir)) or \

@@ -120,91 +120,6 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
         return node
 
 
-class JuliaImportNameRewriter(ast.NodeTransformer):
-    "Rewrites import names when using modules"
-    def __init__(self) -> None:
-        super().__init__()
-        self._names = {}
-        self._basedir = None
-    
-    def visit_Module(self, node: ast.Module) -> Any:
-        self._basedir = getattr(node, "__basedir__", None)
-        self._names = {}
-        if getattr(node, USE_MODULES, False):
-            return self.generic_visit(node)
-        return node
-    
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
-        if not node.module or not self._basedir:
-            return node
-        mod_name = node.module.split(".")[-1]
-        is_dir_or_path = is_dir(f"{node.module}", self._basedir) or \
-            is_file(f"{node.module}", self._basedir) or \
-            node.level > 0 or \
-            node.module == "."
-        for name in node.names:
-            if is_dir_or_path and \
-                    not is_file(f"{node.module}.{name.name}", self._basedir) and \
-                    not is_dir(f"{node.module}.{name.name}", self._basedir) and \
-                    not name.asname:
-                # Aliases are mapped as globals in pyjl/transpiler.py (method _import_from)
-                self._names[name.name] = mod_name
-        return node
-
-    def visit_Import(self, node: ast.Import) -> Any:
-        is_dir_or_path = lambda x: is_dir(x, self._basedir) or \
-            is_file(x, self._basedir)
-        for n in node.names:
-            name = n.name
-            alias = n.asname
-            if is_dir_or_path(name):
-                self._names[alias] = alias
-        return node
-
-    def visit_Name(self, node: ast.Name) -> Any:
-        if node.id in self._names:
-            attr_node = ast.Attribute(
-                value = ast.Name(id=self._names[node.id], lineno = node.lineno),
-                attr = node.id,
-                ctx = ast.Load(),
-                scopes = node.scopes,
-                no_rewrite = True)
-            ast.fix_missing_locations(attr_node)
-            return attr_node
-        return node
-    
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        # Rewrite module calls to calls to __init__
-        func_repr = get_id(node)
-        split_repr = func_repr.split(".") if func_repr else []
-        if split_repr and is_dir(".".join(split_repr), self._basedir):
-            self._insert_init(node)
-            return node
-
-        # Bypass imports
-        for i in range(1,len(split_repr)):
-            if is_dir('.'.join(split_repr[:i]), self._basedir):
-                return node
-        return node
-
-    def _insert_init(self, node: ast.Attribute):
-        if isinstance(node.value, ast.Attribute):
-            self._insert_init(node.value)
-        else:
-            # Avoid referencing the same object (TODO: Is this necessary?)
-            value = copy.deepcopy(node.value)
-            node.value = ast.Attribute(
-                value = value,
-                attr = node.attr,
-                ctx = ast.Load(),
-                scopes = node.scopes,
-                no_rewrite = True,
-                lineno = node.lineno,
-                col_offset = node.col_offset,
-            )
-            node.attr = "__init__"
-            return node.value.value
-
 class JuliaAugAssignRewriter(ast.NodeTransformer):
     """Rewrites augmented assignments into compatible 
     Julia operations"""
@@ -1109,7 +1024,8 @@ class JuliaNestingRemoval(ast.NodeTransformer):
 
 
 class JuliaImportRewriter(ast.NodeTransformer):
-    """Rewrites nested imports to the module scope"""
+    """Removes nested imports and rewrites calls to 
+    the __init__ module"""
     def __init__(self) -> None:
         super().__init__()
         # The default module represents all Import nodes.
@@ -1117,10 +1033,12 @@ class JuliaImportRewriter(ast.NodeTransformer):
         self._import_names: Dict[str, list[str]] = {}
         self._nested_imports = []
         self._import_cnt = 0
+        self._basedir = None
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._import_names = {}
         self._nested_imports = []
+        self._basedir = getattr(node, "__basedir__", None)
         self._import_cnt = 0
         self.generic_visit(node)
         node.body = self._nested_imports + node.body
@@ -1131,6 +1049,39 @@ class JuliaImportRewriter(ast.NodeTransformer):
                 if name not in node.imports:
                     node.imports.append(name)
         return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
+        # Rewrite module calls to calls to __init__
+        func_repr = get_id(node)
+        split_repr = func_repr.split(".") if func_repr else []
+        if split_repr and is_dir(".".join(split_repr), self._basedir):
+            self._insert_init(node)
+            return node
+
+        # Bypass imports
+        for i in range(1,len(split_repr)):
+            if is_dir('.'.join(split_repr[:i]), self._basedir):
+                return node
+        return node
+
+    def _insert_init(self, node: ast.Attribute):
+        if isinstance(node.value, ast.Attribute):
+            self._insert_init(node.value)
+        else:
+            # Avoid referencing the same object (TODO: Is this necessary?)
+            value = copy.deepcopy(node.value)
+            node.value = ast.Attribute(
+                value = value,
+                attr = node.attr,
+                ctx = ast.Load(),
+                scopes = node.scopes,
+                no_rewrite = True,
+                lineno = node.lineno,
+                col_offset = node.col_offset,
+            )
+            node.attr = "__init__"
+            return node.value.value
 
     def visit_If(self, node: ast.If) -> Any:
         return self._generic_import_scope_visit(node)
@@ -2316,6 +2267,20 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             scopes = scopes)
         ast.fix_missing_locations(libdl_call)
         return libdl_call
+    
+    def visit_Import(self, node: ast.Import) -> Any:
+        self._remove_deleted_funcs(node)
+        return node
+    
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Any:
+        mod = node.module.split(".")[-1] if node.module else ""
+        self._remove_deleted_funcs(node, mod)
+        return node
+
+    def _remove_deleted_funcs(self, node, module=None):
+        remove_del_funcs = lambda x: f"{module}.{x.name}" not in self._factory_funcs \
+            if module else x.name not in self._factory_funcs
+        node.names = list(filter(remove_del_funcs, node.names))
 
 
 class JuliaArgumentParserRewriter(ast.NodeTransformer):
