@@ -122,6 +122,12 @@ JULIA_TYPE_MAP = {
     object: "DataType",
 }
 
+# Used for types that cannot be 
+# represented in a dictionary
+JULIA_STR_TYPE_MAP = {
+    "function": "Function"
+}
+
 JULIA_INTEGER_TYPES = \
     [
         "Int8",
@@ -158,6 +164,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
     def __init__(self):
         super().__init__()
         self._type_map = JULIA_TYPE_MAP
+        self._str_type_map = JULIA_STR_TYPE_MAP
         self._container_type_map = CONTAINER_TYPE_MAP
         self._default_type = DEFAULT_TYPE
         self._none_type = NONE_TYPE
@@ -202,21 +209,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._allow_annotations_on_globals = \
             getattr(node, ALLOW_ANNOTATIONS_ON_GLOBALS, False)
         return super().visit_Module(node)
-
-    def visit_Name(self, node) -> str:
-        node_id = get_id(node)
-        if node_id in self._julia_keywords and \
-                not getattr(node, "preserve_keyword", False):
-            return f"{node_id}_"
-        elif node_id in self._special_names_dispatch_table:
-            return self._special_names_dispatch_table[node_id]
-        elif getattr(node, "is_annotation", False) or \
-                (not getattr(node, "lhs", False) and
-                    hasattr(node, "scopes") and
-                    not node.scopes.find(node_id) and 
-                    not getattr(node, "in_call", None)):
-            return self._map_type(node_id)
-        return super().visit_Name(node)
 
     def visit_arg(self, node):
         # if node.arg == "self":
@@ -286,11 +278,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         typeclass = self._func_for_lookup(typename)
         if typeclass is None and typename != "None":
             return typename
+        if typename in self._str_type_map:
+            return self._str_type_map[typename]
         elif typeclass in self._type_map:
             return self._type_map[typeclass]
         elif typeclass in self._container_type_map:
             return self._container_type_map[typeclass]
-        elif typeclass in self._module_dispatch_table:
+        elif typename in self._module_dispatch_table:
             return self._module_dispatch_table[typeclass]
         elif typeclass in self._external_type_map:
             return self._external_type_map[typeclass]

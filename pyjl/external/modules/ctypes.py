@@ -53,19 +53,6 @@ class JuliaExternalModulePlugins():
 
     def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         return f"pointer_from_objref({vargs[0]})"
-
-    # def visit_winfunctype(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-    #     return_type = vargs[0]
-    #     arg_types = vargs[1:]
-    #     arg_types_str = f"({', '.join(arg_types)})" \
-    #         if len(arg_types) > 1 else f"({', '.join(arg_types)},)"
-    #     return f"""(arg = nothing) -> begin
-    #             if arg !== Nothing
-    #                 return @cfunction(@static arg, {return_type}, {arg_types_str})
-    #             else 
-    #                 return Ptr{{Cvoid}}
-    #             end
-    #         end"""
     
     # Using Pycall
     def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
@@ -85,20 +72,9 @@ class JuliaExternalModulePlugins():
         self._usings.add("WinTypes")
         return f"WinTypes({', '.join(vargs)})"
 
-    def visit_winerror(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        if len(vargs) == 5:
-            parsed_args = f"{vargs[1]}, {vargs[4]}"
-            return f"Base.windowserror({parsed_args})"
-        return "Base.windowserror"
-
     # Hacks
     def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         self._usings.add("Libdl")
-
-    # def visit_windll(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-    #     # Alternative that returns function pointers
-    #     JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-    #     return f"ctypes.WinDLL({', '.join(vargs)})"
 
 
 FuncType = Union[Callable, str]
@@ -134,8 +110,12 @@ if sys.platform.startswith('win32'):
     from ctypes import wintypes
 
     WIN_SMALL_DISPATCH_MAP = {
-        "GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError",
-        "ctypes.GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError",
+        "GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError" 
+            if getattr(node, "is_attr", None)
+            else "Base.Libc.GetLastError()",
+        "ctypes.GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError" 
+            if getattr(node, "is_attr", None)
+            else "Base.Libc.GetLastError()",
     }
 
     SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
@@ -147,9 +127,6 @@ if sys.platform.startswith('win32'):
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
-        # ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_winfunctype, True),
-        # Exceptions
-        WindowsError: (JuliaExternalModulePlugins.visit_winerror, True),
     }
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
 else:
@@ -203,6 +180,7 @@ FUNC_TYPE_MAP = {
     ctypes.cast: lambda self, node, vargs, kwargs: "ctypes._SimpleCData",
     ctypes.WINFUNCTYPE: lambda self, node, vargs, kwargs: "PyObject",
     ctypes.POINTER: lambda self, node, vargs, kwargs: "ctypes.POINTER",
+    WindowsError: lambda self, node, vargs, kwargs: "OSError",
 }
 
 IGNORED_MODULE_SET = set([

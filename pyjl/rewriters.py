@@ -1351,11 +1351,15 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         "Enum",
     ])
 
-    SPECIAL_EXTENDS = set([
+    IGNORE_ABSTRACT_SET = set([
         "unittest.TestCase",
         "object",
         "Object",
     ])
+
+    SPECIAL_EXTENDS_MAP = {
+        "Exception": "Exception",
+    }
 
     def __init__(self) -> None:
         super().__init__()
@@ -1385,7 +1389,7 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
             core_module = extends.split(
                 ".")[0] if extends else None
             if extends and core_module not in self._ignored_module_set and \
-                    extends not in self.SPECIAL_EXTENDS:
+                    extends not in self.IGNORE_ABSTRACT_SET:
                 extends_name = f"Abstract{extends}" \
                     if extends in self._hierarchy_map \
                     else extends
@@ -1407,10 +1411,17 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
 
+        node.jl_bases = []
         # Certain classes do not need a hierarchy
         base_ids = set(map(get_id, node.bases))
         if base_ids.intersection(self.IGNORE_EXTENDS_SET):
-            node.jl_bases = []
+            return node
+
+        for base in base_ids:
+            if base in self.SPECIAL_EXTENDS_MAP:
+                node.jl_bases.append(ast.Name(id=self.SPECIAL_EXTENDS_MAP[base]))
+        
+        if node.jl_bases:
             return node
 
         class_name: str = get_id(node)
@@ -1882,7 +1893,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         super().__init__()
         self._module = None
         self._imported_names = {}
-        # Mapped as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
+        # Mapped dll calls as: {module_name: {named_func: {argtypes: [], restype: <return_type>}}
         self._ext_modules = {}
         # Mapps factory functions to their respective types
         self._factory_funcs = {}
@@ -2141,10 +2152,29 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 for i in range(len(argtypes.elts)):
                     var_list.append(f"a{i}")
                 args = ast.arguments(args=[ast.arg(arg=var) for var in var_list], defaults=[])
-                ccall_builder = ast.Lambda(args = args, body=ccall)
                 ccall.args.extend([ast.Name(id=var) for var in var_list])
-                ast.fix_missing_locations(ccall_builder)
-                return ccall_builder
+                if errcheck:
+                    ccall_assign = ast.Assign(
+                        targets=[ast.Name(id="res")], value=ccall)
+                    errcheck_cond = ast.IfExp(
+                        test=ast.Compare(
+                            left = ast.Name(id="res"),
+                            ops = [ast.Eq()],
+                            comparators = [ast.Name(id="C_NULL")]),
+                        body = errcheck,
+                        orelse = ast.Name(id="res"))
+                    ret_stmt = ast.Return(value=errcheck_cond)
+                    ccall_builder = juliaAst.JuliaLambda(
+                        name="",
+                        args = args,
+                        body=[ccall_assign, ret_stmt],
+                        scopes = node.scopes)
+                    ast.fix_missing_locations(ccall_builder)
+                    return ccall_builder
+                else:
+                    ccall_builder = ast.Lambda(args = args, body=ccall)
+                    ast.fix_missing_locations(ccall_builder)
+                    return ccall_builder
             else:
                 # Otherwise, just assign the respective arguments
                 ccall.args.extend(node.args)
@@ -2240,6 +2270,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         return node
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        node.value.is_attr = True
         self.generic_visit(node)
         # Avoid rewriting calls
         if getattr(node, "is_call_func", False):

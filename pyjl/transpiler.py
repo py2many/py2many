@@ -103,8 +103,18 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{value_type}{{{index_type}}}"
 
     def visit_Name(self, node: ast.Name) -> str:
-        node_id = node.id
-        if hasattr(node, "lineno") and \
+        node_id = get_id(node)
+        if getattr(node, "is_annotation", False) or \
+                (not getattr(node, "lhs", False) and
+                    hasattr(node, "scopes") and
+                    not node.scopes.find(node_id) and 
+                    not getattr(node, "in_call", None)
+                    and self._map_type(node_id) != node_id):
+            return self._map_type(node_id)
+        elif node_id in self._julia_keywords and \
+                not getattr(node, "preserve_keyword", False):
+            return f"{node_id}_"
+        elif hasattr(node, "lineno") and \
                 hasattr(node, "scopes") and \
                 node_id in self._julia_function_names and \
                 not getattr(node, "preserve_keyword", False) and \
@@ -114,6 +124,8 @@ class JuliaTranspiler(CLikeTranspiler):
             # Verify if any names override Julia's 
             # built-in function names
             return f"{node_id}_"
+        elif node_id in self._special_names_dispatch_table:
+            return self._special_names_dispatch_table[node_id]
         return super().visit_Name(node)
 
     def visit_Constant(self, node: ast.Constant, quotes = True, docstring = False) -> str:
@@ -937,7 +949,7 @@ class JuliaTranspiler(CLikeTranspiler):
             buf.append(f" let {node.name} = {name}")
             name = node.name
         if node.type:
-            type_str = self.visit(node.type)
+            type_str = self._map_type(self.visit(node.type))
             buf.append(f"if {name} isa {type_str}")
         buf.extend([self.visit(child) for child in node.body])
         if node.type:
@@ -1319,3 +1331,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Symbol(self, node: juliaAst.Symbol) -> Any:
         return f":{node.id}"
+
+    def visit_JuliaLambda(self, node: juliaAst.JuliaLambda):
+        args = ", ".join(self._get_args(node))
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+        return f"({args}) -> begin\n{body}\nend"

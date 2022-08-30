@@ -1073,6 +1073,9 @@ class SpecialFunctionsPlugins:
 
         # Used to order the struct fields
         class_node.constructor_args = node.args
+        # Remove self, as Julia does not require it to 
+        # access class attributes when in a constructor
+        node = SelfRemoval().visit(node)
 
         return constructor
 
@@ -1109,6 +1112,15 @@ class SpecialFunctionsPlugins:
                 {body}
             end"""
 
+class SelfRemoval(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        if get_id(node.value) == "self":
+            return ast.Name(id=node.attr)
+        return node
+
 
 TYPE_CODE_MAP = {
     "u": "Char",
@@ -1139,6 +1151,8 @@ SMALL_DISPATCH_MAP = {
     "sys.argv": lambda n, vargs, kwargs: "append!([PROGRAM_FILE], ARGS)",
     "os.environ": lambda n, vargs, kwargs: "keys(ENV)",
     "sys.meta_path": lambda node, vargs, kwargs: "Base.LOAD_PATH",
+    # Function methods
+    "function.__name__": lambda node, vargs, kwargs: f"nameof({vargs[0]})",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}

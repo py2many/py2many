@@ -62,6 +62,16 @@ class Constructor(ast.FunctionDef):
 class Symbol(ast.Name):
     id: str
 
+# Julia lambdas allows multiline functions, 
+# whereas Python's equivalent construct 
+# does not does not
+class JuliaLambda(ast.FunctionDef):
+    name: str # Should always be None
+    args = ast.arguments
+    body: list[ast.expr]
+    returns: ast.expr
+    ctx: ast.expr_context
+
 ######################################
 ############### Parser ###############
 ######################################
@@ -119,6 +129,11 @@ class JuliaNodeVisitor(ast.NodeVisitor):
     def visit_Symbol(self, node: Symbol) -> Any:
         """Visit Julia Symbol"""
         self.visit_Name(node)
+        return node
+
+    def visit_JuliaLambda(self, node: JuliaLambda) -> Any:
+        """Visit Julia Constructor"""
+        self.visit_FunctionDef(node)
         return node
 
 
