@@ -1889,6 +1889,8 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         "ctypes.WINFUNCTYPE"
     }
 
+    NONE_TYPES = {"c_void_p", "HANDLE", "HMODULE"}
+
     def __init__(self) -> None:
         super().__init__()
         self._module = None
@@ -2036,11 +2038,11 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 ccall_func_arg = get_id(arg_types[i])
                 arg = node.args[i]
                 arg_ann = get_id(getattr(arg, "annotation", None))
-                if arg_ann == "int" and ccall_func_arg in {"c_void_p", "HANDLE"}:
+                if arg_ann == "int" and ccall_func_arg in self.NONE_TYPES:
                     node.args[i] = ast.Call(
                         func = ast.Subscript(
-                            value = ast.Name(id="Ref"),
-                            slice = ast.Name(id="Int64"),
+                            value = ast.Name(id="Ptr"),
+                            slice = ast.Name(id="Cvoid"),
                             is_annotation = True),
                         args = [arg], keywords = [],
                         scopes = node.scopes)
@@ -2124,9 +2126,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                     argtypes.value is None:
                 argtypes = ast.Tuple(elts = [argtypes])
             # Replace unwanted argtypes with Ptr{void}
-            ptr_node = ast.Subscript(value = ast.Name(id="Ptr"),
-                    slice=ast.Name(id="Cvoid"))
-            ast.fix_missing_locations(ptr_node)
+            ptr_node = self._make_ptr()
             replace_cond = lambda x: get_id(getattr(x, "annotation", None)) in \
                         {"PyObject", "ctypes._FuncPointer", "_FuncPointer", "ctypes.POINTER"}
             argtypes.elts = list(map(lambda x: ptr_node if replace_cond(x) else x, argtypes.elts))
@@ -2146,28 +2146,43 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 scopes = node.scopes,
                 no_rewrite = True, # Special attribute not to rewite call
             )
+            ccall_assign = ast.Assign(
+                targets=[ast.Name(id="res")], value=ccall)
+            # Build error check call
+            errcheck_call: ast.Call = self._build_errcheck_call(node, errcheck, 
+                ccall_func, restype) if errcheck else None
+            # TODO: nothing is temporary
+            func_name = get_id(ccall_func.args[1]) \
+                if isinstance(ccall_func, ast.Call) \
+                else get_id(ccall_func)
+            errcheck_func = juliaAst.InlineFunction(
+                name=func_name, 
+                args = ast.arguments(args = [], defaults = [],
+                    posonlyargs = [], kwonlyargs=[],
+                    lineno = 0, col_offset = 0),
+                body=[ccall_func])
             if is_factory:
                 # If it is a factory, build a lamdba expression
-                var_list: list[str] = []
-                for i in range(len(argtypes.elts)):
-                    var_list.append(f"a{i}")
+                var_list: list[str] = [f"a{i}" for i in range(len(argtypes.elts))]
                 args = ast.arguments(args=[ast.arg(arg=var) for var in var_list], defaults=[])
-                ccall.args.extend([ast.Name(id=var) for var in var_list])
-                if errcheck:
-                    ccall_assign = ast.Assign(
-                        targets=[ast.Name(id="res")], value=ccall)
-                    errcheck_cond = ast.IfExp(
-                        test=ast.Compare(
-                            left = ast.Name(id="res"),
-                            ops = [ast.Eq()],
-                            comparators = [ast.Name(id="C_NULL")]),
-                        body = errcheck,
-                        orelse = ast.Name(id="res"))
-                    ret_stmt = ast.Return(value=errcheck_cond)
+                for var, typ in zip(var_list, argtypes.elts):
+                    if get_id(typ) in self.NONE_TYPES:
+                        # Cast nodes that have c_void_p type
+                        ptr = self._make_ptr()
+                        ccall.args.append(ast.Call(func = ptr, args=[ast.Name(id=var)],
+                            keywords = [], scopes = node.scopes))
+                    else:
+                        ccall.args.append(ast.Name(id=var))
+                # ccall.args.extend([ast.Name(id=var) for var in var_list])
+                if errcheck_call:
+                    # Pass the arguments to the errcheck function 
+                    errcheck_call.args.append(
+                        ast.Tuple(elts=[ast.Name(id=var) for var in var_list]))
+                    ret_stmt = ast.Return(value=errcheck_call)
                     ccall_builder = juliaAst.JuliaLambda(
                         name="",
                         args = args,
-                        body=[ccall_assign, ret_stmt],
+                        body=[ccall_assign, errcheck_func, ret_stmt],
                         scopes = node.scopes)
                     ast.fix_missing_locations(ccall_builder)
                     return ccall_builder
@@ -2176,11 +2191,56 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                     ast.fix_missing_locations(ccall_builder)
                     return ccall_builder
             else:
-                # Otherwise, just assign the respective arguments
+                # Assign the respective arguments
                 ccall.args.extend(node.args)
-            return ccall
+                # Build call depending on error check
+                if errcheck_call:
+                    # Pass the arguments to the errcheck function
+                    errcheck_call.args.append(ast.Tuple(elts=node.args))
+                    # TODO: ccall with error check not yet supported with 
+                    # non-factory expressions
+                    return ccall
+                else:
+                    return ccall
 
         return node
+
+    def _make_ptr(self):
+        ptr_node = ast.Subscript(value = ast.Name(id="Ptr"),
+            slice=ast.Name(id="Cvoid"), is_annotation = True)
+        ast.fix_missing_locations(ptr_node)
+        return ptr_node
+
+    def _build_errcheck_call(self, node, errcheck, ccall_func: ast.Call, restype) -> ast.Call:
+        """Builds the call to the errcheck function"""
+        errcheck_call = errcheck
+        if isinstance(errcheck, (ast.Name, ast.Attribute)):
+            # Follow errcheck calling conventions 
+            # https://docs.python.org/3/library/ctypes.html#ctypes._FuncPtr.errcheck
+            # Build error check call
+            func_name = get_id(ccall_func.args[1])
+            res_var = ast.Name(id="res")
+            res = None
+            if get_id(restype) in self.NONE_TYPES:
+                # If call returns c_void_p, we need to check if 
+                # the returned value is C_NULL
+                res = ast.IfExp(
+                    test = ast.Compare(
+                        left = res_var,
+                        ops = [ast.Eq()],
+                        comparators = [ast.Name(id="C_NULL", preserve_keyword = True)]
+                    ),
+                    body = ast.Constant(value=None),
+                    orelse = res_var)
+            else:
+                res = res_var
+            errcheck_call = ast.Call(
+                func = errcheck,
+                args = [res, ast.Name(id=func_name, preserve_keyword=True)], 
+                keywords = [], 
+                scopes = getattr(node, "scopes", ScopeList()))
+        ast.fix_missing_locations(errcheck_call)
+        return errcheck_call
 
     def _parse_args(self, node, args):
         argtypes = None
@@ -2478,4 +2538,21 @@ class JuliaExceptionRewriter(ast.NodeTransformer):
                 self._exceptions[get_id(target.value)][target.attr] = node.value
             return None
 
+        return node
+
+    def visit_Expr(self, node: ast.Expr) -> Any:
+        self.generic_visit(node)
+        if not getattr(node, "value", None):
+            return None
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        # Avoid calls to Exception constructor
+        parent = node.scopes[-1] \
+            if len(node.scopes) >= 1 else None
+        if get_id(node.func) == "Exception" and \
+                isinstance(parent, ast.FunctionDef) and \
+                parent.name == "__init__":
+            return None
+        self.generic_visit(node)
         return node

@@ -67,9 +67,16 @@ class Symbol(ast.Name):
 # does not does not
 class JuliaLambda(ast.FunctionDef):
     name: str # Should always be None
-    args = ast.arguments
+    args: ast.arguments
     body: list[ast.expr]
     returns: ast.expr
+    ctx: ast.expr_context
+
+class InlineFunction(ast.FunctionDef):
+    name: str
+    args: ast.arguments
+    body: list[ast.expr] # Restriction: Only first element is evaluated
+    returns: ast.expr # By default, is empty
     ctx: ast.expr_context
 
 ######################################
@@ -132,9 +139,15 @@ class JuliaNodeVisitor(ast.NodeVisitor):
         return node
 
     def visit_JuliaLambda(self, node: JuliaLambda) -> Any:
-        """Visit Julia Constructor"""
+        """Visit Julia lambda"""
         self.visit_FunctionDef(node)
         return node
+
+    def visit_InlineFunction(self, node: InlineFunction) -> Any:
+        """Visit Julia inline function"""
+        self.visit_FunctionDef(node)
+        return node
+
 
 
 class JuliaNodeTransformer(JuliaNodeVisitor):

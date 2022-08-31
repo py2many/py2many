@@ -1339,3 +1339,8 @@ class JuliaTranspiler(CLikeTranspiler):
             body.append(self.visit(n))
         body = "\n".join(body)
         return f"({args}) -> begin\n{body}\nend"
+
+    def visit_InlineFunction(self, node: juliaAst.InlineFunction):
+        args = ", ".join(self._get_args(node))
+        body = self.visit(node.body[0])
+        return f"{node.name}({args}) = {body}"

@@ -45,6 +45,11 @@ if sys.platform.startswith('win32'):
         WindowsError: (JuliaExternalModulePlugins.visit_winerror, True),
     }
 
+    SMALL_DISPATCH_MAP = {
+        "WindowsError.winerror": lambda n, vargs, kwargs: f"{vargs[0]}.errnum",
+        "WindowsError.strerror": lambda n, vargs, kwargs: f"{vargs[0]}.prefix",
+    }
+
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
 else:
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE
