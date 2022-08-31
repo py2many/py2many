@@ -276,7 +276,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         # TODO: remove this and make the methods into classmethods
         self._clike = CLikeTranspiler()
         self._imported_names = None
-        self._comp_annotations = {}
+        # Holds annotations for specific blocks
+        self._block_annotations = {}
         self._has_generators = False
 
     def visit_Module(self, node: ast.Module) -> Any:
@@ -339,8 +340,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         annotation = get_inferred_type(node)
         if annotation is not None:
             node.annotation = annotation
-        if (id := get_id(node)) in self._comp_annotations:
-            node.annotation = self._comp_annotations[id]
+        if node.id in self._block_annotations:
+            node.annotation = self._block_annotations[node.id]
         return node
 
     def visit_Constant(self, node):
@@ -887,7 +888,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def _generic_generator_visit(self, node):
-        self._comp_annotations = {}
+        self._block_annotations = {}
         gen_types: Set[str] = set()
 
         attr = None
@@ -901,13 +902,13 @@ class InferTypesTransformer(ast.NodeTransformer):
             if (ann := getattr(gen_iter, "annotation", None)):
                 comp_ann = ann.slice if isinstance(ann, ast.Subscript) else ann
                 if isinstance(gen.target, ast.Name):
-                    self._comp_annotations[get_id(gen.target)] = comp_ann
+                    self._block_annotations[get_id(gen.target)] = comp_ann
                 if isinstance(attr, ast.Name):
                     gen_types.add(unparse(ann))
         if len(gen_types) == 1 and not hasattr(node, "annotation"):
             self._annotate(node, gen_types.pop())
         self.generic_visit(node)
-        self._comp_annotations = {}
+        self._block_annotations = {}
 
     def visit_If(self, node: ast.If) -> Any:
         # Cover Optional types
@@ -970,4 +971,12 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_YieldFrom(self, node: ast.YieldFrom) -> Any:
         self.generic_visit(node)
         self._has_generators = True
+        return node
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> Any:
+        if getattr(node, "name", None) and \
+                isinstance(node.type, ast.Name):
+            self._block_annotations[node.name] = ast.Name(id=get_id(node.type))
+            self.generic_visit(node)
+            self._block_annotations.clear()
         return node
