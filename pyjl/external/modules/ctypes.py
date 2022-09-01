@@ -36,7 +36,7 @@ class JuliaExternalModulePlugins():
         # (TODO) From Documentation: Neither convert nor cconvert should 
         # take a Julia object and turn it into a Ptr.
         self._usings.add("Libdl")
-        return f"Base.cconvert({self._map_type(vargs[1])}, {vargs[0]})"
+        return f"convert({self._map_type(vargs[1])}, {vargs[0]})"
 
     def visit_cdata_value(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # Remove the call to value (apparently, Julia already 
@@ -101,7 +101,7 @@ DISPATCH_MAP = {
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
-    "LPCWSTR": lambda node, vargs, kwargs: f"Cwstring({', '.join(vargs)})" #TODO: Review
+    "LPCWSTR": lambda node, vargs, kwargs: f"convert(Cwstring, {', '.join(vargs)})" #TODO: Review
 }
 
 if sys.platform.startswith('win32'):

@@ -94,7 +94,11 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         self._scope_vars.clear()
         self._nested_vars.clear()
         self._variables_out_of_scope = {}
-        vars = set(map(get_id, node.vars))
+        # Get the variables from all outer scopes
+        vars = set()
+        for scope in node.scopes:
+            if hasattr(scope, "vars"):
+                vars.update(set(map(get_id, scope.vars)))
         # Check for nested hard scopes and visit other nodes
         body = getattr(node, attr, [])
         for n in body:

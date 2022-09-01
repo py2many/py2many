@@ -17,7 +17,7 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._generic_test_visit(self)
         val = vargs[2]
         if isinstance(node.args[2], ast.Name):
-            node.args[2].preserve_keyword=True
+            node.args[2].preserve_keyword = True
             val = self.visit(node.args[2])
         return f"@test ({vargs[1]} == {val})"
 
@@ -25,7 +25,7 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._generic_test_visit(self)
         val = vargs[2]
         if isinstance(node.args[2], ast.Name):
-            node.args[2].preserve_keyword=True
+            node.args[2].preserve_keyword = True
             val = self.visit(node.args[2])
         return f"@test ({vargs[1]} != {val})"
 
@@ -39,11 +39,15 @@ class JuliaExternalModulePlugins:
             return f"@test_throws {vargs[0]} {vargs[1]}"
         return "@test_throws"
 
-    def visit_assertIsInstance(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertIsInstance(
+        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+    ):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test isa({vargs[0]}, {vargs[1]})"
 
-    def visit_assertRaisesRegex(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertRaisesRegex(
+        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+    ):
         # 1. Checks if exceptiuon was thrown
         # 2. "Tests that regex matches on the string representation
         # of the raised exception"
@@ -61,6 +65,26 @@ class JuliaExternalModulePlugins:
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} === {vargs[1]}"
 
+    def visit_assertGreater(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_test_visit(self)
+        return f"@test {vargs[0]} > {vargs[1]}"
+
+    def visit_assertGreaterEqual(
+        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+    ):
+        JuliaExternalModulePlugins._generic_test_visit(self)
+        return f"@test {vargs[0]} >= {vargs[1]}"
+
+    def visit_assertLess(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        JuliaExternalModulePlugins._generic_test_visit(self)
+        return f"@test {vargs[0]} < {vargs[1]}"
+
+    def visit_assertLessEqual(
+        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+    ):
+        JuliaExternalModulePlugins._generic_test_visit(self)
+        return f"@test {vargs[0]} <= {vargs[1]}"
+
     def _generic_test_visit(self):
         self._usings.add("Test")
 
@@ -71,7 +95,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     unittest.TestCase.assertTrue: (JuliaExternalModulePlugins.visit_assertTrue, True),
     unittest.TestCase.assertFalse: (JuliaExternalModulePlugins.visit_assertFalse, True),
     unittest.TestCase.assertEqual: (JuliaExternalModulePlugins.visit_assertEqual, True),
-    unittest.TestCase.assertNotEqual: (JuliaExternalModulePlugins.visit_assertNonEqual, True),
+    unittest.TestCase.assertNotEqual: (
+        JuliaExternalModulePlugins.visit_assertNonEqual,
+        True,
+    ),
     unittest.TestCase.assertRaises: (
         JuliaExternalModulePlugins.visit_assertRaises,
         True,
@@ -86,6 +113,19 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     unittest.TestCase.assertIs: (
         JuliaExternalModulePlugins.visit_assertIs,
+        True,
+    ),
+    unittest.TestCase.assertGreater: (
+        JuliaExternalModulePlugins.visit_assertGreater,
+        True,
+    ),
+    unittest.TestCase.assertGreaterEqual: (
+        JuliaExternalModulePlugins.visit_assertGreaterEqual,
+        True,
+    ),
+    unittest.TestCase.assertLess: (JuliaExternalModulePlugins.visit_assertLess, True),
+    unittest.TestCase.assertLessEqual: (
+        JuliaExternalModulePlugins.visit_assertLessEqual,
         True,
     ),
 }

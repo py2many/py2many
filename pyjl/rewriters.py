@@ -1483,12 +1483,33 @@ class VariableScopeRewriter(ast.NodeTransformer):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         self._generic_scope_visit(node)
         return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        self._generic_scope_visit(node)
+        parent = node.scopes[-2]
+        variables_out_of_scope = getattr(parent, "variables_out_of_scope", {})
+        return_targets = []
+        for n in node.body:
+            if isinstance(n, ast.Assign) and \
+                    (target_id := get_id(n.targets[0])) in variables_out_of_scope:
+                return_targets.append(target_id)
+
+        if return_targets:
+            # Because do-block behaves like an anonymous function, 
+            # we have to return the elements if they are used 
+            # outside their scope
+            return_val = ast.Name(id=return_targets[0]) \
+                if len(return_targets) == 1 \
+                else ast.Tuple(elts=[ast.Name(id=target) for target in return_targets])
+            node.body.append(ast.Return(value=return_val))
+        return node
     
     def _generic_scope_visit(self, node):
         body = []
         # Cover nested scopes
         target_state = self._variables_out_of_scope
         self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
+        vars = []
         for n in node.body:
             self.visit(n)
             if self._target_vals:
@@ -1496,17 +1517,17 @@ class VariableScopeRewriter(ast.NodeTransformer):
                     assign = ast.Assign(
                         targets=[target],
                         value = default,
-                        # annotation = ast.Name(id= "int"),
                         lineno = node.lineno - 1,
                         col_offset = node.col_offset,
                         scopes = n.scopes)
-                    body.append(assign)
+                    vars.append(assign)
                 self._target_vals = []
 
             body.append(n)
             
         # Update node body
-        node.body = body
+        node.body = vars + body
+        # Reset _variables_out_of_scope
         self._variables_out_of_scope = target_state
         
         return node

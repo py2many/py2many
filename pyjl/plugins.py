@@ -498,24 +498,17 @@ class JuliaTranspilerPlugins:
         self, node: ast.Call, vargs: list[str], kwargs: list[str]
     ) -> str:
         if hasattr(node, "args") and node.args:
-            needs_parsing = False
-            is_float = False
-            for arg in node.args:
-                if isinstance(arg, ast.Compare):
-                    continue
-                elif arg_type := self._typename_from_annotation(arg):
-                    if arg_type.startswith("Float"):
-                        is_float = True
-                    elif not arg_type.startswith("Int"):
-                        needs_parsing = True
-                        break
-
-            if needs_parsing:
-                return f"parse(Int, {vargs[0]})"
-            elif is_float:
-                return f"Int(floor({vargs[0]}))"
+            if len(node.args) == 1:
+                arg_type = self._typename_from_annotation(node.args[0])
+                if arg_type.startswith("Float"):
+                    return f"Int(floor({vargs[0]}))"
+                elif arg_type.startswith("String"):
+                    return f"parse(Int, {vargs[0]})"
+                else:
+                    return f"convert(Int, {vargs[0]})"
             else:
-                return f"Int({vargs[0]})"
+                # TODO: Working on it
+                pass
         return f"zero(Int)"  # Default int value
 
     def visit_cast_float(
