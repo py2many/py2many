@@ -742,14 +742,15 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"@se {node.name} begin\n{field_str}\nend\n"
 
     def _import(self, name: str, alias: str) -> str:
-        '''Formatting Julia Imports'''
-        import_str = self._get_import_str(name)
+        '''Formatting import'''
+        self._usings.add("FromFile: @from")
+        import_str = self._get_file_import(name)
         if import_str:
             if self._use_modules:
                 # Module has the same name as file
                 mod_name = name.split(".")[-1]
                 if alias and alias != mod_name:
-                    return f"{import_str}\nimport .{mod_name} as {alias}"
+                    return f"{import_str}: {mod_name} as {alias}"
             return import_str
 
         if name in MODULE_DISPATCH_TABLE:
@@ -758,67 +759,127 @@ class JuliaTranspiler(CLikeTranspiler):
         return f"{import_str} as {alias}" if alias else import_str
 
     def _import_from(self, module_name: str, names: List[tuple[str, str]], level: int = 0) -> str:
+        '''Formatting import from'''
+        self._usings.add("FromFile: @from")
         if module_name == ".":
             import_names = []
             for n in names:
                 name = n[0]
-                import_names.append(f"include(\"{name}.jl\")")
+                import_names.append(f"@from \"{name}.jl\" using {name}")
             return "\n".join(import_names)
 
-        aliases = []
         include_stmts = []
         if level > 0:
             dirs = "../" * (level - 1)
-            include_stmts.append(f"include(\"{dirs}{module_name}.jl\")")
+            imp_names = self._retrieve_import_names(names)
+            import_str = f"@from \"{dirs}{module_name}.jl\" using {module_name}"
+            if imp_names:
+                return f"{import_str}: {', '.join(imp_names)}"
+            return import_str
 
-        jl_module_name = module_name
-        imports = []
-        for n in names:
-            name = n[0]
-            alias = n[1]
-            lookup = f"{module_name}.{name}"
-            if (imp := self._get_import_str(lookup)):
-                # Names can also be modules
-                include_stmts.append(imp)
-            else:
-                if lookup in MODULE_DISPATCH_TABLE:
-                    jl_module_name, jl_name = MODULE_DISPATCH_TABLE[lookup]
-                    imports.append(jl_name)
+        if is_dir(module_name, self._basedir):
+            import_names = []
+            for name, alias in names:
+                lookup = f"{module_name}.{name}"
+                if imp := self._get_file_import(lookup):
+                    # Names is a module
+                    include_stmts.append(imp)
                 else:
+                    # Imports to __init__
                     if alias:
-                        imports.append(f"{name} as {alias}")
+                        import_names.append(f"{name} as {alias}")
                     else:
-                        imports.append(name)
+                        import_names.append(name)
+            init_imp = self._get_file_import(f"{module_name}.__init__")
+            if import_names:
+                include_stmts.append(f"{init_imp}: " + \
+                    f"{', '.join(import_names)}")
+            return "\n".join(include_stmts)
+        elif is_file(module_name, self._basedir):
+            imp_str = self._get_file_import(module_name)
+            import_names = self._retrieve_import_names(names)
+            if import_names:
+                return f"{imp_str}: {', '.join(import_names)}"
+            return imp_str
+        else:
+            # External modules
+            names = self._retrieve_import_names(names)
+            jl_module_name = module_name
+            if module_name in MODULE_DISPATCH_TABLE:
+                jl_module_name =  MODULE_DISPATCH_TABLE[module_name]
+            if names:
+                return f"using {jl_module_name}: {', '.join(names)}"
+            return f"using {jl_module_name}"
+            # external_modules = []
+            # for n in names:
+            #     if lookup in MODULE_DISPATCH_TABLE:
+            #         jl_module_name = MODULE_DISPATCH_TABLE[lookup]
+            #         external_modules.append(f"using {jl_module_name}")
+
+        # jl_module_name = module_name
+        # external_modules = []
+        # for n in names:
+        #     name = n[0]
+        #     alias = n[1]
+        #     lookup = f"{module_name}.{name}"
+        #     if (imp := self._get_import_str(lookup)):
+        #         # Names can also be modules
+        #         include_stmts.append(imp)
+        #     else:
+        #         if lookup in MODULE_DISPATCH_TABLE:
+        #             jl_module_name = MODULE_DISPATCH_TABLE[lookup]
+        #             external_modules.append(f"using {jl_module_name}")
+        #         else:
+        #             if alias:
+        #                 import_names.append(f"{name} as {alias}")
+        #             else:
+        #                 import_names.append(name)
+        #             if (imp := self._get_import_str(module_name)):
+        #                 include_stmts.append(f"imp: {', '.join(import_names)}")
+        #             else:
+        #                 pass
         
-        # As a backup, try to import using the module_name
-        if not include_stmts and \
-                (include_stmt := self._get_import_str(module_name)):
-            include_stmts.append(include_stmt)
+        # # As a backup, try to import using the module_name
+        # if not include_stmts and \
+        #         (include_stmt := self._get_import_str(module_name)):
+        #     include_stmts.append(include_stmt)
 
-        import_stmt = []
-        import_stmt.extend(include_stmts)
-        str_imports = ", ".join(imports)
-        if str_imports and jl_module_name != self._basedir.stem:
-            mod_name = jl_module_name.split(".")[-1]
-            import_stmt.append(f"using .{mod_name}: {str_imports}")
-        if aliases:
-            import_stmt.extend(aliases)
+        # import_stmt = []
+        # import_stmt.extend(include_stmts)
+        # str_imports = ", ".join(import_names)
+        # if str_imports and jl_module_name != self._basedir.stem:
+        #     mod_name = jl_module_name.split(".")[-1]
+        #     import_stmt.append(f"using {mod_name}: {str_imports}")
 
-        return "\n".join(import_stmt)
+        # return "\n".join(import_stmt)
 
-    def _get_import_str(self, name: str):
-        if (is_mod := is_file(name, self._basedir)) or \
-                (is_folder := is_dir(name, self._basedir)):
+    def _retrieve_import_names(self, names: list[tuple[str, str]]):
+        import_names = []
+        for name, alias in names:
+            if alias:
+                import_names.append(f"{name} as {alias}")
+            else:
+                import_names.append(name)
+        return import_names
+
+    def _get_file_import(self, name: str):
+        """Check if name is a path to a file and returns 
+        the resulting import string if it succeeds"""
+        if (id_mod := is_file(name, self._basedir)) or \
+                (is_path := is_dir(name, self._basedir)):
             # Find path from current file
             sep = "/"
-            extension = ".jl" if is_mod else "/__init__.jl"
+            extension = ".jl" if id_mod else "/__init__.jl"
             import_path = name.split(".")
+            # Rewrite __init__ module names
+            mod_name = import_path[-2] \
+                if import_path[-1] == "__init__" else import_path[-1]
             out_filepath = self._filename.as_posix().split("/")[:-1]
             if import_path[0] == self._basedir.stem:
                 import_path = import_path[1:]
             if out_filepath == import_path[:-1]:
                 # Shortcut if paths are the same
-                return f'include(\"{import_path[-1]}{extension}\")'
+                return f'@from \"{import_path[-1]}{extension}\" using {mod_name}'
             i, j = - 1, - 1
             rev_cnt = 0
             while i >= -len(import_path) and j >= -len(out_filepath):
@@ -831,8 +892,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 # Get relative path from current file
                 rev_path = "../" * rev_cnt
                 parsed_path = sep.join(import_path)
-                return f'include(\"{rev_path}{parsed_path}{extension}\")'
-            return f'include(\"{sep.join(import_path)}{extension}\")'
+                return f'@from \"{rev_path}{parsed_path}{extension}\" using {mod_name}'
+            return f'@from \"{sep.join(import_path)}{extension}\" using {mod_name}'
         return None
 
     def visit_List(self, node:ast.List) -> str:
@@ -1266,8 +1327,11 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_JuliaModule(self, node: juliaAst.JuliaModule) -> Any:
         body = self.visit_Module(node)
         mod_name = self.visit(node.name)
-        if mod_name == "__init__":
-            return f"module {self._filename.parent.stem}\n{body}\nend"
+        parent_dir = self._filename.parent.stem \
+            if self._filename.parent.stem \
+            else self._basedir.stem
+        if mod_name == "__init__" and parent_dir:
+            return f"module {parent_dir}\n{body}\nend"
         return f"module {mod_name}\n{body}\nend"
 
     def visit_OrderedDict(self, node: juliaAst.OrderedDict):
