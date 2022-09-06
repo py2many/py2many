@@ -47,11 +47,12 @@ from pyrs.transpiler import (
     RustStringJoinRewriter,
 )
 
-from pyjl.analysis import analyse_variable_scope, detect_broadcast, loop_range_optimization_analysis
+from pyjl.analysis import analyse_variable_scope, detect_broadcast, detect_ctypes_callbacks, loop_range_optimization_analysis
 from pyjl.transformers import find_ordered_collections, parse_decorators
 from pyjl.rewriters import (
     JuliaArgumentParserRewriter,
     JuliaContextManagerRewriter,
+    JuliaCtypesCallbackRewriter,
     JuliaCtypesRewriter,
     JuliaExceptionRewriter,
     VariableScopeRewriter,
@@ -494,6 +495,7 @@ def julia_settings(args, env=os.environ):
             loop_range_optimization_analysis,
             find_ordered_collections,
             detect_broadcast,
+            detect_ctypes_callbacks,
         ],
         post_rewriters=[
             JuliaNestingRemoval(),
@@ -503,6 +505,7 @@ def julia_settings(args, env=os.environ):
             JuliaIndexingRewriter(),
             JuliaOrderedCollectionRewriter(),
             JuliaCtypesRewriter(),
+            JuliaCtypesCallbackRewriter(),
             JuliaArgumentParserRewriter(),
             JuliaClassWrapper(),
             JuliaMethodCallRewriter(),

@@ -280,7 +280,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Attribute(self, node) -> str:
         # Account for any attributes referring to variables
         attr = f"{node.attr}_" \
-            if (node.attr in self._julia_function_names or
+            if ((node.attr in self._julia_function_names and 
+                    node.scopes.find(node.attr)) or
                 node.attr in self._julia_keywords) \
             else node.attr
         value_id = self.visit(node.value)

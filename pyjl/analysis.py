@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
+from py2many.tracer import find_node_by_name_and_type
 from pyjl.global_vars import FIX_SCOPE_BOUNDS, LOOP_SCOPE_WARNING
 
 logger = logging.Logger("pyjl")
@@ -23,6 +24,10 @@ def loop_range_optimization_analysis(node, extension=False):
 
 def detect_broadcast(node, extension=False):
     visitor = JuliaBroadcastTransformer()
+    visitor.visit(node)
+
+def detect_ctypes_callbacks(node, extension=False):
+    visitor = DetectCtypesCallbacks()
     visitor.visit(node)
 
 
@@ -289,3 +294,29 @@ class JuliaBroadcastTransformer(ast.NodeTransformer):
                     isinstance(target.slice, ast.Slice) and \
                     not self._match_list(ann_id)
         return node
+
+class DetectCtypesCallbacks(ast.NodeTransformer):
+    CTYPES_CALLBACK_FACTORIES = {
+        "ctypes.WINFUNCTYPE",
+        "WINFUNCTYPE",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        ann_id = get_id(getattr(node.func, "annotation", None))
+        if ann_id in {"_FuncPointer", "ctypes.FuncPointer"}:
+            func_node = node.scopes.find(get_id(node.func))
+            if assigned_from := getattr(func_node, "assigned_from", None):
+                if isinstance(assigned_from, (ast.Assign, ast.AnnAssign)) and \
+                        isinstance(assigned_from.value, ast.Call) and \
+                        get_id(assigned_from.value.func) in self.CTYPES_CALLBACK_FACTORIES:
+                    # Search for Julia function callable
+                    callback_func = node.scopes.find(get_id(node.args[0]))
+                    if isinstance(callback_func, ast.FunctionDef):
+                        callback_func._is_callback = True
+                        callback_func.restype = assigned_from.value.args[0]
+        return node
+

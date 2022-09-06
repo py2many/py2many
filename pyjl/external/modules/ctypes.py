@@ -36,13 +36,18 @@ class JuliaExternalModulePlugins():
         # (TODO) From Documentation: Neither convert nor cconvert should 
         # take a Julia object and turn it into a Ptr.
         self._usings.add("Libdl")
-        return f"convert({self._map_type(vargs[1])}, {vargs[0]})"
+        return f"Base.cconvert({self._map_type(vargs[1])}, {vargs[0]})"
 
     def visit_cdata_value(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # Remove the call to value (apparently, Julia already 
         # returns the value)
-        if get_id(node.func) == "value":
-            return self.visit(node.args[0])
+        conversion_type = None
+        if isinstance(node.args[0], ast.Call) and \
+                get_id(node.args[0].func) == "ctypes.cast":
+            conversion_type = get_id(node.args[0].args[1])
+        if conversion_type == "LPCWSTR":
+            return f"unsafe_string({vargs[0]})"
+        return f"unsafe_load({vargs[0]})"
 
     def visit_byref(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         if getattr(node, "is_attr", None):
@@ -96,12 +101,12 @@ GENERIC_DISPATCH_TABLE = {
 
 DISPATCH_MAP = {
     "pythonapi.PyBytes_FromStringAndSize": JuliaExternalModulePlugins.visit_pythonapi,
-    "ccall": JuliaExternalModulePlugins.visit_Libdl # Small hack to import Libdl
+    "ccall": JuliaExternalModulePlugins.visit_Libdl, # Small hack to import Libdl
 }
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
-    "LPCWSTR": lambda node, vargs, kwargs: f"convert(Cwstring, {', '.join(vargs)})" #TODO: Review
+    "LPCWSTR": lambda node, vargs, kwargs: f"isa({vargs[0]}, String) ? Cwstring(pointer(transcode(Cwchar_t, {vargs[0]}))) : Cwstring(Ptr{{Cwchar_t}}({vargs[0]}))"
 }
 
 if sys.platform.startswith('win32'):
@@ -161,7 +166,7 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_wchar: "Cwchar_t",
     # Pointers
     ctypes.c_char_p: "Ptr{Cchar}",
-    ctypes.c_wchar_p: "Cwstring",
+    ctypes.c_wchar_p: "Cwstring", # Ptr{Cwchar_t}
     ctypes.c_void_p: "Ptr{Cvoid}",
     ctypes.CDLL: "", # TODO: Temporary
     ctypes.WinDLL: "",

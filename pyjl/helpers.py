@@ -180,3 +180,16 @@ def get_default_val(node, ann):
             (id := get_id(ann.value)) in DEFAULTS_TABLE:
         return DEFAULTS_TABLE[id](scopes)
     return ast.Constant(value=None)
+
+def fill_attributes(node, scopes, no_rewrite=False, preserve_keyword=False, is_annotation=False):
+    ast.fix_missing_locations(node)
+    node.scopes = scopes
+    if no_rewrite:
+        node.no_rewrite = no_rewrite
+    if preserve_keyword:
+        node.preserve_keyword = preserve_keyword
+    if is_annotation:
+        if isinstance(node, ast.Call):
+            node.func.is_annotation = is_annotation 
+        node.is_annotation = is_annotation
+    return node

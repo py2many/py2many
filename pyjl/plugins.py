@@ -473,6 +473,10 @@ class JuliaTranspilerPlugins:
 
     def visit_hasattr(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
         parsed_args = JuliaTranspilerPlugins._parse_attrs(self, node)
+        # ann = self.visit(getattr(node.args[0], "annotation", ast.Name("")))
+        if parsed_args[1] == "index":
+            # Hacks for impossible things
+            return f"isa({parsed_args[0]}, String) && hasmethod(Base.findfirst, (String, String))"
         if len(parsed_args) == 2:
             return f"hasfield(typeof({parsed_args[0]}), :{parsed_args[1]})"
         return "hasfield"
@@ -589,7 +593,7 @@ class JuliaTranspilerPlugins:
         # Replace elements in string
         cnt = 0
         for i in range(1, len(res)-1, 2):
-            if res[i] == "":
+            if res[i] == f"{cnt}" or res[i] == "":
                 res[i] = f"$({subst_values[cnt]})"
             elif re.match(r"!r|n", res[i]):
                 res[i] = f"$({subst_values[cnt]})"

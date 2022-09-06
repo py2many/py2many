@@ -3,7 +3,7 @@ import copy
 import ctypes
 from pathlib import Path
 import re
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from py2many.clike import class_for_typename
 
@@ -17,7 +17,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import copy_attributes, create_ast_node, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
-from pyjl.helpers import generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
+from pyjl.helpers import fill_attributes, generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
 import pyjl.juliaAst as juliaAst
 
 
@@ -1912,6 +1912,13 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
 
     NONE_TYPES = {"c_void_p", "HANDLE", "HMODULE"}
 
+    WRAP_TYPES = {
+        "c_void_p": lambda arg: f"Ptr[Cvoid]({arg})", # if isa({arg}, Union[int, None]) else Ref[Cvoid]({arg})
+        "HANDLE": lambda arg: f"Ptr[Cvoid]({arg})", 
+        "HMODULE": lambda arg: f"Ptr[Cvoid]({arg})",
+        # "LPCWSTR": lambda arg: f"transcode(Cwchar_t, {arg})",
+    }
+
     def __init__(self) -> None:
         super().__init__()
         self._module = None
@@ -2051,24 +2058,6 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             else:
                 func = ast.Name(id=node.func.attr)
 
-        # Check if values for ccalls are valid
-        if get_id(func) in self._assign_ctypes_funcs:
-            assign_types = self._assign_ctypes_funcs[get_id(func)]
-            arg_types = assign_types[1:] # Removing return type
-            for i in range(0, len(node.args)):
-                ccall_func_arg = get_id(arg_types[i])
-                arg = node.args[i]
-                arg_ann = get_id(getattr(arg, "annotation", None))
-                if arg_ann == "int" and ccall_func_arg in self.NONE_TYPES:
-                    node.args[i] = ast.Call(
-                        func = ast.Subscript(
-                            value = ast.Name(id="Ptr"),
-                            slice = ast.Name(id="Cvoid"),
-                            is_annotation = True),
-                        args = [arg], keywords = [],
-                        scopes = node.scopes)
-                    ast.fix_missing_locations(node.args[i])
-
         # Ignore calls that Load the library
         if class_for_typename(get_id(func), None, self._imported_names) \
                 is ctypes.cdll.LoadLibrary:
@@ -2147,9 +2136,9 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                     argtypes.value is None:
                 argtypes = ast.Tuple(elts = [argtypes])
             # Replace unwanted argtypes with Ptr{void}
-            ptr_node = self._make_ptr()
+            ptr_node = self._make_ptr("Cvoid")
             replace_cond = lambda x: get_id(getattr(x, "annotation", None)) in \
-                        {"PyObject", "ctypes._FuncPointer", "_FuncPointer", "ctypes.POINTER"}
+                {"PyObject", "ctypes._FuncPointer", "_FuncPointer", "ctypes.POINTER"}
             argtypes.elts = list(map(lambda x: ptr_node if replace_cond(x) else x, argtypes.elts))
             # Set all as annotation
             for arg in argtypes.elts:
@@ -2187,11 +2176,12 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 var_list: list[str] = [f"a{i}" for i in range(len(argtypes.elts))]
                 args = ast.arguments(args=[ast.arg(arg=var) for var in var_list], defaults=[])
                 for var, typ in zip(var_list, argtypes.elts):
-                    if get_id(typ) in self.NONE_TYPES:
-                        # Cast nodes that have c_void_p type
-                        ptr = self._make_ptr()
-                        ccall.args.append(ast.Call(func = ptr, args=[ast.Name(id=var)],
-                            keywords = [], scopes = node.scopes))
+                    if get_id(typ) in self.WRAP_TYPES:
+                        mapped_arg = self.WRAP_TYPES[get_id(typ)](var)
+                        arg_node = cast(ast.Expr, create_ast_node(mapped_arg)).value
+                        fill_attributes(arg_node, node.scopes, no_rewrite=True, 
+                            preserve_keyword=True, is_annotation=True)
+                        ccall.args.append(arg_node)
                     else:
                         ccall.args.append(ast.Name(id=var))
                 # ccall.args.extend([ast.Name(id=var) for var in var_list])
@@ -2226,9 +2216,9 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
 
         return node
 
-    def _make_ptr(self):
+    def _make_ptr(self, ptr_type: str):
         ptr_node = ast.Subscript(value = ast.Name(id="Ptr"),
-            slice=ast.Name(id="Cvoid"), is_annotation = True)
+            slice=ast.Name(id=ptr_type), is_annotation = True)
         ast.fix_missing_locations(ptr_node)
         return ptr_node
 
@@ -2395,6 +2385,80 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         node.names = list(filter(remove_del_funcs, node.names))
 
 
+class JuliaCtypesCallbackRewriter(ast.NodeTransformer):
+    CONVERSION_MAP = {
+        "BOOL": "Clong",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._is_callback = False
+        self._restype = None
+
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        if not getattr(node, "_is_callback", False):
+            self.generic_visit(node)
+            return node
+        # Handle callback functions
+        self._is_callback = True
+        self._restype = getattr(node, "restype", None)
+        # Visit the function
+        self.generic_visit(node)
+        self._is_callback = False
+        self._restype = None
+        # body.extend(node.body)
+        # node.body = body
+        node.returns = None # Returns are unreliable, as functions are used as callbacks
+        return node
+
+
+    def visit_Return(self, node: ast.Return) -> Any:
+        self.generic_visit(node)
+        if self._is_callback:
+            return_node_ann = get_ann_repr(getattr(node.value, "annotation", None))
+            if not return_node_ann and self._restype:
+                return_node_ann = get_ann_repr(self._restype)
+            if return_node_ann in self.CONVERSION_MAP:
+                conv_type = ast.Name(id=self.CONVERSION_MAP[return_node_ann], preserve_keyword=True)
+                # If we can convert it, then 
+                node.value = ast.Call(
+                    func = ast.Attribute(
+                        value=ast.Name(id="Base", preserve_keyword = True),
+                        attr = "cconvert",
+                        scopes = node.value.scopes, ctx = ast.Load(),
+                        preserve_keyword = True),
+                    args = [conv_type,node.value],
+                    keywords = [],
+                    scopes = node.value.scopes,
+                    no_rewrite = True)
+                fill_attributes(node.value, node.value.scopes)
+        return node
+
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)
+        if self._is_callback:
+            func_node = node.scopes.find(get_id(node.func))
+            if isinstance(func_node, ast.FunctionDef):
+                func_args = func_node.args.args
+                for i in range(len(func_args)):
+                    f_arg = func_args[i]
+                    if get_id(f_arg.annotation) == "ctypes.c_uint64":
+                        # Convert type to uint
+                        node.args[i] = ast.Call(
+                            func = ast.Name("UInt64", preserve_keyword=True),
+                            args = [node.args[i]],
+                            keywords = [],
+                            scopes = node.scopes)
+                        ast.fix_missing_locations(node.args[i])
+        return node
+
+
+###########################################################
+##################### Argument Parser #####################
+###########################################################
+
 class JuliaArgumentParserRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
@@ -2472,6 +2536,10 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
                 return None
         return node
 
+
+###########################################################
+#################### Context Managers #####################
+###########################################################
 
 class JuliaContextManagerRewriter(ast.NodeTransformer):
     """Rewrites calls to context manager nodes. This rewriter 
