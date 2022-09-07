@@ -16,7 +16,7 @@ from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, create_ast_node, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
-from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
+from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, FLAG_DEFAULTS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
 from pyjl.helpers import fill_attributes, generate_var_name, get_default_val, get_func_def, obj_id
 from py2many.helpers import is_dir, is_file
 import pyjl.juliaAst as juliaAst
@@ -36,9 +36,11 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         self._file = getattr(node, "__file__", ".")
         self._basedir = getattr(node, "__basedir__", None)
-        self._use_modules = getattr(node, USE_MODULES, None)
+        self._use_modules = getattr(node, USE_MODULES, 
+            FLAG_DEFAULTS[USE_MODULES])
         self._imports = list(map(get_id, getattr(node, "imports", [])))
-        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, False) 
+        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, 
+            FLAG_DEFAULTS[OOP_NESTED_FUNCS]) 
         self.generic_visit(node)
         return node
 
@@ -246,8 +248,10 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         # Reset state
         self._replace_calls = {}
         # Get flags
-        self._use_resumables = getattr(node, USE_RESUMABLES, False)
-        self._lower_yield_from = getattr(node, LOWER_YIELD_FROM, False)
+        self._use_resumables = getattr(node, USE_RESUMABLES, 
+            FLAG_DEFAULTS[USE_RESUMABLES])
+        self._lower_yield_from = getattr(node, LOWER_YIELD_FROM, 
+            FLAG_DEFAULTS[LOWER_YIELD_FROM])
 
         self.generic_visit(node)
 
@@ -961,7 +965,8 @@ class JuliaNestingRemoval(ast.NodeTransformer):
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._remove_nested = getattr(node, REMOVE_NESTED, False)
-        self._remove_nested_resumables = getattr(node, REMOVE_NESTED_RESUMABLES, False)
+        self._remove_nested_resumables = getattr(node, REMOVE_NESTED_RESUMABLES, 
+            FLAG_DEFAULTS[REMOVE_NESTED_RESUMABLES])
         body = []
         # Add nested classes and generator functions to top scope
         for n in node.body:
@@ -1306,7 +1311,8 @@ class JuliaClassOOPRewriter(ast.NodeTransformer):
         self._oop_nested_funcs = False
 
     def visit_Module(self, node: ast.Module) -> Any:
-        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, False)
+        self._oop_nested_funcs = getattr(node, OOP_NESTED_FUNCS, 
+            FLAG_DEFAULTS[OOP_NESTED_FUNCS])
         self.generic_visit(node)
         return node
 
@@ -1475,7 +1481,7 @@ class VariableScopeRewriter(ast.NodeTransformer):
     
     def visit_Module(self, node: ast.Module) -> Any:
         self._variables_out_of_scope: dict[str, Any] = {}
-        if getattr(node, FIX_SCOPE_BOUNDS, False):
+        if getattr(node, FIX_SCOPE_BOUNDS, FLAG_DEFAULTS[FIX_SCOPE_BOUNDS]):
             self._generic_scope_visit(node)
         return node
 
@@ -1881,7 +1887,7 @@ class JuliaModuleRewriter(ast.NodeTransformer):
         super().__init__()
 
     def visit_Module(self, node: ast.Module) -> Any:
-        if getattr(node, USE_MODULES, None):
+        if getattr(node, USE_MODULES, FLAG_DEFAULTS[USE_MODULES]):
             name = node.__file__.name.split(".")[0]
             julia_module = juliaAst.JuliaModule(
                 body = node.body,
@@ -1957,7 +1963,8 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
     
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = getattr(node, "imported_names", None)
-        self._use_modules = getattr(node, USE_MODULES, False)
+        self._use_modules = getattr(node, USE_MODULES, 
+            FLAG_DEFAULTS[USE_MODULES])
         # Get current module name
         filename = getattr(node, "__file__", None)
         if filename:

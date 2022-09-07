@@ -3,7 +3,7 @@ import re
 from typing import Any
 
 from py2many.ast_helpers import get_id
-from pyjl.global_vars import USE_GLOBAL_CONSTANTS
+from pyjl.global_vars import FLAG_DEFAULTS, USE_GLOBAL_CONSTANTS
 
 
 class AlgebraicSimplification(ast.NodeTransformer):
@@ -115,7 +115,8 @@ class PerformanceOptimizations(ast.NodeTransformer):
         self._use_global_constants = False
     
     def visit_Module(self, node: ast.Module) -> Any:
-        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, False)
+        self._use_global_constants = getattr(node, USE_GLOBAL_CONSTANTS, 
+            FLAG_DEFAULTS[USE_GLOBAL_CONSTANTS])
         self.generic_visit(node)
         return node
 

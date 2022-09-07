@@ -4,7 +4,7 @@ import re
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.astx import LifeTime
-from typing import  List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from py2many.ast_helpers import get_id
 import logging
 
@@ -13,8 +13,23 @@ from py2many.external_modules import ExternalBase
 from py2many.helpers import get_ann_repr
 from py2many.tracer import find_node_by_name_and_type, find_node_by_type
 from pyjl.juliaAst import JuliaNodeVisitor
-from pyjl.plugins import ATTR_DISPATCH_TABLE, FUNC_DISPATCH_TABLE, JULIA_SPECIAL_NAME_TABLE, MODULE_DISPATCH_TABLE, SMALL_DISPATCH_MAP, SMALL_USINGS_MAP, DISPATCH_MAP
-from pyjl.global_vars import ALLOW_ANNOTATIONS_ON_GLOBALS, GLOBAL_FLAGS, NONE_TYPE, SEP, USE_MODULES
+from pyjl.plugins import (
+    ATTR_DISPATCH_TABLE,
+    FUNC_DISPATCH_TABLE,
+    JULIA_SPECIAL_NAME_TABLE,
+    MODULE_DISPATCH_TABLE,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+    DISPATCH_MAP,
+)
+from pyjl.global_vars import (
+    ALLOW_ANNOTATIONS_ON_GLOBALS,
+    FLAG_DEFAULTS,
+    GLOBAL_FLAGS,
+    NONE_TYPE,
+    SEP,
+    USE_MODULES,
+)
 from pyjl.global_vars import DEFAULT_TYPE
 
 from numbers import Complex, Integral, Rational, Real
@@ -62,8 +77,8 @@ julia_keywords = frozenset(
 )
 
 jl_symbols = {
-    ast.BitXor: "⊻", 
-    ast.And: "&&", 
+    ast.BitXor: "⊻",
+    ast.And: "&&",
     ast.Or: "||",
     ast.Invert: "~",
     ast.Pow: "^",
@@ -73,38 +88,40 @@ jl_symbols = {
     ast.Eq: "==",
     ast.FloorDiv: "÷",
     ast.Is: "===",
-    ast.IsNot: "!=="
+    ast.IsNot: "!==",
 }
 
-JL_IGNORED_MODULE_SET = set([
-    "unittest",
-    "operator",
-    "numbers",
-    "collections",
-    "test",
-    "test.support",
-    "weakref",
-    "pickle",
-    "struct",
-    "array",
-    "itertools",
-    "multiprocessing",
-    "re",
-    "contextlib",
-    "time",
-    "argparse_dataclass",
-    "bisect",
-    "base64",
-    "binascii",
-    "traceback",
-    "types",
-    "io",
-    "random",
-    "tempfile",
-    "toposort",
-    "importlib",
-    "importlib.abc",
-])
+JL_IGNORED_MODULE_SET = set(
+    [
+        "unittest",
+        "operator",
+        "numbers",
+        "collections",
+        "test",
+        "test.support",
+        "weakref",
+        "pickle",
+        "struct",
+        "array",
+        "itertools",
+        "multiprocessing",
+        "re",
+        "contextlib",
+        "time",
+        "argparse_dataclass",
+        "bisect",
+        "base64",
+        "binascii",
+        "traceback",
+        "types",
+        "io",
+        "random",
+        "tempfile",
+        "toposort",
+        "importlib",
+        "importlib.abc",
+    ]
+)
 
 JULIA_TYPE_MAP = {
     bool: "Bool",
@@ -122,25 +139,22 @@ JULIA_TYPE_MAP = {
     object: "DataType",
 }
 
-# Used for types that cannot be 
+# Used for types that cannot be
 # represented in a dictionary
-JULIA_STR_TYPE_MAP = {
-    "function": "Function"
-}
+JULIA_STR_TYPE_MAP = {"function": "Function"}
 
-JULIA_INTEGER_TYPES = \
-    [
-        "Int8",
-        "Int16",
-        "Int32",
-        "Int64",
-        "UInt128",
-        "UInt64",
-        "UInt32",
-        "UInt16",
-        "UInt8",
-        "Integer"
-    ]
+JULIA_INTEGER_TYPES = [
+    "Int8",
+    "Int16",
+    "Int32",
+    "Int64",
+    "UInt128",
+    "UInt64",
+    "UInt32",
+    "UInt16",
+    "UInt8",
+    "Integer",
+]
 
 JULIA_NUM_TYPES = JULIA_INTEGER_TYPES + ["Float16", "Float32", "Float64"]
 
@@ -155,10 +169,12 @@ CONTAINER_TYPE_MAP = {
     bytearray: f"Vector{{UInt8}}",
 }
 
+
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
     symbol_type = type(node)
     return jl_symbols[symbol_type]
+
 
 class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
     def __init__(self):
@@ -169,7 +185,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._default_type = DEFAULT_TYPE
         self._none_type = NONE_TYPE
         self._statement_separator = ""
-        self._ignored_module_set = IGNORED_MODULE_SET.copy().union(JL_IGNORED_MODULE_SET.copy())
+        self._ignored_module_set = IGNORED_MODULE_SET.copy().union(
+            JL_IGNORED_MODULE_SET.copy()
+        )
         self._julia_keywords = julia_keywords
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
@@ -193,9 +211,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def headers(self, meta=None):
         if self._flags:
-            flags_in_use = '\n'.join(self._flags)
+            flags_in_use = "\n".join(self._flags)
             return f"# Transpiled with flags: \n{flags_in_use}"
-        
+
     def visit(self, node) -> str:
         if type(node) in jl_symbols:
             return jl_symbol(node)
@@ -203,11 +221,15 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return super().visit(node)
 
     def visit_Module(self, node: ast.Module) -> str:
-        self._use_modules = getattr(node, USE_MODULES, None)
-        self._flags = [f"# - {flag}" for flag in GLOBAL_FLAGS 
-            if getattr(node, flag, False)]
-        self._allow_annotations_on_globals = \
-            getattr(node, ALLOW_ANNOTATIONS_ON_GLOBALS, False)
+        self._use_modules = getattr(node, USE_MODULES, FLAG_DEFAULTS[USE_MODULES])
+        self._flags = [
+            f"# - {flag}" for flag in GLOBAL_FLAGS if getattr(node, flag, False)
+        ]
+        self._allow_annotations_on_globals = getattr(
+            node,
+            ALLOW_ANNOTATIONS_ON_GLOBALS,
+            FLAG_DEFAULTS[ALLOW_ANNOTATIONS_ON_GLOBALS],
+        )
         return super().visit_Module(node)
 
     def visit_arg(self, node):
@@ -217,8 +239,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         typename = ""
         if getattr(node, "annotation", None):
             typename = self.visit(node.annotation)
-        elif hasattr(node, "annotation") and \
-                (t_name := self._typename_from_annotation(node)):
+        elif hasattr(node, "annotation") and (
+            t_name := self._typename_from_annotation(node)
+        ):
             typename = t_name
         return (typename, node.arg)
 
@@ -233,8 +256,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def visit_BinOp(self, node) -> str:
         node_op = self.visit(node.op)
-        op = f".{node_op}" if getattr(node, "broadcast", False) \
-            else node_op
+        op = f".{node_op}" if getattr(node, "broadcast", False) else node_op
 
         if isinstance(node.op, ast.Mult):
             return f"{self.visit(node.left)}{op}{self.visit(node.right)}"
@@ -299,10 +321,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
     def _typename_from_annotation(self, node, attr="annotation") -> str:
         typename = self._default_type
         if type_node := getattr(node, attr, None):
-            typename = self._typename_from_type_node(type_node, 
-                parse_func=self._map_type, default=self._default_type)
+            typename = self._typename_from_type_node(
+                type_node, parse_func=self._map_type, default=self._default_type
+            )
             if isinstance(type_node, ast.Subscript):
-                node.container_type = tuple(map(self._map_type, type_node.container_type))
+                node.container_type = tuple(
+                    map(self._map_type, type_node.container_type)
+                )
             if isinstance(type_node, ast.Name):
                 id = self._map_type(get_id(node))
                 if self._func_for_lookup(id) in self._container_type_map:
@@ -320,13 +345,15 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def not_inferable(self, node, type_node):
         return (
-            node is None or
-            (isinstance(node, ast.arg))
-            # (isinstance(node, ast.arg) and node.arg == "self") 
+            node is None
+            or (isinstance(node, ast.arg))
+            # (isinstance(node, ast.arg) and node.arg == "self")
             or isinstance(type_node, ast.Constant)
         )
-    
-    def _typename_from_type_node(self, node, parse_func = None, default = None) -> Union[List, str, None]:
+
+    def _typename_from_type_node(
+        self, node, parse_func=None, default=None
+    ) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
             return self._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
@@ -340,8 +367,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return f"{self._typename_from_type_node(node.value, parse_func, default)}.{self._map_type(node.attr)}"
         elif isinstance(node, ast.Subscript):
             (value_type, index_type) = tuple(
-                map(lambda x: self._typename_from_type_node(x, parse_func, default), 
-                    (node.value, node.slice))
+                map(
+                    lambda x: self._typename_from_type_node(x, parse_func, default),
+                    (node.value, node.slice),
+                )
             )
             node.container_type = (value_type, index_type)
             return f"{value_type}{{{index_type}}}"
@@ -350,10 +379,13 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 # Can't use self._map_type, as it uses self._func_for_lookup.
                 # By supplying the type None, it will not work
                 return JULIA_TYPE_MAP[node.value]
-        elif isinstance(node, ast.Tuple) \
-                or isinstance(node, ast.List):
-            elts = list(map(
-                lambda x: self._typename_from_type_node(x, parse_func, default), node.elts))
+        elif isinstance(node, ast.Tuple) or isinstance(node, ast.List):
+            elts = list(
+                map(
+                    lambda x: self._typename_from_type_node(x, parse_func, default),
+                    node.elts,
+                )
+            )
             return ", ".join(elts)
         return default
 
@@ -387,11 +419,12 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return None
         return func
 
-    def _dispatch(self, node: ast.Call, fname: str, vargs: List[str], kwargs: List[str]) -> Optional[str]:
+    def _dispatch(
+        self, node: ast.Call, fname: str, vargs: List[str], kwargs: List[str]
+    ) -> Optional[str]:
         if len(node.args) > 0:
             var = vargs[0]
-            if isinstance(node.args[0], ast.Call) and \
-                    (id := get_id(node.args[0].func)):
+            if isinstance(node.args[0], ast.Call) and (id := get_id(node.args[0].func)):
                 var = id
 
             dispatch_func = self._get_dispatch_func(node, var, fname, vargs, kwargs)
@@ -408,7 +441,9 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
             if class_node:
                 base_str = self._find_last_base(class_node, "")
-                dispatch_func = self._get_dispatch_func(node, base_str, fname, vargs, kwargs)
+                dispatch_func = self._get_dispatch_func(
+                    node, base_str, fname, vargs, kwargs
+                )
                 if dispatch_func:
                     return dispatch_func
 
@@ -421,14 +456,18 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             elif ann := getattr(node, "annotation", None):
                 annotation = ann
 
-            if ann := self._generic_typename_from_type_node(annotation):    
+            if ann := self._generic_typename_from_type_node(annotation):
                 if isinstance(ann, list):
                     ann = ann[0]
                 # Get main type
                 ann: str = re.split(r"\[|\]", ann)[0]
-                if dispatch_func := self._get_dispatch_func(node, ann, fname, vargs, kwargs):
+                if dispatch_func := self._get_dispatch_func(
+                    node, ann, fname, vargs, kwargs
+                ):
                     return dispatch_func
-                elif dispatch_func := self._clike_dispatch(node, f"{ann}.{fname}", vargs, kwargs):
+                elif dispatch_func := self._clike_dispatch(
+                    node, f"{ann}.{fname}", vargs, kwargs
+                ):
                     return dispatch_func
 
         if orig_name := getattr(node, "orig_name", None):
@@ -436,8 +475,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             return self._clike_dispatch(node, orig_name, vargs, kwargs)
         return self._clike_dispatch(node, fname, vargs, kwargs)
 
-    # Adds kwargs to clike dispatch 
-    def _clike_dispatch(self, node, fname: str, vargs: List[str], kwargs: List[str]) -> Optional[str]:
+    # Adds kwargs to clike dispatch
+    def _clike_dispatch(
+        self, node, fname: str, vargs: List[str], kwargs: List[str]
+    ) -> Optional[str]:
         if fname in self._dispatch_map:
             try:
                 return self._dispatch_map[fname](self, node, vargs, kwargs)
@@ -485,9 +526,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     def _find_last_base(self, node: ast.ClassDef, base_str):
         for base in node.bases:
-            base_str = get_ann_repr(base, sep = SEP)
-            if superclass := find_node_by_name_and_type(base_str, ast.ClassDef, node.scopes)[0]:
+            base_str = get_ann_repr(base, sep=SEP)
+            if superclass := find_node_by_name_and_type(
+                base_str, ast.ClassDef, node.scopes
+            )[0]:
                 # print(superclass.bases)
                 return self._find_last_base(superclass, base_str)
         return base_str
-        
