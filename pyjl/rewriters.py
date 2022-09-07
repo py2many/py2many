@@ -1470,12 +1470,10 @@ class VariableScopeRewriter(ast.NodeTransformer):
     This has to be executed after the JuliaVariableScopeAnalysis transformer """
     def __init__(self) -> None:
         super().__init__()
-        self._variables_out_of_scope = None
-        self._target_vals: list[tuple] = []
+        self._variables_out_of_scope: dict[str, Any] = {}
     
     def visit_Module(self, node: ast.Module) -> Any:
-        self._variables_out_of_scope = None
-        self._target_vals = []
+        self._variables_out_of_scope: dict[str, Any] = {}
         if getattr(node, FIX_SCOPE_BOUNDS, False):
             self._generic_scope_visit(node)
         return node
@@ -1485,61 +1483,46 @@ class VariableScopeRewriter(ast.NodeTransformer):
         return node
 
     def visit_With(self, node: ast.With) -> Any:
+        # Retrieve nested variables that are out of scope
         self._generic_scope_visit(node)
-        parent = node.scopes[-2]
+        parent = node.scopes[-2] \
+            if hasattr(node, "scopes") and len(node.scopes) >= 2 \
+            else None
         variables_out_of_scope = getattr(parent, "variables_out_of_scope", {})
-        return_targets = []
-        for n in node.body:
-            if isinstance(n, ast.Assign) and \
-                    (target_id := get_id(n.targets[0])) in variables_out_of_scope:
-                return_targets.append(target_id)
-
-        if return_targets:
-            # Because do-block behaves like an anonymous function, 
+        target_ids = [get_id(it.optional_vars) for it in node.items
+            if get_id(it.optional_vars) in variables_out_of_scope]
+        if target_ids:
+            # Because do-blocks behaves like anonymous functions, 
             # we have to return the elements if they are used 
-            # outside their scope
-            return_val = ast.Name(id=return_targets[0]) \
-                if len(return_targets) == 1 \
-                else ast.Tuple(elts=[ast.Name(id=target) for target in return_targets])
-            node.body.append(ast.Return(value=return_val))
-        return node
-    
-    def _generic_scope_visit(self, node):
-        body = []
-        # Cover nested scopes
-        target_state = self._variables_out_of_scope
-        self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
-        vars = []
-        for n in node.body:
-            self.visit(n)
-            if self._target_vals:
-                for target, default in self._target_vals:
-                    assign = ast.Assign(
-                        targets=[target],
-                        value = default,
-                        lineno = node.lineno - 1,
-                        col_offset = node.col_offset,
-                        scopes = n.scopes)
-                    vars.append(assign)
-                self._target_vals = []
+            # outside their scope (This is not a permanent solution)
+            variable_vals = ast.Name(id=target_ids[0]) \
+                if len(target_ids) == 1 \
+                else ast.Tuple(elts=[ast.Name(id=target) for target in target_ids])
+            # Return nodes that are required in outer scopes
+            node.body.append(ast.Return(value=variable_vals))
+            assign = ast.Assign(
+                targets = [variable_vals],
+                value = node,
+                scopes = node.scopes,
+            )
+            ast.fix_missing_locations(assign)
+            return assign
 
-            body.append(n)
-            
-        # Update node body
-        node.body = vars + body
-        # Reset _variables_out_of_scope
-        self._variables_out_of_scope = target_state
-        
         return node
-    
+
     def visit_For(self, node: ast.For) -> Any:
+        self._generic_scope_visit(node)
+        # Consider all variables out of scope from parent scopes
+        all_variables_out_of_scope = {}
+        for sc in node.scopes:
+            if hasattr(sc, "variables_out_of_scope"):
+                all_variables_out_of_scope |= sc.variables_out_of_scope
         target_id = get_id(node.target)
-        if target_id in self._variables_out_of_scope:
+        if target_id in all_variables_out_of_scope:
             annotation = getattr(node.scopes.find(target_id), "annotation", None)
             target = ast.Name(
-                        id = target_id,
-                        annotation = annotation)
-            
+                id = target_id,
+                annotation = annotation)
             new_loop_id = f"_{target_id}"
             new_var_assign = ast.Assign(
                 targets=[target],
@@ -1553,29 +1536,66 @@ class VariableScopeRewriter(ast.NodeTransformer):
             node.target.id = new_loop_id
             ast.fix_missing_locations(new_var_assign)
             node.body.insert(0, new_var_assign)
-            # We provide int as an annotation, as we are 
-            # dealing with a for loop with a call to range 
-            # (currently the only for loops optimizable)
-            self._add_target_val(node, target_id, 
-                getattr(node.iter, "annotation", None))
-        self.generic_visit(node)
         return node
 
-    def visit_Name(self, node: ast.Name) -> Any:
-        id = get_id(node)
-        self._add_target_val(node, id)
+    def visit_If(self, node: ast.If) -> Any:
+        return self._generic_scope_visit(node)
+
+    def visit_While(self, node: ast.While) -> Any:
+        return self._generic_scope_visit(node)
+    
+    def _generic_scope_visit(self, node):
+        # Save current variables out of scope
+        prev = self._variables_out_of_scope
+        # Set new variables
+        # self._variables_out_of_scope = getattr(node, "variables_out_of_scope", {})
+        body, vars = [], []
+        for n in node.body:
+            if targets := self._get_variables_out_of_scope(n):
+                vars.extend(self._build_assignments(targets)) 
+            body.append(self.visit(n))
+
+        # Update node body
+        node.body = vars + body
+        # Revert variables out of scope
+        self._variables_out_of_scope = prev
         return node
 
-    def _add_target_val(self, node, id, opt_ann=None):
-        if id in self._variables_out_of_scope:
-            # Get variable and its default value
-            _, ann = self._variables_out_of_scope[id]
-            target_default = get_default_val(node, opt_ann) \
-                if opt_ann else get_default_val(node, ann)
-            target_val = ast.Name(id=id)
-            ast.fix_missing_locations(target_val)
-            self._target_vals.append((target_val, target_default))
-            self._variables_out_of_scope.pop(id)
+    def _get_variables_out_of_scope(self, node):
+        # Retrieve nested variables that are out of scope
+        parent = node.scopes[-2] \
+            if hasattr(node, "scopes") and len(node.scopes) >= 2 \
+            else None
+        if not parent:
+            return []
+        variables_out_of_scope = getattr(parent, "variables_out_of_scope", {})
+        vars = None
+        node_vars = getattr(node, "vars", [])
+        if nested_variables := getattr(node, "nested_variables", None):
+            assert isinstance(nested_variables, dict)
+            vars = list(nested_variables.values()) + node_vars
+        else:
+            vars = node_vars
+        vars_out_of_scope = []
+        for var in vars:
+            if get_id(var) in variables_out_of_scope:
+                v, ann = variables_out_of_scope[get_id(var)]
+                vars_out_of_scope.append((var, ann))
+        return vars_out_of_scope
+
+    def _build_assignments(self, targets):
+        # Retrieve assignment variables 
+        assign_nodes = []
+        for (target, ann) in targets:
+            new_target = ast.Name(id=get_id(target)) 
+            default = get_default_val(target, ann)
+            assign = ast.Assign(
+                targets=[new_target],
+                value = default,
+                scopes = getattr(target, "scopes", ScopeList()))
+            ast.fix_missing_locations(assign)
+            assign_nodes.append(assign)
+        return assign_nodes
 
 
 class JuliaOffsetArrayRewriter(ast.NodeTransformer):

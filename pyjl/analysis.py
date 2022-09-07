@@ -47,12 +47,14 @@ def get_target(target):
 class JuliaVariableScopeAnalysis(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self._scope_vars = []
         self._nested_vars =  {}
-        self._variables_out_of_scope: Dict[str, Any] = {}
+        self._variables_out_of_scope: dict[str, Any] = {}
         self._all_variables_out_of_scope = []
+        self._curr_scope_vars = []
+        # Two phases
+        self._sweep = False
+        self._filter = False
 
-    # TODO: Maybe set as an event?
     def _emit_warning(self, node):
         if self._all_variables_out_of_scope:
             elems = []
@@ -64,7 +66,14 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
                         f" used outside their scope:\n"
                         f"{elems_str}\033[0m")
 
+    def visit(self, node: ast.AST) -> Any:
+        if self._sweep and hasattr(node, "vars"):
+            self._sweep_phase(node)
+            return node
+        return super().visit(node)
+
     def visit_Module(self, node: ast.Module) -> Any:
+        self._variables_out_of_scope = {}
         if getattr(node, FIX_SCOPE_BOUNDS, False) or \
                 getattr(node, LOOP_SCOPE_WARNING, False):
             self.generic_visit(node)
@@ -96,46 +105,62 @@ class JuliaVariableScopeAnalysis(ast.NodeTransformer):
         return node
 
     def _scope_analysis(self, node, attr="body"):
-        self._scope_vars.clear()
-        self._nested_vars.clear()
+        if self._filter:
+            # Get the variables from all outer scopes
+            scope_vars_backup = self._curr_scope_vars
+            self._curr_scope_vars = []
+            for scope in node.scopes:
+                if hasattr(scope, "vars"):
+                    self._curr_scope_vars.extend(list(map(get_id, scope.vars)))
+            self.generic_visit(node)
+            # Reset state to prior scope variables
+            self._curr_scope_vars = scope_vars_backup
+            return node
+        self._nested_vars = {}
         self._variables_out_of_scope = {}
-        # Get the variables from all outer scopes
-        vars = set()
-        for scope in node.scopes:
-            if hasattr(scope, "vars"):
-                vars.update(set(map(get_id, scope.vars)))
-        # Check for nested hard scopes and visit other nodes
+        # Sweep phase checks for nested variables
+        self._sweep = True
+        self.generic_visit(node)
+        self._sweep = False
+        # Filter phase retrieves variables out of scope
+        node.nested_variables = self._nested_vars
+        self._filter = True
+        self.generic_visit(node)
+        self._filter = False
+        # Save nested variables and variables out of scope for each node
+        node.variables_out_of_scope = self._variables_out_of_scope
+        self._all_variables_out_of_scope.extend(self._variables_out_of_scope.values())
+        # Visit nodes in body
         body = getattr(node, attr, [])
         for n in body:
-            if isinstance(n, (ast.For, ast.With, ast.While, 
-                    ast.If, ast.FunctionDef)):
-                self._nested_vars.update({get_id(n_var): n_var 
-                    for n_var in n.vars if get_id(n_var) not in vars})
-            else:
+            if isinstance(n, (ast.With, ast.For, ast.While, ast.If, 
+                    ast.FunctionDef, ast.Module)):
                 self.visit(n)
-        if hasattr(node, "variables_out_of_scope"):
-            node.variables_out_of_scope |= self._variables_out_of_scope
-        else:
-            node.variables_out_of_scope = self._variables_out_of_scope
-        self._all_variables_out_of_scope.extend(self._variables_out_of_scope.values())
 
-        # Visit remaining nodes
-        for n in body:
-            if isinstance(n, (ast.For, ast.With, ast.While, 
-                    ast.If, ast.FunctionDef)):
-                self.visit(n)
+    def _sweep_phase(self, node):
+        # Perform the sweep phase (Helps detect nested variables 
+        # from nested scopes)
+        self.generic_visit(node)
+        self._nested_vars.update({get_id(n_var): n_var 
+            for n_var in node.vars})
 
     def visit_Name(self, node: ast.Name) -> Any:
-        # Check if the name is defined in any 
+        # Check if the name is defined in any
         # of the nested scopes
-        if (id := get_id(node)) in self._nested_vars and \
-                not getattr(node, "lhs", False):
-            var = self._nested_vars[id]
-            ann = self._get_ann(var)
-            self._variables_out_of_scope[id] = (node, ann)  
+        node_id = get_id(node)
+        if self._filter and \
+                not getattr(node, "lhs", False) and \
+                node_id in self._nested_vars:
+            var = self._nested_vars[node_id]
+            if node_id not in self._curr_scope_vars:
+                # Guarantee that var is not in one of the 
+                # parent scopes of the current node.
+                ann = self._get_ann(var)
+                self._variables_out_of_scope[node_id] = (node, ann)
         return node
     
     def _get_ann(self, node):
+        """Attempt to get the annotation for a node"""
         if hasattr(node, "annotation"):
             return node.annotation
         if hasattr(node, "assigned_from"):

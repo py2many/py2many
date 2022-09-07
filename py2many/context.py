@@ -205,6 +205,9 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
 
     def visit_With(self, node):
         node.vars = []
+        for it in node.items:
+            if isinstance(it.optional_vars, ast.Name):
+                node.vars.append(it.optional_vars)
         self.generic_visit(node)
         return node
 
