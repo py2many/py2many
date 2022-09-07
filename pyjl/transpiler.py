@@ -7,7 +7,7 @@ import re
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.scope import ScopeList
 from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
-from pyjl.helpers import is_dir, is_file
+from py2many.helpers import is_dir, is_file
 
 import pyjl.juliaAst as juliaAst
 

@@ -7,7 +7,7 @@ from py2many.inference import InferMeta, InferTypesTransformer
 from py2many.analysis import get_id
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from pyjl.global_vars import DEFAULT_TYPE, SEP
-from pyjl.helpers import is_dir, is_file
+from py2many.helpers import is_dir, is_file
 
 def infer_julia_types(node, extension=False):
     visitor = InferJuliaTypesTransformer()

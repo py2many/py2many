@@ -17,7 +17,8 @@ from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import copy_attributes, create_ast_node, get_id
 from pyjl.clike import JL_IGNORED_MODULE_SET
 from pyjl.global_vars import CHANNELS, COMMON_LOOP_VARS, FIX_SCOPE_BOUNDS, JL_CLASS, LOWER_YIELD_FROM, OBJECT_ORIENTED, OFFSET_ARRAYS, OOP_CLASS, OOP_NESTED_FUNCS, REMOVE_NESTED, REMOVE_NESTED_RESUMABLES, RESUMABLE, SEP, USE_MODULES, USE_RESUMABLES
-from pyjl.helpers import fill_attributes, generate_var_name, get_default_val, get_func_def, is_dir, is_file, obj_id
+from pyjl.helpers import fill_attributes, generate_var_name, get_default_val, get_func_def, obj_id
+from py2many.helpers import is_dir, is_file
 import pyjl.juliaAst as juliaAst
 
 

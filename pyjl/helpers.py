@@ -4,7 +4,7 @@ import os
 import random
 
 from py2many.ast_helpers import get_id
-from py2many.helpers import get_ann_repr, parse_path
+from py2many.helpers import get_ann_repr
 from py2many.scope import ScopeList
 
 from py2many.tracer import find_node_by_name_and_type
@@ -126,41 +126,6 @@ def obj_id(node):
         if isinstance(node, ast.Attribute):
             return node.attr
         return get_id(node)
-
-def _parse_path(import_name: str, basedir) -> str:
-        """Small wrapper around py2many's parse_path function"""
-        cwd = os.getcwd().split(os.sep)
-        base_dir = basedir.as_posix().split("/")
-        if os.path.isfile(basedir.as_posix()):
-            base_dir = base_dir[:-1]
-        path = import_name.split(".")
-        # In case there are empty list positions, 
-        # replace them with ".."  to go back one directory
-        for i in range(len(path)):
-            p = path[i]
-            if p == "":
-                path[i] = ".."
-        # Check for a matching position and retrieve its index
-        indexes = [idx for idx, elem in enumerate(base_dir) if elem in path]
-        if indexes and (idx := indexes[0]) < len(base_dir):
-            full_path = cwd + base_dir[0:idx] + path
-        else:
-            full_path = cwd + base_dir + path
-        return parse_path(full_path, os.sep)
-
-def is_file(path: str, basedir, extension="py"):
-    """Takes a dot separated file path"""
-    if not path or not basedir:
-        return False
-    maybe_path = _parse_path(path, basedir)
-    return os.path.isfile(f"{maybe_path}.{extension}")
-
-def is_dir(path: str, basedir):
-    """Takes a dot separated directory path"""
-    if not path or not basedir:
-        return False
-    maybe_path = _parse_path(path, basedir)
-    return os.path.isdir(maybe_path)
 
 DEFAULTS_TABLE = {
     "int": lambda scopes: ast.Constant(value = 0, scopes = scopes),
