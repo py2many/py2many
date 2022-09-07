@@ -172,7 +172,8 @@ class FlagRewriter(ast.NodeTransformer):
             flag_type = None
             if flag_value in {"True", "False"}:
                 flag_type = eval(flag_value)
-                setattr(node, flag_name, flag_type)
+                if not hasattr(node, flag_name):
+                    setattr(node, flag_name, flag_type)
             else:
                 raise Exception("Flag values can either be 'True' or 'False'")
         return node

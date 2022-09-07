@@ -17,6 +17,7 @@ from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
 
 from py2many.input_configuration import config_rewriters, parse_input_configurations
+from py2many.module_dependencies import analyse_module_dependencies
 from py2many.pytype_inference import pytype_annotate_and_merge
 from pyjl.optimizations import AlgebraicSimplification, OperationOptimizer, PerformanceOptimizations
 from pynim.rewriters import WithToBlockRewriter
@@ -168,6 +169,8 @@ def _transpile(
         tree.__file__ = filename
         tree.__basedir__ = basedir
         tree_list.append(tree)
+    # Analyse module dependencies
+    trees = analyse_module_dependencies(tree_list)
     trees = toposort(tree_list)
     topo_filenames = [t.__file__ for t in trees]
     language = transpiler.NAME
