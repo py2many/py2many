@@ -1366,6 +1366,7 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
 
     SPECIAL_EXTENDS_MAP = {
         "Exception": "Exception",
+        "Error": "Exception",
     }
 
     def __init__(self) -> None:
@@ -1424,9 +1425,11 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         if base_ids.intersection(self.IGNORE_EXTENDS_SET):
             return node
 
-        for base in base_ids:
-            if base in self.SPECIAL_EXTENDS_MAP:
-                node.jl_bases.append(ast.Name(id=self.SPECIAL_EXTENDS_MAP[base]))
+        base = get_id(node.bases[0]) if node.bases else None
+        if base in self.SPECIAL_EXTENDS_MAP:
+            # As Julia only supports single inheritance, we only analyse the first class
+            node.jl_bases.append(ast.Name(id=self.SPECIAL_EXTENDS_MAP[base]))
+            return node
         
         if node.jl_bases:
             return node
@@ -1457,11 +1460,14 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         args = node.args
         for arg in args.args:
             if ((annotation := getattr(arg, "annotation", None)) and
-                    is_class_or_module(annotation, node.scopes)):
-                setattr(annotation, "id", f"Abstract{annotation}")
+                    is_class_or_module(annotation, node.scopes) and 
+                    not get_id(annotation) in self.SPECIAL_EXTENDS_MAP):
+                setattr(annotation, "id", f"Abstract{get_id(annotation)}")
 
+        parent_node = find_node_by_type(ast.ClassDef, node.scopes)
         if (hasattr(node, "self_type") and
-                is_class_or_module(node.self_type, node.scopes)):
+                is_class_or_module(node.self_type, node.scopes) and 
+                get_id(parent_node.bases[0]) not in self.SPECIAL_EXTENDS_MAP):
             node.self_type = f"Abstract{node.self_type}"
 
         return node

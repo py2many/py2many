@@ -587,20 +587,25 @@ class JuliaTranspilerPlugins:
         return "join"
 
     def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
-        subst_values: list[str] = vargs[1:]
-        res: str = re.split(r"{|}", vargs[0])
-        kw_arg_names = {kwarg[0]: kwarg[1] for kwarg in kwargs}
-        # Replace elements in string
-        cnt = 0
-        for i in range(1, len(res)-1, 2):
-            if res[i] == f"{cnt}" or res[i] == "":
-                res[i] = f"$({subst_values[cnt]})"
-            elif re.match(r"!r|n", res[i]):
-                res[i] = f"$({subst_values[cnt]})"
-            elif res[i] in kw_arg_names:
-                res[i] = kw_arg_names[res[i]]
-            cnt += 1
-        return "".join(res)
+        if not hasattr(kwargs):
+            self._usings.add("Formatting")
+            return f"format({', '.join(vargs)})"
+        elif hasattr(kwargs) and isinstance(node.args[0], ast.Constant):
+            subst_values: list[str] = vargs[1:]
+            res: str = re.split(r"{|}", vargs[0])
+            kw_arg_names = {kwarg[0]: kwarg[1] for kwarg in kwargs}
+            # Replace elements in string
+            cnt = 0
+            for i in range(1, len(res)-1, 2):
+                if res[i] == f"{cnt}" or res[i] == "":
+                    res[i] = f"$({subst_values[cnt]})"
+                elif re.match(r"!r|n", res[i]):
+                    res[i] = f"$({subst_values[cnt]})"
+                elif res[i] in kw_arg_names:
+                    res[i] = kw_arg_names[res[i]]
+                cnt += 1
+            return "".join(res)
+        return "format"
 
     def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
         if len(vargs) < 2:
@@ -1350,6 +1355,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # Str and Byte transformations
     str.join: (JuliaTranspilerPlugins.visit_join, False),
     str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
+    str.lower: (lambda self, node, vargs, kwargs: f"lowercase({vargs[0]})", True),
+    str.upper:  (lambda self, node, vargs, kwargs: f"upercase({vargs[0]})", True),
+    str.startswith: (lambda self, node, vargs, kwargs: f"startswith({', '.join(vargs)})", True),
+    str.encode: (JuliaTranspilerPlugins.visit_encode, True),
+    str.splitlines: (JuliaTranspilerPlugins.visit_splitlines, True),
     bytes.maketrans: (JuliaTranspilerPlugins.visit_maketrans, True),
     bytearray.translate: (JuliaTranspilerPlugins.visit_translate, False),
     bytes.translate: (JuliaTranspilerPlugins.visit_translate, False),
@@ -1424,8 +1434,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     sys.maxsize: (lambda self, node, vargs, kwargs: "typemax(Int)", True),
-    str.encode: (JuliaTranspilerPlugins.visit_encode, True),
-    str.splitlines: (JuliaTranspilerPlugins.visit_splitlines, True),
     sys.executable: (lambda self, node, vargs, kwargs: "joinpath(Base.Sys.BINDIR,Base.julia_exename())", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
@@ -1442,4 +1450,5 @@ JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE = {
 JULIA_SPECIAL_FUNCTIONS = {
     "__getattr__": SpecialFunctionsPlugins.visit_getattr,
     "__repr__": SpecialFunctionsPlugins.visit_show,
+    "__str__": SpecialFunctionsPlugins.visit_show,
 }
