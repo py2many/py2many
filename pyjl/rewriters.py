@@ -562,7 +562,7 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                 get_id(node.slice.left.operand) in self._valid_loop_vars:
             # Binary operation where the left node is a unary operation, 
             # uses USub and is in the valid loop variables. The variable 
-            # will have a negative value. (TODO: Is this assuming too much?)
+            # will have a negative value.
             node.slice.left = ast.BinOp(
                 left = end_val,
                 op = ast.Sub(),
@@ -2189,7 +2189,6 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             # Build error check call
             errcheck_call: ast.Call = self._build_errcheck_call(node, errcheck, 
                 ccall_func, restype) if errcheck else None
-            # TODO: nothing is temporary
             func_name = get_id(ccall_func.args[1]) \
                 if isinstance(ccall_func, ast.Call) \
                 else get_id(ccall_func)
@@ -2237,7 +2236,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                     # Pass the arguments to the errcheck function
                     errcheck_call.args.append(ast.Tuple(elts=node.args))
                     # TODO: ccall with error check not yet supported with 
-                    # non-factory expressions
+                    # non-factory expressionss
                     return ccall
                 else:
                     return ccall

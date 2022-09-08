@@ -811,48 +811,6 @@ class JuliaTranspiler(CLikeTranspiler):
             if names:
                 return f"using {jl_module_name}: {', '.join(names)}"
             return f"using {jl_module_name}"
-            # external_modules = []
-            # for n in names:
-            #     if lookup in MODULE_DISPATCH_TABLE:
-            #         jl_module_name = MODULE_DISPATCH_TABLE[lookup]
-            #         external_modules.append(f"using {jl_module_name}")
-
-        # jl_module_name = module_name
-        # external_modules = []
-        # for n in names:
-        #     name = n[0]
-        #     alias = n[1]
-        #     lookup = f"{module_name}.{name}"
-        #     if (imp := self._get_import_str(lookup)):
-        #         # Names can also be modules
-        #         include_stmts.append(imp)
-        #     else:
-        #         if lookup in MODULE_DISPATCH_TABLE:
-        #             jl_module_name = MODULE_DISPATCH_TABLE[lookup]
-        #             external_modules.append(f"using {jl_module_name}")
-        #         else:
-        #             if alias:
-        #                 import_names.append(f"{name} as {alias}")
-        #             else:
-        #                 import_names.append(name)
-        #             if (imp := self._get_import_str(module_name)):
-        #                 include_stmts.append(f"imp: {', '.join(import_names)}")
-        #             else:
-        #                 pass
-        
-        # # As a backup, try to import using the module_name
-        # if not include_stmts and \
-        #         (include_stmt := self._get_import_str(module_name)):
-        #     include_stmts.append(include_stmt)
-
-        # import_stmt = []
-        # import_stmt.extend(include_stmts)
-        # str_imports = ", ".join(import_names)
-        # if str_imports and jl_module_name != self._basedir.stem:
-        #     mod_name = jl_module_name.split(".")[-1]
-        #     import_stmt.append(f"using {mod_name}: {str_imports}")
-
-        # return "\n".join(import_stmt)
 
     def _retrieve_import_names(self, names: list[tuple[str, str]]):
         import_names = []

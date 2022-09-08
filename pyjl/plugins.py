@@ -1370,7 +1370,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     contextlib.closing: (
         lambda self, node, vargs, kwargs: vargs[0],
         False,
-    ),  # TODO: Is this correct
+    ),  # TODO: Just a temporary fix
     # Traceback
     traceback.print_exc: (
         lambda self, node, vargs, kwargs: "current_exceptions() != [] ? "
@@ -1416,10 +1416,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     # importlib
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),
-    importlib.invalidate_caches: (
-        lambda self, node, vargs, kwargs: "",
-        True,
-    ),  # TODO: Nothing to support this
     # parsing args
     argparse.ArgumentParser: (JuliaTranspilerPlugins.visit_argument_parser, True),
     # sys special calls

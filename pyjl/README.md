@@ -87,7 +87,7 @@ The following section describes the currently supported features of PyJL. All ma
     - [ ] stringprefix
     - [x] shortstring
     - [ ] longstring 
-    - [ ] stringescape
+    - [x] stringescape
   - Bytes
     - [x] bytesliteral
     - [x] bytesprefix
@@ -125,7 +125,7 @@ The following section describes the currently supported features of PyJL. All ma
   - See expressions below
 - Delimiters (PLR 2.6) &rarr; Read [issue #21](https://github.com/MiguelMarcelino/py2many/issues/21) &rarr; check `InplaceOps`
   - [x] `+=`
-  - [ ] `-=`
+  - [x] `-=`
   - [x] `*=` &rarr; TODO: verify
   - [ ] `/=`
   - [ ] `//=`
@@ -165,8 +165,8 @@ The following section describes the currently supported features of PyJL. All ma
   - Mappings
     - [x] Dictionaries
   - Callable types
-    - [ ] User-defined functions
-    - [ ] Instance Methods
+    - [x] User-defined functions
+    - [x] Instance Methods
     - [x] Generator functions
     - [ ] Coroutine functions
     - [ ] Asynchronous generator functions
@@ -178,7 +178,9 @@ The following section describes the currently supported features of PyJL. All ma
     - [x] Import
 - Special method names
   - [x] `__init__`
-  - [ ] `__new__`, `__del__`, `__repr__`, <br/>`__str__`, `__bytes__`, `__format__`, `__lt__`,  <br/>`__le__`, `__eq__`, `__ne__`, `__gt__`, `__ge__` <br/> `__hash__`, `__bool__` <br/>
+  - [x] `__getattr__`
+  - [x] `__repr__`
+  - [ ] `__new__`, `__del__`, `__str__`, `__bytes__`, `__format__`, `__lt__`, `__le__`, `__eq__`, `__ne__`, `__gt__`, `__ge__`, `__hash__`, `__bool__`
 
 ### <ins>Expressions</ins>
 Expression mapping includes the mapping of Python's overloading. The transpiler phase uses the information added by previous phases to correctly translate expressions to Julia.
@@ -218,9 +220,9 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [x] `<<`
   - [x] `>>`
 - Binary bitwise operations (PLR 6.9)
-  - [ ] `&` &rarr; TODO: verify
-  - [ ] `|` &rarr; TODO: verify
-  - [ ] `^` &rarr; TODO: verify
+  - [ ] `&` &rarr;
+  - [ ] `|` &rarr;
+  - [ ] `^` &rarr;
 - Comparison (PLR 6.10)
   - [x] `<`
   - [x] `>`
@@ -240,28 +242,43 @@ Expression mapping includes the mapping of Python's overloading. The transpiler 
   - [x] lambda expressions
 - Expression lists (PLR 6.15)
   - [x] expression_list
-  - [x] starred_list
-  - [x] starred_expression
-  - [x] starred_item
+  - [ ] starred_list
+  - [ ] starred_expression
+  - [ ] starred_item
 
 #
-## Additional Functionalities
-- Python `with` statement uses context managers to allocate and release resources. Julia's do-block does not use context managers but is built with the same idea. (https://book.pythontips.com/en/latest/context_managers.html)
-- `with` and `try-finally` can be used for similar purposes. (Example of file closing)
-- `del` keyword mapping (probably not possible)
-- `__repr__` requires a `show()` implementation: show(io::IO, o::object) = print(io, "$(o.attr)")
 
+## Object Mapping
+PyJL Supports three different translation approaches for objects:
+- Using Julia's native constructs to create a class hierarchy.
+- Using a third-party package called __Classes__ that hides the creation of the hierarchy.
+- Using a third-party package called __ObjectOriented__, which also supports multiple inheritance and C3 for MRO.
+
+### Special Methods
+- `__init__` is mapped to a constructor
+- `__repr__` is translated to a `Base.show()`
+- `__getattr__` is translated to a `Base.getattribute()`
+
+#
+
+## Additional Functionalities
+- Python `with` statement uses context managers to allocate and release resources.
+- Context managers are mapped using a package called __DataTypesBasic__
+- `del`: a subset of possible operations were mapped to Julia (This includes Julia's `delete!` and `deleteat!` operations)
+
+#
 
 ## Code Formatting
 For code formatting, PyJL uses JuliaFormatter.jl. If you want to specify your own formatting options, you need to create a `.JuliaFormatter.toml` file. A sample file is provided in the `pyjl/formatter` folder. You need to place this file in the same directory (or any parent directory) you are transpiling. You can find more instructions [here](https://github.com/domluna/JuliaFormatter.jl).
 
+#
 
 ## Test Status
-All tests that are striked are currently failing
+All striked tests are currently failing
 
 - `assert.jl`
 - `assign_list_test.jl`
-- `~~asyncio_test.jl~~`
+- ~~`asyncio_test.jl`~~
 - `binit.jl`
 - `binomial_coefficient.jl`
 - `bin_op.jl`
@@ -279,13 +296,13 @@ All tests that are striked are currently failing
 - `comb_sort.jl`
 - `comment_unsupported.jl`
 - `complex.jl`
-- `~~coverage.jl~~` --> Fails because of next
+- ~~`coverage.jl`~~ --> Fails because of next
 - `datatypes.jl`
-- `~~demorgan.jl~~` --> Fails because Julia has no check_sat function
+- ~~`demorgan.jl`~~ --> Fails because Julia has no check_sat function
 - `dict.jl`
 - `equations.jl`
-- `~~exceptions.jl~~` --> ZeroDivisionError
-- `~~expression_lists.jl~~` --> Splat
+- ~~`exceptions.jl`~~ --> ZeroDivisionError
+- ~~`expression_lists.jl`~~ --> Splat
 - `fib.jl`
 - `find_factors.jl`
 - `fib_with_argparse.jl`
@@ -300,7 +317,7 @@ All tests that are striked are currently failing
 - `join_test.jl`
 - `lambda.jl`
 - `langcomp_bench.jl` --> All except `del`
-- `~~library_import.jl~~` --> No support for datetime
+- ~~`library_import.jl`~~ --> No support for datetime
 - `list_op.jl`
 - `literals.jl`
 - `match_case_test.jl` --> Only Python 9 is supported
@@ -310,7 +327,7 @@ All tests that are striked are currently failing
 - `n_bonacci_sequence.jl`
 - `print.jl`
 - `rect.jl`
-- `~~sealed.jl~~` --> No field VALUE
+- ~~`sealed.jl`~~ --> No field VALUE
 - `smt_types.jl`
 - `str_enum.jl`
 - `subscript_test.jl`
@@ -319,8 +336,8 @@ All tests that are striked are currently failing
 - `test_indexing.jl`
 - `unary_op.jl`
 - `walruss.jl`
-- `~~with_cntx_manager.jl~~` --> No Package textwrap
-- `~~with_open.jl~~` --> NamedTempFile
+- ~~`with_cntx_manager.jl`~~ --> No Package textwrap
+- ~~`with_open.jl`~~ --> NamedTempFile
 - `write_stdout.jl`
 - `yield_from_test.jl`
 - `yield_test.jl`

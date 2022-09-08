@@ -90,7 +90,6 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
         elif split and check_imports(split[0]):
             mod_name = get_mod_name(self._imported_names[split[0]])
             if len(split) > 1:
-                # TODO: Check this
                 mod_name = f"{mod_name}.{split[1]}"
         if mod_name:
             # Test to see if it is a module
