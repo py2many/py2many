@@ -430,6 +430,55 @@ class JuliaTranspilerPlugins:
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
 
+    def visit_parameterized_unittest(self, node, decorator):
+        funcdef = (
+            f"function {node.name}{node.template}(){node.return_type}"
+        )
+        # Visit function body
+        body = "\n".join([self.visit(n) for n in node.body])
+        if body == "...":
+            body = ""
+        if isinstance(decorator, ast.Call):
+            param_names = None
+            param_args = decorator.args[1]
+            if isinstance(param_args, ast.Constant) and \
+                    isinstance(param_args.value, str):
+                param_names: str = self.visit(param_args)[1:-1]
+                if len(param_names.split(",")) > 1:
+                    param_names = f"({param_names})"
+            else:
+                param_names = self.visit(param_args)
+            param_list = self.visit(decorator.args[2])
+            assign = f"param_args = {param_list}"
+            parameter_test = f"""for {param_names} in param_args
+                {body}
+            end"""
+            return f"{funcdef}\n{assign}\n{parameter_test}\nend\n"
+        
+        return f"{funcdef}\n{body}\nend\n"
+
+    def visit_staticmethod(self, node, decorator):
+        funcdef = (
+            f"function {node.name}{node.template}({node.parsed_args}){node.return_type}"
+        )
+        self_type = node.self_type \
+            if (hasattr(node, "self_type") and
+                not getattr(node, "_oop_nested_funcs", False)) \
+            else None
+        self_attr = f"self::{node.self_type}" if self_type else "self"
+        self_funcdef = (
+            f"function {node.name}{node.template}({self_attr}, {node.parsed_args}){node.return_type}"
+        )
+        # Visit function body
+        func_body = "\n".join([self.visit(n) for n in node.body])
+        if func_body == "...":
+            func_body = ""
+        self_func_body = f"""# Wrapper arround {node.name} to support static methods
+            {node.name}({node.parsed_args})"""
+        self_func = f"{self_funcdef}\n{self_func_body}\nend\n"
+        func_def = f"{funcdef}\n{func_body}\nend\n"
+        return f"{self_func}\n{func_def}"
+
     # def visit_array(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
     #     type_code: str = re.sub(r"\"", "", vargs[0])
     #     if type_code in TYPE_CODE_MAP:
@@ -504,9 +553,9 @@ class JuliaTranspilerPlugins:
         if hasattr(node, "args") and node.args:
             if len(node.args) == 1:
                 arg_type = self._typename_from_annotation(node.args[0])
-                if arg_type.startswith("Float"):
+                if arg_type and arg_type.startswith("Float"):
                     return f"Int(floor({vargs[0]}))"
-                elif arg_type.startswith("String"):
+                elif arg_type and arg_type.startswith("String"):
                     return f"parse(Int, {vargs[0]})"
                 else:
                     return f"convert(Int, {vargs[0]})"
@@ -520,7 +569,7 @@ class JuliaTranspilerPlugins:
     ) -> str:
         if len(vargs) > 0:
             arg_typename = self._typename_from_annotation(node.args[0])
-            if arg_typename.startswith("String"):
+            if arg_typename and arg_typename.startswith("String"):
                 return f"parse(Float64, {vargs[0]})"
             else:
                 return f"float({vargs[0]})"
@@ -587,10 +636,7 @@ class JuliaTranspilerPlugins:
         return "join"
 
     def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
-        if not hasattr(kwargs):
-            self._usings.add("Formatting")
-            return f"format({', '.join(vargs)})"
-        elif hasattr(kwargs) and isinstance(node.args[0], ast.Constant):
+        if kwargs or isinstance(node.args[0], ast.Constant):
             subst_values: list[str] = vargs[1:]
             res: str = re.split(r"{|}", vargs[0])
             kw_arg_names = {kwarg[0]: kwarg[1] for kwarg in kwargs}
@@ -605,6 +651,9 @@ class JuliaTranspilerPlugins:
                     res[i] = kw_arg_names[res[i]]
                 cnt += 1
             return "".join(res)
+        elif not kwargs:
+            self._usings.add("Formatting")
+            return f"format({', '.join(vargs)})"
         return "format"
 
     def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
@@ -731,7 +780,7 @@ class JuliaTranspilerPlugins:
         args_str, args_vals = [], []
         for node_arg in node.args:
             arg = self.visit(node_arg)
-            if arg.startswith('"'):
+            if arg and arg.startswith('"'):
                 arg = arg[1:-1]
             if isinstance(node_arg, ast.BinOp):
                 if isinstance(node_arg.op, ast.Mod):
@@ -1189,6 +1238,8 @@ DECORATOR_DISPATCH_TABLE = {
     "parameterized": JuliaTranspilerPlugins.visit_parameterized_struct,
     "parameterized_func": JuliaTranspilerPlugins.visit_parameterized_function,
     "offset_arrays": JuliaTranspilerPlugins.visit_offsetArrays,
+    "pytest.mark.parametrize": JuliaTranspilerPlugins.visit_parameterized_unittest,
+    "staticmethod": JuliaTranspilerPlugins.visit_staticmethod,
 }
 
 CLASS_DISPATCH_TABLE = {

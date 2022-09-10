@@ -449,6 +449,13 @@ class UnitTestRewriter(ast.NodeTransformer):
     SETUP_METHODS = set(["setUp"])
     TEARDOWN_METHODS = set(["tearDown"])
 
+    IS_PYTHON_MAIN = lambda self, node: (isinstance(node.test, ast.Compare)
+        and isinstance(node.test.left, ast.Name)
+        and node.test.left.id == "__name__"
+        and isinstance(node.test.ops[0], ast.Eq)
+        and isinstance(node.test.comparators[0], ast.Constant)
+        and node.test.comparators[0].value == "__main__")
+
     """Extracts unittests and calls all the necessary functions 
     in the main function"""
 
@@ -457,6 +464,31 @@ class UnitTestRewriter(ast.NodeTransformer):
         self._language = language
         self.test_base: str = None
         self._test_classes = []
+        self.pytest_funcs = []
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        self.pytest_funcs = []
+        self._test_classes = []
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        find_main = any([getattr(node, "python_main", False) for n in node.body])
+        if self.pytest_funcs and not find_main:
+            main_node = ast.If(
+                test = ast.Compare(
+                    left = ast.Name(id="__name__", scopes=ScopeList()),
+                    ops = [ast.Eq()],
+                    comparators = [ast.Constant(value="__main__")]),
+                body = [],
+                orelse = [],
+                python_main = True,
+                scopes = ScopeList(),
+            )
+            ast.fix_missing_locations(main_node)
+            self._generic_main_visit(main_node)
+            body.append(main_node)
+        node.body = body
+        return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
@@ -468,7 +500,8 @@ class UnitTestRewriter(ast.NodeTransformer):
             test_funcs = []
             for n in node.body:
                 self.test_base = node.bases[0]
-                if isinstance(n, ast.FunctionDef):
+                if isinstance(n, ast.FunctionDef) and \
+                        getattr(n, "name", None):
                     if n.name in self.SETUP_METHODS:
                         set_up.append(n.name)
                     elif n.name in self.TEARDOWN_METHODS:
@@ -486,11 +519,25 @@ class UnitTestRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         if getattr(node, "python_main", None):
             self._generic_main_visit(node)
+        elif node.decorator_list:
+            is_pytest = False
+            for dec in node.decorator_list:
+                dec_id = None
+                if isinstance(dec, ast.Name) or \
+                        isinstance(dec, ast.Attribute):
+                    dec_id = get_id(dec)
+                elif isinstance(dec, ast.Call):
+                    dec_id = get_id(dec.func)
+                if dec_id and dec_id.startswith("pytest"):
+                    is_pytest = True
+                    break
+            if is_pytest:
+                self.pytest_funcs.append(node.name)
         return node
 
     def visit_If(self, node: ast.If) -> Any:
         self.generic_visit(node)
-        if getattr(node, "python_main", None):
+        if self.IS_PYTHON_MAIN(node):
             self._generic_main_visit(node)
         return node
 
@@ -547,17 +594,28 @@ class UnitTestRewriter(ast.NodeTransformer):
 
             # Create Function Calls
             for func_name in func_defs:
-                call_node = ast.Call(
-                    func=ast.Name(id=func_name, ctx=ast.Load()),
-                    args=[ast.Name(id=instance_name)],
-                    keywords=[],
-                    scopes=ScopeList(),
-                )
-                ast.fix_missing_locations(call_node)
+                args = [ast.Name(id=instance_name)]
+                call_node = self._build_call(func_name, args)
                 body.append(call_node)
+
+        # Assign any pytest funcs
+        for func_name in self.pytest_funcs:
+            args = []
+            call_node = self._build_call(func_name, args)
+            body.append(call_node)
 
         # Update node.body
         node.body = body
+
+    def _build_call(self, call_id, args):
+        call_node = ast.Call(
+            func=ast.Name(id=call_id, ctx=ast.Load()),
+            args=args,
+            keywords=[],
+            scopes=ScopeList(),
+        )
+        ast.fix_missing_locations(call_node)
+        return call_node
 
 
 class LoopElseRewriter(ast.NodeTransformer):
