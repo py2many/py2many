@@ -191,6 +191,11 @@ class JuliaTranspiler(CLikeTranspiler):
             template = "{{{0}}}".format(", ".join(typedecls))
         node.template = template
 
+        # Change functions that have the same name as modules
+        if self._use_modules and \
+                node.name == self._module:
+            node.name = f"{node.name}_"
+
         # Visit special functions:
         if node.name in JULIA_SPECIAL_FUNCTIONS:
             return JULIA_SPECIAL_FUNCTIONS[node.name](self, node)
@@ -224,7 +229,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 (not typenames[0] or typenames[0] == self._default_type) and \
                 hasattr(node, "self_type") and \
                 not getattr(node, "_oop_nested_funcs", False) and \
-                "classmethod" not in node.parsed_decorators:
+                "classmethod" not in node.parsed_decorators and \
+                "staticmethod" not in node.parsed_decorators:
             if getattr(node, "oop", False):
                 typenames[0] = f"@like({node.self_type})"
             else:
@@ -310,7 +316,11 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node: ast.Call) -> str:
         node.func.in_call = True
+        # Change functions that have the same name as modules
         fname = self.visit(node.func)
+        if self._use_modules and \
+                fname == self._module:
+            fname = f"{fname}_"
         vargs, kwargs = self._get_call_args(node)
 
         ret = self._dispatch(node, fname, vargs, kwargs)
@@ -773,6 +783,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if level > 0:
             dirs = "../" * (level - 1)
             imp_names = self._retrieve_import_names(names)
+            module_name = "/".join(module_name.split("."))
             import_str = f"@from \"{dirs}{module_name}.jl\" using {module_name}"
             if imp_names:
                 return f"{import_str}: {', '.join(imp_names)}"
@@ -783,7 +794,7 @@ class JuliaTranspiler(CLikeTranspiler):
             for name, alias in names:
                 lookup = f"{module_name}.{name}"
                 if imp := self._get_file_import(lookup):
-                    # Names is a module
+                    # Name is a module
                     include_stmts.append(imp)
                 else:
                     # Imports to __init__
@@ -836,6 +847,13 @@ class JuliaTranspiler(CLikeTranspiler):
             out_filepath = self._filename.as_posix().split("/")[:-1]
             if import_path[0] == self._basedir.stem:
                 import_path = import_path[1:]
+                # Temporary solution
+                if len(import_path) == 1:
+                    # We want the root directory
+                    rev_path = "../" * len(out_filepath)
+                    parsed_path = sep.join(import_path)
+                    return f'@from \"{rev_path}{parsed_path}{extension}\" using {mod_name}'
+
             if out_filepath == import_path[:-1]:
                 # Shortcut if paths are the same
                 return f'@from \"{import_path[-1]}{extension}\" using {mod_name}'
@@ -846,8 +864,14 @@ class JuliaTranspiler(CLikeTranspiler):
                     rev_cnt += 1
                 else:
                     break
+                # Does not work
+                # if len(import_path) > len(out_filepath) and j == -len(out_filepath):
+                #     i -= 1
+                # elif len(out_filepath) > len(import_path) and i == -len(import_path):
+                #     j -= 1
+                # else:
                 i, j = i - 1, j - 1
-            if rev_cnt > 0 and rev_cnt <= len(import_path):
+            if rev_cnt > 0:
                 # Get relative path from current file
                 rev_path = "../" * rev_cnt
                 parsed_path = sep.join(import_path)

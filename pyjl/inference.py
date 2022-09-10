@@ -84,7 +84,8 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
             self._imported_names[x]
         get_mod_name = lambda x: x[0] \
             if isinstance(x, tuple) \
-            else x.__name__
+            else (x.__name__ 
+                if hasattr(x, "__name__") else x)
         if check_imports(node_id):
             mod_name = get_mod_name(self._imported_names[node_id])
         elif split and check_imports(split[0]):
