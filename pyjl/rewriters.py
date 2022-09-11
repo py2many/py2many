@@ -1040,12 +1040,15 @@ class JuliaImportRewriter(ast.NodeTransformer):
         self._nested_imports = []
         self._import_cnt = 0
         self._basedir = None
+        self._class_import_funcs = {}
+        self._import_rewrite = False
 
     def visit_Module(self, node: ast.Module) -> Any:
         self._import_names = {}
         self._nested_imports = []
         self._basedir = getattr(node, "__basedir__", None)
         self._import_cnt = 0
+        self._class_import_funcs = {}
         self.generic_visit(node)
         node.body = self._nested_imports + node.body
         node.import_cnt = self._import_cnt
@@ -1054,6 +1057,11 @@ class JuliaImportRewriter(ast.NodeTransformer):
             for name in imp.names:
                 if name not in node.imports:
                     node.imports.append(name)
+        self._import_rewrite = True
+        for n in node.body:
+            if isinstance(n, (ast.Import, ast.ImportFrom)):
+                self.visit(n)
+        self._import_rewrite = False
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
@@ -1089,6 +1097,19 @@ class JuliaImportRewriter(ast.NodeTransformer):
             node.attr = "__init__"
             return node.value.value
 
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        val_id = get_id(node.value)
+        val_node = node.scopes.find(val_id)
+        assigned_from = val_node.assigned_from \
+            if hasattr(val_node, "assigned_from") \
+            else None
+        if assigned_from and \
+                isinstance(assigned_from, (ast.Assign, ast.AnnAssign)) and \
+                isinstance(assigned_from.value, ast.Call) and \
+                isinstance(node.scopes.find(get_id(assigned_from.value.func)), ast.ClassDef):
+            self._class_import_funcs[get_id(assigned_from.value.func)] = node.attr
+        return node
+
     def visit_If(self, node: ast.If) -> Any:
         return self._generic_import_scope_visit(node)
 
@@ -1108,6 +1129,15 @@ class JuliaImportRewriter(ast.NodeTransformer):
         return self._generic_import_visit(node, node.module)
 
     def _generic_import_visit(self, node, key = "default"):
+        if self._import_rewrite:
+            new_names = []
+            for alias in node.names:
+                n = alias.name
+                if n in self._class_import_funcs and \
+                        self._class_import_funcs[n] not in node.names:
+                    new_names.append(ast.alias(name=self._class_import_funcs[n]))
+            node.names.extend(new_names)
+            return node
         self._import_cnt += 1
         if key not in self._import_names:
             self._import_names[key] = []
