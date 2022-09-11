@@ -1,9 +1,10 @@
 import ast
+import os
 from pathlib import PosixPath, WindowsPath
 import sys
 
 from py2many.ast_helpers import get_id
-from py2many.helpers import get_import_module_name
+from py2many.helpers import get_import_module_name, is_dir
 from py2many.tracer import is_list_assignment
 from .scope import ScopeMixin
 
@@ -107,11 +108,15 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         )
 
         names = [n.name for n in node.names]
-        resolved_names = None
+        resolved_names = []
         if module_path in self._trees:
             m = self._trees[module_path]
             if hasattr(m, "scopes"):
-                resolved_names = [m.scopes.find(n) for n in names]
+                resolved_names.extend([m.scopes.find(n) for n in names])
+        elif module_path == "." and "__init__" in self._trees:
+            m = self._trees["__init__"]
+            if hasattr(m, "scopes"):
+                resolved_names.extend([m.scopes.find(n) for n in names])
         else:
             # Names can also be modules
             for name in names:
@@ -119,11 +124,15 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
                 if parsed_name in self._trees and hasattr(
                     (m := self._trees[parsed_name]), "scopes"
                 ):
-                    resolved_names = m.scopes[-1].vars
+                    resolved_names.extend(m.scopes[-1].vars)
                 elif name in self._trees and hasattr(
                     (m := self._trees[name]), "scopes"
                 ):
-                    resolved_names = m.scopes[-1].vars
+                    resolved_names.extend(m.scopes[-1].vars)
+            if (init_file := f"{module_path}.__init__") in self._trees:
+                m = self._trees[init_file]
+                if hasattr(m, "scopes"):
+                    resolved_names.extend([m.scopes.find(n) for n in names])
         if resolved_names:
             name_map = {n.name: n.asname for n in node.names}
             for var in resolved_names:
