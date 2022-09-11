@@ -56,6 +56,7 @@ from pyjl.rewriters import (
     JuliaCtypesCallbackRewriter,
     JuliaCtypesRewriter,
     JuliaExceptionRewriter,
+    JuliaUnittestRewriter,
     VariableScopeRewriter,
     JuliaArbitraryPrecisionRewriter,
     JuliaIORewriter,
@@ -491,7 +492,8 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[],
+        rewriters=[
+            JuliaUnittestRewriter()],
         transformers=[
             parse_decorators,
             analyse_variable_scope,

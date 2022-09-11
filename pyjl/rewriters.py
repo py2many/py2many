@@ -2547,6 +2547,7 @@ class JuliaArgumentParserRewriter(ast.NodeTransformer):
                 vars = [],
                 decorator_list = [ast.Name(id = "add_arg_table", ctx=ast.Load())],
                 scopes = ScopeList(),
+                block_type = "named",
             )
             ast.fix_missing_locations(arg_node)
             idx = 0
@@ -2706,5 +2707,29 @@ class JuliaExceptionRewriter(ast.NodeTransformer):
                 isinstance(parent, ast.FunctionDef) and \
                 parent.name == "__init__":
             return None
+        self.generic_visit(node)
+        return node
+
+class JuliaUnittestRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def visit_With(self, node: ast.With) -> Any:
+        # Rewrites with statements with pytest.raises
+        ctx = node.items[0].context_expr
+        if isinstance(ctx, ast.Call) and \
+                get_id(ctx.func) == "pytest.raises":
+            block = juliaAst.Block(
+                name = "",
+                block_expr = ctx,
+                body = node.body,
+                vars = [],
+                decorator_list = [],
+                scopes = ScopeList(),
+                parsed_decorators = [],
+                block_type = "expression_block",
+            )
+            ast.fix_missing_locations(block)
+            return block
         self.generic_visit(node)
         return node
