@@ -34,7 +34,7 @@ class ScopeMixin(object):
             return None
 
     def _is_scopable_node(self, node):
-        scopes = [ast.Module, ast.ClassDef, ast.FunctionDef, ast.For, ast.If, ast.With]
+        scopes = [ast.Module, ast.ClassDef, ast.FunctionDef, ast.For, ast.If, ast.With, ast.Try]
         return len([s for s in scopes if isinstance(node, s)]) > 0
 
 
@@ -132,6 +132,17 @@ class ScopeTransformer(ast.NodeTransformer, ScopeMixin):
         for item in node.items:
             self.visit(item.context_expr)
         self._scope_header = False
+        return node
+    
+    def visit_Try(self, node: ast.Try):
+        for n in node.body:
+            self.visit(n)
+        for h in node.handlers:
+            self.visit(h)
+        for oe in node.orelse:
+            self.visit(oe)
+        for f in node.finalbody:
+            self.visit(f)
         return node
 
     def _generic_body_visit(self, node):

@@ -189,6 +189,21 @@ class VariableTransformer(ast.NodeTransformer, ScopeMixin):
         node.vars = []
         return node
 
+    def visit_Try(self, node: ast.Try):
+        node.vars = []
+        # So try nodes are accessible even after they're
+        # popped from the scope
+        self.scopes[-2].vars.append(node)
+        for n in node.body:
+            self.visit(n)
+        for h in node.handlers:
+            self.visit(h)
+        for oe in node.orelse:
+            self.visit(oe)
+        for f in node.finalbody:
+            self.visit(f)
+        return node
+
     def visit_For(self, node: ast.For):
         node.target.assigned_from = node
         if isinstance(node.target, ast.Name):
