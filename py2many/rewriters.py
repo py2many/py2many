@@ -449,12 +449,14 @@ class UnitTestRewriter(ast.NodeTransformer):
     SETUP_METHODS = set(["setUp"])
     TEARDOWN_METHODS = set(["tearDown"])
 
-    IS_PYTHON_MAIN = lambda self, node: (isinstance(node.test, ast.Compare)
-        and isinstance(node.test.left, ast.Name)
-        and node.test.left.id == "__name__"
-        and isinstance(node.test.ops[0], ast.Eq)
-        and isinstance(node.test.comparators[0], ast.Constant)
-        and node.test.comparators[0].value == "__main__")
+    IS_PYTHON_MAIN = lambda self, node: (
+        isinstance(node, ast.If) and
+        isinstance(node.test, ast.Compare) and
+        isinstance(node.test.left, ast.Name) and
+        node.test.left.id == "__name__" and
+        isinstance(node.test.ops[0], ast.Eq) and
+        isinstance(node.test.comparators[0], ast.Constant) and
+        node.test.comparators[0].value == "__main__")
 
     """Extracts unittests and calls all the necessary functions 
     in the main function"""
@@ -472,7 +474,7 @@ class UnitTestRewriter(ast.NodeTransformer):
         body = []
         for n in node.body:
             body.append(self.visit(n))
-        find_main = any([getattr(node, "python_main", False) for n in node.body])
+        find_main = any([self.IS_PYTHON_MAIN(n) for n in body])
         if self.pytest_funcs and not find_main:
             main_node = ast.If(
                 test = ast.Compare(

@@ -153,10 +153,11 @@ def fill_attributes(
     return node
 
 def pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
-    self._pycall_imports.add(mod_name)
     self._usings.add("PyCall")
     if opt_name:
+        self._pycall_imports.add(opt_name)
         import_stmt = f'{opt_name} = pyimport("{mod_name}")'
     else:
+        self._pycall_imports.add(mod_name)
         import_stmt = f'{mod_name} = pyimport("{mod_name}")'
     self._globals.add(import_stmt)

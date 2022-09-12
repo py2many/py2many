@@ -342,8 +342,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
         if fndef and hasattr(fndef, "args") and \
                 getattr(fndef.args, "args", None):
+            fndef_args = fndef.args.args
+            if "staticmethod" in getattr(fndef, "parsed_decorators", {}) and \
+                    len(vargs) > len(fndef_args):
+                # Compensate for self argument
+                fndef_args = [ast.arg(arg="self")] + fndef_args
             converted = []
-            for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
+            for varg, fnarg, node_arg in zip(vargs, fndef_args, node.args):
                 actual_type = self._generic_typename_from_annotation(node_arg)
                 declared_type = self._generic_typename_from_annotation(fnarg)
                 if declared_type and actual_type and declared_type != self._default_type \

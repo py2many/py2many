@@ -395,7 +395,13 @@ class JuliaTranspilerPlugins:
             end\n"""
 
     def visit_parameterized_struct(self, node: ast.ClassDef, decorator):
-        body = "\n".join(list(map(self.visit, body)))
+        if not isinstance(node, ast.ClassDef):
+            raise AstUnsupportedOperation(
+                "The 'parameterized' decorator can only be used with classes",
+                node
+            )
+        self._usings.add("Parameters")
+        body = "\n".join(list(map(self.visit, node.body)))
         bases = []
         for base in node.jl_bases:
             bases.append(self.visit(base))
@@ -407,7 +413,7 @@ class JuliaTranspilerPlugins:
         maybe_docstring = f"{docstring}\n" if docstring else ""
         maybe_constructor = f"\n{self.visit(node.constructor)}" if getattr(node, "constructor", None) else ""
 
-        return f"@kwdef {struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
+        return f"@with_kw {struct_def}\n{maybe_docstring}{node.fields_str}{maybe_constructor}\nend\n{body}"
 
     def visit_parameterized_function(self, node: ast.FunctionDef, decorator):
         funcdef = (
@@ -420,12 +426,12 @@ class JuliaTranspilerPlugins:
         kw_funcs = []
         if hasattr(node, "args_list"):
             arg_lst = ", ".join([arg.arg for arg in node.args.args])
-            for i in range(len(node.args_list)):
+            for i in range(len(node.args_list) - (len(node.args.defaults) - 1)):
                 kw_funcs.append(f"{node.name}({', '.join(node.args_list[:i])};"
                     f"{', '.join(node.args_list[i:])}) = {node.name}({arg_lst})")
 
         kw_funcs = '\n'.join(kw_funcs)
-        return f"{funcdef}\n{body}\nend\n{kw_funcs}\n"
+        return f"{kw_funcs}\n{funcdef}\n{body}\nend\n"
 
     def visit_offsetArrays(self, node, decorator):
         self._usings.add("OffsetArrays")
@@ -574,6 +580,11 @@ class JuliaTranspilerPlugins:
             else:
                 return f"float({vargs[0]})"
         return f"zero(Float64)"  # Default float value
+
+    def visit_cast_string(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        if get_id(getattr(node.args[0], "annotation", None)) == "Exception":
+            return f"Base.show({', '.join(vargs)})"
+        return f"String({', '.join(vargs)})"
 
     # =====================================
     # Math
@@ -1242,6 +1253,7 @@ DISPATCH_MAP = {
     "xrange": JuliaTranspilerPlugins.visit_range,
     "print": JuliaTranspilerPlugins.visit_print,
     "int": JuliaTranspilerPlugins.visit_cast_int,
+    "str": JuliaTranspilerPlugins.visit_cast_string,
     "float": JuliaTranspilerPlugins.visit_cast_float,
     "join": JuliaTranspilerPlugins.visit_join,
     "format": JuliaTranspilerPlugins.visit_format,

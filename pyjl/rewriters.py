@@ -1111,7 +1111,7 @@ class JuliaImportRewriter(ast.NodeTransformer):
                 isinstance(node.scopes.find(get_id(assigned_from.value.func)), ast.ClassDef):
             class_scope = node.scopes.find(get_id(assigned_from.value.func))
             if isinstance(class_scope, ast.ClassDef) and \
-                    "staticmethod" in getattr(find_in_body(class_scope.body, find_node), "parsed_decorators", []):
+                    find_in_body(class_scope.body, find_node):
                 self._class_import_funcs[get_id(assigned_from.value.func)] = node.attr
         return node
 

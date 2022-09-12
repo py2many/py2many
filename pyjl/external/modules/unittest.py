@@ -31,12 +31,13 @@ class JuliaExternalModulePlugins:
 
     def visit_assertRaises(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         JuliaExternalModulePlugins._generic_test_visit(self)
+        v_args = vargs
         if vargs[0] == "self":
-            vargs = vargs[1:]
-        if len(vargs) == 1:
-            return f"@test_throws {vargs[0]}"
-        elif len(vargs) == 2:
-            return f"@test_throws {vargs[0]} {vargs[1]}"
+            v_args = vargs[1:]
+        if len(v_args) == 1:
+            return f"@test_throws {v_args[0]}"
+        elif len(v_args) == 2:
+            return f"@test_throws {v_args[0]} {v_args[1]}"
         return "@test_throws"
 
     def visit_assertIsInstance(

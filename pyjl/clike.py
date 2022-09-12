@@ -70,7 +70,7 @@ julia_keywords = frozenset(
         "struct",
         "true",
         "try",
-        "type",
+        # "type",
         "using",
         "while",
     ]
