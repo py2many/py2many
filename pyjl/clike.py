@@ -201,6 +201,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._module_dispatch_table = MODULE_DISPATCH_TABLE
         self._special_names_dispatch_table = JULIA_SPECIAL_NAME_TABLE
         self._allow_annotations_on_globals = False
+        self._pycall_imports = set()
         # Get external module features
         self.import_external_modules(self.NAME)
 
@@ -309,7 +310,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         elif typename in self._module_dispatch_table:
             return self._module_dispatch_table[typeclass]
         elif typeclass in self._external_type_map:
-            return self._external_type_map[typeclass]
+            return self._external_type_map[typeclass](self)
         else:
             # Default if no type is found
             return typename

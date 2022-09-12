@@ -2717,6 +2717,8 @@ class JuliaUnittestRewriter(ast.NodeTransformer):
     def visit_With(self, node: ast.With) -> Any:
         # Rewrites with statements with pytest.raises
         ctx = node.items[0].context_expr
+        opt = node.items[0].optional_vars
+        self.generic_visit(node)
         if isinstance(ctx, ast.Call) and \
                 get_id(ctx.func) == "pytest.raises":
             block = juliaAst.Block(
@@ -2731,5 +2733,15 @@ class JuliaUnittestRewriter(ast.NodeTransformer):
             )
             ast.fix_missing_locations(block)
             return block
-        self.generic_visit(node)
+        elif isinstance(ctx, ast.Call) and \
+                get_id(ctx.func) == "requests_mock.mock":
+            let = juliaAst.LetStmt(
+                args = [ast.Assign(
+                    targets=[opt],
+                    value = ctx)],
+                body = node.body,
+                ctx = ast.Load(),
+            )
+            ast.fix_missing_locations(let)
+            return let
         return node

@@ -8,6 +8,7 @@ import sys
 from typing import Callable, Dict, Optional, Tuple, Union
 
 from py2many.ast_helpers import get_id
+from pyjl.helpers import pycall_import
 
 class JuliaExternalModulePlugins():
     def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
@@ -29,15 +30,8 @@ class JuliaExternalModulePlugins():
         elif getattr(node, "is_attr", None):
             return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
         return f"ccall({', '.join(vargs)})"
-  
-    # def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-    #     # TODO: Search for DLL
-    #     JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-    #     return f"ctypes.pythonapi.{self.visit(node.func)}"
 
     def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
-        # (TODO) From Documentation: Neither convert nor cconvert should 
-        # take a Julia object and turn it into a Ptr.
         self._usings.add("Libdl")
         return f"Base.cconvert({self._map_type(vargs[1])}, {vargs[0]})"
 
@@ -65,15 +59,7 @@ class JuliaExternalModulePlugins():
     # Using Pycall
     def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
         # TODO: Change to ccall
-        JuliaExternalModulePlugins._pycall_import(self, node, "ctypes")
-
-    def _pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
-        self._usings.add("PyCall")
-        if opt_name:
-            import_stmt = f'{opt_name} = pyimport("{mod_name}")'
-        else:
-            import_stmt = f'{mod_name} = pyimport("{mod_name}")'
-        self._globals.add(import_stmt)
+        pycall_import(self, node, "ctypes")
 
     # Windows-specific calls
     def visit_wintypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
@@ -142,38 +128,38 @@ else:
 
 
 EXTERNAL_TYPE_MAP = {
-    ctypes.c_int: "Cint",
-    ctypes.c_int8: "Cint",
-    ctypes.c_int16: "Cint",
-    ctypes.c_int32: "Cint",
-    ctypes.c_int64: "Cint",
-    ctypes.c_uint8: "Cuint",
-    ctypes.c_uint16: "Cuint",
-    ctypes.c_uint32: "Cuint",
-    ctypes.c_uint64: "Cuint",
-    ctypes.c_bool: "Cbool",
-    ctypes.c_float: "Cfloat",
-    ctypes.c_double: "Cdouble",
-    ctypes.c_short: "Cshort",
-    ctypes.c_ushort: "Cushort",
-    ctypes.c_long: "Clong",
-    ctypes.c_ulong: "Culong",
-    ctypes.c_longlong: "Clonglong", # Is recognized as ctypes.c_ssize_t
-    ctypes.c_ulonglong: "Culonglong",
+    ctypes.c_int: lambda self: "Cint",
+    ctypes.c_int8: lambda self: "Cint",
+    ctypes.c_int16: lambda self: "Cint",
+    ctypes.c_int32: lambda self: "Cint",
+    ctypes.c_int64: lambda self: "Cint",
+    ctypes.c_uint8: lambda self: "Cuint",
+    ctypes.c_uint16: lambda self: "Cuint",
+    ctypes.c_uint32: lambda self: "Cuint",
+    ctypes.c_uint64: lambda self: "Cuint",
+    ctypes.c_bool: lambda self: "Cbool",
+    ctypes.c_float: lambda self: "Cfloat",
+    ctypes.c_double: lambda self: "Cdouble",
+    ctypes.c_short: lambda self: "Cshort",
+    ctypes.c_ushort: lambda self: "Cushort",
+    ctypes.c_long: lambda self: "Clong",
+    ctypes.c_ulong: lambda self: "Culong",
+    ctypes.c_longlong: lambda self: "Clonglong", # Is recognized as ctypes.c_ssize_t
+    ctypes.c_ulonglong: lambda self: "Culonglong",
     # ctypes.c_longdouble: "", # No mapping
-    ctypes.c_byte: "Cuint", # TODO: Check this
-    ctypes.c_ubyte: "Cuint", # TODO: Check this
-    ctypes.c_char: "Cchar",
-    ctypes.c_size_t: "Csize_t",
-    ctypes.c_ssize_t: "Cssize_t",
-    ctypes.c_wchar: "Cwchar_t",
+    ctypes.c_byte: lambda self: "Cuint", # TODO: Check this
+    ctypes.c_ubyte: lambda self: "Cuint", # TODO: Check this
+    ctypes.c_char: lambda self: "Cchar",
+    ctypes.c_size_t: lambda self: "Csize_t",
+    ctypes.c_ssize_t: lambda self: "Cssize_t",
+    ctypes.c_wchar: lambda self: "Cwchar_t",
     # Pointers
-    ctypes.c_char_p: "Ptr{Cchar}",
-    ctypes.c_wchar_p: "Cwstring", # Ptr{Cwchar_t}
-    ctypes.c_void_p: "Ptr{Cvoid}",
-    ctypes.CDLL: "", # TODO: Temporary
-    ctypes.WinDLL: "",
-    ctypes.py_object: "Ptr{Cvoid}",
+    ctypes.c_char_p: lambda self: "Ptr{Cchar}",
+    ctypes.c_wchar_p: lambda self: "Cwstring", # Ptr{Cwchar_t}
+    ctypes.c_void_p: lambda self: "Ptr{Cvoid}",
+    ctypes.CDLL: lambda self: "", # TODO: Temporary
+    ctypes.WinDLL: lambda self: "",
+    ctypes.py_object: lambda self: "Ptr{Cvoid}",
 }
 
 

@@ -22,7 +22,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 }
 
 EXTERNAL_TYPE_MAP = {
-    torch.Tensor: "" # Temporary
+    torch.Tensor: lambda self: "" # Temporary
 }
 
 FUNC_TYPE_MAP = {

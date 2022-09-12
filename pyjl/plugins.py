@@ -21,7 +21,7 @@ import bisect
 from py2many.exceptions import AstUnsupportedOperation
 from py2many.scope import ScopeList
 from pyjl.global_vars import RESUMABLE
-from pyjl.helpers import get_func_def
+from pyjl.helpers import get_func_def, pycall_import
 
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Tuple, Union
@@ -636,7 +636,7 @@ class JuliaTranspilerPlugins:
         return "join"
 
     def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
-        if kwargs or isinstance(node.args[0], ast.Constant):
+        if isinstance(node.args[0], ast.Constant):
             subst_values: list[str] = vargs[1:]
             res: str = re.split(r"{|}", vargs[0])
             kw_arg_names = {kwarg[0]: kwarg[1] for kwarg in kwargs}
@@ -651,10 +651,22 @@ class JuliaTranspilerPlugins:
                     res[i] = kw_arg_names[res[i]]
                 cnt += 1
             return "".join(res)
-        elif not kwargs:
-            self._usings.add("Formatting")
-            return f"format({', '.join(vargs)})"
-        return "format"
+        else:
+            # Replace named arguments with positional arguments
+            if kwargs:
+                count = 1
+                replace_str_map = []
+                kw_values = []
+                for kwarg in kwargs:
+                    replace_str_map.append(f"\"{{{kwarg[0]}}}\" => \"{{{count}}}\"")
+                    kw_values.append(kwarg[1])
+                    count += 1
+                replace_func = f"replace({vargs[0]}, {', '.join(replace_str_map)})"
+                self._usings.add("Formatting")
+                return f"format({replace_func}, {', '.join(kw_values)})"
+        self._usings.add("Formatting")
+        return f"format({', '.join(vargs)})" \
+            if vargs else "format"
 
     def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
         if len(vargs) < 2:
@@ -912,6 +924,29 @@ class JuliaTranspilerPlugins:
         node.result_type = True
         return "NamedTempFile::new()"
 
+    def visit_isinstance(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        is_pycall_import = JuliaTranspilerPlugins._check_pycall_import(self, vargs[1])
+        if is_pycall_import:
+            return f"pybuiltin(:isinstance)({vargs[0]}, {self._map_type(vargs[1])})"
+        return f"isa({vargs[0]}, {self._map_type(vargs[1])})"
+
+    def visit_issubclass(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+        is_pycall_import = JuliaTranspilerPlugins._check_pycall_import(self, vargs[1])
+        if is_pycall_import:
+            return f"pybuiltin(:issubclass)({self._map_type(vargs[0])}, {self._map_type(vargs[1])})"
+        return f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}"
+
+    def _check_pycall_import(self, name):
+        instance = name.split(".")
+        is_pycall_import = False
+        inst_call = []
+        for inst in instance:
+            inst_call.append(inst)
+            if ".".join(inst_call) in self._pycall_imports:
+                is_pycall_import = True
+                break
+        return is_pycall_import
+
     # =====================================
     # regex
     # =====================================
@@ -1011,12 +1046,7 @@ class JuliaTranspilerPlugins:
     def visit_tempfile(
         self, node: ast.Call, vargs: list[str], kwargs: list[str]
     ) -> str:
-        JuliaTranspilerPlugins._pycall_import(self, node, "tempfile")
-
-    def _pycall_import(self, node: ast.Call, mod_name: str):
-        self._usings.add("PyCall")
-        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
-        self._globals.add(import_stmt)
+        pycall_import(self, node, "tempfile")
 
     # =====================================
     # special assignments
@@ -1385,11 +1415,11 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     pathlib.Path.cwd: (lambda self, node, vargs, kwargs: "pwd()", True),
     # Instance checks
     isinstance: (
-        lambda self, node, vargs, kwargs: f"isa({vargs[0]}, {self._map_type(vargs[1])})",
+        JuliaTranspilerPlugins.visit_isinstance,
         True,
     ),
     issubclass: (
-        lambda self, node, vargs, kwargs: f"{self._map_type(vargs[0])} <: {self._map_type(vargs[1])}",
+        JuliaTranspilerPlugins.visit_issubclass,
         True,
     ),
     # Bisect
@@ -1405,7 +1435,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     ),
     # Str and Byte transformations
     str.join: (JuliaTranspilerPlugins.visit_join, False),
-    str.format: (JuliaTranspilerPlugins.visit_format, False),  # Does not work
+    str.format: (JuliaTranspilerPlugins.visit_format, False),
     str.lower: (lambda self, node, vargs, kwargs: f"lowercase({vargs[0]})", True),
     str.upper:  (lambda self, node, vargs, kwargs: f"upercase({vargs[0]})", True),
     str.startswith: (lambda self, node, vargs, kwargs: f"startswith({', '.join(vargs)})", True),

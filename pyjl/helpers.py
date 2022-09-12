@@ -2,6 +2,7 @@
 import ast
 import os
 import random
+from typing import Optional
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
@@ -150,3 +151,12 @@ def fill_attributes(
             node.func.is_annotation = is_annotation
         node.is_annotation = is_annotation
     return node
+
+def pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] = None):
+    self._pycall_imports.add(mod_name)
+    self._usings.add("PyCall")
+    if opt_name:
+        import_stmt = f'{opt_name} = pyimport("{mod_name}")'
+    else:
+        import_stmt = f'{mod_name} = pyimport("{mod_name}")'
+    self._globals.add(import_stmt)

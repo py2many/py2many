@@ -37,7 +37,7 @@ GENERIC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 if sys.platform.startswith('win32'):
     EXTERNAL_TYPE_MAP = {
-        WindowsError: "SystemError",
+        WindowsError: lambda self: "SystemError",
     }
 
     WIN_DISPATCH_TABLE = {

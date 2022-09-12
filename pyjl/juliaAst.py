@@ -4,7 +4,7 @@
     Helps with the conversion of Python's ast to Julia
 """
 import ast
-from typing import Any
+from typing import Any, Optional
 
 ######################################
 ############### Types ################
@@ -46,10 +46,12 @@ class OrderedSet(ast.Set):
 
 class Block(ast.FunctionDef):
     name: str
+    block_expr: Optional[ast.expr]
     args: ast.arguments
     body: list[ast.expr]
     returns: ast.expr
     decorator_list: list[ast.expr]
+    block_type: str
     ctx: ast.expr_context
 
 class Constructor(ast.FunctionDef):

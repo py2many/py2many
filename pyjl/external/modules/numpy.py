@@ -39,7 +39,7 @@ class JuliaExternalModulePlugins:
             elems = vargs[0]
         if "dtype" in keywords:
             if keywords["dtype"] in EXTERNAL_TYPE_MAP:
-                type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+                type = EXTERNAL_TYPE_MAP[keywords["dtype"]](t_self)
         return f"Vector{{{type}}}({elems})"
 
     def visit_npappend(t_self, node: ast.Call, vargs: list[str]) -> str:
@@ -52,7 +52,7 @@ class JuliaExternalModulePlugins:
             # TODO: No support for custom dtype
             # https://numpy.org/doc/stable/reference/generated/numpy.zeros.html?highlight=numpy%20zeros#numpy.zeros
             if keywords["dtype"] in EXTERNAL_TYPE_MAP:
-                zero_type = EXTERNAL_TYPE_MAP[keywords["dtype"]]
+                zero_type = EXTERNAL_TYPE_MAP[keywords["dtype"]](t_self)
             zero_type = keywords["dtype"]
 
         parsed_args = []
@@ -87,7 +87,7 @@ class JuliaExternalModulePlugins:
         val_type = "Float64"
         if "dtype" in keywords:
             if "dtype" in EXTERNAL_TYPE_MAP:
-                keywords["dtype"] in EXTERNAL_TYPE_MAP
+                keywords["dtype"] = EXTERNAL_TYPE_MAP["dtype"](t_self)
             else:
                 keywords["dtype"] = t_self._map_type(keywords["dtype"])
             val_type = keywords["dtype"]
@@ -203,18 +203,18 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
 
 # Numpy Types
 EXTERNAL_TYPE_MAP = {
-    np.int8: "Int8",
-    np.int16: "Int16",
-    np.int32: "Int32",
-    np.int64: "Int64",
-    np.float16: "Float16",
-    np.float32: "Float32",
-    np.float64: "Float64",
-    np.bool8: "Bool",
-    np.byte: "UInt8",
-    np.short: "Int8",
-    np.ndarray: "Matrix",
-    np.array: "Vector",
+    np.int8: lambda self: "Int8",
+    np.int16: lambda self: "Int16",
+    np.int32: lambda self: "Int32",
+    np.int64: lambda self: "Int64",
+    np.float16: lambda self: "Float16",
+    np.float32: lambda self: "Float32",
+    np.float64: lambda self: "Float64",
+    np.bool8: lambda self: "Bool",
+    np.byte: lambda self: "UInt8",
+    np.short: lambda self: "Int8",
+    np.ndarray: lambda self: "Matrix",
+    np.array: lambda self: "Vector",
 }
 
 class FuncTypeDispatch():
