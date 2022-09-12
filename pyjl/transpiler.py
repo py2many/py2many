@@ -325,6 +325,13 @@ class JuliaTranspiler(CLikeTranspiler):
 
         ret = self._dispatch(node, fname, vargs, kwargs)
         if ret is not None:
+            if isinstance(node.scopes[-1], ast.Try):
+                call_func = ret.split("(")[0].split(".")
+                c_list = []
+                for c in call_func:
+                    c_list.append(c)
+                    if ".".join(c_list) in self._pycall_imports:
+                        self._is_pycall_exception = True
             return ret
 
         # Check if first arg is of class type.
@@ -975,6 +982,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Try(self, node, finallybody=None) -> str:
         buf = []
         buf.append("try")
+        self._is_pycall_exception = False
         buf.extend([self.visit(child) for child in node.body])
         if len(node.handlers) > 0:
             buf.append("catch exn")
@@ -993,8 +1001,12 @@ class JuliaTranspiler(CLikeTranspiler):
             buf.append(f" let {node.name} = {name}")
             name = node.name
         if node.type:
-            type_str = self._map_type(self.visit(node.type))
-            buf.append(f"if {name} isa {type_str}")
+            if self._is_pycall_exception:
+                type_str = self._map_type(self.visit(node.type))
+                buf.append(f"if {name} isa PyCall.PyError && pybuiltin(:issubclass)({name}.T, py\"{type_str}\")")
+            else:
+                type_str = self._map_type(self.visit(node.type))
+                buf.append(f"if {name} isa {type_str}")
         buf.extend([self.visit(child) for child in node.body])
         if node.type:
             buf.append("end")
@@ -1374,7 +1386,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if getattr(node, "decorator_list", None):
             decorators = " ".join(list(map(lambda x: f"@{self.visit(x)}", node.decorator_list)))
             return f"{decorators} {node.name} begin\n{body}\nend"
-        return f"{node.name} begin\n{body}\nend"
+        if node.block_type == "named":
+            return f"{node.name} begin\n{body}\nend"
+        elif node.block_type == "expression_block":
+            return f"{self.visit(node.block_expr)} begin\n{body}\nend"
 
     def visit_Symbol(self, node: juliaAst.Symbol) -> Any:
         return f":{node.id}"
