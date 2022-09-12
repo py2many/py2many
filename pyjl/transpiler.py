@@ -739,10 +739,10 @@ class JuliaTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "String", str)
 
     def visit_IntEnum(self, node) -> str:
-        return self._visit_enum(node, "Int64", int)
+        return self._visit_enum(node, "Int", int)
 
     def visit_IntFlag(self, node: IntFlag) -> str:
-        return self._visit_enum(node, "Int64", IntFlag)
+        return self._visit_enum(node, "Int", IntFlag)
 
     def _visit_enum(self, node, typename: str, caller_type) -> str:
         declarations = node.class_assignments.items()

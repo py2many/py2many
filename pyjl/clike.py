@@ -125,7 +125,7 @@ JL_IGNORED_MODULE_SET = set(
 
 JULIA_TYPE_MAP = {
     bool: "Bool",
-    int: "Int64",
+    int: "Int",
     float: "Float64",
     bytes: "Array{UInt8}",
     str: "String",
@@ -144,6 +144,7 @@ JULIA_TYPE_MAP = {
 JULIA_STR_TYPE_MAP = {"function": "Function"}
 
 JULIA_INTEGER_TYPES = [
+    "Int",
     "Int8",
     "Int16",
     "Int32",
