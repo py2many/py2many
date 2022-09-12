@@ -932,6 +932,16 @@ class InferTypesTransformer(ast.NodeTransformer):
             elif isinstance(node.test.op, ast.Is) or \
                     isinstance(node.test.op, ast.Eq):
                 self._visit_none_branch(node, ann, get_id(node.test.left))
+        elif isinstance(node.test, ast.BoolOp):
+            prev_block_annotations = self._block_annotations
+            if isinstance(node.test.op, ast.And):
+                for val in node.test.values:
+                    if isinstance(val, ast.Call) and \
+                            get_id(val.func) == "isinstance":
+                        if id := get_id(val.args[0]):
+                            self._block_annotations[id] = val.args[1]
+            self.generic_visit(node)
+            self._block_annotations = prev_block_annotations
         else:
             self.generic_visit(node)
         return node
@@ -979,4 +989,17 @@ class InferTypesTransformer(ast.NodeTransformer):
             self._block_annotations[node.name] = ast.Name(id=get_id(node.type))
             self.generic_visit(node)
             self._block_annotations.clear()
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        prev_block_anns = self._block_annotations
+        for it in node.items:
+            self.visit(it)
+            if it.optional_vars and \
+                    (opt_id := get_id(it.optional_vars)) and \
+                    (ann := getattr(it.context_expr, "annotation", None)):
+                self._block_annotations[opt_id] = ann
+        for n in node.body:
+            self.visit(n)
+        self._block_annotations = prev_block_anns
         return node
