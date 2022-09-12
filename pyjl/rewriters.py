@@ -2,6 +2,7 @@ import ast
 import copy
 import ctypes
 from pathlib import Path
+from pyclbr import Function
 import re
 from typing import Any, Dict, cast
 
@@ -11,7 +12,7 @@ from py2many.exceptions import AstUnsupportedOperation
 from py2many.helpers import get_ann_repr
 from py2many.inference import InferTypesTransformer
 from py2many.scope import ScopeList
-from py2many.tracer import find_closest_scope, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_list
+from py2many.tracer import find_closest_scope, find_in_body, find_node_by_name_and_type, find_node_by_type, is_class_or_module, is_class_type, is_list
 from py2many.analysis import IGNORED_MODULE_SET
 
 from py2many.ast_helpers import copy_attributes, create_ast_node, get_id
@@ -1103,11 +1104,15 @@ class JuliaImportRewriter(ast.NodeTransformer):
         assigned_from = val_node.assigned_from \
             if hasattr(val_node, "assigned_from") \
             else None
+        find_node = lambda x: isinstance(x, ast.FunctionDef) and x.name == node.attr
         if assigned_from and \
                 isinstance(assigned_from, (ast.Assign, ast.AnnAssign)) and \
                 isinstance(assigned_from.value, ast.Call) and \
                 isinstance(node.scopes.find(get_id(assigned_from.value.func)), ast.ClassDef):
-            self._class_import_funcs[get_id(assigned_from.value.func)] = node.attr
+            class_scope = node.scopes.find(get_id(assigned_from.value.func))
+            if isinstance(class_scope, ast.ClassDef) and \
+                    "staticmethod" in getattr(find_in_body(class_scope.body, find_node), "parsed_decorators", []):
+                self._class_import_funcs[get_id(assigned_from.value.func)] = node.attr
         return node
 
     def visit_If(self, node: ast.If) -> Any:
