@@ -7,7 +7,7 @@ from pyjl.helpers import pycall_import
 FuncType = Union[Callable, str]
 
 class JuliaExternalModulePlugins():
-    def visit_partial(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_partial(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         pycall_import(self, node, "functools")
         return f"functools.partial({', '.join(vargs)})"
 

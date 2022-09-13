@@ -9,16 +9,16 @@ from py2many.tracer import is_list
 
 
 class JuliaExternalModulePlugins:
-    def visit_npsum(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_npsum(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         dims = None
-        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
-        if "axis" in keywords:
-            dims = keywords["axis"]
+        for kwarg in kwargs:
+            if kwarg[0] == "axis":
+                dims = kwarg[1]
         if dims:
             return f"sum({vargs[0]}, dims={dims})"
         return f"sum({vargs[0]})"
 
-    def visit_npwhere(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_npwhere(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         if len(vargs) == 3:
             return f"@. ifelse({vargs[0]}, {vargs[1]}, {vargs[2]})"
         else:
@@ -31,29 +31,30 @@ class JuliaExternalModulePlugins:
                 var_name = "np_x"
                 return f"""[{var_name} for {var_name} in {loop_var} if {vargs[1]}]"""
 
-    def visit_nparray(t_self, node: ast.Call, vargs: list[str]) -> str:
-        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
-        type = "Float64"
+    def visit_nparray(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
+        dtype = "Float64"
+        for kwarg in kwargs:
+            if kwarg[0] == "dtype":
+                dtype = kwarg[1]
+        if dtype in EXTERNAL_TYPE_MAP:
+            dtype = EXTERNAL_TYPE_MAP[dtype](t_self)
         elems = ""
         if len(vargs) >= 1:
             elems = vargs[0]
-        if "dtype" in keywords:
-            if keywords["dtype"] in EXTERNAL_TYPE_MAP:
-                type = EXTERNAL_TYPE_MAP[keywords["dtype"]](t_self)
-        return f"Vector{{{type}}}({elems})"
+        return f"Vector{{{dtype}}}({elems})"
 
-    def visit_npappend(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_npappend(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         return f"push!({vargs[0], vargs[1]})"
 
-    def visit_npzeros(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_npzeros(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         zero_type = "Float64"
-        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
-        if "dtype" in keywords:
+        for kwarg in kwargs:
+            if kwarg[0] == "dtype":
+                zero_type = kwarg[1]
+        if zero_type in EXTERNAL_TYPE_MAP:
             # TODO: No support for custom dtype
             # https://numpy.org/doc/stable/reference/generated/numpy.zeros.html?highlight=numpy%20zeros#numpy.zeros
-            if keywords["dtype"] in EXTERNAL_TYPE_MAP:
-                zero_type = EXTERNAL_TYPE_MAP[keywords["dtype"]](t_self)
-            zero_type = keywords["dtype"]
+            zero_type = EXTERNAL_TYPE_MAP[zero_type(t_self)]
 
         parsed_args = []
         if node.args:
@@ -64,13 +65,7 @@ class JuliaExternalModulePlugins:
 
         return f"zeros({zero_type}, {', '.join(parsed_args)})"
 
-    def _visit_val(t_self, node: ast.Call):
-        if isinstance(node, ast.Constant):
-            return t_self.visit_Constant(node, quotes=False)
-        else:
-            return t_self.visit(node)
-
-    def visit_npmultiply(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_npmultiply(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         # Since two elements must have same type, we just need to check one
         left = node.args[0]
         if is_list(left):
@@ -78,26 +73,26 @@ class JuliaExternalModulePlugins:
             return f"mul!({vargs[0]}, {vargs[1]})"
         return f"repeat({vargs[0]}, {vargs[1]})"
 
-    def visit_npnewaxis(t_self, node: ast.Call, vargs: list[str]):
+    def visit_npnewaxis(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
         # TODO: Search broadcasting in Julia
         pass
 
-    def visit_ones(t_self, node: ast.Call, vargs: list[str]):
-        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
-        val_type = "Float64"
-        if "dtype" in keywords:
-            if "dtype" in EXTERNAL_TYPE_MAP:
-                keywords["dtype"] = EXTERNAL_TYPE_MAP["dtype"](t_self)
-            else:
-                keywords["dtype"] = t_self._map_type(keywords["dtype"])
-            val_type = keywords["dtype"]
-        return f"ones({val_type}, {vargs[0]})"
+    def visit_ones(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
+        # Default is float
+        dtype = "float"
+        for kwarg in kwargs:
+            if kwarg[0] == "dtype":
+                dtype = kwarg[1]
+        if dtype == "bool":
+            return f"trues{vargs[0]}"
+        return f"ones({t_self._map_type(dtype)}, {vargs[0]})"
 
-    def visit_argmax(t_self, node: ast.Call, vargs: list[str]):
-        keywords = JuliaExternalModulePlugins._get_keywords(t_self, node)
+    def visit_argmax(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
         axis = None
-        if "axis" in keywords:
-            axis: str = keywords["axis"]
+        for kwarg in kwargs:
+            if kwarg[0] == "axix":
+                axis = kwarg[1]
+        if axis:
             if axis.isnumeric():
                 axis = int(axis) + 1
             else:
@@ -109,7 +104,7 @@ class JuliaExternalModulePlugins:
         # Decrement 1, as Julia indexes arrays from 1
         return f"argmax(@view {vargs[0]}[:]) - 1"
 
-    def visit_dotproduct(t_self, node: ast.Call, vargs: list[str]):
+    def visit_dotproduct(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
         if not vargs:
             return "mult"
         match_list = lambda x: re.match(r"^list|^List|^tuple|^Tuple", x) is not None \
@@ -134,11 +129,11 @@ class JuliaExternalModulePlugins:
             return f"({vargs[0]} * {vargs[1]})"
         return f"({vargs[0]} .* {vargs[1]})"
 
-    def visit_transpose(t_self, node: ast.Call, vargs: list[str]) -> str:
+    def visit_transpose(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]) -> str:
         t_self._usings.add("LinearAlgebra")
         return f"LinearAlgebra.transpose({', '.join(vargs)})"
 
-    def visit_exp(t_self, node: ast.Call, vargs: list[str]):
+    def visit_exp(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
         arg = node.args[0]
         # Identify scalar operations
         if isinstance(arg, ast.Name):
@@ -149,17 +144,10 @@ class JuliaExternalModulePlugins:
             return f"ℯ^{vargs[0]}"
         return f"ℯ.^{vargs[0]}"
 
-    def visit_reshape(t_self, node: ast.Call, vargs: list[str]):
+    def visit_reshape(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]):
         if len(vargs) == 2:
             return f"reshape({vargs[0]}, {vargs[1]})"
         return "reshape"
-
-    @staticmethod
-    def _get_keywords(t_self, node: ast.Call):
-        return {
-            k.arg: (JuliaExternalModulePlugins._visit_val(t_self, k.value))
-            for k in node.keywords
-        }
 
 
 FuncType = Union[Callable, str]
@@ -181,7 +169,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     np.newaxis: (JuliaExternalModulePlugins.visit_npnewaxis, True),  # See broadcasting
     np.ones: (JuliaExternalModulePlugins.visit_ones, True),
     np.flatnonzero: (
-        lambda self, node, vargs, kwargs: f"[i for i in (0:length({vargs[0]})-1) if {vargs[0]}[i+1] != 0]",
+        lambda self, node, vargs, kwargs: f"[i-1 for (i,p) in enumerate({vargs[0]}) if p != 0]",
         True,
     ),
     np.exp: (JuliaExternalModulePlugins.visit_exp, True),
@@ -218,7 +206,7 @@ EXTERNAL_TYPE_MAP = {
 }
 
 class FuncTypeDispatch():
-    def visit_npdot(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_npdot(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         # From Python docs (https://numpy.org/doc/stable/reference/generated/numpy.dot.html?highlight=numpy%20dot#numpy.dot)
         # - If both a and b are 1-D arrays, it is inner product of vectors 
         #   (without complex conjugation).

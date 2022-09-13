@@ -6,11 +6,11 @@ from typing import Callable, Dict, Tuple, Union
 FuncType = Union[Callable, str]
 
 class JuliaExternalModulePlugins():
-    def visit_mock(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_mock(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         pycall_import(self, node, "requests_mock")
         return "requests_mock.mock()"
     
-    def visit_mocker_get(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_mocker_get(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         pycall_import(self, node, "requests_mock")
         func_name = vargs[0]
         if hasattr(node, "orig_name"):

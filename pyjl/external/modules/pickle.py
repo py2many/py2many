@@ -4,11 +4,11 @@ from typing import Callable, Dict, Tuple, Union
 
 
 class JuliaExternalModulePlugins:
-    def visit_picklestore(t_self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_picklestore(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._visit_pickle(t_self)
         return f"Pickle.store({vargs[0]})"
 
-    def visit_pickleload(t_self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_pickleload(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._visit_pickle(t_self)
         parsed_args = []
         keywords = []
@@ -23,7 +23,7 @@ class JuliaExternalModulePlugins:
             keywords.append(t_self.visit(kwarg))
         return f"{call}({', '.join(parsed_args)})"
 
-    def visit_pickledump(t_self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_pickledump(t_self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._visit_pickle(t_self)
         return f"Pickle.dump({vargs[0]})"
 

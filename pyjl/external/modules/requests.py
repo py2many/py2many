@@ -7,19 +7,19 @@ from typing import Callable, Dict, Tuple, Union
 FuncType = Union[Callable, str]
 
 class JuliaExternalModulePlugins():
-    def visit_get(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_get(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("HTTP")
         return f"HTTP.get({', '.join(vargs)})"
 
-    def visit_response_get(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_response_get(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("HTTP")
         return f"String({vargs[0]}.body)"
 
-    def visit_response_status_code(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_response_status_code(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("HTTP")
         return f"{vargs[0]}.status"
 
-    def visit_http_error(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_http_error(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("HTTP")
         return f"HTTP.Exceptions.StatusError" \
             if not vargs else f"HTTP.Exceptions.StatusError({', '.join(vargs)})"

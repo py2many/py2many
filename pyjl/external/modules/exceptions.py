@@ -17,7 +17,7 @@ import sys
 from typing import Callable, Dict, Tuple, Union
 
 class JuliaExternalModulePlugins():
-    def visit_winerror(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_winerror(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         if vargs:
             return f"Base.windowserror({', '.join(vargs)})"
         elif getattr(node, "is_attr", None):

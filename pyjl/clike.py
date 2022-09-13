@@ -422,7 +422,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         return func
 
     def _dispatch(
-        self, node: ast.Call, fname: str, vargs: List[str], kwargs: List[str]
+        self, node: ast.Call, fname: str, vargs: List[str], kwargs: list[tuple[str,str]]
     ) -> Optional[str]:
         if len(node.args) > 0:
             var = vargs[0]
@@ -479,7 +479,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
     # Adds kwargs to clike dispatch
     def _clike_dispatch(
-        self, node, fname: str, vargs: List[str], kwargs: List[str]
+        self, node, fname: str, vargs: List[str], kwargs: list[tuple[str,str]]
     ) -> Optional[str]:
         if fname in self._dispatch_map:
             try:

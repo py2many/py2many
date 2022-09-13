@@ -6,7 +6,7 @@ import warnings
 FuncType = Union[Callable, str]
 
 class JuliaExternalModulePlugins():
-    def visit_warnings_warn(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_warnings_warn(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Logging")
         if len(vargs) > 1:
             # Genera

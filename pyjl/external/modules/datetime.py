@@ -4,12 +4,12 @@ from typing import Callable, Dict, Tuple, Union
 
 
 class JuliaExternalModulePlugins:
-    def visit_ctime(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_ctime(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._visit_time(self)
         # Format date to Python format
         return f"Dates.format(Dates.epochms2datetime({vargs[0]}), Dates.RFC1123Format)"
 
-    def visit_time(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_time(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._visit_time(self)
         return f"Dates.datetime2unix(Dates.now())"
 

@@ -485,7 +485,7 @@ class JuliaTranspilerPlugins:
         func_def = f"{funcdef}\n{func_body}\nend\n"
         return f"{self_func}\n{func_def}"
 
-    # def visit_array(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    # def visit_array(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
     #     type_code: str = re.sub(r"\"", "", vargs[0])
     #     if type_code in TYPE_CODE_MAP:
     #         return f"Vector{{{TYPE_CODE_MAP[type_code]}}}"
@@ -494,7 +494,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     # Range
     # =====================================
-    def visit_range(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_range(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         start = 0
         stop = 0
         step = None
@@ -514,7 +514,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     # Builtin Functions
     # =====================================
-    def visit_getattr(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_getattr(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         parsed_args = JuliaTranspilerPlugins._parse_attrs(self, node)
 
         if len(parsed_args) == 3:
@@ -526,7 +526,7 @@ class JuliaTranspilerPlugins:
             return f"getfield({parsed_args[0]}, :{parsed_args[1]})"
         return "getfield"
 
-    def visit_hasattr(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_hasattr(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         parsed_args = JuliaTranspilerPlugins._parse_attrs(self, node)
         # ann = self.visit(getattr(node.args[0], "annotation", ast.Name("")))
         if parsed_args[1] == "index":
@@ -546,7 +546,7 @@ class JuliaTranspilerPlugins:
         return parsed_args
 
     def visit_argument_parser(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         pass
 
@@ -554,7 +554,7 @@ class JuliaTranspilerPlugins:
     # Cast
     # =====================================
     def visit_cast_int(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         if hasattr(node, "args") and node.args:
             if len(node.args) == 1:
@@ -571,7 +571,7 @@ class JuliaTranspilerPlugins:
         return f"zero(Int)"  # Default int value
 
     def visit_cast_float(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         if len(vargs) > 0:
             arg_typename = self._typename_from_annotation(node.args[0])
@@ -581,7 +581,7 @@ class JuliaTranspilerPlugins:
                 return f"float({vargs[0]})"
         return f"zero(Float64)"  # Default float value
 
-    def visit_cast_string(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_cast_string(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         if get_id(getattr(node.args[0], "annotation", None)) == "Exception":
             return f"Base.show({', '.join(vargs)})"
         return f"String({', '.join(vargs)})"
@@ -589,7 +589,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     # Math
     # =====================================
-    def visit_fsum(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_fsum(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         self._usings.add("Xsum")
         return f"xsum({', '.join(vargs)})"
 
@@ -597,7 +597,7 @@ class JuliaTranspilerPlugins:
     # Conversions
     # =====================================
     def visit_inttobytes(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         # Thanks to Steven G. Johnson for this function
         # https://discourse.julialang.org/t/julia-equivalent-to-pythons-int-to-bytes/44038/9
@@ -616,7 +616,7 @@ class JuliaTranspilerPlugins:
     # String operations
     # =====================================
     def visit_maketrans(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         original_lst = [vargs[0][i] for i in range(2, len(vargs[0]) - 1)]
         replacement_lst = []
@@ -639,14 +639,14 @@ class JuliaTranspilerPlugins:
         element_lst_str = ", ".join(element_lst)
         return f"Dict({element_lst_str})"
 
-    def visit_join(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_join(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if len(vargs) == 2:
             return f"join({vargs[1]}, {vargs[0]})"
         elif len(vargs) == 1:
             return f"x -> join(x, {vargs[0]})"
         return "join"
 
-    def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_format(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if isinstance(node.args[0], ast.Constant):
             subst_values: list[str] = vargs[1:]
             res: str = re.split(r"{|}", vargs[0])
@@ -679,7 +679,7 @@ class JuliaTranspilerPlugins:
         return f"format({', '.join(vargs)})" \
             if vargs else "format"
 
-    def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_translate(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if len(vargs) < 2:
             return "replace!"
         if len(vargs) == 2:
@@ -707,7 +707,7 @@ class JuliaTranspilerPlugins:
     # Array Operations
     # =====================================
     def visit_bytearray(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         if len(vargs) == 0:
             return "Vector{UInt8}()"
@@ -720,15 +720,15 @@ class JuliaTranspilerPlugins:
                 parsed_args = f"[{vargs[0][1:-1]}]"
             return f"Vector{{UInt8}}({parsed_args})"
 
-    def visit_islice(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_islice(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         node.is_gen_expr = True
         return f"({vargs[0]} for _ in (1:{vargs[1]}))"
 
-    def visit_iter(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_iter(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         node.is_gen_expr = True
         return f"(x for x in {vargs[0]})"
 
-    def visit_next(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_next(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         func_def = get_func_def(node, vargs[0])
         annotation = getattr(func_def, "annotation", ast.Name(""))
         ann_id: str = self.visit(annotation)
@@ -750,7 +750,7 @@ class JuliaTranspilerPlugins:
         #     return f"(({vargs[0]}, state) = iterate({vargs[0]}, state))"
         return f"next({', '.join(vargs)})"
 
-    def visit_zip(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_zip(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         ls1 = node.args[0]
         if isinstance(ls1, ast.Constant) and isinstance(ls1.value, str):
             ls1_lst = []
@@ -766,7 +766,7 @@ class JuliaTranspilerPlugins:
         return f"zip({vargs[0]}, {vargs[1]})"
 
     def visit_frozenset_contains(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         self._usings.add("FunctionalCollections")
         return (
@@ -777,13 +777,13 @@ class JuliaTranspilerPlugins:
     # Bisection
     # =====================================
     def visit_bisect_right(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         JuliaTranspilerPlugins._generic_bisect_visit(self)
         return f"bisect_right({', '.join(vargs)})" if vargs else "bisect_right"
 
     def visit_bisect_left(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         JuliaTranspilerPlugins._generic_bisect_visit(self)
         return f"bisect_left({', '.join(vargs)})" if vargs else "bisect_left"
@@ -794,7 +794,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     # IO
     # =====================================
-    def visit_print(self, node: ast.Call, vargs: List[str], kwargs: list[str]) -> str:
+    def visit_print(self, node: ast.Call, vargs: List[str], kwargs: list[tuple[str,str]]) -> str:
         if len(vargs) == 0:
             return "println()"
         if len(vargs) == 1 and not kwargs and not isinstance(node.args[0], ast.BinOp):
@@ -875,29 +875,29 @@ class JuliaTranspilerPlugins:
         else:
             return f"$({self.visit(node)})"
 
-    def visit_write(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_write(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if not vargs or getattr(node, "is_attr", False):
             return f"x -> write(stdout, x)"
         return f"write(stdout, {vargs[0]})"
 
-    def visit_flush(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_flush(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if not vargs or getattr(node, "is_attr", False):
             return f"flush(stdout)"
         return f"flush({vargs[0]})"
 
     def visit_textio_read(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         # TODO
         return None
 
     def visit_textio_write(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         # TODO
         return None
 
-    def visit_encode(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_encode(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         self._usings.add("StringEncodings")
         if len(vargs) == 0:
             return "encode"
@@ -905,7 +905,7 @@ class JuliaTranspilerPlugins:
             return f'encode({self.visit(node.args[0])}, "UTF-8")'
         return f"encode({vargs[0]}, {vargs[1]})"
 
-    def visit_splitlines(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_splitlines(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if vargs:
             if isinstance(node.args[0], ast.Constant) and \
                     isinstance(node.args[0].value, str):
@@ -916,11 +916,11 @@ class JuliaTranspilerPlugins:
             return f"split({v0}, r\"\\n|\\r\\n\")"
         return "lambda x: split(x.removesuffix('\n'), r\"\\n|\\r\\n\")"
 
-    def visit_ord(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_ord(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         v0 = vargs[0].replace('"', "'")
         return f"Int(codepoint({v0}))"
 
-    def visit_open(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_open(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         for_node = find_node_by_type(ast.For, node.scopes)
         # Check if this is always like this
         if for_node is not None:
@@ -929,19 +929,19 @@ class JuliaTranspilerPlugins:
         return f"open({vargs[0]}, {vargs[1]})"
 
     def visit_named_temp_file(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
         node.result_type = True
         return "NamedTempFile::new()"
 
-    def visit_isinstance(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_isinstance(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         is_pycall_import = JuliaTranspilerPlugins._check_pycall_import(self, vargs[1])
         if is_pycall_import:
             return f"pybuiltin(:isinstance)({vargs[0]}, {self._map_type(vargs[1])})"
         return f"isa({vargs[0]}, {self._map_type(vargs[1])})"
 
-    def visit_issubclass(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_issubclass(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         is_pycall_import = JuliaTranspilerPlugins._check_pycall_import(self, vargs[1])
         if is_pycall_import:
             return f"pybuiltin(:issubclass)({self._map_type(vargs[0])}, {self._map_type(vargs[1])})"
@@ -962,7 +962,7 @@ class JuliaTranspilerPlugins:
     # regex
     # =====================================
     def visit_refindall(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         if len(vargs) == 1:
             return f"""
@@ -979,7 +979,7 @@ class JuliaTranspilerPlugins:
                     # Flags unsupported
                     collect(eachmatch(r\"{vargs[0]}\", {vargs[1]}))"""
 
-    def visit_resub(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_resub(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         if len(vargs) < 3:
             return f"""
                 # Unsupported use of re.sub with less than 3 arguments
@@ -1003,7 +1003,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     # importlib
     # =====================================
-    def visit_import(self, node: ast.Call, vargs: list[str], kwargs: list[str]) -> str:
+    def visit_import(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]) -> str:
         # Try to split 'path' from 'name'
         path, name = os.path.split(vargs[0])
         return f"@eval @from {path} import Symbol({name})"
@@ -1012,7 +1012,7 @@ class JuliaTranspilerPlugins:
     # path
     # =====================================
     def visit_makedirs(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         parsed_args = []
         # Ignore "exist_ok" parameter
@@ -1028,17 +1028,17 @@ class JuliaTranspilerPlugins:
     # =====================================
     # random
     # =====================================
-    def visit_random(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_random(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Random")
         return f"rand({', '.join(vargs)})"
 
-    def visit_randomshuffle(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_randomshuffle(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Random")
         if vargs:
             return f"shuffle({', '.join(vargs)})"
         return "shuffle"
 
-    def visit_randomseed(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_randomseed(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Random")
         return f"Random.seed!({','.join(vargs)})"
 
@@ -1047,7 +1047,7 @@ class JuliaTranspilerPlugins:
     # =====================================
     @staticmethod
     def visit_asyncio_run(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         return f"block_on({vargs[0]})"
 
@@ -1055,7 +1055,7 @@ class JuliaTranspilerPlugins:
     # PyCall
     # =====================================
     def visit_tempfile(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ) -> str:
         pycall_import(self, node, "tempfile")
 

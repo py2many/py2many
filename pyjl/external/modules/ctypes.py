@@ -11,11 +11,11 @@ from py2many.ast_helpers import get_id
 from pyjl.helpers import pycall_import
 
 class JuliaExternalModulePlugins():
-    def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
         return f"Libdl.dlopen({vargs[0]})" if vargs else "Libdl.dlopen"
 
-    def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
         # Checks the path of the dll for Python 3.9
         python_39_path = subprocess.check_output('where python39.dll').decode().strip().split("\n")
@@ -31,11 +31,11 @@ class JuliaExternalModulePlugins():
             return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
         return f"ccall({', '.join(vargs)})"
 
-    def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
         return f"Base.cconvert({self._map_type(vargs[1])}, {vargs[0]})"
 
-    def visit_cdata_value(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_cdata_value(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         # Remove the call to value (apparently, Julia already 
         # returns the value)
         conversion_type = None
@@ -46,28 +46,28 @@ class JuliaExternalModulePlugins():
             return f"unsafe_string({vargs[0]})"
         return f"unsafe_load({vargs[0]})"
 
-    def visit_byref(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_byref(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         if getattr(node, "is_attr", None):
             return "x -> pointer_from_objref(x)"
         if len(vargs) > 0:
             return f"pointer_from_objref({vargs[0]})"
         return "pointer_from_objref"
 
-    def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_pointer(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         return f"pointer_from_objref({vargs[0]})"
     
     # Using Pycall
-    def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_create_unicode_buffer(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         # TODO: Change to ccall
         pycall_import(self, node, "ctypes")
 
     # Windows-specific calls
-    def visit_wintypes(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_wintypes(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("WinTypes")
         return f"WinTypes({', '.join(vargs)})"
 
     # Hacks
-    def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
 
 

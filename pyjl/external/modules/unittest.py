@@ -5,15 +5,15 @@ import unittest
 
 
 class JuliaExternalModulePlugins:
-    def visit_assertTrue(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertTrue(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[1]}"
 
-    def visit_assertFalse(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertFalse(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test !({vargs[1]})"
 
-    def visit_assertEqual(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertEqual(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         val = vargs[2]
         if isinstance(node.args[2], ast.Name):
@@ -21,7 +21,7 @@ class JuliaExternalModulePlugins:
             val = self.visit(node.args[2])
         return f"@test ({vargs[1]} == {val})"
 
-    def visit_assertNonEqual(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertNonEqual(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         val = vargs[2]
         if isinstance(node.args[2], ast.Name):
@@ -29,7 +29,7 @@ class JuliaExternalModulePlugins:
             val = self.visit(node.args[2])
         return f"@test ({vargs[1]} != {val})"
 
-    def visit_assertRaises(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertRaises(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         v_args = vargs
         if vargs[0] == "self":
@@ -41,13 +41,13 @@ class JuliaExternalModulePlugins:
         return "@test_throws"
 
     def visit_assertIsInstance(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test isa({vargs[0]}, {vargs[1]})"
 
     def visit_assertRaisesRegex(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ):
         # 1. Checks if exceptiuon was thrown
         # 2. "Tests that regex matches on the string representation
@@ -62,26 +62,26 @@ class JuliaExternalModulePlugins:
             @test_throws {exception} {func}({values})
             @test match(@r_str({regex}), repr({func}))"""
 
-    def visit_assertIs(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertIs(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} === {vargs[1]}"
 
-    def visit_assertGreater(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertGreater(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} > {vargs[1]}"
 
     def visit_assertGreaterEqual(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} >= {vargs[1]}"
 
-    def visit_assertLess(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_assertLess(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} < {vargs[1]}"
 
     def visit_assertLessEqual(
-        self, node: ast.Call, vargs: list[str], kwargs: list[str]
+        self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]
     ):
         JuliaExternalModulePlugins._generic_test_visit(self)
         return f"@test {vargs[0]} <= {vargs[1]}"

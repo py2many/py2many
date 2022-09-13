@@ -5,7 +5,7 @@ from typing import Callable, Dict, Tuple, Union
 FuncType = Union[Callable, str]
 
 class JuliaExternalModulePlugins():
-    def visit_raises(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_raises(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Test")
         if len(vargs) == 2:
             return f"@test_throws {vargs[0]}, {vargs[1]}"

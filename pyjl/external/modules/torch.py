@@ -4,11 +4,11 @@ from typing import Callable, Dict, Tuple, Union
 import torch
 
 class JuliaExternalModulePlugins():
-    def visit_torch_zeros(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_torch_zeros(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Torch")
         return f"Torch.zeros({', '.join(vargs)})"
 
-    def visit_torch_zeros_numpy(self, node: ast.Call, vargs: list[str], kwargs: list[str]):
+    def visit_torch_zeros_numpy(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Torch")
         # return f"Torch.zeros.numpy({', '.join(vargs)})"
         return f"{vargs[0]}"
