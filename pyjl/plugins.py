@@ -1457,6 +1457,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     str.format: (JuliaTranspilerPlugins.visit_format, False),
     str.lower: (lambda self, node, vargs, kwargs: f"lowercase({vargs[0]})", True),
     str.upper:  (lambda self, node, vargs, kwargs: f"upercase({vargs[0]})", True),
+    str.replace: (lambda self, node, vargs, kwargs: f"replace({vargs[0]}, {vargs[1]} => {vargs[2]})"
+        if len(vargs) == 3 else "replace", True),
     str.startswith: (lambda self, node, vargs, kwargs: f"startswith({', '.join(vargs)})", True),
     str.encode: (JuliaTranspilerPlugins.visit_encode, True),
     str.splitlines: (JuliaTranspilerPlugins.visit_splitlines, True),

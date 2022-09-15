@@ -191,6 +191,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         range: lambda self, node, vargs, kwargs: "int",
         str.encode: lambda self, node, vargs, kwargs: "bytes",
         str.format: lambda self, node, vargs, kwargs: "str",
+        str.lower: lambda self, node, vargs, kwargs: "str",
+        str.replace: lambda self, node, vargs, kwargs: "str",
         bytes.translate: lambda self, node, vargs, kwargs: "bytes",
         bytearray.translate: lambda self, node, vargs, kwargs: "bytearray",
         argparse.ArgumentParser: lambda self, node, vargs, kwargs: "argparse.ArgumentParser",
