@@ -1026,8 +1026,8 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         type_str = self._typename_from_type_node(node.annotation)
 
-        # Removing TypeAlias nodes, as they are handled by the transpiler
-        if type_str == "TypeAlias":
+        # Removing TypeVar nodes, as they are handled by the transpiler
+        if type_str == "TypeVar":
             return ""
 
         val = None
