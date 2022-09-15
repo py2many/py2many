@@ -195,12 +195,21 @@ class JuliaAugAssignRewriter(ast.NodeTransformer):
                         right = ast.Constant(value=1)
                     )
                 ast.fix_missing_locations(value)
-                repeat_arg = ast.Call(
-                        func = ast.Name(id="repeat"),
-                        args = [node.target, value],
+                if isinstance(node.target, ast.List) and \
+                        len(node.target.elts) == 1:
+                    repeat_arg = ast.Call(
+                        func = ast.Name(id="fill"),
+                        args = [node.target.elts[0], value],
                         keywords = [],
                         scopes = node.scopes
                     )
+                else:
+                    repeat_arg = ast.Call(
+                            func = ast.Name(id="repeat"),
+                            args = [node.target, value],
+                            keywords = [],
+                            scopes = node.scopes
+                        )
                 ast.fix_missing_locations(repeat_arg)
                 call.args.append(node.target)
                 call.args.append(repeat_arg)
