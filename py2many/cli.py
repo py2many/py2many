@@ -492,8 +492,7 @@ def julia_settings(args, env=os.environ):
         display_name="Julia",
         formatter=format_jl,
         indent=None,
-        rewriters=[
-            JuliaUnittestRewriter()],
+        rewriters=[],
         transformers=[
             parse_decorators,
             analyse_variable_scope,
@@ -503,6 +502,7 @@ def julia_settings(args, env=os.environ):
             detect_ctypes_callbacks,
         ],
         post_rewriters=[
+            JuliaUnittestRewriter(),
             JuliaMainRewriter(),
             JuliaNestingRemoval(),
             JuliaImportRewriter(),

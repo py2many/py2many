@@ -437,6 +437,8 @@ class JuliaTranspilerPlugins:
         self._usings.add("OffsetArrays")
 
     def visit_parameterized_unittest(self, node, decorator):
+        self._usings.add("ParameterTests")
+        self._usings.add("Test")
         funcdef = (
             f"function {node.name}{node.template}(){node.return_type}"
         )
@@ -455,11 +457,16 @@ class JuliaTranspilerPlugins:
             else:
                 param_names = self.visit(param_args)
             param_list = self.visit(decorator.args[2])
-            assign = f"param_args = {param_list}"
-            parameter_test = f"""for {param_names} in param_args
-                {body}
-            end"""
-            return f"{funcdef}\n{assign}\n{parameter_test}\nend\n"
+            # assign = f"param_args = {param_list}"
+            # parameter_test = f"""for {param_names} in param_args
+            #     {body}
+            # end"""
+            return f"""@paramtest \"{node.name}\" begin
+                    @given {param_names} ∈ {param_list}
+                    {body}
+                end
+            """
+            # return f"{funcdef}\n{assign}\n{parameter_test}\nend\n"
         
         return f"{funcdef}\n{body}\nend\n"
 

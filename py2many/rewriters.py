@@ -1,4 +1,5 @@
 import ast
+from cgi import test
 import re
 import textwrap
 
@@ -466,31 +467,6 @@ class UnitTestRewriter(ast.NodeTransformer):
         self._language = language
         self.test_base: str = None
         self._test_classes = []
-        self.pytest_funcs = []
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        self.pytest_funcs = []
-        self._test_classes = []
-        body = []
-        for n in node.body:
-            body.append(self.visit(n))
-        find_main = any([self.IS_PYTHON_MAIN(n) for n in body])
-        if self.pytest_funcs and not find_main:
-            main_node = ast.If(
-                test = ast.Compare(
-                    left = ast.Name(id="__name__", scopes=ScopeList()),
-                    ops = [ast.Eq()],
-                    comparators = [ast.Constant(value="__main__")]),
-                body = [],
-                orelse = [],
-                python_main = True,
-                scopes = ScopeList(),
-            )
-            ast.fix_missing_locations(main_node)
-            self._generic_main_visit(main_node)
-            body.append(main_node)
-        node.body = body
-        return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         self.generic_visit(node)
@@ -521,20 +497,6 @@ class UnitTestRewriter(ast.NodeTransformer):
         self.generic_visit(node)
         if getattr(node, "python_main", None):
             self._generic_main_visit(node)
-        elif node.decorator_list:
-            is_pytest = False
-            for dec in node.decorator_list:
-                dec_id = None
-                if isinstance(dec, ast.Name) or \
-                        isinstance(dec, ast.Attribute):
-                    dec_id = get_id(dec)
-                elif isinstance(dec, ast.Call):
-                    dec_id = get_id(dec.func)
-                if dec_id and dec_id.startswith("pytest"):
-                    is_pytest = True
-                    break
-            if is_pytest:
-                self.pytest_funcs.append(node.name)
         return node
 
     def visit_If(self, node: ast.If) -> Any:
@@ -599,12 +561,6 @@ class UnitTestRewriter(ast.NodeTransformer):
                 args = [ast.Name(id=instance_name)]
                 call_node = self._build_call(func_name, args)
                 body.append(call_node)
-
-        # Assign any pytest funcs
-        for func_name in self.pytest_funcs:
-            args = []
-            call_node = self._build_call(func_name, args)
-            body.append(call_node)
 
         # Update node.body
         node.body = body

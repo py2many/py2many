@@ -2727,12 +2727,12 @@ class JuliaExceptionRewriter(ast.NodeTransformer):
 class JuliaUnittestRewriter(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self._is_pytest = False
 
     def visit_With(self, node: ast.With) -> Any:
         # Rewrites with statements with pytest.raises
         ctx = node.items[0].context_expr
         opt = node.items[0].optional_vars
-        self.generic_visit(node)
         if isinstance(ctx, ast.Call) and \
                 get_id(ctx.func) == "pytest.raises":
             block = juliaAst.Block(
@@ -2758,4 +2758,31 @@ class JuliaUnittestRewriter(ast.NodeTransformer):
             )
             ast.fix_missing_locations(let)
             return let
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        decorators = getattr(node, "parsed_decorators", [])
+        if "pytest.mark.parametrize" in decorators:
+            self._is_pytest = True
+            body = []
+            for n in node.body:
+                body.append(self.visit(n))
+            node.body = body
+            self._is_pytest = False
+            return node
+        self.generic_visit(node)
+        return node
+
+    def visit_Assert(self, node: ast.Assert) -> Any:
+        self.generic_visit(node)
+        if self._is_pytest:
+            # Change assert calls for tests
+            test_call = ast.Call(
+                func = ast.Name(id="@test"),
+                args = [node.test],
+                keywords = [],
+                scopes = getattr(node, "scopes", ScopeList())
+            )
+            ast.fix_missing_locations(test_call)
+            return test_call
         return node
