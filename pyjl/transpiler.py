@@ -883,12 +883,6 @@ class JuliaTranspiler(CLikeTranspiler):
                     rev_cnt += 1
                 else:
                     break
-                # Does not work
-                # if len(import_path) > len(out_filepath) and j == -len(out_filepath):
-                #     i -= 1
-                # elif len(out_filepath) > len(import_path) and i == -len(import_path):
-                #     j -= 1
-                # else:
                 i, j = i - 1, j - 1
             if rev_cnt > 0:
                 # Get relative path from current file
@@ -1089,12 +1083,12 @@ class JuliaTranspiler(CLikeTranspiler):
         # Custom type comments to preserve literal values
         if value is not None and value.isdigit():
             value = int(value)
-            if type_c := getattr(node, "type_comment", None):
-                if type_c == "BLiteral":
+            if ann := get_id(getattr(node, "annotation", None)):
+                if ann == "BLiteral":
                     value = bin(value)
-                if type_c == "OLiteral":
+                if ann == "OLiteral":
                     value = oct(value)
-                if type_c == "HLiteral":
+                if ann == "HLiteral":
                     value = hex(value)
 
         op = f".=" if getattr(node, "broadcast", False) \
