@@ -857,6 +857,13 @@ class JuliaTranspiler(CLikeTranspiler):
             mod_name = import_path[-2] \
                 if import_path[-1] == "__init__" else import_path[-1]
             out_filepath = self._filename.as_posix().split("/")[:-1]
+            # Handle cases where out_filepath contains basedir parts
+            base_dir_split = self._basedir.as_posix().split("/")
+            idx = 0
+            for elem, base_elem in zip(out_filepath, base_dir_split):
+                if elem == base_elem:
+                    idx += 1
+            # Parse final import Path
             if import_path[0] == self._basedir.stem:
                 import_path = import_path[1:]
                 # Temporary solution

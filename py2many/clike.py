@@ -244,7 +244,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._filename = getattr(node, "__file__", None)
         if self._filename:
             self._module = Path(self._filename).stem
-        self._basedir = getattr(node, "__basedir__", None)
+        # If there is an import_basedir, use that instead of basedir
+        self._basedir = getattr(node, "import_basedir", 
+            getattr(node, "__basedir__", None))
         
         self._imports = list(map(get_id, getattr(node, "imports", [])))
         

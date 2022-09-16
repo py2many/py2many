@@ -11,7 +11,7 @@ import tempfile
 
 from distutils import spawn
 from functools import lru_cache
-from pathlib import Path, PosixPath
+from pathlib import Path, PosixPath, WindowsPath
 from subprocess import run
 from typing import List, Optional, Set, Tuple
 from unittest.mock import Mock
@@ -169,6 +169,10 @@ def _transpile(
         tree = ast.parse(source, type_comments=True)
         tree.__file__ = filename
         tree.__basedir__ = basedir
+        if args.import_basedir:
+            tree.import_basedir = WindowsPath(args.import_basedir) \
+                if sys.platform.startswith('win32') \
+                else PosixPath(args.import_basedir)
         tree_list.append(tree)
     # Analyse module dependencies
     trees = analyse_module_dependencies(tree_list)
@@ -929,12 +933,18 @@ def main(args=None, env=os.environ):
         default=None,
         help="External annotations with additional transpilation information",
     )
-
     # Compare files to expected
     parser.add_argument(
         "--expected",
         default=None,
         help="Directory containing expected results for comparison",
+    )
+    # Allows setting an import base directory for transpilation. 
+    # Helps if the intent is to transpile part of a library.
+    parser.add_argument(
+        "--import-basedir",
+        default=None,
+        help="Import base directory",
     )
 
     args, rest = parser.parse_known_args(args=args)
