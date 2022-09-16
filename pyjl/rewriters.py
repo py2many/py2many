@@ -919,6 +919,11 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name) -> Any:
         if get_id(node) in self._arbitrary_precision_vars:
             node.is_arbitrary_precision_var = True
+        if getattr(node, "is_annotation", False):
+            if get_id(node) == "int":
+                node.id = "BigInt"
+            elif get_id(node) == "float":
+                node.id = "BigFloat"
         return node
 
     def visit_Assign(self, node: ast.Assign) -> Any:
