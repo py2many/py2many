@@ -1608,7 +1608,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     sys.maxsize: (lambda self, node, vargs, kwargs: "typemax(Int)", True),
-    # TODO: Change sys.executable for "get_python_exe_path" Python dir
+    # TODO: Change sys.executable for python.exe path
     sys.executable: (lambda self, node, vargs, kwargs: "joinpath(Base.Sys.BINDIR, Base.julia_exename())", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),

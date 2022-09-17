@@ -18,7 +18,7 @@ class JuliaExternalModulePlugins():
     def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
         # Get path of the dll for Python 3.9
-        python_39 = get_python_dll_path((3, 9))
+        python_39 = JuliaExternalModulePlugins._get_python_dll_path((3, 9))
         self._globals.add(f"pythonapi = Libdl.dlopen({python_39})")
         func = self.visit(node.func)
         if getattr(node, "in_ccall", None):
@@ -26,6 +26,20 @@ class JuliaExternalModulePlugins():
         elif getattr(node, "is_attr", None):
             return f"(argtypes, return_type, args) -> @ccall (Libdl.dlsym(pythonapi, :{func}), return_type, argtypes, args)"
         return f"ccall({', '.join(vargs)})"
+
+    def _get_python_dll_path(version: tuple[str, str]):
+        """Receives major and minor version information 
+        and returns the corresponding Python DLL path"""
+        if len(version) != 2:
+            return None
+        # Checks the path of the dll for Python 
+        # given a version number
+        version_str = f"{version[0]}{version[1]}"
+        python_path = subprocess.check_output(f'where python{version_str}.dll').decode().strip().split("\n")
+        python_path = python_path[1] \
+            if len(python_path) > 1 \
+            else python_path[0]
+        return f"\"{'/'.join(python_path.strip().split(os.sep))}\""
 
     def visit_cast(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
