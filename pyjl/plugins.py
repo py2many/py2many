@@ -465,10 +465,6 @@ class JuliaTranspilerPlugins:
             else:
                 param_names = self.visit(param_args)
             param_list = self.visit(decorator.args[2])
-            # assign = f"param_args = {param_list}"
-            # parameter_test = f"""for {param_names} in param_args
-            #     {body}
-            # end"""
             return f"""@paramtest \"{node.name}\" begin
                     @given {param_names} ∈ {param_list}
                     {body}
@@ -599,7 +595,7 @@ class JuliaTranspilerPlugins:
     def visit_cast_string(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         if get_id(getattr(node.args[0], "annotation", None)) == "Exception":
             return f"Base.show(stdout, {', '.join(vargs)})"
-        return f"String({', '.join(vargs)})"
+        return f"string({', '.join(vargs)})"
 
     # =====================================
     # Math
@@ -1138,7 +1134,8 @@ class SpecialFunctionsPlugins:
             struct_name = get_id(class_node)
             has_default = node.args.defaults != []
             if constructor_body or has_default:
-                decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args))
+                new_args = [ast.arg(arg=key) for key in class_node.declarations.keys()]
+                decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args+new_args))
                 new_instance = ast.Call(
                     func=ast.Name(id="new"), args=decls, keywords=[], scopes=ScopeList()
                 )
@@ -1611,7 +1608,8 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     sys.maxsize: (lambda self, node, vargs, kwargs: "typemax(Int)", True),
-    sys.executable: (lambda self, node, vargs, kwargs: "joinpath(Base.Sys.BINDIR,Base.julia_exename())", True),
+    # TODO: Change sys.executable for python.exe path
+    sys.executable: (lambda self, node, vargs, kwargs: "joinpath(Base.Sys.BINDIR, Base.julia_exename())", True),
     # calls invoking PyCall
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
     eval: (lambda self, node, vargs, kwargs: f"py\"{', '.join(vargs)}\"", True),
