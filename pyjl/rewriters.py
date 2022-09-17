@@ -918,9 +918,16 @@ class JuliaArbitraryPrecisionRewriter(ast.NodeTransformer):
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
+        ann = get_id(getattr(node, "annotation", None)) == "int"
         if get_id(node) in self._arbitrary_precision_vars:
             node.is_arbitrary_precision_var = True
-        if getattr(node, "is_annotation", False):
+            if ann == "int":
+                if get_id(node) == "int":
+                    node.id = "BigInt"
+                elif get_id(node) == "float":
+                    node.id = "BigFloat"
+        elif self._use_arbitrary_precision and \
+                ann == "int":
             if get_id(node) == "int":
                 node.id = "BigInt"
             elif get_id(node) == "float":
@@ -1445,17 +1452,17 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         l_no = node.import_cnt
         for class_name, extends in self._hierarchy_map.items():
             nameVal = ast.Name(id=class_name)
-            extends = None
-            core_module = extends.split(
-                ".")[0] if extends else None
+            extends_node = None
+            core_module = extends.split(".")[0] \
+                if extends else None
             if extends and core_module not in self._ignored_module_set and \
                     extends not in self.IGNORE_ABSTRACT_SET:
                 extends_name = f"Abstract{extends}" \
                     if extends in self._hierarchy_map \
                     else extends
-                extends = ast.Name(id=f"{extends_name}")
-                ast.fix_missing_locations(extends)
-            abstract_types.append(juliaAst.AbstractType(value=nameVal, extends = extends,
+                extends_node = ast.Name(id=f"{extends_name}")
+                ast.fix_missing_locations(extends_node)
+            abstract_types.append(juliaAst.AbstractType(value=nameVal, extends = extends_node,
                                     ctx=ast.Load(), lineno=l_no, col_offset=0))
             # increment linenumber
             l_no += 1
@@ -1481,9 +1488,6 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         if base in self.SPECIAL_EXTENDS_MAP:
             # As Julia only supports single inheritance, we only analyse the first class
             node.jl_bases.append(ast.Name(id=self.SPECIAL_EXTENDS_MAP[base]))
-            return node
-        
-        if node.jl_bases:
             return node
 
         class_name: str = get_id(node)
@@ -1519,7 +1523,8 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
         parent_node = find_node_by_type(ast.ClassDef, node.scopes)
         if (hasattr(node, "self_type") and
                 is_class_or_module(node.self_type, node.scopes) and 
-                get_id(parent_node.bases[0]) not in self.SPECIAL_EXTENDS_MAP):
+                not (parent_node.bases and \
+                get_id(parent_node.bases[0]) in self.SPECIAL_EXTENDS_MAP)):
             node.self_type = f"Abstract{node.self_type}"
 
         return node

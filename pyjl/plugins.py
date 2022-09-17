@@ -1089,35 +1089,14 @@ class SpecialFunctionsPlugins:
     def visit_init(self, node: ast.FunctionDef):
         # Remove self
         node.args.args = node.args.args[1:]
-        arg_ids = set(map(lambda x: x.arg, node.args.args))
         is_oop = hasattr(node, "oop")
-        constructor_calls = []
+        arg_ids = set(map(lambda x: x.arg, node.args.args))
+        init_rewriter = InitRewriter(arg_ids, is_oop)
         constructor_body = []
-        is_self = lambda x: isinstance(x, ast.Attribute) and get_id(x.value) == "self"
         for n in node.body:
-            if isinstance(n, ast.Assign) and is_self(n.targets[0]):
-                new_id = get_id(n.targets[0]).split(".")[1:]
-                ann = getattr(n.targets[0], "annotation", None)
-                if new_id[0] not in arg_ids and get_id(n.value) not in arg_ids:
-                    arg_node = ast.arg(arg=".".join(new_id))
-                    arg_node.annotation = ann
-                    node.args.args.append(arg_node)
-                    node.args.defaults.append(n.value)
-            elif isinstance(n, ast.AnnAssign) and is_self(n.target):
-                new_id = get_id(n.target).split(".")[1:]
-                if new_id[0] not in arg_ids and get_id(n.value) not in arg_ids:
-                    arg_node = ast.arg(arg=".".join(new_id), annotation=n.annotation)
-                    node.args.args.append(arg_node)
-                    node.args.defaults.append(n.value)
-            elif (
-                is_oop
-                and isinstance(n, ast.Expr)
-                and isinstance(n.value, ast.Call)
-                and is_class_or_module(get_id(n.value.func), node.scopes)
-            ):
-                constructor_calls.append(n)
-            else:
-                constructor_body.append(n)
+            if n_v := init_rewriter.visit(n):
+                constructor_body.append(n_v)
+        constructor_calls = init_rewriter.constructor_calls
 
         # Class assignments
         class_node: ast.ClassDef = find_node_by_type(ast.ClassDef, node.scopes)
@@ -1165,16 +1144,13 @@ class SpecialFunctionsPlugins:
 
         if constructor:
             ast.fix_missing_locations(constructor)
-            constructor.scopes = (node.scopes,)
+            constructor.scopes = node.scopes
             constructor.parsed_decorators = node.parsed_decorators
             constructor.decorator_list = node.decorator_list
             constructor.is_constructor = True
 
         # Used to order the struct fields
         class_node.constructor_args = node.args
-        # Remove self, as Julia does not require it to 
-        # access class attributes when in a constructor
-        node = SelfRemoval().visit(node)
 
         return constructor
 
@@ -1211,9 +1187,42 @@ class SpecialFunctionsPlugins:
                 {body}
             end"""
 
-class SelfRemoval(ast.NodeTransformer):
-    def __init__(self) -> None:
+class InitRewriter(ast.NodeTransformer):
+    constructor_calls = []
+
+    def __init__(self, arg_ids, is_oop) -> None:
         super().__init__()
+        self.constructor_calls = []
+        self.is_self = lambda x: isinstance(x, ast.Attribute) \
+            and get_id(x.value) == "self"
+        self.arg_ids = arg_ids
+        self.is_oop = is_oop
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        target = node.targets[0]
+        if self.is_self(target):
+            new_id = get_id(target).split(".")[1:]
+            if new_id[0] in self.arg_ids and \
+                    get_id(node.value) in self.arg_ids:
+                return None
+        self.generic_visit(node)
+        return node
+    
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        if self.is_self(node.target):
+            new_id = get_id(node.target).split(".")[1:]
+            if new_id[0] in self.arg_ids and \
+                    get_id(node.value) in self.arg_ids:
+                return None
+        self.generic_visit(node)
+        return node
+
+    def visit_Expr(self, node: ast.Expr) -> Any:
+        if self.is_oop and \
+                isinstance(node.value, ast.Call) and \
+                is_class_or_module(get_id(node.value.func), node.scopes):
+            self.constructor_calls.append(node)
+        return node
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         if get_id(node.value) == "self":

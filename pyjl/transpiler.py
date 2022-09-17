@@ -616,9 +616,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def _visit_class_fields(self, node: ast.ClassDef):
         declarations: dict[str, (str, Any)] = node.declarations_with_defaults
 
-        decorator_list = list(map(get_id, node.decorator_list))
-        if JL_CLASS not in decorator_list and \
-                JL_CLASS not in node.parsed_decorators:
+        if JL_CLASS not in node.parsed_decorators and \
+                OOP_CLASS not in node.parsed_decorators:
             # If we are using composition and the class extends from super, 
             # it must contain its fields as well.
             for cls in node.bases:
@@ -692,7 +691,7 @@ class JuliaTranspiler(CLikeTranspiler):
             
             # Default field values
             fields.append((declaration, typename, default))
-        
+
         if not hasattr(node, "constructor_args") and has_defaults:
             node.constructor = self._build_constructor(node, dec_items)
   
@@ -1392,10 +1391,13 @@ class JuliaTranspiler(CLikeTranspiler):
         if getattr(node, "decorator_list", None):
             decorators = " ".join(list(map(lambda x: f"@{self.visit(x)}", node.decorator_list)))
             return f"{decorators} {node.name} begin\n{body}\nend"
-        if node.block_type == "named":
+        block_type = getattr(node, "block_type", None)
+        if block_type == "named":
             return f"{node.name} begin\n{body}\nend"
-        elif node.block_type == "expression_block":
+        elif block_type == "expression_block":
             return f"{self.visit(node.block_expr)} begin\n{body}\nend"
+        # By default, use named
+        return f"{node.name} begin\n{body}\nend"
 
     def visit_Symbol(self, node: juliaAst.Symbol) -> Any:
         return f":{node.id}"
