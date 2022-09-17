@@ -145,10 +145,14 @@ class JuliaTranspilerPlugins:
         # Add functions to body
         if d_fields["repr"]:
             # __repr__
+            show_args = []
+            for key in key_vars:
+                show_args.append(f"$({key})")
+            # TODO: This should be improved
             body.append(
                 f"""
-                function Base.show(self::{struct_name})::String 
-                    return {struct_name}({attr_vars_str}) 
+                function Base.show(io::IO, self::{struct_name}) 
+                    Base.show(io, \"$(nameof(typeof(self)))({', '.join(show_args)})\")
                 end
             """
             )
@@ -594,7 +598,7 @@ class JuliaTranspilerPlugins:
 
     def visit_cast_string(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         if get_id(getattr(node.args[0], "annotation", None)) == "Exception":
-            return f"Base.show({', '.join(vargs)})"
+            return f"Base.show(stdout, {', '.join(vargs)})"
         return f"String({', '.join(vargs)})"
 
     # =====================================
@@ -1184,7 +1188,7 @@ class SpecialFunctionsPlugins:
 
     def visit_show(self, node: ast.FunctionDef):
         body = SpecialFunctionsPlugins._parse_body(self, node)
-        return f"""function Base.show({node.parsed_args})
+        return f"""function Base.show(io::IO, {node.parsed_args})
                 {body}
             end"""
     
@@ -1209,6 +1213,18 @@ class SpecialFunctionsPlugins:
     def visit_ge(self, node: ast.FunctionDef):
         body = SpecialFunctionsPlugins._parse_body(self, node)
         return f"""function Base.:(>=)({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_eq(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(==)({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_hash(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.hash({node.parsed_args})
                 {body}
             end"""
 
@@ -1293,13 +1309,24 @@ SMALL_DISPATCH_MAP = {
     # Function methods
     "function.__name__": lambda node, vargs, kwargs: f"nameof({vargs[0]})",
     # Special func names
-    "__repr__": lambda node, vargs, kwargs: f"Base.show({', '.join(vargs)})",
-    "__str__": lambda node, vargs, kwargs: f"Base.show({', '.join(vargs)})",
-    "__eq__": lambda node, vargs, kwargs: f"Base.:(==)({', '.join(vargs)})",
-    "__lt__": lambda node, vargs, kwargs: f"Base.isless({', '.join(vargs)})",
-    "__le__": lambda node, vargs, kwargs: f"Base.:(<=)({', '.join(vargs)})",
-    "__gt__": lambda node, vargs, kwargs: f"Base.:>({', '.join(vargs)})",
-    "__ge__": lambda node, vargs, kwargs: f"Base.:(>=)({', '.join(vargs)})",
+    "__getattr__": lambda node, vargs, kwargs: f"Base.getattribute({', '.join(vargs)})" \
+        if vargs else "Base.getattribute",
+    "__repr__": lambda node, vargs, kwargs: f"Base.show(stdout, {', '.join(vargs)})" \
+        if vargs else "Base.show",
+    "__str__": lambda node, vargs, kwargs: f"Base.show(stdout, {', '.join(vargs)})" \
+        if vargs else "Base.show",
+    "__eq__": lambda node, vargs, kwargs: f"Base.:(==)({', '.join(vargs)})" \
+        if vargs else "Base.:(==)",
+    "__lt__": lambda node, vargs, kwargs: f"Base.isless({', '.join(vargs)})" \
+        if vargs else "Base.isless",
+    "__le__": lambda node, vargs, kwargs: f"Base.:(<=)({', '.join(vargs)})" \
+        if vargs else "Base.:(<=)",
+    "__gt__": lambda node, vargs, kwargs: f"Base.:>({', '.join(vargs)})" \
+        if vargs else "Base.:>",
+    "__ge__": lambda node, vargs, kwargs: f"Base.:(>=)({', '.join(vargs)})" \
+        if vargs else "Base.:(>=)",
+    "__hash__": lambda node, vargs, kwargs: f"Base.hash({', '.join(vargs)})" \
+        if vargs else "Base.hash",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
@@ -1605,5 +1632,6 @@ JULIA_SPECIAL_FUNCTIONS = {
     "__le__": SpecialFunctionsPlugins.visit_le,
     "__gt__": SpecialFunctionsPlugins.visit_gt,
     "__ge__": SpecialFunctionsPlugins.visit_ge,
-
+    "__eq__": SpecialFunctionsPlugins.visit_eq,
+    "__hash__": SpecialFunctionsPlugins.visit_hash,
 }

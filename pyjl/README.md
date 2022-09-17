@@ -256,8 +256,15 @@ PyJL Supports three different translation approaches for objects:
 
 ### Special Methods
 - `__init__` is mapped to a constructor
-- `__repr__` is translated to a `Base.show()`
-- `__getattr__` is translated to a `Base.getattribute()`
+- `__repr__` is translated to `Base.show`
+- `__str__` is translated to `Base.show`
+- `__getattr__` is translated to a `Base.getattribute`
+- `__eq__` is translated to `Base.:(==)`
+- `__lt__` is translated to `Base.isless`
+- `__le__` is translated to `Base.:(<=)`
+- `__gt__` is translated to `Base.:>`
+- `__ge__` is translated to `Base.:(>=)`
+- `__hash__` is translated to `Base.hash`
 
 #
 
