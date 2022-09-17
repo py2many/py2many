@@ -4,6 +4,7 @@ import ctypes
 from pathlib import Path
 from pyclbr import Function
 import re
+import sys
 from typing import Any, Dict, Union, cast
 
 from py2many.clike import class_for_typename
@@ -2231,16 +2232,23 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             restype.is_annotation = True
             # Aggregate factory_func_types
             self._ctypes_func_types = [restype] + argtypes.elts
-            # Add ccall
+            # Create call to Julia's ccall
             ccall = ast.Call(
                 func = ast.Name(id="ccall"),
-                args = [ccall_func, restype, argtypes],
+                args = [],
                 keywords = node.keywords,
                 lineno = node.lineno + 1,
                 col_offset = node.col_offset,
                 scopes = node.scopes,
                 no_rewrite = True, # Special attribute not to rewite call
             )
+            if sys.platform.startswith('win32'):
+                # Add calling convention for windows
+                stdcall = ast.Name(id="stdcall")
+                ast.fix_missing_locations(stdcall)
+                ccall.args.extend([ccall_func, stdcall, restype, argtypes])
+            else:
+                ccall.args.extend([ccall_func, restype, argtypes])
             ccall_assign = ast.Assign(
                 targets=[ast.Name(id="res")], value=ccall)
             # Build error check call
