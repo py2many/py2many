@@ -1,5 +1,6 @@
 # Gets range from for loop
 import ast
+import subprocess
 import os
 import random
 from typing import Optional
@@ -161,3 +162,25 @@ def pycall_import(self, node: ast.Call, mod_name: str, opt_name: Optional[str] =
         self._pycall_imports.add(mod_name)
         import_stmt = f'{mod_name} = pyimport("{mod_name}")'
     self._globals.add(import_stmt)
+
+def get_python_dll_path(version: tuple[str, str]):
+    """Receives major and minor version information 
+    and returns the corresponding Python DLL path"""
+    if len(version) != 2:
+        return None
+    # Checks the path of the dll for Python 
+    # given a version number
+    version_str = f"{version[0]}{version[1]}"
+    python_path = subprocess.check_output(f'where python{version_str}.dll').decode().strip().split("\n")
+    python_path = python_path[1] \
+        if len(python_path) > 1 \
+        else python_path[0]
+    return f"\"{'/'.join(python_path.strip().split(os.sep))}\""
+
+def get_python_exe_path():
+    """Returns the Python exe path"""
+    python_path = subprocess.check_output(f'where python.exe').decode().strip().split("\n")
+    python_path = python_path[1] \
+        if len(python_path) > 1 \
+        else python_path[0]
+    return f"\"{'/'.join(python_path.strip().split(os.sep))}\""

@@ -8,7 +8,7 @@ import sys
 from typing import Callable, Dict, Optional, Tuple, Union
 
 from py2many.ast_helpers import get_id
-from pyjl.helpers import pycall_import
+from pyjl.helpers import get_python_dll_path, pycall_import
 
 class JuliaExternalModulePlugins():
     def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
@@ -17,12 +17,8 @@ class JuliaExternalModulePlugins():
 
     def visit_pythonapi(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
-        # Checks the path of the dll for Python 3.9
-        python_39_path = subprocess.check_output('where python39.dll').decode().strip().split("\n")
-        python_39_path = python_39_path[1] \
-            if len(python_39_path) > 1 \
-            else python_39_path[0]
-        python_39 = f"\"{'/'.join(python_39_path.strip().split(os.sep))}\""
+        # Get path of the dll for Python 3.9
+        python_39 = get_python_dll_path((3, 9))
         self._globals.add(f"pythonapi = Libdl.dlopen({python_39})")
         func = self.visit(node.func)
         if getattr(node, "in_ccall", None):

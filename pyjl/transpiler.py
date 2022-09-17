@@ -165,7 +165,6 @@ class JuliaTranspiler(CLikeTranspiler):
         content = bytes_str[2:-1]
         bytes_str = content.translate(str.maketrans(self._bytes_special_character_map))
         return f"b\"{bytes_str}\""
-        # return 'b"' + node.value.decode("ascii", "backslashreplace") + '"'
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []

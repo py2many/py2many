@@ -508,7 +508,7 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
 
         # string based fallback
         fname_stem, fname_leaf = self._func_name_split(fname)
-        if fname_leaf in self._func_dispatch_table:
+        if fname_stem and fname_leaf in self._func_dispatch_table:
             ret, node.result_type = self._func_dispatch_table[fname_leaf]
             try:
                 return fname_stem + ret(self, node, vargs, kwargs)

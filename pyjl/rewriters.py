@@ -1456,11 +1456,10 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
             core_module = extends.split(".")[0] \
                 if extends else None
             if extends and core_module not in self._ignored_module_set and \
-                    extends not in self.IGNORE_ABSTRACT_SET:
-                extends_name = f"Abstract{extends}" \
-                    if extends in self._hierarchy_map \
-                    else extends
-                extends_node = ast.Name(id=f"{extends_name}")
+                    extends not in self.IGNORE_ABSTRACT_SET and \
+                    extends in self._hierarchy_map:
+                # Ignore all classes that are not supported
+                extends_node = ast.Name(id=f"Abstract{extends}")
                 ast.fix_missing_locations(extends_node)
             abstract_types.append(juliaAst.AbstractType(value=nameVal, extends = extends_node,
                                     ctx=ast.Load(), lineno=l_no, col_offset=0))
