@@ -132,8 +132,8 @@ class JuliaTranspilerPlugins:
             attr_vars.append(f"self.{field_name}")
 
         # Convert into string
-        key_vars = ", ".join(key_vars)
-        attr_vars = ", ".join(attr_vars)
+        key_vars_str = ", ".join(key_vars)
+        attr_vars_str = ", ".join(attr_vars)
         str_struct_fields = ", ".join(str_struct_fields)
 
         # Visit class body
@@ -144,44 +144,48 @@ class JuliaTranspilerPlugins:
 
         # Add functions to body
         if d_fields["repr"]:
+            # __repr__
             body.append(
                 f"""
-                function __repr__(self::{struct_name})::String 
-                    return {struct_name}({attr_vars}) 
+                function Base.show(self::{struct_name})::String 
+                    return {struct_name}({attr_vars_str}) 
                 end
             """
             )
         if d_fields["eq"]:
+            # __eq__
             body.append(
                 f"""
-                function __eq__(self::{struct_name}, other::{struct_name})::Bool
-                    return __key(self) == __key(other)
+                function Base.:(==)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(==)(__key(self), __key(other))
                 end
             """
             )
         if d_fields["order"]:
+            # __lt__, __le__, __gt__, __ge__
             body.append(
                 f"""
-                function __lt__(self::{struct_name}, other::{struct_name})::Bool
-                    return __key(self) < __key(other)
+                Base.isless(self::{struct_name}, other::{struct_name}) = begin
+                    return Base.isless(__key(self), __key(other)) 
                 end\n
-                function __le__(self::{struct_name}, other::{struct_name})::Bool
-                    return __key(self) <= __key(other)
+                function Base.:(<=)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(<=)(__key(self), __key(other))
                 end\n
-                function __gt__(self::{struct_name}, other::{struct_name})::Bool
-                    return __key(self) > __key(other)
+                function Base.:>(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:>(__key(self), __key(other))
                 end\n
-                function __ge__(self::{struct_name}, other::{struct_name})::Bool
-                    return __key(self) >= __key(other)
+                function Base.:(>=)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(>=)(__key(self), __key(other))
                 end
             """
             )
         if d_fields["unsafe_hash"]:
             if d_fields["eq"]:  # && ismutable
+                # __hash__
                 body.append(
                     f"""
-                function __hash__(self::{struct_name})
-                    return __key(self)
+                function Base.hash(self::{struct_name})
+                    return Base.hash(__key(self))
                 end
                 """
                 )
@@ -189,7 +193,7 @@ class JuliaTranspilerPlugins:
         body.append(
             f"""
                 function __key(self::{struct_name})
-                    ({key_vars})
+                    ({key_vars_str})
                 end
                 """
         )
@@ -1179,13 +1183,40 @@ class SpecialFunctionsPlugins:
             end"""
 
     def visit_show(self, node: ast.FunctionDef):
-        docstring_parsed: str = self._get_docstring(node)
-        body = [docstring_parsed] if docstring_parsed else []
-        body.extend([self.visit(n) for n in node.body])
-        body = "\n".join(body)
+        body = SpecialFunctionsPlugins._parse_body(self, node)
         return f"""function Base.show({node.parsed_args})
                 {body}
             end"""
+    
+    def visit_lt(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.isless({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_le(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(<=)({node.parsed_args})
+                {body}
+            end"""
+    
+    def visit_gt(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:>({node.parsed_args})
+                {body}
+            end"""
+        
+    def visit_ge(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(>=)({node.parsed_args})
+                {body}
+            end"""
+
+    def _parse_body(self, node):
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        return "\n".join(body)
 
 class InitRewriter(ast.NodeTransformer):
     constructor_calls = []
@@ -1261,6 +1292,14 @@ SMALL_DISPATCH_MAP = {
     "sys.meta_path": lambda node, vargs, kwargs: "Base.LOAD_PATH",
     # Function methods
     "function.__name__": lambda node, vargs, kwargs: f"nameof({vargs[0]})",
+    # Special func names
+    "__repr__": lambda node, vargs, kwargs: f"Base.show({', '.join(vargs)})",
+    "__str__": lambda node, vargs, kwargs: f"Base.show({', '.join(vargs)})",
+    "__eq__": lambda node, vargs, kwargs: f"Base.:(==)({', '.join(vargs)})",
+    "__lt__": lambda node, vargs, kwargs: f"Base.isless({', '.join(vargs)})",
+    "__le__": lambda node, vargs, kwargs: f"Base.:(<=)({', '.join(vargs)})",
+    "__gt__": lambda node, vargs, kwargs: f"Base.:>({', '.join(vargs)})",
+    "__ge__": lambda node, vargs, kwargs: f"Base.:(>=)({', '.join(vargs)})",
 }
 
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
@@ -1562,4 +1601,9 @@ JULIA_SPECIAL_FUNCTIONS = {
     "__getattr__": SpecialFunctionsPlugins.visit_getattr,
     "__repr__": SpecialFunctionsPlugins.visit_show,
     "__str__": SpecialFunctionsPlugins.visit_show,
+    "__lt__": SpecialFunctionsPlugins.visit_lt,
+    "__le__": SpecialFunctionsPlugins.visit_le,
+    "__gt__": SpecialFunctionsPlugins.visit_gt,
+    "__ge__": SpecialFunctionsPlugins.visit_ge,
+
 }

@@ -472,9 +472,10 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
                 ):
                     return dispatch_func
 
-        if orig_name := getattr(node, "orig_name", None):
+        if dispatch_func := self._clike_dispatch(node, 
+                getattr(node, "orig_name", None), vargs, kwargs):
             # Special attribute used for dispatching
-            return self._clike_dispatch(node, orig_name, vargs, kwargs)
+            return dispatch_func
         return self._clike_dispatch(node, fname, vargs, kwargs)
 
     # Adds kwargs to clike dispatch

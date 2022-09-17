@@ -1392,9 +1392,7 @@ class JuliaTranspiler(CLikeTranspiler):
             decorators = " ".join(list(map(lambda x: f"@{self.visit(x)}", node.decorator_list)))
             return f"{decorators} {node.name} begin\n{body}\nend"
         block_type = getattr(node, "block_type", None)
-        if block_type == "named":
-            return f"{node.name} begin\n{body}\nend"
-        elif block_type == "expression_block":
+        if block_type == "expression_block":
             return f"{self.visit(node.block_expr)} begin\n{body}\nend"
         # By default, use named
         return f"{node.name} begin\n{body}\nend"
