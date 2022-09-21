@@ -8,7 +8,7 @@ import sys
 from typing import Callable, Dict, Optional, Tuple, Union
 
 from py2many.ast_helpers import get_id
-from pyjl.helpers import get_python_dll_path, pycall_import
+from pyjl.helpers import pycall_import
 
 class JuliaExternalModulePlugins():
     def visit_load_library(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):

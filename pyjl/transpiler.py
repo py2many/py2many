@@ -520,14 +520,20 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.Mult):
             # Cover multiplication between List/Tuple and Int
             if isinstance(node.right, ast.Num) or is_num(right_jl_ann):
-                if ((isinstance(node.left, ast.List) or is_list(left_jl_ann))  or
+                if isinstance(node.left, ast.List) and \
+                        len(node.left.elts) == 1:
+                    return f"fill({self.visit(node.left.elts[0])},{right})"
+                elif ((isinstance(node.left, ast.List) or is_list(left_jl_ann))  or
                         (isinstance(node.left, ast.Str) or left_jl_ann == "String")):
                     return f"repeat({left},{right})"
                 elif isinstance(node.left, ast.Tuple) or is_tuple(left_jl_ann):
                     return f"repeat([{left}...],{right})"
 
             if isinstance(node.left, ast.Num) or is_num(left_jl_ann):
-                if ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
+                if isinstance(node.right, ast.List) and \
+                        len(node.right.elts) == 1:
+                    return f"fill({self.visit(node.right.elts[0])},{left})"
+                elif ((isinstance(node.right, ast.List) or is_list(right_jl_ann)) or
                         (isinstance(node.right, ast.Str) or right_jl_ann == "String")):
                     return f"repeat({right},{left})"
                 elif isinstance(node.right, ast.Tuple) or is_tuple(right_jl_ann):
@@ -1095,7 +1101,11 @@ class JuliaTranspiler(CLikeTranspiler):
         # Optimization to use global constants
         if getattr(node, "use_constant", None):
             return f"const {targets[0]} {op} {value}"
-        
+
+        # Support for local variables
+        if getattr(node, "local", None):
+            return f"local {'='.join(targets)} {op} {value}"
+
         return f"{'='.join(targets)} {op} {value}"
 
     def visit_Delete(self, node: ast.Delete) -> str:

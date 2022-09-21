@@ -12,7 +12,7 @@ from py2many.inference import get_inferred_type
 from typing import Any, cast, Optional
 
 from py2many.scope import ScopeList
-from py2many.tracer import find_node_by_name_and_type, find_node_by_type
+from py2many.tracer import find_node_by_name_and_type, find_node_by_type, find_parent_of_type
 
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
@@ -612,11 +612,10 @@ class LoopElseRewriter(ast.NodeTransformer):
         if len(node.orelse) > 0:
             lineno = node.orelse[0].lineno
             if_expr = ast.If(
-                test=ast.Compare(
-                    left=ast.Name(id=self._has_break_var_name),
-                    ops=[ast.NotEq()],
-                    comparators=[ast.Constant(value=True, scopes=node.scopes)],
-                    scopes=node.scopes,
+                test= ast.UnaryOp(
+                    op = ast.Not(),
+                    operand=ast.Name(id=self._has_break_var_name),
+                    scopes=node.scopes
                 ),
                 body=[oe for oe in node.orelse],
                 orelse=[],
@@ -627,20 +626,28 @@ class LoopElseRewriter(ast.NodeTransformer):
 
     def _visit_Scope(self, node) -> Any:
         self.generic_visit(node)
+        parent_loop = find_parent_of_type(ast.For, node.scopes)
+        is_local = False
+        if parent_loop and \
+                getattr(parent_loop, "orelse", None):
+            # Check if the node is a local assignment
+            is_local = True
         assign = ast.Assign(
             targets=[ast.Name(id=self._has_break_var_name)],
             value=None,
-            scopes=node.scopes,
+            scopes=node.scopes
         )
         ast.fix_missing_locations(assign)
         body = []
         for n in node.body:
             if hasattr(n, "if_expr"):
                 assign.value = ast.Constant(value=False, scopes=ScopeList())
+                assign.local = is_local
                 body.append(assign)
                 body.append(n)
                 body.append(n.if_expr)
             elif isinstance(n, ast.Break):
+                # assign.local = False
                 for_node = find_node_by_type(ast.For, node.scopes)
                 if hasattr(for_node, "if_expr"):
                     assign.value = ast.Constant(value=True, scopes=ScopeList())
