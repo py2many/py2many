@@ -1308,6 +1308,10 @@ class JuliaTranspiler(CLikeTranspiler):
         names = ", ".join(node.names)
         return f"# Not Supported\n# nonlocal {names}"
 
+    def visit_BoolOp(self, node):
+        op = self.visit(node.op)
+        return f"({op.join([self.visit(v) for v in node.values])})"
+
     ######################################################
     #################### Julia Nodes #####################
     ######################################################

@@ -950,6 +950,9 @@ class JuliaTranspilerPlugins:
         is_pycall_import = JuliaTranspilerPlugins._check_pycall_import(self, vargs[1])
         if is_pycall_import:
             return f"pybuiltin(:isinstance)({vargs[0]}, {self._map_type(vargs[1])})"
+        elif isinstance(node.args[1], ast.Tuple):
+            elts = list(map(lambda x: self._map_type(self.visit(x)), node.args[1].elts))
+            return f"isa({vargs[0]}, Union{{{', '.join(elts)}}})"
         return f"isa({vargs[0]}, {self._map_type(vargs[1])})"
 
     def visit_issubclass(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
