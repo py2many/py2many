@@ -1,6 +1,10 @@
 import ast
-import gzip
 from typing import Callable, Dict, Tuple, Union
+
+try:
+    import gzip
+except ImportError:
+    gzip = None
 
 
 class JuliaExternalModulePlugins:
@@ -30,14 +34,14 @@ class JuliaExternalModulePlugins:
     def _generic_gzip_visit(self):
         self._usings.add("GZip")
 
+if gzip:
+    FuncType = Union[Callable, str]
 
-FuncType = Union[Callable, str]
-
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    gzip.open: (JuliaExternalModulePlugins.visit_gzipopen, True),
-    gzip.compress: (JuliaExternalModulePlugins.visit_gzipcompress, True),
-    gzip.decompress: (JuliaExternalModulePlugins.visit_gzipdecompress, True),
-    gzip.BadGzipFile: (JuliaExternalModulePlugins.visit_gzipBadGzipFile, True),
-}
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
+        gzip.open: (JuliaExternalModulePlugins.visit_gzipopen, True),
+        gzip.compress: (JuliaExternalModulePlugins.visit_gzipcompress, True),
+        gzip.decompress: (JuliaExternalModulePlugins.visit_gzipdecompress, True),
+        gzip.BadGzipFile: (JuliaExternalModulePlugins.visit_gzipBadGzipFile, True),
+    }
 
 IGNORED_MODULE_SET = set(["gzip"])
