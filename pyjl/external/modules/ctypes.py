@@ -76,6 +76,9 @@ class JuliaExternalModulePlugins():
         self._usings.add("WinTypes")
         return f"WinTypes({', '.join(vargs)})"
 
+    def visit_functype(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
+        return f"func -> @cfunction($func, {vargs[0]}, ({', '.join(vargs[1:])}))"
+
     # Hacks
     def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
@@ -93,6 +96,7 @@ GENERIC_DISPATCH_TABLE = {
     ctypes.byref: (JuliaExternalModulePlugins.visit_byref, True),
     ctypes.sizeof: (lambda self, node, vargs, kwargs: f"sizeof({self._map_type(vargs[0])})" 
         if vargs else "sizeof", True),
+    ctypes.CFUNCTYPE: (JuliaExternalModulePlugins.visit_functype, True),
     # Using PythonCall
     ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True),
@@ -131,6 +135,7 @@ if sys.platform.startswith('win32'):
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
+        ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_functype, True),
     }
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
 else:
