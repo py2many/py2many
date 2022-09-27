@@ -26,16 +26,17 @@ class JuliaExternalModulePlugins():
         return f"pyproj.transform({', '.join(vargs)})" \
             if vargs else "pyproj.transform"
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    pyproj.Proj: (JuliaExternalModulePlugins.visit_proj, True),
-    pyproj.transform: (JuliaExternalModulePlugins.visit_transform, True),
-}
+if pyproj:
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
+        pyproj.Proj: (JuliaExternalModulePlugins.visit_proj, True),
+        pyproj.transform: (JuliaExternalModulePlugins.visit_transform, True),
+    }
 
-EXTERNAL_TYPE_MAP = {
-    pyproj.Proj: lambda self: JuliaExternalModulePlugins.visit_proj(self, None, [], []),
-    pyproj.transform: lambda self: JuliaExternalModulePlugins.visit_transform(self, None, [], []),
-}
+    EXTERNAL_TYPE_MAP = {
+        pyproj.Proj: lambda self: JuliaExternalModulePlugins.visit_proj(self, None, [], []),
+        pyproj.transform: lambda self: JuliaExternalModulePlugins.visit_transform(self, None, [], []),
+    }
 
-IGNORED_MODULE_SET = set([
-    "pyproj"
-])
+    IGNORED_MODULE_SET = set([
+        "pyproj"
+    ])

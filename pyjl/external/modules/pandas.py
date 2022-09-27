@@ -1,7 +1,11 @@
 
 import ast
-from typing import BinaryIO, Callable, Dict, Tuple, Union
-import pandas
+from typing import Callable, Dict, Tuple, Union
+
+try:
+    import pandas
+except:
+    pandas = None
 
 class JuliaExternalModulePlugins:
     def visit_pandas_readcsv(t_self, node: ast.Call, vargs: list[str]):
@@ -23,17 +27,18 @@ class JuliaExternalModulePlugins:
     def _visit_pandas(t_self):
         t_self._usings.add("Pandas")
 
-FuncType = Union[Callable, str]
+if pandas:
+    FuncType = Union[Callable, str]
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    pandas.read_csv: (JuliaExternalModulePlugins.visit_pandas_readcsv, False),
-    pandas.DataFrame.groupby: (JuliaExternalModulePlugins.visit_pandas_groupby, False),
-    pandas.DataFrame.to_excel: (JuliaExternalModulePlugins.visit_pandas_toexcel, False),
-    pandas.core.groupby.generic.DataFrameGroupBy.sum: (
-        JuliaExternalModulePlugins.visit_pandas_dataframe_sum,
-        False,
-    ),
-}
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
+        pandas.read_csv: (JuliaExternalModulePlugins.visit_pandas_readcsv, False),
+        pandas.DataFrame.groupby: (JuliaExternalModulePlugins.visit_pandas_groupby, False),
+        pandas.DataFrame.to_excel: (JuliaExternalModulePlugins.visit_pandas_toexcel, False),
+        pandas.core.groupby.generic.DataFrameGroupBy.sum: (
+            JuliaExternalModulePlugins.visit_pandas_dataframe_sum,
+            False,
+        ),
+    }
 
 IGNORED_MODULE_SET = set([
     "pandas"

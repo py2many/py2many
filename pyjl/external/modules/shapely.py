@@ -28,20 +28,21 @@ class JuliaExternalModulePlugins():
         return f"shapely_geo.Point({', '.join(vargs)})" \
             if vargs else "shapely_geo.Point"
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    BaseGeometry: (JuliaExternalModulePlugins.visit_basegeometry, True),
-    transform: (JuliaExternalModulePlugins.visit_transform, True),
-    Point: (JuliaExternalModulePlugins.visit_point, True),
-}
+if shapely:
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
+        BaseGeometry: (JuliaExternalModulePlugins.visit_basegeometry, True),
+        transform: (JuliaExternalModulePlugins.visit_transform, True),
+        Point: (JuliaExternalModulePlugins.visit_point, True),
+    }
 
-IGNORED_MODULE_SET = set([
-    "shapely",
-    "shapely.geometry",
-    "shapely.geometry.base",
-    "shapely.ops",
-])
+    IGNORED_MODULE_SET = set([
+        "shapely",
+        "shapely.geometry",
+        "shapely.geometry.base",
+        "shapely.ops",
+    ])
 
-EXTERNAL_TYPE_MAP = {
-    BaseGeometry: lambda self: JuliaExternalModulePlugins.visit_basegeometry(self, None, [], []),
-    Point: lambda self: JuliaExternalModulePlugins.visit_point(self, None, [], []),
-}
+    EXTERNAL_TYPE_MAP = {
+        BaseGeometry: lambda self: JuliaExternalModulePlugins.visit_basegeometry(self, None, [], []),
+        Point: lambda self: JuliaExternalModulePlugins.visit_point(self, None, [], []),
+    }

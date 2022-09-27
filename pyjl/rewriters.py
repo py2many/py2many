@@ -393,7 +393,7 @@ class JuliaGeneratorRewriter(ast.NodeTransformer):
         return node
 
 
-class JuliaConditionRewriter(ast.NodeTransformer):
+class JuliaBoolOpRewriter(ast.NodeTransformer):
     """Rewrites condition checks to Julia compatible ones
     All checks that perform equality checks with the literal '1'
     have to be converted to equality checks with true"""
@@ -422,32 +422,73 @@ class JuliaConditionRewriter(ast.NodeTransformer):
                 return node
 
         annotation = getattr(node.test, "annotation", None)
-        ann_id = get_id(annotation)
-        if ann_id == "int" or ann_id == "float":
-            node.test = self._build_compare(node.test, 
-                ast.NotEq(), 0)
-        
-        if hasattr(node.test, "annotation"):
-            type_str: str = get_ann_repr(node.test.annotation, sep=SEP)
-            match = re.match(r"^Optional|^list|^List|^tuple|^Tuple", type_str) \
-                if type_str else False
-            if match:
+        ann_id = get_ann_repr(annotation, sep=SEP)
+        if ann_id:
+            if ann_id == "int" or ann_id == "float":
                 node.test = self._build_compare(node.test, 
-                    ast.IsNot(), None)
+                    [ast.NotEq()], [ast.Constant(value=0)])
+            elif re.match(r"^list|^List", ann_id):
+                # Compare with empty list
+                node.test = self._build_compare(node.test, 
+                    [ast.IsNot()], [ast.List(elts=[])])
+            elif re.match(r"^tuple|^Tuple", ann_id):
+                # Compare with empty tuple
+                node.test = self._build_compare(node.test, 
+                    [ast.IsNot()], [ast.Tuple(elts=[])])
+            elif re.match(r"^Optional", ann_id):
+                # Compare with type None
+                node.test = self._build_compare(node.test, 
+                    [ast.IsNot()], [ast.Constant(value=None)])
+            else:
+                node.test = self._build_runtime_comparison(node)
+        else:
+            node.test = self._build_runtime_comparison(node)
 
-    def _build_compare(self, node, op, comp_value):
+    def _build_compare(self, node, ops, comp_values):
+        for comp_value in comp_values:
+            ast.fix_missing_locations(comp_value)
+            comp_value.scopes = node.scopes
         return ast.Compare(
-                left = node,
-                ops = [op],
-                comparators = [
-                    ast.Constant(
-                        comp_value,
-                        lineno = node.lineno,
-                        col_offset = node.col_offset,
-                        scopes = node.scopes)],
-                lineno = node.lineno, 
-                col_offset = node.col_offset,
-                scopes = node.scopes)
+            left = node,
+            ops = ops,
+            comparators = comp_values,
+            lineno = node.lineno, 
+            col_offset = node.col_offset,
+            scopes = node.scopes)
+    
+    def _build_runtime_comparison(self, node):
+        # Perform dynamic comparison
+        instance_check = lambda args: ast.Call(
+            func = ast.Name(id="isinstance"),
+            args = args,
+            keywords = [],
+            scopes = getattr(node, "scopes", None))
+        test_node = ast.BoolOp(
+            op = ast.Or(),
+            values = [
+                ast.BoolOp(
+                    op = ast.And(),
+                    values = [
+                        instance_check([node.test, 
+                            ast.Tuple(elts=[ast.Name(id="int"), ast.Name(id="float")])]),
+                        self._build_compare(node.test, [ast.NotEq()], [ast.Constant(value=0)])]),
+                ast.BoolOp(
+                    op = ast.And(),
+                    values = [
+                        instance_check([node.test, ast.Name(id="tuple")]),
+                        self._build_compare(node.test, [ast.NotEq()], [ast.Tuple(elts=[])])]),
+                ast.BoolOp(
+                    op = ast.And(),
+                    values = [
+                        instance_check([node.test, ast.Name(id="list")]),
+                        self._build_compare(node.test, [ast.NotEq()], [ast.List(elts=[])])]),
+                ast.BoolOp(
+                    op = ast.And(),
+                    values = [self._build_compare(node.test, [ast.Is()], [ast.Constant(value=None)])])
+            ]
+        )
+        ast.fix_missing_locations(node.test)
+        return test_node
     
     def visit_Compare(self, node: ast.Compare) -> Any:
         # Julia comparisons with 'None' use Henry Baker's EGAL predicate

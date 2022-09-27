@@ -958,6 +958,12 @@ class InferTypesTransformer(ast.NodeTransformer):
             ann_node.annotation = ast.Name(id="None")
             for n in node.orelse:
                 self.visit(n)
+        else:
+            node.test.annotation = ann
+            for n in node.body:
+                self.visit(n)
+            for n in node.orelse:
+                self.visit(n)
 
     def _visit_none_branch(self, node: ast.If, ann, ann_node_id):
         if self._is_optional(ann):
@@ -967,6 +973,12 @@ class InferTypesTransformer(ast.NodeTransformer):
             for n in node.body:
                 self.visit(n)
             ann_node.annotation = ann.slice
+            for n in node.orelse:
+                self.visit(n)
+        else:
+            node.test.annotation = ann
+            for n in node.body:
+                self.visit(n)
             for n in node.orelse:
                 self.visit(n)
 

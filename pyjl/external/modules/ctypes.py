@@ -142,7 +142,7 @@ else:
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE
 
 
-EXTERNAL_TYPE_MAP = {
+GENERIC_EXTERNAL_TYPE_MAP = {
     ctypes.c_int: lambda self: "Cint",
     ctypes.c_int8: lambda self: "Cint",
     ctypes.c_int16: lambda self: "Cint",
@@ -173,26 +173,64 @@ EXTERNAL_TYPE_MAP = {
     ctypes.c_wchar_p: lambda self: "Cwstring", # Ptr{Cwchar_t}
     ctypes.c_void_p: lambda self: "Ptr{Cvoid}",
     ctypes.CDLL: lambda self: "", # TODO: Temporary
-    ctypes.WinDLL: lambda self: "",
     ctypes.py_object: lambda self: "Ptr{Cvoid}",
 }
 
-
-FUNC_TYPE_MAP = {
+GENERIC_FUNC_TYPE_MAP = {
     ctypes.cdll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.CDLL",
-    ctypes.windll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
     ctypes.CDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL",
-    ctypes.WinDLL: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
     ctypes.PyDLL: lambda self, node, vargs, kwargs: "ctypes.CDLL", # Hack, for now
     # Why invalid syntax???
     # ctypes.cast: lambda self, node, vargs, kwargs: ast.unparse(vargs[1]) if vargs else "ctypes.cast",
     ctypes.cast: lambda self, node, vargs, kwargs: "ctypes._SimpleCData",
-    ctypes.WINFUNCTYPE: lambda self, node, vargs, kwargs: "PyObject",
     ctypes.POINTER: lambda self, node, vargs, kwargs: "ctypes.POINTER",
-    WindowsError: lambda self, node, vargs, kwargs: "OSError",
 }
 
 IGNORED_MODULE_SET = set([
     "ctypes",
     "ctypes.wintypes"
 ])
+
+if sys.platform.startswith('win32'):
+    # Import windows ctypes modules
+    from builtins import WindowsError
+    from ctypes import wintypes
+
+    WIN_SMALL_DISPATCH_MAP = {
+        "GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError" 
+            if getattr(node, "is_attr", None)
+            else "Base.Libc.GetLastError()",
+        "ctypes.GetLastError": lambda node, vargs, kwargs: "Base.Libc.GetLastError" 
+            if getattr(node, "is_attr", None)
+            else "Base.Libc.GetLastError()",
+    }
+
+    SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
+
+    WIN_DISPATCH_TABLE = {
+        ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
+        ctypes.windll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
+        # ctypes.WinDLL: (JuliaExternalModulePlugins.visit_windll, True),
+        # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
+        ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
+        wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
+    }
+
+    WIN_EXTERNAL_TYPE_MAP = {
+        ctypes.WinDLL: lambda self: "",
+    }
+
+    WIN_FUNC_TYPE_MAP = {
+        ctypes.windll.LoadLibrary: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
+        ctypes.WinDLL: lambda self, node, vargs, kwargs: "ctypes.WinDLL",
+        ctypes.WINFUNCTYPE: lambda self, node, vargs, kwargs: "PyObject",
+        WindowsError: lambda self, node, vargs, kwargs: "OSError",
+    }
+
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
+    EXTERNAL_TYPE_MAP = WIN_EXTERNAL_TYPE_MAP | GENERIC_EXTERNAL_TYPE_MAP
+    FUNC_TYPE_MAP = WIN_FUNC_TYPE_MAP + GENERIC_FUNC_TYPE_MAP
+else:
+    FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE
+    EXTERNAL_TYPE_MAP = GENERIC_EXTERNAL_TYPE_MAP
+    FUNC_TYPE_MAP = GENERIC_FUNC_TYPE_MAP
