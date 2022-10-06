@@ -61,10 +61,10 @@ class Worker(Person):
 
 # class StudentWorker(Student, Worker):
 #     def __init__(self, name: str, student_number: int, domain: str,
-#             company_name: str, hours_per_week: int, is_exhausted:bool):
+#             company_name: str, hours_per_week: int, schedule_conflicts:bool):
 #         Student.__init__(self, name, student_number, domain)
 #         Worker.__init__(self, name, company_name, hours_per_week)
-#         self.is_exhausted = is_exhausted
+#         self.schedule_conflicts = schedule_conflicts
 
 
 if __name__ == "__main__":
@@ -104,11 +104,11 @@ if __name__ == "__main__":
     # sw = StudentWorker("Timo Marcello", 1111, "school.student.pt",
     #     "Cisco", 40, True)
     # assert sw.company_name == "Cisco"
-    # assert sw.is_exhausted == True
+    # assert sw.schedule_conflicts == True
     # assert sw.name == "Timo Marcello"
     # assert sw.student_number == 1111
     # assert sw.domain == "school.student.pt"
     # assert sw.company_name == "Cisco"
     # assert sw.hours_per_week == 40
-    # assert sw.is_exhausted == True
+    # assert sw.schedule_conflicts == True
     print("OK")
