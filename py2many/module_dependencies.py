@@ -17,7 +17,7 @@ class AnalyseModuleDependencies(ast.NodeTransformer):
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
-        if is_dir(node.module, self._basedir):
+        if node.module and is_dir(node.module, self._basedir):
             for alias in node.names:
                 name = alias.name
                 lookup = f"{node.module}.{name}"
