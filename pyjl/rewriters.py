@@ -423,26 +423,29 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
 
         annotation = getattr(node.test, "annotation", None)
         ann_id = get_ann_repr(annotation, sep=SEP)
-        if ann_id:
-            if ann_id == "int" or ann_id == "float":
-                node.test = self._build_compare(node.test, 
-                    [ast.NotEq()], [ast.Constant(value=0)])
-            elif re.match(r"^list|^List", ann_id):
-                # Compare with empty list
-                node.test = self._build_compare(node.test, 
-                    [ast.IsNot()], [ast.List(elts=[])])
-            elif re.match(r"^tuple|^Tuple", ann_id):
-                # Compare with empty tuple
-                node.test = self._build_compare(node.test, 
-                    [ast.IsNot()], [ast.Tuple(elts=[])])
-            elif re.match(r"^Optional", ann_id):
-                # Compare with type None
-                node.test = self._build_compare(node.test, 
-                    [ast.IsNot()], [ast.Constant(value=None)])
+        if not isinstance(node.test, ast.Compare) and \
+                not isinstance(node.test, ast.UnaryOp):
+            if ann_id:
+                if ann_id != "bool":
+                    if ann_id == "int" or ann_id == "float":
+                        node.test = self._build_compare(node.test, 
+                            [ast.NotEq()], [ast.Constant(value=0)])
+                    elif re.match(r"^list|^List", ann_id):
+                        # Compare with empty list
+                        node.test = self._build_compare(node.test, 
+                            [ast.IsNot()], [ast.List(elts=[])])
+                    elif re.match(r"^tuple|^Tuple", ann_id):
+                        # Compare with empty tuple
+                        node.test = self._build_compare(node.test, 
+                            [ast.IsNot()], [ast.Tuple(elts=[])])
+                    elif re.match(r"^Optional", ann_id):
+                        # Compare with type None
+                        node.test = self._build_compare(node.test, 
+                            [ast.IsNot()], [ast.Constant(value=None)])
+                    else:
+                        node.test = self._build_runtime_comparison(node)
             else:
                 node.test = self._build_runtime_comparison(node)
-        else:
-            node.test = self._build_runtime_comparison(node)
 
     def _build_compare(self, node, ops, comp_values):
         for comp_value in comp_values:
@@ -484,7 +487,12 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
                         self._build_compare(node.test, [ast.NotEq()], [ast.List(elts=[])])]),
                 ast.BoolOp(
                     op = ast.And(),
-                    values = [self._build_compare(node.test, [ast.Is()], [ast.Constant(value=None)])])
+                    values = [self._build_compare(node.test, [ast.Is()], [ast.Constant(value=None)])]),
+                ast.BoolOp(
+                    op = ast.And(),
+                    values = [
+                        instance_check([node.test, ast.Name(id="bool")]),
+                        node.test]),
             ]
         )
         ast.fix_missing_locations(node.test)
@@ -2027,9 +2035,9 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         ctypes.c_ssize_t, ctypes.c_char_p, ctypes.c_wchar_p, ctypes.c_void_p,
     ]
 
-    SPECIAL_CALLS = {
-        "ctypes.WINFUNCTYPE"
-    }
+    # SPECIAL_CALLS = {
+    #     "ctypes.WINFUNCTYPE"
+    # }
 
     NONE_TYPES = {"c_void_p", "HANDLE", "HMODULE"}
 
@@ -2053,7 +2061,6 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
         # Mapps assignment target id's to ctypes call types
         self._assign_ctypes_funcs = {}
         # Mapps special assignment target ids to their respective values
-        self._special_assignments: dict[str, ast.Call] = {}
     
     def visit_Module(self, node: ast.Module) -> Any:
         self._imported_names = getattr(node, "imported_names", None)
@@ -2080,15 +2087,6 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             # If there are any types from a call to ctypes
             self._assign_ctypes_funcs[get_id(target)] = self._ctypes_func_types
             self._ctypes_func_types = None
-
-        # Check for any special calls to replace
-        if isinstance(node.value, ast.Call) and \
-                get_id(node.value.func) in self.SPECIAL_CALLS:
-            if isinstance(node, ast.Assign):
-                self._special_assignments[get_id(node.targets[0])] = node.value
-            elif isinstance(node, ast.AnnAssign):
-                self._special_assignments[get_id(node.target)] = node.value
-            return None
 
         # Check if the target is what we are looking for
         admissible_args = re.match(r".*argtypes$|.*restype$|.*errcheck$", get_id(target)) \
@@ -2143,23 +2141,6 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
     def visit_Call(self, node: ast.Call) -> Any:
         node.func.is_call_func = True
         self.generic_visit(node)
-
-        # Check for any special calls to replace
-        if get_id(node.func) in self._special_assignments:
-            func_name = node.args[0]
-            if isinstance(func_name, ast.Name):
-                func_name.id = f"${get_id(func_name)}"
-            call_node = self._special_assignments[get_id(node.func)]
-            restype = call_node.args[0]
-            argtypes = ast.Tuple(elts = call_node.args[1:])
-            cfunc = ast.Call(
-                func = ast.Name(id = "@cfunction"),
-                args = [func_name, restype, argtypes],
-                keywords = [],
-                scopes = node.scopes
-            )
-            ast.fix_missing_locations(cfunc)
-            return cfunc
 
         func = node.func
         mod_name = ""
@@ -2261,6 +2242,8 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
             ptr_node = self._make_ptr("Cvoid")
             replace_cond = lambda x: get_id(getattr(x, "annotation", None)) in \
                 {"PyObject", "ctypes._FuncPointer", "_FuncPointer", "ctypes.POINTER"}
+            # Save old argument types
+            old_argtypes = argtypes.elts
             argtypes.elts = list(map(lambda x: ptr_node if replace_cond(x) else x, argtypes.elts))
             # Set all as annotation
             for arg in argtypes.elts:
@@ -2303,16 +2286,20 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                 # If it is a factory, build a lamdba expression
                 var_list: list[str] = [f"a{i}" for i in range(len(argtypes.elts))]
                 args = ast.arguments(args=[ast.arg(arg=var) for var in var_list], defaults=[])
-                for var, typ in zip(var_list, argtypes.elts):
+                annotations = list(map(lambda x: getattr(x, "annotation", None), old_argtypes))
+                for var, typ, ann in zip(var_list, argtypes.elts, annotations):
+                    mapped_arg = None
                     if get_id(typ) in self.WRAP_TYPES:
                         mapped_arg = self.WRAP_TYPES[get_id(typ)](var)
+                    # elif get_id(ann) in {"ctypes._FuncPointer", "_FuncPointer"}:
+                    #     mapped_arg = f"Ptr[Cvoid]({var})"
+                    if mapped_arg:
                         arg_node = cast(ast.Expr, create_ast_node(mapped_arg)).value
                         fill_attributes(arg_node, node.scopes, no_rewrite=True, 
                             preserve_keyword=True, is_annotation=True)
                         ccall.args.append(arg_node)
                     else:
                         ccall.args.append(ast.Name(id=var))
-                # ccall.args.extend([ast.Name(id=var) for var in var_list])
                 if errcheck_call:
                     # Pass the arguments to the errcheck function 
                     errcheck_call.args.append(
@@ -2337,7 +2324,7 @@ class JuliaCtypesRewriter(ast.NodeTransformer):
                     # Pass the arguments to the errcheck function
                     errcheck_call.args.append(ast.Tuple(elts=node.args))
                     # TODO: ccall with error check not yet supported with 
-                    # non-factory expressionss
+                    # non-factory expressions
                     return ccall
                 else:
                     return ccall

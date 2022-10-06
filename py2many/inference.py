@@ -196,6 +196,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytes.translate: lambda self, node, vargs, kwargs: "bytes",
         bytearray.translate: lambda self, node, vargs, kwargs: "bytearray",
         argparse.ArgumentParser: lambda self, node, vargs, kwargs: "argparse.ArgumentParser",
+        isinstance: lambda self, node, vargs, kwargs: "bool",
         zip: FuncTypeDispatch.visit_zip,
         max: FuncTypeDispatch.visit_min_max,
         min: FuncTypeDispatch.visit_min_max,

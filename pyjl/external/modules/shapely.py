@@ -3,10 +3,11 @@ import ast
 from pyjl.helpers import pycall_import
 
 try:
+    import shapely
     from shapely.geometry.base import BaseGeometry
     from shapely.geometry import Point
     from shapely.ops import transform
-except:
+except ImportError:
     shapely = None
 
 from typing import Callable, Dict, Optional, Tuple, Union

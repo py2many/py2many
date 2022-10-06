@@ -76,6 +76,9 @@ class JuliaExternalModulePlugins():
         self._usings.add("WinTypes")
         return f"WinTypes({', '.join(vargs)})"
 
+    def visit_functype(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
+        return f"func -> @cfunction($func, {vargs[0]}, ({', '.join(vargs[1:])}))"
+
     # Hacks
     def visit_Libdl(self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str,str]]):
         self._usings.add("Libdl")
@@ -93,6 +96,7 @@ GENERIC_DISPATCH_TABLE = {
     ctypes.byref: (JuliaExternalModulePlugins.visit_byref, True),
     ctypes.sizeof: (lambda self, node, vargs, kwargs: f"sizeof({self._map_type(vargs[0])})" 
         if vargs else "sizeof", True),
+    ctypes.CFUNCTYPE: (JuliaExternalModulePlugins.visit_functype, True),
     # Using PythonCall
     ctypes.POINTER: (JuliaExternalModulePlugins.visit_pointer, True),
     ctypes.create_unicode_buffer: (JuliaExternalModulePlugins.visit_create_unicode_buffer, True),
@@ -105,7 +109,7 @@ DISPATCH_MAP = {
 
 GENERIC_SMALL_DISPATCH_MAP = {
     "ctypes.memset": lambda node, vargs, kwargs: f"ccall(\"memset\", Ptr{{Cvoid}}, (Ptr{{Cvoid}}, Cint, Csize_t), {vargs[0]}, {vargs[1]}, {vargs[2]})",
-    "LPCWSTR": lambda node, vargs, kwargs: f"isa({vargs[0]}, String) ? Cwstring(pointer(transcode(Cwchar_t, {vargs[0]}))) : Cwstring(Ptr{{Cwchar_t}}({vargs[0]}))"
+    "LPCWSTR": lambda node, vargs, kwargs: f"isa({vargs[0]}, String) ? Cwstring(pointer_from_objref({vargs[0]})) : Cwstring(Ptr{{Cwchar_t}}({vargs[0]}))"
 }
 
 GENERIC_EXTERNAL_TYPE_MAP = {
@@ -171,8 +175,6 @@ if sys.platform.startswith('win32'):
             else "Base.Libc.GetLastError()",
     }
 
-    SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
-
     WIN_DISPATCH_TABLE = {
         ctypes.WinDLL: (JuliaExternalModulePlugins.visit_load_library, True),
         ctypes.windll.LoadLibrary: (JuliaExternalModulePlugins.visit_load_library, True),
@@ -180,6 +182,7 @@ if sys.platform.startswith('win32'):
         # ctypes.GetLastError: (lambda self, node, vargs, kwargs: "Base.Libc.GetLastError", True),
         ctypes.FormatError: (lambda self, node, vargs, kwargs: f"Base.Libc.FormatMessage({', '.join(vargs)})", True),
         wintypes: (JuliaExternalModulePlugins.visit_wintypes, True),
+        ctypes.WINFUNCTYPE: (JuliaExternalModulePlugins.visit_functype, True),
     }
 
     WIN_EXTERNAL_TYPE_MAP = {
@@ -194,8 +197,9 @@ if sys.platform.startswith('win32'):
     }
 
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE | WIN_DISPATCH_TABLE
+    SMALL_DISPATCH_MAP = GENERIC_SMALL_DISPATCH_MAP | WIN_SMALL_DISPATCH_MAP
     EXTERNAL_TYPE_MAP = WIN_EXTERNAL_TYPE_MAP | GENERIC_EXTERNAL_TYPE_MAP
-    FUNC_TYPE_MAP = WIN_FUNC_TYPE_MAP + GENERIC_FUNC_TYPE_MAP
+    FUNC_TYPE_MAP = WIN_FUNC_TYPE_MAP | GENERIC_FUNC_TYPE_MAP
 else:
     FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = GENERIC_DISPATCH_TABLE
     EXTERNAL_TYPE_MAP = GENERIC_EXTERNAL_TYPE_MAP
