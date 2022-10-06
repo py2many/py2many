@@ -170,6 +170,14 @@ CONTAINER_TYPE_MAP = {
     bytearray: f"Vector{{UInt8}}",
 }
 
+RESERVED_TYPEVARS = {
+    "BLiteral",
+    "OLiteral",
+    "HLiteral",
+    "BigInt",
+    "BigFloat"
+}
+
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
@@ -196,6 +204,8 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         #
+        self._reserved_typevars = RESERVED_TYPEVARS
+        self._generics = [] # List containing generic types
         self._use_modules = None
         self._external_type_map = {}
         self._flags = None

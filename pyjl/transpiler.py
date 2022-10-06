@@ -8,6 +8,7 @@ from py2many.exceptions import AstUnsupportedOperation
 from py2many.scope import ScopeList
 from pyjl.global_vars import JL_CLASS, OOP_CLASS, RESUMABLE
 from py2many.helpers import is_dir, is_file
+from pyjl.helpers import verify_types
 
 import pyjl.juliaAst as juliaAst
 
@@ -26,7 +27,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED
 from py2many.tracer import find_in_body, find_node_by_name_and_type, find_node_by_type, find_parent_of_type, get_class_scope, is_class_or_module, is_class_type
 
-from typing import Any, List
+from typing import Any, List, Union
 
 SPECIAL_CHARACTER_MAP = {
     "\a": "\\a", 
@@ -175,6 +176,15 @@ class JuliaTranspiler(CLikeTranspiler):
         node.args_list = args_list
         node.parsed_args = args
 
+        func_generics = set()
+        for arg in node.args.args:
+            ann = getattr(arg, "annotation", None)
+            for g in self._generics:
+                if verify_types(ann, g):
+                    func_generics.add(g)
+        node.maybe_generics = f"where {', '.join(func_generics)}" \
+            if func_generics else ""
+
         # Parse return type
         return_type = ""
         if not is_void_function(node):
@@ -214,7 +224,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if body == "...":
             body = ""
         
-        funcdef = f"function {node.name}{template}({args}){return_type}"
+        funcdef = f"function {node.name}{template}({args}){return_type}{node.maybe_generics}"
         return f"{funcdef}\n{body}\nend\n"
 
     def _get_args(self, node) -> list[str]:
@@ -1028,12 +1038,11 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
+        if (val := self._generic_assign_visit(node, node.targets[0])) == "":
+            return val
+
         target = self.visit(node.target)
         type_str = self._typename_from_type_node(node.annotation)
-
-        # Removing TypeVar nodes, as they are handled by the transpiler
-        if type_str == "TypeVar":
-            return ""
 
         val = None
         if node.value is not None:
@@ -1074,6 +1083,9 @@ class JuliaTranspiler(CLikeTranspiler):
         return "{0} {1}= {2}".format(target, op, val)
     
     def visit_Assign(self, node: ast.Assign) -> str:
+        if (val := self._generic_assign_visit(node, node.targets[0])) == "":
+            return val
+
         value = self.visit(node.value)
         if len(node.targets) == 1:
             if (target := self.visit(node.targets[0])) in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
@@ -1107,6 +1119,16 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"local {'='.join(targets)} {op} {value}"
 
         return f"{'='.join(targets)} {op} {value}"
+
+    def _generic_assign_visit(self, node: Union[ast.AnnAssign, ast.Assign], target):
+        # Removing special TypeVar nodes
+        if isinstance(node.value, ast.Call) and \
+                get_id(node.value.func) == "TypeVar":
+            if isinstance(node.value.args[0], ast.Constant) and \
+                    node.value.args[0].value not in self._reserved_typevars:
+                self._generics.append(get_id(target))
+            return ""
+        return None
 
     def visit_Delete(self, node: ast.Delete) -> str:
         del_targets = []
