@@ -514,8 +514,8 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
 
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
-    """Translates Python's 1-based indexing to Julia's 
-    0-based indexing for lists"""
+    """Translates Python's 0-based indexing to Julia's 
+    1-based indexing for lists"""
 
     SPECIAL_FUNCTIONS = set([
         "bisect",
@@ -658,8 +658,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
                     not getattr(node, "using_offset_arrays", None):
                 # Support nested subscripts. See example at:
                 # tests/cases/newman_conway_sequence.py
-                if isinstance(node.scopes[-1], ast.For):
-                    for_node: ast.For = node.scopes[-1]
+                for_node = find_node_by_type(ast.For, node.scopes)
+                if for_node:
                     target_id = get_id(for_node.target)
                     if isinstance(node.slice, ast.Subscript) or \
                             isinstance(node.slice, ast.BinOp) and \
@@ -1574,9 +1574,9 @@ class JuliaClassSubtypingRewriter(ast.NodeTransformer):
 ###########################################################
 
 class VariableScopeRewriter(ast.NodeTransformer):
-    """Rewrites variables in case they are defined withing one 
+    """Rewrites variables in case they are defined within one 
     of Julia's local hard/soft scopes but used outside of their scopes. 
-    This has to be executed after the JuliaVariableScopeAnalysis transformer """
+    This has to be executed after the JuliaVariableScopeAnalysis transformer"""
     def __init__(self) -> None:
         super().__init__()
         self._variables_out_of_scope: dict[str, Any] = {}

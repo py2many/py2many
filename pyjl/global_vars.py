@@ -17,6 +17,7 @@ OOP_NESTED_FUNCS = "oop_nested_funcs"
 USE_GLOBAL_CONSTANTS = "use_global_constants"
 ALLOW_ANNOTATIONS_ON_GLOBALS = "allow_annotations_on_globals"
 REMOVE_NESTED_RESUMABLES = "remove_nested_resumables"
+OPTIMIZE_LOOP_RANGES = "optimize_loop_ranges"
 
 # Decorators and Flags
 REMOVE_NESTED = "remove_nested"
@@ -33,6 +34,7 @@ GLOBAL_FLAGS = [
     ALLOW_ANNOTATIONS_ON_GLOBALS,
     USE_GLOBAL_CONSTANTS,
     REMOVE_NESTED_RESUMABLES,
+    OPTIMIZE_LOOP_RANGES,
 ]
 
 FLAG_DEFAULTS = {
@@ -46,6 +48,7 @@ FLAG_DEFAULTS = {
     USE_GLOBAL_CONSTANTS: False,
     ALLOW_ANNOTATIONS_ON_GLOBALS: False,
     REMOVE_NESTED_RESUMABLES: False,
+    OPTIMIZE_LOOP_RANGES: False,
 }
 
 ###################################

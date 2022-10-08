@@ -1,12 +1,11 @@
 import ast
 import logging
 import re
-from typing import Any, Dict
+from typing import Any
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
-from py2many.tracer import find_node_by_name_and_type
-from pyjl.global_vars import FIX_SCOPE_BOUNDS, FLAG_DEFAULTS, LOOP_SCOPE_WARNING
+from pyjl.global_vars import FIX_SCOPE_BOUNDS, FLAG_DEFAULTS, LOOP_SCOPE_WARNING, OPTIMIZE_LOOP_RANGES
 
 logger = logging.Logger("pyjl")
 
@@ -201,7 +200,8 @@ class JuliaLoopRangesOptimizationAnalysis(ast.NodeTransformer):
         self._subscript_vars = set()
 
     def visit_Module(self, node: ast.Module) -> Any:
-        if getattr(node, FIX_SCOPE_BOUNDS, FLAG_DEFAULTS[FIX_SCOPE_BOUNDS]):
+        self._non_optimizable_targets = set()
+        if getattr(node, OPTIMIZE_LOOP_RANGES, FLAG_DEFAULTS[OPTIMIZE_LOOP_RANGES]):
             self.generic_visit(node)
         return node
 
@@ -235,19 +235,19 @@ class JuliaLoopRangesOptimizationAnalysis(ast.NodeTransformer):
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         if self._marking:
+            self.visit(node.value)
             self._is_subscript = True
-            self.generic_visit(node)
+            self.visit(node.slice)
             self._is_subscript = False
-            # Check if any vars are not optimizable
             diff = self._subscript_vars.intersection(self._non_optimizable_targets)
             optimizable = diff == set()
             if isinstance(node.slice, ast.Slice):
                 node.slice.range_optimization = optimizable
             node.range_optimization = optimizable
         else:
+            self.visit(node.value)
             self._is_subscript = True
-            # Limitation
-            self.generic_visit(node)
+            self.visit(node.slice)
             self._is_subscript = False
         return node
 
@@ -285,7 +285,7 @@ class JuliaLoopRangesOptimizationAnalysis(ast.NodeTransformer):
             node.iter.range_optimization = is_optimizable
             # If one variable is not optimizable, the others aren't either
             if not is_optimizable:
-                self._non_optimizable_targets.intersection_update(targets)
+                self._non_optimizable_targets.update(targets)
         else:
             self._non_optimizable_targets.update(targets)
 
