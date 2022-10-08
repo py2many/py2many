@@ -358,12 +358,12 @@ class JuliaTranspiler(CLikeTranspiler):
                 fndef_args = [ast.arg(arg="self")] + fndef_args
             converted = []
             for varg, fnarg, node_arg in zip(vargs, fndef_args, node.args):
-                actual_type = self._generic_typename_from_annotation(node_arg)
-                declared_type = self._generic_typename_from_annotation(fnarg)
+                actual_type = self._typename_from_annotation(node_arg)
+                declared_type = self._typename_from_annotation(fnarg)
                 if declared_type and actual_type and declared_type != self._default_type \
                         and actual_type != self._default_type and actual_type != declared_type and \
                         not actual_type.startswith("Optional"): # TODO: Skip conversion of Optional for now
-                    converted.append(f"convert({self._map_type(declared_type)}, {varg})")
+                    converted.append(f"convert({declared_type}, {varg})")
                 else:
                     converted.append(varg)
         else:

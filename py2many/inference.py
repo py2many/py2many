@@ -359,12 +359,12 @@ class InferTypesTransformer(ast.NodeTransformer):
 
     def visit_List(self, node):
         self.generic_visit(node)
-        self._visit_container_type(node, typename="List")
+        self._visit_container_type(node, typename="list")
         return node
 
     def visit_Tuple(self, node: ast.Tuple) -> Any:
         self.generic_visit(node)
-        self._visit_container_type(node, typename="Tuple")
+        self._visit_container_type(node, typename="tuple")
         return node
 
     def _visit_container_type(self, node, typename="Any"):
@@ -1017,4 +1017,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         for n in node.body:
             self.visit(n)
         self._block_annotations = prev_block_anns
+        return node
+
+    def visit_BoolOp(self, node: ast.BoolOp) -> Any:
+        node.annotation = ast.Name(id="bool")
         return node
