@@ -1137,8 +1137,8 @@ class SpecialFunctionsPlugins:
             struct_name = get_id(class_node)
             has_default = node.args.defaults != []
             if constructor_body or has_default:
-                new_args = [ast.arg(arg=key) for key in class_node.declarations.keys()]
-                decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args+new_args))
+                # new_args = [ast.arg(arg=key) for key in class_node.declarations.keys()]
+                decls = list(map(lambda x: ast.Name(id=x.arg), node.args.args))
                 new_instance = ast.Call(
                     func=ast.Name(id="new"), args=decls, keywords=[], scopes=ScopeList()
                 )
