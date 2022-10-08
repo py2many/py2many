@@ -832,6 +832,8 @@ class JuliaIndexingRewriter(ast.NodeTransformer):
             ann = id
         elif isinstance(ann, tuple):
             ann = ann[0]
+        elif isinstance(ann, ast.Subscript):
+            ann = get_id(ann.value)
         return ann == "Dict" or ann == "dict"
 
 

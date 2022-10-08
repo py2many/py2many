@@ -963,8 +963,6 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
         index = self.visit(node.slice)
-        if index == None:
-            return "{0}[(Something, Strange)]".format(value)
         if hasattr(node, "is_annotation"):
             value_type = self._map_type(value)
             index_type = self._map_type(index)

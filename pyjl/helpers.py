@@ -1,4 +1,3 @@
-# Gets range from for loop
 import ast
 import random
 from typing import Optional
