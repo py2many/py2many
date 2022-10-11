@@ -113,6 +113,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if self._use_modules and node.name == self._module:
             node.name = f"{node.name}_"
 
+        # Visit special functions:
+        if node.name in JULIA_SPECIAL_FUNCTIONS:
+            return JULIA_SPECIAL_FUNCTIONS[node.name](self, node)
+
         # Visit decorators
         for ((d_id, _), decorator) in zip(
             node.parsed_decorators.items(), node.decorator_list

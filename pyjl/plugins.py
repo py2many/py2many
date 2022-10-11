@@ -26,6 +26,7 @@ from py2many.ast_helpers import get_id
 
 from py2many.tracer import (
     find_node_by_type,
+    is_class_type,
 )
 
 try:
@@ -39,35 +40,134 @@ class JuliaTranspilerPlugins:
     # =====================================
     # Decorators
     # =====================================
-    def visit_argparse_dataclass(self, node):
-        fields = []
-        for (
-            declaration,
-            typename_with_default,
-        ) in node.declarations_with_defaults.items():
-            typename, default_value = typename_with_default
-            if typename == None:
-                return None
-            if default_value is not None and typename != "bool":
-                default_value = self.visit(default_value)
-                default_value = f', default_value = "{default_value}"'
-            else:
-                default_value = ""
-            fields.append(
-                f"#[structopt(short, long{default_value})]\npub {declaration}: {typename},"
-            )
-        fields = "\n".join(fields)
-        self._usings.add("structopt::StructOpt")
-        clsdef = "\n" + textwrap.dedent(
-            f"""\
-        #[derive(Debug, StructOpt)]
-        #[structopt(name = "{self._module}", about = "Placeholder")]
-        struct {node.name} {{
-            {fields}
-        }}
-        """
+    def visit_py_dataclass(self, node: ast.ClassDef, decorator) -> str:
+        dataclass_data = JuliaTranspilerPlugins._generic_dataclass_visit(
+            node, decorator
         )
-        return clsdef
+        [d_fields, _] = dataclass_data[0], dataclass_data[1]
+
+        fields: str = node.fields_str
+        struct_fields = fields.split("\n") if fields else ""
+
+        # Abstract type
+        struct_name = "".join(["Abstract", get_id(node)])
+
+        # get struct variables using getfield
+        attr_vars = []
+        key_vars = []
+        str_struct_fields = []
+        for field in struct_fields:
+            field_name = field
+            field_type = None
+            field_split = field.split("::")
+            if len(field_split) > 1:
+                field_name = field_split[0]
+                field_type = field_split[1]
+
+            if field_type:
+                st_name = (
+                    field_type[8:] if field_type.startswith("Abstract") else field_type
+                )
+                str_struct_fields.append(
+                    f"{field_name}::{field_type}"
+                    if is_class_type(field_type, node.scopes)
+                    else f"{field_name}::Abstract{field_type}"
+                )
+                key_vars.append(
+                    f"self.{field_name}"
+                    if (not is_class_type(st_name, node.scopes))
+                    else f"__key(self.{field_name})"
+                )
+            else:
+                str_struct_fields.append(f"{field_name}")
+                key_vars.append(f"self.{field_name}")
+            attr_vars.append(f"self.{field_name}")
+
+        # Convert into string
+        key_vars_str = ", ".join(key_vars)
+        attr_vars_str = ", ".join(attr_vars)
+        str_struct_fields = ", ".join(str_struct_fields)
+
+        # Visit class body
+        body = []
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body.append(self.visit(b))
+
+        # Add functions to body
+        if d_fields["repr"]:
+            # __repr__
+            show_args = []
+            for key in key_vars:
+                show_args.append(f"$({key})")
+            # TODO: This should be improved
+            body.append(
+                f"""
+                function Base.show(io::IO, self::{struct_name}) 
+                    Base.show(io, \"$(nameof(typeof(self)))({', '.join(show_args)})\")
+                end
+            """
+            )
+        if d_fields["eq"]:
+            # __eq__
+            body.append(
+                f"""
+                function Base.:(==)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(==)(__key(self), __key(other))
+                end
+            """
+            )
+        if d_fields["order"]:
+            # __lt__, __le__, __gt__, __ge__
+            body.append(
+                f"""
+                Base.isless(self::{struct_name}, other::{struct_name}) = begin
+                    return Base.isless(__key(self), __key(other)) 
+                end\n
+                function Base.:(<=)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(<=)(__key(self), __key(other))
+                end\n
+                function Base.:>(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:>(__key(self), __key(other))
+                end\n
+                function Base.:(>=)(self::{struct_name}, other::{struct_name})::Bool
+                    return Base.:(>=)(__key(self), __key(other))
+                end
+            """
+            )
+        if d_fields["unsafe_hash"]:
+            if d_fields["eq"]:  # && ismutable
+                # __hash__
+                body.append(
+                    f"""
+                function Base.hash(self::{struct_name})
+                    return Base.hash(__key(self))
+                end
+                """
+                )
+
+        body.append(
+            f"""
+                function __key(self::{struct_name})
+                    ({key_vars_str})
+                end
+                """
+        )
+
+        body = "\n".join(body)
+
+        bases = [self.visit(base) for base in node.jl_bases]
+        struct_def = (
+            f"mutable struct {node.name} <: {bases[0]}"
+            if bases
+            else f"mutable struct {node.name}"
+        )
+
+        if getattr(node, "constructor", None):
+            constructor_str = self.visit(node.constructor)
+            return f"{struct_def}\n{fields}\n{constructor_str}\nend\n{body}"
+
+        return f"{struct_def}\n{fields}\nend\n{body}\n"
 
     # ================================================================
 
@@ -689,6 +789,80 @@ class JuliaTranspilerPlugins:
         return "\n".join(reexports)
 
 
+class SpecialFunctionsPlugins:
+    def visit_getattr(self, node: ast.FunctionDef):
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+        # Parse arguments
+        args: list[str] = node.parsed_args.split(", ")
+        self_arg = args[0].split("::")
+        if len(self_arg) == 2:
+            self_arg[1] = self_arg[1].removeprefix("Abstract")
+            args[0] = "::".join(self_arg)
+        property_arg = args[1].split("::")
+        property_arg_name = property_arg[0]
+        if len(property_arg) == 1:
+            args[1] = f"{args[1]}::Symbol"
+        parsed_args = ", ".join(args)
+
+        return f"""function Base.getproperty({parsed_args})
+                if hasproperty(self, Symbol({property_arg_name}))
+                    return Base.getfield(self, Symbol({property_arg_name}))
+                end
+                {body}
+            end"""
+
+    def visit_show(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.show(io::IO, {node.parsed_args})
+                {body}
+            end"""
+
+    def visit_lt(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.isless({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_le(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(<=)({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_gt(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:>({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_ge(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(>=)({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_eq(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.:(==)({node.parsed_args})
+                {body}
+            end"""
+
+    def visit_hash(self, node: ast.FunctionDef):
+        body = SpecialFunctionsPlugins._parse_body(self, node)
+        return f"""function Base.hash({node.parsed_args})
+                {body}
+            end"""
+
+    def _parse_body(self, node):
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        return "\n".join(body)
+
+
 TYPE_CODE_MAP = {
     "u": "Char",
     "b": "Int8",
@@ -773,11 +947,7 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {
 }
 
 DECORATOR_DISPATCH_TABLE = {
-    "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass
-}
-
-CLASS_DISPATCH_TABLE = {
-    # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
+    "dataclass": JuliaTranspilerPlugins.visit_py_dataclass,
 }
 
 ATTR_DISPATCH_TABLE = {
@@ -1040,4 +1210,16 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     tempfile.mkdtemp: (JuliaTranspilerPlugins.visit_tempfile, True),
     eval: (lambda self, node, vargs, kwargs: f"py\"{', '.join(vargs)}\"", True),
     exec: (lambda self, node, vargs, kwargs: f"py\"\"\"{', '.join(vargs)}\"\"\"", True),
+}
+
+JULIA_SPECIAL_FUNCTIONS = {
+    "__getattr__": SpecialFunctionsPlugins.visit_getattr,
+    "__repr__": SpecialFunctionsPlugins.visit_show,
+    "__str__": SpecialFunctionsPlugins.visit_show,
+    "__lt__": SpecialFunctionsPlugins.visit_lt,
+    "__le__": SpecialFunctionsPlugins.visit_le,
+    "__gt__": SpecialFunctionsPlugins.visit_gt,
+    "__ge__": SpecialFunctionsPlugins.visit_ge,
+    "__eq__": SpecialFunctionsPlugins.visit_eq,
+    "__hash__": SpecialFunctionsPlugins.visit_hash,
 }
