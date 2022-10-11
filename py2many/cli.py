@@ -8,6 +8,12 @@ from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
+from unittest.mock import Mock
+
+from pyjl.inference import infer_julia_types
+from pyjl.rewriters import JuliaIndexingRewriter, JuliaMethodCallRewriter
+from pyjl.transformers import parse_decorators
+
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
@@ -22,6 +28,38 @@ from .registry import _get_all_settings, ALL_SETTINGS, FAKE_ARGS
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
+from pycpp.transpiler import CppTranspiler, CppListComparisonRewriter
+from pyrs.inference import infer_rust_types
+from pyrs.transpiler import (
+    RustTranspiler,
+    RustLoopIndexRewriter,
+    RustNoneCompareRewriter,
+    RustStringJoinRewriter,
+)
+from pyjl.transpiler import JuliaTranspiler
+from pykt.inference import infer_kotlin_types
+from pykt.transpiler import KotlinTranspiler, KotlinPrintRewriter, KotlinBitOpRewriter
+from pynim.inference import infer_nim_types
+from pynim.transpiler import NimTranspiler, NimNoneCompareRewriter
+from pydart.transpiler import DartTranspiler, DartIntegerDivRewriter
+from pygo.inference import infer_go_types
+from pygo.transpiler import (
+    GoTranspiler,
+    GoMethodCallRewriter,
+    GoNoneCompareRewriter,
+    GoPropagateTypeAnnotation,
+    GoVisibilityRewriter,
+    GoIfExpRewriter,
+)
+from pyv.inference import infer_v_types
+from pyv.transpiler import (
+    VTranspiler,
+    VNoneCompareRewriter,
+    VDictRewriter,
+    VComprehensionRewriter,
+)
+from pysmt.transpiler import SmtTranspiler
+from pysmt.inference import infer_smt_types
 
 from py2many.rewriters import (
     ComplexDestructuringRewriter,
