@@ -293,6 +293,15 @@ class CLikeTranspiler(ast.NodeVisitor):
             return ret
         return typename
 
+    def _get_docstring(self, node) -> str:
+        docstring_comment = getattr(node, "docstring_comment", None)
+        comment = (
+            self.visit_Constant(docstring_comment, quotes=False, docstring=True)
+            if docstring_comment
+            else None
+        )
+        return self.comment(comment) if comment else None
+
     def visit(self, node) -> str:
         if node is None:
             raise AstEmptyNodeFound
@@ -647,6 +656,8 @@ class CLikeTranspiler(ast.NodeVisitor):
         return func
 
     def _func_name_split(self, fname: str) -> Tuple[str, str]:
+        if not fname:
+            return None, None
         splits = fname.rsplit(".", maxsplit=1)
         if len(splits) == 2:
             return tuple(splits)

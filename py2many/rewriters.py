@@ -13,6 +13,8 @@ from typing import Any, cast, Optional
 
 from py2many.tracer import find_node_by_type
 
+from py2many.scope import ScopeList
+
 
 class InferredAnnAssignRewriter(ast.NodeTransformer):
     def visit_Assign(self, node):
@@ -231,11 +233,15 @@ class FStringJoinRewriter(ast.NodeTransformer):
             elif isinstance(v, ast.FormattedValue):
                 arg0.elts.append(
                     ast.Call(
-                        func=ast.Name(id="str", ctx="Load"), args=[v.value], keywords=[]
+                        func=ast.Name(id="str", ctx="Load"),
+                        args=[v.value],
+                        keywords=[],
+                        scopes=getattr(node, "scopes", ScopeList()),
                     )
                 )
         new_node.lineno = node.lineno
         new_node.col_offset = node.col_offset
+        new_node.scopes = getattr(node, "scopes", ScopeList())
         ast.fix_missing_locations(new_node)
         return new_node
 

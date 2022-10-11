@@ -1,6 +1,6 @@
 import ast
+import re
 import textwrap
-from pyjl.helpers import verify_types
 
 from pyjl.plugins import (
     DECORATOR_DISPATCH_TABLE,
@@ -15,30 +15,41 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.tracer import (
     find_node_by_name_and_type,
-    is_list,
     defined_before,
-    is_class_or_module,
-    is_enum,
 )
 
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 
-class JuliaMethodCallRewriter(ast.NodeTransformer):
-    def visit_Call(self, node):
-        fname = node.func
-        if isinstance(fname, ast.Attribute):
-            if is_list(node.func.value) and fname.attr == "append":
-                new_func_name = "push!"
-            else:
-                new_func_name = fname.attr
-            if get_id(fname.value):
-                node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
-            else:
-                node0 = fname.value
-            node.args = [node0] + node.args
-            node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
-        return node
+SPECIAL_CHARACTER_MAP = {
+    "\a": "\\a",
+    "\b": "\\b",
+    "\f": "\\f",
+    "\r": "\\r",
+    "\v": "\\v",
+    "\t": "\\t",
+    "\xe9": "\\xe9",
+    "\xff": "\\xff",
+    "\ud800": "\\ud800",
+    "\udfff": "\\udfff",
+    "\udcdc": "\\udcdc",
+    "\udad1": "\\udad1",
+    "\ud8f0": "\\ud8f0",
+    "\x80": "\\x80",
+}
+
+STR_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {
+    '"': '\\"',
+    "'": "\\'",
+    "\\": "\\\\",
+    "$": "\\$",
+    "\n": "\\n",
+}
+
+BYTES_SPECIAL_CHARACTER_MAP = SPECIAL_CHARACTER_MAP | {'"': '\\"', "\n": "\\n"}
+
+# For now just includes SPECIAL_CHARACTER_MAP
+DOCSTRING_TRANSLATION_MAP = SPECIAL_CHARACTER_MAP
 
 
 class JuliaTranspiler(CLikeTranspiler):
@@ -48,6 +59,9 @@ class JuliaTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set([])
         self._default_type = ""
+        self._str_special_character_map = STR_SPECIAL_CHARACTER_MAP
+        self._bytes_special_character_map = BYTES_SPECIAL_CHARACTER_MAP
+        self._docstr_special_character_map = DOCSTRING_TRANSLATION_MAP
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -60,13 +74,20 @@ class JuliaTranspiler(CLikeTranspiler):
     def _combine_value_index(self, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
-    def visit_Constant(self, node) -> str:
+    def visit_Constant(self, node: ast.Constant, quotes=True, docstring=False) -> str:
         if node.value is True:
             return "true"
         elif node.value is False:
             return "false"
         elif node.value is None:
-            return "nothing"
+            if getattr(node, "is_annotation", None):
+                return "Nothing"
+            else:
+                return self._none_type
+        elif isinstance(node.value, str):
+            return self.visit_Str(node, quotes, docstring)
+        elif isinstance(node.value, bytes):
+            return self.visit_Bytes(node)
         elif isinstance(node.value, complex):
             str_value = str(node.value)
             return (
@@ -74,6 +95,17 @@ class JuliaTranspiler(CLikeTranspiler):
             )
         else:
             return super().visit_Constant(node)
+
+    def visit_Str(self, node: ast.Str, quotes=True, docstring=False) -> str:
+        # Escape special characters
+        trs_map = (
+            self._str_special_character_map
+            if not docstring
+            else self._docstr_special_character_map
+        )
+        node_str = node.value.translate(str.maketrans(trs_map))
+        # node_str = node.value.encode("UTF-8").decode("ascii", "backslashreplace") # Avoid special characters
+        return f'"{node_str}"' if quotes else node_str
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []
@@ -83,16 +115,6 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(args_list)
         node.args_list = args_list
         node.parsed_args = args
-
-        func_generics = set()
-        for arg in node.args.args:
-            ann = getattr(arg, "annotation", None)
-            for g in self._generics:
-                if verify_types(ann, g):
-                    func_generics.add(g)
-        node.maybe_generics = (
-            f"where {', '.join(func_generics)}" if func_generics else ""
-        )
 
         # Parse return type
         return_type = ""
@@ -108,10 +130,6 @@ class JuliaTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "{{{0}}}".format(", ".join(typedecls))
         node.template = template
-
-        # Change functions that have the same name as modules
-        if self._use_modules and node.name == self._module:
-            node.name = f"{node.name}_"
 
         # Visit special functions:
         if node.name in JULIA_SPECIAL_FUNCTIONS:
@@ -134,30 +152,16 @@ class JuliaTranspiler(CLikeTranspiler):
         if body == "...":
             body = ""
 
-        funcdef = (
-            f"function {node.name}{template}({args}){return_type}{node.maybe_generics}"
-        )
-        return f"{funcdef}\n{body}\nend\n"
+        is_python_main = getattr(node, "python_main", False)
+        maybe_main = ""
+        if is_python_main:
+            maybe_main = "\nmain()"
+        funcdef = f"function {node.name}{template}({args}){return_type}"
+        return f"{funcdef}\n{body}\nend\n{maybe_main}"
 
     def _get_args(self, node) -> list[str]:
         typenames, args = self.visit(node.args)
         args_list = []
-
-        # Get self type. Only avoid if:
-        #  - _oop_nested_funcs is being used, as the @oodef macro will do it automatically.
-        #  - the "classmethod" decorator is used
-        if (
-            len(typenames) > 0
-            and (not typenames[0] or typenames[0] == self._default_type)
-            and hasattr(node, "self_type")
-            and not getattr(node, "_oop_nested_funcs", False)
-            and "classmethod" not in node.parsed_decorators
-            and "staticmethod" not in node.parsed_decorators
-        ):
-            if getattr(node, "oop", False):
-                typenames[0] = f"@like({node.self_type})"
-            else:
-                typenames[0] = node.self_type
 
         defaults = node.args.defaults
         len_defaults = len(defaults)
@@ -220,51 +224,40 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
-
         value_id = self.visit(node.value)
+        if (dispatch := getattr(node, "dispatch", None)) and not getattr(
+            node, "in_call", None
+        ):
+            dispatch.func.preserve_keyword = True
+            fname = self.visit(dispatch.func)
+            vargs, _ = self._get_call_args(dispatch)
+            ret = self._dispatch(dispatch, fname, vargs, [])
+            if ret is not None:
+                return ret
 
         if not value_id:
             value_id = ""
 
-        if value_id == "sys":
-            if attr == "argv":
-                return "append!([PROGRAM_FILE], ARGS)"
-
-        if is_enum(value_id, node.scopes):
-            return f"{value_id}.{attr}"
-
-        if is_class_or_module(value_id, node.scopes):
-            return f"{value_id}::{attr}"
+        # If node is an is_annotation or it is not on lhs
+        # and is not a variable, it can be mapped
+        if getattr(node, "is_annotation", False) or (
+            not getattr(node, "lhs", False)
+            and hasattr(node, "scopes")
+            and not node.scopes.find(f"{value_id}.{attr}")
+        ):
+            return self._map_type(f"{value_id}.{attr}")
 
         return f"{value_id}.{attr}"
-
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0:{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}:{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
-    def _visit_print(self, node, vargs: List[str]) -> str:
-        args = ", ".join(vargs)
-        return f'println(join([{args}], " "))'
 
     def visit_Call(self, node: ast.Call) -> str:
         node.func.in_call = True
         # Change functions that have the same name as modules
         fname = self.visit(node.func)
-        if self._use_modules and fname == self._module:
-            fname = f"{fname}_"
         vargs, kwargs = self._get_call_args(node)
 
         ret = self._dispatch(node, fname, vargs, kwargs)
         if ret is not None:
-            if isinstance(node.scopes[-1], ast.Try):
+            if hasattr(node, "scopes") and isinstance(node.scopes[-1], ast.Try):
                 call_func = ret.split("(")[0].split(".")
                 c_list = []
                 for c in call_func:
@@ -275,21 +268,20 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # Check if first arg is of class type.
         # If it is, search for the function in the class scope
-        fndef = node.scopes.find(fname)
-        if vargs and (
-            arg_cls_scope := find_node_by_name_and_type(
-                vargs[0], ast.ClassDef, node.scopes
-            )[0]
+        fndef = node.scopes.find(fname) if node.scopes else None
+        if (
+            fndef
+            and vargs
+            and (
+                arg_cls_scope := find_node_by_name_and_type(
+                    vargs[0], ast.ClassDef, node.scopes
+                )[0]
+            )
         ):
             fndef = arg_cls_scope.scopes.find(fname)
 
         if fndef and hasattr(fndef, "args") and getattr(fndef.args, "args", None):
             fndef_args = fndef.args.args
-            if "staticmethod" in getattr(fndef, "parsed_decorators", {}) and len(
-                vargs
-            ) > len(fndef_args):
-                # Compensate for self argument
-                fndef_args = [ast.arg(arg="self")] + fndef_args
             converted = []
             for varg, fnarg, node_arg in zip(vargs, fndef_args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
@@ -335,9 +327,6 @@ class JuliaTranspiler(CLikeTranspiler):
         buf.append("end")
         return "\n".join(buf)
 
-    def visit_Str(self, node) -> str:
-        return "" + super().visit_Str(node) + ""
-
     def visit_Bytes(self, node) -> str:
         bytes_str = node.s
         bytes_str = bytes_str.replace(b'"', b'\\"')
@@ -361,12 +350,6 @@ class JuliaTranspiler(CLikeTranspiler):
             return "{0} not in {1}".format(left, right)
 
         return super().visit_Compare(node)
-
-    def visit_Name(self, node) -> str:
-        if node.id == "None":
-            return "None"
-        else:
-            return super().visit_Name(node)
 
     def visit_NameConstant(self, node) -> str:
         if node.value is True:
@@ -620,7 +603,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"{target} = {val}"
         return f"{target}::{type_str} = {val}"
 
-    def visit_AugAssign(self, node) -> str:
+    def visit_AugAssign(self, node: ast.AugAssign) -> str:
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)
@@ -673,7 +656,19 @@ class JuliaTranspiler(CLikeTranspiler):
         return "await!({0})".format(self.visit(node.value))
 
     def visit_AsyncFunctionDef(self, node) -> str:
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
+        # Parse function args
+        args_list = self._get_args(node)
+        args = ", ".join(args_list)
+
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+
+        if hasattr(node, "returns") and node.returns:
+            f"@async function {node.name} ({args})::{self.visit(node.returns)}\n{body}end"
+
+        return f"@async function {node.name}({args})\n{body}\nend"
 
     def visit_Yield(self, node) -> str:
         return "//yield is unimplemented"
@@ -739,3 +734,40 @@ class JuliaTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"{test} ? ({body}) : ({orelse})"
+
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
+        str_repr = []
+        for value in node.values:
+            if isinstance(value, ast.Constant):
+                str_repr.append(self.visit_Constant(value, quotes=False))
+            elif isinstance(value, ast.FormattedValue):
+                val_str = self.visit(value)
+                if re.match(r"^'.*'$", val_str):
+                    val_str = val_str[1:-1]
+                str_repr.append(f"$({val_str})")
+            else:
+                str_repr.append(self.visit(value))
+        return f"\"{''.join(str_repr)}\""
+
+    def visit_FormattedValue(self, node: ast.FormattedValue) -> Any:
+        value = self.visit(node.value)
+        conversion = node.conversion
+        if conversion == 115:
+            value = str(value)
+        elif conversion == 114:
+            value = repr(value)
+        elif conversion == 94:
+            value = ascii(value)
+
+        if f_spec_val := getattr(node, "format_spec", None):
+            f_spec_val: str = self.visit(f_spec_val)
+            # Supporting rounding
+            if re.match(r".[\d]*", f_spec_val):
+                f_spec_split = f_spec_val.split(".")
+                if len(f_spec_split) > 1:
+                    f_spec_parsed = f_spec_split[1].replace('"', "")
+                else:
+                    f_spec_parsed = f_spec_val
+                return f"round({value}, digits={f_spec_parsed})"
+
+        return f"{value}"

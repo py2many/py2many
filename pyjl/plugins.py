@@ -1,5 +1,5 @@
 import argparse
-from bisect import bisect, bisect_left, bisect_right
+from bisect import bisect_left, bisect_right
 import contextlib
 import importlib
 import io
@@ -15,7 +15,6 @@ import random
 import re
 import sys
 import traceback
-import bisect
 
 from pyjl.helpers import pycall_import
 
@@ -28,12 +27,6 @@ from py2many.tracer import (
     find_node_by_type,
     is_class_type,
 )
-
-try:
-    from dataclasses import dataclass
-except ImportError:
-    ArgumentParser = "ArgumentParser"
-    ap_dataclass = "ap_dataclass"
 
 
 class JuliaTranspilerPlugins:
@@ -85,7 +78,6 @@ class JuliaTranspilerPlugins:
 
         # Convert into string
         key_vars_str = ", ".join(key_vars)
-        attr_vars_str = ", ".join(attr_vars)
         str_struct_fields = ", ".join(str_struct_fields)
 
         # Visit class body
@@ -254,7 +246,7 @@ class JuliaTranspilerPlugins:
             else:
                 # TODO: Working on it
                 pass
-        return f"zero(Int)"  # Default int value
+        return "zero(Int)"  # Default int value
 
     def visit_cast_float(
         self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]
@@ -265,7 +257,7 @@ class JuliaTranspilerPlugins:
                 return f"parse(Float64, {vargs[0]})"
             else:
                 return f"float({vargs[0]})"
-        return f"zero(Float64)"  # Default float value
+        return "zero(Float64)"  # Default float value
 
     def visit_cast_string(
         self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]
@@ -527,7 +519,7 @@ class JuliaTranspilerPlugins:
             maybe_flush = (
                 f"\nflush({print_repr[0]})"
                 if func_name == "write"
-                else f"\nflush(stdout)"
+                else "\nflush(stdout)"
             )
 
         if end != "\\n" and func_name == "println":
@@ -560,14 +552,14 @@ class JuliaTranspilerPlugins:
         self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]
     ) -> str:
         if not vargs or getattr(node, "is_attr", False):
-            return f"x -> write(stdout, x)"
+            return "x -> write(stdout, x)"
         return f"write(stdout, {vargs[0]})"
 
     def visit_flush(
         self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]
     ) -> str:
         if not vargs or getattr(node, "is_attr", False):
-            return f"flush(stdout)"
+            return "flush(stdout)"
         return f"flush({vargs[0]})"
 
     def visit_textio_read(
@@ -684,9 +676,7 @@ class JuliaTranspilerPlugins:
         self, node: ast.Call, vargs: list[str], kwargs: list[tuple[str, str]]
     ) -> str:
         if len(vargs) < 3:
-            return f"""
-                # Unsupported use of re.sub with less than 3 arguments
-                sub()"""
+            return "# Unsupported use of re.sub with less than 3 arguments sub()"
         else:
             vargs[0] = JuliaTranspilerPlugins._replace_regex_val(
                 node.args[0], vargs[0], "Regex", "r"
@@ -881,14 +871,14 @@ TYPE_CODE_MAP = {
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs, kwargs: f"string({vargs[0]})" if vargs else f"string()",
+    "str": lambda n, vargs, kwargs: f"string({vargs[0]})" if vargs else "string()",
     "len": lambda n, vargs, kwargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs, kwargs: f"enumerate({vargs[0]})",
     # default is false
-    "bool": lambda n, vargs, kwargs: f"Bool({vargs[0]})" if vargs else f"false",
+    "bool": lambda n, vargs, kwargs: f"Bool({vargs[0]})" if vargs else "false",
     # ::Int64 below is a hack to pass comb_sort.jl. Need a better solution
     # "floor": lambda n, vargs, kwargs: f"floor({vargs[0]})",
-    "None": lambda n, vargs, kwargs: f"Nothing",
+    "None": lambda n, vargs, kwargs: "Nothing",
     "sys.argv": lambda n, vargs, kwargs: "append!([PROGRAM_FILE], ARGS)",
     "os.environ": lambda n, vargs, kwargs: "keys(ENV)",
     "sys.meta_path": lambda node, vargs, kwargs: "Base.LOAD_PATH",
@@ -934,8 +924,6 @@ DISPATCH_MAP = {
     "float": JuliaTranspilerPlugins.visit_cast_float,
     "join": JuliaTranspilerPlugins.visit_join,
     "format": JuliaTranspilerPlugins.visit_format,
-    "__next__": JuliaTranspilerPlugins.visit_next,
-    "Generator.__next__": JuliaTranspilerPlugins.visit_next,
     "encode": JuliaTranspilerPlugins.visit_encode,
     # TODO: array.array not supported yet
     # "array.array": JuliaTranspilerPlugins.visit_array
@@ -983,7 +971,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     list: (
-        lambda self, node, vargs, kwargs: f"Vector()"
+        lambda self, node, vargs, kwargs: "Vector()"
         if len(vargs) == 0
         else f"collect({vargs[0]})",
         True,
@@ -991,7 +979,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     bytearray: (JuliaTranspilerPlugins.visit_bytearray, True),
     slice: (lambda self, node, vargs, kwargs: f"({vargs[0]}:{vargs[1]})", False),
     iter: (JuliaTranspilerPlugins.visit_iter, False),
-    next: (JuliaTranspilerPlugins.visit_next, False),
     range: (JuliaTranspilerPlugins.visit_range, False),
     zip: (JuliaTranspilerPlugins.visit_zip, False),
     frozenset.__contains__: (JuliaTranspilerPlugins.visit_frozenset_contains, False),
@@ -1069,15 +1056,15 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         False,
     ),
     sys.stdin.read: (
-        lambda self, node, vargs, kwargs: f"read(stdin, String)"
+        lambda self, node, vargs, kwargs: "read(stdin, String)"
         if len(vargs) == 0
         else f"read({vargs[0]}, {vargs[1]})",
         True,
     ),
-    sys.stdin.write: (lambda self, node, vargs, kwargs: f"open({vargs[0]})", True),
+    # sys.stdin.write: (lambda self, node, vargs, kwargs: f"open({vargs[0]})", True),
     sys.stdin.close: (lambda self, node, vargs, kwargs: f"close({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs, kwargs: f"quit({vargs[0]})", True),
-    sys.stdout: (lambda self, node, vargs, kwargs: f"stdout", True),
+    sys.stdout: (lambda self, node, vargs, kwargs: "stdout", True),
     sys.stdout.buffer.write: (JuliaTranspilerPlugins.visit_write, True),
     sys.stdout.buffer.flush: (JuliaTranspilerPlugins.visit_flush, True),
     open: (JuliaTranspilerPlugins.visit_open, True),
@@ -1100,7 +1087,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         True,
     ),
     # Bisect
-    bisect.bisect: (JuliaTranspilerPlugins.visit_bisect_right, True),
     bisect_right: (JuliaTranspilerPlugins.visit_bisect_right, True),
     bisect_left: (JuliaTranspilerPlugins.visit_bisect_left, True),
     # Random
@@ -1189,7 +1175,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         False,
     ),
     # os (generic)
-    os.cpu_count: (lambda self, node, vargs, kwargs: f"length(Sys.cpu_info())", True),
+    os.cpu_count: (lambda self, node, vargs, kwargs: "length(Sys.cpu_info())", True),
     # importlib
     importlib.import_module: (JuliaTranspilerPlugins.visit_import, False),
     importlib.__import__: (JuliaTranspilerPlugins.visit_import, False),

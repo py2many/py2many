@@ -321,7 +321,7 @@ def julia_settings(args, env=os.environ):
         indent=None,
         rewriters=[],
         transformers=[infer_julia_types, parse_decorators],
-        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()],
+        post_rewriters=[JuliaMethodCallRewriter(), JuliaIndexingRewriter()],
     )
 
 

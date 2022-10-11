@@ -2,12 +2,16 @@ import ast
 
 from ctypes import c_int8, c_int16, c_int32, c_int64
 from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+import logging
+from numbers import Complex, Integral, Rational, Real
 import re
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from py2many.analysis import IGNORED_MODULE_SET
 from py2many.ast_helpers import get_id
+from py2many.astx import LifeTime
 
-from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, class_for_typename
+from py2many.exceptions import AstTypeNotSupported, TypeNotSupported
 from py2many.tracer import find_node_by_name_and_type, find_node_by_type
 from pyjl.global_vars import DEFAULT_TYPE, NONE_TYPE
 
@@ -19,8 +23,10 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
+logger = logging.Logger("pyjl")
+
 # allowed as names in Python but treated as keywords in Julia
-julia_keywords = frozenset(
+JULIA_KEYWORDS = frozenset(
     [
         "abstract",
         "baremodule",
@@ -75,10 +81,19 @@ jl_symbols = {
 
 JULIA_TYPE_MAP = {
     bool: "Bool",
-    int: "Int64",
+    int: "Int",
     float: "Float64",
     bytes: "Array{UInt8}",
     str: "String",
+    Integral: "Integer",
+    complex: "Complex",
+    Complex: "Complex",
+    Rational: "Rational",
+    Real: "Real",
+    None: "Nothing",
+    Any: "Any",
+    object: "DataType",
+    # TODO: ctypes should later be moved
     c_int8: "Int8",
     c_int16: "Int16",
     c_int32: "Int32",
@@ -97,7 +112,7 @@ CONTAINER_TYPE_MAP = {
     frozenset: "pset",
     Tuple: "Tuple",
     tuple: "Tuple",
-    bytearray: f"Vector{{UInt8}}",
+    bytearray: "Vector{UInt8}",
 }
 
 JL_IGNORED_MODULE_SET = set(
@@ -155,6 +170,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._julia_keywords = JULIA_KEYWORDS
         # PyCall Imports
         self._pycall_imports = set()
 
@@ -164,10 +180,18 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         else:
             return super().visit(node)
 
-    def visit_Name(self, node) -> str:
-        if node.id in julia_keywords:
-            return node.id + "_"
-        return super().visit_Name(node)
+    def visit_Name(self, node: ast.Name) -> str:
+        node_id = get_id(node)
+        if getattr(node, "is_annotation", False) or (
+            not getattr(node, "lhs", False)
+            and hasattr(node, "scopes")
+            and not node.scopes.find(node_id)
+            and self._map_type(node_id) != node_id
+        ):
+            return self._map_type(node_id)
+        elif node_id in self._julia_keywords:
+            return f"{node_id}_"
+        return node_id
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Mult):
@@ -180,6 +204,123 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         )
         is_nested = getattr(node, "isnested", None)
         return bin_op if not is_nested else f"({bin_op})"
+
+    # =====================================
+    # Type Mappings
+    # =====================================
+
+    def _map_type(self, typename: str, lifetime=LifeTime.UNKNOWN) -> str:
+        typeclass = self._func_for_lookup(typename)
+        if typeclass is None and typename != "None":
+            return typename
+        elif typeclass in self._type_map:
+            return self._type_map[typeclass]
+        elif typeclass in self._container_type_map:
+            return self._container_type_map[typeclass]
+        else:
+            # Default if no type is found
+            return typename
+
+    def _map_container_type(self, typename) -> str:
+        typeclass = self._func_for_lookup(typename)
+        return self._container_type_map.get(typeclass, self._default_type)
+
+    def _typename_from_annotation(self, node, attr="annotation") -> str:
+        typename = self._default_type
+        if type_node := getattr(node, attr, None):
+            typename = self._typename_from_type_node(
+                type_node, parse_func=self._map_type, default=self._default_type
+            )
+            if isinstance(type_node, ast.Subscript):
+                node.container_type = tuple(
+                    map(self._map_type, type_node.container_type)
+                )
+            if isinstance(type_node, ast.Name):
+                id = self._map_type(get_id(node))
+                if self._func_for_lookup(id) in self._container_type_map:
+                    node.container_type = (id, "Any")
+
+            if cont_type := getattr(node, "container_type", None):
+                try:
+                    return self._visit_container_type(cont_type)
+                except TypeNotSupported as e:
+                    raise AstTypeNotSupported(str(e), node)
+            if self.not_inferable(node, type_node) and typename is None:
+                # raise AstCouldNotInfer(type_node, node)
+                return None
+        return typename
+
+    def not_inferable(self, node, type_node):
+        return (
+            node is None
+            or (isinstance(node, ast.arg))
+            # (isinstance(node, ast.arg) and node.arg == "self")
+            or isinstance(type_node, ast.Constant)
+        )
+
+    def _typename_from_type_node(
+        self, node, parse_func=None, default=None
+    ) -> Union[List, str, None]:
+        if isinstance(node, ast.Name):
+            return self._map_type(
+                get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
+            )
+        elif isinstance(node, ast.Attribute):
+            node_id = get_id(node)
+            if node_id and node_id.startswith("typing."):
+                node_id = node_id.split(".")[1]
+            if (mapped_id := self._map_type(node_id)) != node_id:
+                return mapped_id
+            return f"{self._typename_from_type_node(node.value, parse_func, default)}.{self._map_type(node.attr)}"
+        elif isinstance(node, ast.Subscript):
+            (value_type, index_type) = tuple(
+                map(
+                    lambda x: self._typename_from_type_node(x, parse_func, default),
+                    (node.value, node.slice),
+                )
+            )
+            node.container_type = (value_type, index_type)
+            return f"{value_type}{{{index_type}}}"
+        elif isinstance(node, ast.Constant):
+            if node.value in JULIA_TYPE_MAP:
+                # Can't use self._map_type, as it uses self._func_for_lookup.
+                # By supplying the type None, it will not work
+                return JULIA_TYPE_MAP[node.value]
+        elif isinstance(node, ast.Tuple) or isinstance(node, ast.List):
+            elts = list(
+                map(
+                    lambda x: self._typename_from_type_node(x, parse_func, default),
+                    node.elts,
+                )
+            )
+            return ", ".join(elts)
+        return default
+
+    def _combine_value_index(self, value_type, index_type) -> str:
+        return f"{value_type}{{{index_type}}}"
+
+    def _visit_container_type(self, typename: Tuple) -> str:
+        value_type, index_type = typename
+        if isinstance(index_type, List):
+            parsed_items = []
+            for it in index_type:
+                parsed_items.append(self._map_type(it))
+            index_type = ", ".join(parsed_items)
+        else:
+            index_type = self._map_type(index_type)
+        value_type = self._map_type(value_type)
+        return self._combine_value_index(value_type, index_type)
+
+    def _func_for_lookup(self, fname) -> Union[str, object]:
+        func = class_for_typename(fname, self._default_type, self._imported_names)
+        if func is None:
+            return None
+        try:
+            hash(func)
+        except TypeError:
+            logger.debug(f"{func} is not hashable")
+            return None
+        return func
 
     # =====================================
     # Dispatch Mechanism
@@ -298,10 +439,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def _find_last_base(self, node: ast.ClassDef, base_str):
         for base in node.bases:
-            base_str = self.visit(base)
+            base_str = get_id(base)
             if superclass := find_node_by_name_and_type(
                 base_str, ast.ClassDef, node.scopes
             )[0]:
-                # print(superclass.bases)
                 return self._find_last_base(superclass, base_str)
         return base_str
