@@ -17,6 +17,8 @@ def decltype(node):
 # is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
+        if isinstance(scope, ast.ClassDef) and scope.name == name:
+            return scope
         for entry in scope.body:
             if isinstance(entry, ast.ClassDef):
                 if entry.name == name:
@@ -71,6 +73,64 @@ def is_list(node):
         return False
 
 
+# Searches if a given name is associated to a class
+# object given a scope.
+def is_class_type(name, scopes):
+    return get_class_scope(name, scopes) is not None
+
+
+# Gets the class scope given a name
+def get_class_scope(name, scopes):
+    entry = _lookup_value_type_name(name, scopes)
+    if entry is None:
+        # Try looking for class module with given name
+        entry = _lookup_class_or_module(name, scopes)
+    else:
+        entry = _lookup_class_or_module(get_id(entry), scopes)
+    return entry
+
+
+def _lookup_value_type_name(name, scopes):
+    for scope in scopes:
+        for entry in scope.body:
+            if isinstance(entry, ast.Assign):
+                if (
+                    name in list(map(get_id, entry.targets))
+                    and hasattr(entry, "value")
+                    and isinstance(entry.value, ast.Call)
+                    and hasattr(entry.value, "func")
+                ):
+                    return entry.value.func
+            if isinstance(entry, ast.AnnAssign) or isinstance(entry, ast.AugAssign):
+                if name == get_id(entry.target) and hasattr(entry.value, "func"):
+                    return entry.value.func
+    return None
+
+
+# Finds a node by its name and type
+def find_node_by_name_and_type(name, node_type, scopes):
+    if name is None:
+        return None, None
+    c_node = None
+    scope_name = None
+    for i in range(len(scopes) - 1, -1, -1):
+        sc = scopes[i]
+        if isinstance(sc, node_type) and matches_name(sc, name):
+            c_node = sc
+            break
+        c_node = find_in_body(
+            sc.body, (lambda x: isinstance(x, node_type) and matches_name(x, name))
+        )
+        if c_node:
+            scope_name = (
+                get_id(sc)
+                if (isinstance(sc, ast.FunctionDef) or isinstance(sc, ast.ClassDef))
+                else "module"
+            )
+            break
+    return c_node, scope_name
+
+
 # Searches for the first node of type node_type using
 # the given scope (search in reverse order)
 def find_node_by_type(node_type, scopes):
@@ -103,8 +163,27 @@ def find_in_body(body, fn):
             ret = find_in_body(node.body, fn)
             if ret:
                 return ret
+        elif hasattr(node, "handlers"):
+            # Visit exception handlers
+            ret = find_in_body(node.handlers, fn)
+            if ret:
+                return ret
 
     return None
+
+
+# Checks if a given node's name matches
+# the supplied name
+def matches_name(node, name):
+    return (
+        (isinstance(node, ast.Assign) and get_id(node.targets[0]) == name)
+        or (
+            (isinstance(node, ast.AnnAssign) or isinstance(node, ast.AugAssign))
+            and get_id(node.target) == name
+        )
+        or (hasattr(node, "func") and get_id(node.func) == name)
+        or (get_id(node) == name)
+    )
 
 
 def value_expr(node):

@@ -1,21 +1,25 @@
 import ast
 import textwrap
+from pyjl.helpers import verify_types
+
+from pyjl.plugins import (
+    DECORATOR_DISPATCH_TABLE,
+    JULIA_SPECIAL_FUNCTIONS,
+    MODULE_DISPATCH_TABLE,
+)
 
 from .clike import CLikeTranspiler
-from .plugins import (
-    ATTR_DISPATCH_TABLE,
-    CLASS_DISPATCH_TABLE,
-    FUNC_DISPATCH_TABLE,
-    MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
-    SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
-)
 
 from py2many.analysis import get_id, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.clike import _AUTO_INVOKED, class_for_typename
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
+from py2many.tracer import (
+    find_node_by_name_and_type,
+    is_list,
+    defined_before,
+    is_class_or_module,
+    is_enum,
+)
 
 from typing import List, Tuple
 
@@ -40,23 +44,10 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "Array",
-        "Dict": "Dict",
-        "Set": "Set",
-        "Optional": "Nothing",
-    }
-
     def __init__(self):
         super().__init__()
         self._headers = set([])
         self._default_type = ""
-        self._container_type_map = self.CONTAINER_TYPE_MAP
-        self._dispatch_map = DISPATCH_MAP
-        self._small_dispatch_map = SMALL_DISPATCH_MAP
-        self._small_usings_map = SMALL_USINGS_MAP
-        self._func_dispatch_table = FUNC_DISPATCH_TABLE
-        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
@@ -84,47 +75,124 @@ class JuliaTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_FunctionDef(self, node) -> str:
-        body = "\n".join([self.visit(n) for n in node.body])
-        typenames, args = self.visit(node.args)
-
-        args_list = []
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> str:
         typedecls = []
-        index = 0
 
-        is_python_main = getattr(node, "python_main", False)
+        # Parse function args
+        args_list = self._get_args(node)
+        args = ", ".join(args_list)
+        node.args_list = args_list
+        node.parsed_args = args
 
-        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
+        func_generics = set()
+        for arg in node.args.args:
+            ann = getattr(arg, "annotation", None)
+            for g in self._generics:
+                if verify_types(ann, g):
+                    func_generics.add(g)
+        node.maybe_generics = (
+            f"where {', '.join(func_generics)}" if func_generics else ""
+        )
 
-        for i in range(len(args)):
-            typename = typenames[i]
-            arg = args[i]
-            if typename == "T":
-                typename = "T{0}".format(index)
-                typedecls.append(typename)
-                index += 1
-            args_list.append("{0}::{1}".format(arg, typename))
-
+        # Parse return type
         return_type = ""
         if not is_void_function(node):
             if node.returns:
-                typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f"::{typename}"
-            else:
-                return_type = "::RT"
-                typedecls.append("RT")
+                func_typename = self._typename_from_annotation(node, attr="returns")
+                mapped_type = self._map_type(func_typename)
+                if mapped_type:
+                    return_type = f"::{self._map_type(func_typename)}"
+        node.return_type = return_type
 
         template = ""
         if len(typedecls) > 0:
             template = "{{{0}}}".format(", ".join(typedecls))
+        node.template = template
 
-        args = ", ".join(args_list)
-        funcdef = f"function {node.name}{template}({args}){return_type}"
-        maybe_main = ""
-        if is_python_main:
-            maybe_main = "\nmain()"
-        return f"{funcdef}\n{body}\nend\n{maybe_main}"
+        # Change functions that have the same name as modules
+        if self._use_modules and node.name == self._module:
+            node.name = f"{node.name}_"
+
+        # Visit decorators
+        for ((d_id, _), decorator) in zip(
+            node.parsed_decorators.items(), node.decorator_list
+        ):
+            if d_id in DECORATOR_DISPATCH_TABLE:
+                ret = DECORATOR_DISPATCH_TABLE[d_id](self, node, decorator)
+                if ret is not None:
+                    return ret
+
+        # Visit function body
+        docstring_parsed: str = self._get_docstring(node)
+        body = [docstring_parsed] if docstring_parsed else []
+        body.extend([self.visit(n) for n in node.body])
+        body = "\n".join(body)
+        if body == "...":
+            body = ""
+
+        funcdef = (
+            f"function {node.name}{template}({args}){return_type}{node.maybe_generics}"
+        )
+        return f"{funcdef}\n{body}\nend\n"
+
+    def _get_args(self, node) -> list[str]:
+        typenames, args = self.visit(node.args)
+        args_list = []
+
+        # Get self type. Only avoid if:
+        #  - _oop_nested_funcs is being used, as the @oodef macro will do it automatically.
+        #  - the "classmethod" decorator is used
+        if (
+            len(typenames) > 0
+            and (not typenames[0] or typenames[0] == self._default_type)
+            and hasattr(node, "self_type")
+            and not getattr(node, "_oop_nested_funcs", False)
+            and "classmethod" not in node.parsed_decorators
+            and "staticmethod" not in node.parsed_decorators
+        ):
+            if getattr(node, "oop", False):
+                typenames[0] = f"@like({node.self_type})"
+            else:
+                typenames[0] = node.self_type
+
+        defaults = node.args.defaults
+        len_defaults = len(defaults)
+        len_args = len(args)
+        for i in range(len_args):
+            arg = args[i]
+            arg_typename = typenames[i]
+
+            if arg_typename and arg_typename != "T":
+                arg_typename = self._map_type(arg_typename)
+
+            # Get default parameter values
+            default = None
+            if defaults:
+                if len_defaults != len_args:
+                    diff_len = len_args - len_defaults
+                    default = defaults[i - diff_len] if i >= diff_len else None
+                else:
+                    default = defaults[i]
+
+            if default is not None:
+                default = self.visit(default)
+
+            arg_signature = ""
+            if arg_typename and arg_typename != self._default_type:
+                arg_signature = (
+                    f"{arg}::{arg_typename}"
+                    if default is None
+                    else f"{arg}::{arg_typename} = {default}"
+                )
+            else:
+                arg_signature = f"{arg}" if default is None else f"{arg} = {default}"
+            args_list.append(arg_signature)
+
+        if node.args.vararg:
+            _, arg = self.visit(node.args.vararg)
+            args_list.append(f"{arg}...")
+
+        return args_list
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -182,34 +250,77 @@ class JuliaTranspiler(CLikeTranspiler):
         args = ", ".join(vargs)
         return f'println(join([{args}], " "))'
 
-    def visit_Call(self, node) -> str:
+    def visit_Call(self, node: ast.Call) -> str:
+        node.func.in_call = True
+        # Change functions that have the same name as modules
         fname = self.visit(node.func)
-        fndef = node.scopes.find(fname)
-        vargs = []
+        if self._use_modules and fname == self._module:
+            fname = f"{fname}_"
+        vargs, kwargs = self._get_call_args(node)
 
-        if node.args:
-            vargs += [self.visit(a) for a in node.args]
-        if node.keywords:
-            vargs += [self.visit(kw.value) for kw in node.keywords]
-
-        ret = self._dispatch(node, fname, vargs)
+        ret = self._dispatch(node, fname, vargs, kwargs)
         if ret is not None:
+            if isinstance(node.scopes[-1], ast.Try):
+                call_func = ret.split("(")[0].split(".")
+                c_list = []
+                for c in call_func:
+                    c_list.append(c)
+                    if ".".join(c_list) in self._pycall_imports:
+                        self._is_pycall_exception = True
             return ret
 
-        if fndef and hasattr(fndef, "args"):
+        # Check if first arg is of class type.
+        # If it is, search for the function in the class scope
+        fndef = node.scopes.find(fname)
+        if vargs and (
+            arg_cls_scope := find_node_by_name_and_type(
+                vargs[0], ast.ClassDef, node.scopes
+            )[0]
+        ):
+            fndef = arg_cls_scope.scopes.find(fname)
+
+        if fndef and hasattr(fndef, "args") and getattr(fndef.args, "args", None):
+            fndef_args = fndef.args.args
+            if "staticmethod" in getattr(fndef, "parsed_decorators", {}) and len(
+                vargs
+            ) > len(fndef_args):
+                # Compensate for self argument
+                fndef_args = [ast.arg(arg="self")] + fndef_args
             converted = []
-            for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
+            for varg, fnarg, node_arg in zip(vargs, fndef_args, node.args):
                 actual_type = self._typename_from_annotation(node_arg)
                 declared_type = self._typename_from_annotation(fnarg)
-                if actual_type != declared_type and actual_type != self._default_type:
+                if (
+                    declared_type
+                    and actual_type
+                    and declared_type != self._default_type
+                    and actual_type != self._default_type
+                    and actual_type != declared_type
+                    and not actual_type.startswith("Optional")
+                ):  # TODO: Skip conversion of Optional for now
                     converted.append(f"convert({declared_type}, {varg})")
                 else:
                     converted.append(varg)
         else:
             converted = vargs
 
+        # Join kwargs to converted vargs
+        converted.extend([f"{k[0]} = {k[1]}" for k in kwargs])
+
         args = ", ".join(converted)
         return f"{fname}({args})"
+
+    def _get_call_args(self, node: ast.Call):
+        vargs = []
+        kwargs = []
+        if node.args:
+            for a in node.args:
+                vargs.append(self.visit(a))
+        if node.keywords:
+            for n in node.keywords:
+                arg_str = n.arg if n.arg not in self._julia_keywords else f"{n.arg}_"
+                kwargs.append((arg_str, self.visit(n.value)))
+        return vargs, kwargs
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -328,8 +439,8 @@ class JuliaTranspiler(CLikeTranspiler):
             class_for_typename(t, None, self._imported_names) for t in decorators
         ]
         for d in decorators:
-            if d in CLASS_DISPATCH_TABLE:
-                ret = CLASS_DISPATCH_TABLE[d](self, node)
+            if d in DECORATOR_DISPATCH_TABLE:
+                ret = DECORATOR_DISPATCH_TABLE[d](self, node)
                 if ret is not None:
                     return ret
 
