@@ -3,7 +3,7 @@ function main()
     @assert(b"\"" == b"\"")
     @assert(b"'" == b"'")
     @assert(b"\xbbfoo" == b"\xbbfoo")
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

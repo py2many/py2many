@@ -3,7 +3,7 @@ function for_with_break()
         if i == 2
             break
         end
-        println(join([i], " "))
+        println(i)
     end
 end
 
@@ -12,14 +12,14 @@ function for_with_continue()
         if i == 2
             continue
         end
-        println(join([i], " "))
+        println(i)
     end
 end
 
 function for_with_else()
     has_break = false
     for i = 0:4-1
-        println(join([i], " "))
+        println(i)
     end
     if has_break != true
         println(join(["OK"], " "))
@@ -32,7 +32,7 @@ function while_with_break()
         if i == 2
             break
         end
-        println(join([i], " "))
+        println(i)
         i += 1
     end
 end
@@ -44,7 +44,7 @@ function while_with_continue()
         if i == 2
             continue
         end
-        println(join([i], " "))
+        println(i)
     end
 end
 

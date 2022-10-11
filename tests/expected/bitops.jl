@@ -1,8 +1,8 @@
 
 function main_func()
-    ands::Array{Bool} = []
-    ors::Array{Bool} = []
-    xors::Array{Bool} = []
+    ands::Vector{Bool} = []
+    ors::Vector{Bool} = []
+    xors::Vector{Bool} = []
     for a in [false, true]
         for b in [false, true]
             push!(ands, a & b)
@@ -13,7 +13,7 @@ function main_func()
     @assert(ands == [false, false, false, true])
     @assert(ors == [false, true, true, true])
     @assert(xors == [false, true, true, false])
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 function main()

@@ -1,4 +1,4 @@
-function compare_assert(a::Int64, b::Int64)
+function compare_assert(a::Int, b::Int)
     @assert(a == b)
     @assert(!(0 == 1))
 end
@@ -9,7 +9,7 @@ function main()
     compare_assert(1, 1)
     @assert(true)
     @assert(true)
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

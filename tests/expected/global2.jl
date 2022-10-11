@@ -6,7 +6,7 @@ l_b = Set([code_a])
 l_c = Dict(code_b => code_0)
 function main()
     @assert("a" in l_b)
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

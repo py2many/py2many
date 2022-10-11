@@ -1,12 +1,12 @@
 function show()
-    println(join(["b"], " "))
-    println(join([2, "b"], " "))
+    println("b")
+    println("2 b")
     a::Float64 = 2.1
-    println(join([a], " "))
+    println(a)
     b = 2.1
-    println(join([b], " "))
+    println(b)
     c = true
-    println(join([c ? ("True") : ("False")], " "))
+    println(c ? ("True") : ("False"))
 end
 
 function main()

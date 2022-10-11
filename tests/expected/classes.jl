@@ -2,18 +2,18 @@ struct Foo
 
 end
 
-function bar(self::Foo)::Int64
+function bar(self)::Int
     return baz(self)
 end
 
-function baz(self::Foo)::Int64
+function baz(self)::Int
     return 10
 end
 
 function main()
     f = Foo()
     b = bar(f)
-    println(join([b], " "))
+    println(b)
     @assert(b == 10)
 end
 

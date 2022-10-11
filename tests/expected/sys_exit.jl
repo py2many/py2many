@@ -1,7 +1,7 @@
 
 function main()
-    println(join(["OK"], " "))
-    exit(sys, 1)
+    println("OK")
+    exit(1)
 end
 
 main()

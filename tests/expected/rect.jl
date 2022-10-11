@@ -1,21 +1,22 @@
 # This file implements a rectangle class 
 
 struct Rectangle
-    height::Int64
-    length::Int64
+    height::Int
+    length::Int
 end
 
-function is_square(self::Rectangle)::Bool
+function is_square(self)::Bool
+    # Go likes this to be camel case
     return self.height == self.length
 end
 
 function show()
-    r = Rectangle(1, 1)
+    r = Rectangle(height = 1, length = 1)
     @assert(is_square(r))
-    r = Rectangle(1, 2)
+    r = Rectangle(height = 1, length = 2)
     @assert(!(is_square(r)))
-    println(join([r.height], " "))
-    println(join([r.length], " "))
+    println(r.height)
+    println(r.length)
 end
 
 function main()

@@ -2,14 +2,14 @@ struct Foo
 
 end
 
-function bar(self::Foo)::String
+function bar(self)::String
     return "a"
 end
 
 function main()
     f = Foo()
     b = bar(f)
-    println(join([b], " "))
+    println(b)
 end
 
 main()

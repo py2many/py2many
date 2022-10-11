@@ -1,8 +1,8 @@
 function default_builtins()
-    a = ""
+    a = String()
     b = false
-    c = 0
-    d = float()
+    c = zero(Int)
+    d = zero(Float64)
     @assert(a == "")
     @assert(b == false)
     @assert(c == 0)
@@ -11,11 +11,11 @@ end
 
 function main()
     a = max(1, 2)
-    println(join([a], " "))
+    println(a)
     b = min(1, 2)
-    println(join([b], " "))
-    c = Int64(floor(min(1.0, 2.0)))
-    println(join([c], " "))
+    println(b)
+    c = Int(floor(min(1.0, 2.0)))
+    println(c)
 end
 
 main()

@@ -13,7 +13,7 @@ end
 
 function main()
     complex_test()
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

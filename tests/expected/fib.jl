@@ -1,4 +1,4 @@
-function fib(i::Int64)::Int64
+function fib(i::Int)::Int
     if i == 0 || i == 1
         return 1
     end
@@ -6,7 +6,7 @@ function fib(i::Int64)::Int64
 end
 
 function main()
-    println(join([fib(5)], " "))
+    println(fib(5))
 end
 
 main()

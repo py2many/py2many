@@ -18,17 +18,17 @@ function show()
     color_map = Dict(Colors.RED => "red", Colors.GREEN => "green", Colors.BLUE => "blue")
     a = Colors.GREEN
     if a == Colors.GREEN
-        println(join(["green"], " "))
+        println("green")
     else
 
-        println(join(["Not green"], " "))
+        println("Not green")
     end
     b = Permissions.R
     if b == Permissions.R
-        println(join(["R"], " "))
+        println("R")
     else
 
-        println(join(["Not R"], " "))
+        println("Not R")
     end
     @assert(length(color_map) != 0)
 end

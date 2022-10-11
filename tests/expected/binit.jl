@@ -1,9 +1,9 @@
 
-function bisect_right(data::Array{Int64}, item::Int64)::Int64
+function bisect_right(data::Vector{Int}, item::Int)::Int
     low = 0
-    high::Int64 = Int64(length(data))
+    high::Int = convert(Int, length(data))
     while low < high
-        middle = Int64(floor((low + high) / 2))
+        middle = Int(floor((low + high) / 2))
         if item < data[middle+1]
             high = middle
         else
@@ -14,7 +14,7 @@ function bisect_right(data::Array{Int64}, item::Int64)::Int64
     return low
 end
 
-function bin_it(limits::Array{Int64}, data::Array{Int64})::Array{Int64}
+function bin_it(limits::Vector{Int}, data::Vector{Int})::Vector{Int}
     bins = [0]
     for _x in limits
         push!(bins, 0)
@@ -80,7 +80,7 @@ function main()
         55,
     ]
     @assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13])
-    println(join(["OK"], " "))
+    println("OK")
 end
 
 main()

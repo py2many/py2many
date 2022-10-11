@@ -2,7 +2,7 @@ function foo()
     a = 10
     b = a
     @assert(b == 10)
-    println(join([b], " "))
+    println(b)
 end
 
 function main()

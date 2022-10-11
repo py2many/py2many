@@ -1,6 +1,6 @@
 function main()
-    println(join(["Hello world!"], " "))
-    println(join(["Hello", "world!"], " "))
+    println("Hello world!")
+    println("Hello world!")
 end
 
 main()
