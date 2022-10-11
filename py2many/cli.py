@@ -122,11 +122,12 @@ def _transpile(
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
-        FStringJoinRewriter(language),
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
     ]
+    if settings.ext != ".jl":
+        generic_rewriters.append(FStringJoinRewriter(language))
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
         PrintBoolRewriter(language),
