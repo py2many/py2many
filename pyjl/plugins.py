@@ -1366,10 +1366,6 @@ DECORATOR_DISPATCH_TABLE = {
     "staticmethod": JuliaTranspilerPlugins.visit_staticmethod,
 }
 
-CLASS_DISPATCH_TABLE = {
-    # "dataclass": JuliaTranspilerPlugins.visit_argparse_dataclass,
-}
-
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
 }

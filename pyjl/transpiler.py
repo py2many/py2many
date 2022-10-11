@@ -109,8 +109,8 @@ class JuliaTranspiler(CLikeTranspiler):
                 (not getattr(node, "lhs", False) and
                     hasattr(node, "scopes") and
                     not node.scopes.find(node_id) and 
-                    not getattr(node, "in_call", None)
-                    and self._map_type(node_id) != node_id):
+                    not getattr(node, "in_call", None) and
+                    self._map_type(node_id) != node_id):
             return self._map_type(node_id)
         elif node_id in self._julia_keywords and \
                 not getattr(node, "preserve_keyword", False):

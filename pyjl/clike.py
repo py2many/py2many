@@ -279,11 +279,6 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
         is_nested = getattr(node, "isnested", None)
         return bin_op if not is_nested else f"({bin_op})"
 
-    def visit_In(self, node) -> str:
-        left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
-        return f"{left} in {right}"
-
     def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
         return f"({self.visit(node.target)} = {self.visit(node.value)})"
 
@@ -543,6 +538,5 @@ class CLikeTranspiler(CommonCLikeTranspiler, JuliaNodeVisitor, ExternalBase):
             if superclass := find_node_by_name_and_type(
                 base_str, ast.ClassDef, node.scopes
             )[0]:
-                # print(superclass.bases)
                 return self._find_last_base(superclass, base_str)
         return base_str
