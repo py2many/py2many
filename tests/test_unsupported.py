@@ -9,8 +9,6 @@ from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
 
-from py2many.input_configurations import parse_input_configurations
-
 try:
     from astpretty import pprint as ast_pretty_print
 except ImportError:

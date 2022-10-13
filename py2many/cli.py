@@ -8,7 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
-from unittest.mock import Mock
 
 from py2many.input_configurations import config_rewriters, parse_input_configurations
 
