@@ -116,6 +116,7 @@ jobs:
                   z3 \
                 && true
               pip3 install conan
+              pip3 install pyyaml
               echo "CXX=clang++-14" >> $GITHUB_ENV
               curl -sSLO https://github.com/pinterest/ktlint/releases/download/0.48.2/ktlint
               chmod a+x ktlint
@@ -131,7 +132,9 @@ jobs:
                   kscript \
                   ktlint \
                   z3 \
+                  libyaml \
                 && true
+              python -m easy_install pyyaml
               # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install \
@@ -141,6 +144,7 @@ jobs:
                   llvm \
                   zip \
                 && true
+              pip3 install pyyaml
               echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
           fi
           echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
