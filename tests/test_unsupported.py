@@ -9,6 +9,8 @@ from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
 
+from py2many.input_configurations import parse_input_configurations
+
 try:
     from astpretty import pprint as ast_pretty_print
 except ImportError:
@@ -389,6 +391,9 @@ class CodeGeneratorTests(unittest.TestCase):
         source_data = "from ctypes import c_int8 as i8, c_int16 as i16\n" + case
         tree = get_tree(source_data, ext)
 
+        # Placeholder
+        config_handler = None
+
         try:
             _transpile_one(
                 [tree],
@@ -397,6 +402,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 settings.rewriters,
                 settings.transformers,
                 settings.post_rewriters,
+                config_handler,
                 None,
             )
         except Exception as e:
