@@ -343,7 +343,9 @@ class CodeGeneratorTests(unittest.TestCase):
             raise unittest.SkipTest(f"{env['CXX']} not available")
 
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
-        assert settings.linter[0].startswith("g++")
+        assert settings.linter[0].startswith("clang++") \
+            if sys.platform == "darwin" \
+            else settings.linter[0].startswith("g++")
 
         if not spawn.find_executable("astyle"):
             raise unittest.SkipTest("astyle not available")
