@@ -190,10 +190,20 @@ class CLikeTranspiler(ast.NodeVisitor):
             else:
                 slice_value = node.slice
         else:
-            if isinstance(node.slice, ast.Slice):
-                raise AstNotImplementedError("Advanced Slicing not supported", node)
-            slice_value = node.slice
+            slice_value = self.visit(node.slice)
         return slice_value
+
+    def visit_Slice(self, node: ast.Slice) -> Any:
+        # Simple slice translation
+        lower, upper, step = "", "", ""
+        if node.lower:
+            lower = self.visit(node.lower)
+        if node.upper:
+            upper = self.visit(node.upper)
+        if node.step:
+            step = self.visit(node.step)
+            return f"({lower}, {upper}, {step})"
+        return f"({lower}, {upper})"
 
     def _visit_container_type(self, typename: Tuple) -> str:
         value_type, index_type = typename
@@ -310,7 +320,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_alias(self, node):
         return (node.name, node.asname)
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         ...
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
