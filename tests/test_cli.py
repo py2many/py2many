@@ -336,7 +336,7 @@ class CodeGeneratorTests(unittest.TestCase):
             raise unittest.SkipTest(f"{expected_filename} not found")
 
         env = os.environ.copy()
-        env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
+        env["CXX"] = "clang++" if sys.platform == "darwin" else "g++"
         env["CXXFLAGS"] = "-std=c++17 -Wall -Werror"
 
         if not spawn.find_executable(env["CXX"]):
