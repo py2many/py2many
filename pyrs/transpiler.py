@@ -326,13 +326,16 @@ class RustTranspiler(CLikeTranspiler):
         if not value_id:
             value_id = ""
 
-        if is_class_or_module(value_id, node.scopes):
-            return "{0}::{1}".format(value_id, attr)
-
+        # Default result
         ret = f"{value_id}.{attr}"
+
+        # Moved here due to incompatibilities with is_class_or_module
         if ret in self._attr_dispatch_table:
             ret = self._attr_dispatch_table[ret]
             return ret(self, node, value_id, attr)
+
+        if is_class_or_module(value_id, node.scopes):
+            return "{0}::{1}".format(value_id, attr)
         return ret
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
