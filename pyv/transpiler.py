@@ -175,7 +175,7 @@ class VTranspiler(CLikeTranspiler):
     def comment(self, text: str) -> str:
         return f"// {text}\n"
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
         return ""
 

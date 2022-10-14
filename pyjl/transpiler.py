@@ -493,7 +493,7 @@ class JuliaTranspiler(CLikeTranspiler):
             fields.append((member, var))
         return self._visit_enum(node, "Int64", fields)
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:

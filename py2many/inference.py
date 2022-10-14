@@ -182,6 +182,12 @@ class InferTypesTransformer(ast.NodeTransformer):
             raise NotImplementedError(f"{t} not found in TYPE_DICT")
         return annotation
 
+    def visit_Module(self, node: ast.Module):
+        self._imported_names = getattr(node, "imported_names", None)
+        self._clike._imported_names = self._imported_names
+        self.generic_visit(node)
+        return node
+
     def visit_NameConstant(self, node):
         if node.value is Ellipsis:
             return node

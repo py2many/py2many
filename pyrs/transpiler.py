@@ -640,7 +640,7 @@ class RustTranspiler(CLikeTranspiler):
             f"flags! {{\n    pub enum {node.name}: c_int {{\n{fields}\n    }}\n}}\n\n"
         )
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         if name not in self._rust_ignored_module_set:
             self._usings.add(name)
         return ""

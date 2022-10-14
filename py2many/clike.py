@@ -146,6 +146,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._attr_dispatch_table = {}
         self._keywords = {}
         self._throw_on_unimplemented = True
+        self._globals = set([])
 
     def headers(self, meta=None):
         return ""
@@ -319,14 +320,18 @@ class CLikeTranspiler(ast.NodeVisitor):
         return self.comment("pass")
 
     def visit_Module(self, node) -> str:
+        # Reset state
+        self._usings.clear()
+        self._headers.clear()
+        self._globals.clear()
+        self._imported_names = getattr(node, "imported_names", {})
+        self._features.clear()
+
         docstring = getattr(node, "docstring_comment", None)
         buf = [self.comment(docstring.value)] if docstring is not None else []
         filename = getattr(node, "__file__", None)
         if filename is not None:
             self._module = Path(filename).stem
-        # TODO: generalize this to reset all state that needs to be reset
-        self._imported_names = {}
-        self._usings.clear()
         body_dict: Dict[ast.AST, str] = OrderedDict()
         for b in node.body:
             if not isinstance(b, ast.FunctionDef):
@@ -343,7 +348,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_alias(self, node):
         return (node.name, node.asname)
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         ...
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
@@ -351,18 +356,15 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
-        imports = [
-            self._import(name)
-            for name, alias in names
-            if name not in self._ignored_module_set
-        ]
-        for name, asname in names:
-            if asname is not None:
-                try:
-                    imported_name = importlib.import_module(name)
-                except ImportError:
-                    imported_name = name
-                self._imported_names[asname] = imported_name
+        imports = []
+        for name, alias in names:
+            n_import = name.split(".")
+            for i in range(len(n_import)):
+                import_name = ".".join(n_import[0 : i + 1])
+                if import_name in self._ignored_module_set:
+                    break
+            else:
+                imports.append(self._import(name, alias))
         return "\n".join(imports)
 
     def visit_ImportFrom(self, node) -> str:
@@ -370,23 +372,11 @@ class CLikeTranspiler(ast.NodeVisitor):
             return ""
 
         imported_name = node.module
-        imported_module = None
-        if node.module:
-            try:
-                imported_module = importlib.import_module(node.module)
-            except ImportError:
-                pass
-        else:
+        if not node.module:
             # Import from '.'
             imported_name = "."
 
         names = [self.visit(n) for n in node.names]
-        for name, asname in names:
-            asname = asname if asname is not None else name
-            if imported_module:
-                self._imported_names[asname] = getattr(imported_module, name, None)
-            else:
-                self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 

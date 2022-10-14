@@ -1,4 +1,6 @@
 import ast
+import importlib
+from typing import Any
 
 from .ast_helpers import get_id
 
@@ -139,17 +141,71 @@ class AttributeCallTransformer(ast.NodeTransformer):
 
 
 class ImportTransformer(ast.NodeTransformer):
-    """Adds imports to scope block"""
+    """Adds imports to scope block and analyses import names"""
 
-    def visit_ImportFrom(self, node):
-        for name in node.names:
-            name.imported_from = node
-            scope = name.scopes[-1]
-            if hasattr(scope, "imports"):
-                scope.imports.append(name)
+    def __init__(self) -> None:
+        super().__init__()
+        self._imported_names = {}
+
+    def visit_Import(self, node) -> str:
+        for (name, asname), imp_name in zip(self._get_aliases(node.names), node.names):
+            self._add_scope_imports(node, imp_name)
+            try:
+                imported_name = importlib.import_module(name)
+            except ImportError:
+                imported_name = name
+            if asname is not None:
+                self._imported_names[asname] = imported_name
+            else:
+                self._imported_names[name] = imported_name
         return node
 
+    def visit_ImportFrom(self, node) -> str:
+        imported_name = node.module
+        imported_module = None
+        if node.module:
+            try:
+                imported_module = importlib.import_module(node.module)
+            except ImportError:
+                pass
+        else:
+            # Import from '.'
+            imported_name = "."
+
+        for (name, asname), imp_name in zip(self._get_aliases(node.names), node.names):
+            self._add_scope_imports(node, imp_name)
+            asname = asname if asname is not None else name
+            if imported_module:
+                self._imported_names[asname] = getattr(imported_module, name, None)
+            else:
+                self._imported_names[asname] = (imported_name, name)
+        return node
+
+    def _get_aliases(self, names: list[ast.alias]):
+        aliases = []
+        for n in names:
+            aliases.append((n.name, getattr(n, "asname", None)))
+        return aliases
+
+    def _add_scope_imports(self, node, name) -> Any:
+        name.imported_from = node
+        scope = name.scopes[-1]
+        if hasattr(scope, "imports"):
+            scope.imports.append(name)
+
     def visit_Module(self, node):
+        self._imported_names = {}
+        node.imports = []
+        self.generic_visit(node)
+        node.imported_names = self._imported_names
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        node.imports = []
+        self.generic_visit(node)
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
         node.imports = []
         self.generic_visit(node)
         return node

@@ -474,7 +474,7 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def _import(self, name: str) -> str:
+    def _import(self, name: str, alias=None) -> str:
         name = MODULE_DISPATCH_TABLE[name] if name in MODULE_DISPATCH_TABLE else name
         if "<" in name:
             return f"#include {name}"
