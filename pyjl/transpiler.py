@@ -136,7 +136,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return JULIA_SPECIAL_FUNCTIONS[node.name](self, node)
 
         # Visit decorators
-        for ((d_id, _), decorator) in zip(
+        for (d_id, _), decorator in zip(
             node.parsed_decorators.items(), node.decorator_list
         ):
             if d_id in DECORATOR_DISPATCH_TABLE:
