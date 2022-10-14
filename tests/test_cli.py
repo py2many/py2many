@@ -1,7 +1,7 @@
 import argparse
 import filecmp
 import logging
-import os.path
+import os
 import unittest
 import sys
 
