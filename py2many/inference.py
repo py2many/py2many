@@ -143,7 +143,7 @@ class FuncTypeDispatch():
         return None
 
 class AnnotationVisitor(ast.NodeTransformer):
-    """Add _is_annotation attribute to all annotations"""
+    """Add is_annotation attribute to all annotations"""
     def __init__(self) -> None:
         super().__init__()
         self._is_annotation = False
@@ -342,6 +342,9 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Name(self, node):
         annotation = get_inferred_type(node)
         if annotation is not None:
+            if isinstance(annotation, str):
+                print(get_id(node))
+                print(annotation)
             node.annotation = annotation
         if node.id in self._block_annotations:
             node.annotation = self._block_annotations[node.id]
@@ -815,7 +818,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.visit(node.iter)
         if hasattr(node.iter, "annotation"):
             if isinstance(node.iter.annotation, ast.Subscript):
-                typ = self._clike._slice_value(node.iter.annotation)
+                typ = ast.Name(id=self._clike._slice_value(node.iter.annotation))
                 if isinstance(node.target, ast.Name):
                     node.target.annotation = typ
                 elif isinstance(node.target, ast.Tuple) and \

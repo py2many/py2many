@@ -438,6 +438,10 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
                         # Compare with empty tuple
                         node.test = self._build_compare(node.test, 
                             [ast.IsNot()], [ast.Tuple(elts=[])])
+                    elif re.match(r"^set|^Set", ann_id):
+                        # Compare with empty tuple
+                        node.test = self._build_compare(node.test, 
+                            [ast.IsNot()], [ast.Set(elts=[])])
                     elif re.match(r"^Optional", ann_id):
                         # Compare with type None
                         node.test = self._build_compare(node.test, 
