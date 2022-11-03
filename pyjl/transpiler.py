@@ -1089,7 +1089,17 @@ class JuliaTranspiler(CLikeTranspiler):
             if (target := self.visit(node.targets[0])) in JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE:
                 return JULIA_SPECIAL_ASSIGNMENT_DISPATCH_TABLE[target](self, node, value)
 
-        targets = [self.visit(target) for target in node.targets]
+        # Allow inferred annotations on assignments
+        parent_scope = node.scopes[-1]
+        no_globals = (isinstance(parent_scope, ast.Module) or 
+                getattr(parent_scope, "is_python_main", False)) and \
+                not self._allow_annotations_on_globals
+        targets = []
+        for t in node.targets:
+            if hasattr(t, "annotation") and not no_globals:
+                targets.append(f"{self.visit(t)}::{self.visit(t.annotation)}")
+            else:
+                targets.append(self.visit(t))
         
         if value == None:
             value = self._none_type

@@ -44,7 +44,30 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
             self._get_import_type(node.func.value)
         else:
             self._get_import_type(node.func)
-        return super().visit_Call(node)
+
+        # Call super to infer types
+        super().visit_Call(node)
+
+        # Confirm that append is to a list of the same type
+        # If not, then assign type any
+        if isinstance(node.func, ast.Attribute) and \
+                node.func.attr == "append":
+            ann = getattr(node.func.value, "annotation", None)
+            arg_ann = getattr(node.args[0], "annotation", None)
+            if isinstance(ann, ast.Subscript) and \
+                    isinstance(ann.slice, ast.Name) and \
+                    get_id(ann.value) in {"List", "list"} and \
+                    arg_ann and get_id(arg_ann) != "Any" and \
+                    get_id(arg_ann) != get_id(ann.slice):
+                list_node = node.scopes.find(get_id(node.func.value))
+                if list_node:
+                    list_node.annotation = ast.Subscript(
+                        value=ast.Name("List"),
+                        slice=ast.Name("Any"),
+                    )
+                # raise TypeNotSupported("Cannot append to a list of different Type in Julia")
+            pass
+        return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.AST:
         # Get annotation
