@@ -1704,8 +1704,9 @@ class VariableScopeRewriter(ast.NodeTransformer):
         for (target, ann) in targets:
             new_target = ast.Name(id=get_id(target)) 
             default = get_default_val(target, ann)
-            assign = ast.Assign(
-                targets=[new_target],
+            assign = ast.AnnAssign(
+                target = new_target,
+                annotation = ann,
                 value = default,
                 scopes = getattr(target, "scopes", ScopeList()))
             ast.fix_missing_locations(assign)

@@ -478,11 +478,12 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_BinOp(self, node: ast.BinOp) -> str:
+        # Attempts to find node annotations
         left_jl_ann: str = self._typename_from_type_node(
-            getattr(node.left, "annotation", self._default_type), 
+            self._get_annotation(node.left), 
             default=self._default_type)
         right_jl_ann: str = self._typename_from_type_node(
-            getattr(node.right, "annotation", self._default_type), 
+            self._get_annotation(node.right), 
             default=self._default_type)
 
         is_list = lambda x: re.match(r"^Array|^Vector", x)
@@ -569,6 +570,18 @@ class JuliaTranspiler(CLikeTranspiler):
 
         # By default, call super
         return super().visit_BinOp(node)
+
+    def _get_annotation(self, node):
+        node_id = get_id(node)
+        n_inst = node.scopes.find(node_id)
+        if hasattr(node, "annotation"):
+            return node.annotation
+        elif hasattr(n_inst, "annotation"):
+            return n_inst.annotation
+        elif hasattr(n_inst, "assigned_from") and \
+                hasattr(n_inst.assigned_from, "annotation"):
+            return n_inst.assigned_from.annotation
+        return None
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> str:
         if isinstance(node.operand, (ast.Call, ast.Num, ast.Name, ast.Constant)):
@@ -1036,7 +1049,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "@assert({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
-        if (val := self._generic_assign_visit(node, node.targets[0])) == "":
+        if (val := self._generic_assign_visit(node, node.target)) == "":
             return val
 
         target = self.visit(node.target)
