@@ -1110,7 +1110,8 @@ class JuliaTranspiler(CLikeTranspiler):
         targets = []
         for t in node.targets:
             if hasattr(t, "annotation") and not no_globals and \
-                    not isinstance(t, ast.Tuple):
+                    not isinstance(t, ast.Tuple) and \
+                    getattr(t, "make_generic", None):
                 targets.append(f"{self.visit(t)}::{self.visit(t.annotation)}")
             else:
                 targets.append(self.visit(t))

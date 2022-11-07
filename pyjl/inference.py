@@ -65,6 +65,7 @@ class InferJuliaTypesTransformer(InferTypesTransformer, ExternalBase):
                         value=ast.Name("List"),
                         slice=ast.Name("Any"),
                     )
+                    list_node.make_generic = True
                 # raise TypeNotSupported("Cannot append to a list of different Type in Julia")
             pass
         return node
