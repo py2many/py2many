@@ -206,8 +206,8 @@ jobs:
       - name: Install cargo-eval
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
         run: |
-          cargo install cargo-quickinstall
-          cargo quickinstall cargo-eval
+          cargo install cargo-binstall
+          cargo binstall --no-confirm cargo-eval
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
