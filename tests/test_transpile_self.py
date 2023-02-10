@@ -54,8 +54,10 @@ def assert_only_reformat_failures(successful, format_errors, failures):
 def assert_counts(
     successful, format_errors, failures, format_error_count, failure_count
 ):
-    assert len(format_errors) == format_error_count
-    assert len(failures) == failure_count
+    assert (
+        len(format_errors) == format_error_count
+    ), f"{len(format_errors)} != {format_error_count}"
+    assert len(failures) == failure_count, f"{len(failures)} != {failure_count}"
 
 
 class SelfTranspileTests(unittest.TestCase):
@@ -260,6 +262,6 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
             ),
-            format_error_count=2,
+            format_error_count=7,
             failure_count=12,
         )

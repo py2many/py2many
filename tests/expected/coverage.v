@@ -84,7 +84,7 @@ fn show() {
 
 	inline_pass()
 	s := '1    2'
-	println('$s')
+	println('${s}')
 	assert infer_bool(1)
 	_escape_quotes := ' foo "bar" baz '
 	assert 'aaabbccc'.contains('bbc')
