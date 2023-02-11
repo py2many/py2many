@@ -10,6 +10,7 @@ from py2many.language import LanguageSettings
 from .inference import infer_julia_types
 from .rewriters import JuliaIndexingRewriter
 from .transpiler import JuliaMethodCallRewriter, JuliaTranspiler
+from .transformers import parse_decorators
 
 
 @lru_cache()
@@ -33,13 +34,14 @@ def settings(args, env=os.environ):
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
     else:
         format_jl = ["format.jl", "-v"]
+
     return LanguageSettings(
-        JuliaTranspiler(),
-        ".jl",
-        "Julia",
-        format_jl,
-        None,
+        transpiler=JuliaTranspiler(),
+        ext=".jl",
+        display_name="Julia",
+        formatter=format_jl,
+        indent=None,
         rewriters=[],
-        transformers=[infer_julia_types],
-        post_rewriters=[JuliaIndexingRewriter(), JuliaMethodCallRewriter()],
+        transformers=[infer_julia_types, parse_decorators],
+        post_rewriters=[JuliaMethodCallRewriter(), JuliaIndexingRewriter()],
     )
