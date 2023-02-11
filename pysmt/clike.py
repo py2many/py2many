@@ -45,7 +45,6 @@ def smt_symbol(node):
 
 
 class CLikeTranspiler(CommonCLikeTranspiler):
-
     CONTAINER_TYPE_MAP = {
         "List": "seq",
         "Dict": "Table",

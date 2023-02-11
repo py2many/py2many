@@ -1,2 +1,2 @@
 [*.{kt,kts}]
-disabled_rules = filename
+ktlint_standard_filename = disabled

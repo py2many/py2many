@@ -1,3 +1,2 @@
 fun bar1(): Int {
-    return 0
-}
+    return 0 }

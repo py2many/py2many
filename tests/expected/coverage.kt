@@ -1,11 +1,9 @@
 
 fun inline_pass() {
-/* pass */
-}
+/* pass */ }
 
 fun inline_ellipsis() {
-/* ... */
-}
+/* ... */ }
 
 fun indexing(): Int {
     var sum = 0
@@ -14,12 +12,10 @@ fun indexing(): Int {
         a += i
         sum += a[i]
     }
-    return sum
-}
+    return sum }
 
 fun infer_bool(code: Int): Boolean {
-    return code in arrayOf(1, 2, 4)
-}
+    return code in arrayOf(1, 2, 4) }
 
 fun show() {
     var a1 = 10
@@ -95,9 +91,7 @@ fun show() {
     assert("bbc" in "aaabbccc")
     assert((1 != 0))
     2
-    val (_c1, _c2) = Pair(1, 3)
-}
+    val (_c1, _c2) = Pair(1, 3) }
 
 fun main(argv: Array<String>) {
-    show()
-}
+    show() }

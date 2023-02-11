@@ -5,9 +5,7 @@ fun do_unsupported() {
     if (true) {
         val __tmp1 = if (b) "True" else "False"
         println("$__tmp1")
-    }
-}
+    } }
 
 fun main(argv: Array<String>) {
-    do_unsupported()
-}
+    do_unsupported() }

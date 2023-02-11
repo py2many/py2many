@@ -13,9 +13,7 @@ fun main_func() {
     assert(ands == arrayOf(false, false, false, true))
     assert(ors == arrayOf(false, true, true, true))
     assert(xors == arrayOf(false, true, true, false))
-    println("OK")
-}
+    println("OK") }
 
 fun main(argv: Array<String>) {
-    main_func()
-}
+    main_func() }

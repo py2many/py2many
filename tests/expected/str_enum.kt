@@ -15,9 +15,7 @@ fun show() {
     if (true) {
         val __tmp1 = color_map.size
         println("$__tmp1")
-    }
-}
+    } }
 
 fun main(argv: Array<String>) {
-    show()
-}
+    show() }
