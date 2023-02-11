@@ -23,9 +23,7 @@ fun show() {
     } else {
         println("Not R")
     }
-    assert(color_map.size != 0)
-}
+    assert(color_map.size != 0) }
 
 fun main(argv: Array<String>) {
-    show()
-}
+    show() }

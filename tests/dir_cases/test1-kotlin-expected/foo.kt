@@ -4,5 +4,4 @@ fun main(argv: Array<String>) {
     val x = bar1()
     val y = baz1()
     assert(x == 0)
-    assert(y == "foo")
-}
+    assert(y == "foo") }

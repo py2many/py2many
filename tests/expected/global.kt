@@ -13,5 +13,4 @@ fun main(argv: Array<String>) {
     }
     if ("a" in arrayOf("a", "b")) {
         println("OK")
-    }
-}
+    } }

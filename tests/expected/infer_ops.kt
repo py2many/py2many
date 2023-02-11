@@ -13,63 +13,48 @@ fun foo() {
     val _e3 = (a.toDouble() * d)
     val _e4 = (a.toDouble() / d)
     val _f = -3.0
-    val _g = -(a)
-}
+    val _g = -(a) }
 
 fun add1(x: Byte, y: Byte): Short {
-    return (x + y) as Short
-}
+    return (x + y) as Short }
 
 fun add2(x: Short, y: Short): Int {
-    return (x + y)
-}
+    return (x + y) }
 
 fun add3(x: Int, y: Int): Long {
-    return (x + y) as Long
-}
+    return (x + y) as Long }
 
 fun add4(x: Long, y: Long): Long {
-    return (x + y)
-}
+    return (x + y) }
 
 fun add5(x: UByte, y: UByte): UShort {
-    return (x + y) as UShort
-}
+    return (x + y) as UShort }
 
 fun add6(x: UShort, y: UShort): UInt {
-    return (x + y)
-}
+    return (x + y) }
 
 fun add7(x: UInt, y: UInt): ULong {
-    return (x + y) as ULong
-}
+    return (x + y) as ULong }
 
 fun add8(x: ULong, y: ULong): ULong {
-    return (x + y)
-}
+    return (x + y) }
 
 fun add9(x: Byte, y: UShort): UInt {
-    return (x.toUShort() + y)
-}
+    return (x.toUShort() + y) }
 
 fun sub(x: Byte, y: Byte): Byte {
-    return (x - y) as Byte
-}
+    return (x - y) as Byte }
 
 fun mul(x: Byte, y: Byte): Short {
-    return (x * y) as Short
-}
+    return (x * y) as Short }
 
 fun fadd1(x: Byte, y: Double): Double {
-    return (x.toDouble() + y)
-}
+    return (x.toDouble() + y) }
 
 fun show() {
     assert(fadd1(6, 6.0) == 12.toDouble())
-    println("OK")
-}
+    println("OK") }
 
 fun main(argv: Array<String>) {
     foo()
-    show()
-}
+    show() }

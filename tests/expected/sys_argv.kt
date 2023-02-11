@@ -15,5 +15,4 @@ fun main(argv: Array<String>) {
         }
     } else {
         println("OK")
-    }
-}
+    } }
