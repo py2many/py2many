@@ -117,19 +117,14 @@ jobs:
                 && true
               pip3 install conan
               echo "CXX=clang++-14" >> $GITHUB_ENV
-              curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.0.1/ktlint
-              chmod a+x ktlint
-              sudo mv ktlint /usr/local/bin/
           elif [ "$RUNNER_OS" == "macOS" ]; then
               brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install \
                   astyle \
                   catch2 \
                   clang-format \
-                  cljstyle \
                   conan \
                   kscript \
-                  ktlint \
                   z3 \
                 && true
               # brew's vlang 0.2.4 is too old, and has no @head
@@ -139,6 +134,7 @@ jobs:
                   conan \
                   curl \
                   llvm \
+                  z3 \
                   zip \
                 && true
               echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
@@ -209,17 +205,6 @@ jobs:
         with:
           crate: cargo-eval
           locked: true
-
-      - name: Install smt dependencies
-        if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            (curl -sLO https://raw.githubusercontent.com/greglook/cljstyle/main/script/install-cljstyle
-             sed -i.bak 's/--overwrite//' install-cljstyle
-             chmod +x install-cljstyle
-             sudo ./install-cljstyle)
-          fi
 
       - name: Run tox
         shell: bash
