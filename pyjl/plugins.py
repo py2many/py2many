@@ -15,7 +15,7 @@ except ImportError:
     ap_dataclass = "ap_dataclass"
 
 
-class JuiliaTranspilerPlugins:
+class JuliaTranspilerPlugins:
     def visit_argparse_dataclass(self, node):
         fields = []
         for (
@@ -136,17 +136,17 @@ SMALL_DISPATCH_MAP = {
 SMALL_USINGS_MAP = {"asyncio.run": "futures::executor::block_on"}
 
 DISPATCH_MAP = {
-    "range": JuiliaTranspilerPlugins.visit_range,
-    "xrange": JuiliaTranspilerPlugins.visit_range,
-    "print": JuiliaTranspilerPlugins.visit_print,
-    "int": JuiliaTranspilerPlugins.visit_cast_int,
+    "range": JuliaTranspilerPlugins.visit_range,
+    "xrange": JuliaTranspilerPlugins.visit_range,
+    "print": JuliaTranspilerPlugins.visit_print,
+    "int": JuliaTranspilerPlugins.visit_cast_int,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_ap_dataclass}
+DECORATOR_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_ap_dataclass}
 
-CLASS_DISPATCH_TABLE = {ap_dataclass: JuiliaTranspilerPlugins.visit_argparse_dataclass}
+CLASS_DISPATCH_TABLE = {ap_dataclass: JuliaTranspilerPlugins.visit_argparse_dataclass}
 
 ATTR_DISPATCH_TABLE = {
     "temp_file.name": lambda self, node, value, attr: f"{value}.path()"
@@ -162,10 +162,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (lambda self, node, vargs: "f.read_string()", True),
     "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
-    open: (JuiliaTranspilerPlugins.visit_open, True),
-    NamedTemporaryFile: (JuiliaTranspilerPlugins.visit_named_temp_file, True),
-    io.TextIOWrapper.read: (JuiliaTranspilerPlugins.visit_textio_read, True),
-    io.TextIOWrapper.read: (JuiliaTranspilerPlugins.visit_textio_write, True),
+    open: (JuliaTranspilerPlugins.visit_open, True),
+    NamedTemporaryFile: (JuliaTranspilerPlugins.visit_named_temp_file, True),
+    io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_read, True),
+    io.TextIOWrapper.read: (JuliaTranspilerPlugins.visit_textio_write, True),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),
     sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
 }
