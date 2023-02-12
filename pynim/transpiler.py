@@ -17,6 +17,7 @@ from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.inference import is_ctype
 from py2many.tracer import is_list, defined_before
 
 from typing import List
@@ -158,6 +159,10 @@ class NimTranspiler(CLikeTranspiler):
             if attr == "argv":
                 self._usings.add("os")
                 return "(@[getAppFilename()] & commandLineParams())"
+
+        if is_ctype(node.value):
+            if attr == "value":
+                return value_id
 
         if is_list(node.value):
             if node.attr == "append":

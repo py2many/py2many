@@ -167,6 +167,14 @@ class RustTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "c_int8": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i8"),
+    "c_int16": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i16"),
+    "c_int32": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i32"),
+    "c_int64": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="i64"),
+    "c_uint8": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="u8"),
+    "c_uint16": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="u16"),
+    "c_uint32": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="u32"),
+    "c_uint64": functools.partial(RustTranspilerPlugins.visit_cast, cast_to="u64"),
     "str": lambda n, vargs: f"&{vargs[0]}.to_string()" if vargs else '""',
     "len": lambda n, vargs: f"{vargs[0]}.len() as i32",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",

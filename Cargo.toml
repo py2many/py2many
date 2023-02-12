@@ -55,6 +55,11 @@ test = true
 path = "tests/expected/built_ins.rs"
 
 [[bin]]
+name = "cast"
+test = true
+path = "tests/expected/cast.rs"
+
+[[bin]]
 name = "cls"
 test = true
 path = "tests/expected/cls.rs"

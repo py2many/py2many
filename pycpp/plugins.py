@@ -117,6 +117,14 @@ class CppTranspilerPlugins:
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "int": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int"),
+    "c_int8": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int8_t"),
+    "c_int16": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int16_t"),
+    "c_int32": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int32_t"),
+    "c_int64": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="int64_t"),
+    "c_uint8": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="uint8_t"),
+    "c_uint16": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="uint16_t"),
+    "c_uint32": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="uint32_t"),
+    "c_uint64": functools.partial(CppTranspilerPlugins.visit_cast, cast_to="uint64_t"),
     "str": lambda n, vargs: f"std::to_string({vargs[0]})" if vargs else '""',
     "bool": lambda n, vargs: f"static_cast<bool>({vargs[0]})" if vargs else "false",
     "len": lambda n, vargs: f"static_cast<int>({vargs[0]}.size())",

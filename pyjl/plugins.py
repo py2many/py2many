@@ -1,6 +1,7 @@
+import ast
+import functools
 import io
 import os
-import ast
 import sys
 import textwrap
 
@@ -109,6 +110,10 @@ class JuliaTranspilerPlugins:
         args = ", ".join(vargs)
         return f'println(join([{args}], " "))'
 
+    @staticmethod
+    def visit_cast(node, vargs, cast_to: str) -> str:
+        return f"convert({cast_to}, {vargs[0]})"
+
     def visit_cast_int(self, node, vargs) -> str:
         if not vargs:
             return "0"
@@ -124,6 +129,14 @@ class JuliaTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "c_int8": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="Int8"),
+    "c_int16": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="Int16"),
+    "c_int32": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="Int32"),
+    "c_int64": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="Int64"),
+    "c_uint8": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="UInt8"),
+    "c_uint16": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="UInt16"),
+    "c_uint32": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="UInt32"),
+    "c_uint64": functools.partial(JuliaTranspilerPlugins.visit_cast, cast_to="UInt64"),
     "str": lambda n, vargs: f"string({vargs[0]})" if vargs else '""',
     "len": lambda n, vargs: f"length({vargs[0]})",
     "enumerate": lambda n, vargs: f"{vargs[0]}.iter().enumerate()",

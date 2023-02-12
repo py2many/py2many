@@ -137,6 +137,14 @@ class GoTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "c_int8": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="int8"),
+    "c_int16": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="int16"),
+    "c_int32": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="int32"),
+    "c_int64": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="int64"),
+    "c_uint8": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="uint8"),
+    "c_uint16": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="uint16"),
+    "c_uint32": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="uint32"),
+    "c_uint64": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="uint64"),
     "str": lambda n, vargs: f"String({vargs[0]})" if vargs else '""',
     "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
