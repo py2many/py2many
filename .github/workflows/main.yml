@@ -205,9 +205,9 @@ jobs:
 
       - name: Install cargo-eval
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        run: |
-          cargo install cargo-binstall
-          cargo binstall --no-confirm cargo-eval
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-eval
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
