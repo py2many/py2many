@@ -105,6 +105,11 @@ test = true
 path = "tests/expected/hello_world.rs"
 
 [[bin]]
+name = "ifexp"
+test = true
+path = "tests/expected/ifexp.rs"
+
+[[bin]]
 name = "infer"
 test = true
 path = "tests/expected/infer.rs"
