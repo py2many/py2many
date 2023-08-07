@@ -153,5 +153,8 @@ class InferVTypesTransformer(ast.NodeTransformer):
             if (left_id, right_id) in {("int", "float"), ("float", "int")}:
                 node.v_annotation = map_type("float")
                 return node
+            if left_id == "str" and right_id == "int":
+                node.v_annotation = map_type("str")
+                return node
 
             raise AstUnrecognisedBinOp(left_id, right_id, node)
