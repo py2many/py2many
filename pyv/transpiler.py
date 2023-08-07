@@ -227,6 +227,7 @@ class VTranspiler(CLikeTranspiler):
                     if c not in generics:
                         generics.add(c)
                         typename = c
+                        break
             if typename == "":
                 raise AstNotImplementedError(
                     "Cannot use more than 26 generics in a function.", node
