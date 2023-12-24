@@ -569,3 +569,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                     e.annotation = typ
         self.generic_visit(node)
         return node
+
+    def visit_BoolOp(self, node: ast.BoolOp):
+        node.annotation = ast.Name(id="bool")
+        return node

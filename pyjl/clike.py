@@ -61,13 +61,19 @@ julia_keywords = frozenset(
     ]
 )
 
-jl_symbols = {ast.BitXor: " ⊻ ", ast.And: " && ", ast.Or: " || "}
+JL_SYMBOLS = {
+    ast.BitXor: "⊻",
+    ast.And: "&&",
+    ast.Or: "||",
+    ast.Is: "===",
+    ast.IsNot: "!==",
+}
 
 
 def jl_symbol(node):
     """Find the equivalent Julia symbol for a Python ast symbol node"""
     symbol_type = type(node)
-    return jl_symbols[symbol_type]
+    return JL_SYMBOLS[symbol_type]
 
 
 class CLikeTranspiler(CommonCLikeTranspiler):
@@ -76,7 +82,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         self._type_map = julia_type_map
 
     def visit(self, node) -> str:
-        if type(node) in jl_symbols:
+        if type(node) in JL_SYMBOLS:
             return jl_symbol(node)
         else:
             return super().visit(node)
