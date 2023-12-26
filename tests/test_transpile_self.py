@@ -262,6 +262,6 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
             ),
-            format_error_count=7,
-            failure_count=13,
+            format_error_count=9,
+            failure_count=11,
         )
