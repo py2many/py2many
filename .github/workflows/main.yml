@@ -203,11 +203,11 @@ jobs:
             flutter pub add vnum
           fi
 
-      - name: Install cargo-eval
+      - name: Install rust-script
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-eval
+          tool: rust-script
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
