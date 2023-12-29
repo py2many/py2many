@@ -205,9 +205,10 @@ jobs:
 
       - name: Install cargo-eval
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        uses: taiki-e/install-action@v2
+        uses: baptiste0928/cargo-install@v2
         with:
-          tool: cargo-eval
+          crate: cargo-eval
+          locked: true
 
       - name: Install smt dependencies
         if: ${{ matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'smt') }}
