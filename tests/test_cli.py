@@ -20,9 +20,9 @@ from py2many.cli import (
 )
 
 try:
-    from py2many.pycpp import _conan_include_dirs
+    from py2many.pycpp import _conan_include_args
 except ImportError:
-    from pycpp import _conan_include_dirs
+    from pycpp import _conan_include_args
 
 import py2many.cli
 
@@ -44,7 +44,7 @@ ENV = {
 }
 COMPILERS = {
     "cpp": [CXX, "-std=c++17", "-I", str(ROOT_DIR)]
-    + _conan_include_dirs()
+    + _conan_include_args()
     + (["-stdlib=libc++"] if CXX.startswith("clang++") else [])
     + (["-o", "{exe}", "{filename}"] if sys.platform == "win32" else []),
     "dart": ["dart", "compile", "exe"],
