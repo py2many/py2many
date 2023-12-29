@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 fn compare_assert(a int, b int) {

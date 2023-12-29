@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 // This file implements a rectangle class

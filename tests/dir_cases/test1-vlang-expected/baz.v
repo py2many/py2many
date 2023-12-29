@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 fn baz1() string {

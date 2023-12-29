@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 fn bisect_right(data []int, item int) int {

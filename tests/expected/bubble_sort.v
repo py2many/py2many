@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 fn bubble_sort(mut seq []int) []int {

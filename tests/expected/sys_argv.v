@@ -1,4 +1,4 @@
-[translated]
+@[translated]
 module main
 
 import os
