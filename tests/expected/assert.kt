@@ -1,6 +1,10 @@
-fun compare_assert(a: Int, b: Int) {
+fun compare_assert(
+    a: Int,
+    b: Int,
+) {
     assert(a == b)
-    assert(!(0 == 1)) }
+    assert(!(0 == 1))
+}
 
 fun main(argv: Array<String>) {
     assert(true)
@@ -8,4 +12,5 @@ fun main(argv: Array<String>) {
     compare_assert(1, 1)
     assert(true)
     assert(true)
-    println("OK") }
+    println("OK")
+}

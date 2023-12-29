@@ -9,7 +9,9 @@ fun show() {
     if (true) {
         val __tmp1 = if (c) "True" else "False"
         println("$__tmp1")
-    } }
+    }
+}
 
 fun main(argv: Array<String>) {
-    show() }
+    show()
+}

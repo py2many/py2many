@@ -4,6 +4,7 @@ val l_a = arrayOf(code_0, code_1)
 val code_a = "a"
 val code_b = "b"
 val l_b = arrayOf(code_a, code_b)
+
 fun main(argv: Array<String>) {
     for (i in l_a) {
         println("$i")
@@ -13,4 +14,5 @@ fun main(argv: Array<String>) {
     }
     if ("a" in arrayOf("a", "b")) {
         println("OK")
-    } }
+    }
+}

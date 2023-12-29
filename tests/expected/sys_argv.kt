@@ -4,7 +4,7 @@ fun main(argv: Array<String>) {
     var a: Array<String> = (arrayOf("") + argv)
     var cmd: String = a[0]
     if (cmd == "dart") {
-/* pass */
+// pass
     } else {
         assert("sys_argv" in cmd)
     }
@@ -15,4 +15,5 @@ fun main(argv: Array<String>) {
         }
     } else {
         println("OK")
-    } }
+    }
+}
