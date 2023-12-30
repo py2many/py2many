@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - uses: actions/setup-java@v3
-        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
         with:
           distribution: adopt
           java-version: 15
@@ -55,8 +55,14 @@ jobs:
 
       - uses: julia-actions/setup-julia@v1
         if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
+
       - uses: fwilhe2/setup-kotlin@main
-        if: ${{ matrix.os != 'macos-12' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+      - name: Set KOTLIN_HOME
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+        shell: bash
+        run: |
+          echo KOTLIN_HOME=$(kotlin -e 'System.getProperty("kotlin.home")') >> $GITHUB_ENV
 
       - uses: jiro4989/setup-nim-action@v1
         if: ${{ !env.FOCUS || env.FOCUS == 'nim' }}
@@ -118,13 +124,11 @@ jobs:
               pip3 install conan
               echo "CXX=clang++-14" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
               brew install \
                   astyle \
                   catch2 \
                   clang-format \
                   conan \
-                  kscript \
                   z3 \
                 && true
               # brew's vlang 0.2.4 is too old, and has no @head
@@ -139,7 +143,6 @@ jobs:
                 && true
               echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
           fi
-          echo "WHICH_KSCRIPT=$(which kscript 2>/dev/null)" >> $GITHUB_ENV
           echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
 
       - name: Install C++ packages
@@ -160,14 +163,6 @@ jobs:
         shell: bash
         run: |
           v install div72.vexc
-
-      - name: Install kscript (using sdkman)
-        if: ${{ !env.WHICH_KSCRIPT && matrix.os == 'ubuntu-22.04' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
-        shell: bash
-        run: |
-          curl -s "https://get.sdkman.io" | bash
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          sdk install kscript
 
       - name: Install dart dependencies
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
@@ -208,12 +203,8 @@ jobs:
 
       - name: Run tox
         shell: bash
-        # sdkman init can be replaced with actions setup when the following is fixed
-        # https://github.com/sdkman/sdkman-action/issues/8
         run: |
-          if [ -f $HOME/.sdkman/bin/sdkman-init.sh ]; then
-            source "$HOME/.sdkman/bin/sdkman-init.sh"
-          fi
+          set -ex
           LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"

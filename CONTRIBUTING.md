@@ -1,3 +1,5 @@
+# Contributing
+
 So you found a bug, fixed it and would like us to include it in the next release. If so, please
 read-on.
 
@@ -27,13 +29,13 @@ Here are some notes for ubuntu 20.04
 
 ### Ubuntu 20.04 + python3
 
-```
+```bash
 sudo apt install python3 python3-pip python3-pytest tox black pyflakes3
 ```
 
 ### Ubuntu 20.04 + C++
 
-```
+```bash
 sudo apt install clang-format clang++ libc++-dev libc++abi-dev
 ```
 
@@ -41,41 +43,27 @@ sudo apt install clang-format clang++ libc++-dev libc++abi-dev
 
 - Follow https://rustup.rs/
 
-```
+```bash
 rustup component add rustfmt
-cargo install cargo-script
+cargo install cargo-eval
 ```
 
 ## MacOS dependencies
 
 The following commands will install most of the dependencies on MacOS
 
+```bash
+brew install astyle clang-format flutter gcc go julia kotlin nim rust vlang z3
+cargo install cargo-eval
 ```
-brew tap holgerbrandl/tap https://github.com/holgerbrandl/homebrew-tap
-brew tap sdkman/tap
-brew install astyle clang-format cljstyle flutter gcc go julia kscript ktlint nim sdkman-cli vlang z3
-cargo install cargo-script
-```
-
-`cljstyle` will refuse to run.  In a shell, type `open /usr/local/bin/`, locate `cljstyle`, and Open.
-MacOS will inform that it was downloaded from the Internet and ask for confirmation.
-Once confirmed, it will become usable.
 
 ## Running tests for C++ only
 
-```
-alias t=`pytest-3`
-t -k cpp -v
+```bash
+pytest-3 -k cpp -v
 ```
 
-Other languages will be similar
-
-
-## Running basic coverage test for all languages
-
-```
-pytest-3 -k coverage -v
-```
+Other languages will be similar.
 
 ## Updating expected output
 
@@ -83,18 +71,18 @@ Most test cases live in `<repo>/tests/cases/*.py` and the expected output after
 transpilation are in `<repo>/tests/expected`. If you make changes to any of the
 tests, follow the recipe below and inspect the updated files in `tests/expected`.
 
-```
+```bash
 export UPDATE_EXPECTED=1
-t -k changed_tests_filter -v
+pytest-3 -k cli -v
 ```
 
 When tests are run, temporary files are generated, compared against expected
 golden output and then discarded. If you want to keep them around for debugging
 purposes, you can use:
 
-```
+```bash
 export KEEP_EXISTING=1
-t -k some_test -v
+pytest-3 -k some_test -v
 ```
 
 ## Running tests via CI

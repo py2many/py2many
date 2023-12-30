@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os.path
+import platform
 import unittest
 import sys
 
@@ -35,7 +36,6 @@ KEEP_GENERATED = os.environ.get("KEEP_GENERATED", False)
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 UPDATE_EXPECTED = os.environ.get("UPDATE_EXPECTED", False)
 
-
 CXX = os.environ.get("CXX", "clang++")
 LANGS = list(_get_all_settings(Mock(indent=4)).keys())
 ENV = {
@@ -49,7 +49,6 @@ COMPILERS = {
     + (["-o", "{exe}", "{filename}"] if sys.platform == "win32" else []),
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
-    "kotlin": ["kotlinc"],
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": ["cargo", "eval", "--build-only", "--debug"],
     "vlang": ["v"],
@@ -59,11 +58,27 @@ INVOKER = {
     "dart": ["dart", "--enable-asserts"],
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
-    "kotlin": ["kscript"],
     "python": [sys.executable],
     "rust": ["cargo", "eval"],
     "vlang": ["v", "run"],
 }
+
+# kscript requires a KOTLIN_HOME.
+# If it isnt present, set compilation using kotlinc which should also be missing,
+# which will cause Kotlin cases to be skipped.
+if os.getenv("KOTLIN_HOME"):
+    INVOKER["kotlin"] = [
+        "jgo",
+        "--log-level=DEBUG",
+        "--additional-endpoints",
+        "commons-cli:commons-cli",
+        "commons-codec:commons-codec",
+        "io.github.kscripting:shell",
+        "io.github.kscripting:kscript:io.github.kscripting.kscript.KscriptKt",
+        platform.system().lower(),
+    ]
+else:
+    COMPILERS["kotlin"] = ["kotlinc"]
 
 TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
 
