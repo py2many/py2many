@@ -120,6 +120,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         left_rank: int = V_WIDTH_RANK.get(left_type, -1)
         right_rank: int = V_WIDTH_RANK.get(right_type, -1)
 
+        if (
+            isinstance(node.op, ast.Mult)
+            and left_type == "string"
+            and right_type == "int"
+        ):
+            return f"({left}.repeat({right}))"
+
         if left_rank > right_rank:
             right = f"{left_type}({right})"
         elif right_rank > left_rank:
