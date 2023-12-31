@@ -15,8 +15,8 @@ from py2many.tracer import is_enum
 
 try:
     from typpete.inference_runner import infer as infer_types_ast
-    from typpete.src.context import Context
-    from typpete.src.z3_types import TypesSolver
+    from typpete.context import Context
+    from typpete.z3_types import TypesSolver
 except ModuleNotFoundError:
 
     def infer_types_ast(node):
