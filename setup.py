@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 
-__version__ = "0.3"
+__version__ = "0.4"
 
 install_requires = ["toposort", "astor; python_version<'3.9'"]
 setup_requires = []
