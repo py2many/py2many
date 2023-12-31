@@ -66,7 +66,7 @@ function show()
 
         println(join(["true"], " "))
     end
-    if 1 != nothing
+    if 1 !== nothing
         println(join(["World is sane"], " "))
     end
     println(join([true ? ("True") : ("False")], " "))

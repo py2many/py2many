@@ -21,3 +21,11 @@ function use_zero_for_comparison()
     end
     @assert(s == 3)
 end
+
+function main()
+    compare_with_integer_variable()
+    use_zero_for_comparison()
+    println(join(["OK"], " "))
+end
+
+main()

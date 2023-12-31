@@ -18,3 +18,9 @@ def use_zero_for_comparison():
         s = 3
 
     assert s == 3
+
+
+if __name__ == "__main__":
+    compare_with_integer_variable()
+    use_zero_for_comparison()
+    print("OK")

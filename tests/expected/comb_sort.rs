@@ -37,7 +37,7 @@ use std::collections;
 pub fn comb_sort(seq: &mut Vec<i32>) -> Vec<i32> {
     let mut gap = seq.len() as i32;
     let mut swap: bool = true;
-    while (gap as i32) > 1 || swap {
+    while gap > 1 || swap {
         gap = cmp::max(1, ((gap as f64) / 1.25).floor() as i32);
         swap = false;
         for i in (0..(seq.len() as i32 - gap)) {
