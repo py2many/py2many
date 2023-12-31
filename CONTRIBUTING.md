@@ -53,7 +53,7 @@ cargo install cargo-eval
 The following commands will install most of the dependencies on MacOS
 
 ```bash
-brew install astyle clang-format flutter gcc go julia kotlin nim rust vlang z3
+brew install astyle clang-format flutter gcc go julia kotlin maven nim rust vlang z3
 cargo install cargo-eval
 ```
 
