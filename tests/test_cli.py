@@ -50,7 +50,15 @@ COMPILERS = {
     "dart": ["dart", "compile", "exe"],
     "go": ["go", "build"],
     "nim": ["nim", "compile", "--nimcache:."],
-    "rust": ["cargo", "eval", "--build-only", "--debug"],
+    "rust": [
+        "rustup",
+        "run",
+        "nightly",
+        "cargo",
+        "build",
+        "-Zscript",
+        "--manifest-path",
+    ],
     "vlang": ["v"],
     "smt": ["z3", "-smt2"],
 }
@@ -59,7 +67,7 @@ INVOKER = {
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "python": [sys.executable],
-    "rust": ["cargo", "eval"],
+    "rust": ["rustup", "run", "nightly", "cargo", "run", "-Zscript", "--manifest-path"],
     "vlang": ["v", "run"],
 }
 
@@ -95,15 +103,9 @@ EXPECTED_LINT_FAILURES = []
 
 EXPECTED_COMPILE_FAILURES = []
 
-CARGO_TOML = [l.strip() for l in open(ROOT_DIR / "Cargo.toml").readlines()]
-
 a_dot_out = "a.out"
 
 logger = logging.Logger("test_cli")
-
-
-def in_cargo_toml(case: str):
-    return f'path = "tests/expected/{case}.rs"' in CARGO_TOML
 
 
 def has_main_lines(lines):
@@ -343,8 +345,6 @@ class CodeGeneratorTests(unittest.TestCase):
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
                 exe.unlink(missing_ok=True)
-        if settings.ext == ".rs":
-            assert in_cargo_toml(case)
 
     @foreach(sorted(TEST_CASES))
     # This test name must be alpha before `test_generated` otherwise

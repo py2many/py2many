@@ -194,12 +194,11 @@ jobs:
             flutter pub add vnum
           fi
 
-      - name: Install cargo-eval
+      - name: Install rust nightly toolchain
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        uses: baptiste0928/cargo-install@v2
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          crate: cargo-eval
-          locked: true
+          components: clippy,rustfmt
 
       - name: Run tox
         shell: bash
