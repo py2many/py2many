@@ -57,7 +57,7 @@ RUN mkdir -p /home/build/bin
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
    sh -s -- -y  && \
-   cargo install cargo-script)
+   rustup install nightly)
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \

@@ -44,8 +44,9 @@ sudo apt install clang-format clang++ libc++-dev libc++abi-dev
 - Follow https://rustup.rs/
 
 ```bash
-rustup component add rustfmt
-cargo install cargo-eval
+rustup install nightly
+rustup component add --toolchain nightly clippy
+rustup component add --toolchain nightly rustfmt
 ```
 
 ## MacOS dependencies
@@ -54,7 +55,6 @@ The following commands will install most of the dependencies on MacOS
 
 ```bash
 brew install astyle clang-format flutter gcc go julia kotlin maven nim rust vlang z3
-cargo install cargo-eval
 ```
 
 ## Running tests for C++ only

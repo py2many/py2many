@@ -40,13 +40,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
-              cargo \
               clang-format \
               powershell \
-              rustfmt \
-              z3 \
             && true
-          echo "${HOME}/.cargo/bin/" >> $GITHUB_PATH
 
       - uses: subosito/flutter-action@v2
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
@@ -204,7 +200,6 @@ jobs:
         shell: bash
         run: |
           set -ex
-          LINT=1
           if [ "$RUNNER_OS" == "Windows" ]; then
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi

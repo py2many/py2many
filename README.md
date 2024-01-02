@@ -34,19 +34,17 @@ Rust is the language where the focus of development has been.
 C++14 is historically the first language to be supported.
 C++17 is now required for some features.
 
-Preliminary support exists for Julia, Kotlin, Nim, Go and Dart.
+Preliminary support exists for Julia, Kotlin, Nim, Go, Dart and V.
 
 py2many can also emit Python 3 code that includes inferred type annotations,
 and revisions to the syntax intended to simplify parsing of the code.
 
 ## History
 
-Based on Julian Konchunas' pyrs
-http://github.com/konchunas/pyrs
+Based on Julian Konchunas' [pyrs](http://github.com/konchunas/pyrs).
 
-Based on Lukas Martinelli Py14
-(https://github.com/lukasmartinelli/py14) and Py14/python-3
-(https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
+Based on Lukas Martinelli [Py14](https://github.com/lukasmartinelli/py14)
+and [Py14/python-3](https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
 Lorentz.
 
 ## Example
@@ -75,21 +73,21 @@ Transpiled code for other languages:
 
 https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
 
-
 ## Trying it out
 
 Requirements:
+
 - Python 3.8+
 
 Local installation:
 
-```
+```sh
 ./setup.py install --user  # installs to $HOME/.local
 ```
 
 OR
 
-```
+```sh
 sudo ./setup.py install  # installs systemwide
 ```
 
@@ -97,7 +95,7 @@ Add the py2many script to your $PATH and run:
 
 Transpiling:
 
-```
+```sh
 py2many --cpp=1 tests/cases/fib.py
 py2many --rust=1 tests/cases/fib.py
 py2many --julia=1 tests/cases/fib.py
@@ -109,9 +107,9 @@ py2many --go=1 tests/cases/fib.py
 
 Compiling:
 
-```
-clang tests/cases/fib.cpp
-rustc tests/cases/fib.rs
+```sh
+clang tests/expected/fib.cpp
+rustup run nightly cargo build -Zscript --manifest-path tests/expected/fib.rs
 ...
 ```
 

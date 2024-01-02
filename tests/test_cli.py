@@ -427,7 +427,7 @@ class CodeGeneratorTests(unittest.TestCase):
             logger.debug(f"{repr(e)}: when removing dir: {path}")
 
     @foreach(sorted(EXTENSION_TEST_CASES))
-    def test_ext(self, case):
+    def test_rust_ext(self, case):
         lang = "rust"
         env = os.environ.copy()
         if ENV.get(lang):
