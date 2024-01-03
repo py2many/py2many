@@ -4,8 +4,10 @@ from typing import Any
 
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
+from py2many.scope import ScopeList
 
 from .pyjl_vars import SEP
+from pyjl import julia_ast
 
 
 class JuliaIndexingRewriter(ast.NodeTransformer):
@@ -202,4 +204,63 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
                     node.ops[i] = ast.Is()
                 elif isinstance(node.ops[i], ast.NotEq):
                     node.ops[i] = ast.IsNot()
+
+
+class JuliaUnittestRewriter(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self._is_pytest = False
+
+    def visit_With(self, node: ast.With) -> Any:
+        # Rewrites with statements with pytest.raises
+        ctx = node.items[0].context_expr
+        opt = node.items[0].optional_vars
+        if isinstance(ctx, ast.Call) and get_id(ctx.func) == "pytest.raises":
+            block = julia_ast.Block(
+                name="",
+                block_expr=ctx,
+                body=node.body,
+                vars=[],
+                decorator_list=[],
+                scopes=ScopeList(),
+                parsed_decorators=[],
+                block_type="expression_block",
+            )
+            ast.fix_missing_locations(block)
+            return block
+        elif isinstance(ctx, ast.Call) and get_id(ctx.func) == "requests_mock.mock":
+            let = julia_ast.LetStmt(
+                args=[ast.Assign(targets=[opt], value=ctx)],
+                body=node.body,
+                ctx=ast.Load(),
+            )
+            ast.fix_missing_locations(let)
+            return let
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        decorators = getattr(node, "parsed_decorators", [])
+        if "pytest.mark.parametrize" in decorators:
+            self._is_pytest = True
+            body = []
+            for n in node.body:
+                body.append(self.visit(n))
+            node.body = body
+            self._is_pytest = False
+            return node
+        self.generic_visit(node)
+        return node
+
+    def visit_Assert(self, node: ast.Assert) -> Any:
+        self.generic_visit(node)
+        if self._is_pytest:
+            # Change assert calls for tests
+            test_call = ast.Call(
+                func=ast.Name(id="@test"),
+                args=[node.test],
+                keywords=[],
+                scopes=getattr(node, "scopes", ScopeList()),
+            )
+            ast.fix_missing_locations(test_call)
+            return test_call
         return node
