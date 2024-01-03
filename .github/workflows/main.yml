@@ -19,7 +19,9 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [ '3.9' ]
+        python-version:
+          - '3.9'
+          - '3.12'
         os:
           - ubuntu-22.04
           - macos-12
@@ -203,10 +205,12 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
           fi
+          PYTHON_VERSION="${{ matrix.python-version }}"
+          export TOXENV="py${PYTHON_VERSION//.}"
           if [ "$FOCUS" ]; then
-            tox -e py39 -- -k "$FOCUS"
+            tox -- -k "$FOCUS"
           else
-            tox -e py39
+            tox
           fi
 
   lint:
