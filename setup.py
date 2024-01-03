@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-from distutils.core import setup
+try:
+    from distutils.core import setup
+except ImportError:
+    from setuptools import setup
 
 __version__ = "0.4"
 

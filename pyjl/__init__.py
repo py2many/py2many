@@ -1,11 +1,11 @@
 import os
 
-from distutils import spawn
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 
 from py2many.language import LanguageSettings
+from py2many.process_helpers import find_executable
 
 from .inference import infer_julia_types
 from .rewriters import JuliaIndexingRewriter
@@ -23,9 +23,9 @@ def _julia_formatter_path():
 
 
 def settings(args, env=os.environ):
-    format_jl = spawn.find_executable("format.jl")
+    format_jl = find_executable("format.jl")
     if not format_jl:
-        julia = spawn.find_executable("julia")
+        julia = find_executable("julia")
         if julia:
             format_jl = _julia_formatter_path()
 

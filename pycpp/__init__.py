@@ -3,10 +3,10 @@ import os.path
 import pathlib
 import sys
 
-from distutils import spawn
 from itertools import chain
 
 from py2many.language import LanguageSettings
+from py2many.process_helpers import find_executable
 
 from .transpiler import CppListComparisonRewriter, CppTranspiler
 
@@ -39,12 +39,12 @@ def settings(args, env=os.environ):
     cxx = env.get("CXX")
     default_cxx = ["clang++", "g++-11", "g++"]
     if cxx:
-        if not spawn.find_executable(cxx):
+        if not find_executable(cxx):
             print(f"Warning: CXX({cxx}) not found")
             cxx = None
     if not cxx:
         for exe in default_cxx:
-            if spawn.find_executable(exe):
+            if find_executable(exe):
                 cxx = exe
                 break
         else:

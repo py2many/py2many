@@ -5,7 +5,6 @@ import platform
 import unittest
 import sys
 
-from distutils import spawn
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
@@ -19,6 +18,7 @@ from py2many.cli import (
     _relative_to_cwd,
     main,
 )
+from py2many.process_helpers import find_executable
 
 try:
     from py2many.pycpp import _conan_include_args
@@ -197,7 +197,7 @@ class CodeGeneratorTests(unittest.TestCase):
             raise unittest.SkipTest(f"{expected_filename} not found")
 
         if settings.formatter:
-            if not spawn.find_executable(settings.formatter[0]):
+            if not find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
@@ -253,7 +253,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
             compiler = COMPILERS.get(lang)
             if compiler:
-                if not spawn.find_executable(compiler[0]):
+                if not find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
                 expect_compile_failure = (
                     not self.SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
@@ -282,7 +282,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 invoker = INVOKER.get(lang)
                 if os.path.exists(invoker[0]):
                     pass
-                elif not spawn.find_executable(invoker[0]):
+                elif not find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
@@ -315,7 +315,7 @@ class CodeGeneratorTests(unittest.TestCase):
             self.assertEqual(expected_output, stdout)
 
             if settings.linter and self.LINT:
-                if not spawn.find_executable(settings.linter[0]):
+                if not find_executable(settings.linter[0]):
                     raise unittest.SkipTest(f"{settings.linter[0]} not available")
                 if settings.ext == ".kt" and case_output.is_absolute():
                     # KtLint does not support absolute path in globs
@@ -360,13 +360,13 @@ class CodeGeneratorTests(unittest.TestCase):
         env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
         env["CXXFLAGS"] = "-std=c++17 -Wall -Werror"
 
-        if not spawn.find_executable(env["CXX"]):
+        if not find_executable(env["CXX"]):
             raise unittest.SkipTest(f"{env['CXX']} not available")
 
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         assert settings.linter[0].startswith("g++")
 
-        if not spawn.find_executable("astyle"):
+        if not find_executable("astyle"):
             raise unittest.SkipTest("astyle not available")
 
         settings.formatter = ["astyle"]
@@ -474,7 +474,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         if settings.formatter:
-            if not spawn.find_executable(settings.formatter[0]):
+            if not find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         ext = settings.ext

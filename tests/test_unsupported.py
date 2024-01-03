@@ -3,7 +3,6 @@ import os.path
 import unittest
 import sys
 
-from distutils import spawn
 from functools import lru_cache, partial
 from subprocess import run
 from textwrap import dedent
@@ -27,6 +26,7 @@ from unittest_expander import foreach, expand
 
 from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile, _transpile_one
 from py2many.exceptions import AstIncompatibleAssign
+from py2many.process_helpers import find_executable
 
 import py2many.cli
 
@@ -265,7 +265,7 @@ class CodeGeneratorTests(unittest.TestCase):
             raise unittest.SkipTest(str(e))
 
         if settings.formatter:
-            if not spawn.find_executable(settings.formatter[0]):
+            if not find_executable(settings.formatter[0]):
                 raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         exe = get_exe_filename(case, ext)
@@ -290,7 +290,7 @@ class CodeGeneratorTests(unittest.TestCase):
         try:
             compiler = COMPILERS.get(lang)
             if compiler:
-                if not spawn.find_executable(compiler[0]):
+                if not find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
                 proc = run([*compiler, case_output], env=env, capture_output=True)
 
@@ -302,7 +302,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
             if INVOKER.get(lang):
                 invoker = INVOKER.get(lang)
-                if not spawn.find_executable(invoker[0]):
+                if not find_executable(invoker[0]):
                     raise unittest.SkipTest(f"{invoker[0]} not available")
                 proc = run([*invoker, case_output], env=env, capture_output=True)
 

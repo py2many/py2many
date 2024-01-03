@@ -1,7 +1,6 @@
 import os
 import unittest
 
-from distutils import spawn
 from pathlib import Path
 from shutil import rmtree
 from unittest.mock import Mock
@@ -12,6 +11,7 @@ from py2many.exceptions import (
     AstTypeNotSupported,
     AstUnrecognisedBinOp,
 )
+from py2many.process_helpers import find_executable
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
@@ -106,7 +106,7 @@ class SelfTranspileTests(unittest.TestCase):
 
         suppress_exceptions = False
         if not SHOW_ERRORS and settings.formatter:
-            if not spawn.find_executable(settings.formatter[0]):
+            if not find_executable(settings.formatter[0]):
                 suppress_exceptions = FileNotFoundError
 
         transpiler_module = ROOT_DIR / "pykt"
@@ -169,6 +169,7 @@ class SelfTranspileTests(unittest.TestCase):
                 "language.py",
                 "mutability_transformer.py",
                 "nesting_transformer.py",
+                "process_helpers.py",
                 "python_transformer.py",
                 "result.py",
                 "rewriters.py",
@@ -214,7 +215,7 @@ class SelfTranspileTests(unittest.TestCase):
 
         if not SHOW_ERRORS:
             if settings.formatter:
-                if not spawn.find_executable(settings.formatter[0]):
+                if not find_executable(settings.formatter[0]):
                     suppress_exceptions = (FileNotFoundError,)
 
         transpiler_module = ROOT_DIR / "pyjl"
@@ -262,6 +263,6 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
             ),
-            format_error_count=9,
+            format_error_count=10,
             failure_count=11,
         )
