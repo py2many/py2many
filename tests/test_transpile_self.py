@@ -11,7 +11,6 @@ from py2many.exceptions import (
     AstTypeNotSupported,
     AstUnrecognisedBinOp,
 )
-from py2many.process_helpers import find_executable
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
@@ -103,11 +102,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
-
         suppress_exceptions = False
-        if not SHOW_ERRORS and settings.formatter:
-            if not find_executable(settings.formatter[0]):
-                suppress_exceptions = FileNotFoundError
 
         transpiler_module = ROOT_DIR / "pykt"
         assert_only_reformat_failures(
@@ -127,8 +122,6 @@ class SelfTranspileTests(unittest.TestCase):
             False,
             _suppress_exceptions=suppress_exceptions,
         )
-        if suppress_exceptions:
-            raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         assert_only_reformat_failures(successful, format_errors, failures)
 
@@ -211,12 +204,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
-        suppress_exceptions = (False,)
-
-        if not SHOW_ERRORS:
-            if settings.formatter:
-                if not find_executable(settings.formatter[0]):
-                    suppress_exceptions = (FileNotFoundError,)
+        suppress_exceptions = False
 
         transpiler_module = ROOT_DIR / "pyjl"
         successful, format_errors, failures = _process_dir(
@@ -226,8 +214,7 @@ class SelfTranspileTests(unittest.TestCase):
             False,
             _suppress_exceptions=suppress_exceptions,
         )
-        if FileNotFoundError not in suppress_exceptions:
-            assert_only_reformat_failures(successful, format_errors, failures)
+        assert_only_reformat_failures(successful, format_errors, failures)
 
         successful, format_errors, failures = _process_dir(
             settings,
@@ -236,8 +223,6 @@ class SelfTranspileTests(unittest.TestCase):
             False,
             _suppress_exceptions=suppress_exceptions,
         )
-        if FileNotFoundError in suppress_exceptions:
-            raise unittest.SkipTest(f"{settings.formatter[0]} not available")
 
         assert_only_reformat_failures(successful, format_errors, failures)
 
