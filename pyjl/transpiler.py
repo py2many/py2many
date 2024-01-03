@@ -1,6 +1,6 @@
 import ast
 import textwrap
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 from py2many.analysis import get_id, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
@@ -17,6 +17,15 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+
+from py2many.analysis import get_id, is_void_function
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.clike import _AUTO_INVOKED, class_for_typename
+from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
+
+from . import julia_ast
+
+from typing import List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
@@ -604,3 +613,18 @@ class JuliaTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"{test} ? ({body}) : ({orelse})"
+
+    ############################################
+    ############### Julia Nodes ################
+    ############################################
+    def visit_LetStmt(self, node: julia_ast.LetStmt) -> Any:
+        args = [self.visit(arg) for arg in node.args]
+        args_str = ", ".join(args)
+
+        # Visit let body
+        body = []
+        for n in node.body:
+            body.append(self.visit(n))
+        body = "\n".join(body)
+
+        return f"let {args_str}\n{body}\nend"
