@@ -32,6 +32,21 @@ from .rewriters import (
 from .scope import add_scope_context
 from .toposort_modules import toposort
 
+
+from py2many.rewriters import (
+    ComplexDestructuringRewriter,
+    FStringJoinRewriter,
+    LoopElseRewriter,
+    PythonMainRewriter,
+    DocStringToCommentRewriter,
+    PrintBoolRewriter,
+    StrStrRewriter,
+    WithToBlockTransformer,
+    IgnoredAssignRewriter,
+    UnpackScopeRewriter,
+    UnitTestRewriter,
+)
+
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
 STDIN = "-"
@@ -90,6 +105,7 @@ def _transpile(
         PrintBoolRewriter(language),
         StrStrRewriter(language),
         UnpackScopeRewriter(language),
+        UnitTestRewriter(language),
     ]
     if settings.ext != ".py":
         generic_post_rewriters.append(LoopElseRewriter(language))
