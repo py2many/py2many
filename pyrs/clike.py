@@ -1,14 +1,14 @@
 import ast
 
-from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler, LifeTime
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
+from py2many.clike import LifeTime
 
 from .inference import (
     RUST_RANK_TO_TYPE,
-    RUST_WIDTH_RANK,
     RUST_TYPE_MAP,
+    RUST_WIDTH_RANK,
     is_rust_reference,
 )
-
 
 # allowed as names in Python but treated as keywords in Rust
 RUST_KEYWORDS = frozenset(

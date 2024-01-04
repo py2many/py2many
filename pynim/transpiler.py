@@ -1,25 +1,24 @@
 import ast
+from typing import List
+
+from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.clike import class_for_typename
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.tracer import defined_before, is_list
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_nim_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
+    DISPATCH_MAP,
     FUNC_DISPATCH_TABLE,
     FUNC_USINGS_MAP,
     MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
-
-from py2many.analysis import get_id, is_mutable, is_void_function
-from py2many.clike import class_for_typename
-from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
-from py2many.tracer import is_list, defined_before
-
-from typing import List
 
 
 class NimNoneCompareRewriter(ast.NodeTransformer):

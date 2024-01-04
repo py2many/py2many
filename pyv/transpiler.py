@@ -2,20 +2,20 @@ import ast
 import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from py2many.tracer import is_list, defined_before
-from py2many.exceptions import AstNotImplementedError
-from py2many.declaration_extractor import DeclarationExtractor
-from py2many.clike import class_for_typename
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.ast_helpers import create_ast_node
+from py2many.clike import class_for_typename
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.exceptions import AstNotImplementedError
+from py2many.tracer import defined_before, is_list
 
 from .clike import CLikeTranspiler
 from .inference import V_WIDTH_RANK
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
-    FUNC_DISPATCH_TABLE,
     DISPATCH_MAP,
+    FUNC_DISPATCH_TABLE,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )

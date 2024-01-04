@@ -1,24 +1,23 @@
 import ast
-
 from typing import List, Tuple
+
+from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.ast_helpers import create_ast_block
+from py2many.clike import class_for_typename
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.tracer import defined_before, is_class_or_module, is_list, is_self_arg
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_kotlin_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
+    DISPATCH_MAP,
     FUNC_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
-
-from py2many.analysis import get_id, is_mutable, is_void_function
-from py2many.ast_helpers import create_ast_block
-from py2many.clike import class_for_typename
-from py2many.declaration_extractor import DeclarationExtractor
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
 
 
 class KotlinPrintRewriter(ast.NodeTransformer):

@@ -1,10 +1,9 @@
 import ast
 
-from .inference import SMT_TYPE_MAP, SMT_WIDTH_RANK
-
-from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from py2many.analysis import is_global
+from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+from .inference import SMT_TYPE_MAP, SMT_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in Smt
 smt_keywords = frozenset([])

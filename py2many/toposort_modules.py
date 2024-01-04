@@ -1,8 +1,9 @@
 import ast
-from pathlib import Path
-from toposort import toposort_flatten
 from collections import defaultdict
+from pathlib import Path
 from typing import Tuple
+
+from toposort import toposort_flatten
 
 
 def module_for_path(path: Path) -> str:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from adt import adt as sealed
 from dataclasses import dataclass
+
+from adt import adt as sealed
 
 
 @dataclass

@@ -2,7 +2,7 @@ import ast
 import functools
 from typing import Callable, Dict, List, Tuple, Union
 
-from .inference import get_inferred_v_type, V_WIDTH_RANK
+from .inference import V_WIDTH_RANK, get_inferred_v_type
 
 
 class VTranspilerPlugins:

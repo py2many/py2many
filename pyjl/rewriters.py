@@ -1,10 +1,11 @@
 import ast
+import re
 from typing import Any
 
-from .pyjl_vars import SEP
 from py2many.ast_helpers import get_id
 from py2many.helpers import get_ann_repr
-import re
+
+from .pyjl_vars import SEP
 
 
 class JuliaIndexingRewriter(ast.NodeTransformer):

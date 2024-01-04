@@ -1,9 +1,8 @@
 import ast
 
-from .inference import NIM_TYPE_MAP, NIM_WIDTH_RANK
-
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+from .inference import NIM_TYPE_MAP, NIM_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in Nim
 nim_keywords = frozenset(

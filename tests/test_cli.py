@@ -2,14 +2,14 @@ import argparse
 import logging
 import os.path
 import platform
-import unittest
 import sys
-
+import unittest
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from unittest.mock import Mock
-from unittest_expander import foreach, expand
+
+from unittest_expander import expand, foreach
 
 from py2many.cli import (
     _create_cmd,

@@ -3,7 +3,6 @@ import ast
 import os
 import sys
 import tempfile
-
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
@@ -11,30 +10,27 @@ from typing import List, Optional, Set, Tuple
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
-
-from .context import add_assignment_context, add_variable_context, add_list_calls
+from .context import add_assignment_context, add_list_calls, add_variable_context
 from .exceptions import AstErrorBase
 from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
-from .registry import _get_all_settings, ALL_SETTINGS, FAKE_ARGS
+from .registry import ALL_SETTINGS, FAKE_ARGS, _get_all_settings
+from .rewriters import (
+    ComplexDestructuringRewriter,
+    DocStringToCommentRewriter,
+    FStringJoinRewriter,
+    IgnoredAssignRewriter,
+    LoopElseRewriter,
+    PrintBoolRewriter,
+    PythonMainRewriter,
+    StrStrRewriter,
+    UnpackScopeRewriter,
+    WithToBlockTransformer,
+)
 from .scope import add_scope_context
 from .toposort_modules import toposort
-
-
-from py2many.rewriters import (
-    ComplexDestructuringRewriter,
-    FStringJoinRewriter,
-    LoopElseRewriter,
-    PythonMainRewriter,
-    DocStringToCommentRewriter,
-    PrintBoolRewriter,
-    StrStrRewriter,
-    WithToBlockTransformer,
-    IgnoredAssignRewriter,
-    UnpackScopeRewriter,
-)
 
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent

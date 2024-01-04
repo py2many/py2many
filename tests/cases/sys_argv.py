@@ -1,7 +1,6 @@
 import sys
 from typing import List
 
-
 if __name__ == "__main__":
     # TODO: Use variable to help rust
     a: List[str] = sys.argv

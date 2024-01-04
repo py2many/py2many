@@ -1,10 +1,9 @@
 import ast
 
-from .inference import KT_TYPE_MAP, KT_WIDTH_RANK
-
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+from .inference import KT_TYPE_MAP, KT_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in Kotlin
 kotlin_keywords = frozenset(

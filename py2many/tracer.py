@@ -1,12 +1,11 @@
 # Trace object types that are inserted into Python list.
 
 import ast
+from typing import Optional
 
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler
 from py2many.exceptions import AstNotImplementedError
-
-from typing import Optional
 
 
 def decltype(node):

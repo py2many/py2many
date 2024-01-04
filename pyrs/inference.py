@@ -1,15 +1,22 @@
 import ast
 import datetime
-import typing
 import types
-
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+import typing
+from ctypes import (
+    c_int8,
+    c_int16,
+    c_int32,
+    c_int64,
+    c_uint8,
+    c_uint16,
+    c_uint32,
+    c_uint64,
+)
 
 from py2many.analysis import get_id, is_mutable
 from py2many.clike import class_for_typename
 from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import get_inferred_type, is_reference, InferTypesTransformer
+from py2many.inference import InferTypesTransformer, get_inferred_type, is_reference
 
 RUST_TYPE_MAP = {
     int: "i32",

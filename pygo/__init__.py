@@ -1,10 +1,8 @@
 import os
-
 from pathlib import Path
 
-from py2many.language import LanguageSettings
-
 import py2many
+from py2many.language import LanguageSettings
 
 from .inference import infer_go_types
 from .transpiler import (

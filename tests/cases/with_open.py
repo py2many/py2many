@@ -2,7 +2,6 @@
 
 from tempfile import NamedTemporaryFile
 
-
 if __name__ == "__main__":
     with NamedTemporaryFile(mode="a+", delete=False) as temp_file:
         file_path = temp_file.name

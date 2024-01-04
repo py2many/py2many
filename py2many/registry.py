@@ -1,12 +1,9 @@
 import os
 import pathlib
-
 from unittest.mock import Mock
 
 from .language import LanguageSettings
-
 from .python_transformer import PythonTranspiler, RestoreMainRewriter
-
 from .rewriters import InferredAnnAssignRewriter
 
 CI = os.environ.get("CI", "0")

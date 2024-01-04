@@ -2,7 +2,6 @@ import os
 import os.path
 import pathlib
 import sys
-
 from itertools import chain
 
 from py2many.language import LanguageSettings

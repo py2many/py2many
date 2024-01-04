@@ -1,4 +1,5 @@
 import ast
+
 from .scope import ScopeMixin
 
 

@@ -1,28 +1,16 @@
 import ast
 import textwrap
+from typing import List, Tuple
 
-from .tracer import decltype
-from .clike import CLikeTranspiler
-from .plugins import (
-    ATTR_DISPATCH_TABLE,
-    CLASS_DISPATCH_TABLE,
-    FUNC_DISPATCH_TABLE,
-    MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
-    SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
-)
-
-
-from py2many.analysis import add_imports, is_global, is_void_function, get_id
+from py2many.analysis import add_imports, get_id, is_global, is_void_function
 from py2many.ast_helpers import create_ast_block
 from py2many.clike import _AUTO_INVOKED, class_for_typename
-from py2many.context import add_variable_context, add_list_calls
+from py2many.context import add_list_calls, add_variable_context
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
 from py2many.inference import InferMeta
-from py2many.scope import add_scope_context
 from py2many.rewriters import PythonMainRewriter
+from py2many.scope import add_scope_context
 from py2many.tracer import (
     defined_before,
     is_class_or_module,
@@ -31,7 +19,17 @@ from py2many.tracer import (
     is_self_arg,
 )
 
-from typing import List, Tuple
+from .clike import CLikeTranspiler
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
+from .tracer import decltype
 
 _AUTO = "auto()"
 

@@ -2,12 +2,12 @@ from pathlib import Path
 
 try:
     from py2many.pycpp import (
+        REQUIRED_INCLUDE_FILES,
         _conan_include_args,
         _conan_include_dirs,
-        REQUIRED_INCLUDE_FILES,
     )
 except ImportError:
-    from pycpp import _conan_include_args, _conan_include_dirs, REQUIRED_INCLUDE_FILES
+    from pycpp import REQUIRED_INCLUDE_FILES, _conan_include_args, _conan_include_dirs
 
 
 class TestSettings:

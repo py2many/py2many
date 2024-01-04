@@ -1,13 +1,13 @@
 import ast
 
-from py2many.context import add_variable_context, add_list_calls
+from py2many.context import add_list_calls, add_variable_context
 from py2many.scope import add_scope_context
 from py2many.tracer import is_recursive
 
 try:
-    from py2many.pycpp.tracer import value_type, value_expr, decltype, is_list
+    from py2many.pycpp.tracer import decltype, is_list, value_expr, value_type
 except ImportError:
-    from pycpp.tracer import value_type, value_expr, decltype, is_list
+    from pycpp.tracer import decltype, is_list, value_expr, value_type
 
 
 def parse(*args):

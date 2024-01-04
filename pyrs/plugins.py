@@ -1,19 +1,18 @@
-import io
-import os
 import ast
 import functools
+import io
 import math
-import time
+import os
 import random
 import sys
 import textwrap
-
+import time
 from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
 
 try:
-    from argparse_dataclass import dataclass as ap_dataclass
     from argparse_dataclass import ArgumentParser
+    from argparse_dataclass import dataclass as ap_dataclass
 except:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"

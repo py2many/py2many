@@ -1,24 +1,23 @@
 import ast
 import textwrap
-
 from typing import List
-
-from .clike import CLikeTranspiler
-from .plugins import (
-    ATTR_DISPATCH_TABLE,
-    CLASS_DISPATCH_TABLE,
-    FUNC_DISPATCH_TABLE,
-    MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
-    SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
-)
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import get_inferred_type
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_self_arg
+from py2many.tracer import defined_before, is_class_or_module, is_list, is_self_arg
+
+from .clike import CLikeTranspiler
+from .plugins import (
+    ATTR_DISPATCH_TABLE,
+    CLASS_DISPATCH_TABLE,
+    DISPATCH_MAP,
+    FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
+    SMALL_DISPATCH_MAP,
+    SMALL_USINGS_MAP,
+)
 
 
 class DartIntegerDivRewriter(ast.NodeTransformer):

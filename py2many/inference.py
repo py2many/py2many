@@ -1,9 +1,16 @@
 import ast
-
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+from ctypes import (
+    c_int8,
+    c_int16,
+    c_int32,
+    c_int64,
+    c_uint8,
+    c_uint16,
+    c_uint32,
+    c_uint64,
+)
 from dataclasses import dataclass
-from typing import cast, Set, Optional
+from typing import Optional, Set, cast
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node, unparse
@@ -12,10 +19,9 @@ from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
 from py2many.tracer import is_enum
 
-
 try:
-    from typpete.inference_runner import infer as infer_types_ast
     from typpete.context import Context
+    from typpete.inference_runner import infer as infer_types_ast
     from typpete.z3_types import TypesSolver
 except ModuleNotFoundError:
 

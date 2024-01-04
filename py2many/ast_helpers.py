@@ -1,6 +1,7 @@
 import ast
-from py2many.astx import ASTxIf
 from typing import cast
+
+from py2many.astx import ASTxIf
 
 try:
     from ast import unparse  # noqa: introduced in py3.9
@@ -9,7 +10,6 @@ except ImportError:
 
     # Note ast-compat and astunparse packages fail internally with:
     # AttributeError: 'Constant' object has no attribute 'kind'
-
     # https://github.com/isidentical/backports.ast_unparse/commit/e7b1aea is broken
 
 

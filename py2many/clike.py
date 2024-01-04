@@ -7,20 +7,34 @@ import random
 import sys
 import time
 
-from pathlib import Path
-from typing import Any, Dict, OrderedDict
-
 # Fixed width ints and aliases
-from ctypes import (
-    c_int8 as i8,
-    c_int16 as i16,
-    c_int32 as i32,
-    c_int64 as i64,
-    c_uint8 as u8,
-    c_uint16 as u16,
-    c_uint32 as u32,
-    c_uint64 as u64,
+from ctypes import c_int8 as i8
+from ctypes import c_int16 as i16
+from ctypes import c_int32 as i32
+from ctypes import c_int64 as i64
+from ctypes import c_uint8 as u8
+from ctypes import c_uint16 as u16
+from ctypes import c_uint32 as u32
+from ctypes import c_uint64 as u64
+from pathlib import Path
+from typing import Any, Dict, List, Optional, OrderedDict, Tuple, Union
+
+from py2many.analysis import IGNORED_MODULE_SET, get_id
+from py2many.astx import LifeTime
+from py2many.exceptions import (
+    AstCouldNotInfer,
+    AstEmptyNodeFound,
+    AstNotImplementedError,
+    AstTypeNotSupported,
+    TypeNotSupported,
 )
+from py2many.result import Result
+
+os.path  # silence pyflakes
+math.pi  # silence pyflakes
+time.time  # silence pyflakes
+random.random  # silence pyflakes
+Result  # silence pyflakes
 
 ilong = i64
 ulong = u64
@@ -34,25 +48,6 @@ c_uint8 = u8
 c_uint16 = u16
 c_uint32 = u32
 c_uint64 = u64
-
-
-from py2many.analysis import get_id, IGNORED_MODULE_SET
-from py2many.astx import LifeTime
-from py2many.exceptions import (
-    AstCouldNotInfer,
-    AstEmptyNodeFound,
-    AstNotImplementedError,
-    AstTypeNotSupported,
-    TypeNotSupported,
-)
-from py2many.result import Result
-from typing import List, Optional, Tuple, Union
-
-os.path  # silence pyflakes
-math.pi  # silence pyflakes
-time.time  # silence pyflakes
-random.random  # silence pyflakes
-Result  # silence pyflakes
 
 symbols = {
     ast.Eq: "==",

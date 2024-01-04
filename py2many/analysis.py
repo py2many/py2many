@@ -2,7 +2,6 @@ import ast
 
 from .ast_helpers import get_id
 
-
 get_id  # quiten pyflakes; this should when code is updated to use ast_helpers
 
 IGNORED_MODULE_SET = set(

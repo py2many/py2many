@@ -1,13 +1,14 @@
 import ast
-from py2many.scope import add_scope_context
-from py2many.context import add_variable_context
+
 from py2many.analysis import (
-    FunctionTransformer,
-    CalledWithTransformer,
-    ImportTransformer,
     AttributeCallTransformer,
+    CalledWithTransformer,
+    FunctionTransformer,
+    ImportTransformer,
     is_void_function,
 )
+from py2many.context import add_variable_context
+from py2many.scope import add_scope_context
 
 
 def parse(*args):

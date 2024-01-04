@@ -1,5 +1,4 @@
 import os
-
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
@@ -8,7 +7,7 @@ from py2many.language import LanguageSettings
 from py2many.process_helpers import find_executable
 
 from .inference import infer_julia_types
-from .rewriters import JuliaIndexingRewriter, JuliaBoolOpRewriter
+from .rewriters import JuliaBoolOpRewriter, JuliaIndexingRewriter
 from .transpiler import JuliaMethodCallRewriter, JuliaTranspiler
 
 

@@ -1,13 +1,20 @@
 import ast
-from ctypes import c_int8, c_int16, c_int32, c_int64
-from ctypes import c_uint8, c_uint16, c_uint32, c_uint64
+from ctypes import (
+    c_int8,
+    c_int16,
+    c_int32,
+    c_int64,
+    c_uint8,
+    c_uint16,
+    c_uint32,
+    c_uint64,
+)
 from typing import Dict
 
 from py2many.analysis import get_id
 from py2many.clike import class_for_typename
 from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import get_inferred_type, InferTypesTransformer
-
+from py2many.inference import InferTypesTransformer, get_inferred_type
 
 V_TYPE_MAP: Dict[type, str] = {
     int: "int",

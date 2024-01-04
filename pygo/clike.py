@@ -1,10 +1,9 @@
 import ast
 
 from py2many.analysis import get_id
-from .inference import GO_TYPE_MAP, GO_WIDTH_RANK
-
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+from .inference import GO_TYPE_MAP, GO_WIDTH_RANK
 
 go_type_map = {
     "bool": "bool",

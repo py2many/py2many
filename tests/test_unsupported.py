@@ -1,8 +1,7 @@
 import ast
 import os.path
-import unittest
 import sys
-
+import unittest
 from functools import lru_cache, partial
 from subprocess import run
 from textwrap import dedent
@@ -22,27 +21,15 @@ except ImportError:
         print(ast_dump(node))
 
 
-from unittest_expander import foreach, expand
+from test_cli import BUILD_DIR, COMPILERS, ENV, GENERATED_DIR, INVOKER, KEEP_GENERATED
+from test_cli import LANGS as _LANGS
+from test_cli import SHOW_ERRORS, TESTS_DIR, get_exe_filename, has_main_lines
+from unittest_expander import expand, foreach
 
+import py2many.cli
 from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile, _transpile_one
 from py2many.exceptions import AstIncompatibleAssign
 from py2many.process_helpers import find_executable
-
-import py2many.cli
-
-from test_cli import (
-    BUILD_DIR,
-    COMPILERS,
-    ENV,
-    GENERATED_DIR,
-    INVOKER,
-    KEEP_GENERATED,
-    LANGS as _LANGS,
-    SHOW_ERRORS,
-    TESTS_DIR,
-    get_exe_filename,
-    has_main_lines,
-)
 
 LANGS = set(_LANGS) - {"python"}
 

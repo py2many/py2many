@@ -1,7 +1,8 @@
 # Trace object types that are inserted into Python list.
 import ast
+
 from py2many.analysis import get_id
-from py2many.tracer import is_list, ValueExpressionVisitor, ValueTypeVisitor
+from py2many.tracer import ValueExpressionVisitor, ValueTypeVisitor, is_list
 
 from .clike import CLikeTranspiler
 

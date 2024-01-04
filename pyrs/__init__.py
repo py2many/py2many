@@ -1,5 +1,4 @@
 import os
-
 from functools import partial
 
 from py2many.language import LanguageSettings

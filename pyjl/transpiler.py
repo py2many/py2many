@@ -1,23 +1,22 @@
 import ast
 import textwrap
+from typing import List, Tuple
+
+from py2many.analysis import get_id, is_void_function
+from py2many.clike import _AUTO_INVOKED, class_for_typename
+from py2many.declaration_extractor import DeclarationExtractor
+from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
 
 from .clike import CLikeTranspiler
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
+    DISPATCH_MAP,
     FUNC_DISPATCH_TABLE,
     MODULE_DISPATCH_TABLE,
-    DISPATCH_MAP,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
-
-from py2many.analysis import get_id, is_void_function
-from py2many.declaration_extractor import DeclarationExtractor
-from py2many.clike import _AUTO_INVOKED, class_for_typename
-from py2many.tracer import is_list, defined_before, is_class_or_module, is_enum
-
-from typing import List, Tuple
 
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):

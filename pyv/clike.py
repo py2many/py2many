@@ -1,10 +1,9 @@
 import ast
 from typing import Dict, Set
 
-from .inference import V_TYPE_MAP, V_WIDTH_RANK
-
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
+from .inference import V_TYPE_MAP, V_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in V
 v_keywords: Set[str] = frozenset(

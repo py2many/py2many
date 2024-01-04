@@ -1,6 +1,6 @@
-from typing import TypeVar, Generic, Union
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Generic, TypeVar, Union
 
 T = TypeVar("T")
 E = TypeVar("E", Exception, IntEnum)
