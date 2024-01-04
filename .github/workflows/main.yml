@@ -20,12 +20,18 @@ jobs:
     strategy:
       matrix:
         python-version:
+          - '3.8'
           - '3.9'
           - '3.12'
         os:
           - ubuntu-22.04
           - macos-12
           - windows-2022
+        exclude:
+          - python-version: '3.8'
+            os: macos-12
+          - python-version: '3.9'
+            os: macos-12
     runs-on: ${{ matrix.os }}
 
     steps:
