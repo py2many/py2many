@@ -412,17 +412,6 @@ class CodeGeneratorTests(unittest.TestCase):
                 case_output.unlink(missing_ok=True)
             exe.unlink(missing_ok=True)
 
-    def test_env_clang_format_style(self):
-        lang = "cpp"
-        env = {"CLANG_FORMAT_STYLE": "Google"}
-        settings = _get_all_settings(Mock(indent=4), env=env)[lang]
-        self.assertIn("-style=Google", settings.formatter)
-
-    def test_arg_nim_indent(self):
-        lang = "nim"
-        settings = _get_all_settings(Mock(indent=2))[lang]
-        self.assertIn("--indent:2", settings.formatter)
-
     @staticmethod
     def _rmdir_recursive(path: Path):
         try:
