@@ -1,4 +1,5 @@
 #include <cmath>     // NOLINT(build/include_order)
+#include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 inline void main_func() {
   int a = std::pow(2, 4);

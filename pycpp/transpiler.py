@@ -117,9 +117,8 @@ class CppTranspiler(CLikeTranspiler):
 
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
-        # TODO: include only when needed
         self._headers = []
-        self._usings = set([])
+        self._usings = set(["<cstdint>"])
         self.use_catch_test_cases = False
         self._container_type_map = self.CONTAINER_TYPES
         self._extension = extension

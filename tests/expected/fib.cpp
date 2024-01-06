@@ -1,3 +1,4 @@
+#include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 inline int fib(int i) {
   if (i == 0 || i == 1) {

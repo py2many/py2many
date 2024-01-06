@@ -1,5 +1,6 @@
 #include <algorithm>  // NOLINT(build/include_order)
 #include <cassert>    // NOLINT(build/include_order)
+#include <cstdint>    // NOLINT(build/include_order)
 #include <iostream>   // NOLINT(build/include_order)
 #include <map>        // NOLINT(build/include_order)
 #include <set>        // NOLINT(build/include_order)

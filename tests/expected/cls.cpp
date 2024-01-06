@@ -1,3 +1,4 @@
+#include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 class Foo {
  public:

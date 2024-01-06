@@ -1,4 +1,5 @@
 #include <cassert>   // NOLINT(build/include_order)
+#include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 #include <string>    // NOLINT(build/include_order)
 #include <vector>    // NOLINT(build/include_order)
