@@ -121,6 +121,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     builtin_constants = frozenset(["True", "False"])
 
     def __init__(self):
+        """Note __init__ is called in ._reset() to reset the transpiler state."""
         self._type_map = {}
         self._headers = set([])
         self._usings = set([])
@@ -141,6 +142,17 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._attr_dispatch_table = {}
         self._keywords = {}
         self._throw_on_unimplemented = True
+
+    def _reset(self):
+        # Save some settings
+        extension = self._extension
+        throw_on_unimplemented = self._throw_on_unimplemented
+
+        self.__init__()
+
+        # Re-apply settings
+        self._extension = extension
+        self._throw_on_unimplemented = throw_on_unimplemented
 
     def headers(self, meta=None):
         return ""
@@ -308,11 +320,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         docstring = getattr(node, "docstring_comment", None)
         buf = [self.comment(docstring.value)] if docstring is not None else []
         filename = getattr(node, "__file__", None)
+        self._reset()
         if filename is not None:
             self._module = Path(filename).stem
-        # TODO: generalize this to reset all state that needs to be reset
-        self._imported_names = {}
-        self._usings.clear()
         body_dict: Dict[ast.AST, str] = OrderedDict()
         for b in node.body:
             if not isinstance(b, ast.FunctionDef):

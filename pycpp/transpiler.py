@@ -131,6 +131,11 @@ class CppTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._main_signature_arg_names = ["argc", "argv"]
 
+    def _reset(self):
+        use_catch_test_cases = self.use_catch_test_cases
+        super()._reset()
+        self.use_catch_test_cases = use_catch_test_cases
+
     def _get_nolint_suffix(self, nolint="build/include_order"):
         return f"  // NOLINT({nolint})" if not self._no_prologue else ""
 
