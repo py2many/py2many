@@ -53,7 +53,7 @@ COMPILERS = {
     "rust": [
         "rustup",
         "run",
-        "nightly",
+        "nightly-2024-01-01",
         "cargo",
         "build",
         "-Zscript",
@@ -67,7 +67,15 @@ INVOKER = {
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
     "python": [sys.executable],
-    "rust": ["rustup", "run", "nightly", "cargo", "run", "-Zscript", "--manifest-path"],
+    "rust": [
+        "rustup",
+        "run",
+        "nightly-2024-01-01",
+        "cargo",
+        "run",
+        "-Zscript",
+        "--manifest-path",
+    ],
     "vlang": ["v", "run"],
 }
 

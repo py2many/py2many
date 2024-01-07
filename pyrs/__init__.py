@@ -20,7 +20,7 @@ def settings(args, env=os.environ):
         [
             "rustup",
             "run",
-            "nightly",
+            "nightly-2024-01-01",
             "rustfmt",
             "--edition=2021",
         ],
@@ -31,7 +31,7 @@ def settings(args, env=os.environ):
         linter=[
             "rustup",
             "run",
-            "nightly",
+            "nightly-2024-01-01",
             "cargo",
             "clippy",
             "-Zscript",

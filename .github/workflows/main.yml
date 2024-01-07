@@ -200,8 +200,9 @@ jobs:
 
       - name: Install rust nightly toolchain
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2024-01-01
           components: clippy,rustfmt
 
       - name: Run tox
