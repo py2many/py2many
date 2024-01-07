@@ -16,7 +16,7 @@ def settings(args, env=os.environ):
             "jgo",
             "--repository",
             "clojars.org=https://repo.clojars.org",
-            "mvxcvi:cljstyle",
+            "mvxcvi:cljstyle:0.15.1",
             *cljstyle_args,
         ],
         None,
