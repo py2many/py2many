@@ -167,7 +167,6 @@ class SelfTranspileTests(unittest.TestCase):
                 "python_transformer.py",
                 "result.py",
                 "rewriters.py",
-                "smt.py",
                 "scope.py",
                 "toposort_modules.py",
                 "tracer.py",

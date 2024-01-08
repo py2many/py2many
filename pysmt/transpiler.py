@@ -3,15 +3,10 @@ from typing import List
 
 from py2many.analysis import get_id, is_ellipsis, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import (
-    AstClassUsedBeforeDeclaration,
-    AstNotImplementedError,
-    AstTypeNotSupported,
-)
+from py2many.exceptions import AstNotImplementedError, AstTypeNotSupported
 from py2many.tracer import defined_before
 
 from .clike import CLikeTranspiler
-from .inference import get_inferred_smt_type
 
 
 class SmtTranspiler(CLikeTranspiler):
@@ -46,8 +41,6 @@ class SmtTranspiler(CLikeTranspiler):
         typenames, args = self.visit(node.args)
 
         args_list = []
-        if len(args) and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
 
         for i in range(len(args)):
             typename = typenames[i]
@@ -73,53 +66,19 @@ class SmtTranspiler(CLikeTranspiler):
     def visit_Return(self, node):
         if node.value:
             ret = self.visit(node.value)
-            fndef = None
-            for scope in node.scopes:
-                if isinstance(scope, ast.FunctionDef):
-                    fndef = scope
-                    break
-            if fndef:
-                return_type = self._typename_from_annotation(fndef, attr="returns")
-                value_type = get_inferred_smt_type(node.value)
-                if return_type != value_type and value_type is not None:
-                    return f"return {return_type}({ret})"
+
             return f"return {ret}"
         return "return"
 
     def visit_arg(self, node):
         id = get_id(node)
-        if id == "self":
-            return (None, "self")
         typename = "T"
         if node.annotation:
-            # This works only for arguments, for all other cases, use container_types
-            mutable = is_mutable(node.scopes, id)
             typename = self._typename_from_annotation(node)
-            if mutable:
-                typename = f"var {typename}"
         return (typename, id)
-
-    def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
-        vargs = []  # visited args
-        if not hasattr(fndef, "declarations"):
-            raise AstClassUsedBeforeDeclaration(fndef, node)
-        if node.args:
-            for arg, decl in zip(node.args, fndef.declarations.keys()):
-                arg = self.visit(arg)
-                vargs += [f"{decl}: {arg}"]
-        if node.keywords:
-            for kw in node.keywords:
-                value = self.visit(kw.value)
-                vargs += [f"{kw.arg}: {value}"]
-        args = ", ".join(vargs)
-        return f"{fname}({args})"
 
     def visit_Call(self, node):
         fname = self.visit(node.func)
-        fndef = node.scopes.find(fname)
-
-        if isinstance(fndef, ast.ClassDef):
-            return self._visit_object_literal(node, fname, fndef)
 
         vargs = []
 
@@ -136,46 +95,6 @@ class SmtTranspiler(CLikeTranspiler):
         else:
             args = ""
         return f"({fname}{args})"
-
-    def visit_NameConstant(self, node):
-        if node.value is None:
-            return "nil"
-        else:
-            return super().visit_NameConstant(node)
-
-    def visit_If(self, node):
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
-        node.common_vars = body_vars.intersection(orelse_vars)
-
-        body = "\n".join(
-            [
-                self.indent(self.visit(child), level=node.level + 1)
-                for child in node.body
-            ]
-        )
-        orelse = "\n".join(
-            [
-                self.indent(self.visit(child), level=node.level + 1)
-                for child in node.orelse
-            ]
-        )
-        test = self.visit(node.test)
-        if node.orelse:
-            orelse = self.indent(f"else:\n{orelse}", level=node.level)
-        else:
-            orelse = ""
-        return f"if {test}:\n{body}\n{orelse}"
-
-    def visit_UnaryOp(self, node):
-        if isinstance(node.op, ast.USub):
-            if isinstance(node.operand, (ast.Call, ast.Num)):
-                # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
-            else:
-                return "-({0})".format(self.visit(node.operand))
-        else:
-            return super().visit_UnaryOp(node)
 
     def visit_sealed_class(self, node):
         variants = []
@@ -206,9 +125,6 @@ class SmtTranspiler(CLikeTranspiler):
         declarations = node.declarations = extractor.get_declarations()
         node.declarations_with_defaults = extractor.get_declarations_with_defaults()
         node.class_assignments = extractor.class_assignments
-        ret = super().visit_ClassDef(node)
-        if ret is not None:
-            return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
         if "sealed" in decorators:
@@ -223,9 +139,6 @@ class SmtTranspiler(CLikeTranspiler):
                 index += 1
             fields.append(f"{declaration}: {typename}")
 
-        for b in node.body:
-            if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
         return ""
 
     def _import(self, name: str) -> str:
@@ -234,9 +147,6 @@ class SmtTranspiler(CLikeTranspiler):
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         names = ", ".join(names)
         return f"from {module_name} import {names}"
-
-    def visit_Index(self, node):
-        return self.visit(node.value)
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -267,19 +177,6 @@ class SmtTranspiler(CLikeTranspiler):
     def _visit_AssignOne(self, node, target):
         kw = "setq" if is_mutable(node.scopes, get_id(target)) else "let"
 
-        if isinstance(target, ast.Tuple):
-            elts = [self.visit(e) for e in target.elts]
-            elts_str = ", ".join(elts)
-            value = self.visit(node.value)
-            return f"({kw} ({elts_str})  {value})"
-
-        if isinstance(node.scopes[-1], ast.If):
-            outer_if = node.scopes[-1]
-            target_id = self.visit(target)
-            if target_id in outer_if.common_vars:
-                value = self.visit(node.value)
-                return f"({kw} {target_id} {value})"
-
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
@@ -297,10 +194,3 @@ class SmtTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
 
             return f"({kw} ({target} {value}))"
-
-    def visit_Print(self, node):
-        buf = []
-        for n in node.values:
-            value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
-        return "\n".join(buf)
