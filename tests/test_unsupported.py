@@ -27,7 +27,13 @@ from test_cli import SHOW_ERRORS, TESTS_DIR, get_exe_filename, has_main_lines
 from unittest_expander import expand, foreach
 
 import py2many.cli
-from py2many.cli import _get_all_settings, _relative_to_cwd, _transpile, _transpile_one
+from py2many.cli import (
+    _create_cmd,
+    _get_all_settings,
+    _relative_to_cwd,
+    _transpile,
+    _transpile_one,
+)
 from py2many.exceptions import AstIncompatibleAssign
 from py2many.process_helpers import find_executable
 
@@ -279,7 +285,8 @@ class CodeGeneratorTests(unittest.TestCase):
             if compiler:
                 if not find_executable(compiler[0]):
                     raise unittest.SkipTest(f"{compiler[0]} not available")
-                proc = run([*compiler, case_output], env=env, capture_output=True)
+                cmd = _create_cmd(compiler, filename=case_output, exe=exe)
+                proc = run(cmd, env=env, capture_output=True)
 
                 if proc.returncode and not expect_success and not self.SHOW_ERRORS:
                     raise unittest.SkipTest(
