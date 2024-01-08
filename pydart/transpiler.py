@@ -265,18 +265,6 @@ class DartTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node) -> str:
-        if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
-        ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        else:
-            return super().visit_BinOp(node)
-
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(DartTranspiler())
         extractor.visit(node)
@@ -533,19 +521,6 @@ class DartTranspiler(CLikeTranspiler):
                 return f"{kw} {target} = {value};"
 
             return f"{kw} {typename} {target} = {value};"
-
-    def visit_Delete(self, node) -> str:
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
-
-    def visit_Await(self, node) -> str:
-        return "await!({0})".format(self.visit(node.value))
-
-    def visit_AsyncFunctionDef(self, node) -> str:
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
-
-    def visit_Yield(self, node) -> str:
-        return "//yield is unimplemented"
 
     def visit_Print(self, node) -> str:
         buf = []

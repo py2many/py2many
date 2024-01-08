@@ -2,27 +2,16 @@ import ast
 from typing import List
 
 from py2many.analysis import get_id, is_ellipsis, is_mutable, is_void_function
-from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import (
     AstClassUsedBeforeDeclaration,
     AstNotImplementedError,
     AstTypeNotSupported,
 )
-from py2many.tracer import defined_before, is_list
+from py2many.tracer import defined_before
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_smt_type
-from .plugins import (
-    ATTR_DISPATCH_TABLE,
-    CLASS_DISPATCH_TABLE,
-    DISPATCH_MAP,
-    FUNC_DISPATCH_TABLE,
-    FUNC_USINGS_MAP,
-    MODULE_DISPATCH_TABLE,
-    SMALL_DISPATCH_MAP,
-    SMALL_USINGS_MAP,
-)
 
 
 class SmtTranspiler(CLikeTranspiler):
@@ -30,17 +19,10 @@ class SmtTranspiler(CLikeTranspiler):
 
     def __init__(self, indent=2):
         super().__init__()
-        self._headers = set([])
         self._indent = " " * indent
         self._default_type = "var"
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
-        self._dispatch_map = DISPATCH_MAP
-        self._small_dispatch_map = SMALL_DISPATCH_MAP
-        self._small_usings_map = SMALL_USINGS_MAP
-        self._func_dispatch_table = FUNC_DISPATCH_TABLE
-        self._attr_dispatch_table = ATTR_DISPATCH_TABLE
-        self._func_usings_map = FUNC_USINGS_MAP
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -112,45 +94,10 @@ class SmtTranspiler(CLikeTranspiler):
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
             mutable = is_mutable(node.scopes, id)
-            use_open_array = isinstance(node.annotation, ast.Subscript) and not mutable
             typename = self._typename_from_annotation(node)
-            if use_open_array:
-                typename = typename.replace("seq", "openArray")
             if mutable:
                 typename = f"var {typename}"
         return (typename, id)
-
-    def visit_Lambda(self, node):
-        typenames, args = self.visit(node.args)
-        # HACK: to pass unit tests. TODO: infer types
-        typenames = ["int"] * len(args)
-        return_type = "int"
-        args = [f"{name}: {typename}" for name, typename in zip(args, typenames)]
-        args_string = ", ".join(args)
-        body = self.visit(node.body)
-        return f"proc({args_string}):{return_type} = return {body}"
-
-    def visit_Attribute(self, node):
-        attr = node.attr
-
-        value_id = self.visit(node.value)
-
-        if value_id == "sys":
-            if attr == "argv":
-                self._usings.add("os")
-                return "(@[getAppFilename()] & commandLineParams())"
-
-        if is_list(node.value):
-            if node.attr == "append":
-                attr = "add"
-        if not value_id:
-            value_id = ""
-
-        ret = f"{value_id}.{attr}"
-        if ret in self._attr_dispatch_table:
-            ret = self._attr_dispatch_table[ret]
-            return ret(self, node, value_id, attr)
-        return ret
 
     def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef):
         vargs = []  # visited args
@@ -189,37 +136,6 @@ class SmtTranspiler(CLikeTranspiler):
         else:
             args = ""
         return f"({fname}{args})"
-
-    def visit_For(self, node):
-        target = self.visit(node.target)
-        it = self.visit(node.iter)
-        buf = []
-        buf.append(f"for {target} in {it}:")
-        buf.extend(
-            [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
-        )
-        return "\n".join(buf)
-
-    def visit_While(self, node):
-        buf = []
-        buf.append("while {0}:".format(self.visit(node.test)))
-        buf.extend(
-            [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
-        )
-        return "\n".join(buf)
-
-    def visit_Str(self, node):
-        return "" + super().visit_Str(node) + ""
-
-    def visit_Bytes(self, node):
-        bytes_str = "{0}".format(node.s)
-        return bytes_str.replace("'", '"')  # replace single quote with double quote
-
-    def visit_Name(self, node):
-        if node.id == "None":
-            return "nil"
-        else:
-            return super().visit_Name(node)
 
     def visit_NameConstant(self, node):
         if node.value is None:
@@ -261,18 +177,6 @@ class SmtTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node):
-        if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
-        ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        else:
-            return super().visit_BinOp(node)
-
     def visit_sealed_class(self, node):
         variants = []
         for member, var in node.class_assignments.items():
@@ -310,15 +214,6 @@ class SmtTranspiler(CLikeTranspiler):
         if "sealed" in decorators:
             # TODO: handle cases where sealed is stacked with other decorators
             return self.visit_sealed_class(node)
-        decorators = [
-            class_for_typename(t, None, self._imported_names) for t in decorators
-        ]
-
-        for d in decorators:
-            if d in CLASS_DISPATCH_TABLE:
-                ret = CLASS_DISPATCH_TABLE[d](self, node)
-                if ret is not None:
-                    return ret
 
         fields = []
         index = 0
@@ -333,103 +228,15 @@ class SmtTranspiler(CLikeTranspiler):
                 b.self_type = node.name
         return ""
 
-    def visit_IntEnum(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f) for f in fields])
-        return f"type {node.name} = enum\n{fields}\n\n"
-
-    def visit_IntFlag(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f, level=2) for f in fields])
-        # flags = self.indent(f"{node.name}Flags = set[{node.name}]")
-        return "\n".join(
-            [
-                "type",
-                self.indent(f"{node.name} = enum"),
-                f"{fields}",
-                # f"{flags}",
-                "",
-            ]
-        )
-
-    def visit_StrEnum(self, node):
-        fields = []
-        for member, var in node.class_assignments.items():
-            var = self.visit(var)
-            if var == "auto()":
-                fields.append(f"{member},")
-            else:
-                fields.append(f"{member} = {var},")
-        fields = "\n".join([self.indent(f) for f in fields])
-        return f"type {node.name} = enum\n{fields}\n\n"
-
     def _import(self, name: str) -> str:
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         names = ", ".join(names)
-        if len(names) == 1:
-            # TODO: make this more generic so it works for len(names) > 1
-            name = names[0]
-            lookup = f"{module_name}.{name}"
-            if lookup in MODULE_DISPATCH_TABLE:
-                smt_module_name, smt_name = MODULE_DISPATCH_TABLE[lookup]
-                return f"from {smt_module_name} import {smt_name}"
         return f"from {module_name} import {names}"
-
-    def visit_List(self, node):
-        elements = [self.visit(e) for e in node.elts]
-        elements = " ".join(elements)
-        return f"@[{elements}]"
-
-    def visit_Set(self, node):
-        self._usings.add("sets")
-        elements = [self.visit(e) for e in node.elts]
-        elements_str = ", ".join(elements)
-        return f"toHashSet([{elements_str}])"
-
-    def visit_Dict(self, node):
-        self._usings.add("tables")
-        keys = [self.visit(k) for k in node.keys]
-        values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
-        return f"{{{kv_pairs}}}.newTable"
-
-    def visit_Subscript(self, node):
-        value = self.visit(node.value)
-        index = self.visit(node.slice)
-        if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
-            if value == "Tuple":
-                return f"({index})"
-            return f"{value}[{index}]"
-        return f"{value}[{index}]"
 
     def visit_Index(self, node):
         return self.visit(node.value)
-
-    def visit_Slice(self, node):
-        lower = ""
-        if node.lower:
-            lower = self.visit(node.lower)
-        upper = ""
-        if node.upper:
-            upper = self.visit(node.upper)
-
-        return "{0}..{1}".format(lower, upper)
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -437,26 +244,6 @@ class SmtTranspiler(CLikeTranspiler):
         if hasattr(node, "is_annotation"):
             return elts
         return "({0})".format(elts)
-
-    def visit_Try(self, node, finallybody=None):
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
-        return "\n".join(buf)
-
-    def visit_ExceptHandler(self, node):
-        exception_type = ""
-        if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
 
     def visit_Assert(self, node):
         expr = self.visit(node.test)
@@ -511,66 +298,9 @@ class SmtTranspiler(CLikeTranspiler):
 
             return f"({kw} ({target} {value}))"
 
-    def visit_Delete(self, node):
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
-
-    def visit_Raise(self, node):
-        if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
-        # This handles the case where `raise` is used without
-        # specifying the exception.
-        return "raise!(); //unsupported"
-
-    def visit_Await(self, node):
-        return "await!({0})".format(self.visit(node.value))
-
-    def visit_AsyncFunctionDef(self, node):
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
-
-    def visit_Yield(self, node):
-        if node.value is not None:
-            value = self.visit(node.value)
-            return f"yield {value}"
-        return "yield nil"
-
     def visit_Print(self, node):
         buf = []
         for n in node.values:
             value = self.visit(n)
             buf.append('println("{{:?}}",{0})'.format(value))
         return "\n".join(buf)
-
-    def visit_GeneratorExp(self, node):
-        elt = self.visit(node.elt)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
-
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
-
-    def visit_ListComp(self, node):
-        return self.visit_GeneratorExp(node)  # right now they are the same
-
-    def visit_Global(self, node):
-        return "//global {0}".format(", ".join(node.names))
-
-    def visit_Starred(self, node):
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
-
-    def visit_IfExp(self, node):
-        body = self.visit(node.body)
-        orelse = self.visit(node.orelse)
-        test = self.visit(node.test)
-        return f"if {test}: {body} else: {orelse}"

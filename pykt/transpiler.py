@@ -442,26 +442,6 @@ class KotlinTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
-        return "\n".join(buf)
-
-    def visit_ExceptHandler(self, node) -> str:
-        exception_type = ""
-        if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
-
     def visit_Assert(self, node) -> str:
         condition = self.visit(node.test)
         return f"assert({condition})"
@@ -516,42 +496,15 @@ class KotlinTranspiler(CLikeTranspiler):
 
             return f"{kw} {target} = {value}"
 
-    def visit_Delete(self, node) -> str:
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
-
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
             exc = self.visit(node.exc)
             return f"throw Exception({exc})"
         return "throw Exception()"
 
-    def visit_Await(self, node) -> str:
-        expr = self.visit(node.value)
-        return f"{expr}.await()"
-
-    def visit_AsyncFunctionDef(self, node) -> str:
-        fn = self.visit_FunctionDef(node)
-        return f"suspend {fn}"
-
-    def visit_Yield(self, node) -> str:
-        return "//yield is unimplemented"
-
     def visit_Print(self, node) -> str:
         vargs_str = " ".join([f"${arg}" for arg in node.values])
         return f'println("{vargs_str}")'
-
-    def visit_GeneratorExp(self, node) -> str:
-        return "GeneratorExp /*unimplemented()*/"
-
-    def visit_ListComp(self, node) -> str:
-        return self.visit_GeneratorExp(node)  # right now they are the same
-
-    def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
-
-    def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)

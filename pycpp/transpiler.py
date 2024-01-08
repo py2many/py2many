@@ -585,9 +585,6 @@ class CppTranspiler(CLikeTranspiler):
 
         return "\n".join(buf)
 
-    def visit_ExceptHandler(self, node) -> str:
-        return "ExceptHandler /*unimplemented()*/"
-
     def visit_Assert(self, node) -> str:
         if not self.use_catch_test_cases:
             self._usings.add("<cassert>")
@@ -653,12 +650,3 @@ class CppTranspiler(CLikeTranspiler):
             else:
                 buf.append("std::cout << {0} << std::endl;".format(value))
         return "\n".join(buf)
-
-    def visit_GeneratorExp(self, node) -> str:
-        return self.visit_unsupported_body(node, "generator exp", [])
-
-    def visit_Raise(self, node) -> str:
-        return self.visit_unsupported_body(node, "raise", [])
-
-    def visit_Starred(self, node) -> str:
-        return self.visit_unsupported_body(node, "starred", [])

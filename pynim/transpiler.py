@@ -279,18 +279,6 @@ class NimTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node) -> str:
-        if (
-            isinstance(node.left, ast.List)
-            and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
-        ):
-            return "std::vector ({0},{1})".format(
-                self.visit(node.right), self.visit(node.left.elts[0])
-            )
-        else:
-            return super().visit_BinOp(node)
-
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(NimTranspiler())
         extractor.visit(node)
@@ -434,26 +422,6 @@ class NimTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
-    def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
-
-        for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
-
-        if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
-
-        return "\n".join(buf)
-
-    def visit_ExceptHandler(self, node) -> str:
-        exception_type = ""
-        if node.type:
-            exception_type = self.visit(node.type)
-        name = "except!({0})".format(exception_type)
-        body = self.visit_unsupported_body(node, name, node.body)
-        return body
-
     def visit_Assert(self, node) -> str:
         return "assert({0})".format(self.visit(node.test))
 
@@ -506,23 +474,6 @@ class NimTranspiler(CLikeTranspiler):
 
             return f"{kw} {target} = {value}"
 
-    def visit_Delete(self, node) -> str:
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
-
-    def visit_Raise(self, node) -> str:
-        if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
-        # This handles the case where `raise` is used without
-        # specifying the exception.
-        return "raise!(); //unsupported"
-
-    def visit_Await(self, node) -> str:
-        return "await!({0})".format(self.visit(node.value))
-
-    def visit_AsyncFunctionDef(self, node) -> str:
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
-
     def visit_Yield(self, node) -> str:
         if node.value is not None:
             value = self.visit(node.value)
@@ -535,34 +486,6 @@ class NimTranspiler(CLikeTranspiler):
             value = self.visit(n)
             buf.append('println("{{:?}}",{0})'.format(value))
         return "\n".join(buf)
-
-    def visit_GeneratorExp(self, node) -> str:
-        elt = self.visit(node.elt)
-        generator = node.generators[0]
-        target = self.visit(generator.target)
-        iter = self.visit(generator.iter)
-
-        # HACK for dictionary iterators to work
-        if not iter.endswith("keys()") or iter.endswith("values()"):
-            iter += ".iter()"
-
-        map_str = ".map(|{0}| {1})".format(target, elt)
-        filter_str = ""
-        if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
-                target, self.visit(generator.ifs[0])
-            )
-
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
-
-    def visit_ListComp(self, node) -> str:
-        return self.visit_GeneratorExp(node)  # right now they are the same
-
-    def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
-
-    def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)

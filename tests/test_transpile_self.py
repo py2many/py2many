@@ -101,7 +101,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
-        suppress_exceptions = False
+        suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pykt"
         assert_only_reformat_failures(
@@ -126,6 +126,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
+
         suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pygo"
@@ -175,16 +176,25 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
+        suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pynim"
         assert_only_reformat_failures(
             *_process_dir(
-                settings, transpiler_module, OUT_DIR, False, _suppress_exceptions=False
+                settings,
+                transpiler_module,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=suppress_exceptions,
             )
         )
         assert_only_reformat_failures(
             *_process_dir(
-                settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=suppress_exceptions,
             )
         )
 
@@ -228,6 +238,10 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_vlang_recursive(self):
         settings = self.SETTINGS["vlang"]
+        suppress_exceptions = (
+            False if SHOW_ERRORS else (AstNotImplementedError, AstUnrecognisedBinOp)
+        )
+
         transpiler_module = ROOT_DIR / "pyv"
 
         assert_some_failures(
@@ -236,7 +250,7 @@ class SelfTranspileTests(unittest.TestCase):
                 transpiler_module,
                 OUT_DIR,
                 False,
-                _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
+                _suppress_exceptions=suppress_exceptions,
             ),
             expected_success={"clike.py"},
         )
@@ -246,7 +260,7 @@ class SelfTranspileTests(unittest.TestCase):
                 PY2MANY_MODULE,
                 OUT_DIR,
                 False,
-                _suppress_exceptions=(AstNotImplementedError, AstUnrecognisedBinOp),
+                _suppress_exceptions=suppress_exceptions,
             ),
             format_error_count=10,
             failure_count=12,

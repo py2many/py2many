@@ -5,54 +5,12 @@ import math
 import os
 import random
 import sys
-import time
-from tempfile import NamedTemporaryFile
 from typing import Callable, Dict, List, Tuple, Union
 
 from py2many.analysis import get_id
 
-try:
-    from argparse_dataclass import ArgumentParser
-    from argparse_dataclass import dataclass as ap_dataclass
-except:
-    ArgumentParser = "ArgumentParser"
-    ap_dataclass = "ap_dataclass"
-
 
 class CppTranspilerPlugins:
-    def visit_argparse_dataclass(self, node):
-        pass
-
-    def visit_open(self, node, vargs):
-        self._usings.add("std::fs::File")
-        if len(vargs) > 1:
-            self._usings.add("std::fs::OpenOptions")
-            mode = vargs[1]
-            opts = "OpenOptions::new()"
-            is_binary = "b" in mode
-            for c in mode:
-                if c == "w":
-                    if not is_binary:
-                        self._usings.add("pylib::FileWriteString")
-                    opts += ".write(true)"
-                if c == "r":
-                    if not is_binary:
-                        self._usings.add("pylib::FileReadString")
-                    opts += ".read(true)"
-                if c == "a":
-                    opts += ".append(true)"
-                if c == "+":
-                    opts += ".read(true).write(true)"
-            node.result_type = True
-            return f"{opts}.open({vargs[0]})"
-        node.result_type = True
-        return f"File::open({vargs[0]})"
-
-    def visit_named_temp_file(self, node, vargs):
-        node.annotation = ast.Name(id="tempfile._TemporaryFileWrapper")
-        node.result_type = True
-        return "NamedTempFile::new()"
-
     def _translate_file(file: str) -> str:
         FILE_MAP: Dict[object, str] = {
             "sys.stdout": "std::cout",
@@ -74,10 +32,6 @@ class CppTranspilerPlugins:
         return (
             f"{CppTranspilerPlugins._translate_file(get_id(node.func.value))}.flush()"
         )
-
-    def visit_ap_dataclass(self, cls):
-        # Do whatever transformation the decorator does to cls here
-        return cls
 
     def visit_range(self, node, vargs: List[str]) -> str:
         self._usings.add("<cppitertools/range.hpp>")
@@ -124,10 +78,6 @@ class CppTranspilerPlugins:
     def visit_floor(node, vargs) -> str:
         return f"static_cast<int>(floor({vargs[0]}))"
 
-    @staticmethod
-    def visit_asyncio_run(node, vargs) -> str:
-        return f"block_on({vargs[0]})"
-
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -157,9 +107,9 @@ MODULE_DISPATCH_TABLE = {
     "random": "<cstdlib>",
 }
 
-DECORATOR_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_ap_dataclass}
+DECORATOR_DISPATCH_TABLE = {}
 
-CLASS_DISPATCH_TABLE = {ap_dataclass: CppTranspilerPlugins.visit_argparse_dataclass}
+CLASS_DISPATCH_TABLE = {}
 
 
 def emit_argv(self, node, value, attr):
@@ -169,22 +119,12 @@ def emit_argv(self, node, value, attr):
 
 
 ATTR_DISPATCH_TABLE = {
-    "temp_file.name": lambda self, node, value, attr: f"{value}.path()",
     "sys.argv": emit_argv,
 }
 
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    # Uncomment after upstream uploads a new version
-    # ArgumentParser.parse_args: lambda node: "Opts::parse_args()",
-    # HACKs: remove all string based dispatch here, once we replace them with type based
-    "parse_args": (lambda self, node, vargs: "::from_args()", False),
-    "f.read": (lambda self, node, vargs: "f.read_string()", True),
-    "f.write": (lambda self, node, vargs: f"f.write_string({vargs[0]})", True),
-    "f.close": (lambda self, node, vargs: "drop(f)", False),
-    open: (CppTranspilerPlugins.visit_open, True),
-    NamedTemporaryFile: (CppTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (CppTranspilerPlugins.visit_textio_read, True),
     io.TextIOWrapper.write: (CppTranspilerPlugins.visit_textio_write, True),
     io.TextIOWrapper.flush: (CppTranspilerPlugins.visit_textio_flush, True),
@@ -196,10 +136,6 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     random.random: (CppTranspilerPlugins.visit_random, False),
     random.seed: (
         lambda self, node, vargs: f"srand(static_cast<int>({vargs[0]}))",
-        False,
-    ),
-    time.time: (
-        lambda self, node, vargs: "(std::chrono::system_clock::now().time_since_epoch())",
         False,
     ),
     os.unlink: (lambda self, node, vargs: f"std::fs::remove_file({vargs[0]})", True),

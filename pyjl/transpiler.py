@@ -542,25 +542,12 @@ class JuliaTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value}"
 
-    def visit_Delete(self, node) -> str:
-        target = node.targets[0]
-        return "{0}.drop()".format(self.visit(target))
-
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
             return "throw({0})".format(self.visit(node.exc))
         # This handles the case where `raise` is used without
         # specifying the exception.
         return "error()"
-
-    def visit_Await(self, node) -> str:
-        return "await!({0})".format(self.visit(node.value))
-
-    def visit_AsyncFunctionDef(self, node) -> str:
-        return "#[async]\n{0}".format(self.visit_FunctionDef(node))
-
-    def visit_Yield(self, node) -> str:
-        return "//yield is unimplemented"
 
     def visit_Print(self, node) -> str:
         buf = []
@@ -611,12 +598,6 @@ class JuliaTranspiler(CLikeTranspiler):
             gen_exp.append(filter_str)
 
         return "".join(gen_exp)
-
-    def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
-
-    def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)
