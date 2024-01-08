@@ -559,13 +559,17 @@ class CLikeTranspiler(ast.NodeVisitor):
     def set_continue_on_unimplemented(self):
         self._throw_on_unimplemented = False
 
-    def visit_unsupported_body(self, node, name, body) -> str:
+    def visit_unsupported(self, node, name) -> str:
         if self._throw_on_unimplemented:
             raise AstNotImplementedError(f"{name} not implemented", node)
         else:
             return self.comment(
                 f"{name} unimplemented on line {node.lineno}:{node.col_offset}"
             )
+
+    def visit_unsupported_body(self, node, name, body) -> str:
+        # TODO: body should not be ignored
+        return self.visit_unsupported(node, name)
 
     def visit_NamedExpr(self, node) -> str:
         target = self.visit(node.target)
@@ -574,6 +578,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Delete(self, node) -> str:
         body = [self.visit(t) for t in node.targets]
         return self.visit_unsupported_body(node, "del", body)
+
+    def visit_Starred(self, node) -> str:
+        return self.visit_unsupported_body(node, "starred", node.value)
 
     def visit_Await(self, node) -> str:
         return self.visit_unsupported_body(node, "await", node.value)
@@ -604,6 +611,10 @@ class CLikeTranspiler(ast.NodeVisitor):
         return self.visit_unsupported_body(
             node, f"dict comprehension ({key}, {value})", node.generators
         )
+
+    def visit_GeneratorExp(self, node) -> str:
+        self.visit_unsupported_body(node, "generator expression elts", node.elt)
+        return self.visit_unsupported_body(node, "generators", node.generators)
 
     def visit_ListComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # by default, they are the same
@@ -638,6 +649,29 @@ class CLikeTranspiler(ast.NodeVisitor):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"({test}? ({{ {body}; }}) : ({{ {orelse}; }}))"
+
+    def visit_ExceptHandler(self, node) -> str:
+        return self.visit_unsupported_body(node, "except handler", node.body)
+
+    def visit_Try(self, node, finallybody=None) -> str:
+        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
+
+        for handler in node.handlers:
+            buf += self.visit(handler)
+        # buf.append("\n".join(excepts));
+
+        if finallybody:
+            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
+
+        return "\n".join(buf)
+
+    def visit_Raise(self, node) -> str:
+        if node.exc is not None:
+            return self.visit_unsupported_body(node, "raise", node.exc)
+            return "raise!({0}); //unsupported".format(self.visit(node.exc))
+        # This handles the case where `raise` is used without
+        # specifying the exception.
+        return self.visit_unsupported(node, "raise")
 
     def _func_for_lookup(self, fname) -> Union[str, object]:
         func = class_for_typename(fname, None, self._imported_names)
