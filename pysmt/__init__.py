@@ -7,7 +7,6 @@ from .transpiler import SmtTranspiler
 
 
 def settings(args, env=os.environ):
-    cljstyle_args = ["fix"]
     return LanguageSettings(
         SmtTranspiler(),
         ".smt",
@@ -17,7 +16,7 @@ def settings(args, env=os.environ):
             "--repository",
             "clojars.org=https://repo.clojars.org",
             "mvxcvi:cljstyle:0.15.1",
-            *cljstyle_args,
+            "fix",
         ],
         None,
         [],
