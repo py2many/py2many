@@ -1,4 +1,3 @@
-import sys
 import textwrap
 
 try:
@@ -28,10 +27,7 @@ def test_empty_return():
 
 
 def test_print_multiple_vars():
-    if sys.version_info[0] >= 3:
-        source = parse('print(("hi", "there" ))')
-    else:
-        source = parse('print("hi", "there" )')
+    source = parse('print(("hi", "there" ))')
     cpp = transpile(source)
     assert cpp == parse(
         'std::cout << std::string{"hi"} << std::string{"there"};',
