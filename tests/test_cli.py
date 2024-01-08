@@ -150,7 +150,7 @@ def get_python_case_output(case_filename, main_args, exit_code):
 def standardise_python(code):
     """Ignore differences in black output.
 
-    black 21.6b0 outputs slightly different source between Python 3.8 amd 3.9
+    black outputs slightly different source between Python versions.
     For tuples, it is not consistent adding round brackets.
     And sometimes there are fewer blank newlines.
     """
@@ -242,7 +242,8 @@ class CodeGeneratorTests(unittest.TestCase):
                     with open(expected_filename) as f2:
                         expected_case_contents = f2.read()
                         generated_cleaned = generated
-                        if ext == ".py":
+                        # Only require equivalent output on latest Python version
+                        if ext == ".py" and sys.version_info < (3, 12, 0):
                             expected_case_contents = standardise_python(
                                 expected_case_contents
                             )

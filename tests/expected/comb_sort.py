@@ -15,7 +15,7 @@ def comb_sort(seq: List[int]) -> List[int]:
         for i in range(len(seq) - gap):
             if seq[i] > seq[i + gap]:
                 if True:
-                    __tmp1, __tmp2 = seq[i + gap], seq[i]
+                    __tmp1, __tmp2 = (seq[i + gap], seq[i])
                     seq[i] = __tmp1
                     seq[i + gap] = __tmp2
                 swap = True

@@ -6,7 +6,7 @@ import sys
 
 def do_unsupported():
     a: int = 1
-    {key + 1: value + 1 for (key, value) in {}}
+    {key + 1: value + 1 for key, value in {}}
     b: bool = bool(a)
     print("True" if b else "False")
 

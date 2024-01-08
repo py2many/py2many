@@ -5,16 +5,16 @@ import sys
 
 
 def complex_test():
-    c1: complex = 2 + 3.0j
-    c2: complex = 4 + 5.0j
+    c1: complex = 2 + 3j
+    c2: complex = 4 + 5j
     c3: complex = c1 + c2
-    assert c3 == 6 + 8.0j
+    assert c3 == 6 + 8j
     c4: complex = c1 + 3
-    assert c4 == 5 + 3.0j
-    c5: complex = c1 + 4.0j
-    assert c5 == 2 + 7.0j
+    assert c4 == 5 + 3j
+    c5: complex = c1 + 4j
+    assert c5 == 2 + 7j
     c6: complex = c3 - 2.3
-    assert c6 == 3.7 + 8.0j
+    assert c6 == 3.7 + 8j
 
 
 if __name__ == "__main__":
