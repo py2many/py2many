@@ -8,12 +8,7 @@ from py2many.clike import CLikeTranspiler
 from py2many.exceptions import AstNotImplementedError
 
 
-def decltype(node):
-    """Create C++ decltype statement"""
-    pass
-
-
-# is it slow? is it correct?
+# TODO: is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
         for entry in scope.body:
