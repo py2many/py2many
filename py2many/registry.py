@@ -7,7 +7,7 @@ from .python_transformer import PythonTranspiler, RestoreMainRewriter
 from .rewriters import InferredAnnAssignRewriter
 
 CI = os.environ.get("CI", "0")
-if CI in ["1", "true"]:
+if CI in ["1", "true"]:  # pragma: no cover
     from .pycpp import settings as cpp_settings
     from .pydart import settings as dart_settings
     from .pygo import settings as go_settings
@@ -18,7 +18,7 @@ if CI in ["1", "true"]:
     from .pysmt import settings as smt_settings
     from .pyv import settings as vlang_settings
 else:
-    try:
+    try:  # pragma: no cover
         from .pycpp import settings as cpp_settings
         from .pydart import settings as dart_settings
         from .pygo import settings as go_settings

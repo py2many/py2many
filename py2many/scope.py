@@ -65,7 +65,12 @@ class ScopeList(list):
             if defn:
                 return defn
 
-    def find_import(self, lookup):
+    def find_import(self, lookup):  # pragma: no cover
+        """
+        Find definition of an import.
+
+        Currently unused.
+        """
         for scope in reversed(self):
             if hasattr(scope, "imports"):
                 for imp in scope.imports:
