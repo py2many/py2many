@@ -9,6 +9,7 @@ from pathlib import Path
 from subprocess import run
 from unittest.mock import Mock
 
+from charset_normalizer import from_path
 from unittest_expander import expand, foreach
 
 from py2many.cli import (
@@ -121,8 +122,7 @@ def has_main_lines(lines):
 
 
 def has_main(filename):
-    with open(filename) as f:
-        lines = f.readlines()
+    lines = str(from_path(filename).best()).splitlines()
     return has_main_lines(lines)
 
 
