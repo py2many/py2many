@@ -36,9 +36,9 @@ extern crate strum;
 extern crate strum_macros;
 use anyhow::Result;
 use std::collections::HashMap;
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
-#[derive(Clone, Debug, Display, EnumString, EnumVariantNames, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Display, EnumString, VariantNames, Eq, Hash, PartialEq)]
 pub enum Colors {
     #[strum(serialize = "red")]
     RED,
