@@ -9,8 +9,7 @@ def inline_pass():
     pass
 
 
-def inline_ellipsis():
-    ...
+def inline_ellipsis(): ...
 
 
 def indexing() -> int:

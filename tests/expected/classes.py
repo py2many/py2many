@@ -5,6 +5,7 @@ import sys
 
 
 class Foo:
+
     def bar(self) -> int:
         return self.baz()
 

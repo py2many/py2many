@@ -1,4 +1,5 @@
 class Foo:
+
     def bar(self):
         return self.baz()
 

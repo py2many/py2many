@@ -339,11 +339,11 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_alias(self, node):
         return (node.name, node.asname)
 
-    def _import(self, name: str) -> str:
-        ...
+    def _import(self, name: str) -> str: ...
 
-    def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        ...
+    def _import_from(
+        self, module_name: str, names: List[str], level: int = 0
+    ) -> str: ...
 
     def visit_Import(self, node) -> str:
         names = [self.visit(n) for n in node.names]
@@ -529,8 +529,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_UnaryOp(self, node) -> str:
         return "{0}({1})".format(self.visit(node.op), self.visit(node.operand))
 
-    def _visit_AssignOne(self, node, target) -> str:
-        ...
+    def _visit_AssignOne(self, node, target) -> str: ...
 
     def visit_Assign(self, node) -> str:
         return "\n".join(

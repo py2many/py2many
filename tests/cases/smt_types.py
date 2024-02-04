@@ -1,5 +1,4 @@
-def my_func1(x: int, y: int) -> int:
-    ...
+def my_func1(x: int, y: int) -> int: ...
 
 
 bit: BitVec[1]
