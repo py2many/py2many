@@ -60,7 +60,6 @@ COMPILERS = {
         "--manifest-path",
     ],
     "vlang": ["v"],
-    "smt": ["z3", "-smt2"],
 }
 INVOKER = {
     "dart": ["dart", "--enable-asserts"],
@@ -76,6 +75,7 @@ INVOKER = {
         "-Zscript",
         "--manifest-path",
     ],
+    "smt": ["z3", "-smt2"],
     "vlang": ["v", "run"],
 }
 
