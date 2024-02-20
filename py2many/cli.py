@@ -8,6 +8,8 @@ from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
 
+from charset_normalizer import from_path
+
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
 from .context import add_assignment_context, add_list_calls, add_variable_context
@@ -218,8 +220,8 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
         return False
 
     print(f"{filename} ... {output_path}")
-    with open(filename) as f:
-        source_data = f.read()
+
+    source_data = str(from_path(filename).best())
     dunder_init = filename.stem == "__init__"
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")

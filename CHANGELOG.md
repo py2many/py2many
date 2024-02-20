@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.1] - Not released
+
+- Python 3.12 support
+- Support GCC 13
+- Fixed typpete support on Python 3.8
+- Replace cargo-eval with cargo -Zscript.  This requires `nightly-2024-01-01`.
+- Added clippy as Rust linter.
+- Add Julia rewriter for boolean operations.
+- Coverage increased from 89% to 92%,
+  removing code in transpilers that emitted invalid code.
+
 ## [0.4.0] - 2023-12-31
 
 ### Added
@@ -12,6 +23,8 @@
   If jgo is not installed, no formatting will occur.
 - New target: SMT transpiler of semi-Python syntax.  See `tests/cases/demorgan.py` as an example.
 - Added support for finding c++ headers `range.hpp` and `catch_test_macros.hpp` using conan.
+- Improved support for floats for all transpilers.
+- pyv: Initial exception and class support.
 
 ### Improved
 

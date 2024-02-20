@@ -6,7 +6,7 @@ except ImportError:
 
 __version__ = "0.4"
 
-install_requires = ["toposort", "astor; python_version<'3.9'"]
+install_requires = ["charset-normalizer", "toposort", "astor; python_version<'3.9'"]
 setup_requires = []
 tests_require = ["pytest", "unittest-expander", "argparse_dataclass"]
 
