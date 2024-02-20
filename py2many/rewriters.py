@@ -1,5 +1,6 @@
 import ast
 import textwrap
+import re
 from typing import Any, Optional, Union, cast
 
 from py2many.analysis import get_id
@@ -530,3 +531,135 @@ class LoopElseRewriter(ast.NodeTransformer):
                 body.append(n)
 
         node.body = body
+
+
+class UnitTestRewriter(ast.NodeTransformer):
+    TEST_MODULE_SET = set(["unittest.TestCase"])
+    SETUP_METHODS = set(["setUp"])
+    TEARDOWN_METHODS = set(["tearDown"])
+
+    IS_PYTHON_MAIN = lambda self, node: (
+        isinstance(node, ast.If)
+        and isinstance(node.test, ast.Compare)
+        and isinstance(node.test.left, ast.Name)
+        and node.test.left.id == "__name__"
+        and isinstance(node.test.ops[0], ast.Eq)
+        and isinstance(node.test.comparators[0], ast.Constant)
+        and node.test.comparators[0].value == "__main__"
+    )
+
+    """Extracts unittests and calls all the necessary functions 
+    in the main function"""
+
+    def __init__(self, language) -> None:
+        super().__init__()
+        self._language = language
+        self.test_base: str = None
+        self._test_classes = []
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.generic_visit(node)
+        base_ids = set([get_id(b) for b in node.bases])
+        if base_ids.intersection(self.TEST_MODULE_SET):
+            node.is_unit_test = True
+            set_up = []
+            teardown = []
+            test_funcs = []
+            for n in node.body:
+                self.test_base = node.bases[0]
+                if isinstance(n, ast.FunctionDef) and getattr(n, "name", None):
+                    if n.name in self.SETUP_METHODS:
+                        set_up.append(n.name)
+                    elif n.name in self.TEARDOWN_METHODS:
+                        teardown.append(n.name)
+                    elif n.name.startswith("test"):
+                        test_funcs.append(n.name)
+                n = self.visit(n)
+                self.test_base = None
+            self._test_classes.append((node.name, set_up + test_funcs + teardown))
+            # TODO: commented because it affects dispatch
+            # node.bases.clear()
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.generic_visit(node)
+        if getattr(node, "python_main", None):
+            self._generic_main_visit(node)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        self.generic_visit(node)
+        if self.IS_PYTHON_MAIN(node):
+            self._generic_main_visit(node)
+        return node
+
+    def visit_Attribute(self, node: ast.Attribute) -> Any:
+        # Add annotation, as functions are changed to global scope
+        self.generic_visit(node)
+        if get_id(node.value) == "self" and self.test_base:
+            node.value.annotation = self.test_base
+        return node
+
+    def visit_With(self, node: ast.With) -> Any:
+        # Rewriting with statements with assertRaises
+        self.generic_visit(node)
+        ctx = node.items[0].context_expr
+        if (
+            len(node.body) == 1
+            and isinstance(ctx, ast.Call)
+            and isinstance(ctx.func, ast.Attribute)
+            and ctx.func.attr == "assertRaises"
+        ):
+            ctx.args.append(node.body[0])
+            return ctx
+        return node
+
+    def _generic_main_visit(self, node):
+        body = []
+        for n in node.body:
+            # Remove "unittest.main"
+            if not (
+                isinstance(n, ast.Expr)
+                and isinstance(n.value, ast.Call)
+                and isinstance(n.value.func, ast.Attribute)
+                and f"{get_id(n.value.func.value)}.{n.value.func.attr}"
+                == "unittest.main"
+            ):
+                body.append(n)
+        # Create Function Calls
+        for class_name, func_defs in self._test_classes:
+            # Convert to snake case
+            # (?<!^) --> Don't put underscore at beginning
+            #    ?<! --> negative lookbehind: asserts that string
+            #              is not equal to the beginning "^"
+            instance_name = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
+            class_instance = ast.Assign(
+                targets=[ast.Name(id=instance_name)],
+                value=ast.Call(
+                    func=ast.Name(id=class_name, ctx=ast.Load()),
+                    args=[],
+                    keywords=[],
+                    scopes=ScopeList(),
+                ),
+            )
+            ast.fix_missing_locations(class_instance)
+            body.append(class_instance)
+
+            # Create Function Calls
+            for func_name in func_defs:
+                args = [ast.Name(id=instance_name)]
+                call_node = self._build_call(func_name, args)
+                body.append(call_node)
+
+        # Update node.body
+        node.body = body
+
+    def _build_call(self, call_id, args):
+        call_node = ast.Call(
+            func=ast.Name(id=call_id, ctx=ast.Load()),
+            args=args,
+            keywords=[],
+            scopes=ScopeList(),
+        )
+        ast.fix_missing_locations(call_node)
+        return call_node
