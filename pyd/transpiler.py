@@ -183,7 +183,7 @@ class DTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for (final {0} in {1}) {{".format(target, it))
+        buf.append("foreach ({0}; {1}) {{".format(target, it))
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -220,8 +220,8 @@ class DTranspiler(CLikeTranspiler):
                     node.left.annotation, "generic_container_type", None
                 )
                 if value_type and value_type[0] == "List":
-                    self._usings.add("package:collection/collection.dart")
-                    return f"DeepCollectionEquality().equals({left}, {right})"
+                    self._usings.add("std.algorithm : equal")
+                    return f"equal({left}, {right})"
 
         return super().visit_Compare(node)
 
@@ -419,7 +419,7 @@ class DTranspiler(CLikeTranspiler):
             return "{0}[{1}]".format(value, index)
         if getattr(node, "lhs", False):
             return "{0}[{1}]".format(value, index)
-        return '({0}[{1}] ?? (throw Exception("key not found")))'.format(value, index)
+        return '{0}[{1}]'.format(value, index)
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -488,15 +488,15 @@ class DTranspiler(CLikeTranspiler):
         kw = "auto" # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
 
         if isinstance(target, ast.Tuple):
-            self._usings.add("package:tuple/tuple.dart")
+            self._usings.add("std.typecons : tuple")
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
             value_types = "int, int"
             count = len(elts)
             tmp_var = self._get_temp()
-            buf = [f"{kw} {tmp_var} = Tuple{count}<{value_types}>{value};"]
+            buf = [f"{kw} {tmp_var} = tuple{value};"]  # TODO: {count}<{value_types}>
             for i, elt in enumerate(elts):
-                buf.extend([f"{elt} = {tmp_var}.item{i+1};"])
+                buf.extend([f"{elt} = {tmp_var}[{i}];"])
             return "\n".join(buf)
 
         if isinstance(node.scopes[-1], ast.If):
