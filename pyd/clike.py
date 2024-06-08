@@ -17,7 +17,7 @@ dart_type_map = {
     int: "int",
     float: "double",
     bytes: "Uint8List",
-    str: "String",
+    str: "string",
     c_int8: "int",
     c_int16: "int",
     c_int32: "int",
