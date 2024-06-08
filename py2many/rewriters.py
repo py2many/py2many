@@ -64,7 +64,7 @@ class ComplexDestructuringRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
         self._disable = False
-        if language in {"cpp", "julia", "dart", "v"}:
+        if language in {"cpp", "julia", "d", "dart", "v"}:
             self._disable = True
         self._no_underscore = False
         if language in {"nim"}:
@@ -201,7 +201,7 @@ class PythonMainRewriter(ast.NodeTransformer):
                     ),
                 )
             elif self.main_signature_arg_names == {"argv"}:
-                ret = create_ast_node("def main(argv: List[str]): True", node)
+                ret = create_ast_node("def main(argv: List[str]) -> void: True", node)
             else:
                 ret = create_ast_node("def main(): True")
             ret = cast(ASTxFunctionDef, ret)
@@ -338,7 +338,7 @@ class StrStrRewriter(ast.NodeTransformer):
         self._language = language
 
     def visit_Compare(self, node):
-        if self._language in {"dart", "kotlin", "nim", "python"}:
+        if self._language in {"d", "dart", "kotlin", "nim", "python"}:
             return node
 
         if isinstance(node.ops[0], ast.In):
@@ -377,7 +377,7 @@ class IgnoredAssignRewriter(ast.NodeTransformer):
         super().__init__()
         self._language = language
         self._disable = language in {"nim", "v"}
-        self._unpack = language in {"cpp", "dart", "go", "rust"}
+        self._unpack = language in {"cpp", "d", "dart", "go", "rust"}
 
     def _visit_assign_unpack_all(self, node):
         keep_ignored = self._language == "go"
