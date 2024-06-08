@@ -16,6 +16,7 @@ with open("README.md") as readme_file:
 packages = [
     "py2many",
     "pycpp",
+    "pyd",
     "pydart",
     "pygo",
     "pyjl",
