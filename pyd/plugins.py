@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Tuple, Union
 
 class DTranspilerPlugins:
     def visit_range(self, node, vargs: List[str]) -> str:
+        self._usings.add("std.range : iota")
         start = 0
         step = 1
         if len(vargs) == 1:
@@ -23,7 +24,7 @@ class DTranspilerPlugins:
                 )
             )
 
-        return f"([for(var i = {start}; i < {end}; i += {step}) i])"
+        return f"iota({start}, {end}, {step})"
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
