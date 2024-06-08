@@ -3,7 +3,7 @@ import sys
 from typing import Callable, Dict, List, Tuple, Union
 
 
-class DartTranspilerPlugins:
+class DTranspilerPlugins:
     def visit_range(self, node, vargs: List[str]) -> str:
         start = 0
         step = 1
@@ -29,10 +29,10 @@ class DartTranspilerPlugins:
         placeholders = []
         for n in node.args:
             placeholders.append("%s")
-        self._usings.add("package:sprintf/sprintf.dart")
+        self._usings.add("std")
         placeholders_str = " ".join(placeholders)
         vargs_str = ", ".join(vargs)
-        return rf'print(sprintf("{placeholders_str}", [{vargs_str}]))'
+        return rf'writeln(format("{placeholders_str}", {vargs_str}))'
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
@@ -58,11 +58,11 @@ SMALL_DISPATCH_MAP = {
 SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
-    "max": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=True),
-    "min": functools.partial(DartTranspilerPlugins.visit_min_max, is_max=False),
-    "range": DartTranspilerPlugins.visit_range,
-    "xrange": DartTranspilerPlugins.visit_range,
-    "print": DartTranspilerPlugins.visit_print,
+    "max": functools.partial(DTranspilerPlugins.visit_min_max, is_max=True),
+    "min": functools.partial(DTranspilerPlugins.visit_min_max, is_max=False),
+    "range": DTranspilerPlugins.visit_range,
+    "xrange": DTranspilerPlugins.visit_range,
+    "print": DTranspilerPlugins.visit_print,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
@@ -78,5 +78,5 @@ ATTR_DISPATCH_TABLE = {
 FuncType = Union[Callable, str]
 
 FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    sys.exit: (DartTranspilerPlugins.visit_exit, True),
+    sys.exit: (DTranspilerPlugins.visit_exit, True),
 }

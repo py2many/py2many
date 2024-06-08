@@ -2,14 +2,14 @@ import os
 
 from py2many.language import LanguageSettings
 
-from .transpiler import DartIntegerDivRewriter, DartTranspiler
+from .transpiler import DIntegerDivRewriter, DTranspiler
 
 
 def settings(args, env=os.environ):
     return LanguageSettings(
-        DartTranspiler(),
-        ".dart",
-        "Dart",
-        ["dart", "format"],
-        post_rewriters=[DartIntegerDivRewriter()],
+        DTranspiler(),
+        ".d",
+        "D",
+        ["d", "format"],
+        post_rewriters=[DIntegerDivRewriter()],
     )
