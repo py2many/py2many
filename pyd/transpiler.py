@@ -55,6 +55,7 @@ class DTranspiler(CLikeTranspiler):
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._main_signature_arg_names = ["argv"]
+        self._classes = set()
 
     def _get_temp(self):
         self._temp += 1
@@ -173,7 +174,10 @@ class DTranspiler(CLikeTranspiler):
             args = ", ".join(vargs)
         else:
             args = ""
-        return f"{fname}({args})"
+
+        new = "new " if fname in self._classes else ""
+
+        return f"{new}{fname}({args})"
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -276,6 +280,7 @@ class DTranspiler(CLikeTranspiler):
         node.class_assignments = extractor.class_assignments
 
         ret = super().visit_ClassDef(node)
+        self._classes.add(node.name)
         if ret is not None:
             return ret
 
@@ -480,7 +485,7 @@ class DTranspiler(CLikeTranspiler):
         return f"{type_str} {target} = {val};"
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "" # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
+        kw = "auto" # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
 
         if isinstance(target, ast.Tuple):
             self._usings.add("package:tuple/tuple.dart")
@@ -524,6 +529,8 @@ class DTranspiler(CLikeTranspiler):
             else:
                 return f"{kw} {target} = {value};"
 
+            if typename is not None:  # if we reach here
+              kw = ""
             return f"{kw} {typename} {target} = {value};"
 
     def visit_Print(self, node) -> str:
