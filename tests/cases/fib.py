@@ -8,5 +8,4 @@ def fib(i: int) -> int:
 
 
 if __name__ == "__main__":
-    f = fib(5)
-    print(f)
+    print(fib(5))
