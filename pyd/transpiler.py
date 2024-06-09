@@ -68,6 +68,13 @@ class DTranspiler(CLikeTranspiler):
 
     # main(`string[]` argv)
     def _combine_value_index(self, value_type, index_type) -> str:
+        # print(value_type, index_type)
+        # [] string => `string[]`
+        # [] ['string', 'int'] => `int[string]`
+        # [] string, int => `int[string]`
+        if value_type == "Map" and ", " in index_type:
+          its = index_type.split(",")
+          return f"{its[1]}[{its[0]}]"
         return f"{index_type}{value_type}"
 
     def visit_FunctionDef(self, node) -> str:
@@ -210,9 +217,9 @@ class DTranspiler(CLikeTranspiler):
             right = right[:-2]
 
         if isinstance(node.ops[0], ast.In):
-            return "{0}.contains({1})".format(right, left)
+            return "{0}.canFind({1})".format(right, left)
         elif isinstance(node.ops[0], ast.NotIn):
-            return "!({0}.contains({1}))".format(right, left)
+            return "!({0}.canFind({1}))".format(right, left)
         elif isinstance(node.ops[0], ast.Eq):
             if hasattr(node.left, "annotation"):
                 self._generic_typename_from_annotation(node.left)
@@ -397,7 +404,7 @@ class DTranspiler(CLikeTranspiler):
     def visit_List(self, node) -> str:
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "[{0}]".format(", ".join(elements))
+            return "[{0}]".format(", ".join(elements))  # the list content
 
         else:
             return "[]"
@@ -406,7 +413,7 @@ class DTranspiler(CLikeTranspiler):
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
         kv_pairs = ", ".join([f"{k} : {v}" for k, v in zip(keys, values)])
-        return f"{{{kv_pairs}}}"
+        return f"[{kv_pairs}]"  # the dict content
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
