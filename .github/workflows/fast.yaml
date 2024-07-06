@@ -43,7 +43,7 @@ jobs:
         id: cache-venv
         with:
           path: ./.venv/
-          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-${{ hashFiles('setup.py') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-
 
@@ -52,7 +52,7 @@ jobs:
         run: |
           python -m venv ./.venv
           source ./.venv/bin/activate
-          python -m pip install -r requirements.txt
+          pip3 install .
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
       - name: Install tox
