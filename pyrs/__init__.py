@@ -18,9 +18,6 @@ def settings(args, env=os.environ):
         ".rs",
         "Rust",
         [
-            "rustup",
-            "run",
-            "nightly-2024-01-01",
             "rustfmt",
             "--edition=2021",
         ],
@@ -29,9 +26,6 @@ def settings(args, env=os.environ):
         [partial(infer_rust_types, extension=args.extension)],
         [RustLoopIndexRewriter(), RustStringJoinRewriter()],
         linter=[
-            "rustup",
-            "run",
-            "nightly-2024-01-01",
             "cargo",
             "clippy",
             "-Zscript",
