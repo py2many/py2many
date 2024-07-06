@@ -33,6 +33,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: cache virtualenv
+        uses: actions/cache@v4
+        id: cache-venv
+        with:
+          path: ./.venv/
+          key: ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-venv-
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m venv ./.venv
+          source ./.venv/bin/activate
+          python -m pip install -r requirements.txt
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+
       - name: Install tox
         run: |
           pip3 --version
