@@ -1,5 +1,5 @@
 # docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1 --build-arg CPP=1 .
+# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1 --build-arg CPP=1 --build-arg GOLANG=1 .
 #
 # Edit the list of languages above based on what you're interested in
 FROM archlinux:base-devel
@@ -15,7 +15,7 @@ ARG KOTLIN
 ARG DART
 ARG VLANG
 
-RUN pacman -Syu --noconfirm python python-pip unzip
+RUN pacman -Syu --noconfirm python python-pip unzip git
 
 # C++
 RUN test -z "$CPP" || pacman -Syu --noconfirm clang libc++
@@ -42,9 +42,6 @@ RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
 # TODO: add flutter
 # TODO: Add all formatters and other auxilliary setup from main.yml
 
-# Tools for checking out code and running tests
-RUN pacman -Syu --noconfirm git python-tox
-
 RUN useradd --create-home --comment "Arch Build User" build
 ENV HOME /home/build
 ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
@@ -53,13 +50,18 @@ USER build
 RUN mkdir -p /home/build/bin
 
 # Per user package setup. Note that /root is inaccessible to user build
+RUN python -m venv $HOME/.venv
+RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
 
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-   sh -s -- -y  && \
-   rustup install nightly)
+   sh -s -- -y --default-toolchain nightly-2024-01-01)
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
     julia -e 'using Pkg; Pkg.add("SuperEnum")' && \
     (cd /home/build/bin && ln -s $(find ~/.julia -name format.jl)))
+
+COPY entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
