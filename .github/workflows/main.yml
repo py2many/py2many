@@ -85,7 +85,7 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
         shell: bash
         run: |
-          runtime/go-setup.sh
+          scripts/go-setup.sh
 
       - name: Install tox
         run: |
@@ -142,7 +142,7 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'cpp' }}
         shell: bash
         run: |
-          runtime/cpp-setup.sh
+          scripts/cpp-setup.sh
 
       - name: Install V
         if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}

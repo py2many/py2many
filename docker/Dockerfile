@@ -49,7 +49,7 @@ ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
 
 USER build
 RUN mkdir -p /home/build/bin
-ADD runtime /runtime
+ADD scripts /scripts
 
 # Per user package setup. Note that /root is inaccessible to user build
 RUN python -m venv $HOME/.venv
@@ -57,14 +57,14 @@ RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
 
 # C++
 RUN test -z "$CPP" || source  $HOME/.venv/bin/activate && pip3 install conan && \
-    /runtime/cpp-setup.sh
+    /scripts/cpp-setup.sh
 
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
    sh -s -- -y --default-toolchain nightly-2024-01-01)
 
 # Go
-RUN test -z "$GOLANG" || /runtime/go-setup.sh
+RUN test -z "$GOLANG" || /scripts/go-setup.sh
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
