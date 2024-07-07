@@ -1,5 +1,6 @@
 # docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1 --build-arg CPP=1 --build-arg GOLANG=1 .
+# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker \
+#   --build-arg RUST=1 --build-arg CPP=1 --build-arg GOLANG=1 . -f docker/Dockerfile
 #
 # Edit the list of languages above based on what you're interested in
 FROM archlinux:base-devel
@@ -48,20 +49,28 @@ ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
 
 USER build
 RUN mkdir -p /home/build/bin
+ADD runtime /runtime
 
 # Per user package setup. Note that /root is inaccessible to user build
 RUN python -m venv $HOME/.venv
 RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
 
+# C++
+RUN test -z "$CPP" || source  $HOME/.venv/bin/activate && pip3 install conan && \
+    /runtime/cpp-setup.sh
+
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
    sh -s -- -y --default-toolchain nightly-2024-01-01)
+
+# Go
+RUN test -z "$GOLANG" || /runtime/go-setup.sh
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
     julia -e 'using Pkg; Pkg.add("SuperEnum")' && \
     (cd /home/build/bin && ln -s $(find ~/.julia -name format.jl)))
 
-COPY entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
