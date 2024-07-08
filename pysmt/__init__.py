@@ -12,12 +12,7 @@ def settings(args, env=os.environ):
         ".smt",
         "SMT",
         [
-            "jgo",
-            "--repository",
-            "clojars.org=https://repo.clojars.org",
-            "mvxcvi:cljstyle:RELEASE:clojure.main",
-            "-m",
-            "cljstyle.main",
+            "cljstyle",
             "fix",
         ],
         None,
