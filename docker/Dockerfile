@@ -15,6 +15,13 @@ ARG NIM
 ARG KOTLIN
 ARG DART
 ARG VLANG
+ARG SMT
+
+RUN useradd --create-home --comment "Arch Build User" build
+ENV HOME /home/build
+ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
+RUN usermod -aG wheel build
+RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 RUN pacman -Syu --noconfirm python python-pip unzip git
 
@@ -33,6 +40,12 @@ RUN test -z "$NIM" || pacman -Syu --noconfirm nim
 # Kotlin
 RUN test -z "$KOTLIN" || pacman -Syu --noconfirm kotlin
 
+# Install yay
+USER build
+RUN cd $HOME && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -s
+USER root
+RUN cd $HOME/yay-bin && pacman -U --noconfirm *.zst && cd .. && rm -rf yay-bin
+
 # Vlang:
 RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
     FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip \
@@ -42,10 +55,6 @@ RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
 
 # TODO: add flutter
 # TODO: Add all formatters and other auxilliary setup from main.yml
-
-RUN useradd --create-home --comment "Arch Build User" build
-ENV HOME /home/build
-ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
 
 USER build
 RUN mkdir -p /home/build/bin
@@ -65,6 +74,9 @@ RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.r
 
 # Go
 RUN test -z "$GOLANG" || /scripts/go-setup.sh
+
+# SMT
+RUN test -z "$SMT" || yay -S --noconfirm cljstyle-bin
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
