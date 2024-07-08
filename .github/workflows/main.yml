@@ -87,6 +87,12 @@ jobs:
         run: |
           scripts/go-setup.sh
 
+      - name: Install SMT packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'smt' }}
+        shell: bash
+        run: |
+          echo "$(pwd)/scripts/" >> $GITHUB_PATH
+
       - name: Install tox
         run: |
           pip3 --version
