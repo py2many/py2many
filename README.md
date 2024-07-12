@@ -1,6 +1,6 @@
 # py2many: Python to many CLike languages transpiler
 
-![Build](https://github.com/adsharma/py2many/actions/workflows/main.yml/badge.svg)
+![Build](https://github.com/py2many/py2many/actions/workflows/fast.yaml/badge.svg)
 ![License](https://img.shields.io/github/license/adsharma/py2many?color=brightgreen)
 
 ## Why
