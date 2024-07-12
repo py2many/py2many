@@ -1,10 +1,18 @@
 
 PY2MANY=$(HOME)/.local/bin/py2many
 
-d:
-	$(PY2MANY) --d=1 tests/cases/fib.py
-	dmd tests/cases/fib.d
-	./fib
+# test files with print out OK
+OK_FILES := $(shell grep -liw OK tests/cases/*.py)
+OK_EXES  := $(patsubst %.py, %.exe, $(OK_FILES))
+
+all: $(OK_EXES)
+
+all_tests:
+	@ls -l $(OK_FILES)
+
+%.exe: %.py
+	$(PY2MANY) --d=1 $<
+	dmd -run $(patsubst %.py, %.d, $<) || true
 
 
 kt:
