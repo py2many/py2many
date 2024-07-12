@@ -1,0 +1,4 @@
+#!/bin/sh
+
+jgo --repository clojars.org=https://repo.clojars.org mvxcvi:cljstyle:RELEASE:clojure.main -m cljstyle.main $*
+

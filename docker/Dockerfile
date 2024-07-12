@@ -1,5 +1,6 @@
 # docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker --build-arg RUST=1 --build-arg CPP=1 .
+# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker \
+#   --build-arg RUST=1 --build-arg CPP=1 --build-arg GOLANG=1 . -f docker/Dockerfile
 #
 # Edit the list of languages above based on what you're interested in
 FROM archlinux:base-devel
@@ -14,8 +15,15 @@ ARG NIM
 ARG KOTLIN
 ARG DART
 ARG VLANG
+ARG SMT
 
-RUN pacman -Syu --noconfirm python python-pip unzip
+RUN useradd --create-home --comment "Arch Build User" build
+ENV HOME /home/build
+ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
+RUN usermod -aG wheel build
+RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+RUN pacman -Syu --noconfirm python python-pip unzip git
 
 # C++
 RUN test -z "$CPP" || pacman -Syu --noconfirm clang libc++
@@ -32,6 +40,12 @@ RUN test -z "$NIM" || pacman -Syu --noconfirm nim
 # Kotlin
 RUN test -z "$KOTLIN" || pacman -Syu --noconfirm kotlin
 
+# Install yay
+USER build
+RUN cd $HOME && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -s
+USER root
+RUN cd $HOME/yay-bin && pacman -U --noconfirm *.zst && cd .. && rm -rf yay-bin
+
 # Vlang:
 RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
     FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip \
@@ -42,24 +56,33 @@ RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
 # TODO: add flutter
 # TODO: Add all formatters and other auxilliary setup from main.yml
 
-# Tools for checking out code and running tests
-RUN pacman -Syu --noconfirm git python-tox
-
-RUN useradd --create-home --comment "Arch Build User" build
-ENV HOME /home/build
-ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
-
 USER build
 RUN mkdir -p /home/build/bin
+ADD scripts /scripts
 
 # Per user package setup. Note that /root is inaccessible to user build
+RUN python -m venv $HOME/.venv
+RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
+
+# C++
+RUN test -z "$CPP" || source  $HOME/.venv/bin/activate && pip3 install conan && \
+    /scripts/cpp-setup.sh
 
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-   sh -s -- -y  && \
-   rustup install nightly)
+   sh -s -- -y --default-toolchain nightly-2024-01-01)
+
+# Go
+RUN test -z "$GOLANG" || /scripts/go-setup.sh
+
+# SMT
+RUN test -z "$SMT" || yay -S --noconfirm cljstyle-bin
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
     julia -e 'using Pkg; Pkg.add("SuperEnum")' && \
     (cd /home/build/bin && ln -s $(find ~/.julia -name format.jl)))
+
+COPY docker/entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
