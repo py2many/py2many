@@ -112,6 +112,8 @@ class DTranspiler(CLikeTranspiler):
             if not return_type:
                 return_type = "RT"
                 typedecls.append("RT")
+        else:
+            return_type = "void"
 
         template = ""
         if len(typedecls) > 0:
