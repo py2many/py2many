@@ -201,7 +201,7 @@ class PythonMainRewriter(ast.NodeTransformer):
                     ),
                 )
             elif self.main_signature_arg_names == {"argv"}:
-                ret = create_ast_node("def main(argv: List[str]) -> void: True", node)
+                ret = create_ast_node("def main(argv: List[str]): True", node)
             else:
                 ret = create_ast_node("def main(): True")
             ret = cast(ASTxFunctionDef, ret)
