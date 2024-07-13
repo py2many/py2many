@@ -37,7 +37,7 @@ class DTranspilerPlugins:
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
-        self._usings.add("dart:math")
+        # self._usings.add("dart:math")
         vargs_str = ", ".join(vargs)
         return f"{min_max}({vargs_str})"
 
@@ -52,7 +52,7 @@ SMALL_DISPATCH_MAP = {
     "len": lambda n, vargs: f"{vargs[0]}.length",
     "int": lambda n, vargs: f"{vargs[0]}.to!int" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
-    "floor": lambda n, vargs: f"{vargs[0]}.floor()",
+    "floor": lambda n, vargs: f"{vargs[0]}.floor().to!long",  # long: int64
     "float": lambda n, vargs: f"{vargs[0]}.to!double" if vargs else "0",
 }
 
