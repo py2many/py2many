@@ -155,7 +155,9 @@ class DTranspiler(CLikeTranspiler):
 
         if is_list(node.value):
             if node.attr == "append":
-                attr = "add"
+                # list.append method return None
+                return f"{value_id} ~= "
+                
         if not value_id:
             value_id = ""
 
