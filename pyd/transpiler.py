@@ -453,6 +453,12 @@ class DTranspiler(CLikeTranspiler):
             return elts
         return "({0})".format(elts)
 
+    def visit_Delete(self, node) -> str:
+        self._usings.add("core.memory")
+        target = node.targets[0]
+        target_str = self.visit(target)
+        return f"destroy!true({target_str}); core.memory.GC.free(cast(void*){target_str});"
+
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
             return "throw new {};".format(self.visit(node.exc))
@@ -559,17 +565,19 @@ class DTranspiler(CLikeTranspiler):
         iter = self.visit(generator.iter)
 
         # HACK for dictionary iterators to work
+        '''
         if not iter.endswith("keys()") or iter.endswith("values()"):
             iter += ".iter()"
+        '''
 
-        map_str = ".map(|{0}| {1})".format(target, elt)
+        map_str = ".map!({0} => {1})".format(target, elt)
         filter_str = ""
         if generator.ifs:
             filter_str = ".cloned().filter(|&{0}| {1})".format(
                 target, self.visit(generator.ifs[0])
             )
 
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        return "{0}{1}{2}.array()".format(iter, filter_str, map_str)
 
     def visit_ListComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # right now they are the same
