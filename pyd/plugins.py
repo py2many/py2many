@@ -50,7 +50,7 @@ class DTranspilerPlugins:
 SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"{vargs[0]}.toString()" if vargs else '""',
     "len": lambda n, vargs: f"{vargs[0]}.length",
-    "int": lambda n, vargs: f"{vargs[0]}.toInt()" if vargs else "0",
+    "int": lambda n, vargs: f"{vargs[0]}.to!int" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "floor": lambda n, vargs: f"{vargs[0]}.floor()",
     "float": lambda n, vargs: f"{vargs[0]}.toDouble()" if vargs else "0",
