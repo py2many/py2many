@@ -42,7 +42,7 @@ class DTranspilerPlugins:
         return f"{min_max}({vargs_str})"
 
     def visit_exit(self, node, vargs) -> str:
-        self._usings.add("dart:io")
+        self._usings.add("core.stdc.stdlib:exit")
         return f"exit({vargs[0]})"
 
 
