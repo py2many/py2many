@@ -90,8 +90,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         # To visually communicate this we omit spaces when multiplying and dividing.
         if isinstance(node.op, (ast.Mult, ast.Div)):
             if getattr(node, "use_integer_div", False):
-                # Use integer division operator
-                op = "~/"
+                # NOTE: no such operator in Dlang: Use integer division operator
+                op = "/"
             return f"({left}{op}{right})"
         else:
             return f"({left} {op} {right})"
