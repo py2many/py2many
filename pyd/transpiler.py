@@ -305,25 +305,26 @@ class DTranspiler(CLikeTranspiler):
                 if ret is not None:
                     return ret
 
-        fields = []
+        raw_fields = []
         index = 0
         constructor = ""
         for declaration, typename in declarations.items():
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append(f"{typename} {declaration};")
+            raw_fields.append(f"{typename} {declaration}")
 
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
 
-        fields = "\n".join(fields)
+        fields = ";\n".join(raw_fields) + ";\n"
         body = [self.visit(b) for b in node.body]
         if node.is_dataclass:
             args = [arg for arg in declarations.keys()]
-            args = ", ".join([f"this.{arg}" for arg in args])
-            constructor = f"{node.name}({args}) {{}}"
+            sets = "\n".join([f"this.{arg} = {arg};" for arg in args])
+            args = ", ".join(raw_fields)
+            constructor = f"this({args}) {{{sets}}}"
             body = [constructor] + body
         body = "\n".join(body)
 
