@@ -12,7 +12,8 @@ all_tests:
 
 %.exe: %.py
 	$(PY2MANY) --d=1 $<
-	dmd -run $(patsubst %.py, %.d, $<) || true
+	dmd -debug -of=$(patsubst %.py,%,$<) $(patsubst %.py, %.d, $<) || true
+	$(patsubst %.py, %, $<) || true
 
 
 kt:
