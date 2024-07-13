@@ -1,6 +1,7 @@
 import ast
 import textwrap
 from typing import List
+import pdb
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
@@ -40,14 +41,14 @@ class DTranspiler(CLikeTranspiler):
     CONTAINER_TYPE_MAP = {
         "List": "[]",
         "Dict": "Map",
-        "Set": "Set",
+        "Set": "auto",  # RedBlackTree
         "Optional": "Nothing",
     }
 
     def __init__(self):
         super().__init__()
         self._container_type_map = self.CONTAINER_TYPE_MAP
-        self._default_type = "var"
+        self._default_type = "auto"
         self._temp = 0
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
@@ -209,21 +210,32 @@ class DTranspiler(CLikeTranspiler):
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
+        # pdb.set_trace()
+        type_is_set = False
         if hasattr(node.comparators[0], "annotation"):
             self._generic_typename_from_annotation(node.comparators[0])
             value_type = getattr(
                 node.comparators[0].annotation, "generic_container_type", None
             )
-            if value_type and value_type[0] == "Dict":
+            if value_type:
+              if value_type[0] == "Dict":
                 right += ".keys"
+              if value_type[0] == "Set":
+                type_is_set = True
 
         if right.endswith(".keys()") or right.endswith(".values()"):
             right = right[:-2]
 
-        if isinstance(node.ops[0], ast.In):
+        def _gen_in():
+          if type_is_set:
+            return "{1} in {0}".format(right, left)
+          else:
             return "{0}.canFind({1})".format(right, left)
+
+        if isinstance(node.ops[0], ast.In):
+            return _gen_in()
         elif isinstance(node.ops[0], ast.NotIn):
-            return "!({0}.canFind({1}))".format(right, left)
+            return "!({_gen_in()})"
         elif isinstance(node.ops[0], ast.Eq):
             if hasattr(node.left, "annotation"):
                 self._generic_typename_from_annotation(node.left)
@@ -265,13 +277,14 @@ class DTranspiler(CLikeTranspiler):
 
         var_definitions = []
         for cv in node.common_vars:
-            typename = "var"
+            typename = "auto"
             if hasattr(cv, "annotation"):
                 typename = get_id(cv.annotation)
 
             var_definitions.append((typename, cv))
         decls = "\n".join([f"{typename} {cv};" for typename, cv in var_definitions])
 
+        decls = ""  # TODO: we need to check if cv is defined in the outer-scope already
         return decls + "\n\n" + super().visit_If(node)
 
     def visit_UnaryOp(self, node) -> str:
@@ -498,12 +511,24 @@ class DTranspiler(CLikeTranspiler):
         condition = self.visit(node.test)
         return f"assert({condition});"
 
+    def is_const_var(self, target) -> bool:
+        var = get_id(target)
+        return (var is not None) and (var.isupper())
+
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
+        if self.is_const_var(target):
+          type_str = "const " + type_str
         return f"{type_str} {target} = {val};"
 
     def _visit_AssignOne(self, node, target) -> str:
         kw = "auto" # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
+        if self.is_const_var(target):
+          kw = "const"
+        # need to check var is defined in the outer-scope already
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is not None:
+          kw = ""
 
         if isinstance(target, ast.Tuple):
             self._usings.add("std.typecons : tuple")
@@ -512,7 +537,7 @@ class DTranspiler(CLikeTranspiler):
             value_types = "int, int"
             count = len(elts)
             tmp_var = self._get_temp()
-            buf = [f"{kw} {tmp_var} = tuple{value};"]  # TODO: {count}<{value_types}>
+            buf = [f"auto {tmp_var} = tuple{value};"]  # NOTE: tmp_var is always `auto` here. TODO: {count}<{value_types}>
             for i, elt in enumerate(elts):
                 buf.extend([f"{elt} = {tmp_var}[{i}];"])
             return "\n".join(buf)
@@ -529,7 +554,6 @@ class DTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value};"
 
-        definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
             definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
@@ -547,8 +571,6 @@ class DTranspiler(CLikeTranspiler):
             else:
                 return f"{kw} {target} = {value};"
 
-            if typename is not None:  # if we reach here
-              kw = ""
             return f"{kw} {typename} {target} = {value};"
 
     def visit_Print(self, node) -> str:
@@ -591,7 +613,7 @@ class DTranspiler(CLikeTranspiler):
     def visit_Set(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
-        return f"new Set.from([{elements_str}])"
+        return f"redBlackTree([{elements_str}])"
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)
