@@ -210,7 +210,6 @@ class DTranspiler(CLikeTranspiler):
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        # pdb.set_trace()
         type_is_set = False
         if hasattr(node.comparators[0], "annotation"):
             self._generic_typename_from_annotation(node.comparators[0])
@@ -247,6 +246,15 @@ class DTranspiler(CLikeTranspiler):
                     return f"equal({left}, {right})"
 
         return super().visit_Compare(node)
+
+    def visit_Constant(self, node) -> str:
+        if isinstance(node.value, complex):
+            str_value = str(node.value)
+            return "std.complex.complex(0, %s)" % (
+                str_value.replace("j", "") if str_value.endswith("j") else str_value
+            )
+        else:
+            return super().visit_Constant(node)
 
     def visit_Name(self, node) -> str:
         exception_name_map = {"ZeroDivisionError": "IntegerDivisionByZeroException"}
@@ -564,6 +572,10 @@ class DTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
+
+            if typename == "complex":
+                self._usings.add("std.complex")
+                typename = "auto"
 
             if typename != self._default_type:
                 if kw == self._default_type:
