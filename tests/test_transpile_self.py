@@ -99,6 +99,36 @@ class SelfTranspileTests(unittest.TestCase):
             )
         )
 
+    def test_dlang_recursive(self):
+        settings = self.SETTINGS["dlang"]
+        suppress_exceptions = (
+            False if SHOW_ERRORS else (AstNotImplementedError, AstUnrecognisedBinOp)
+        )
+
+        transpiler_module = ROOT_DIR / "pyd"
+
+        assert_some_failures(
+            *_process_dir(
+                settings,
+                transpiler_module,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=suppress_exceptions,
+            ),
+            expected_success={"clike.py"},
+        )
+        assert_counts(
+            *_process_dir(
+                settings,
+                PY2MANY_MODULE,
+                OUT_DIR,
+                False,
+                _suppress_exceptions=suppress_exceptions,
+            ),
+            format_error_count=10,
+            failure_count=17,
+        )
+
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
         suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
