@@ -1,7 +1,6 @@
 import ast
 import textwrap
 from typing import List
-import pdb
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
@@ -74,8 +73,8 @@ class DTranspiler(CLikeTranspiler):
         # [] ['string', 'int'] => `int[string]`
         # [] string, int => `int[string]`
         if value_type == "Map" and ", " in index_type:
-          its = index_type.split(",")
-          return f"{its[1]}[{its[0]}]"
+            its = index_type.split(",")
+            return f"{its[1]}[{its[0]}]"
         return f"{index_type}{value_type}"
 
     def visit_FunctionDef(self, node) -> str:
@@ -157,7 +156,7 @@ class DTranspiler(CLikeTranspiler):
             if node.attr == "append":
                 # list.append method return None
                 return f"{value_id} ~= "
-                
+
         if not value_id:
             value_id = ""
 
@@ -216,19 +215,19 @@ class DTranspiler(CLikeTranspiler):
                 node.comparators[0].annotation, "generic_container_type", None
             )
             if value_type:
-              if value_type[0] == "Dict":
-                right += ".keys"
-              if value_type[0] == "Set":
-                type_is_set = True
+                if value_type[0] == "Dict":
+                    right += ".keys"
+                if value_type[0] == "Set":
+                    type_is_set = True
 
         if right.endswith(".keys()") or right.endswith(".values()"):
             right = right[:-2]
 
         def _gen_in():
-          if type_is_set:
-            return "{1} in {0}".format(right, left)
-          else:
-            return "{0}.canFind({1})".format(right, left)
+            if type_is_set:
+                return "{1} in {0}".format(right, left)
+            else:
+                return "{0}.canFind({1})".format(right, left)
 
         if isinstance(node.ops[0], ast.In):
             return _gen_in()
@@ -447,7 +446,7 @@ class DTranspiler(CLikeTranspiler):
             return "{0}[{1}]".format(value, index)
         if getattr(node, "lhs", False):
             return "{0}[{1}]".format(value, index)
-        return '{0}[{1}]'.format(value, index)
+        return "{0}[{1}]".format(value, index)
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -473,7 +472,9 @@ class DTranspiler(CLikeTranspiler):
         self._usings.add("core.memory")
         target = node.targets[0]
         target_str = self.visit(target)
-        return f"destroy!true({target_str}); core.memory.GC.free(cast(void*){target_str});"
+        return (
+            f"destroy!true({target_str}); core.memory.GC.free(cast(void*){target_str});"
+        )
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
@@ -521,17 +522,17 @@ class DTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
         if self.is_const_var(target):
-          type_str = "const " + type_str
+            type_str = "const " + type_str
         return f"{type_str} {target} = {val};"
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "auto" # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
+        kw = "auto"  # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
         if self.is_const_var(target):
-          kw = "const"
+            kw = "const"
         # need to check var is defined in the outer-scope already
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is not None:
-          kw = ""
+            kw = ""
 
         if isinstance(target, ast.Tuple):
             self._usings.add("std.typecons : tuple")
@@ -540,7 +541,9 @@ class DTranspiler(CLikeTranspiler):
             value_types = "int, int"
             count = len(elts)
             tmp_var = self._get_temp()
-            buf = [f"auto {tmp_var} = tuple{value};"]  # NOTE: tmp_var is always `auto` here. TODO: {count}<{value_types}>
+            buf = [
+                f"auto {tmp_var} = tuple{value};"
+            ]  # NOTE: tmp_var is always `auto` here. TODO: {count}<{value_types}>
             for i, elt in enumerate(elts):
                 buf.extend([f"{elt} = {tmp_var}[{i}];"])
             return "\n".join(buf)
@@ -594,10 +597,10 @@ class DTranspiler(CLikeTranspiler):
         iter = self.visit(generator.iter)
 
         # HACK for dictionary iterators to work
-        '''
+        """
         if not iter.endswith("keys()") or iter.endswith("values()"):
             iter += ".iter()"
-        '''
+        """
 
         map_str = ".map!({0} => {1})".format(target, elt)
         filter_str = ""

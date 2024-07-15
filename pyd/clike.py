@@ -80,7 +80,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def is_complex(self, node):
         return isinstance(node, ast.Constant) and isinstance(node.value, complex)
-      
+
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
             return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
