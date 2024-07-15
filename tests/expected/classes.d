@@ -2,6 +2,7 @@
 import std;
 
 class Foo {
+  ;
 
   int bar() {
     return baz();
