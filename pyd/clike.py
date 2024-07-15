@@ -18,14 +18,14 @@ dart_type_map = {
     float: "double",
     bytes: "Uint8List",
     str: "string",
-    c_int8: "int",
-    c_int16: "int",
+    c_int8: "byte",
+    c_int16: "short",
     c_int32: "int",
-    c_int64: "int",
-    c_uint8: "int",
-    c_uint16: "int",
-    c_uint32: "int",
-    c_uint64: "int",
+    c_int64: "long",
+    c_uint8: "ubyte",
+    c_uint16: "ushort",
+    c_uint32: "uint",
+    c_uint64: "ulong",
 }
 
 # allowed as names in Python but treated as keywords in Dart
