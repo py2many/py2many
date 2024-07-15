@@ -151,7 +151,6 @@ class DTranspiler(CLikeTranspiler):
 
         if value_id == "sys":
             if attr == "argv":
-                # self._usings.add("dart:io")
                 return "argv"
 
         if is_list(node.value):
@@ -366,7 +365,6 @@ class DTranspiler(CLikeTranspiler):
 
     def visit_StrEnum(self, node) -> str:
         # TODO: Dedup with other enum implementations
-        self._usings.add("package:vnum/vnum.dart")
         fields = []
         ename = node.name
         for i, (member, var) in enumerate(node.class_assignments.items()):
@@ -389,7 +387,6 @@ class DTranspiler(CLikeTranspiler):
         )
 
     def visit_IntFlag(self, node) -> str:
-        self._usings.add("package:vnum/vnum.dart")
         fields = []
         ename = node.name
         for i, (member, var) in enumerate(node.class_assignments.items()):
@@ -420,10 +417,8 @@ class DTranspiler(CLikeTranspiler):
             name = names[0]
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
-                dart_module_name, dart_name = MODULE_DISPATCH_TABLE[lookup]
-                dart_module_name = dart_module_name.replace(".", "::")
-                return f"import {dart_module_name};  // {dart_name}"
-        module_name = module_name.replace(".", "::")
+                dlang_module_name, dlang_name = MODULE_DISPATCH_TABLE[lookup]
+                return f"import {dlang_module_name};  // {dlang_name}"
         names = ", ".join(names)
         return f'import "{module_name}";  // {names}'
 
