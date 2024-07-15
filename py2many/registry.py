@@ -9,7 +9,7 @@ from .rewriters import InferredAnnAssignRewriter
 CI = os.environ.get("CI", "0")
 if CI in ["1", "true"]:  # pragma: no cover
     from .pycpp import settings as cpp_settings
-    from .pyd import settings as d_settings
+    from .pyd import settings as dlang_settings
     from .pydart import settings as dart_settings
     from .pygo import settings as go_settings
     from .pyjl import settings as julia_settings
@@ -21,7 +21,7 @@ if CI in ["1", "true"]:  # pragma: no cover
 else:
     try:  # pragma: no cover
         from .pycpp import settings as cpp_settings
-        from .pyd import settings as d_settings
+        from .pyd import settings as dlang_settings
         from .pydart import settings as dart_settings
         from .pygo import settings as go_settings
         from .pyjl import settings as julia_settings
@@ -32,7 +32,7 @@ else:
         from .pyv import settings as vlang_settings
     except ImportError:
         from pycpp import settings as cpp_settings
-        from pyd import settings as d_settings
+        from pyd import settings as dlang_settings
         from pydart import settings as dart_settings
         from pygo import settings as go_settings
         from pyjl import settings as julia_settings
@@ -66,7 +66,7 @@ ALL_SETTINGS = {
     "julia": julia_settings,
     "kotlin": kotlin_settings,
     "nim": nim_settings,
-    "d": d_settings,
+    "dlang": dlang_settings,
     "dart": dart_settings,
     "go": go_settings,
     "vlang": vlang_settings,
