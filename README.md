@@ -34,7 +34,7 @@ Rust is the language where the focus of development has been.
 C++14 is historically the first language to be supported.
 C++17 is now required for some features.
 
-Preliminary support exists for Julia, Kotlin, Nim, Go, Dart and V.
+Preliminary support exists for D, Julia, Kotlin, Nim, Go, Dart and V.
 
 py2many can also emit Python 3 code that includes inferred type annotations,
 and revisions to the syntax intended to simplify parsing of the code.
@@ -97,6 +97,7 @@ Transpiling:
 
 ```sh
 py2many --cpp=1 tests/cases/fib.py
+py2many --dlang=1 tests/cases/fib.py
 py2many --rust=1 tests/cases/fib.py
 py2many --julia=1 tests/cases/fib.py
 py2many --kotlin=1 tests/cases/fib.py
@@ -111,6 +112,7 @@ Compiling:
 clang tests/expected/fib.cpp
 rustup run nightly cargo build -Zscript --manifest-path tests/expected/fib.rs
 ...
+dmd -run tests/cases/fib.d
 ```
 
 Many of the transpilers rely on a language specific formatter to parse the output and reformat it.
