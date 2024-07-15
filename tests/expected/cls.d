@@ -2,6 +2,7 @@
 import std;
 
 class Foo {
+  ;
 
   string bar() {
     return "a";
