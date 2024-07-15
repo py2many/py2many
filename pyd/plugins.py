@@ -37,7 +37,6 @@ class DTranspilerPlugins:
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
-        # self._usings.add("dart:math")
         vargs_str = ", ".join(vargs)
         return f"{min_max}({vargs_str})"
 

@@ -12,7 +12,7 @@ from ctypes import (
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-dart_type_map = {
+dlang_type_map = {
     bool: "bool",
     int: "int",
     float: "double",
@@ -28,8 +28,8 @@ dart_type_map = {
     c_uint64: "ulong",
 }
 
-# allowed as names in Python but treated as keywords in Dart
-dart_keywords = frozenset(
+# allowed as names in Python but treated as keywords in dlang
+dlang_keywords = frozenset(
     [
         "assert",
         "break",
@@ -71,10 +71,10 @@ dart_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = dart_type_map
+        self._type_map = dlang_type_map
 
     def visit_Name(self, node) -> str:
-        if node.id in dart_keywords:
+        if node.id in dlang_keywords:
             return node.id + "_"
         return super().visit_Name(node)
 
