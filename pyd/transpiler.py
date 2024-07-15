@@ -2,7 +2,7 @@ import ast
 import textwrap
 from typing import List
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_void_function  # , is_mutable
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import get_inferred_type
@@ -526,7 +526,7 @@ class DTranspiler(CLikeTranspiler):
         return f"{type_str} {target} = {val};"
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "auto"  # TODO(no const in Python): "var" if is_mutable(node.scopes, get_id(target)) else "final"
+        kw = "auto"  # if is_mutable(node.scopes, get_id(target)) else "final"  # TODO(no const in Python)
         if self.is_const_var(target):
             kw = "const"
         # need to check var is defined in the outer-scope already
@@ -538,12 +538,10 @@ class DTranspiler(CLikeTranspiler):
             self._usings.add("std.typecons : tuple")
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            value_types = "int, int"
-            count = len(elts)
             tmp_var = self._get_temp()
             buf = [
                 f"auto {tmp_var} = tuple{value};"
-            ]  # NOTE: tmp_var is always `auto` here. TODO: {count}<{value_types}>
+            ]  # NOTE: tmp_var is always `auto` here in Dlang.
             for i, elt in enumerate(elts):
                 buf.extend([f"{elt} = {tmp_var}[{i}];"])
             return "\n".join(buf)
