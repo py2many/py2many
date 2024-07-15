@@ -16,6 +16,7 @@ ARG KOTLIN
 ARG DART
 ARG VLANG
 ARG SMT
+ARG DLANG
 
 RUN useradd --create-home --comment "Arch Build User" build
 ENV HOME /home/build
@@ -39,6 +40,9 @@ RUN test -z "$NIM" || pacman -Syu --noconfirm nim
 
 # Kotlin
 RUN test -z "$KOTLIN" || pacman -Syu --noconfirm kotlin
+
+# Dlang
+RUN test -z "$DLANG" || pacman -Syu --noconfirm dlang
 
 # Install yay
 USER build
@@ -65,8 +69,8 @@ RUN python -m venv $HOME/.venv
 RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
 
 # C++
-RUN test -z "$CPP" || source  $HOME/.venv/bin/activate && pip3 install conan && \
-    /scripts/cpp-setup.sh
+RUN test -z "$CPP" || (source  $HOME/.venv/bin/activate && pip3 install conan && \
+    /scripts/cpp-setup.sh)
 
 # Rust
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
