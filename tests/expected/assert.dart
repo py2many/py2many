@@ -1,4 +1,4 @@
-// @dart=2.9
+// @dart=3.4
 import 'package:sprintf/sprintf.dart';
 
 compare_assert(int a, int b) {
