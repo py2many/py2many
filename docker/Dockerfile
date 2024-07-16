@@ -41,6 +41,9 @@ RUN test -z "$NIM" || pacman -Syu --noconfirm nim
 # Kotlin
 RUN test -z "$KOTLIN" || pacman -Syu --noconfirm kotlin
 
+# Dart
+RUN test -z "$DART" || pacman -Syu --noconfirm dart
+
 # Dlang
 RUN test -z "$DLANG" || pacman -Syu --noconfirm dlang
 
@@ -57,7 +60,6 @@ RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
     && (cd /tmp && unzip ${FILE} && rm ${FILE}) \
     && ln -s /tmp/v/v /usr/bin)
 
-# TODO: add flutter
 # TODO: Add all formatters and other auxilliary setup from main.yml
 
 USER build
@@ -81,6 +83,9 @@ RUN test -z "$GOLANG" || /scripts/go-setup.sh
 
 # SMT
 RUN test -z "$SMT" || yay -S --noconfirm cljstyle-bin
+
+# DART/flutter
+RUN test -z "$DART" || yay -S --noconfirm flutter-target-linux
 
 # Julia
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
