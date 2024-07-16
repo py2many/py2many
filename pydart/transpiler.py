@@ -63,7 +63,7 @@ class DartTranspiler(CLikeTranspiler):
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"import '{mod}';" for mod in usings)
-        return f"// @dart=2.9\n{uses}" if uses else ""
+        return f"// @dart=3.4\n{uses}" if uses else ""
 
     def visit_FunctionDef(self, node) -> str:
         body = "\n".join([self.visit(n) for n in node.body])

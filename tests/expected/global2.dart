@@ -1,4 +1,4 @@
-// @dart=2.9
+// @dart=3.4
 import 'package:sprintf/sprintf.dart';
 
 final int code_0 = 0;
