@@ -1,4 +1,4 @@
-// @dart=2.9
+// @dart=3.4
 import 'package:collection/collection.dart';
 import 'package:sprintf/sprintf.dart';
 import 'package:tuple/tuple.dart';
