@@ -112,6 +112,9 @@ jobs:
         run: |
           set -ex
           if [ "$RUNNER_OS" == "Linux" ]; then
+              sudo wget https://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list -O /etc/apt/sources.list.d/d-apt.list
+              sudo apt-get update --allow-insecure-repositories
+              sudo apt-get -y --allow-unauthenticated install --reinstall d-apt-keyring
               sudo apt-get install --yes \
                   astyle \
                   catch2 \
@@ -119,6 +122,7 @@ jobs:
                   libc++-14-dev \
                   libc++abi-14-dev \
                   z3 \
+                  dmd-compiler dub \
                 && true
               pip3 install conan
               echo "CXX=clang++-14" >> $GITHUB_ENV
@@ -129,6 +133,7 @@ jobs:
                   clang-format \
                   conan \
                   z3 \
+                  dmd \
                 && true
               # brew's vlang 0.2.4 is too old, and has no @head
           elif [ "$RUNNER_OS" == "Windows" ]; then
@@ -138,6 +143,7 @@ jobs:
                   curl \
                   llvm \
                   z3 \
+                  dmd \
                   zip \
                 && true
               echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
