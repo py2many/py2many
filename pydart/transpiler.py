@@ -63,7 +63,7 @@ class DartTranspiler(CLikeTranspiler):
     def usings(self):
         usings = sorted(list(set(self._usings)))
         uses = "\n".join(f"import '{mod}';" for mod in usings)
-        return f"// @dart=2.9\n{uses}" if uses else ""
+        return f"// @dart=3.4\n{uses}" if uses else ""
 
     def visit_FunctionDef(self, node) -> str:
         body = "\n".join([self.visit(n) for n in node.body])
@@ -490,6 +490,12 @@ class DartTranspiler(CLikeTranspiler):
                 buf.extend([f"{elt} = {tmp_var}.item{i+1};"])
             return "\n".join(buf)
 
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is not None:
+            kw = ""
+        else:
+            definition = node.scopes.find(get_id(target))
+
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
@@ -502,9 +508,6 @@ class DartTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value};"
 
-        definition = node.scopes.parent_scopes.find(get_id(target))
-        if definition is None:
-            definition = node.scopes.find(get_id(target))
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
