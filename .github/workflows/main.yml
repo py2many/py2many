@@ -172,6 +172,7 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
         shell: bash
         run: |
+          dub init -n .
           dub add dfmt
 
       - name: Install dart dependencies
