@@ -174,7 +174,7 @@ jobs:
         run: |
           dub init -n .
           dub add dfmt
-          dub fetch dmft --cache=local
+          dub fetch dfmt --cache=local
 
       - name: Install dart dependencies
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
