@@ -172,8 +172,8 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
         shell: bash
         run: |
-          mkdir -p tests/build
-          dub init -n tests/build
+          mkdir -p tests/build && cd tests/build
+          dub init -n .
           dub add dfmt
           dub fetch dfmt --cache=local
 
