@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Can be blank, or one of: cpp, dart, go, julia, kotlin, nim, smt, vlang
-  FOCUS: ''
+  # Can be blank, or one of: cpp, dart, go, julia, kotlin, nim, smt, vlang, dlang
+  FOCUS: 'dlang'
 jobs:
   build:
 
@@ -161,6 +161,13 @@ jobs:
         shell: bash
         run: |
           v install div72.vexc
+
+      - name: Install Dlang
+        if: ${{ !env.FOCUS || env.FOCUS == 'dlang') }}
+        uses: dlang-community/setup-dlang@v2
+        with:
+          token: ${{ github.token }}
+
 
       - name: Install dart dependencies
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
