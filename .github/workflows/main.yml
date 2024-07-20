@@ -168,6 +168,11 @@ jobs:
         with:
           token: ${{ github.token }}
 
+      - name: Install D Packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
+        shell: bash
+        run: |
+          dub add dfmt
 
       - name: Install dart dependencies
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
