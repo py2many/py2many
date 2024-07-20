@@ -10,6 +10,15 @@ def settings(args, env=os.environ):
         DTranspiler(),
         ".d",
         "D",
-        ["dub", "run", "--yes", "--", "dfmt", "--inplace", "--brace_style=otbs", "--indent_size=2"],
+        [
+            "dub",
+            "run",
+            "--yes",
+            "--",
+            "dfmt",
+            "--inplace",
+            "--brace_style=otbs",
+            "--indent_size=2",
+        ],
         post_rewriters=[DIntegerDivRewriter()],
     )
