@@ -163,7 +163,7 @@ jobs:
           v install div72.vexc
 
       - name: Install Dlang
-        if: ${{ !env.FOCUS || env.FOCUS == 'dlang') }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
         uses: dlang-community/setup-dlang@v2
         with:
           token: ${{ github.token }}
