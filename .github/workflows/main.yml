@@ -12,7 +12,7 @@ concurrency:
 
 env:
   # Can be blank, or one of: cpp, dart, go, julia, kotlin, nim, smt, vlang, dlang
-  FOCUS: 'dlang'
+  FOCUS: ''
 jobs:
   build:
 
