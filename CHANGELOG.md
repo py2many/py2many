@@ -10,6 +10,9 @@
 - Add Julia rewriter for boolean operations.
 - Coverage increased from 89% to 92%,
   removing code in transpilers that emitted invalid code.
+- Support D Programming Language
+- Ubuntu 24.04 added to the test matrix
+- Docker images usable now for testing several major languages
 
 ## [0.4.0] - 2023-12-31
 
