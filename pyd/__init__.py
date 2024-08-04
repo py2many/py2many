@@ -19,7 +19,7 @@ def settings(args, env=os.environ):
             "--yes",
             "dfmt",
             "--",
-            [*dfmt_args],
+            *dfmt_args,
         ],
         post_rewriters=[DIntegerDivRewriter()],
     )
