@@ -10,7 +10,7 @@ def settings(args, env=os.environ):
     if args.indent is not None:
         dfmt_args.append(f"--indent_size={args.indent}")
     else:
-        dfmt_args.append(f"--indent_size=2}")
+        dfmt_args.append(f"--indent_size=2")
     return LanguageSettings(
         DTranspiler(),
         ".d",
