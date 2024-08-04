@@ -6,6 +6,9 @@ from .transpiler import DIntegerDivRewriter, DTranspiler
 
 
 def settings(args, env=os.environ):
+    dfmt_args = [ "--inplace", "--brace_style=otbs" ]
+    if args.indent is not None:
+        dfmt_args.append(f"--indent_size:{args.indent}")
     return LanguageSettings(
         DTranspiler(),
         ".d",
@@ -16,9 +19,7 @@ def settings(args, env=os.environ):
             "--yes",
             "dfmt",
             "--",
-            "--inplace",
-            "--brace_style=otbs",
-            "--indent_size=2",
+            [*dfmt_args],
         ],
         post_rewriters=[DIntegerDivRewriter()],
     )
