@@ -83,6 +83,10 @@ purposes, you can use:
 ```bash
 export KEEP_EXISTING=1
 pytest-3 -k some_test -v
+
+# and ...
+export KEEP_GENERATED=1
+tox -- -k dlang
 ```
 
 ## Running tests via CI
