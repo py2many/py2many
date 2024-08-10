@@ -215,7 +215,7 @@ def has_main(source):
 @lru_cache()
 def get_tree(source_data, ext):
     is_script = has_main(source_data)
-    if ext in [".dart", ".kt", ".rs"] and not is_script:
+    if ext in [".dart", ".kt", ".rs", ".d"] and not is_script:
         source_data = f"if __name__ == '__main__':\n  {source_data}"
     print(f">{source_data}<")
     tree = ast.parse(source_data)
