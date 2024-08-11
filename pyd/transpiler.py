@@ -473,9 +473,17 @@ class DTranspiler(CLikeTranspiler):
         return "({0})".format(elts)
 
     def visit_Delete(self, node) -> str:
-        self._usings.add("core.memory")
         target = node.targets[0]
         target_str = self.visit(target)
+        if len(node.targets) == 1 and isinstance(target, ast.Subscript):
+            self._usings.add("std.algorithm")
+            # special handling to delete element from container, e.g.
+            # tests/test_unsupported.py dict_del: "a = {1: 1}; del a[1]; assert not a",
+            value = self.visit(target.value)
+            index = self.visit(target.slice)
+            return "{0}.remove({1});".format(value, index)
+
+        self._usings.add("core.memory")
         return (
             f"destroy!true({target_str}); core.memory.GC.free(cast(void*){target_str});"
         )
