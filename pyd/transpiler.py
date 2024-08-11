@@ -227,6 +227,7 @@ class DTranspiler(CLikeTranspiler):
             if type_is_set:
                 return "{1} in {0}".format(right, left)
             else:
+                self._usings.add("std.algorithm")
                 return "{0}.canFind({1})".format(right, left)
 
         if isinstance(node.ops[0], ast.In):
@@ -600,6 +601,8 @@ class DTranspiler(CLikeTranspiler):
             iter += ".iter()"
         """
 
+        self._usings.add("std.algorithm")
+        self._usings.add("std.array")
         map_str = ".map!({0} => {1})".format(target, elt)
         filter_str = ""
         if generator.ifs:
