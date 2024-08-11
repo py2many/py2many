@@ -4,7 +4,7 @@ try:
 except ImportError:
     from setuptools import setup
 
-__version__ = "0.4"
+__version__ = "0.5.1"
 
 install_requires = ["toposort", "astor; python_version<'3.9'"]
 setup_requires = []

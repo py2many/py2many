@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.1] - 2024-08-10
+
+- Minor release eng related cleanups
+
 ## [0.5] - 2024-08-10
 
 - Python 3.12 support
