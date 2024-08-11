@@ -151,6 +151,9 @@ class DTranspiler(CLikeTranspiler):
         if value_id == "sys":
             if attr == "argv":
                 return "argv"
+            elif attr in ["stderr", "stdin", "stdout"]:
+                self._usings.add("std.stdio")
+                return attr
 
         if is_list(node.value):
             if node.attr == "append":
