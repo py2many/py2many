@@ -81,7 +81,7 @@ golden output and then discarded. If you want to keep them around for debugging
 purposes, you can use:
 
 ```bash
-export KEEP_EXISTING=1
+export KEEP_GENERATED=1
 pytest-3 -k some_test -v
 ```
 
