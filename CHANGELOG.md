@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.1] - Not released
+## [0.5] - 2024-08-10
 
 - Python 3.12 support
 - Support GCC 13
