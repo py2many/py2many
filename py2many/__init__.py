@@ -1,1 +1,1 @@
-__version__ = '0.5.1'
+from py2many.version import *
