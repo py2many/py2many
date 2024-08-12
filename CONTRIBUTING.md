@@ -30,7 +30,7 @@ Here are some notes for ubuntu 20.04
 ### Ubuntu 20.04 + python3
 
 ```bash
-sudo apt install python3 python3-pip python3-pytest tox black pyflakes3
+sudo apt install python3 python3-pip python3-pytest tox black flake8
 ```
 
 ### Ubuntu 20.04 + C++
