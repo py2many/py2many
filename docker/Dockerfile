@@ -68,7 +68,7 @@ ADD scripts /scripts
 
 # Per user package setup. Note that /root is inaccessible to user build
 RUN python -m venv $HOME/.venv
-RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort pyflakes
+RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort flake8
 
 # C++
 RUN test -z "$CPP" || (source  $HOME/.venv/bin/activate && pip3 install conan && \
