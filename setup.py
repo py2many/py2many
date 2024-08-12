@@ -1,14 +1,13 @@
-#!/usr/bin/env python3
-try:
-    from distutils.core import setup
-except ImportError:
-    from setuptools import setup
-
-__version__ = "0.5.1"
+from setuptools import setup
+from py2many import __version__
 
 install_requires = ["toposort", "astor; python_version<'3.9'"]
 setup_requires = []
-tests_require = ["pytest", "unittest-expander", "argparse_dataclass"]
+test_deps = ["pytest", "unittest-expander", "argparse_dataclass"]
+
+extras = {
+    'test': test_deps,
+}
 
 with open("README.md") as readme_file:
     readme = readme_file.read()
@@ -41,7 +40,8 @@ setup(
     url="https://github.com/adsharma/py2many",
     install_requires=install_requires,
     setup_requires=setup_requires,
-    tests_require=tests_require,
+    tests_require=test_deps,
+    extras_require=extras,
     packages=packages,
     package_dir=package_dir,
     license="MIT",

@@ -1,2 +1,7 @@
 [tool.isort]
 profile = "black"
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
