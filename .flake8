@@ -1,0 +1,17 @@
+[flake8]
+per-file-ignores =
+    # imported but unused
+    __init__.py: F401
+extend_ignore = E711, E712, E713, E731, E741, E721, E722
+max-line-length = 140
+exclude =
+    # No need to traverse our git directory
+    .git,
+    # There's no value in checking cache directories
+    __pycache__,
+    build,
+    # generated files
+    tests/expected,
+    tests/cases,
+    tests/dir_cases,
+    tests/ext_cases,
