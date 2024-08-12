@@ -8,6 +8,7 @@ from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
 
+from . import __version__
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
 from .context import add_assignment_context, add_list_calls, add_variable_context
@@ -415,9 +416,19 @@ def main(args=None, env=os.environ):
         help="Use typpete for inference",
     )
     parser.add_argument(
+        "--version",
+        action="store_true",
+        default=False,
+        help="Display version number",
+    )
+    parser.add_argument(
         "--project", default=True, help="Create a project when using directory mode"
     )
     args, rest = parser.parse_known_args(args=args)
+
+    if args.version:
+        print(__version__)
+        return 0
 
     # Validation of the args
     if args.extension and not args.rust:
