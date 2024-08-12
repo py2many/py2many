@@ -57,6 +57,11 @@ The following commands will install most of the dependencies on MacOS
 brew install astyle clang-format flutter gcc go julia kotlin maven nim rust vlang z3
 ```
 
+## Setting up python dependencies
+```bash
+pip3 install -e .[test]
+```
+
 ## Running tests for C++ only
 
 ```bash

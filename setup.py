@@ -1,12 +1,18 @@
 from setuptools import setup
-from py2many import __version__
+
+version = None
+with open("py2many/version.py") as f:
+    for line in f.readlines():
+        if line.startswith("__version__"):
+            delim = '"' if '"' in line else "'"
+            version = line.split(delim)[1]
 
 install_requires = ["toposort", "astor; python_version<'3.9'"]
 setup_requires = []
 test_deps = ["pytest", "unittest-expander", "argparse_dataclass"]
 
 extras = {
-    'test': test_deps,
+    "test": test_deps,
 }
 
 with open("README.md") as readme_file:
@@ -31,7 +37,7 @@ packages = sorted(package_dir.keys())
 
 setup(
     name="py2many",
-    version=__version__,
+    version=version,
     description="Python to CLike language transpiler.",
     long_description=readme + "\n\n",
     long_description_content_type="text/markdown",
