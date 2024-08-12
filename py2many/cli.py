@@ -8,7 +8,6 @@ from pathlib import Path
 from subprocess import run
 from typing import List, Optional, Set, Tuple
 
-from . import __version__
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags
 from .context import add_assignment_context, add_list_calls, add_variable_context
@@ -32,6 +31,7 @@ from .rewriters import (
 )
 from .scope import add_scope_context
 from .toposort_modules import toposort
+from .version import __version__
 
 PY2MANY_DIR = Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
