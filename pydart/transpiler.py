@@ -334,7 +334,6 @@ class DartTranspiler(CLikeTranspiler):
         constructor += f"final String __private;"
         return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
-
     def visit_IntFlag(self, node) -> str:
         fields = []
         for member, var in node.class_assignments.items():
