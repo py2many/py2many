@@ -1,5 +1,4 @@
 import ast
-import textwrap
 from typing import List
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -318,7 +317,7 @@ class DartTranspiler(CLikeTranspiler):
             else:
                 fields.append(f"{member}({var})")
         fields = ",\n".join(fields)
-        constructor = f"\n"
+        constructor = "\n"
         return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
     def visit_StrEnum(self, node) -> str:
@@ -331,7 +330,7 @@ class DartTranspiler(CLikeTranspiler):
                 fields.append(f"{member}({var})")
         fields = ",\n".join(fields)
         constructor = f"const {node.name}(this.__private);\n"
-        constructor += f"final String __private;"
+        constructor += "final String __private;"
         return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
     def visit_IntFlag(self, node) -> str:
@@ -344,7 +343,7 @@ class DartTranspiler(CLikeTranspiler):
                 fields.append(f"{member}({var})")
         fields = ",\n".join(fields)
         constructor = f"const {node.name}(this.__private);\n"
-        constructor += f"final int __private;"
+        constructor += "final int __private;"
         return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
     def _import(self, name: str) -> str:
