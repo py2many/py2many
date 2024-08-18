@@ -69,7 +69,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
         with:
-          flutter-version: '2.10.5'
+          flutter-version: '3.22.3'
 
       - uses: julia-actions/setup-julia@v2
         if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
