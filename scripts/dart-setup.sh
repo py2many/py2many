@@ -16,10 +16,3 @@ if ! grep collection pubspec.yaml ; then
   dart pub add sprintf
   dart pub add tuple
 fi
-if ! grep vnum pubspec.yaml ; then
-  cat pubspec.yaml
-  sed -i.bak '/test:/d' pubspec.yaml
-  # Force version downgrade here
-  sed -i.bak 's:1.16.0:1.15.0:' pubspec.yaml
-  flutter pub add vnum
-fi

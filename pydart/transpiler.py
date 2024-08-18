@@ -310,64 +310,34 @@ class DartTranspiler(CLikeTranspiler):
         return f"class {node.name} {{\n{fields}\n\n {body}\n}}\n"
 
     def visit_IntEnum(self, node) -> str:
-        # TODO: Consider using Vnum instead of the language built-in
-        # Any python enum which specifies a non default value will break this
         fields = []
         for member, var in node.class_assignments.items():
             var = self.visit(var)
             if var == "auto()":
                 fields.append(f"{member},")
             else:
-                fields.append(f"{member} = {var},")
+                fields.append(f"{member}({var}),")
         fields = "\n".join(fields)
-        return f"enum {node.name} {{\n{fields}\n}}\n\n"
+        constructor = f"const {node.name}(this.__private);\n"
+        constructor += f"final int __private;"
+        return f"enum {node.name} {{\n{fields}\n{constructor}}}\n\n"
 
     def visit_StrEnum(self, node) -> str:
-        # TODO: Dedup with other enum implementations
-        self._usings.add("package:vnum/vnum.dart")
         fields = []
-        ename = node.name
-        for i, (member, var) in enumerate(node.class_assignments.items()):
+        for member, var in node.class_assignments.items():
             var = self.visit(var)
             if var == "auto()":
-                var = f'"{member}"'
-            fields.append(
-                f"            static final {member} = const {ename}.define({var});"
-            )
-        fields = "\n".join(["    " * 2 + f for f in fields])
-        return textwrap.dedent(
-            f"""\
-            @VnumDefinition
-            class {node.name} extends Vnum<String> {{\n{fields}
+                fields.append(f"{member},")
+            else:
+                fields.append(f"{member}({var}),")
+        fields = "\n".join(fields)
+        constructor = f"const {node.name}(this.__private);\n"
+        constructor += f"final String __private;"
+        return f"enum {node.name} {{\n{fields}\n{constructor}}}\n\n"
 
-            const {node.name}.define(String fromValue) : super.define(fromValue);
-              factory {node.name}(String value) => Vnum.fromValue(value, {node.name});
-            }}
-            """
-        )
 
     def visit_IntFlag(self, node) -> str:
-        self._usings.add("package:vnum/vnum.dart")
-        fields = []
-        ename = node.name
-        for i, (member, var) in enumerate(node.class_assignments.items()):
-            var = self.visit(var)
-            if var == "auto()":
-                var = i
-            fields.append(
-                f"            static final {member} = const {ename}.define({var});"
-            )
-        fields = "\n".join(["    " * 2 + f for f in fields])
-        return textwrap.dedent(
-            f"""\
-            @VnumDefinition
-            class {node.name} extends Vnum<int> {{\n{fields}
-
-            const {node.name}.define(int fromValue) : super.define(fromValue);
-              factory {node.name}(int value) => Vnum.fromValue(value, {node.name});
-            }}
-            """
-        )
+        return self.visit_IntEnum(node)
 
     def _import(self, name: str) -> str:
         return f'import "{name}";'
