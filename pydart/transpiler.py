@@ -314,30 +314,39 @@ class DartTranspiler(CLikeTranspiler):
         for member, var in node.class_assignments.items():
             var = self.visit(var)
             if var == "auto()":
-                fields.append(f"{member},")
+                fields.append(f"{member}")
             else:
-                fields.append(f"{member}({var}),")
-        fields = "\n".join(fields)
-        constructor = f"const {node.name}(this.__private);\n"
-        constructor += f"final int __private;"
-        return f"enum {node.name} {{\n{fields}\n{constructor}}}\n\n"
+                fields.append(f"{member}({var})")
+        fields = ",\n".join(fields)
+        constructor = f"\n"
+        return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
     def visit_StrEnum(self, node) -> str:
         fields = []
         for member, var in node.class_assignments.items():
             var = self.visit(var)
             if var == "auto()":
-                fields.append(f"{member},")
+                fields.append(f"{member}")
             else:
-                fields.append(f"{member}({var}),")
-        fields = "\n".join(fields)
+                fields.append(f"{member}({var})")
+        fields = ",\n".join(fields)
         constructor = f"const {node.name}(this.__private);\n"
         constructor += f"final String __private;"
-        return f"enum {node.name} {{\n{fields}\n{constructor}}}\n\n"
+        return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
 
     def visit_IntFlag(self, node) -> str:
-        return self.visit_IntEnum(node)
+        fields = []
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
+            if var == "auto()":
+                fields.append(f"{member}")
+            else:
+                fields.append(f"{member}({var})")
+        fields = ",\n".join(fields)
+        constructor = f"const {node.name}(this.__private);\n"
+        constructor += f"final int __private;"
+        return f"enum {node.name} {{\n{fields};\n{constructor}}}\n\n"
 
     def _import(self, name: str) -> str:
         return f'import "{name}";'

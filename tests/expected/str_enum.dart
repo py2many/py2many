@@ -1,15 +1,13 @@
-// @dart=2.9
+// @dart=3.4
 import 'package:sprintf/sprintf.dart';
-import 'package:vnum/vnum.dart';
 
-@VnumDefinition
-class Colors extends Vnum<String> {
-  static final RED = const Colors.define("red");
-  static final GREEN = const Colors.define("green");
-  static final BLUE = const Colors.define("blue");
+enum Colors {
+  RED("red"),
+  GREEN("green"),
+  BLUE("blue");
 
-  const Colors.define(String fromValue) : super.define(fromValue);
-  factory Colors(String value) => Vnum.fromValue(value, Colors);
+  const Colors(this.__private);
+  final String __private;
 }
 
 show() {
