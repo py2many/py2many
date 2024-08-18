@@ -20,6 +20,18 @@ on:
         - vlang
         - dlang
         - ''
+      os:
+        type: choice
+        description: 'Which OSes to test'
+        default: 'ubuntu-24.04'
+        options:
+        - ubuntu-22.04
+        - ubuntu-24.04
+        - macos-12
+        - windows-2022
+      python_version:
+        description: 'Which python versions to test'
+        default: '["3.12"]'
 
 # Cancel previous jobs for the same branch
 concurrency:
@@ -33,20 +45,8 @@ jobs:
 
     strategy:
       matrix:
-        python-version:
-          - '3.8'
-          - '3.9'
-          - '3.12'
-        os:
-          - ubuntu-22.04
-          - macos-12
-          - windows-2022
-        exclude:
-          - python-version: '3.8'
-            os: macos-12
-          - python-version: '3.9'
-            os: macos-12
-    runs-on: ${{ matrix.os }}
+        python-version: ${{ fromJSON(github.event.inputs.python_version)}}
+    runs-on: ${{ github.event.inputs.os }}
 
     steps:
       - uses: actions/checkout@v4
