@@ -9,6 +9,7 @@ class RaisesTransformer(ast.NodeTransformer):
     """
     Annotates function def ast nodes with information about exceptions
     """
+
     def visit_Assert(self, node):
         fndef = None
         for scope in node.scopes:
