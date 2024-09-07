@@ -412,7 +412,8 @@ class MojoTranspiler(CLikeTranspiler):
         return "({0})".format(elts)
 
     def visit_Assert(self, node) -> str:
-        return "assert({0})".format(self.visit(node.test))
+        self._usings.add("testing")
+        return "testing.assert_true({0})".format(self.visit(node.test))
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
