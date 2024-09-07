@@ -61,7 +61,9 @@ COMPILERS = {
         "--manifest-path",
     ],
     "vlang": ["v"],
+    "mojo": ["mojo", "build"],
 }
+
 INVOKER = {
     "dart": ["dart", "--enable-asserts"],
     "dlang": ["dmd", "-run"],
@@ -79,6 +81,7 @@ INVOKER = {
     ],
     "smt": ["z3", "-smt2"],
     "vlang": ["v", "run"],
+    "mojo": ["mojo"],
 }
 
 # kscript requires a KOTLIN_HOME.

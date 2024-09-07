@@ -40,10 +40,10 @@ class MojoTranspiler(CLikeTranspiler):
     NAME = "mojo"
 
     CONTAINER_TYPE_MAP = {
-        "List": "seq",
-        "Dict": "Table",
-        "Set": "set",
-        "Optional": "Option",
+        "List": "List",
+        "Dict": "Dict",
+        "Set": "Set",
+        "Optional": "Optional",
     }
 
     def __init__(self, indent=2):
@@ -79,8 +79,6 @@ class MojoTranspiler(CLikeTranspiler):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)
 
-        is_python_main = getattr(node, "python_main", False)
-
         args_list = []
         if len(args) and hasattr(node, "self_type"):
             typenames[0] = node.self_type
@@ -95,16 +93,16 @@ class MojoTranspiler(CLikeTranspiler):
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f": {typename}"
+                return_type = f"{typename}"
             else:
                 return_type = ""
 
         args = ", ".join(args_list)
-        funcdef = f"proc {node.name}({args}){return_type} ="
-        maybe_main = ""
-        if is_python_main:
-            maybe_main = "\nmain()"
-        return f"{funcdef}\n{body}\n{maybe_main}"
+        if return_type != "":
+            funcdef = f"fn {node.name}({args}) -> {return_type}:"
+        else:
+            funcdef = f"fn {node.name}({args}):"
+        return f"{funcdef}\n{body}"
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -130,23 +128,14 @@ class MojoTranspiler(CLikeTranspiler):
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
             mutable = is_mutable(node.scopes, id)
-            use_open_array = isinstance(node.annotation, ast.Subscript) and not mutable
             typename = self._typename_from_annotation(node)
-            if use_open_array:
-                typename = typename.replace("seq", "openArray")
             if mutable:
                 typename = f"var {typename}"
         return (typename, id)
 
     def visit_Lambda(self, node) -> str:
-        typenames, args = self.visit(node.args)
-        # HACK: to pass unit tests. TODO: infer types
-        typenames = ["int"] * len(args)
-        return_type = "int"
-        args = [f"{name}: {typename}" for name, typename in zip(args, typenames)]
-        args_string = ", ".join(args)
-        body = self.visit(node.body)
-        return f"proc({args_string}):{return_type} = return {body}"
+        # Not supported
+        return "fn lambda(): pass"
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
@@ -484,7 +473,7 @@ class MojoTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
+            buf.append('print("{{:?}}",{0})'.format(value))
         return "\n".join(buf)
 
     def visit_IfExp(self, node) -> str:

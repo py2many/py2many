@@ -19,6 +19,7 @@ on:
         - smt
         - vlang
         - dlang
+        - mojo
         - ''
       os:
         type: choice
@@ -89,6 +90,8 @@ jobs:
         # Needed as https://github.com/actions/setup-go/pull/89 is not merged
         with:
           go-version: '1.21.5'
+      - uses: fabasoad/setup-mojo-action@v1
+        if: ${{ !env.FOCUS || env.FOCUS == 'mojo' }}
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}

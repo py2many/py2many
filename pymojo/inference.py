@@ -16,19 +16,19 @@ from py2many.exceptions import AstUnrecognisedBinOp
 from py2many.inference import InferTypesTransformer, get_inferred_type
 
 MOJO_TYPE_MAP = {
-    int: "int",
-    float: "float64",
+    int: "Int64",
+    float: "Float64",
     bytes: "openArray[byte]",
-    str: "string",
+    str: "String",
     bool: "bool",
-    c_int8: "int8",
-    c_int16: "int16",
-    c_int32: "int32",
-    c_int64: "int64",
-    c_uint8: "uint8",
-    c_uint16: "uint16",
-    c_uint32: "uint32",
-    c_uint64: "uint64",
+    c_int8: "Int8",
+    c_int16: "Int16",
+    c_int32: "Int32",
+    c_int64: "Int64",
+    c_uint8: "UInt8",
+    c_uint16: "UInt16",
+    c_uint32: "UInt32",
+    c_uint64: "UInt64",
 }
 
 MOJO_WIDTH_RANK = {

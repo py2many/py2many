@@ -26,12 +26,8 @@ class MojoTranspilerPlugins:
         return f"{cast_to}({vargs[0]})"
 
     def visit_print(self, node, vargs: List[str]) -> str:
-        args = []
-        for n in vargs:
-            args.append(n)
-            args.append('" "')
-        args = ", ".join(args[:-1])
-        return f"echo {args}"
+        args = ", ".join(vargs)
+        return f"print({args})"
 
 
 # small one liners are inlined here as lambdas
