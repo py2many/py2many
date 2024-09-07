@@ -127,7 +127,6 @@ class MojoTranspiler(CLikeTranspiler):
         typename = "T"
         if node.annotation:
             # This works only for arguments, for all other cases, use container_types
-            mutable = is_mutable(node.scopes, id)
             typename = self._typename_from_annotation(node)
         return (typename, id)
 
