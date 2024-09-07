@@ -14,8 +14,8 @@ if CI in ["1", "true"]:  # pragma: no cover
     from .pygo import settings as go_settings
     from .pyjl import settings as julia_settings
     from .pykt import settings as kotlin_settings
-    from .pynim import settings as nim_settings
     from .pymojo import settings as mojo_settings
+    from .pynim import settings as nim_settings
     from .pyrs import settings as rust_settings
     from .pysmt import settings as smt_settings
     from .pyv import settings as vlang_settings
@@ -27,8 +27,8 @@ else:
         from .pygo import settings as go_settings
         from .pyjl import settings as julia_settings
         from .pykt import settings as kotlin_settings
-        from .pynim import settings as nim_settings
         from .pymojo import settings as mojo_settings
+        from .pynim import settings as nim_settings
         from .pyrs import settings as rust_settings
         from .pysmt import settings as smt_settings
         from .pyv import settings as vlang_settings
@@ -39,8 +39,8 @@ else:
         from pygo import settings as go_settings
         from pyjl import settings as julia_settings
         from pykt import settings as kotlin_settings
-        from pynim import settings as nim_settings
         from pymojo import settings as mojo_settings
+        from pynim import settings as nim_settings
         from pyrs import settings as rust_settings
         from pysmt import settings as smt_settings
         from pyv import settings as vlang_settings
