@@ -16,6 +16,7 @@ from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
+from .raises_transformer import detect_raises
 from .registry import ALL_SETTINGS, FAKE_ARGS, _get_all_settings
 from .rewriters import (
     ComplexDestructuringRewriter,
@@ -47,6 +48,7 @@ def core_transformers(tree, trees, args):
     add_list_calls(tree)
     detect_mutable_vars(tree)
     detect_nesting_levels(tree)
+    detect_raises(tree)
     add_annotation_flags(tree)
     infer_meta = (
         infer_types_typpete(tree) if args and args.typpete else infer_types(tree)
