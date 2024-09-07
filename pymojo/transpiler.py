@@ -430,7 +430,7 @@ class MojoTranspiler(CLikeTranspiler):
         return "\n".join(lines)
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "var" if is_mutable(node.scopes, get_id(target)) else "let"
+        kw = "var" # mojo 24.1 removed support for let
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
