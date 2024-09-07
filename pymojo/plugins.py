@@ -6,18 +6,6 @@ from typing import Callable, Dict, List, Tuple, Union
 
 
 class MojoTranspilerPlugins:
-    def visit_range(self, node, vargs: List[str]) -> str:
-        if len(node.args) == 1:
-            return f"(0..{vargs[0]} - 1)"
-        elif len(node.args) == 2:
-            return f"({vargs[0]}..{vargs[1]} - 1)"
-        elif len(node.args) == 3:
-            return f"countup({vargs[0]}, {vargs[1]} - 1, {vargs[2]})"
-
-        raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
-        )
-
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
         if not vargs:
@@ -42,8 +30,6 @@ SMALL_DISPATCH_MAP = {
 SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
-    "range": MojoTranspilerPlugins.visit_range,
-    "xrange": MojoTranspilerPlugins.visit_range,
     "print": MojoTranspilerPlugins.visit_print,
 }
 
