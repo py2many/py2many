@@ -26,6 +26,7 @@ packages = [
     "pygo",
     "pyjl",
     "pykt",
+    "pymojo",
     "pynim",
     "pyrs",
     "pysmt",
