@@ -130,7 +130,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             left = self.visit(node.left)
             right = self.visit(node.right)
-            return f"{left}^{right}"
+            return f"{left}**{right}"
 
         left = self.visit(node.left)
         op = self.visit(node.op)

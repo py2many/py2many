@@ -87,7 +87,7 @@ class MojoTranspiler(CLikeTranspiler):
             typename = typenames[i]
             arg = args[i]
 
-            args_list.append(f"{arg}: {typename}".format(arg, typename))
+            args_list.append(f"{arg}: {typename}")
 
         return_type = ""
         if not is_void_function(node):
@@ -130,8 +130,6 @@ class MojoTranspiler(CLikeTranspiler):
             # This works only for arguments, for all other cases, use container_types
             mutable = is_mutable(node.scopes, id)
             typename = self._typename_from_annotation(node)
-            if mutable:
-                typename = f"var {typename}"
         return (typename, id)
 
     def visit_Lambda(self, node) -> str:
@@ -366,7 +364,7 @@ class MojoTranspiler(CLikeTranspiler):
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
         elements = ", ".join(elements)
-        return f"@[{elements}]"
+        return f"[{elements}]"
 
     def visit_Set(self, node) -> str:
         self._usings.add("sets")
