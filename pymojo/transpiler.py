@@ -96,12 +96,13 @@ class MojoTranspiler(CLikeTranspiler):
                 return_type = f"{typename}"
             else:
                 return_type = ""
+        raises = "raises" if hasattr(node, "raises") else ""
 
         args = ", ".join(args_list)
         if return_type != "":
-            funcdef = f"fn {node.name}({args}) -> {return_type}:"
+            funcdef = f"fn {node.name}({args}){raises}-> {return_type}:"
         else:
-            funcdef = f"fn {node.name}({args}):"
+            funcdef = f"fn {node.name}({args}){raises}:"
         return f"{funcdef}\n{body}"
 
     def visit_Return(self, node) -> str:
@@ -414,7 +415,7 @@ class MojoTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
-        kw = "var" if is_mutable(node.scopes, target) else "let"
+        kw = "var"  # mojo 24.1 removed support for let
         if type_str == self._default_type:
             return f"{kw} {target} = {val}"
         return f"{kw} {target}: {type_str} = {val}"

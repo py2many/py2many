@@ -1,6 +1,6 @@
+import testing
 from bar import bar1
 from baz import baz1
-import testing
 
 
 fn main() raises:
