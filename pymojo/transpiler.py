@@ -76,7 +76,7 @@ class MojoTranspiler(CLikeTranspiler):
         return f"# {text}\n"
 
     def visit_FunctionDef(self, node) -> str:
-        body = "\n".join([self.indent(self.visit(n)) for n in node.body])
+        body = "\n".join([self.indent(self.visit(n), level=node.level+1) for n in node.body])
         typenames, args = self.visit(node.args)
 
         args_list = []
@@ -96,14 +96,14 @@ class MojoTranspiler(CLikeTranspiler):
                 return_type = f"{typename}"
             else:
                 return_type = ""
-        raises = "raises" if hasattr(node, "raises") else ""
+        raises = " raises" if hasattr(node, "raises") else ""
 
         args = ", ".join(args_list)
         if return_type != "":
             funcdef = f"fn {node.name}({args}){raises}-> {return_type}:"
         else:
             funcdef = f"fn {node.name}({args}){raises}:"
-        return f"{funcdef}\n{body}"
+        return self.indent(f"{funcdef}\n{body}", level=node.level)
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -291,18 +291,19 @@ class MojoTranspiler(CLikeTranspiler):
             if typename == None:
                 typename = "ST{0}".format(index)
                 index += 1
-            fields.append(f"{declaration}: {typename}")
+            fields.append(f"var {declaration}: {typename}")
 
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
 
-        object_def = "type\n"
-        object_def += self.indent(f"{node.name} = object\n", level=node.level + 1)
-        object_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
-        body = [self.visit(b) for b in node.body]
-        body = "\n".join(body)
-        return f"{object_def}\n{body}\n"
+        struct_def = f"struct {node.name}:\n"
+        struct_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                b.self_type = node.name
+        body = "\n".join([self.visit(b) for b in node.body])
+        return f"{struct_def}\n{body}"
 
     def visit_IntEnum(self, node) -> str:
         fields = []
