@@ -363,7 +363,7 @@ class MojoTranspiler(CLikeTranspiler):
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
         elements = ", ".join(elements)
-        return f"[{elements}]"
+        return f"List({elements})"
 
     def visit_Set(self, node) -> str:
         self._usings.add("sets")
