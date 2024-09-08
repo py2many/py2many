@@ -76,7 +76,9 @@ class MojoTranspiler(CLikeTranspiler):
         return f"# {text}\n"
 
     def visit_FunctionDef(self, node) -> str:
-        body = "\n".join([self.indent(self.visit(n), level=node.level+1) for n in node.body])
+        body = "\n".join(
+            [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
+        )
         typenames, args = self.visit(node.args)
 
         args_list = []
