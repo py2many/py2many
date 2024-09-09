@@ -4,6 +4,7 @@ from py2many.language import LanguageSettings
 
 from .inference import infer_mojo_types
 from .transpiler import MojoNoneCompareRewriter, MojoTranspiler
+from .rewriters import MojoImplicitConstructor
 
 
 def settings(args, env=os.environ):
@@ -16,4 +17,7 @@ def settings(args, env=os.environ):
         None,
         [MojoNoneCompareRewriter()],
         [infer_mojo_types],
+        post_rewriters=[
+            MojoImplicitConstructor(),
+        ],
     )

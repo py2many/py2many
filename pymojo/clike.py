@@ -80,7 +80,7 @@ mojo_symbols = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "discard",
+    ast.Pass: "pass",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",
@@ -124,7 +124,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return super().visit(node)
 
     def visit_Ellipsis(self, node) -> str:
-        return "discard"
+        return "pass"
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
