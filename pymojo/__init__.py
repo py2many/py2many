@@ -3,8 +3,8 @@ import os
 from py2many.language import LanguageSettings
 
 from .inference import infer_mojo_types
-from .transpiler import MojoNoneCompareRewriter, MojoTranspiler
 from .rewriters import MojoImplicitConstructor
+from .transpiler import MojoNoneCompareRewriter, MojoTranspiler
 
 
 def settings(args, env=os.environ):
