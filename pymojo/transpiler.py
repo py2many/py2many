@@ -88,6 +88,9 @@ class MojoTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            # special case constructor self which mojo says should be passes as "inout"
+            if node.name == "__init__" and arg == "self":
+                arg = "inout " + arg
 
             args_list.append(f"{arg}: {typename}")
 
@@ -102,7 +105,7 @@ class MojoTranspiler(CLikeTranspiler):
 
         args = ", ".join(args_list)
         if return_type != "":
-            funcdef = f"fn {node.name}({args}){raises}-> {return_type}:"
+            funcdef = f"fn {node.name}({args}){raises} -> {return_type}:"
         else:
             funcdef = f"fn {node.name}({args}){raises}:"
         return self.indent(f"{funcdef}\n{body}", level=node.level)
