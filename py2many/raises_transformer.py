@@ -1,4 +1,5 @@
 import ast
+from .analysis import get_id
 
 
 def detect_raises(node):
@@ -26,7 +27,9 @@ class RaisesTransformer(ast.NodeTransformer):
 
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
-        fndef = node.scopes.find(fname)
+        fndef = node.scopes.parent_scopes.find(get_id(fname))
+        if fndef is None:
+            fndef = node.scopes.find(get_id(fname))
         if fndef is not None and hasattr(fndef, "raises"):
             self._mark_parent_raises(node)
         self.generic_visit(node)

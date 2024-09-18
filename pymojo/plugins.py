@@ -35,7 +35,7 @@ DISPATCH_MAP = {
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE = {}
+DECORATOR_DISPATCH_TABLE = {"dataclass": lambda n, vargs: "value"}
 
 CLASS_DISPATCH_TABLE: Dict[type, Callable] = {}
 

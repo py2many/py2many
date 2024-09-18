@@ -18,9 +18,9 @@ from py2many.inference import InferTypesTransformer, get_inferred_type
 MOJO_TYPE_MAP = {
     int: "Int64",
     float: "Float64",
-    bytes: "openArray[byte]",
+    bytes: "SIMD[Uint8]",
     str: "String",
-    bool: "bool",
+    bool: "Bool",
     c_int8: "Int8",
     c_int16: "Int16",
     c_int32: "Int32",

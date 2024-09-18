@@ -12,6 +12,7 @@ from .inference import get_inferred_mojo_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
+    DECORATOR_DISPATCH_TABLE,
     DISPATCH_MAP,
     FUNC_DISPATCH_TABLE,
     FUNC_USINGS_MAP,
@@ -108,7 +109,7 @@ class MojoTranspiler(CLikeTranspiler):
             funcdef = f"fn {node.name}({args}){raises} -> {return_type}:"
         else:
             funcdef = f"fn {node.name}({args}){raises}:"
-        return self.indent(f"{funcdef}\n{body}", level=node.level)
+        return self.indent(f"{funcdef}\n{body}\n", level=node.level)
 
     def visit_Return(self, node) -> str:
         if node.value:
@@ -173,7 +174,7 @@ class MojoTranspiler(CLikeTranspiler):
         if node.keywords:
             for kw in node.keywords:
                 value = self.visit(kw.value)
-                vargs += [f"{kw.arg}: {value}"]
+                vargs += [f"{kw.arg}={value}"]
         args = ", ".join(vargs)
         return f"{fname}({args})"
 
@@ -281,14 +282,22 @@ class MojoTranspiler(CLikeTranspiler):
             return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
-        decorators = [
-            class_for_typename(t, None, self._imported_names) for t in decorators
-        ]
         for d in decorators:
             if d in CLASS_DISPATCH_TABLE:
                 ret = CLASS_DISPATCH_TABLE[d](self, node)
                 if ret is not None:
                     return ret
+
+        decorators = [
+            DECORATOR_DISPATCH_TABLE.get(d, lambda x, y: y)(self, node)
+            for d in decorators
+        ]
+        mojo_decorators = "\n".join([f"@{d}" for d in decorators])
+        if mojo_decorators != "":
+            mojo_decorators = mojo_decorators + "\n"
+        decorators = [
+            class_for_typename(t, None, self._imported_names) for t in decorators
+        ]
 
         fields = []
         index = 0
@@ -302,8 +311,9 @@ class MojoTranspiler(CLikeTranspiler):
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
 
-        struct_def = f"struct {node.name}:\n"
-        struct_def += "\n".join([self.indent(f, level=node.level + 2) for f in fields])
+        struct_def = f"{mojo_decorators}struct {node.name}:\n"
+        struct_def += "\n".join([self.indent(f, level=node.level + 1) for f in fields])
+        struct_def += "\n"
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
