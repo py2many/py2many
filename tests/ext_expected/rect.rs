@@ -1,9 +1,10 @@
-//! ```cargo
-//! [package]
-//! edition = "2021"
-//! [dependencies]
-//! pyo3 = "*"
-//! ```
+        //! ```cargo
+        //! [package]
+        //! edition = "2021"
+        //! [dependencies]
+        //! pyo3 = "*"
+        //! ```
+        
 
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::bool_comparison)]
@@ -29,6 +30,7 @@
 #![allow(unused_mut)]
 #![allow(unused_parens)]
 
+
 extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -37,19 +39,22 @@ use pyo3::wrap_pyfunction;
 
 #[pyclass]
 pub struct Rectangle {
-    pub height: i32,
-    pub length: i32,
+pub height: i32,
+pub length: i32,
 }
 
 #[pymethods]
 impl Rectangle {
-    #[pyfunction]
-    pub fn is_square(&self) -> bool {
-        return Ok(self.height == self.length);
-    }
+#[pyfunction]
+pub fn is_square(&self) -> bool {
+return Ok(self.height == self.length);
+ }
+ 
 }
 
 #[pymodule]
 fn rect(_py: Python, m: &PyModule) -> PyResult<()> {
+
+
     Ok(())
 }
