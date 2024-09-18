@@ -175,4 +175,3 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return self.visit_Ellipsis(node)
         else:
             return node.value
-
