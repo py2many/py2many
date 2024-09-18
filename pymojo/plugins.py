@@ -1,6 +1,5 @@
 import functools
 import random
-import sys
 import time
 from typing import Callable, Dict, List, Tuple, Union
 
@@ -43,9 +42,7 @@ ATTR_DISPATCH_TABLE: Dict[type, Callable] = {}
 
 FuncType = Union[Callable, str]
 
-FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
-    sys.exit: (lambda self, node, vargs: f"quit({vargs[0]})", True),
-}
+FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {}
 
 FUNC_USINGS_MAP = {
     time.time: "pylib",

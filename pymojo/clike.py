@@ -116,6 +116,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         super().__init__()
         self._type_map = MOJO_TYPE_MAP
         self._statement_separator = ""
+        # mojo has a sys module
+        self._ignored_module_set.remove("sys")
 
     def visit(self, node) -> str:
         if type(node) in mojo_symbols:
