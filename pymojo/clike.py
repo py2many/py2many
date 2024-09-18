@@ -163,3 +163,16 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if left_type == "string":
             self._usings.add("strutils")
         return f"{left} in {right}"
+
+    def visit_NameConstant(self, node) -> str:
+        if node.value is True:
+            return "True"
+        elif node.value is False:
+            return "False"
+        elif node.value is None:
+            return "None"
+        elif node.value is Ellipsis:
+            return self.visit_Ellipsis(node)
+        else:
+            return node.value
+
