@@ -381,11 +381,10 @@ class MojoTranspiler(CLikeTranspiler):
         return f"toHashSet([{elements_str}])"
 
     def visit_Dict(self, node) -> str:
-        self._usings.add("tables")
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
         kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
-        return f"{{{kv_pairs}}}.newTable"
+        return f"{{{kv_pairs}}}"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
