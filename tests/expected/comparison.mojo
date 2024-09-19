@@ -5,9 +5,9 @@ fn compare_with_integer_variable() raises:
     var i: Int = 0
     var s: Int = 1
     if i:
-        var s = 2
+        s = 2
     else:
-        var s = 3
+        s = 3
     testing.assert_true(s == 3)
 
 
@@ -15,9 +15,9 @@ fn use_zero_for_comparison() raises:
     var i: Int = 0
     var s: Int = 1
     if 0:
-        var s = 2
+        s = 2
     else:
-        var s = 3
+        s = 3
     testing.assert_true(s == 3)
 
 
