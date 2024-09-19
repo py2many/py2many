@@ -8,7 +8,7 @@ class MojoTranspilerPlugins:
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
         if not vargs:
-            if cast_to == "float":
+            if cast_to == "Float64":
                 return "0.0"
         return f"{cast_to}({vargs[0]})"
 
