@@ -5,7 +5,7 @@ fn default_builtins() raises:
     var a = ""
     var b = False
     var c = 0
-    var d = float()
+    var d = 0.0
     testing.assert_true(a == "")
     testing.assert_true(b == False)
     testing.assert_true(c == 0)
