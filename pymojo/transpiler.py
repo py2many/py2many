@@ -40,6 +40,8 @@ class MojoTranspiler(CLikeTranspiler):
         self._container_type_map = self.CONTAINER_TYPE_MAP
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
+        if "sys" in self._ignored_module_set:
+            self._ignored_module_set.remove("sys")
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
