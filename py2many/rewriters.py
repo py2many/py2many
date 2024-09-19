@@ -216,8 +216,13 @@ class PythonMainRewriter(ast.NodeTransformer):
 class FStringJoinRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
+        self._language = language
 
     def visit_JoinedStr(self, node):
+        # mojo fstrings will be implemented at some point
+        # https://github.com/modularml/mojo/issues/398
+        if self._language in {"mojo", "python"}:
+            return node
         new_node = cast(ast.Expr, create_ast_node('"".join([])', node)).value
         new_node = cast(ast.Call, new_node)
         args = new_node.args
