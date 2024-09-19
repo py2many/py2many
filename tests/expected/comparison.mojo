@@ -2,8 +2,8 @@ import testing
 
 
 fn compare_with_integer_variable() raises:
-    var i: Int64 = 0
-    var s: Int64 = 1
+    var i: Int = 0
+    var s: Int = 1
     if i:
         var s = 2
     else:
@@ -12,8 +12,8 @@ fn compare_with_integer_variable() raises:
 
 
 fn use_zero_for_comparison() raises:
-    var i: Int64 = 0
-    var s: Int64 = 1
+    var i: Int = 0
+    var s: Int = 1
     if 0:
         var s = 2
     else:

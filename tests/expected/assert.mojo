@@ -1,7 +1,7 @@
 import testing
 
 
-fn compare_assert(a: Int64, b: Int64) raises:
+fn compare_assert(a: Int, b: Int) raises:
     testing.assert_true(a == b)
     testing.assert_true(not (0 == 1))
 

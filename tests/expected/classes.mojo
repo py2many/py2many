@@ -5,10 +5,10 @@ struct Foo:
     fn __init__(inout self: Foo):
         pass
 
-    fn bar(self: Foo) -> Int64:
+    fn bar(self: Foo) -> Int:
         return self.baz()
 
-    fn baz(self: Foo) -> Int64:
+    fn baz(self: Foo) -> Int:
         return 10
 
 
