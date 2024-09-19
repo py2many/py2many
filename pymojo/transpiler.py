@@ -439,11 +439,10 @@ class MojoTranspiler(CLikeTranspiler):
         kw = "var"  # mojo 24.1 removed support for let
 
         if isinstance(target, ast.Tuple):
-            kw = ""
             elts = [self.visit(e) for e in target.elts]
             elts_str = ", ".join(elts)
             value = self.visit(node.value)
-            return f"{kw} ({elts_str}) = {value}"
+            return f"({elts_str}) = {value}"
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
