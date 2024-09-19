@@ -22,3 +22,31 @@ class MojoImplicitConstructor(ast.NodeTransformer):
         ast.fix_missing_locations(new_node)
         node.body.insert(0, new_node)
         return node
+
+
+class MojoInferMoveSemantics(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+
+    def visit_arg(self, node):
+        node.is_arg = True
+        return node
+
+    def visit_Return(self, node):
+        if node.value:
+            fndef = None
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    fndef = scope
+                    break
+            if fndef:
+                definition = node.scopes.find(get_id(node.value))
+                if definition is None:
+                    for arg in fndef.args.args:
+                        if get_id(node.value) == get_id(arg):
+                            definition = arg
+                            break
+                if definition and getattr(definition, "is_arg", None):
+                    node.transfer = True
+                    definition.owned = True
+        return node

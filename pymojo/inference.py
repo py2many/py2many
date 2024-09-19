@@ -16,7 +16,7 @@ from py2many.exceptions import AstUnrecognisedBinOp
 from py2many.inference import InferTypesTransformer, get_inferred_type
 
 MOJO_TYPE_MAP = {
-    int: "Int64",
+    int: "Int",
     float: "Float64",
     bytes: "SIMD[Uint8]",
     str: "String",

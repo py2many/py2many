@@ -1,2 +1,2 @@
-fn bar1() -> Int64:
+fn bar1() -> Int:
     return 0

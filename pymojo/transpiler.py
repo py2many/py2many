@@ -22,21 +22,6 @@ from .plugins import (
 )
 
 
-class MojoNoneCompareRewriter(ast.NodeTransformer):
-    def visit_Compare(self, node):
-        left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
-        if (
-            isinstance(right, ast.Constant)
-            and right.value is None
-            and isinstance(left, ast.Constant)
-            and isinstance(left.value, int)
-        ):
-            # Convert None to 0 to compare vs int
-            right.value = 0
-        return node
-
-
 class MojoTranspiler(CLikeTranspiler):
     NAME = "mojo"
 
@@ -89,9 +74,12 @@ class MojoTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+            arg_node = node.args.args[i]
             # special case constructor self which mojo says should be passes as "inout"
             if node.name == "__init__" and arg == "self":
                 arg = "inout " + arg
+            elif getattr(arg_node, "owned", None):
+                arg = "owned " + arg
 
             args_list.append(f"{arg}: {typename}")
 
@@ -122,6 +110,9 @@ class MojoTranspiler(CLikeTranspiler):
             if fndef:
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_mojo_type(node.value)
+                if getattr(node, "transfer", None):
+                    # transfer sigil
+                    ret = ret + "^"
                 if return_type != value_type and value_type is not None:
                     return f"return {return_type}({ret})"
             return f"return {ret}"
@@ -448,6 +439,7 @@ class MojoTranspiler(CLikeTranspiler):
         kw = "var"  # mojo 24.1 removed support for let
 
         if isinstance(target, ast.Tuple):
+            kw = ""
             elts = [self.visit(e) for e in target.elts]
             elts_str = ", ".join(elts)
             value = self.visit(node.value)
