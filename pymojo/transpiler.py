@@ -451,7 +451,7 @@ class MojoTranspiler(CLikeTranspiler):
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return f"{kw} {target_id} = {value}"
+                return f"{target_id} = {value}"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
