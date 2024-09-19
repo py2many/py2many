@@ -144,9 +144,6 @@ class MojoTranspiler(CLikeTranspiler):
                 self._usings.add("os")
                 return "(@[getAppFilename()] & commandLineParams())"
 
-        if is_list(node.value):
-            if node.attr == "append":
-                attr = "add"
         if not value_id:
             value_id = ""
 
