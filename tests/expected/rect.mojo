@@ -5,8 +5,8 @@ import testing
 
 @value
 struct Rectangle:
-    var height: Int64
-    var length: Int64
+    var height: Int
+    var length: Int
 
     fn is_square(self: Rectangle) -> Bool:
         return self.height == self.length

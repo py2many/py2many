@@ -1,4 +1,4 @@
-fn fib(i: Int64) -> Int64:
+fn fib(i: Int) -> Int:
     if i == 0 or i == 1:
         return 1
 
