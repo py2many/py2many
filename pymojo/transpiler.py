@@ -5,7 +5,7 @@ from py2many.analysis import get_id, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
-from py2many.tracer import defined_before, is_list
+from py2many.tracer import defined_before
 
 from .clike import CLikeTranspiler
 from .inference import get_inferred_mojo_type
