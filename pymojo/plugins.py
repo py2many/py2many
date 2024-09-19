@@ -20,10 +20,10 @@ class MojoTranspilerPlugins:
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"$({vargs[0]})" if vargs else '""',
-    "bool": lambda n, vargs: f"bool({vargs[0]})" if vargs else "false",
+    "bool": lambda n, vargs: f"bool({vargs[0]})" if vargs else "False",
     "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
     "floor": lambda n, vargs: f"int(floor({vargs[0]}))",
-    "float": functools.partial(MojoTranspilerPlugins.visit_cast, cast_to="float"),
+    "float": functools.partial(MojoTranspilerPlugins.visit_cast, cast_to="Float64"),
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}
