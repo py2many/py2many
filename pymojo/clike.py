@@ -6,12 +6,10 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from .inference import MOJO_TYPE_MAP, MOJO_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in Mojo
-mojo_keywords = (
-    frozenset(kwlist)
-    + frozenset(softkwlist)
-    + frozenset(
-        ["fn", "var", "alias", "struct", "raises", "owned", "borrowed", "inout", "ref"]
-    )
+mojo_keywords = frozenset(
+    kwlist
+    + softkwlist
+    + ["fn", "var", "alias", "struct", "raises", "owned", "borrowed", "inout", "ref"]
 )
 
 mojo_symbols = {
