@@ -1,6 +1,6 @@
 import ast
-
 from keyword import kwlist, softkwlist
+
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 from .inference import MOJO_TYPE_MAP, MOJO_WIDTH_RANK
