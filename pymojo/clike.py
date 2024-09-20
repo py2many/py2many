@@ -1,79 +1,17 @@
 import ast
 
+from keyword import kwlist, softkwlist
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 from .inference import MOJO_TYPE_MAP, MOJO_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in Mojo
-mojo_keywords = frozenset(
-    [
-        "addr",
-        "and",
-        "as",
-        "asm",
-        "bind",
-        "block",
-        "break",
-        "case",
-        "cast",
-        "concept",
-        "const",
-        "continue",
-        "converter",
-        "defer",
-        "discard",
-        "distinct",
-        "div",
-        "do",
-        "elif",
-        "else",
-        "end",
-        "enum",
-        "except",
-        "export",
-        "finally",
-        "for",
-        "from",
-        "func",
-        "if",
-        "import",
-        "in",
-        "include",
-        "interface",
-        "is",
-        "isnot",
-        "iterator",
-        "let",
-        "macro",
-        "method",
-        "mixin",
-        "mod",
-        "nil",
-        "not",
-        "notin",
-        "object",
-        "of",
-        "or",
-        "out",
-        "proc",
-        "ptr",
-        "raise",
-        "ref",
-        "return",
-        "shl",
-        "shr",
-        "static",
-        "template",
-        "try",
-        "tuple",
-        "type",
-        "using",
-        "var",
-        "when",
-        "while",
-        "xor",
-        "yield",
-    ]
+mojo_keywords = (
+    frozenset(kwlist)
+    + frozenset(softkwlist)
+    + frozenset(
+        ["fn", "var", "alias", "struct", "raises", "owned", "borrowed", "inout", "ref"]
+    )
 )
 
 mojo_symbols = {
