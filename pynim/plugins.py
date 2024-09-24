@@ -15,7 +15,7 @@ class NimTranspilerPlugins:
             return f"countup({vargs[0]}, {vargs[1]} - 1, {vargs[2]})"
 
         raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
+            f"encountered range() call with unknown parameters: range({vargs})"
         )
 
     @staticmethod

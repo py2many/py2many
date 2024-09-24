@@ -17,7 +17,7 @@ class VTranspilerPlugins:
             return f"{vargs[0]}..{vargs[1]}"
 
         raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
+            f"encountered range() call with unknown parameters: range({vargs})"
         )
 
     def visit_print(self, node: ast.Call, vargs: List[str]) -> str:

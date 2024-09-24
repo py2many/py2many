@@ -107,7 +107,7 @@ class RustTranspiler(CLikeTranspiler):
             self._usings.add("pyo3::wrap_pyfunction")
         usings = sorted(list(set(self._usings)))
         deps = sorted(
-            set(mod.split("::")[0] for mod in usings if not mod.startswith("std:"))
+            {mod.split("::")[0] for mod in usings if not mod.startswith("std:")}
         )
         crates = [dep.replace("-", "_") for dep in deps]
         externs = [f"extern crate {dep};" for dep in crates]
@@ -224,10 +224,10 @@ class RustTranspiler(CLikeTranspiler):
             arg = args[i]
 
             if typename == "T":
-                typename = "T{0}".format(index)
+                typename = f"T{index}"
                 typedecls.append(typename)
                 index += 1
-            args_list.append("{0}: {1}".format(arg, typename))
+            args_list.append(f"{arg}: {typename}")
 
         return_type = "" if not is_python_main else "-> Result<()>"
         if node.returns:
@@ -249,7 +249,7 @@ class RustTranspiler(CLikeTranspiler):
 
         template = ""
         if len(typedecls) > 0:
-            template = "<{0}>".format(", ".join(typedecls))
+            template = "<{}>".format(", ".join(typedecls))
 
         extension = "#[pyfunction]\n" if self.extension else ""
         args_list = ", ".join(args_list)
@@ -312,7 +312,7 @@ class RustTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "|{0}| {1}".format(args_string, body)
+        return f"|{args_string}| {body}"
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
@@ -333,7 +333,7 @@ class RustTranspiler(CLikeTranspiler):
             value_id = ""
 
         if is_class_or_module(value_id, node.scopes):
-            return "{0}::{1}".format(value_id, attr)
+            return f"{value_id}::{attr}"
 
         ret = f"{value_id}.{attr}"
         if ret in self._attr_dispatch_table:
@@ -413,7 +413,7 @@ class RustTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1} {{".format(target, it))
+        buf.append(f"for {target} in {it} {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -442,9 +442,9 @@ class RustTranspiler(CLikeTranspiler):
             right += ".iter()"
 
         if isinstance(node.ops[0], ast.In):
-            return "{0}.any(|&x| x == {1})".format(right, left)  # is it too much?
+            return f"{right}.any(|&x| x == {left})"  # is it too much?
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0}.all(|&x| x != {1})".format(right, left)  # is it even more?
+            return f"{right}.all(|&x| x != {left})"  # is it even more?
 
         return super().visit_Compare(node)
 
@@ -473,8 +473,8 @@ class RustTranspiler(CLikeTranspiler):
             return super().visit_NameConstant(node)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         # TODO find out if this can be useful
@@ -505,9 +505,9 @@ class RustTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -587,7 +587,7 @@ class RustTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"pub {declaration}: {typename},")
 
@@ -673,7 +673,7 @@ class RustTranspiler(CLikeTranspiler):
         self._usings.add("std::collections")
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "vec![{0}]".format(", ".join(elements))
+            return "vec![{}]".format(", ".join(elements))
 
         else:
             return "vec![]"
@@ -686,7 +686,7 @@ class RustTranspiler(CLikeTranspiler):
             for i in range(len(node.keys)):
                 key = self.visit(node.keys[i])
                 value = self.visit(node.values[i])
-                kv_string.append("({0}, {1})".format(key, value))
+                kv_string.append(f"({key}, {value})")
             initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
             return initialization.format(", ".join(kv_string))
         else:
@@ -703,8 +703,8 @@ class RustTranspiler(CLikeTranspiler):
                 self._usings.add("std::collections")
                 value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}<{1}>".format(value, index)
+                return f"({index})"
+            return f"{value}<{index}>"
         # TODO: optimize this. We need to compute value_type once per definition
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
@@ -720,7 +720,7 @@ class RustTranspiler(CLikeTranspiler):
                 index_typename = get_inferred_rust_type(self._slice_value(node))
                 if index_typename == value_type[1][0]:
                     index = "&" + index
-        return "{0}[{1}]".format(value, index)
+        return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -733,17 +733,17 @@ class RustTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Assert(self, node) -> str:
-        return "assert!({0});".format(self.visit(node.test))
+        return f"assert!({self.visit(node.test)});"
 
     def _compute_kw(self, node, target) -> str:
         kw = "let"
@@ -798,14 +798,14 @@ class RustTranspiler(CLikeTranspiler):
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1};".format(target_id, value)
+                return f"{target_id} = {value};"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} = {1};".format(target, value)
+            return f"{target} = {value};"
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -883,7 +883,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
+            return f"raise!({self.visit(node.exc)}); //unsupported"
         # This handles the case where `raise` is used without
         # specifying the exception.
         return "raise!(); //unsupported"
@@ -910,7 +910,7 @@ class RustTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append('println!("{{:?}}",{0});'.format(value))
+            buf.append(f'println!("{{:?}}",{value});')
         return "\n".join(buf)
 
     def visit_GeneratorExp(self, node) -> str:
@@ -928,23 +928,23 @@ class RustTranspiler(CLikeTranspiler):
         if not (iter.endswith("keys()") or iter.endswith("values()")) and not is_range:
             iter += ".iter()"
 
-        map_str = ".map(|{0}| {1})".format(target, elt)
+        map_str = f".map(|{target}| {elt})"
         filter_str = ""
         if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
+            filter_str = ".cloned().filter(|&{}| {})".format(
                 target, self.visit(generator.ifs[0])
             )
 
-        return "{0}{1}{2}.collect::<Vec<_>>()".format(iter, filter_str, map_str)
+        return f"{iter}{filter_str}{map_str}.collect::<Vec<_>>()"
 
     def visit_ListComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # right now they are the same
 
     def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
+        return "//global {}".format(", ".join(node.names))
 
     def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
+        return f"starred!({self.visit(node.value)})/*unsupported*/"
 
     def visit_Set(self, node) -> str:
         self._usings.add("std::collections::HashSet")

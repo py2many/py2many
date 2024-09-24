@@ -67,13 +67,13 @@ def transpile(source, headers=False, testing=False):
 
 
 def generate_catch_test_case(node, body):
-    funcdef = 'TEST_CASE("{0}")'.format(node.name)
+    funcdef = f'TEST_CASE("{node.name}")'
     return funcdef + " {\n" + body + "\n}"
 
 
 def generate_lambda_fun(node, body):
-    params = ["auto {0}".format(param.id) for param in node.args.args]
-    funcdef = "auto {0} = []({1})".format(node.name, ", ".join(params))
+    params = [f"auto {param.id}" for param in node.args.args]
+    funcdef = "auto {} = []({})".format(node.name, ", ".join(params))
     return funcdef + " {\n" + body + "\n};"
 
 
@@ -118,7 +118,7 @@ class CppTranspiler(CLikeTranspiler):
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         self._headers = []
-        self._usings = set(["<cstdint>"])
+        self._usings = {"<cstdint>"}
         self.use_catch_test_cases = False
         self._container_type_map = self.CONTAINER_TYPES
         self._extension = extension
@@ -182,7 +182,7 @@ class CppTranspiler(CLikeTranspiler):
             typename = typenames[i]
             arg = args[i]
             if typename == "T":
-                typename = "T{0}".format(index)
+                typename = f"T{index}"
                 typedecls.append(typename)
                 index += 1
             if is_python_main and arg in ["argv"]:
@@ -267,7 +267,7 @@ class CppTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"{typename} {declaration}")
 
@@ -367,7 +367,7 @@ class CppTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for(auto {0} : {1}) {{".format(target, it))
+        buf.append(f"for(auto {target} : {it}) {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -439,8 +439,8 @@ class CppTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         var_definitions = []
@@ -449,7 +449,7 @@ class CppTranspiler(CLikeTranspiler):
             var_type = self._typename_from_annotation(definition)
             if var_type == self._default_type:
                 var_type = decltype(definition)
-            var_definitions.append("{0} {1};\n".format(var_type, cv))
+            var_definitions.append(f"{var_type} {cv};\n")
 
         return "".join(var_definitions) + super().visit_If(node)
 
@@ -457,9 +457,9 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -470,7 +470,7 @@ class CppTranspiler(CLikeTranspiler):
             and isinstance(node.right, ast.Num)
         ):
             self._usings.add("<vector>")
-            return "std::vector ({0},{1})".format(
+            return "std::vector ({},{})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
         else:
@@ -551,13 +551,13 @@ class CppTranspiler(CLikeTranspiler):
         if hasattr(node, "is_annotation"):
             if value in self.CONTAINER_TYPES:
                 value = self.CONTAINER_TYPES[value]
-            return "{0}<{1}>".format(value, index)
+            return f"{value}<{index}>"
         return f"{value}[{index}]"
 
     def visit_Tuple(self, node) -> str:
         self._usings.add("<tuple>")
         elts = [self.visit(e) for e in node.elts]
-        return "std::make_tuple({0})".format(", ".join(elts))
+        return "std::make_tuple({})".format(", ".join(elts))
 
     def visit_Try(self, node, finallybody=None) -> str:
         self._usings.add("<iostream>")
@@ -588,25 +588,25 @@ class CppTranspiler(CLikeTranspiler):
     def visit_Assert(self, node) -> str:
         if not self.use_catch_test_cases:
             self._usings.add("<cassert>")
-            return "assert({0});".format(self.visit(node.test))
-        return "REQUIRE({0});".format(self.visit(node.test))
+            return f"assert({self.visit(node.test)});"
+        return f"REQUIRE({self.visit(node.test)});"
 
     def _visit_AssignOne(self, node, target) -> str:
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "std::tie({0}) = {1};".format(", ".join(elts), value)
+            return "std::tie({}) = {};".format(", ".join(elts), value)
 
         if isinstance(node.scopes[-1], ast.If) and isinstance(target, ast.Name):
             outer_if = node.scopes[-1]
             if target.id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1};".format(target.id, value)
+                return f"{target.id} = {value};"
 
         if isinstance(target, ast.Subscript):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return f"{target} = {value};"
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -614,7 +614,7 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return "{0} = {1};".format(target, value)
+            return f"{target} = {value};"
 
         if isinstance(node.value, ast.List):
             element_type = self._get_element_type(node.value)
@@ -643,10 +643,10 @@ class CppTranspiler(CLikeTranspiler):
             value = self.visit(n)
             if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
                 buf.append(
-                    "std::cout << {0} << std::endl;".format(
+                    "std::cout << {} << std::endl;".format(
                         " << ".join([self.visit(el) for el in n.elts])
                     )
                 )
             else:
-                buf.append("std::cout << {0} << std::endl;".format(value))
+                buf.append(f"std::cout << {value} << std::endl;")
         return "\n".join(buf)

@@ -125,7 +125,7 @@ class KotlinTranspiler(CLikeTranspiler):
             if is_python_main and arg == "argc":
                 continue
             if typename == "T":
-                typename = "T{0}".format(index)
+                typename = f"T{index}"
                 typedecls.append(typename)
                 index += 1
             args_list.append(f"{arg}: {typename}")
@@ -142,7 +142,7 @@ class KotlinTranspiler(CLikeTranspiler):
 
         template = ""
         if len(typedecls) > 0:
-            template = "<{0}>".format(", ".join(typedecls))
+            template = "<{}>".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
         funcdef = f"fun {node.name}{template}({args}){return_type} {{"
@@ -233,7 +233,7 @@ class KotlinTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for ({0} in {1}) {{".format(target, it))
+        buf.append(f"for ({target} in {it}) {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -242,7 +242,7 @@ class KotlinTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = "{0}".format(node.s)
+        bytes_str = f"{node.s}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def visit_Name(self, node) -> str:
@@ -265,8 +265,8 @@ class KotlinTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
         return super().visit_If(node)
 
@@ -274,9 +274,9 @@ class KotlinTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -315,7 +315,7 @@ class KotlinTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             mut = is_mutable(node.scopes, get_id(declaration))
             mut = "var" if mut else "val"
@@ -411,8 +411,8 @@ class KotlinTranspiler(CLikeTranspiler):
             if value in self.CONTAINER_TYPE_MAP:
                 value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}<{1}>".format(value, index)
+                return f"({index})"
+            return f"{value}<{index}>"
         self._generic_typename_from_annotation(node.value)
         container_type = hasattr(node.value, "annotation") and getattr(
             node.value.annotation, "generic_container_type", None
@@ -433,14 +433,14 @@ class KotlinTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Assert(self, node) -> str:
         condition = self.visit(node.test)

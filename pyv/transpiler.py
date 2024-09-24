@@ -149,7 +149,7 @@ class VTranspiler(CLikeTranspiler):
 
     def __init__(self, indent: int = 2):
         super().__init__()
-        self._headers = set([])
+        self._headers = set()
         self._indent = " " * indent
         self._default_type = "any"
         self._container_type_map = self.CONTAINER_TYPE_MAP
@@ -249,7 +249,7 @@ class VTranspiler(CLikeTranspiler):
         return "return"
 
         if node.value:
-            return "return {0}".format(self.visit(node.value))
+            return f"return {self.visit(node.value)}"
         return "return"
 
     def visit_Lambda(self, node: ast.Lambda) -> str:
@@ -359,8 +359,8 @@ class VTranspiler(CLikeTranspiler):
         return f"[{', '.join(chars)}]"
 
     def visit_If(self, node: ast.If) -> str:
-        body_vars: Set[str] = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars: Set[str] = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars: Set[str] = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars: Set[str] = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         body: str = "\n".join(
@@ -386,9 +386,9 @@ class VTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -419,7 +419,7 @@ class VTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration} {typename}")
 
@@ -479,7 +479,7 @@ class VTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Elipsis(self, node) -> str:
         return ""
@@ -600,7 +600,7 @@ class VTranspiler(CLikeTranspiler):
         target: str = self.visit(node.target)
         op: str = self.visit(node.op)
         val: str = self.visit(node.value)
-        return "{0} {1}= {2}".format(target, op, val)
+        return f"{target} {op}= {val}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
         raise AstNotImplementedError("`delete` statements are not supported yet.", node)

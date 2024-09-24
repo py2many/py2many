@@ -79,4 +79,4 @@ ALL_SETTINGS = {
 
 
 def _get_all_settings(args, env=os.environ):
-    return dict((key, func(args, env=env)) for key, func in ALL_SETTINGS.items())
+    return {key: func(args, env=env) for key, func in ALL_SETTINGS.items()}

@@ -100,9 +100,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Mult):
-            return "{0}*{1}".format(self.visit(node.left), self.visit(node.right))
+            return f"{self.visit(node.left)}*{self.visit(node.right)}"
         if isinstance(node.op, ast.Pow):
-            return "{0}^{1}".format(self.visit(node.left), self.visit(node.right))
+            return f"{self.visit(node.left)}^{self.visit(node.right)}"
 
         bin_op = (
             f"{self.visit(node.left)} {self.visit(node.op)} {self.visit(node.right)}"

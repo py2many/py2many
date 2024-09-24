@@ -123,10 +123,10 @@ class CLikeTranspiler(ast.NodeVisitor):
     def __init__(self):
         """Note __init__ is called in ._reset() to reset the transpiler state."""
         self._type_map = {}
-        self._headers = set([])
-        self._usings = set([])
+        self._headers = set()
+        self._usings = set()
         self._imported_names: Dict[str, Any] = {}
-        self._features = set([])
+        self._features = set()
         self._container_type_map = {}
         self._default_type = _AUTO
         self._statement_separator = ";"
@@ -449,7 +449,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return "return {0};".format(self.visit(node.value))
+            return f"return {self.visit(node.value)};"
         return "return;"
 
     def _make_block(self, node):
@@ -480,9 +480,9 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self._make_block(node)
         else:
             if use_parens:
-                buf.append("if({0}) {{".format(self.visit(node.test)))
+                buf.append(f"if({self.visit(node.test)}) {{")
             else:
-                buf.append("if {0} {{".format(self.visit(node.test)))
+                buf.append(f"if {self.visit(node.test)} {{")
         body = [self.visit(child) for child in node.body]
         body = [b for b in body if b is not None]
         buf.extend(body)
@@ -505,9 +505,9 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_While(self, node, use_parens=True) -> str:
         buf = []
         if use_parens:
-            buf.append("while ({0}) {{".format(self.visit(node.test)))
+            buf.append(f"while ({self.visit(node.test)}) {{")
         else:
-            buf.append("while {0} {{".format(self.visit(node.test)))
+            buf.append(f"while {self.visit(node.test)} {{")
         buf.extend([self.visit(n) for n in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -520,14 +520,14 @@ class CLikeTranspiler(ast.NodeVisitor):
         op = self.visit(node.ops[0])
         right = self.visit(node.comparators[0])
 
-        return "{0} {1} {2}".format(left, op, right)
+        return f"{left} {op} {right}"
 
     def visit_BoolOp(self, node) -> str:
         op = self.visit(node.op)
         return op.join([self.visit(v) for v in node.values])
 
     def visit_UnaryOp(self, node) -> str:
-        return "{0}({1})".format(self.visit(node.op), self.visit(node.operand))
+        return f"{self.visit(node.op)}({self.visit(node.operand)})"
 
     def _visit_AssignOne(self, node, target) -> str: ...
 
@@ -540,7 +540,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)
-        return "{0} {1}= {2};".format(target, op, val)
+        return f"{target} {op}= {val};"
 
     def visit_AnnAssign(self, node):
         target = self.visit(node.target)
@@ -667,7 +667,7 @@ class CLikeTranspiler(ast.NodeVisitor):
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
             return self.visit_unsupported_body(node, "raise", node.exc)
-            return "raise!({0}); //unsupported".format(self.visit(node.exc))
+            return f"raise!({self.visit(node.exc)}); //unsupported"
         # This handles the case where `raise` is used without
         # specifying the exception.
         return self.visit_unsupported(node, "raise")

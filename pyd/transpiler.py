@@ -26,7 +26,7 @@ class DIntegerDivRewriter(ast.NodeTransformer):
         if isinstance(node.op, ast.Div):
             left_type = get_id(get_inferred_type(node.left))
             right_type = get_id(get_inferred_type(node.right))
-            if set([left_type, right_type]) == {"int"}:
+            if {left_type, right_type} == {"int"}:
                 # This attribute should technically be on node.op
                 # But python seems to use the same AST node for other
                 # division operations?
@@ -98,7 +98,7 @@ class DTranspiler(CLikeTranspiler):
                 continue
 
             if typename == "T":
-                typename = "T{0}".format(index)
+                typename = f"T{index}"
                 typedecls.append(typename)
                 index += 1
             args_list.append(f"{typename} {arg}")
@@ -117,7 +117,7 @@ class DTranspiler(CLikeTranspiler):
 
         template = ""
         if len(typedecls) > 0:
-            template = "({0})".format(", ".join(typedecls))
+            template = "({})".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
         funcdef = f"{return_type} {node.name}{template}({args}) {{"
@@ -125,7 +125,7 @@ class DTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return "return {0};".format(self.visit(node.value))
+            return f"return {self.visit(node.value)};"
         return "return;"
 
     def visit_arg(self, node):
@@ -196,7 +196,7 @@ class DTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("foreach ({0}; {1}) {{".format(target, it))
+        buf.append(f"foreach ({target}; {it}) {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -205,7 +205,7 @@ class DTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = "{0}".format(node.s)
+        bytes_str = f"{node.s}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def visit_Compare(self, node) -> str:
@@ -228,10 +228,10 @@ class DTranspiler(CLikeTranspiler):
 
         def _gen_in():
             if type_is_set:
-                return "{1} in {0}".format(right, left)
+                return f"{left} in {right}"
             else:
                 self._usings.add("std.algorithm")
-                return "{0}.canFind({1})".format(right, left)
+                return f"{right}.canFind({left})"
 
         if isinstance(node.ops[0], ast.In):
             return _gen_in()
@@ -281,8 +281,8 @@ class DTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         var_definitions = []
@@ -301,9 +301,9 @@ class DTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -333,7 +333,7 @@ class DTranspiler(CLikeTranspiler):
         constructor = ""
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             raw_fields.append(f"{typename} {declaration}")
 
@@ -428,7 +428,7 @@ class DTranspiler(CLikeTranspiler):
     def visit_List(self, node) -> str:
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            return "[{0}]".format(", ".join(elements))  # the list content
+            return "[{}]".format(", ".join(elements))  # the list content
 
         else:
             return "[]"
@@ -446,11 +446,11 @@ class DTranspiler(CLikeTranspiler):
             if value in self.CONTAINER_TYPE_MAP:
                 value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}[{1}]".format(value, index)
+                return f"({index})"
+            return f"{value}[{index}]"
         if getattr(node, "lhs", False):
-            return "{0}[{1}]".format(value, index)
-        return "{0}[{1}]".format(value, index)
+            return f"{value}[{index}]"
+        return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -463,14 +463,14 @@ class DTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Delete(self, node) -> str:
         target = node.targets[0]
@@ -481,7 +481,7 @@ class DTranspiler(CLikeTranspiler):
             # tests/test_unsupported.py dict_del: "a = {1: 1}; del a[1]; assert not a",
             value = self.visit(target.value)
             index = self.visit(target.slice)
-            return "{0}.remove({1});".format(value, index)
+            return f"{value}.remove({index});"
 
         self._usings.add("core.memory")
         return (
@@ -490,7 +490,7 @@ class DTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "throw new {};".format(self.visit(node.exc))
+            return f"throw new {self.visit(node.exc)};"
         return "throw new Exception();"
 
     def visit_Try(self, node) -> str:
@@ -597,7 +597,7 @@ class DTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
+            buf.append(f'println("{{:?}}",{value})')
         return "\n".join(buf)
 
     def visit_GeneratorExp(self, node) -> str:
@@ -614,23 +614,23 @@ class DTranspiler(CLikeTranspiler):
 
         self._usings.add("std.algorithm")
         self._usings.add("std.array")
-        map_str = ".map!({0} => {1})".format(target, elt)
+        map_str = f".map!({target} => {elt})"
         filter_str = ""
         if generator.ifs:
-            filter_str = ".cloned().filter(|&{0}| {1})".format(
+            filter_str = ".cloned().filter(|&{}| {})".format(
                 target, self.visit(generator.ifs[0])
             )
 
-        return "{0}{1}{2}.array()".format(iter, filter_str, map_str)
+        return f"{iter}{filter_str}{map_str}.array()"
 
     def visit_ListComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # right now they are the same
 
     def visit_Global(self, node) -> str:
-        return "//global {0}".format(", ".join(node.names))
+        return "//global {}".format(", ".join(node.names))
 
     def visit_Starred(self, node) -> str:
-        return "starred!({0})/*unsupported*/".format(self.visit(node.value))
+        return f"starred!({self.visit(node.value)})/*unsupported*/"
 
     def visit_Set(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]

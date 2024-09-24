@@ -34,7 +34,7 @@ class MojoTranspiler(CLikeTranspiler):
 
     def __init__(self, indent=2):
         super().__init__()
-        self._headers = set([])
+        self._headers = set()
         self._indent = " " * indent
         self._default_type = "var"
         self._container_type_map = self.CONTAINER_TYPE_MAP
@@ -203,7 +203,7 @@ class MojoTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        buf.append("while {0}:".format(self.visit(node.test)))
+        buf.append(f"while {self.visit(node.test)}:")
         buf.extend(
             [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
         )
@@ -213,7 +213,7 @@ class MojoTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = "{0}".format(node.s)
+        bytes_str = f"{node.s}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def visit_Name(self, node) -> str:
@@ -229,8 +229,8 @@ class MojoTranspiler(CLikeTranspiler):
             return super().visit_NameConstant(node)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         body = "\n".join(
@@ -256,9 +256,9 @@ class MojoTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -293,7 +293,7 @@ class MojoTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"var {declaration}: {typename}")
 
@@ -405,18 +405,18 @@ class MojoTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Assert(self, node) -> str:
         self._usings.add("testing")
-        return "testing.assert_true({0})".format(self.visit(node.test))
+        return f"testing.assert_true({self.visit(node.test)})"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
@@ -477,7 +477,7 @@ class MojoTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append('print("{{:?}}",{0})'.format(value))
+            buf.append(f'print("{{:?}}",{value})')
         return "\n".join(buf)
 
     def visit_IfExp(self, node) -> str:

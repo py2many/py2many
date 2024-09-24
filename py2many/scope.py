@@ -9,7 +9,7 @@ def add_scope_context(node):
     return ScopeTransformer().visit(node)
 
 
-class ScopeMixin(object):
+class ScopeMixin:
     """
     Adds a scope property with the current scope (function, module)
     a node is part of.

@@ -48,7 +48,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def __init__(self):
         super().__init__()
-        self._headers = set([])
+        self._headers = set()
         self._default_type = ""
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
@@ -100,10 +100,10 @@ class JuliaTranspiler(CLikeTranspiler):
             typename = typenames[i]
             arg = args[i]
             if typename == "T":
-                typename = "T{0}".format(index)
+                typename = f"T{index}"
                 typedecls.append(typename)
                 index += 1
-            args_list.append("{0}::{1}".format(arg, typename))
+            args_list.append(f"{arg}::{typename}")
 
         return_type = ""
         if not is_void_function(node):
@@ -127,7 +127,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return "return {0}".format(self.visit(node.value))
+            return f"return {self.visit(node.value)}"
         return "return"
 
     def visit_arg(self, node):
@@ -143,7 +143,7 @@ class JuliaTranspiler(CLikeTranspiler):
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
-        return "({0}) -> {1}".format(args_string, body)
+        return f"({args_string}) -> {body}"
 
     def visit_Attribute(self, node) -> str:
         attr = node.attr
@@ -174,7 +174,7 @@ class JuliaTranspiler(CLikeTranspiler):
             return f"({vargs[0]}:{vargs[2]}:{vargs[1]}-1)"
 
         raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
+            f"encountered range() call with unknown parameters: range({vargs})"
         )
 
     def _visit_print(self, node, vargs: List[str]) -> str:
@@ -214,7 +214,7 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append("for {0} in {1}".format(target, it))
+        buf.append(f"for {target} in {it}")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("end")
         return "\n".join(buf)
@@ -240,9 +240,9 @@ class JuliaTranspiler(CLikeTranspiler):
                 right = f"keys({right})"
 
         if isinstance(node.ops[0], ast.In):
-            return "{0} in {1}".format(left, right)
+            return f"{left} in {right}"
         elif isinstance(node.ops[0], ast.NotIn):
-            return "{0} not in {1}".format(left, right)
+            return f"{left} not in {right}"
 
         return super().visit_Compare(node)
 
@@ -263,8 +263,8 @@ class JuliaTranspiler(CLikeTranspiler):
             return super().visit_NameConstant(node)
 
     def visit_If(self, node) -> str:
-        body_vars = set([get_id(v) for v in node.scopes[-1].body_vars])
-        orelse_vars = set([get_id(v) for v in node.scopes[-1].orelse_vars])
+        body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
+        orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         buf = []
@@ -284,7 +284,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        buf.append("while {0}".format(self.visit(node.test)))
+        buf.append(f"while {self.visit(node.test)}")
         buf.extend([self.visit(n) for n in node.body])
         buf.append("end")
         return "\n".join(buf)
@@ -293,9 +293,9 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -305,11 +305,11 @@ class JuliaTranspiler(CLikeTranspiler):
             and isinstance(node.op, ast.Mult)
             and isinstance(node.right, ast.Num)
         ):
-            return "std::vector ({0},{1})".format(
+            return "std::vector ({},{})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])
             )
         elif isinstance(node.op, ast.MatMult):
-            return "({0}*{1})".format(self.visit(node.left), self.visit(node.right))
+            return f"({self.visit(node.left)}*{self.visit(node.right)})"
         else:
             return super().visit_BinOp(node)
 
@@ -336,7 +336,7 @@ class JuliaTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration}::{typename}")
 
@@ -433,17 +433,17 @@ class JuliaTranspiler(CLikeTranspiler):
             if value in self.CONTAINER_TYPE_MAP:
                 value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}{{{1}}}".format(value, index)
+                return f"({index})"
+            return f"{value}{{{index}}}"
         # TODO: optimize this. We need to compute value_type once per definition
         self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
             if value_type is not None and value_type[0] == "List":
                 # Julia array indices start at 1
-                return "{0}[{1} + 1]".format(value, index)
+                return f"{value}[{index} + 1]"
 
-        return "{0}[{1}]".format(value, index)
+        return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -456,14 +456,14 @@ class JuliaTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Try(self, node, finallybody=None) -> str:
         buf = []
@@ -496,7 +496,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Assert(self, node) -> str:
-        return "@assert({0})".format(self.visit(node.test))
+        return f"@assert({self.visit(node.test)})"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
@@ -508,27 +508,27 @@ class JuliaTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)
-        return "{0} {1}= {2}".format(target, op, val)
+        return f"{target} {op}= {val}"
 
     def _visit_AssignOne(self, node, target) -> str:
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "{0} = {1}".format(", ".join(elts), value)
+            return "{} = {}".format(", ".join(elts), value)
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
+                return f"{target_id} = {value}"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -544,7 +544,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node) -> str:
         if node.exc is not None:
-            return "throw({0})".format(self.visit(node.exc))
+            return f"throw({self.visit(node.exc)})"
         # This handles the case where `raise` is used without
         # specifying the exception.
         return "error()"
@@ -553,7 +553,7 @@ class JuliaTranspiler(CLikeTranspiler):
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append('println("{{:?}}",{0})'.format(value))
+            buf.append(f'println("{{:?}}",{value})')
         return "\n".join(buf)
 
     def visit_GeneratorExp(self, node) -> str:
