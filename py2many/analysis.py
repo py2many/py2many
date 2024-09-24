@@ -5,18 +5,18 @@ from .ast_helpers import get_id
 get_id  # quiten pyflakes; this should when code is updated to use ast_helpers
 
 IGNORED_MODULE_SET = {
-        "typing",
-        "enum",
-        "dataclasses",
-        "ctypes",
-        "math",
-        "__future__",
-        "asyncio",
-        "sys",
-        "os",
-        "adt",
-        "py2many.result",
-        "py2many.smt",
+    "typing",
+    "enum",
+    "dataclasses",
+    "ctypes",
+    "math",
+    "__future__",
+    "asyncio",
+    "sys",
+    "os",
+    "adt",
+    "py2many.result",
+    "py2many.smt",
 }
 
 
