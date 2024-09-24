@@ -68,7 +68,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         return ""
 
     def visit_UnaryOp(self, node):
-        return "({0} {1})".format(self.visit(node.op), self.visit(node.operand))
+        return f"({self.visit(node.op)} {self.visit(node.operand)})"
 
     def visit_BoolOp(self, node):
         op = self.visit(node.op)

@@ -83,7 +83,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
-            return "pow({0}, {1})".format(self.visit(node.left), self.visit(node.right))
+            return f"pow({self.visit(node.left)}, {self.visit(node.right)})"
 
         left = self.visit(node.left)
         op = self.visit(node.op)
@@ -102,4 +102,4 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_In(self, node) -> str:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        return "{0}.any({1})".format(right, left)
+        return f"{right}.any({left})"

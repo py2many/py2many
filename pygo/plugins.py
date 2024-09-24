@@ -16,7 +16,7 @@ class GoTranspilerPlugins:
             return f"iter.NewIntSeq(iter.Start({vargs[0]}), iter.Stop({vargs[1]}), iter.Step({vargs[2]})).All()"
 
         raise Exception(
-            "encountered range() call with unknown parameters: range({})".format(vargs)
+            f"encountered range() call with unknown parameters: range({vargs})"
         )
 
     def visit_print(self, node, vargs: List[str]) -> str:

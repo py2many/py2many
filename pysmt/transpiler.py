@@ -135,7 +135,7 @@ class SmtTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration}: {typename}")
 
@@ -153,7 +153,7 @@ class SmtTranspiler(CLikeTranspiler):
         elts = " ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "({0})".format(elts)
+        return f"({elts})"
 
     def visit_Assert(self, node):
         expr = self.visit(node.test)

@@ -242,7 +242,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         self.generic_visit(node)
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
-            elt_types = set([get_id(get_inferred_type(e)) for e in elements])
+            elt_types = {get_id(get_inferred_type(e)) for e in elements}
             if len(elt_types) == 1:
                 if hasattr(elements[0], "annotation"):
                     elt_type = get_id(elements[0].annotation)
@@ -260,26 +260,24 @@ class InferTypesTransformer(ast.NodeTransformer):
                 get_inferred_type(e)  # populates e.annotation
                 return self._clike._generic_typename_from_annotation(e)
 
-            key_types = set([typename(e) for e in node.keys])
+            key_types = {typename(e) for e in node.keys}
             only_key_type = next(iter(key_types))
             if len(key_types) == 1:
                 key_type = only_key_type
             else:
                 key_type = "Any"
-            value_types = set([typename(e) for e in node.values])
+            value_types = {typename(e) for e in node.values}
             only_value_type = next(iter(value_types))
             if len(value_types) == 1:
                 value_type = only_value_type
             else:
                 value_type = "Any"
             self._annotate(node, f"Dict[{key_type}, {value_type}]")
-            lifetimes = set(
-                [
+            lifetimes = {
                     getattr(e.annotation, "lifetime", None)
                     for e in node.values
                     if hasattr(e, "annotation")
-                ]
-            )
+            }
             only_lifetime = next(iter(lifetimes)) if len(lifetimes) == 1 else None
             if len(lifetimes) == 1 and only_lifetime != None:
                 lifetime = only_lifetime

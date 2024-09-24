@@ -174,7 +174,7 @@ class GoTranspiler(CLikeTranspiler):
             arg = args[i]
 
             if typename == "T":
-                typename = "T{0} any".format(index)
+                typename = f"T{index} any"
                 typedecls.append(typename)
                 index += 1
             args_list.append(f"{arg} {typename}")
@@ -192,7 +192,7 @@ class GoTranspiler(CLikeTranspiler):
 
         template = ""
         if len(typedecls) > 0:
-            template = "[{0}]".format(", ".join(typedecls))
+            template = "[{}]".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
         funcdef = f"func {node.name}{template}({args}){return_type} {{"
@@ -314,7 +314,7 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_While(self, node) -> str:
         buf = []
-        buf.append("for {0} {{".format(self.visit(node.test)))
+        buf.append(f"for {self.visit(node.test)} {{")
         buf.extend([self.visit(c) for c in node.body])
         buf.append("}")
         return "\n".join(buf)
@@ -323,7 +323,7 @@ class GoTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = "{0}".format(node.s)
+        bytes_str = f"{node.s}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def _visit_container_compare(self, node) -> str:
@@ -392,9 +392,9 @@ class GoTranspiler(CLikeTranspiler):
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, (ast.Call, ast.Num)):
                 # Shortcut if parenthesis are not needed
-                return "-{0}".format(self.visit(node.operand))
+                return f"-{self.visit(node.operand)}"
             else:
-                return "-({0})".format(self.visit(node.operand))
+                return f"-({self.visit(node.operand)})"
         else:
             return super().visit_UnaryOp(node)
 
@@ -421,7 +421,7 @@ class GoTranspiler(CLikeTranspiler):
         index = 0
         for declaration, typename in declarations.items():
             if typename == None:
-                typename = "ST{0}".format(index)
+                typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration} {typename}")
 
@@ -526,9 +526,9 @@ class GoTranspiler(CLikeTranspiler):
             if value in self.CONTAINER_TYPE_MAP:
                 value = self.CONTAINER_TYPE_MAP[value]
             if value == "Tuple":
-                return "({0})".format(index)
-            return "{0}{1}".format(value, index)
-        return "{0}[{1}]".format(value, index)
+                return f"({index})"
+            return f"{value}{index}"
+        return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
@@ -541,14 +541,14 @@ class GoTranspiler(CLikeTranspiler):
         if node.upper:
             upper = self.visit(node.upper)
 
-        return "{0}..{1}".format(lower, upper)
+        return f"{lower}..{upper}"
 
     def visit_Tuple(self, node) -> str:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
-        return "{0}".format(elts)
+        return f"{elts}"
 
     def visit_Assert(self, node) -> str:
         condition = self.visit(node.test)
@@ -582,21 +582,21 @@ class GoTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "var {0} = {1}".format(", ".join(elts), value)
+            return "var {} = {}".format(", ".join(elts), value)
 
         if isinstance(node.scopes[-1], ast.If):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return "{0} = {1}".format(target_id, value)
+                return f"{target_id} = {value}"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value == None:
                 value = "None"
-            return "{0} = {1}".format(target, value)
+            return f"{target} = {value}"
 
         typename = self._typename_from_annotation(target)
         needs_cast = self._needs_cast(target, node.value)
@@ -635,5 +635,5 @@ class GoTranspiler(CLikeTranspiler):
         self._usings.add('"fmt"')
         for n in node.values:
             value = self.visit(n)
-            buf.append('fmt.Printf("%v\n",{0})'.format(value))
+            buf.append(f'fmt.Printf("%v\n",{value})')
         return "\n".join(buf)

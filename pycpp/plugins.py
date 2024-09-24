@@ -45,12 +45,12 @@ class CppTranspilerPlugins:
             value = self.visit(n)
             if isinstance(n, ast.List) or isinstance(n, ast.Tuple):
                 buf.append(
-                    "std::cout << {0};".format(
+                    "std::cout << {};".format(
                         " << ".join([self.visit(el) for el in n.elts])
                     )
                 )
             else:
-                buf.append("std::cout << {0};".format(value))
+                buf.append(f"std::cout << {value};")
             buf.append('std::cout << " ";')
         buf.pop()
         return "\n".join(buf) + "\nstd::cout << std::endl;"

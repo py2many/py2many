@@ -80,7 +80,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
             self._usings.add('"math"')
-            return "math.Pow({0}, {1})".format(
+            return "math.Pow({}, {})".format(
                 self.visit(node.left), self.visit(node.right)
             )
 

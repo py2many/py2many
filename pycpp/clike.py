@@ -152,7 +152,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
             self._usings.add("<cmath>")
-            return "std::pow({0}, {1})".format(
+            return "std::pow({}, {})".format(
                 self.visit(node.left), self.visit(node.right)
             )
         left = self.visit(node.left)
