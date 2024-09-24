@@ -274,9 +274,9 @@ class InferTypesTransformer(ast.NodeTransformer):
                 value_type = "Any"
             self._annotate(node, f"Dict[{key_type}, {value_type}]")
             lifetimes = {
-                    getattr(e.annotation, "lifetime", None)
-                    for e in node.values
-                    if hasattr(e, "annotation")
+                getattr(e.annotation, "lifetime", None)
+                for e in node.values
+                if hasattr(e, "annotation")
             }
             only_lifetime = next(iter(lifetimes)) if len(lifetimes) == 1 else None
             if len(lifetimes) == 1 and only_lifetime != None:
