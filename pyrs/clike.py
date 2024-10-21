@@ -4,6 +4,7 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from py2many.clike import LifeTime
 
 from .inference import (
+    RUST_CONTAINER_TYPE_MAP,
     RUST_RANK_TO_TYPE,
     RUST_TYPE_MAP,
     RUST_WIDTH_RANK,
@@ -37,13 +38,14 @@ RUST_KEYWORDS = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = RUST_TYPE_MAP
+        CommonCLikeTranspiler._type_map = RUST_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = RUST_CONTAINER_TYPE_MAP
         self._keywords = RUST_KEYWORDS
 
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
-        ret = super()._map_type(typename, lifetime)
-        if lifetime == LifeTime.STATIC:
-            assert ret[0] == "&"
+    @classmethod
+    def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
+        ret = CommonCLikeTranspiler._map_type(typename, lifetime)
+        if lifetime == LifeTime.STATIC and ret[0] == "&":
             return f"&'static {ret[1:]}"
         return ret
 
