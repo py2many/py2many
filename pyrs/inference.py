@@ -133,7 +133,7 @@ class InferRustTypesTransformer(ast.NodeTransformer):
             and not isinstance(node.op, ast.Div)
         ):
             node.annotation = left
-            node.go_annotation = map_type(left_id)
+            node.rust_annotation = map_type(left_id)
             return node
 
         if left_id == "int":
