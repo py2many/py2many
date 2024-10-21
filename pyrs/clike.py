@@ -45,8 +45,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     @classmethod
     def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
         ret = CommonCLikeTranspiler._map_type(typename, lifetime)
-        if lifetime == LifeTime.STATIC:
-            assert ret[0] == "&"
+        if lifetime == LifeTime.STATIC and ret[0] == "&":
             return f"&'static {ret[1:]}"
         return ret
 
