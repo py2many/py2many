@@ -4,8 +4,8 @@ from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from py2many.clike import LifeTime
 
 from .inference import (
-    RUST_RANK_TO_TYPE,
     RUST_CONTAINER_TYPE_MAP,
+    RUST_RANK_TO_TYPE,
     RUST_TYPE_MAP,
     RUST_WIDTH_RANK,
     is_rust_reference,
