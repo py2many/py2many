@@ -77,18 +77,9 @@ class RustStringJoinRewriter(ast.NodeTransformer):
 class RustTranspiler(CLikeTranspiler):
     NAME = "rust"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "Vec",
-        "Dict": "HashMap",
-        "Set": "HashSet",
-        "Optional": "Option",
-        "Result": "Result",
-    }
-
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
-        self._container_type_map = self.CONTAINER_TYPE_MAP
-        self._default_type = "_"
+        CLikeTranspiler._default_type = "_"
         self._extension = extension
         self._rust_ignored_module_set = {"argparse_dataclass"}
         self._no_prologue = no_prologue

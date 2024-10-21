@@ -119,16 +119,16 @@ class CLikeTranspiler(ast.NodeVisitor):
     NAME: str
 
     builtin_constants = frozenset(["True", "False"])
+    _default_type = _AUTO
+    _type_map = {}
+    _container_type_map = {}
 
     def __init__(self):
         """Note __init__ is called in ._reset() to reset the transpiler state."""
-        self._type_map = {}
         self._headers = set()
         self._usings = set()
         self._imported_names: Dict[str, Any] = {}
         self._features = set()
-        self._container_type_map = {}
-        self._default_type = _AUTO
         self._statement_separator = ";"
         self._main_signature_arg_names = []
         self._extension = False
@@ -176,7 +176,8 @@ class CLikeTranspiler(ast.NodeVisitor):
     def _cast(self, name: str, to) -> str:
         return f"({to}) {name}"
 
-    def _slice_value(self, node: ast.Subscript):
+    @staticmethod
+    def _slice_value(node: ast.Subscript):
         # 3.9 compatibility shim
         if sys.version_info < (3, 9, 0):
             if isinstance(node.slice, ast.Index):
@@ -189,22 +190,27 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
-    def _map_type(self, typename, lifetime=LifeTime.UNKNOWN) -> str:
+    @classmethod
+    def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
         if isinstance(typename, list):
             raise NotImplementedError(f"{typename} not supported in this context")
-        typeclass = class_for_typename(typename, self._default_type)
-        return self._type_map.get(typeclass, typename)
+        typeclass = class_for_typename(typename, cls._default_type)
+        return cls._type_map.get(typeclass, typename)
 
-    def _map_types(self, typenames: List[str]) -> List[str]:
-        return [self._map_type(e) for e in typenames]
+    @classmethod
+    def _map_types(cls, typenames: List[str]) -> List[str]:
+        return [cls._map_type(e) for e in typenames]
 
-    def _map_container_type(self, typename) -> str:
-        return self._container_type_map.get(typename, self._default_type)
+    @classmethod
+    def _map_container_type(cls, typename) -> str:
+        return cls._container_type_map.get(typename, cls._default_type)
 
-    def _combine_value_index(self, value_type, index_type) -> str:
+    @staticmethod
+    def _combine_value_index(value_type, index_type) -> str:
         return f"{value_type}<{index_type}>"
 
-    def _visit_container_type(self, typename: Tuple) -> str:
+    @classmethod
+    def _visit_container_type(cls, typename: Tuple) -> str:
         value_type, index_type = typename
         if isinstance(index_type, List):
             index_contains_default = "Any" in index_type
@@ -215,13 +221,14 @@ class CLikeTranspiler(ast.NodeVisitor):
         else:
             index_contains_default = index_type == "Any"
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
-        if index_contains_default or value_type == self._default_type:
-            return self._default_type
-        return self._combine_value_index(value_type, index_type)
+        if index_contains_default or value_type == cls._default_type:
+            return cls._default_type
+        return cls._combine_value_index(value_type, index_type)
 
-    def _typename_from_type_node(self, node) -> Union[List, str, None]:
+    @classmethod
+    def _typename_from_type_node(cls, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
-            return self._map_type(
+            return cls._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
         elif isinstance(node, ast.Constant) and node.value is not None:
@@ -229,7 +236,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):
-            return [self._typename_from_type_node(e) for e in node.elts]
+            return [cls._typename_from_type_node(e) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):
@@ -239,14 +246,14 @@ class CLikeTranspiler(ast.NodeVisitor):
             # Store a tuple like (List, int) or (Dict, (str, int)) for container types
             # in node.container_type
             # And return a target specific type
-            slice_value = self._slice_value(node)
+            slice_value = cls._slice_value(node)
             (value_type, index_type) = tuple(
-                map(self._typename_from_type_node, (node.value, slice_value))
+                map(cls._typename_from_type_node, (node.value, slice_value))
             )
-            value_type = self._map_container_type(value_type)
+            value_type = cls._map_container_type(value_type)
             node.container_type = (value_type, index_type)
-            return self._combine_value_index(value_type, index_type)
-        return self._default_type
+            return cls._combine_value_index(value_type, index_type)
+        return cls._default_type
 
     def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
@@ -271,16 +278,17 @@ class CLikeTranspiler(ast.NodeVisitor):
             return f"{value_type}[{index_type}]"
         return self._default_type
 
-    def _typename_from_annotation(self, node, attr="annotation") -> str:
-        default_type = self._default_type
+    @classmethod
+    def _typename_from_annotation(cls, node, attr="annotation") -> str:
+        default_type = cls._default_type
         typename = default_type
         if hasattr(node, attr):
             type_node = getattr(node, attr)
-            typename = self._typename_from_type_node(type_node)
+            typename = cls._typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
                 node.container_type = type_node.container_type
                 try:
-                    return self._visit_container_type(type_node.container_type)
+                    return cls._visit_container_type(type_node.container_type)
                 except TypeNotSupported as e:
                     raise AstTypeNotSupported(str(e), node)
             if typename is None:
