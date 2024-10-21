@@ -573,9 +573,9 @@ class GoTranspiler(CLikeTranspiler):
         )
 
     def _assign_cast(
-        self, value_str: str, cast_to: str, python_annotation, rust_annotation
+        self, value_str: str, cast_to: str, python_annotation, go_annotation
     ) -> str:
-        # python/rust annotations provided to customize the cast if necessary
+        # python/go annotations provided to customize the cast if necessary
         return f"{cast_to}({value_str})"
 
     def _visit_AssignOne(self, node, target) -> str:
