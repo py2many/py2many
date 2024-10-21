@@ -34,6 +34,14 @@ RUST_TYPE_MAP = {
     c_uint64: "u64",
 }
 
+RUST_CONTAINER_TYPE_MAP = {
+    "List": "Vec",
+    "Dict": "HashMap",
+    "Set": "HashSet",
+    "Optional": "Option",
+    "Result": "Result",
+}
+
 # https://pyo3.rs/v0.13.2/conversions/tables.html
 RUST_EXTENSION_TYPE_MAP = {
     str: "&PyUnicode",
