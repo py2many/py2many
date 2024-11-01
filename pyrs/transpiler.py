@@ -964,3 +964,21 @@ class RustTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
+
+    def visit_Try(self, node, finallybody=None) -> str:
+        self._features.add("try_blocks")
+        buf = ["let result: Result<_, std::error::Error> = try { "]
+        body = "\n".join([self.visit(n) for n in node.body])
+        buf.append(body)
+        buf.append("};")
+
+        for handler in node.handlers:
+            buf.append("//" + self.visit(handler))
+
+        if finallybody:
+            buf.append("//" + self.visit(finallybody))
+
+        return "\n".join(buf)
+
+    def visit_ExceptHandler(self, node) -> str:
+        return "unsupported exception handler"
