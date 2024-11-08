@@ -394,6 +394,13 @@ def main(args=None, env=os.environ):
         help="Place unsupported constructs in comments",
     )
     parser.add_argument(
+        "--no-strict",
+        dest="strict",
+        default=True,
+        action="store_false",
+        help="Skip over unsupported constructs and generate some code"
+    )
+    parser.add_argument(
         "--extension",
         action="store_true",
         default=False,
@@ -447,7 +454,11 @@ def main(args=None, env=os.environ):
 
     if args.comment_unsupported:
         print("Wrapping unimplemented in comments")
-        settings.transpiler._throw_on_unimplemented = False
+        settings.transpiler.set_continue_on_unimplemented()
+
+    if not args.strict:
+        print("Warning: some code may be experimental and incorrect")
+        settings.transpiler.set_continue_on_unimplemented()
 
     for filename in rest:
         source = Path(filename)
