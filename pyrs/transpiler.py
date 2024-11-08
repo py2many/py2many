@@ -957,7 +957,7 @@ class RustTranspiler(CLikeTranspiler):
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
     def visit_Try(self, node, finallybody=None) -> str:
-        ret = super().visit_Try(node, finallybody)
+        super().visit_Try(node, finallybody)
         # if we got here, parent didn't throw. This can only
         # be because of --no-strict
         self._features.add("try_blocks")
