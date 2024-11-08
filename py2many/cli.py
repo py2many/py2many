@@ -398,7 +398,7 @@ def main(args=None, env=os.environ):
         dest="strict",
         default=True,
         action="store_false",
-        help="Skip over unsupported constructs and generate some code"
+        help="Skip over unsupported constructs and generate some code",
     )
     parser.add_argument(
         "--extension",
