@@ -3,7 +3,7 @@ from typing import Dict, Set
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import V_TYPE_MAP, V_WIDTH_RANK
+from .inference import V_TYPE_MAP, V_WIDTH_RANK, V_CONTAINER_TYPE_MAP
 
 # allowed as names in Python but treated as keywords in V
 v_keywords: Set[str] = frozenset(
@@ -95,6 +95,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = V_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = V_CONTAINER_TYPE_MAP
         self._statement_separator: str = ""
 
     def visit(self, node: ast.AST) -> str:

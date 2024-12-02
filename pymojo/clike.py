@@ -3,7 +3,7 @@ from keyword import kwlist, softkwlist
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import MOJO_TYPE_MAP, MOJO_WIDTH_RANK
+from .inference import MOJO_TYPE_MAP, MOJO_WIDTH_RANK, MOJO_CONTAINER_TYPE_MAP
 
 # allowed as names in Python but treated as keywords in Mojo
 mojo_keywords = frozenset(
@@ -51,6 +51,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = MOJO_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = MOJO_CONTAINER_TYPE_MAP
         self._statement_separator = ""
         # mojo has a sys module
         self._ignored_module_set.remove("sys")

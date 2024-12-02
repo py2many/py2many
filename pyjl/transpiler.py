@@ -7,7 +7,7 @@ from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
 
-from .clike import CLikeTranspiler
+from .clike import CLikeTranspiler, julia_type_map, JULIA_CONTAINER_TYPE_MAP
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
@@ -39,18 +39,12 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
 class JuliaTranspiler(CLikeTranspiler):
     NAME = "julia"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "Array",
-        "Dict": "Dict",
-        "Set": "Set",
-        "Optional": "Nothing",
-    }
-
     def __init__(self):
         super().__init__()
         self._headers = set()
         CLikeTranspiler._default_type = ""
-        self._container_type_map = self.CONTAINER_TYPE_MAP
+        CLikeTranspiler._type_map = julia_type_map
+        CLikeTranspiler._container_type_map = JULIA_CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP

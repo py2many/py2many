@@ -39,19 +39,11 @@ class NimNoneCompareRewriter(ast.NodeTransformer):
 class NimTranspiler(CLikeTranspiler):
     NAME = "nim"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "seq",
-        "Dict": "Table",
-        "Set": "set",
-        "Optional": "Option",
-    }
-
     def __init__(self, indent=2):
         super().__init__()
         self._headers = set()
         self._indent = " " * indent
         CLikeTranspiler._default_type = "var"
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
         self._dispatch_map = DISPATCH_MAP
@@ -395,8 +387,8 @@ class NimTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
+            if value in self._container_type_map:
+                value = self._container_type_map[value]
             if value == "Tuple":
                 return f"({index})"
             return f"{value}[{index}]"

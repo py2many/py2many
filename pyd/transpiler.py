@@ -37,16 +37,8 @@ class DIntegerDivRewriter(ast.NodeTransformer):
 class DTranspiler(CLikeTranspiler):
     NAME = "d"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "[]",
-        "Dict": "Map",
-        "Set": "auto",  # RedBlackTree
-        "Optional": "Nothing",
-    }
-
     def __init__(self):
         super().__init__()
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         CLikeTranspiler._default_type = "auto"
         self._temp = 0
         self._dispatch_map = DISPATCH_MAP
@@ -443,8 +435,8 @@ class DTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
+            if value in self._container_type_map:
+                value = self._container_type_map[value]
             if value == "Tuple":
                 return f"({index})"
             return f"{value}[{index}]"

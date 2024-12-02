@@ -81,17 +81,9 @@ class KotlinBitOpRewriter(ast.NodeTransformer):
 class KotlinTranspiler(CLikeTranspiler):
     NAME = "kotlin"
 
-    CONTAINER_TYPE_MAP = {
-        "List": "Array",
-        "Dict": "Dict",
-        "Set": "Set",
-        "Optional": "Nothing",
-    }
-
     def __init__(self):
         super().__init__()
         CLikeTranspiler._default_type = ""
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -408,8 +400,8 @@ class KotlinTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
+            if value in self._container_type_map:
+                value = self._container_type_map[value]
             if value == "Tuple":
                 return f"({index})"
             return f"{value}<{index}>"

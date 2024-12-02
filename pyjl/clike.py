@@ -28,6 +28,13 @@ julia_type_map = {
     c_uint64: "UInt64",
 }
 
+JULIA_CONTAINER_TYPE_MAP = {
+    "List": "Array",
+    "Dict": "Dict",
+    "Set": "Set",
+    "Optional": "Nothing",
+}
+
 # allowed as names in Python but treated as keywords in Julia
 julia_keywords = frozenset(
     [

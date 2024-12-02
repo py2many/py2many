@@ -31,6 +31,13 @@ NIM_TYPE_MAP = {
     c_uint64: "uint64",
 }
 
+NIM_CONTAINER_TYPE_MAP = {
+    "List": "seq",
+    "Dict": "Table",
+    "Set": "set",
+    "Optional": "Option",
+}
+
 NIM_WIDTH_RANK = {
     "bool": 0,
     "int8": 1,

@@ -28,6 +28,13 @@ dlang_type_map = {
     c_uint64: "ulong",
 }
 
+DLANG_CONTAINER_TYPE_MAP = {
+    "List": "[]",
+    "Dict": "Map",
+    "Set": "auto",  # RedBlackTree
+    "Optional": "Nothing",
+}
+
 # allowed as names in Python but treated as keywords in dlang
 dlang_keywords = frozenset(
     [
@@ -72,6 +79,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = dlang_type_map
+        CommonCLikeTranspiler._container_type_map = DLANG_CONTAINER_TYPE_MAP
 
     def visit_Name(self, node) -> str:
         if node.id in dlang_keywords:
