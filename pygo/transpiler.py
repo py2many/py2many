@@ -134,7 +134,7 @@ class GoTranspiler(CLikeTranspiler):
 
     def __init__(self):
         super().__init__()
-        self._default_type = None
+        CLikeTranspiler._default_type = None
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP

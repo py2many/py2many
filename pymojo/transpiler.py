@@ -36,7 +36,7 @@ class MojoTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set()
         self._indent = " " * indent
-        self._default_type = "var"
+        CLikeTranspiler._default_type = "var"
         self._container_type_map = self.CONTAINER_TYPE_MAP
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
