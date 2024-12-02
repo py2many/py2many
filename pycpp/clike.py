@@ -136,7 +136,7 @@ cpp_keywords = frozenset(
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = pycpp_type_map
+        CommonCLikeTranspiler._type_map = pycpp_type_map
 
     def _check_keyword(self, name):
         if name in cpp_keywords:

@@ -64,7 +64,7 @@ def go_symbol(node):
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = GO_TYPE_MAP
+        CommonCLikeTranspiler._type_map = GO_TYPE_MAP
 
     def visit(self, node) -> str:
         if type(node) in go_symbols:

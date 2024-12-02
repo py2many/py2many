@@ -85,7 +85,7 @@ def jl_symbol(node):
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = julia_type_map
+        CommonCLikeTranspiler._type_map = julia_type_map
 
     def visit(self, node) -> str:
         if type(node) in JL_SYMBOLS:
