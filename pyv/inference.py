@@ -32,6 +32,13 @@ V_TYPE_MAP: Dict[type, str] = {
     c_uint64: "u64",
 }
 
+V_CONTAINER_TYPE_MAP: Dict[str, str] = {
+    "List": "[]",
+    "Dict": "map",
+    "Set": "set",
+    "Optional": "?",
+}
+
 V_WIDTH_RANK: Dict[str, int] = {
     "bool": 0,
     "i8": 1,

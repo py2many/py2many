@@ -32,6 +32,13 @@ MOJO_TYPE_MAP = {
     c_uint64: "UInt64",
 }
 
+MOJO_CONTAINER_TYPE_MAP = {
+    "List": "List",
+    "Dict": "Dict",
+    "Set": "Set",
+    "Optional": "Optional",
+}
+
 MOJO_WIDTH_RANK = {
     "bool": 0,
     "int8": 1,

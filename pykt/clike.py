@@ -3,7 +3,7 @@ import ast
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import KT_TYPE_MAP, KT_WIDTH_RANK
+from .inference import KT_TYPE_MAP, KT_WIDTH_RANK, KT_CONTAINER_TYPE_MAP
 
 # allowed as names in Python but treated as keywords in Kotlin
 kotlin_keywords = frozenset(
@@ -88,6 +88,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = KT_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = KT_CONTAINER_TYPE_MAP
         self._statement_separator = ""
         self._temp = 0
 

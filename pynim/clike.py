@@ -2,7 +2,7 @@ import ast
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import NIM_TYPE_MAP, NIM_WIDTH_RANK
+from .inference import NIM_TYPE_MAP, NIM_WIDTH_RANK, NIM_CONTAINER_TYPE_MAP
 
 # allowed as names in Python but treated as keywords in Nim
 nim_keywords = frozenset(
@@ -115,6 +115,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = NIM_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = NIM_CONTAINER_TYPE_MAP
         self._statement_separator = ""
 
     def visit(self, node) -> str:

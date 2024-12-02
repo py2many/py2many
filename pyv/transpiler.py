@@ -138,13 +138,6 @@ class VNoneCompareRewriter(ast.NodeTransformer):
 class VTranspiler(CLikeTranspiler):
     NAME: str = "v"
 
-    CONTAINER_TYPE_MAP: Dict[str, str] = {
-        "List": "[]",
-        "Dict": "map",
-        "Set": "set",
-        "Optional": "?",
-    }
-
     ALLOW_MODULE_LIST: List[str] = ["math"]
 
     def __init__(self, indent: int = 2):
@@ -152,7 +145,6 @@ class VTranspiler(CLikeTranspiler):
         self._headers = set()
         self._indent = " " * indent
         CLikeTranspiler._default_type = "any"
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -461,8 +453,8 @@ class VTranspiler(CLikeTranspiler):
         value: str = self.visit(node.value)
         index: str = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
-            if value in self.CONTAINER_TYPE_MAP:
-                value = self.CONTAINER_TYPE_MAP[value]
+            if value in self._container_type_map:
+                value = self._container_type_map[value]
             if value == "Tuple":
                 return f"({index})"
             return f"{value}[{index}]"

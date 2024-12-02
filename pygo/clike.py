@@ -3,7 +3,7 @@ import ast
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import GO_TYPE_MAP, GO_WIDTH_RANK
+from .inference import GO_TYPE_MAP, GO_WIDTH_RANK, GO_CONTAINER_TYPE_MAP
 
 go_type_map = {
     "bool": "bool",
@@ -65,6 +65,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
         CommonCLikeTranspiler._type_map = GO_TYPE_MAP
+        CLikeTranspiler._container_type_map = GO_CONTAINER_TYPE_MAP
 
     def visit(self, node) -> str:
         if type(node) in go_symbols:

@@ -130,12 +130,9 @@ class GoIfExpRewriter(ast.NodeTransformer):
 class GoTranspiler(CLikeTranspiler):
     NAME = "go"
 
-    CONTAINER_TYPE_MAP = {"List": "[]", "Dict": None, "Set": None, "Optional": "nil"}
-
     def __init__(self):
         super().__init__()
         CLikeTranspiler._default_type = None
-        self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP

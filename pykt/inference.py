@@ -31,6 +31,13 @@ KT_TYPE_MAP = {
     c_uint64: "ULong",
 }
 
+KT_CONTAINER_TYPE_MAP = {
+    "List": "Array",
+    "Dict": "Dict",
+    "Set": "Set",
+    "Optional": "Nothing",
+}
+
 REVERSE_KT_TYPE_MAP = {v: k for k, v in KT_TYPE_MAP.items()}
 
 KT_WIDTH_RANK = {
