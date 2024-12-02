@@ -275,6 +275,8 @@ def _format_one(settings, output_path, env=None):
         if restore_cwd:
             os.chdir(restore_cwd)
     except Exception as e:
+        if settings.ignore_formatter_errors:
+            return True
         print(f"Error: Could not format: {output_path}")
         print(f"Due to: {e.__class__.__name__} {e}")
         return False
@@ -401,6 +403,13 @@ def main(args=None, env=os.environ):
         help="Skip over unsupported constructs and generate some code",
     )
     parser.add_argument(
+        "--ignore-formatter-errors",
+        dest="ignore_formatter_errors",
+        default=False,
+        action="store_true",
+        help="Ignore formatter error if its not installed",
+    )
+    parser.add_argument(
         "--extension",
         action="store_true",
         default=False,
@@ -459,6 +468,8 @@ def main(args=None, env=os.environ):
     if not args.strict:
         print("Warning: some code may be experimental and incorrect")
         settings.transpiler.set_continue_on_unimplemented()
+
+    settings.ignore_formatter_errors = args.ignore_formatter_errors
 
     for filename in rest:
         source = Path(filename)

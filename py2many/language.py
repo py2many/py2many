@@ -20,6 +20,7 @@ class LanguageSettings:
     create_project: Optional[List[str]] = None
     # Rust likes source files to live in {project}/src for example
     project_subdir: Optional[str] = None
+    ignore_formatter_errors: bool = False
 
     def __hash__(self):
         f = tuple(self.formatter) if self.formatter is not None else ()
