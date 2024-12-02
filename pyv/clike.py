@@ -3,7 +3,7 @@ from typing import Dict, Set
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import V_TYPE_MAP, V_WIDTH_RANK, V_CONTAINER_TYPE_MAP
+from .inference import V_CONTAINER_TYPE_MAP, V_TYPE_MAP, V_WIDTH_RANK
 
 # allowed as names in Python but treated as keywords in V
 v_keywords: Set[str] = frozenset(
