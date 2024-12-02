@@ -3,7 +3,7 @@ import ast
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import GO_TYPE_MAP, GO_WIDTH_RANK, GO_CONTAINER_TYPE_MAP
+from .inference import GO_CONTAINER_TYPE_MAP, GO_TYPE_MAP, GO_WIDTH_RANK
 
 go_type_map = {
     "bool": "bool",

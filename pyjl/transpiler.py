@@ -7,7 +7,7 @@ from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
 
-from .clike import CLikeTranspiler, julia_type_map, JULIA_CONTAINER_TYPE_MAP
+from .clike import JULIA_CONTAINER_TYPE_MAP, CLikeTranspiler, julia_type_map
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
