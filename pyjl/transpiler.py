@@ -49,7 +49,7 @@ class JuliaTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._headers = set()
-        self._default_type = ""
+        CLikeTranspiler._default_type = ""
         self._container_type_map = self.CONTAINER_TYPE_MAP
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP

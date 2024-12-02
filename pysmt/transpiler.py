@@ -15,7 +15,7 @@ class SmtTranspiler(CLikeTranspiler):
     def __init__(self, indent=2):
         super().__init__()
         self._indent = " " * indent
-        self._default_type = "var"
+        CLikeTranspiler._default_type = "var"
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
 

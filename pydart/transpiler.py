@@ -46,7 +46,7 @@ class DartTranspiler(CLikeTranspiler):
     def __init__(self):
         super().__init__()
         self._container_type_map = self.CONTAINER_TYPE_MAP
-        self._default_type = "var"
+        CLikeTranspiler._default_type = "var"
         self._temp = 0
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
