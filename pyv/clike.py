@@ -94,7 +94,7 @@ def v_symbol(node: ast.AST) -> str:
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = V_TYPE_MAP
+        CommonCLikeTranspiler._type_map = V_TYPE_MAP
         self._statement_separator: str = ""
 
     def visit(self, node: ast.AST) -> str:

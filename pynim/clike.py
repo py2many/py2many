@@ -114,7 +114,7 @@ def nim_symbol(node):
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
-        self._type_map = NIM_TYPE_MAP
+        CommonCLikeTranspiler._type_map = NIM_TYPE_MAP
         self._statement_separator = ""
 
     def visit(self, node) -> str:
