@@ -9,6 +9,7 @@ from ctypes import (
     c_uint32,
     c_uint64,
 )
+from typing import Callable
 
 from py2many.analysis import get_id
 from py2many.clike import class_for_typename
@@ -29,6 +30,7 @@ SMT_TYPE_MAP = {
     c_uint16: "UInt16",
     c_uint32: "UInt32",
     c_uint64: "UInt64",
+    Callable: "FuncType",
 }
 
 SMT_WIDTH_RANK = {
