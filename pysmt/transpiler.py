@@ -27,8 +27,10 @@ class SmtTranspiler(CLikeTranspiler):
         uses = "\n".join(f"import {mod}" for mod in usings)
         return uses
 
-    def _combine_value_index(self, value_type, index_type) -> str:
-        return f"(_ {value_type} {index_type})"
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
+        # TODO: Int is a hack. Remove.
+        return f"({value_type} Int {index_type})"
 
     def comment(self, text):
         return f";; {text}\n"
@@ -77,6 +79,9 @@ class SmtTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(node)
         return (typename, id)
 
+    def _is_higher_order(self, node):
+        return not (isinstance(node, ast.Name) or isinstance(node, ast.Attribute))
+
     def visit_Call(self, node):
         fname = self.visit(node.func)
 
@@ -94,6 +99,8 @@ class SmtTranspiler(CLikeTranspiler):
             args = " " + " ".join(vargs)
         else:
             args = ""
+        if self._is_higher_order(node.func):
+            return f"(apply {fname}{args})"
         return f"({fname}{args})"
 
     def visit_sealed_class(self, node):
@@ -148,6 +155,11 @@ class SmtTranspiler(CLikeTranspiler):
         names = ", ".join(names)
         return f"from {module_name} import {names}"
 
+    def visit_Subscript(self, node) -> str:
+        value = self.visit(node.value)
+        index = self.visit(node.slice)
+        return f"(select {value} {index})"
+
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
         elts = " ".join(elts)
@@ -174,23 +186,37 @@ class SmtTranspiler(CLikeTranspiler):
             lines[0] = line0  # parent node is going to add indentation
         return "\n".join(lines)
 
+    def visit_List(self, node) -> str:
+        elements = [self.visit(e) for e in node.elts]
+        elements = " ".join(elements)
+        return f"({elements})"
+
     def _visit_AssignOne(self, node, target):
-        kw = "setq" if is_mutable(node.scopes, get_id(target)) else "let"
+        kw = "assert" if is_mutable(node.scopes, get_id(target)) else "let"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            return f"(setq {target} {value})"
+            return f"(assert (= {target} {value}))"
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
             definition = node.scopes.find(get_id(target))
+        target = self.visit(target)
         if isinstance(target, ast.Name) and defined_before(definition, node):
-            target = self.visit(target)
             value = self.visit(node.value)
-            return f"(setq {target} {value})"
+            return f"(assert (= {target} {value}))"
+        elif isinstance(node.value, ast.List):
+            values = self.visit(node.value)
+            # parse a lisp list
+            values = values[1:-1].split()
+            return "\n".join(
+                [
+                    f"(assert (= (select {target} {i}) {val}))"
+                    for i, val in enumerate(values)
+                ]
+            )
         else:
-            target = self.visit(target)
             value = self.visit(node.value)
 
             return f"({kw} ({target} {value}))"
