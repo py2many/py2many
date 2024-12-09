@@ -1,11 +1,9 @@
 
-(declare-const a Bool)
-(declare-const b Bool)
-
-
-(define-fun demorgan ()  Bool
+(define-fun demorgan ((a Bool) (b Bool))  Bool
   (= (and a b) (not (or (not a) (not b)))))
 
 
-(assert (not demorgan))
+(declare-const a Bool)
+(declare-const b Bool)
+(assert (not (demorgan a b)))
 (check-sat)
