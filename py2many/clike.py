@@ -17,7 +17,16 @@ from ctypes import c_uint16 as u16
 from ctypes import c_uint32 as u32
 from ctypes import c_uint64 as u64
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, OrderedDict, Tuple, Union  # noqa: F401
+from typing import (  # noqa: F401
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    OrderedDict,
+    Tuple,
+    Union,
+)
 
 from py2many.analysis import IGNORED_MODULE_SET, get_id
 from py2many.astx import LifeTime
