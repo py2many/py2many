@@ -3,7 +3,7 @@ from typing import List
 
 from py2many.analysis import get_id, is_ellipsis, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstNotImplementedError, AstTypeNotSupported
+from py2many.exceptions import AstNotImplementedError
 from py2many.tracer import defined_before
 
 from .clike import CLikeTranspiler
@@ -111,20 +111,10 @@ class SmtTranspiler(CLikeTranspiler):
             if typename == self._default_type:
                 variants.append("(None)")
             else:
-                innerv = []
-                definition = node.scopes.parent_scopes.find(typename)
-                if definition is None:
-                    raise AstTypeNotSupported(f"{typename}", node)
-                for member, var in definition.class_assignments.items():
-                    member_id = get_id(member)
-                    member_type = definition.declarations.get(member_id)
-                    innerv.append(f"({member_id} {member_type})")
-                innerv_str = f"{''.join(innerv)}"
-                cons = typename.lower()
-                variants.append(f"({cons} {innerv_str})")
+                variants.append(f"{member_id}")
 
-        variants_str = f"({''.join(variants)})"
-        return f"(declare-datatypes (({node.name} 0)) ({variants_str}))"
+        variants_str = " ".join(variants)
+        return f"(declare-datatypes () (({node.name} {variants_str})))"
 
     def visit_ClassDef(self, node):
         extractor = DeclarationExtractor(SmtTranspiler())
