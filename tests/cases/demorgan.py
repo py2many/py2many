@@ -7,5 +7,8 @@ def demorgan(a: bool, b: bool) -> bool:
     (a and b) == (not ((not a) or (not b)))
 
 
-assert not demorgan
+a: Bool
+b: Bool
+
+assert not demorgan(a, b)
 check_sat()

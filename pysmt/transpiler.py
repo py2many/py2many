@@ -48,7 +48,7 @@ class SmtTranspiler(CLikeTranspiler):
             typename = typenames[i]
             arg = args[i]
 
-            args_list.append(f"(declare-const {arg} {typename})")
+            args_list.append(f"({arg} {typename})")
 
         return_type = ""
         if not is_void_function(node):
@@ -61,16 +61,16 @@ class SmtTranspiler(CLikeTranspiler):
         if len(node.body) == 1 and is_ellipsis(node.body[0]):
             return self._visit_DeclareFunc(node, return_type)
 
-        args = "\n".join(args_list)
-        funcdef = f"define-fun {node.name}() {return_type}"
-        return f"{args}\n({funcdef}\n{body})\n"
+        args = " ".join(args_list)
+        funcdef = f"define-fun {node.name}({args}) {return_type}"
+        return f"({funcdef}\n{body})\n"
 
     def visit_Return(self, node):
         if node.value:
             ret = self.visit(node.value)
 
-            return f"return {ret}"
-        return "return"
+            return f"{ret}"
+        return ""
 
     def visit_arg(self, node):
         id = get_id(node)
@@ -220,3 +220,18 @@ class SmtTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
 
             return f"({kw} ({target} {value}))"
+
+    def visit_If(self, node, use_parens=True) -> str:
+        buf = []
+        buf.append(f"(ite {self.visit(node.test)} ")
+        body = [self.visit(child) for child in node.body]
+        body = [b for b in body if b is not None]
+        buf.extend(body)
+
+        orelse = [self.visit(child) for child in node.orelse]
+        if orelse:
+            buf.extend(orelse)
+            buf.append(")")
+        else:
+            buf.append("0)")
+        return "\n".join(buf)
