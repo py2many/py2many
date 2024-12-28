@@ -1,3 +1,1 @@
-fun bar1(): Int {
-    return 0
-}
+fun bar1(): Int = 0
