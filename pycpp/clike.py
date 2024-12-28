@@ -12,7 +12,7 @@ from ctypes import (
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-pycpp_type_map = {
+PYCPP_TYPE_MAP = {
     bool: "bool",
     int: "int",
     float: "double",
@@ -134,9 +134,17 @@ cpp_keywords = frozenset(
 
 
 class CLikeTranspiler(CommonCLikeTranspiler):
+    CONTAINER_TYPE_MAP = {
+        "List": "std::vector",
+        "Dict": "std::map",
+        "Set": "std::set",
+        "Optional": "std::optional",
+    }
+
     def __init__(self):
         super().__init__()
-        CommonCLikeTranspiler._type_map = pycpp_type_map
+        CommonCLikeTranspiler._type_map = PYCPP_TYPE_MAP
+        CommonCLikeTranspiler._container_type_map = self.CONTAINER_TYPE_MAP
 
     def _check_keyword(self, name):
         if name in cpp_keywords:

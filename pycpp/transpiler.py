@@ -108,19 +108,11 @@ class CppListComparisonRewriter(ast.NodeTransformer):
 class CppTranspiler(CLikeTranspiler):
     NAME = "cpp"
 
-    CONTAINER_TYPES = {
-        "List": "std::vector",
-        "Dict": "std::map",
-        "Set": "std::set",
-        "Optional": "std::optional",
-    }
-
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         self._headers = []
         self._usings = {"<cstdint>"}
         self.use_catch_test_cases = False
-        self._container_type_map = self.CONTAINER_TYPES
         self._extension = extension
         self._no_prologue = no_prologue
         self._dispatch_map = DISPATCH_MAP
