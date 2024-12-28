@@ -1,12 +1,13 @@
 import ast
 import os.path
-import pytest
 import sys
 from functools import lru_cache, partial
 from itertools import product
 from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
+
+import pytest
 
 try:
     from astpretty import pprint as ast_pretty_print
