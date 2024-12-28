@@ -2,14 +2,13 @@ import argparse
 import logging
 import os.path
 import platform
+import pytest
 import sys
-import unittest
 from functools import lru_cache
+from itertools import product
 from pathlib import Path
 from subprocess import run
 from unittest.mock import Mock
-
-from unittest_expander import expand, foreach
 
 from py2many.cli import (
     _create_cmd,
@@ -102,6 +101,7 @@ else:
     COMPILERS["kotlin"] = ["kotlinc"]
 
 TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
+TEST_PARAMS = [(case, lang) for case, lang in product(TEST_CASES, LANGS)]
 
 CASE_ARGS = {"sys_argv": ("arg1",)}
 CASE_EXPECTED_EXITCODE = {"sys_exit": 1}
@@ -177,8 +177,7 @@ def is_declarative(ext):
     return ext in {".smt"}
 
 
-@expand
-class CodeGeneratorTests(unittest.TestCase):
+class TestCodeGenerator:
     maxDiff = None
 
     SHOW_ERRORS = SHOW_ERRORS
@@ -186,13 +185,13 @@ class CodeGeneratorTests(unittest.TestCase):
     UPDATE_EXPECTED = UPDATE_EXPECTED
     LINT = os.environ.get("LINT", True)
 
-    def setUp(self):
+    @classmethod
+    def setup_class(cls):
         os.makedirs(BUILD_DIR, exist_ok=True)
         os.chdir(BUILD_DIR)
         py2many.cli.CWD = BUILD_DIR
 
-    @foreach(sorted(LANGS))
-    @foreach(sorted(TEST_CASES))
+    @pytest.mark.parametrize("case,lang", TEST_PARAMS)
     def test_generated(self, case, lang):
         env = os.environ.copy()
         if ENV.get(lang):
@@ -207,11 +206,11 @@ class CodeGeneratorTests(unittest.TestCase):
             and not self.KEEP_GENERATED
             and not os.path.exists(expected_filename)
         ):
-            raise unittest.SkipTest(f"{expected_filename} not found")
+            raise pytest.skip(f"{expected_filename} not found")
 
         if settings.formatter:
             if not find_executable(settings.formatter[0]):
-                raise unittest.SkipTest(f"{settings.formatter[0]} not available")
+                raise pytest.skip(f"{settings.formatter[0]} not available")
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
@@ -221,7 +220,7 @@ class CodeGeneratorTests(unittest.TestCase):
 
         is_script = has_main(case_filename)
         if not is_script and not is_declarative(ext):
-            raise unittest.SkipTest(f"{case} is declarative, not suitable for {lang}")
+            raise pytest.skip(f"{case} is declarative, not suitable for {lang}")
 
         if not is_declarative(ext):
             main_args = CASE_ARGS.get(case, tuple())
@@ -229,7 +228,7 @@ class CodeGeneratorTests(unittest.TestCase):
             expected_output = get_python_case_output(
                 case_filename, main_args, expected_exit_code
             )
-            self.assertTrue(expected_output, "Test cases must print something")
+            assert expected_output, "Test cases must print something"
             expected_output = expected_output.splitlines()
 
         args = [
@@ -254,7 +253,7 @@ class CodeGeneratorTests(unittest.TestCase):
                                 expected_case_contents
                             )
                             generated_cleaned = standardise_python(generated)
-                        self.assertEqual(expected_case_contents, generated_cleaned)
+                        assert expected_case_contents == generated_cleaned
                         print("expected = generated")
 
             expect_failure = (
@@ -264,12 +263,12 @@ class CodeGeneratorTests(unittest.TestCase):
             if not expect_failure:
                 assert rv == 0, "formatting failed"
             elif rv:
-                raise unittest.SkipTest("formatting failed")
+                raise pytest.skip("formatting failed")
 
             compiler = COMPILERS.get(lang)
             if compiler:
                 if not find_executable(compiler[0]):
-                    raise unittest.SkipTest(f"{compiler[0]} not available")
+                    raise pytest.skip(f"{compiler[0]} not available")
                 expect_compile_failure = (
                     not self.SHOW_ERRORS and f"{case}{ext}" in EXPECTED_COMPILE_FAILURES
                 )
@@ -280,7 +279,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 proc = run(cmd, env=env, check=not expect_failure)
 
                 if proc.returncode:
-                    raise unittest.SkipTest(f"{case}{ext} doesnt compile")
+                    raise pytest.skip(f"{case}{ext} doesnt compile")
 
                 if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
                     with open(expected_filename, "w") as f:
@@ -298,7 +297,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 if os.path.exists(invoker[0]):
                     pass
                 elif not find_executable(invoker[0]):
-                    raise unittest.SkipTest(f"{invoker[0]} not available")
+                    raise pytest.skip(f"{invoker[0]} not available")
                 cmd = _create_cmd(invoker, filename=case_output, exe=exe)
                 cmd += main_args
                 print(f"Invoking {cmd} ...")
@@ -307,7 +306,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 stdout = proc.stdout
 
                 if expect_failure and expected_exit_code != proc.returncode:
-                    raise unittest.SkipTest(f"Execution of {case}{ext} failed")
+                    raise pytest.skip(f"Execution of {case}{ext} failed")
                 assert (
                     expected_exit_code == proc.returncode
                 ), f"Execution of {case}{ext} failed:\n{stdout}{proc.stderr}"
@@ -325,13 +324,13 @@ class CodeGeneratorTests(unittest.TestCase):
             else:
                 raise RuntimeError(f"Compiled output {exe} not detected")
 
-            self.assertTrue(stdout, "Invoked code produced no stdout")
+            assert stdout, "Invoked code produced no stdout"
             stdout = stdout.splitlines()
-            self.assertEqual(expected_output, stdout)
+            assert expected_output == stdout
 
             if settings.linter and self.LINT:
                 if not find_executable(settings.linter[0]):
-                    raise unittest.SkipTest(f"{settings.linter[0]} not available")
+                    raise pytest.skip(f"{settings.linter[0]} not available")
                 if settings.ext == ".kt" and case_output.is_absolute():
                     # KtLint does not support absolute path in globs
                     case_output = _relative_to_cwd(case_output)
@@ -350,8 +349,8 @@ class CodeGeneratorTests(unittest.TestCase):
                 if proc.returncode and linter[0] == "golint":
                     expect_failure = True
                 if proc.returncode and expect_failure:
-                    raise unittest.SkipTest(f"{case}{ext} failed linter")
-                self.assertFalse(proc.returncode)
+                    raise pytest.skip(f"{case}{ext} failed linter")
+                assert not proc.returncode
 
                 if expect_failure:
                     raise AssertionError(f"{case}{ext} passed unexpectedly")
@@ -361,7 +360,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 case_output.unlink(missing_ok=True)
                 exe.unlink(missing_ok=True)
 
-    @foreach(sorted(TEST_CASES))
+    @pytest.mark.parametrize("case", TEST_CASES)
     # This test name must be alpha before `test_generated` otherwise
     # KEEP_GENERATED does not work.
     def test_env_cxx_gcc(self, case):
@@ -369,20 +368,20 @@ class CodeGeneratorTests(unittest.TestCase):
         ext = ".cpp"
         expected_filename = TESTS_DIR / "expected" / f"{case}{ext}"
         if not os.path.exists(expected_filename):
-            raise unittest.SkipTest(f"{expected_filename} not found")
+            raise pytest.skip(f"{expected_filename} not found")
 
         env = os.environ.copy()
         env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
         env["CXXFLAGS"] = "-std=c++17 -Wall -Werror"
 
         if not find_executable(env["CXX"]):
-            raise unittest.SkipTest(f"{env['CXX']} not available")
+            raise pytest.skip(f"{env['CXX']} not available")
 
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         assert settings.linter[0].startswith("g++")
 
         if not find_executable("astyle"):
-            raise unittest.SkipTest("astyle not available")
+            raise pytest.skip("astyle not available")
 
         settings.formatter = ["astyle"]
 
@@ -412,7 +411,7 @@ class CodeGeneratorTests(unittest.TestCase):
             proc = run(linter, env=env)
             assert not proc.returncode
         except FileNotFoundError as e:
-            raise unittest.SkipTest(f"Failed invoking {env['CXX']} or {linter}: {e}")
+            raise pytest.skip(f"Failed invoking {env['CXX']} or {linter}: {e}")
         finally:
             if not KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
@@ -425,12 +424,12 @@ class CodeGeneratorTests(unittest.TestCase):
                 if child.is_file():
                     child.unlink()
                 else:
-                    CodeGeneratorTests._rmdir_recursive(path)
+                    TestCodeGenerator._rmdir_recursive(path)
             path.rmdir()
         except Exception as e:
             logger.debug(f"{repr(e)}: when removing dir: {path}")
 
-    @foreach(sorted(EXTENSION_TEST_CASES))
+    @pytest.mark.parametrize("case", EXTENSION_TEST_CASES)
     def test_rust_ext(self, case):
         lang = "rust"
         env = os.environ.copy()
@@ -458,7 +457,7 @@ class CodeGeneratorTests(unittest.TestCase):
                 generated = actual.read()
                 if os.path.exists(expected_filename) and not self.UPDATE_EXPECTED:
                     with open(expected_filename) as f2:
-                        self.assertEqual(f2.read(), generated)
+                        assert f2.read() == generated
                         print("expected = generated")
 
             if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):
@@ -469,8 +468,7 @@ class CodeGeneratorTests(unittest.TestCase):
             if not self.KEEP_GENERATED:
                 case_output.unlink(missing_ok=True)
 
-    @foreach(sorted(LANGS))
-    @foreach(["test1"])
+    @pytest.mark.parametrize("case, lang", product(["test1"], LANGS))
     def test_directory(self, case, lang):
         env = os.environ.copy()
         if ENV.get(lang):
@@ -479,7 +477,7 @@ class CodeGeneratorTests(unittest.TestCase):
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
         if settings.formatter:
             if not find_executable(settings.formatter[0]):
-                raise unittest.SkipTest(f"{settings.formatter[0]} not available")
+                raise pytest.skip(f"{settings.formatter[0]} not available")
 
         ext = settings.ext
         TEST_OUTPUT = f"{case}-{lang}-generated"
@@ -501,33 +499,30 @@ class CodeGeneratorTests(unittest.TestCase):
             assert rv == 0
 
             filenames = list(expected_output_dir.glob(f"*{ext}"))
-            self.assertTrue(filenames)
+            assert filenames
             for expected_filename in filenames:
                 output_filename = output_dir / (expected_filename.stem + ext)
                 print(f"Checking {expected_filename} vs {output_filename}")
                 with open(expected_filename) as fh:
                     expected_contents = fh.read()
-                self.assertTrue(standardise_eol(expected_contents))
+                assert standardise_eol(expected_contents)
 
                 with open(output_filename) as fh:
                     generated_contents = fh.read()
-                self.assertTrue(standardise_eol(generated_contents))
+                assert standardise_eol(generated_contents)
 
-                self.assertEqual(
-                    standardise_eol(generated_contents),
-                    standardise_eol(expected_contents),
+                assert standardise_eol(generated_contents) == standardise_eol(
+                    expected_contents
                 )
         finally:
             if not self.KEEP_GENERATED:
                 self._rmdir_recursive(output_dir)
 
-
-class TestPaths(unittest.TestCase):
     def test_output_path(self):
         base = Path(".")
-        self.assertEqual(_get_output_path(Path("foo.py"), ".rs", base), Path("foo.rs"))
-        self.assertEqual(
-            _get_output_path(Path("dir/foo.py"), ".rs", base), Path("dir") / "foo.rs"
+        assert _get_output_path(Path("foo.py"), ".rs", base) == Path("foo.rs")
+        assert (
+            _get_output_path(Path("dir/foo.py"), ".rs", base) == Path("dir") / "foo.rs"
         )
 
 
@@ -548,10 +543,10 @@ if __name__ == "__main__":
     )
     args, rest = parser.parse_known_args()
 
-    CodeGeneratorTests.SHOW_ERRORS |= args.show_errors
-    CodeGeneratorTests.KEEP_GENERATED |= args.keep_generated
-    CodeGeneratorTests.UPDATE_EXPECTED |= args.update_expected
-    CodeGeneratorTests.LINT |= args.lint
+    TestCodeGenerator.SHOW_ERRORS |= args.show_errors
+    TestCodeGenerator.KEEP_GENERATED |= args.keep_generated
+    TestCodeGenerator.UPDATE_EXPECTED |= args.update_expected
+    TestCodeGenerator.LINT |= args.lint
 
     rest = [sys.argv[0]] + rest
-    unittest.main(argv=rest)
+    pytest.main(rest)
