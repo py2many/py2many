@@ -59,7 +59,8 @@ class JuliaTranspiler(CLikeTranspiler):
     def comment(self, text):
         return f"# {text}"
 
-    def _combine_value_index(self, value_type, index_type) -> str:
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}{{{index_type}}}"
 
     def visit_Constant(self, node) -> str:

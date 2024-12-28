@@ -161,7 +161,8 @@ class VTranspiler(CLikeTranspiler):
         # but V expects the module statement to be at the top.
         return f"[translated]\nmodule main\n{uses}"
 
-    def _combine_value_index(self, value_type: str, index_type: str) -> str:
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}{index_type}"
 
     def comment(self, text: str) -> str:
