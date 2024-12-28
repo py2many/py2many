@@ -1,12 +1,16 @@
 
 
-enum class Colors(val value: Int) {
+enum class Colors(
+    val value: Int,
+) {
     RED(0),
     GREEN(1),
     BLUE(2),
 }
 
-enum class Permissions(val value: Int) {
+enum class Permissions(
+    val value: Int,
+) {
     R(1),
     W(2),
     X(16),
