@@ -150,7 +150,8 @@ class GoTranspiler(CLikeTranspiler):
             buf += ")\n"
         return buf + "\n\n"
 
-    def _combine_value_index(self, value_type, index_type) -> str:
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}{index_type}"
 
     def comment(self, text):

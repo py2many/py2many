@@ -49,7 +49,8 @@ class MojoTranspiler(CLikeTranspiler):
         uses = "\n".join(f"import {mod}" for mod in usings)
         return uses
 
-    def _combine_value_index(self, value_type, index_type) -> str:
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
 
     def comment(self, text):
