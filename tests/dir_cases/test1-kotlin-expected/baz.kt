@@ -1,3 +1,1 @@
-fun baz1(): String {
-    return "foo"
-}
+fun baz1(): String = "foo"
