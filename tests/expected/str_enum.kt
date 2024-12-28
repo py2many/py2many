@@ -1,6 +1,8 @@
 
 
-enum class Colors(val value: String) {
+enum class Colors(
+    val value: String,
+) {
     RED("red"),
     GREEN("green"),
     BLUE("blue"),

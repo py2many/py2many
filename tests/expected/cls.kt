@@ -1,7 +1,5 @@
 class Foo {
-    fun bar(): String {
-        return "a"
-    }
+    fun bar(): String = "a"
 }
 
 fun main(argv: Array<String>) {

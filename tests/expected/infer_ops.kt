@@ -20,86 +20,62 @@ fun foo() {
 fun add1(
     x: Byte,
     y: Byte,
-): Short {
-    return (x + y) as Short
-}
+): Short = (x + y) as Short
 
 fun add2(
     x: Short,
     y: Short,
-): Int {
-    return (x + y)
-}
+): Int = (x + y)
 
 fun add3(
     x: Int,
     y: Int,
-): Long {
-    return (x + y) as Long
-}
+): Long = (x + y) as Long
 
 fun add4(
     x: Long,
     y: Long,
-): Long {
-    return (x + y)
-}
+): Long = (x + y)
 
 fun add5(
     x: UByte,
     y: UByte,
-): UShort {
-    return (x + y) as UShort
-}
+): UShort = (x + y) as UShort
 
 fun add6(
     x: UShort,
     y: UShort,
-): UInt {
-    return (x + y)
-}
+): UInt = (x + y)
 
 fun add7(
     x: UInt,
     y: UInt,
-): ULong {
-    return (x + y) as ULong
-}
+): ULong = (x + y) as ULong
 
 fun add8(
     x: ULong,
     y: ULong,
-): ULong {
-    return (x + y)
-}
+): ULong = (x + y)
 
 fun add9(
     x: Byte,
     y: UShort,
-): UInt {
-    return (x.toUShort() + y)
-}
+): UInt = (x.toUShort() + y)
 
 fun sub(
     x: Byte,
     y: Byte,
-): Byte {
-    return (x - y) as Byte
-}
+): Byte = (x - y) as Byte
 
 fun mul(
     x: Byte,
     y: Byte,
-): Short {
-    return (x * y) as Short
-}
+): Short = (x * y) as Short
 
 fun fadd1(
     x: Byte,
     y: Double,
-): Double {
-    return (x.toDouble() + y)
-}
+): Double = (x.toDouble() + y)
 
 fun show() {
     assert(fadd1(6, 6.0) == 12.toDouble())

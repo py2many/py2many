@@ -18,9 +18,7 @@ fun indexing(): Int {
     return sum
 }
 
-fun infer_bool(code: Int): Boolean {
-    return code in arrayOf(1, 2, 4)
-}
+fun infer_bool(code: Int): Boolean = code in arrayOf(1, 2, 4)
 
 fun show() {
     var a1 = 10
