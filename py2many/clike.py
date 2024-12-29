@@ -264,7 +264,8 @@ class CLikeTranspiler(ast.NodeVisitor):
             return cls._combine_value_index(value_type, index_type)
         return cls._default_type
 
-    def _generic_typename_from_type_node(self, node) -> Union[List, str, None]:
+    @classmethod
+    def _generic_typename_from_type_node(cls, node) -> Union[List, str, None]:
         if isinstance(node, ast.Name):
             return get_id(node)
         elif isinstance(node, ast.Constant):
@@ -272,20 +273,20 @@ class CLikeTranspiler(ast.NodeVisitor):
         elif isinstance(node, ast.ClassDef):
             return get_id(node)
         elif isinstance(node, ast.Tuple):
-            return [self._generic_typename_from_type_node(e) for e in node.elts]
+            return [cls._generic_typename_from_type_node(e) for e in node.elts]
         elif isinstance(node, ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return node_id
         elif isinstance(node, ast.Subscript):
-            slice_value = self._slice_value(node)
+            slice_value = cls._slice_value(node)
             (value_type, index_type) = tuple(
-                map(self._generic_typename_from_type_node, (node.value, slice_value))
+                map(cls._generic_typename_from_type_node, (node.value, slice_value))
             )
             node.generic_container_type = (value_type, index_type)
             return f"{value_type}[{index_type}]"
-        return self._default_type
+        return cls._default_type
 
     @classmethod
     def _typename_from_annotation(cls, node, attr="annotation") -> str:
@@ -304,14 +305,15 @@ class CLikeTranspiler(ast.NodeVisitor):
                 raise AstCouldNotInfer(type_node, node)
         return typename
 
+    @classmethod
     def _generic_typename_from_annotation(
-        self, node, attr="annotation"
+        cls, node, attr="annotation"
     ) -> Optional[str]:
         """Unlike the one above, this doesn't do any target specific mapping."""
         typename = None
         if hasattr(node, attr):
             type_node = getattr(node, attr)
-            ret = self._generic_typename_from_type_node(type_node)
+            ret = cls._generic_typename_from_type_node(type_node)
             if isinstance(type_node, ast.Subscript):
                 node.generic_container_type = type_node.generic_container_type
             return ret
