@@ -229,7 +229,7 @@ class RustTranspiler(CLikeTranspiler):
                 if node.no_return:
                     typename = None
                 else:
-                    typename = self._generic_typename_from_type_node(node.returns)
+                    typename = CLikeTranspiler._generic_typename_from_type_node(node.returns)
                 typename = map_type(typename, extension=True, return_type=True)
             if typename != "_":
                 return_type = f"-> {typename}"
