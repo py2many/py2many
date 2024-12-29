@@ -1,9 +1,8 @@
 import ast
 from collections import defaultdict
+from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Tuple
-
-from toposort import toposort_flatten
 
 
 def module_for_path(path: Path) -> str:
@@ -45,7 +44,17 @@ def get_dependencies(trees):
     return visitor.deps
 
 
+class StableTopologicalSorter(TopologicalSorter):
+    def static_order(self):
+        self.prepare()
+        while self.is_active():
+            node_group = self.get_ready()
+            yield from sorted(node_group)
+            self.done(*node_group)
+
+
 def toposort(trees) -> Tuple:
     deps = get_dependencies(trees)
     tree_dict = {module_for_path(node.__file__): node for node in trees}
-    return tuple([tree_dict[t] for t in toposort_flatten(deps, sort=True)])
+    ts = StableTopologicalSorter(deps)
+    return tuple([tree_dict[t] for t in ts.static_order()])

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Optional, Set, cast
 
 from py2many.analysis import get_id
-from py2many.ast_helpers import create_ast_node, unparse
+from py2many.ast_helpers import create_ast_node
 from py2many.astx import LifeTime
 from py2many.clike import CLikeTranspiler, class_for_typename
 from py2many.exceptions import AstIncompatibleAssign, AstUnrecognisedBinOp
@@ -226,7 +226,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 for e in elements:
                     typ = get_inferred_type(e)
                     if typ is not None:
-                        elt_types.add(unparse(typ))
+                        elt_types.add(ast.unparse(typ))
                 if len(elt_types) == 0:
                     node.annotation = ast.Name(id="List")
                 elif len(elt_types) == 1:

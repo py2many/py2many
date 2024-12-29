@@ -7,9 +7,9 @@ with open("py2many/version.py") as f:
             delim = '"' if '"' in line else "'"
             version = line.split(delim)[1]
 
-install_requires = ["toposort", "astor; python_version<'3.9'"]
+install_requires = []
 setup_requires = []
-test_deps = ["pytest", "unittest-expander", "argparse_dataclass"]
+test_deps = ["pytest", "argparse_dataclass"]
 
 extras = {
     "test": test_deps,
