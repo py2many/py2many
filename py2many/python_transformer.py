@@ -1,6 +1,6 @@
 import ast
 
-from .ast_helpers import create_ast_node, unparse
+from .ast_helpers import create_ast_node
 from .clike import CLikeTranspiler
 
 
@@ -20,7 +20,7 @@ class PythonTranspiler(CLikeTranspiler):
     NAME = "python"
 
     def visit(self, node):
-        return unparse(node)
+        return ast.unparse(node)
 
     def usings(self):
         return "\n".join(
