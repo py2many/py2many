@@ -173,8 +173,6 @@ class InferTypesTransformer(ast.NodeTransformer):
     def __init__(self):
         self.handling_annotation = False
         self.has_fixed_width_ints = False
-        # TODO: remove this and make the methods into classmethods
-        self._clike = CLikeTranspiler()
 
     @staticmethod
     def _infer_primitive(value) -> Optional[ast.AST]:
@@ -258,7 +256,7 @@ class InferTypesTransformer(ast.NodeTransformer):
 
             def typename(e):
                 get_inferred_type(e)  # populates e.annotation
-                return self._clike._generic_typename_from_annotation(e)
+                return CLikeTranspiler._generic_typename_from_annotation(e)
 
             key_types = {typename(e) for e in node.keys}
             only_key_type = next(iter(key_types))
@@ -315,11 +313,11 @@ class InferTypesTransformer(ast.NodeTransformer):
 
         node.target.annotation = node.annotation
         target = node.target
-        target_typename = self._clike._typename_from_annotation(target)
+        target_typename = CLikeTranspiler._typename_from_annotation(target)
         if target_typename in self.FIXED_WIDTH_INTS_NAME:
             self.has_fixed_width_ints = True
         annotation = get_inferred_type(node.value)
-        value_typename = self._clike._generic_typename_from_type_node(annotation)
+        value_typename = CLikeTranspiler._generic_typename_from_type_node(annotation)
         target_class = class_for_typename(target_typename, None)
         value_class = class_for_typename(value_typename, None)
         if (
@@ -546,7 +544,7 @@ class InferTypesTransformer(ast.NodeTransformer):
     def visit_Subscript(self, node):
         definition = node.scopes.find(get_id(node.value))
         if hasattr(definition, "annotation"):
-            self._clike._typename_from_annotation(definition)
+            CLikeTranspiler._typename_from_annotation(definition)
             if hasattr(definition, "container_type"):
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
@@ -563,12 +561,12 @@ class InferTypesTransformer(ast.NodeTransformer):
         if hasattr(node.iter, "annotation") and isinstance(
             node.iter.annotation, ast.Subscript
         ):
-            typ = self._clike._slice_value(node.iter.annotation)
+            typ = CLikeTranspiler._slice_value(node.iter.annotation)
 
             if isinstance(node.target, ast.Name):
                 node.target.annotation = typ
             elif isinstance(node.target, ast.Tuple) and isinstance(typ, ast.Subscript):
-                typ = self._clike._slice_value(typ)
+                typ = CLikeTranspiler._slice_value(typ)
                 for e in node.target.elts:
                     e.annotation = typ
         self.generic_visit(node)
