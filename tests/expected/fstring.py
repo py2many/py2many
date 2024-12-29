@@ -5,4 +5,4 @@ import sys
 
 if __name__ == "__main__":
     a: int = 10
-    print("".join(["hello ", str(a + 1), " world"]))
+    print(f"hello {a + 1} world")
