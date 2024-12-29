@@ -10,7 +10,7 @@ mojo_keywords = frozenset(
     kwlist
     + softkwlist
     + ["fn", "var", "alias", "struct", "raises", "owned", "borrowed", "inout", "ref"]
-)
+) - frozenset(["_"])
 
 mojo_symbols = {
     ast.Eq: "==",
