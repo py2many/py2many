@@ -105,12 +105,17 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_sealed_class(self, node):
         variants = []
+        complex = False
         for member, var in node.class_assignments.items():
             member_id = get_id(member)
             typename, default_val = node.declarations_with_defaults.get(member_id, None)
             if typename == self._default_type:
                 variants.append("(None)")
+            # Handle known builtin types
+            elif typename == "Callable":
+                variants.append(member_id)
             else:
+                complex = True
                 innerv = []
                 definition = node.scopes.parent_scopes.find(typename)
                 if definition is None:
@@ -122,6 +127,10 @@ class SmtTranspiler(CLikeTranspiler):
                 innerv_str = f"{''.join(innerv)}"
                 cons = typename.lower()
                 variants.append(f"({cons} {innerv_str})")
+
+        if not complex:
+            variants_str = " ".join(variants)
+            return f"(declare-datatypes () (({node.name} {variants_str})))"
 
         variants_str = f"({''.join(variants)})"
         return f"(declare-datatypes (({node.name} 0)) ({variants_str}))"
