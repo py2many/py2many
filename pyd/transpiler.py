@@ -2,7 +2,7 @@ import ast
 import textwrap
 from typing import List
 
-from py2many.analysis import get_id, is_void_function  # , is_mutable
+from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import get_inferred_type
@@ -516,8 +516,7 @@ class DTranspiler(CLikeTranspiler):
         return f"assert({condition});"
 
     def is_const_var(self, target) -> bool:
-        var = get_id(target)
-        return (var is not None) and (var.isupper())
+        return not is_mutable(target.scopes, get_id(target))
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
