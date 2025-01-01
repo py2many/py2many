@@ -520,12 +520,12 @@ class DTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
-        if self.is_const_var(target):
+        if self.is_const_var(node.target):
             type_str = "const " + type_str
         return f"{type_str} {target} = {val};"
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "auto"  # if is_mutable(node.scopes, get_id(target)) else "final"  # TODO(no const in Python)
+        kw = "auto"
         if self.is_const_var(target):
             kw = "const"
         # need to check var is defined in the outer-scope already

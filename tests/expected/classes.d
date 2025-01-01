@@ -15,8 +15,8 @@ class Foo {
 }
 
 void main(string[] argv) {
-  Foo f = new Foo();
-  auto b = f.bar();
+  const Foo f = new Foo();
+  const b = f.bar();
   writeln(format("%s", b));
   assert(b == 10);
 }

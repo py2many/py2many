@@ -2,10 +2,10 @@
 import std;
 
 void default_builtins() {
-  string a = "";
-  bool b = false;
-  int c = 0;
-  double d = 0;
+  const string a = "";
+  const bool b = false;
+  const int c = 0;
+  const double d = 0;
   assert(a == "");
   assert(b == false);
   assert(c == 0);
@@ -13,10 +13,10 @@ void default_builtins() {
 }
 
 void main(string[] argv) {
-  int a = max(1, 2);
+  const int a = max(1, 2);
   writeln(format("%s", a));
-  int b = min(1, 2);
+  const int b = min(1, 2);
   writeln(format("%s", b));
-  int c = min(1.0, 2.0).to!int;
+  const int c = min(1.0, 2.0).to!int;
   writeln(format("%s", c));
 }

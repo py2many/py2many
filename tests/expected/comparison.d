@@ -2,7 +2,7 @@
 import std;
 
 void compare_with_integer_variable() {
-  int i = 0;
+  const int i = 0;
   int s = 1;
 
   if (i) {
@@ -14,7 +14,7 @@ void compare_with_integer_variable() {
 }
 
 void use_zero_for_comparison() {
-  int i = 0;
+  const int i = 0;
   int s = 1;
 
   if (0) {

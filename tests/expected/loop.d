@@ -23,7 +23,7 @@ void for_with_continue() {
 }
 
 void for_with_else() {
-  bool has_break = false;
+  const bool has_break = false;
   foreach (i; iota(0, 4, 1)) {
     writeln(format("%s", i));
   }

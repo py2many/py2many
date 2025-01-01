@@ -21,7 +21,7 @@ int[] bubble_sort(int[] seq) {
 
 void main(string[] argv) {
   int[] unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
-  int[] expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
+  const int[] expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
   assert(equal(bubble_sort(unsorted), expected));
   writeln(format("%s", "OK"));
 }
