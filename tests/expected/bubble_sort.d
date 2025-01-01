@@ -5,7 +5,7 @@ import std.range : iota;
 import std.typecons : tuple;
 
 int[] bubble_sort(int[] seq) {
-  const L = seq.length;
+  auto L = seq.length;
   foreach (_; iota(0, L, 1)) {
     foreach (n; iota(1, L, 1)) {
 
@@ -21,7 +21,7 @@ int[] bubble_sort(int[] seq) {
 
 void main(string[] argv) {
   int[] unsorted = [14, 11, 19, 5, 16, 10, 19, 12, 5, 12];
-  const int[] expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
+  int[] expected = [5, 5, 10, 11, 12, 12, 14, 16, 19, 19];
   assert(equal(bubble_sort(unsorted), expected));
   writeln(format("%s", "OK"));
 }

@@ -2,8 +2,8 @@
 import std;
 
 void foo() {
-  const int a = 10;
-  const int b = a;
+  int a = 10;
+  int b = a;
   assert(b == 10);
   writeln(format("%s", b));
 }

@@ -4,11 +4,11 @@ import std;
 void show() {
   writeln(format("%s", "b"));
   writeln(format("%s %s", 2, "b"));
-  const double a = 2.1;
+  double a = 2.1;
   writeln(format("%s", a));
-  const double b = 2.1;
+  double b = 2.1;
   writeln(format("%s", b));
-  const bool c = true;
+  bool c = true;
   writeln(format("%s", c ? ("True") : ("False")));
 }
 

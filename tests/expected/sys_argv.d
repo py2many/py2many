@@ -3,8 +3,8 @@ import std;
 import std.algorithm;
 
 void main(string[] argv) {
-  const string[] a = argv;
-  const string cmd = a[0];
+  string[] a = argv;
+  string cmd = a[0];
 
   if (cmd == "dart") {
     /* pass */
