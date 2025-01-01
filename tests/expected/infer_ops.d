@@ -2,20 +2,20 @@
 import std;
 
 void foo() {
-  int a = 10;
-  int b = 20;
-  int _c1 = (a + b);
-  int _c2 = (a - b);
-  int _c3 = (a * b);
-  int _c4 = (a / b);
-  int _c5 = -(a);
-  double d = 2.0;
-  double _e1 = (a + d);
-  double _e2 = (a - d);
-  double _e3 = (a * d);
-  double _e4 = (a / d);
-  double _f = -3.0;
-  int _g = -(a);
+  const int a = 10;
+  const int b = 20;
+  const int _c1 = (a + b);
+  const int _c2 = (a - b);
+  const int _c3 = (a * b);
+  const int _c4 = (a / b);
+  const int _c5 = -(a);
+  const double d = 2.0;
+  const double _e1 = (a + d);
+  const double _e2 = (a - d);
+  const double _e3 = (a * d);
+  const double _e4 = (a / d);
+  const double _f = -3.0;
+  const int _g = -(a);
 }
 
 short add1(byte x, byte y) {

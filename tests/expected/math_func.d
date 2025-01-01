@@ -2,7 +2,7 @@
 import std;
 
 void main_func() {
-  int a = pow(2, 4);
+  const int a = pow(2, 4);
   writeln(format("%s", a));
 }
 

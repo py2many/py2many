@@ -3,15 +3,15 @@ import std;
 import std.complex;
 
 void complex_test() {
-  auto c1 = (2 + std.complex.complex(0, 3));
-  auto c2 = (4 + std.complex.complex(0, 5));
-  auto c3 = (c1 + c2);
+  const c1 = (2 + std.complex.complex(0, 3));
+  const c2 = (4 + std.complex.complex(0, 5));
+  const c3 = (c1 + c2);
   assert(c3 == (6 + std.complex.complex(0, 8)));
-  auto c4 = (c1 + 3);
+  const c4 = (c1 + 3);
   assert(c4 == (5 + std.complex.complex(0, 3)));
-  auto c5 = (c1 + std.complex.complex(0, 4));
+  const c5 = (c1 + std.complex.complex(0, 4));
   assert(c5 == (2 + std.complex.complex(0, 7)));
-  auto c6 = (c3 - 2.3);
+  const c6 = (c3 - 2.3);
   assert(c6 == (3.7 + std.complex.complex(0, 8)));
 }
 

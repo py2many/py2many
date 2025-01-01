@@ -3,8 +3,8 @@ import std;
 import std.algorithm;
 
 void show() {
-  int a = 1;
-  auto b = [2, 3].canFind(a) ? (2) : (3);
+  const int a = 1;
+  const b = [2, 3].canFind(a) ? (2) : (3);
   writeln(format("%s", b));
 }
 
