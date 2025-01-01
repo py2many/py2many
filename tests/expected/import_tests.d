@@ -2,12 +2,12 @@
 import std;
 
 int test() {
-  const int[] a = [1, 2, 3];
+  int[] a = [1, 2, 3];
   return a[1];
 }
 
 void main(string[] argv) {
-  const int b = test();
+  int b = test();
   assert(b == 2);
   writeln(format("%s", "OK"));
 }

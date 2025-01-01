@@ -11,7 +11,7 @@ class Foo {
 }
 
 void main(string[] argv) {
-  const Foo f = new Foo();
-  const b = f.bar();
+  Foo f = new Foo();
+  auto b = f.bar();
   writeln(format("%s", b));
 }

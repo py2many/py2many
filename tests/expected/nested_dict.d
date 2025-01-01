@@ -3,7 +3,7 @@ import std;
 import std.algorithm;
 
 bool nested_containers() {
-  const int[][string] CODES = ["KEY": [1, 3]];
+  int[][string] CODES = ["KEY": [1, 3]];
   return CODES["KEY"].canFind(1);
 }
 

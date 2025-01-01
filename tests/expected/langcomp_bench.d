@@ -8,8 +8,8 @@ import std.range : iota;
 void test_python(int iterations) {
   int iteration = 0;
   double total = 0.0.to!double;
-  const int array_length = 1000;
-  const int[] array = iota(0, array_length, 1).map!(i => i).array();
+  int array_length = 1000;
+  int[] array = iota(0, array_length, 1).map!(i => i).array();
   writeln(format("%s %s", "iterations", iterations));
   while (iteration < iterations) {
     int innerloop = 0;
