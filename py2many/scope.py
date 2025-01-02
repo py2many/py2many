@@ -1,6 +1,6 @@
 import ast
-from contextlib import contextmanager
 from collections.abc import Iterable
+from contextlib import contextmanager
 
 from py2many.analysis import get_id
 
