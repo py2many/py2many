@@ -202,9 +202,9 @@ DISPATCH_MAP = {
 }
 
 MODULE_DISPATCH_TABLE = {
-        "tempfile.NamedTemporaryFile": "tempfile::NamedTempFile",
-        "pyanyhow.Result": "anyhow::Result",
-        "pyanyhow.Error": "anyhow::Error",
+    "tempfile.NamedTemporaryFile": "tempfile::NamedTempFile",
+    "pyanyhow.Result": "anyhow::Result",
+    "pyanyhow.Error": "anyhow::Error",
 }
 
 DECORATOR_DISPATCH_TABLE = {ap_dataclass: RustTranspilerPlugins.visit_ap_dataclass}
