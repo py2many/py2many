@@ -1,6 +1,7 @@
 # Trace object types that are inserted into Python list.
 
 import ast
+from collections.abc import Iterable
 from typing import Optional
 
 from py2many.analysis import get_id
@@ -11,6 +12,8 @@ from py2many.exceptions import AstNotImplementedError
 # TODO: is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
     for scope in scopes:
+        if not isinstance(scope.body, Iterable):
+            continue
         for entry in scope.body:
             if isinstance(entry, ast.ClassDef):
                 if entry.name == name:
