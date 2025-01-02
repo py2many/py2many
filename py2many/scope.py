@@ -1,5 +1,6 @@
 import ast
 from contextlib import contextmanager
+from collections.abc import Iterable
 
 from py2many.analysis import get_id
 
@@ -34,7 +35,15 @@ class ScopeMixin:
             return None
 
     def _is_scopable_node(self, node):
-        scopes = [ast.Module, ast.ClassDef, ast.FunctionDef, ast.For, ast.If, ast.With]
+        scopes = [
+            ast.Module,
+            ast.ClassDef,
+            ast.FunctionDef,
+            ast.Lambda,
+            ast.For,
+            ast.If,
+            ast.With,
+        ]
         return len([s for s in scopes if isinstance(node, s)]) > 0
 
 
@@ -61,7 +70,11 @@ class ScopeList(list):
             if not defn and hasattr(scope, "orelse_vars"):
                 defn = find_definition(scope, "orelse_vars")
             if not defn and hasattr(scope, "body"):
-                defn = find_definition(scope, "body")
+                # special case lambda functions here. Their body is not a list
+                if isinstance(scope.body, Iterable):
+                    defn = find_definition(scope, "body")
+                else:
+                    return None
             if defn:
                 return defn
 
