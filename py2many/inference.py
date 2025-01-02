@@ -549,7 +549,11 @@ class InferTypesTransformer(ast.NodeTransformer):
                 container_type, element_type = definition.container_type
                 if container_type == "Dict" or isinstance(element_type, list):
                     element_type = element_type[1]
-                node.annotation = ast.Name(id=element_type)
+                # we could check for lower/upper also
+                if hasattr(node.slice, "step"):
+                    node.annotation = definition.annotation
+                else:
+                    node.annotation = ast.Name(id=element_type)
                 if hasattr(definition.annotation, "lifetime"):
                     node.annotation.lifetime = definition.annotation.lifetime
         self.generic_visit(node)
