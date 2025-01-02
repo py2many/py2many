@@ -49,8 +49,8 @@ class parser:
 async def test_parser(input, expected):
     p = parser(u32(0))
     result = await p.parse(io.BytesIO(input))
-    if isinstance(expected, Ok):
-        assert result.value == expected
+    if isinstance(result, Ok):
+        assert result.value.value == expected.value
 
 
 if __name__ == "__main__":
