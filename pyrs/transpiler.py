@@ -260,6 +260,7 @@ class RustTranspiler(CLikeTranspiler):
         if node.annotation:
             if not self._extension:
                 typename = self._typename_from_annotation(node)
+                typename = map_type(typename)
             else:
                 typename = self._generic_typename_from_annotation(node)
                 typename = map_type(typename, extension=True)

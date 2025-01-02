@@ -1,11 +1,12 @@
 import ast
 import importlib
+import io  # noqa: F401
 import logging
-import math
-import os
-import random
+import math  # noqa: F401
+import os  # noqa: F401
+import random  # noqa: F401
 import sys
-import time
+import time  # noqa: F401
 
 # Fixed width ints and aliases
 from ctypes import c_int8 as i8
@@ -37,13 +38,7 @@ from py2many.exceptions import (
     AstTypeNotSupported,
     TypeNotSupported,
 )
-from py2many.result import Result
-
-os.path  # silence pyflakes
-math.pi  # silence pyflakes
-time.time  # silence pyflakes
-random.random  # silence pyflakes
-Result  # silence pyflakes
+from py2many.result import Result  # noqa: F401
 
 ilong = i64
 ulong = u64
