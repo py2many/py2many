@@ -1,5 +1,6 @@
 import ast
 import datetime
+import io
 import types
 import typing
 from ctypes import (
@@ -32,6 +33,7 @@ RUST_TYPE_MAP = {
     c_uint16: "u16",
     c_uint32: "u32",
     c_uint64: "u64",
+    io.RawIOBase: "std::fs::File",
 }
 
 RUST_CONTAINER_TYPE_MAP = {
