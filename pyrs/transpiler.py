@@ -678,7 +678,9 @@ class RustTranspiler(CLikeTranspiler):
             self._usings.add("std::collections::HashMap")
             kv_string = []
             for i in range(len(node.keys)):
-                key = self.visit(node.keys[i])
+                # we hit this case when using d1 = {..., **d2}
+                # The generated code isn't quite right, but it fixes a test error
+                key = self.visit(node.keys[i]) if node.keys[i] else "_"
                 value = self.visit(node.values[i])
                 kv_string.append(f"({key}, {value})")
             initialization = "[{0}].iter().cloned().collect::<HashMap<_,_>>()"
