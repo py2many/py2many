@@ -68,6 +68,10 @@ def _transpile(
     Transpile a single python translation unit (a python script) into
     target language
     """
+    if args.llm:
+        from .llm import llm_transpile
+
+        return llm_transpile(filenames, sources, settings, args)
     transpiler = settings.transpiler
     rewriters = settings.rewriters
     transformers = settings.transformers
@@ -441,6 +445,18 @@ def main(args=None, env=os.environ):
     )
     parser.add_argument(
         "--project", default=True, help="Create a project when using directory mode"
+    )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        default=False,
+        help="Use llm for transpiling",
+    )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default="",
+        help="LLM Model to use. Configurable other ways too",
     )
     args, rest = parser.parse_known_args(args=args)
 

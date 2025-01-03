@@ -1,4 +1,5 @@
 from setuptools import setup
+import sys
 
 version = None
 with open("py2many/version.py") as f:
@@ -13,6 +14,7 @@ test_deps = ["pytest", "argparse_dataclass"]
 
 extras = {
     "test": test_deps,
+    "llm": ["mlx_llm"] if sys.platform == "darwin" else ["llm"],
 }
 
 with open("README.md") as readme_file:
