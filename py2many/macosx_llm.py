@@ -5,6 +5,14 @@ from mlx_lm import generate, load
 
 
 @dataclass
+class Response:
+    output: str
+
+    def text(self) -> str:
+        return self.output
+
+
+@dataclass
 class Model:
     model: Any
     tokenizer: Any
@@ -14,7 +22,7 @@ class Model:
         llm_prompt = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-        return generate(self.model, self.tokenizer, prompt=llm_prompt)
+        return Response(generate(self.model, self.tokenizer, prompt=llm_prompt))
 
 
 def get_model(model_name):
