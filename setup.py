@@ -15,7 +15,7 @@ test_deps = ["pytest", "argparse_dataclass"]
 
 extras = {
     "test": test_deps,
-    "llm": ["mlx_llm"] if sys.platform == "darwin" else ["llm"],
+    "llm": ["mlx_llm"] if sys.platform == "darwin" else ["llm", "llm-ollama"],
 }
 
 with open("README.md") as readme_file:
