@@ -68,7 +68,7 @@ def _transpile(
     Transpile a single python translation unit (a python script) into
     target language
     """
-    if args.llm:
+    if hasattr(args, "llm") and args.llm:
         from .llm import llm_transpile
 
         return llm_transpile(filenames, sources, settings, args)
