@@ -69,7 +69,7 @@ def _transpile(
     target language
     """
     if hasattr(args, "llm") and args.llm:
-        from .llm import llm_transpile
+        from .llm_transpile import llm_transpile
 
         return llm_transpile(filenames, sources, settings, args)
     transpiler = settings.transpiler
