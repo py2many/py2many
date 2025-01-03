@@ -36,7 +36,7 @@ def llm_transpile(
 
                    {source}"""
         response = model.prompt(prompt)
-        code = extract_code(response)
+        code = extract_code(response.text())
         if code is None:
             code = "FAILED"
         outputs[filename] = code
