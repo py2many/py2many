@@ -146,8 +146,7 @@ class RustTranspiler(CLikeTranspiler):
             else ""
         )
         lint_ignores += "\n".join(f"#![allow({allow})]" for allow in self._allows)
-        cargo_toml = (
-            f"""\
+        cargo_toml = f"""\
         //! ```cargo
         //! [package]
         //! edition = "2021"
@@ -155,7 +154,6 @@ class RustTranspiler(CLikeTranspiler):
         //! {deps_str}
         //! ```
         """
-        )
         return f"{cargo_toml}\n{lint_ignores}\n\n{externs}\n{uses}\n"
 
     def features(self):
