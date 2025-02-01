@@ -135,7 +135,11 @@ def get_exe_filename(case, ext):
 
 @lru_cache()
 def get_python_case_output(case_filename, main_args, exit_code):
-    proc = run([sys.executable, str(case_filename), *main_args], capture_output=True, check=False)
+    proc = run(
+        [sys.executable, str(case_filename), *main_args],
+        capture_output=True,
+        check=False,
+    )
     if exit_code:
         assert proc.returncode == exit_code
     elif proc.returncode:
