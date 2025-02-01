@@ -37,7 +37,8 @@ shift;
 
 if [ "$MODE" = "lint" ]; then
     cd $DIR
-    cargo clippy --fix --allow-dirty
+    # uncomment if there are lint errors py2many didn't fix or was asked not to fix
+    #cargo clippy --fix --allow-dirty
     cargo clippy
 elif [ "$MODE" = "compile" ]; then
     cargo build --manifest-path $DIR/Cargo.toml
