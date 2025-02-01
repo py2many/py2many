@@ -110,7 +110,7 @@ Compiling:
 
 ```sh
 clang tests/expected/fib.cpp
-rustup run nightly cargo build -Zscript --manifest-path tests/expected/fib.rs
+./scripts/rust-runner.sh run tests/expected/fib.rs
 ...
 dmd -run tests/cases/fib.d
 ```

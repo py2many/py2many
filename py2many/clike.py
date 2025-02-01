@@ -151,10 +151,12 @@ class CLikeTranspiler(ast.NodeVisitor):
         # Save some settings
         extension = self._extension
         throw_on_unimplemented = self._throw_on_unimplemented
+        no_prologue = getattr(self, "_no_prologue", False)
 
         self.__init__()
 
         # Re-apply settings
+        self._no_prologue = no_prologue
         self._extension = extension
         self._throw_on_unimplemented = throw_on_unimplemented
 

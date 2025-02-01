@@ -155,8 +155,6 @@ class RustTranspiler(CLikeTranspiler):
         //! {deps_str}
         //! ```
         """
-            if not self._no_prologue
-            else ""
         )
         return f"{cargo_toml}\n{lint_ignores}\n\n{externs}\n{uses}\n"
 
