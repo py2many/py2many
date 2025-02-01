@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install linters
-        run: pip install black cpplint isort flake8
+        run: pip install black=24.10.0 cpplint isort flake8
 
       - name: Remove expected .py files
         run: rm tests/expected/*.py tests/dir_cases/test1-*-expected/*.py
