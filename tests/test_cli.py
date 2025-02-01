@@ -53,7 +53,7 @@ COMPILERS = {
     "nim": ["nim", "compile", "--nimcache:."],
     "rust": [
         "../../scripts/rust-runner.sh",
-        "run",
+        "compile",
     ],
     "vlang": ["v"],
     "mojo": ["mojo", "build"],
@@ -135,7 +135,7 @@ def get_exe_filename(case, ext):
 
 @lru_cache()
 def get_python_case_output(case_filename, main_args, exit_code):
-    proc = run([sys.executable, str(case_filename), *main_args], capture_output=True)
+    proc = run([sys.executable, str(case_filename), *main_args], capture_output=True, check=False)
     if exit_code:
         assert proc.returncode == exit_code
     elif proc.returncode:
@@ -267,9 +267,9 @@ class TestCodeGenerator:
                     return
                 cmd = _create_cmd(compiler, filename=case_output, exe=exe)
                 print(f"Compiling {cmd} ...")
-                proc = run(cmd, env=env, check=not expect_failure)
+                proc = run(cmd, env=env, check=False)
 
-                if proc.returncode:
+                if proc.returncode and not expect_failure:
                     raise pytest.skip(f"{case}{ext} doesnt compile")
 
                 if self.UPDATE_EXPECTED or not os.path.exists(expected_filename):

@@ -27,7 +27,7 @@ fi
 # Extract the embedded Cargo.toml content
 # Look for lines between ```cargo and ```
 # Remove the first 4 characters (e.g., "//! ") from each line
-$SED -n '/```cargo/,/```/p' "$1" | $SED '1d;$d' | $SED 's/^....//' > $DIR/Cargo.toml
+$SED -n '/```cargo/,/```/p' "$1" | $SED '1d;$d' | $SED 's#^//!##' | $SED 's/^ //' > $DIR/Cargo.toml
 bin_name=$(basename -s .rs $1)
 $SED -i "s/^.package.\$/[package]\nname=\"$bin_name\"/" $DIR/Cargo.toml
 
@@ -39,6 +39,8 @@ if [ "$MODE" = "lint" ]; then
     cd $DIR
     cargo clippy --fix --allow-dirty
     cargo clippy
+elif [ "$MODE" = "compile" ]; then
+    cargo build --manifest-path $DIR/Cargo.toml
 else
     cargo run --manifest-path $DIR/Cargo.toml $*
 fi
