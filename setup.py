@@ -34,6 +34,7 @@ packages = [
     "pyrs",
     "pysmt",
     "pyv",
+    "pyzig",
 ]
 package_dir = {f"py2many.{pkg}": pkg for pkg in packages if pkg != "py2many"}
 package_dir["py2many"] = "py2many"
