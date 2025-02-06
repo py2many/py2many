@@ -20,6 +20,16 @@ class ZigTranspilerPlugins:
             " ".join(placeholders), ", ".join(vargs)
         )
 
+    def visit_range(self, node, vargs: List[str]) -> str:
+        if len(node.args) == 1:
+            return f"(0..{vargs[0]})"
+        elif len(node.args) == 2:
+            return f"({vargs[0]}..{vargs[1]})"
+
+        raise Exception(
+            f"encountered range() call with unknown parameters: range({vargs})"
+        )
+
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
@@ -34,6 +44,7 @@ SMALL_USINGS_MAP: Dict[str, str] = {}
 
 DISPATCH_MAP = {
     "print": ZigTranspilerPlugins.visit_print,
+    "range": ZigTranspilerPlugins.visit_range,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
