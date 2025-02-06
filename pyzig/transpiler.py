@@ -1,7 +1,7 @@
 import ast
 from typing import List
 
-from py2many.analysis import get_id, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
@@ -179,27 +179,31 @@ class ZigTranspiler(CLikeTranspiler):
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
         ret = self._dispatch(node, fname, vargs)
+        node_result_type = getattr(node, "result_type", False)
+        node_func_result_type = getattr(node.func, "result_type", False)
+        try_prefix = "try " if node_result_type or node_func_result_type else ""
         if ret is not None:
             return ret
         if vargs:
             args = ", ".join(vargs)
         else:
             args = ""
-        return f"{fname}({args})"
+        return f"{try_prefix} {fname}({args})"
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
-        buf.append(f"for {target} in {it}{{")
+        buf.append(f"for {it} |{target}| {{")
         buf.extend(
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
         )
-        return "}}\n".join(buf)
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_While(self, node) -> str:
         buf = []
-        buf.append(f"while {self.visit(node.test)} {{")
+        buf.append(f"while ({self.visit(node.test)}) {{")
         buf.extend(
             [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
         )
@@ -416,7 +420,8 @@ class ZigTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
-        kw = "var"  # zig 24.1 removed support for let
+        mut = is_mutable(node.scopes, get_id(target))
+        kw = "var" if mut else "const"
         if type_str == self._default_type:
             return f"{kw} {target} = {val}"
         return f"{kw} {target}: {type_str} = {val}"
@@ -430,7 +435,8 @@ class ZigTranspiler(CLikeTranspiler):
         return "\n".join(lines)
 
     def _visit_AssignOne(self, node, target) -> str:
-        kw = "var"  # zig 24.1 removed support for let
+        mut = is_mutable(node.scopes, get_id(target))
+        kw = "var" if mut else "const"
 
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
