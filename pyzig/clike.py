@@ -156,11 +156,11 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_NameConstant(self, node) -> str:
         if node.value is True:
-            return "True"
+            return "true"
         elif node.value is False:
-            return "False"
+            return "false"
         elif node.value is None:
-            return "None"
+            return "null"
         elif node.value is Ellipsis:
             return self.visit_Ellipsis(node)
         else:
