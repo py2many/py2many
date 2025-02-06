@@ -20,6 +20,7 @@ on:
         - vlang
         - dlang
         - mojo
+        - zig
         - ''
       os:
         type: choice
@@ -95,6 +96,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: mlugg/setup-zig@v1
+        if: ${{ !env.FOCUS || env.FOCUS == 'zig' }}
 
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@v2
