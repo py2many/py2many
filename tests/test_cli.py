@@ -57,6 +57,7 @@ COMPILERS = {
     ],
     "vlang": ["v"],
     "mojo": ["mojo", "build"],
+    "zig": ["zig", "build-exe"],
 }
 
 INVOKER = {
@@ -72,6 +73,10 @@ INVOKER = {
     "smt": ["z3", "-smt2"],
     "vlang": ["v", "run"],
     "mojo": ["mojo"],
+    "zig": [
+        "../../scripts/zig-runner.sh",
+        "run",
+    ],
 }
 
 # kscript requires a KOTLIN_HOME.

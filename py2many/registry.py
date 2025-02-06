@@ -19,6 +19,7 @@ if CI in ["1", "true"]:  # pragma: no cover
     from .pyrs import settings as rust_settings
     from .pysmt import settings as smt_settings
     from .pyv import settings as vlang_settings
+    from .pyzig import settings as zig_settings
 else:
     try:  # pragma: no cover
         from .pycpp import settings as cpp_settings
@@ -32,6 +33,7 @@ else:
         from .pyrs import settings as rust_settings
         from .pysmt import settings as smt_settings
         from .pyv import settings as vlang_settings
+        from .pyzig import settings as zig_settings
     except ImportError:
         from pycpp import settings as cpp_settings
         from pyd import settings as dlang_settings
@@ -44,7 +46,7 @@ else:
         from pyrs import settings as rust_settings
         from pysmt import settings as smt_settings
         from pyv import settings as vlang_settings
-
+        from pyzig import settings as zig_settings
 
 PY2MANY_DIR = pathlib.Path(__file__).parent
 ROOT_DIR = PY2MANY_DIR.parent
@@ -75,6 +77,7 @@ ALL_SETTINGS = {
     "go": go_settings,
     "vlang": vlang_settings,
     "smt": smt_settings,
+    "zig": zig_settings,
 }
 
 
