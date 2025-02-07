@@ -15,7 +15,11 @@ class ZigTranspilerPlugins:
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            placeholders.append("{}")
+            typename = self._generic_typename_from_annotation(n)
+            if typename == "str":
+                placeholders.append("{s}")
+            else:
+                placeholders.append("{}")
         self._aliases["print"] = "std.debug.print"
         return 'print("{}\\n", .{{{}}});'.format(
             " ".join(placeholders), ", ".join(vargs)

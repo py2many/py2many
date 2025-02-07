@@ -8,6 +8,6 @@ pub fn fib(i: i32) i32 {
     return (fib((i - 1)) + fib((i - 2)));
 }
 
-pub fn main() !void {
+pub fn main() void {
     print("{}\n", .{fib(5)});
 }
