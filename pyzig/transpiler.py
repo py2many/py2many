@@ -100,7 +100,7 @@ class ZigTranspiler(CLikeTranspiler):
         if return_type != "":
             funcdef = f"pub fn {node.name}({args}) {return_type} {{"
         else:
-            funcdef = f"pub fn {node.name}({args}) !void {{"
+            funcdef = f"pub fn {node.name}({args}) void {{"
         return self.indent(f"{funcdef}\n{body}\n}}\n", level=node.level)
 
     def visit_Return(self, node) -> str:
@@ -471,10 +471,14 @@ class ZigTranspiler(CLikeTranspiler):
             value = self.visit(node.value)
             return f"{target} = {value}"
         else:
+            typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
+            optional_typename = (
+                f": {typename}" if typename != self._default_type else ""
+            )
 
-            return f"{kw} {target} = {value};"
+            return f"{kw} {target}{optional_typename} = {value};"
 
     def visit_Yield(self, node) -> str:
         if node.value is not None:
