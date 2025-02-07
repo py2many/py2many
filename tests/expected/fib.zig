@@ -1,4 +1,5 @@
 const std = @import("std");
+const print = std.debug.print;
 pub fn fib(i: i32) i32 {
     if (i == 0 or i == 1) {
         return 1;
@@ -8,5 +9,5 @@ pub fn fib(i: i32) i32 {
 }
 
 pub fn main() !void {
-    std.debug.print("{}\n", .{fib(5)});
+    print("{}\n", .{fib(5)});
 }

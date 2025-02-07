@@ -158,6 +158,10 @@ def _transpile_one(
     usings = transpiler.usings()
     if usings:
         out.append(usings)
+    # languages like zig have aliases that come after usings
+    aliases = transpiler.aliases()
+    if aliases:
+        out.append(aliases)
     out.append(code)
     if transpiler.extension:
         out.append(transpiler.extension_module(tree))

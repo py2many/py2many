@@ -131,6 +131,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         """Note __init__ is called in ._reset() to reset the transpiler state."""
         self._headers = set()
         self._usings = set()
+        self._aliases: Dict[str, str] = {}
         self._imported_names: Dict[str, Any] = {}
         self._features = set()
         self._statement_separator = ";"
@@ -164,6 +165,9 @@ class CLikeTranspiler(ast.NodeVisitor):
         return ""
 
     def usings(self):
+        return ""
+
+    def aliases(self):
         return ""
 
     def features(self):
