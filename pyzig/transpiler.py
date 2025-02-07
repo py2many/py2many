@@ -79,13 +79,6 @@ class ZigTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            arg_node = node.args.args[i]
-            # special case constructor self which zig says should be passes as "inout"
-            if node.name == "__init__" and arg == "self":
-                arg = "inout " + arg
-            elif getattr(arg_node, "owned", None):
-                arg = "owned " + arg
-
             args_list.append(f"{arg}: {typename}")
 
         return_type = ""
@@ -114,9 +107,6 @@ class ZigTranspiler(CLikeTranspiler):
             if fndef:
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_zig_type(node.value)
-                if getattr(node, "transfer", None):
-                    # transfer sigil
-                    ret = ret + "^"
                 if return_type != value_type and value_type is not None:
                     return f"return {return_type}({ret})"
             return f"return {ret};"
