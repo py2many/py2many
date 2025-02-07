@@ -53,6 +53,12 @@ class ZigTranspiler(CLikeTranspiler):
         uses = "\n".join(f"usingnamespace {mod};" for mod in usings)
         return uses
 
+    def aliases(self):
+        aliases = []
+        for alias, full_name in self._aliases.items():
+            aliases.append(f"const {alias} = {full_name};")
+        return "\n".join(aliases)
+
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}[{index_type}]"
@@ -416,7 +422,8 @@ class ZigTranspiler(CLikeTranspiler):
 
     def visit_Assert(self, node) -> str:
         self._usings.add("testing")
-        return f"testing.assert_true({self.visit(node.test)})"
+        self._aliases["expect"] = "std.testing.expect"
+        return f"try expect({self.visit(node.test)})"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)

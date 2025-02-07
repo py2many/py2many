@@ -16,7 +16,8 @@ class ZigTranspilerPlugins:
         placeholders = []
         for n in node.args:
             placeholders.append("{}")
-        return 'std.debug.print("{}\\n", .{{{}}});'.format(
+        self._aliases["print"] = "std.debug.print"
+        return 'print("{}\\n", .{{{}}});'.format(
             " ".join(placeholders), ", ".join(vargs)
         )
 
