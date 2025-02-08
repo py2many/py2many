@@ -7,7 +7,7 @@ from py2many.language import LanguageSettings
 from py2many.process_helpers import find_executable
 
 from .inference import infer_julia_types
-from .rewriters import JuliaBoolOpRewriter, JuliaIndexingRewriter
+from .rewriters import JuliaBoolOpRewriter, JuliaIndexingRewriter, JuliaUnittestRewriter
 from .transpiler import JuliaMethodCallRewriter, JuliaTranspiler
 
 
@@ -44,5 +44,6 @@ def settings(args, env=os.environ):
             JuliaIndexingRewriter(),
             JuliaMethodCallRewriter(),
             JuliaBoolOpRewriter(),
+            JuliaUnittestRewriter(),
         ],
     )
