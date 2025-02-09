@@ -1,13 +1,19 @@
-from py2many.smt import check_sat, get_model
+from py2many.smt import check_sat, default_value, get_value
+from py2many.smt import pre as smt_pre
 
-x: int
-y: int
+x: int = default_value(int)
+y: int = default_value(int)
 
-x > 2
-y < 10
-x + 2 * y == 7
 
+def equation(x: int, y: int) -> bool:
+    if smt_pre:
+        assert x > 2
+        assert y < 10
+        assert x + 2 * y == 7
+    pass
+
+
+assert equation(x, y)
 check_sat()
 get_value((x, y))
-
 # z3 -smt2 equations.smt prints: x = 7, y = 0

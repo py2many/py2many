@@ -18,6 +18,7 @@ class SmtTranspiler(CLikeTranspiler):
         CLikeTranspiler._default_type = "var"
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
+        self._in_smt_pre = False
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -39,7 +40,6 @@ class SmtTranspiler(CLikeTranspiler):
         return f"(declare-fun {node.name}() {return_type})"
 
     def visit_FunctionDef(self, node):
-        body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         typenames, args = self.visit(node.args)
 
         args_list = []
@@ -62,8 +62,19 @@ class SmtTranspiler(CLikeTranspiler):
             return self._visit_DeclareFunc(node, return_type)
 
         args = " ".join(args_list)
+        is_smt_pre = getattr(node, "is_smt_pre", False)
+        suffix = "-pre" if is_smt_pre else ""
         funcdef = f"define-fun {node.name}({args}) {return_type}"
-        return f"({funcdef}\n{body})\n"
+        body = "\n".join([self.indent(self.visit(n)) for n in node.body])
+        if is_smt_pre:
+            self._in_smt_pre = True
+            pre_body = "\n".join([self.indent(self.visit(n)) for n in node.body])
+            self._in_smt_pre = False
+
+            funcdef_pre = f"define-fun {node.name}{suffix}({args}) {return_type}"
+            return f"({funcdef_pre}\n{pre_body})\n\n({funcdef}\n{body})\n"
+        else:
+            return f"({funcdef}\n{body})\n"
 
     def visit_Return(self, node):
         if node.value:
@@ -101,7 +112,16 @@ class SmtTranspiler(CLikeTranspiler):
             args = ""
         if self._is_higher_order(node.func):
             return f"(apply {fname}{args})"
-        return f"({fname}{args})"
+        ret = []
+        fndef = node.scopes.find(fname)
+        if fndef and getattr(fndef, "is_smt_pre", False):
+            ret.append("(and")
+            ret.append(f"({fname}-pre {args})")
+            ret.append(f"({fname}{args})")
+            ret.append(")")
+        else:
+            ret.append(f"({fname}{args})")
+        return "\n".join(ret)
 
     def visit_sealed_class(self, node):
         variants = []
@@ -178,11 +198,13 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_Assert(self, node):
         expr = self.visit(node.test)
+        if self._in_smt_pre:
+            return f"{expr}"
         return f"(assert {expr})"
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        if val == None:
+        if val == None or "default-value" in val:
             return f"(declare-const {target} {type_str})"
         else:
             raise AstNotImplementedError(f"{val} can't be assigned", node)
@@ -232,15 +254,26 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_If(self, node, use_parens=True) -> str:
         buf = []
-        buf.append(f"(ite {self.visit(node.test)} ")
-        body = [self.visit(child) for child in node.body]
-        body = [b for b in body if b is not None]
-        buf.extend(body)
-
-        orelse = [self.visit(child) for child in node.orelse]
-        if orelse:
-            buf.extend(orelse)
-            buf.append(")")
+        check = get_id(node.test)
+        if check == "smt_pre":
+            if self._in_smt_pre:
+                buf.append("(and")
+                body = [self.visit(child) for child in node.body]
+                body = [b for b in body if b is not None]
+                buf.extend(body)
+                buf.append(")")
+            else:
+                buf.append("true")
         else:
-            buf.append("0)")
+            buf.append(f"(ite {self.visit(node.test)} ")
+            body = [self.visit(child) for child in node.body]
+            body = [b for b in body if b is not None]
+            buf.extend(body)
+
+            orelse = [self.visit(child) for child in node.orelse]
+            if orelse:
+                buf.extend(orelse)
+                buf.append(")")
+            else:
+                buf.append("0)")
         return "\n".join(buf)
