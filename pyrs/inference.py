@@ -14,10 +14,9 @@ from ctypes import (
     c_uint64,
 )
 
-from py2many.analysis import get_id, is_mutable
+from py2many.analysis import get_id
 from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type, is_reference
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase, is_reference
 
 RUST_TYPE_MAP = {
     int: "i32",
@@ -85,25 +84,53 @@ RUST_WIDTH_RANK = {
 RUST_RANK_TO_TYPE = {v: k for k, v in RUST_WIDTH_RANK.items()}
 
 
-class InferRustTypesTransformer(ast.NodeTransformer):
+class RustInference(LanguageInferenceBase):
+    TYPE_MAP = RUST_TYPE_MAP
+    CONTAINER_TYPE_MAP = RUST_CONTAINER_TYPE_MAP
+    WIDTH_RANK = RUST_WIDTH_RANK
+    EXTENSION_TYPE_MAP = RUST_EXTENSION_TYPE_MAP
+
+    @classmethod
+    def extension_map_type(cls, typename, return_type=False):
+        typeclass = class_for_typename(typename, None)
+        if typeclass in cls.EXTENSION_TYPE_MAP:
+            return cls.EXTENSION_TYPE_MAP[typeclass]
+        return typename
+
+    @classmethod
+    def map_type(cls, typename, extension=False, return_type=False):
+        if extension:
+            return cls.extension_map_type(typename, return_type)
+        return super().map_type(typename)
+
+
+def map_type(typename, extension=False, return_type=False):
+    return RustInference.map_type(typename, extension, return_type)
+
+
+def get_inferred_rust_type(node):
+    return RustInference.get_inferred_language_type(node, "rust_annotation")
+
+
+def is_rust_reference(node):
+    """Check if an AST node should be treated as a reference in Rust"""
+    if hasattr(node, "rust_is_reference"):
+        return node.rust_is_reference
+    return is_reference(node)
+
+
+class InferRustTypesTransformer(InferTypesTransformer):
     """Implements rust type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
-    def __init__(self, extension):
+    def __init__(self, extension=False):
         super().__init__()
         self._extension = extension
 
     def _handle_overflow(self, op, left_id, right_id):
-        left_rust_id = map_type(left_id)
-        right_rust_id = map_type(right_id)
-
-        left_rust_rank = RUST_WIDTH_RANK.get(left_rust_id, -1)
-        right_rust_rank = RUST_WIDTH_RANK.get(right_rust_id, -1)
-
-        return left_rust_id if left_rust_rank > right_rust_rank else right_rust_id
+        if self._extension:
+            left_id = RustInference.extension_map_type(left_id)
+            right_id = RustInference.extension_map_type(right_id)
+        return RustInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -122,11 +149,11 @@ class InferRustTypesTransformer(ast.NodeTransformer):
         right = rvar.annotation if rvar and hasattr(rvar, "annotation") else None
 
         if left is None and right is not None:
-            node.rust_annotation = map_type(get_id(right))
+            node.rust_annotation = get_inferred_rust_type(right)
             return node
 
         if right is None and left is not None:
-            node.rust_annotation = map_type(get_id(left))
+            node.rust_annotation = get_inferred_rust_type(left)
             return node
 
         if right is None and left is None:
@@ -136,140 +163,11 @@ class InferRustTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.rust_annotation = map_type(left_id)
-            return node
-
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
-
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.rust_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.rust_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.rust_annotation = map_type("float")
-                return node
-
-            LEGAL_COMBINATIONS = {
-                ("str", ast.Mult),
-                ("str", ast.Mod),
-                ("List", ast.Add),
-            }
-
-            if (
-                left_id is not None
-                and (left_id, type(node.op)) not in LEGAL_COMBINATIONS
-            ):
-                raise AstUnrecognisedBinOp(left_id, right_id, node)
-
-        return node
-
-    def visit_FunctionDef(self, node):
-        node.no_return = True
-        node.rust_pyresult_type = self._extension
-        self.generic_visit(node)
-        return node
-
-    def visit_Return(self, node):
-        self.generic_visit(node)
-        fndef = None
-        for scope in node.scopes:
-            if isinstance(scope, ast.FunctionDef):
-                fndef = scope
-                break
-        if fndef:
-            fndef.no_return = False
-        if node.value:
-            if fndef and fndef.returns:
-                if is_reference(node.value):
-                    mut = is_mutable(node.scopes, get_id(node.value))
-                    fndef.returns.rust_needs_reference = not mut
-                    fndef.rust_return_needs_reference = (
-                        fndef.returns.rust_needs_reference
-                    )
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.rust_annotation = ret
         return node
 
 
 def infer_rust_types(node, extension=False):
     visitor = InferRustTypesTransformer(extension)
     visitor.visit(node)
-
-
-def extension_map_type(typename, return_type=False):
-    if typename == "_":
-        return "&PyAny"
-    if typename == None and return_type:
-        return "PyResult<()>"
-
-    typeclass = class_for_typename(typename, "&PyAny")
-
-    if typeclass in RUST_EXTENSION_TYPE_MAP:
-        if return_type and typeclass == str:
-            typename = "String"
-            return f"PyResult<{typename}>"
-        else:
-            return RUST_EXTENSION_TYPE_MAP[typeclass]
-
-    if typeclass in RUST_TYPE_MAP:
-        return RUST_TYPE_MAP[typeclass]
-
-    if return_type and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME:
-        return f"PyResult<{typename}>"
-    else:
-        return typename
-
-
-def map_type(typename, extension=False, return_type=False):
-    if extension:
-        return extension_map_type(typename, return_type)
-    typeclass = class_for_typename(typename, "&PyAny")
-    if typeclass in RUST_TYPE_MAP:
-        return RUST_TYPE_MAP[typeclass]
-    return typename
-
-
-def is_rust_reference(node):
-    if not is_reference(node):
-        return False
-    if isinstance(node, ast.Call):
-        definition = node.scopes.find(get_id(node.func))
-        needs_reference = getattr(definition, "rust_return_needs_reference", True)
-        return needs_reference
-    return True
-
-
-def get_inferred_rust_type(node):
-    if hasattr(node, "rust_annotation"):
-        return node.rust_annotation
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition and definition != node:
-            return get_inferred_rust_type(definition)
-    python_type = get_inferred_type(node)
-    ret = map_type(get_id(python_type))
-    node.rust_annotation = ret
-    return ret
