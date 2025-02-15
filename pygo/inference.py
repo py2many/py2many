@@ -11,9 +11,7 @@ from ctypes import (
 )
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 GO_TYPE_MAP = {
     bool: "bool",
@@ -33,7 +31,6 @@ GO_TYPE_MAP = {
 
 GO_CONTAINER_TYPE_MAP = {"List": "[]", "Dict": None, "Set": None, "Optional": "nil"}
 
-
 GO_WIDTH_RANK = {
     "bool": 0,
     "int8": 1,
@@ -49,52 +46,21 @@ GO_WIDTH_RANK = {
 }
 
 
-def infer_go_types(node):
-    visitor = InferGoTypesTransformer()
-    visitor.visit(node)
-
-
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in GO_TYPE_MAP:
-        return GO_TYPE_MAP[typeclass]
-    return typename
+class GoInference(LanguageInferenceBase):
+    TYPE_MAP = GO_TYPE_MAP
+    CONTAINER_TYPE_MAP = GO_CONTAINER_TYPE_MAP
+    WIDTH_RANK = GO_WIDTH_RANK
 
 
 def get_inferred_go_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_go_type(definition)
-    if hasattr(node, "go_annotation"):
-        return node.go_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return GoInference.get_inferred_language_type(node, "go_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferGoTypesTransformer(ast.NodeTransformer):
+class InferGoTypesTransformer(InferTypesTransformer):
     """Implements go type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_go_id = map_type(left_id)
-        right_go_id = map_type(right_id)
-
-        left_go_rank = GO_WIDTH_RANK.get(left_go_id, -1)
-        right_go_rank = GO_WIDTH_RANK.get(right_go_id, -1)
-
-        return left_go_id if left_go_rank > right_go_rank else right_go_id
+        return GoInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -127,39 +93,11 @@ class InferGoTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.go_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.go_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.go_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_go_types(node):
+    visitor = InferGoTypesTransformer()
+    visitor.visit(node)
