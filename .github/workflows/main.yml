@@ -226,6 +226,19 @@ jobs:
             tox
           fi
 
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "tests/current-results.xml"
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-xml-results
+          path: tests/current-results.xml
+
+
   lint:
     runs-on: ubuntu-latest
 
