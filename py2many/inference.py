@@ -59,7 +59,7 @@ def get_inferred_type(node):
         # Prevent infinite recursion
         if definition != node and definition is not None:
             return get_inferred_type(definition)
-    elif isinstance(node, ast.Constant) or isinstance(node, ast.NameConstant):
+    elif isinstance(node, ast.Constant):
         return InferTypesTransformer._infer_primitive(node.value)
     if hasattr(node, "annotation"):
         return node.annotation
