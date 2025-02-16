@@ -11,9 +11,7 @@ from ctypes import (
 )
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 KT_TYPE_MAP = {
     bool: "Boolean",
@@ -38,8 +36,6 @@ KT_CONTAINER_TYPE_MAP = {
     "Optional": "Nothing",
 }
 
-REVERSE_KT_TYPE_MAP = {v: k for k, v in KT_TYPE_MAP.items()}
-
 KT_WIDTH_RANK = {
     "Boolean": 0,
     "Byte": 1,
@@ -54,50 +50,25 @@ KT_WIDTH_RANK = {
     "Double": 10,
 }
 
-
-def infer_kotlin_types(node):
-    visitor = InferKotlinTypesTransformer()
-    visitor.visit(node)
+KT_REVERSE_TYPE_MAP = {v: k for k, v in KT_TYPE_MAP.items()}
 
 
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in KT_TYPE_MAP:
-        return KT_TYPE_MAP[typeclass]
-    return typename
+class KotlinInference(LanguageInferenceBase):
+    TYPE_MAP = KT_TYPE_MAP
+    CONTAINER_TYPE_MAP = KT_CONTAINER_TYPE_MAP
+    WIDTH_RANK = KT_WIDTH_RANK
+    REVERSE_TYPE_MAP = KT_REVERSE_TYPE_MAP
 
 
 def get_inferred_kotlin_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_kotlin_type(definition)
-    if hasattr(node, "kotlin_annotation"):
-        return node.kotlin_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return KotlinInference.get_inferred_language_type(node, "kotlin_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferKotlinTypesTransformer(ast.NodeTransformer):
+class InferKotlinTypesTransformer(InferTypesTransformer):
     """Implements kotlin type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_kotlin_id = map_type(left_id)
-        right_kotlin_id = map_type(right_id)
-
-        # Derived this by messing around with the compiler
+        # Kotlin has special widening rules
         def widen(kotlin_id):
             if kotlin_id in {"Byte", "Short"}:
                 return "Int"
@@ -105,18 +76,16 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
                 return "UInt"
             return kotlin_id
 
+        left_kotlin_id = KotlinInference.map_type(left_id)
+        right_kotlin_id = KotlinInference.map_type(right_id)
+
         left_kotlin_id = widen(left_kotlin_id)
         right_kotlin_id = widen(right_kotlin_id)
 
-        left_id = REVERSE_KT_TYPE_MAP.get(left_kotlin_id)
-        right_id = REVERSE_KT_TYPE_MAP.get(right_kotlin_id)
+        left_id = KotlinInference.REVERSE_TYPE_MAP.get(left_kotlin_id)
+        right_id = KotlinInference.REVERSE_TYPE_MAP.get(right_kotlin_id)
 
-        left_kotlin_rank = KT_WIDTH_RANK.get(left_kotlin_id, -1)
-        right_kotlin_rank = KT_WIDTH_RANK.get(right_kotlin_id, -1)
-
-        return (
-            left_kotlin_id if left_kotlin_rank > right_kotlin_rank else right_kotlin_id
-        )
+        return KotlinInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -149,39 +118,11 @@ class InferKotlinTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.kotlin_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.kotlin_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.kotlin_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.kotlin_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.kotlin_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_kotlin_types(node):
+    visitor = InferKotlinTypesTransformer()
+    visitor.visit(node)

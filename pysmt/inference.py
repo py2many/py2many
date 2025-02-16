@@ -12,15 +12,13 @@ from ctypes import (
 from typing import Callable
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 SMT_TYPE_MAP = {
     int: "Int",
     float: "Float64",
-    bytes: "openArray[byte]",
-    str: "string",
+    bytes: "Array Int Int",  # SMT uses Array type with integer indices
+    str: "String",
     bool: "Bool",
     c_int8: "Int8",
     c_int16: "Int16",
@@ -31,6 +29,13 @@ SMT_TYPE_MAP = {
     c_uint32: "UInt32",
     c_uint64: "UInt64",
     Callable: "FuncType",
+}
+
+SMT_CONTAINER_TYPE_MAP = {
+    "List": "Array Int",  # Array with integer indices
+    "Dict": "Array",  # General Array type
+    "Set": "Array Bool",  # Array with boolean values for set membership
+    "Optional": "Option",
 }
 
 SMT_WIDTH_RANK = {
@@ -49,52 +54,33 @@ SMT_WIDTH_RANK = {
 }
 
 
-def infer_smt_types(node: ast.AST):
-    visitor = InferSmtTypesTransformer()
-    visitor.visit(node)
+class SmtInference(LanguageInferenceBase):
+    TYPE_MAP = SMT_TYPE_MAP
+    CONTAINER_TYPE_MAP = SMT_CONTAINER_TYPE_MAP
+    WIDTH_RANK = SMT_WIDTH_RANK
 
-
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in SMT_TYPE_MAP:
-        return SMT_TYPE_MAP[typeclass]
-    return typename
+    @classmethod
+    def map_type(cls, typename):
+        mapped = super().map_type(typename)
+        # Special handling for array types in SMT
+        if mapped.startswith("Array"):
+            parts = mapped.split()
+            if len(parts) == 2:  # List case
+                return f"(Array Int {parts[1]})"
+            if len(parts) == 3:  # Bytes/bytearray case
+                return f"(Array {parts[1]} {parts[2]})"
+        return mapped
 
 
 def get_inferred_smt_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_smt_type(definition)
-    if hasattr(node, "smt_annotation"):
-        return node.smt_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return SmtInference.get_inferred_language_type(node, "smt_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferSmtTypesTransformer(ast.NodeTransformer):
+class InferSmtTypesTransformer(InferTypesTransformer):
     """Implements smt type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_smt_id = map_type(left_id)
-        right_smt_id = map_type(right_id)
-
-        left_smt_rank = SMT_WIDTH_RANK.get(left_smt_id, -1)
-        right_smt_rank = SMT_WIDTH_RANK.get(right_smt_id, -1)
-
-        return left_smt_id if left_smt_rank > right_smt_rank else right_smt_id
+        return SmtInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -127,39 +113,11 @@ class InferSmtTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.smt_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.smt_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.smt_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.smt_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_smt_types(node: ast.AST):
+    visitor = InferSmtTypesTransformer()
+    visitor.visit(node)

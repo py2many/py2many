@@ -11,9 +11,7 @@ from ctypes import (
 )
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 MOJO_TYPE_MAP = {
     int: "Int",
@@ -55,52 +53,21 @@ MOJO_WIDTH_RANK = {
 }
 
 
-def infer_mojo_types(node):
-    visitor = InferMojoTypesTransformer()
-    visitor.visit(node)
-
-
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in MOJO_TYPE_MAP:
-        return MOJO_TYPE_MAP[typeclass]
-    return typename
+class MojoInference(LanguageInferenceBase):
+    TYPE_MAP = MOJO_TYPE_MAP
+    CONTAINER_TYPE_MAP = MOJO_CONTAINER_TYPE_MAP
+    WIDTH_RANK = MOJO_WIDTH_RANK
 
 
 def get_inferred_mojo_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_mojo_type(definition)
-    if hasattr(node, "mojo_annotation"):
-        return node.mojo_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return MojoInference.get_inferred_language_type(node, "mojo_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferMojoTypesTransformer(ast.NodeTransformer):
+class InferMojoTypesTransformer(InferTypesTransformer):
     """Implements mojo type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_mojo_id = map_type(left_id)
-        right_mojo_id = map_type(right_id)
-
-        left_mojo_rank = MOJO_WIDTH_RANK.get(left_mojo_id, -1)
-        right_mojo_rank = MOJO_WIDTH_RANK.get(right_mojo_id, -1)
-
-        return left_mojo_id if left_mojo_rank > right_mojo_rank else right_mojo_id
+        return MojoInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -133,39 +100,11 @@ class InferMojoTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.mojo_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.mojo_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.mojo_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.mojo_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_mojo_types(node):
+    visitor = InferMojoTypesTransformer()
+    visitor.visit(node)

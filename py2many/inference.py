@@ -105,6 +105,50 @@ def is_compatible(
     return True
 
 
+class LanguageInferenceBase:
+    """Base class for language-specific type inference"""
+
+    TYPE_MAP = {}  # Should be overridden by subclasses
+    CONTAINER_TYPE_MAP = {}  # Should be overridden by subclasses
+    WIDTH_RANK = {}  # Should be overridden by subclasses
+
+    @classmethod
+    def map_type(cls, typename):
+        typeclass = class_for_typename(typename, None)
+        if typeclass in cls.TYPE_MAP:
+            return cls.TYPE_MAP[typeclass]
+        return typename
+
+    @classmethod
+    def get_inferred_language_type(cls, node, annotation_attr):
+        if isinstance(node, ast.Call):
+            fname = get_id(node.func)
+            if fname in {"max", "min", "floor"}:
+                return cls.TYPE_MAP.get(float, "float64")
+        if isinstance(node, ast.Name):
+            if not hasattr(node, "scopes"):
+                return None
+            definition = node.scopes.find(get_id(node))
+            # Prevent infinite recursion
+            if definition != node:
+                return cls.get_inferred_language_type(definition, annotation_attr)
+        if hasattr(node, annotation_attr):
+            return getattr(node, annotation_attr)
+        python_type = get_inferred_type(node)
+        return cls.map_type(get_id(python_type))
+
+    @classmethod
+    def handle_overflow(cls, op, left_id, right_id):
+        """Handle numeric type widening for binary operations"""
+        left_lang_id = cls.map_type(left_id)
+        right_lang_id = cls.map_type(right_id)
+
+        left_rank = cls.WIDTH_RANK.get(left_lang_id, -1)
+        right_rank = cls.WIDTH_RANK.get(right_lang_id, -1)
+
+        return left_lang_id if left_rank > right_rank else right_lang_id
+
+
 class InferTypesTransformer(ast.NodeTransformer):
     """
     Tries to infer types

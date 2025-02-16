@@ -11,9 +11,7 @@ from ctypes import (
 )
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 ZIG_TYPE_MAP = {
     int: "i32",
@@ -39,69 +37,36 @@ ZIG_CONTAINER_TYPE_MAP = {
     "Optional": "Optional",
 }
 
-
 ZIG_WIDTH_RANK = {
     "bool": 0,
-    "int8": 1,
-    "uint8": 2,
-    "int16": 3,
-    "uint16": 4,
-    "int32": 5,
-    "uint32": 6,
-    "int64": 7,
-    "uint64": 8,
-    "float32": 9,
-    "float64": 10,
-    "float": 9,
+    "i8": 1,
+    "u8": 2,
+    "i16": 3,
+    "u16": 4,
+    "i32": 5,
+    "u32": 6,
+    "i64": 7,
+    "u64": 8,
+    "f32": 9,
+    "f64": 10,
 }
 
 
-def infer_zig_types(node):
-    visitor = InferZigTypesTransformer()
-    visitor.visit(node)
-
-
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in ZIG_TYPE_MAP:
-        return ZIG_TYPE_MAP[typeclass]
-    return typename
+class ZigInference(LanguageInferenceBase):
+    TYPE_MAP = ZIG_TYPE_MAP
+    CONTAINER_TYPE_MAP = ZIG_CONTAINER_TYPE_MAP
+    WIDTH_RANK = ZIG_WIDTH_RANK
 
 
 def get_inferred_zig_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_zig_type(definition)
-    if hasattr(node, "zig_annotation"):
-        return node.zig_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return ZigInference.get_inferred_language_type(node, "zig_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferZigTypesTransformer(ast.NodeTransformer):
+class InferZigTypesTransformer(InferTypesTransformer):
     """Implements zig type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_zig_id = map_type(left_id)
-        right_zig_id = map_type(right_id)
-
-        left_zig_rank = ZIG_WIDTH_RANK.get(left_zig_id, -1)
-        right_zig_rank = ZIG_WIDTH_RANK.get(right_zig_id, -1)
-
-        return left_zig_id if left_zig_rank > right_zig_rank else right_zig_id
+        return ZigInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -134,39 +99,11 @@ class InferZigTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.zig_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.zig_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.zig_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.zig_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_zig_types(node):
+    visitor = InferZigTypesTransformer()
+    visitor.visit(node)

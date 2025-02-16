@@ -12,9 +12,7 @@ from ctypes import (
 from typing import Dict
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 V_TYPE_MAP: Dict[type, str] = {
     int: "int",
@@ -32,14 +30,14 @@ V_TYPE_MAP: Dict[type, str] = {
     c_uint64: "u64",
 }
 
-V_CONTAINER_TYPE_MAP: Dict[str, str] = {
+V_CONTAINER_TYPE_MAP = {
     "List": "[]",
     "Dict": "map",
     "Set": "set",
     "Optional": "?",
 }
 
-V_WIDTH_RANK: Dict[str, int] = {
+V_WIDTH_RANK = {
     "bool": 0,
     "i8": 1,
     "byte": 2,
@@ -54,53 +52,21 @@ V_WIDTH_RANK: Dict[str, int] = {
 }
 
 
-def infer_v_types(node: ast.AST):
-    visitor = InferVTypesTransformer()
-    visitor.visit(node)
+class VInference(LanguageInferenceBase):
+    TYPE_MAP = V_TYPE_MAP
+    CONTAINER_TYPE_MAP = V_CONTAINER_TYPE_MAP
+    WIDTH_RANK = V_WIDTH_RANK
 
 
-def map_type(typename: str) -> str:
-    typeclass = class_for_typename(typename, None)
-    return V_TYPE_MAP.get(typeclass, typename)
+def get_inferred_v_type(node):
+    return VInference.get_inferred_language_type(node, "v_annotation")
 
 
-def get_inferred_v_type(node: ast.AST) -> str:
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "f64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition: ast.AST = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_v_type(definition)
-    if hasattr(node, "v_annotation"):
-        return node.v_annotation
-    python_type: ast.AST = get_inferred_type(node)
-    return map_type(get_id(python_type))
-
-
-# Copy pasta from rust. Double check for correctness
-class InferVTypesTransformer(ast.NodeTransformer):
+class InferVTypesTransformer(InferTypesTransformer):
     """Implements v type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
-    def __init__(self):
-        super().__init__()
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_v_id = map_type(left_id)
-        right_v_id = map_type(right_id)
-
-        left_v_rank = V_WIDTH_RANK.get(left_v_id, -1)
-        right_v_rank = V_WIDTH_RANK.get(right_v_id, -1)
-
-        return left_id if left_v_rank > right_v_rank else right_id
+        return VInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -133,42 +99,11 @@ class InferVTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.v_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.v_annotation = map_type(ret)
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.v_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.v_annotation = map_type("float")
-                return node
-            if left_id == "str" and right_id == "int":
-                node.v_annotation = map_type("str")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_v_types(node):
+    visitor = InferVTypesTransformer()
+    visitor.visit(node)

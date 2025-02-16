@@ -30,8 +30,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
-        # TODO: Int is a hack. Remove.
-        return f"({value_type} Int {index_type})"
+        return f"(Array {index_type} {value_type})"
 
     def comment(self, text):
         return f";; {text}\n"
@@ -187,7 +186,12 @@ class SmtTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
         index = self.visit(node.slice)
-        return f"(select {value} {index})"
+        if (
+            hasattr(node.value, "smt_annotation")
+            and "Array" in node.value.smt_annotation
+        ):
+            return f"(select {value} {index})"
+        return super().visit_Subscript(node)
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
@@ -218,9 +222,22 @@ class SmtTranspiler(CLikeTranspiler):
         return "\n".join(lines)
 
     def visit_List(self, node) -> str:
+        if not node.elts:
+            value_type = "Int"  # Default to Int for empty arrays
+            return f"((as const (Array Int {value_type})) 0)"
+
         elements = [self.visit(e) for e in node.elts]
-        elements = " ".join(elements)
-        return f"({elements})"
+        elements_str = " ".join(elements)
+
+        # Infer element type from first element if possible
+        first = node.elts[0]
+        if hasattr(first, "smt_annotation"):
+            value_type = first.smt_annotation
+        else:
+            value_type = "Int"  # Default
+
+        indices = " ".join(str(i) for i in range(len(elements)))
+        return f"((lambda ((i Int)) (ite (= i {indices}) {elements_str} 0)) :init)"
 
     def _visit_AssignOne(self, node, target):
         kw = "assert" if is_mutable(node.scopes, get_id(target)) else "let"

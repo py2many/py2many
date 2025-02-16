@@ -11,9 +11,7 @@ from ctypes import (
 )
 
 from py2many.analysis import get_id
-from py2many.clike import class_for_typename
-from py2many.exceptions import AstUnrecognisedBinOp
-from py2many.inference import InferTypesTransformer, get_inferred_type
+from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 NIM_TYPE_MAP = {
     int: "int",
@@ -54,52 +52,21 @@ NIM_WIDTH_RANK = {
 }
 
 
-def infer_nim_types(node):
-    visitor = InferNimTypesTransformer()
-    visitor.visit(node)
-
-
-def map_type(typename):
-    typeclass = class_for_typename(typename, None)
-    if typeclass in NIM_TYPE_MAP:
-        return NIM_TYPE_MAP[typeclass]
-    return typename
+class NimInference(LanguageInferenceBase):
+    TYPE_MAP = NIM_TYPE_MAP
+    CONTAINER_TYPE_MAP = NIM_CONTAINER_TYPE_MAP
+    WIDTH_RANK = NIM_WIDTH_RANK
 
 
 def get_inferred_nim_type(node):
-    if isinstance(node, ast.Call):
-        fname = get_id(node.func)
-        if fname in {"max", "min", "floor"}:
-            return "float64"
-    if isinstance(node, ast.Name):
-        if not hasattr(node, "scopes"):
-            return None
-        definition = node.scopes.find(get_id(node))
-        # Prevent infinite recursion
-        if definition != node:
-            return get_inferred_nim_type(definition)
-    if hasattr(node, "nim_annotation"):
-        return node.nim_annotation
-    python_type = get_inferred_type(node)
-    return map_type(get_id(python_type))
+    return NimInference.get_inferred_language_type(node, "nim_annotation")
 
 
-# Copy pasta from rust. Double check for correctness
-class InferNimTypesTransformer(ast.NodeTransformer):
+class InferNimTypesTransformer(InferTypesTransformer):
     """Implements nim type inference logic as opposed to python type inference logic"""
 
-    FIXED_WIDTH_INTS = InferTypesTransformer.FIXED_WIDTH_INTS
-    FIXED_WIDTH_INTS_NAME_LIST = InferTypesTransformer.FIXED_WIDTH_INTS_NAME
-    FIXED_WIDTH_INTS_NAME = InferTypesTransformer.FIXED_WIDTH_INTS_NAME_LIST
-
     def _handle_overflow(self, op, left_id, right_id):
-        left_nim_id = map_type(left_id)
-        right_nim_id = map_type(right_id)
-
-        left_nim_rank = NIM_WIDTH_RANK.get(left_nim_id, -1)
-        right_nim_rank = NIM_WIDTH_RANK.get(right_nim_id, -1)
-
-        return left_nim_id if left_nim_rank > right_nim_rank else right_nim_id
+        return NimInference.handle_overflow(op, left_id, right_id)
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
@@ -132,39 +99,11 @@ class InferNimTypesTransformer(ast.NodeTransformer):
         left_id = get_id(left)
         right_id = get_id(right)
 
-        # Special case int op int = int, where op != Div
-        if (
-            left_id == right_id
-            and left_id == "int"
-            and not isinstance(node.op, ast.Div)
-        ):
-            node.annotation = left
-            node.go_annotation = map_type(left_id)
-            return node
+        ret = self._handle_overflow(node.op, left_id, right_id)
+        node.nim_annotation = ret
+        return node
 
-        if left_id == "int":
-            left_id = "c_int32"
-        if right_id == "int":
-            right_id = "c_int32"
 
-        if (
-            left_id in self.FIXED_WIDTH_INTS_NAME
-            and right_id in self.FIXED_WIDTH_INTS_NAME
-        ):
-            ret = self._handle_overflow(node.op, left_id, right_id)
-            node.nim_annotation = ret
-            return node
-        if left_id == right_id:
-            node.annotation = left
-            node.nim_annotation = map_type(left_id)
-            return node
-        else:
-            if left_id in self.FIXED_WIDTH_INTS_NAME:
-                left_id = "int"
-            if right_id in self.FIXED_WIDTH_INTS_NAME:
-                right_id = "int"
-            if (left_id, right_id) in {("int", "float"), ("float", "int")}:
-                node.nim_annotation = map_type("float")
-                return node
-
-            raise AstUnrecognisedBinOp(left_id, right_id, node)
+def infer_nim_types(node):
+    visitor = InferNimTypesTransformer()
+    visitor.visit(node)
