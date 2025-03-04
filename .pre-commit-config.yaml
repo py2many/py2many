@@ -28,4 +28,5 @@ repos:
     hooks:
       - id: cpplint
         args:
-          - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference tests/expected/*.cpp
+          - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference
+          - tests/expected/*.cpp
