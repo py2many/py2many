@@ -115,9 +115,7 @@ class LanguageInferenceBase:
     @classmethod
     def map_type(cls, typename):
         typeclass = class_for_typename(typename, None)
-        if typeclass in cls.TYPE_MAP:
-            return cls.TYPE_MAP[typeclass]
-        return typename
+        return cls.TYPE_MAP.get(typeclass, typename)
 
     @classmethod
     def get_inferred_language_type(cls, node, annotation_attr):
