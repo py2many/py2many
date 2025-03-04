@@ -23,3 +23,9 @@ repos:
     rev: 7.1.1
     hooks:
     -   id: flake8
+-   repo: https://github.com/cpplint/cpplint
+    rev: 2.0.0
+    hooks:
+      - id: cpplint
+        args:
+          - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference tests/expected/*.cpp
