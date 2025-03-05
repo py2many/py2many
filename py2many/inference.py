@@ -133,7 +133,9 @@ class LanguageInferenceBase:
             if definition != node:
                 return cls.get_inferred_language_type(definition, annotation_attr)
         python_type = get_inferred_type(node)
-        return cls.map_type(get_id(python_type))
+        ret = cls.map_type(get_id(python_type))
+        setattr(node, annotation_attr, ret)
+        return ret
 
     @classmethod
     def handle_overflow(cls, op, left_id, right_id):
