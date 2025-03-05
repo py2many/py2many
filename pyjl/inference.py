@@ -70,6 +70,12 @@ class InferJuliaTypesTransformer(InferTypesTransformer):
     def visit_BinOp(self, node):
         self.generic_visit(node)
 
+        # Detect nesting in binary operations
+        if isinstance(node.left, ast.BinOp):
+            node.left.isnested = True
+        if isinstance(node.right, ast.BinOp):
+            node.right.isnested = True
+
         if isinstance(node.left, ast.Name):
             lvar = node.scopes.find(get_id(node.left))
         else:
