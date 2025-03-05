@@ -85,7 +85,12 @@ class InferKotlinTypesTransformer(InferTypesTransformer):
         left_id = KotlinInference.REVERSE_TYPE_MAP.get(left_kotlin_id)
         right_id = KotlinInference.REVERSE_TYPE_MAP.get(right_kotlin_id)
 
-        return KotlinInference.handle_overflow(op, left_id, right_id)
+        left_kotlin_rank = KT_WIDTH_RANK.get(left_kotlin_id, -1)
+        right_kotlin_rank = KT_WIDTH_RANK.get(right_kotlin_id, -1)
+
+        return (
+            left_kotlin_id if left_kotlin_rank > right_kotlin_rank else right_kotlin_id
+        )
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
