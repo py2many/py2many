@@ -119,6 +119,8 @@ class LanguageInferenceBase:
 
     @classmethod
     def get_inferred_language_type(cls, node, annotation_attr):
+        if hasattr(node, annotation_attr):
+            return getattr(node, annotation_attr)
         if isinstance(node, ast.Call):
             fname = get_id(node.func)
             if fname in {"max", "min", "floor"}:
@@ -130,8 +132,6 @@ class LanguageInferenceBase:
             # Prevent infinite recursion
             if definition != node:
                 return cls.get_inferred_language_type(definition, annotation_attr)
-        if hasattr(node, annotation_attr):
-            return getattr(node, annotation_attr)
         python_type = get_inferred_type(node)
         return cls.map_type(get_id(python_type))
 
