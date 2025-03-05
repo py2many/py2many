@@ -134,7 +134,8 @@ class LanguageInferenceBase:
                 return cls.get_inferred_language_type(definition, annotation_attr)
         python_type = get_inferred_type(node)
         ret = cls.map_type(get_id(python_type))
-        setattr(node, annotation_attr, ret)
+        if node is not None:
+            setattr(node, annotation_attr, ret)
         return ret
 
     @classmethod
