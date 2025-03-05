@@ -14,7 +14,7 @@ from ctypes import (
     c_uint64,
 )
 
-from py2many.analysis import get_id
+from py2many.analysis import get_id, is_mutable
 from py2many.clike import class_for_typename
 from py2many.inference import InferTypesTransformer, LanguageInferenceBase, is_reference
 
@@ -92,10 +92,30 @@ class RustInference(LanguageInferenceBase):
 
     @classmethod
     def extension_map_type(cls, typename, return_type=False):
-        typeclass = class_for_typename(typename, None)
-        if typeclass in cls.EXTENSION_TYPE_MAP:
-            return cls.EXTENSION_TYPE_MAP[typeclass]
-        return typename
+        if typename == "_":
+            return "&PyAny"
+        if typename == None and return_type:
+            return "PyResult<()>"
+
+        typeclass = class_for_typename(typename, "&PyAny")
+
+        if typeclass in RUST_EXTENSION_TYPE_MAP:
+            if return_type and typeclass == str:
+                typename = "String"
+                return f"PyResult<{typename}>"
+            else:
+                return RUST_EXTENSION_TYPE_MAP[typeclass]
+
+        if typeclass in RUST_TYPE_MAP:
+            return RUST_TYPE_MAP[typeclass]
+
+        if (
+            return_type
+            and typename not in InferRustTypesTransformer.FIXED_WIDTH_INTS_NAME
+        ):
+            return f"PyResult<{typename}>"
+        else:
+            return typename
 
     @classmethod
     def map_type(cls, typename, extension=False, return_type=False):
@@ -113,10 +133,13 @@ def get_inferred_rust_type(node):
 
 
 def is_rust_reference(node):
-    """Check if an AST node should be treated as a reference in Rust"""
-    if hasattr(node, "rust_is_reference"):
-        return node.rust_is_reference
-    return is_reference(node)
+    if not is_reference(node):
+        return False
+    if isinstance(node, ast.Call):
+        definition = node.scopes.find(get_id(node.func))
+        needs_reference = getattr(definition, "rust_return_needs_reference", True)
+        return needs_reference
+    return True
 
 
 class InferRustTypesTransformer(InferTypesTransformer):
@@ -165,6 +188,31 @@ class InferRustTypesTransformer(InferTypesTransformer):
 
         ret = self._handle_overflow(node.op, left_id, right_id)
         node.rust_annotation = ret
+        return node
+
+    def visit_FunctionDef(self, node):
+        node.no_return = True
+        node.rust_pyresult_type = self._extension
+        self.generic_visit(node)
+        return node
+
+    def visit_Return(self, node):
+        self.generic_visit(node)
+        fndef = None
+        for scope in node.scopes:
+            if isinstance(scope, ast.FunctionDef):
+                fndef = scope
+                break
+        if fndef:
+            fndef.no_return = False
+        if node.value:
+            if fndef and fndef.returns:
+                if is_reference(node.value):
+                    mut = is_mutable(node.scopes, get_id(node.value))
+                    fndef.returns.rust_needs_reference = not mut
+                    fndef.rust_return_needs_reference = (
+                        fndef.returns.rust_needs_reference
+                    )
         return node
 
 
