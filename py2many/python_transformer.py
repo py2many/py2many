@@ -19,20 +19,25 @@ class RestoreMainRewriter(ast.NodeTransformer):
 class PythonTranspiler(CLikeTranspiler):
     NAME = "python"
 
-    def __init__(self):
+    def __init__(self, no_prologue: bool = False):
         super().__init__()
         CLikeTranspiler._type_map = {}
         CLikeTranspiler._container_type_map = {}
+        self._no_prologue = no_prologue
 
     def visit(self, node):
         return ast.unparse(node)
 
     def usings(self):
-        return "\n".join(
-            [
-                "from typing import Callable, Dict, List, Set, Optional",
-                "from ctypes import c_int8 as i8, c_int16 as i16, c_int32 as i32, c_int64 as i64",
-                "from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as u64",
-                "import sys",
-            ]
+        return (
+            "\n".join(
+                [
+                    "from typing import Callable, Dict, List, Set, Optional",
+                    "from ctypes import c_int8 as i8, c_int16 as i16, c_int32 as i32, c_int64 as i64",
+                    "from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as u64",
+                    "import sys",
+                ]
+            )
+            if not self._no_prologue
+            else ""
         )
