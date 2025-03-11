@@ -55,7 +55,7 @@ FAKE_ARGS = Mock(indent=4)
 
 def python_settings(args, env=os.environ):
     return LanguageSettings(
-        PythonTranspiler(),
+        PythonTranspiler(args.no_prologue),
         ".py",
         "Python",
         formatter=["black"],
