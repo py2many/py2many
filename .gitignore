@@ -31,3 +31,4 @@ target/
 Cargo.lock
 go.mod
 go.sum
+.vscode/
