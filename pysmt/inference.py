@@ -16,7 +16,7 @@ from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 
 SMT_TYPE_MAP = {
     int: "Int",
-    float: "Float64",
+    float: "Real",
     bytes: "Array Int Int",  # SMT uses Array type with integer indices
     str: "String",
     bool: "Bool",
@@ -48,9 +48,7 @@ SMT_WIDTH_RANK = {
     "UInt32": 6,
     "Int64": 7,
     "UInt64": 8,
-    "Float32": 9,
-    "Float64": 10,
-    "Float": 9,
+    "Real": 9,
 }
 
 
