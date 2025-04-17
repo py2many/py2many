@@ -3,6 +3,7 @@ from py2many.smt import pre as smt_pre
 
 x: int = default_value(int)
 y: int = default_value(int)
+z: float = default_value(float)
 
 
 def equation(x: int, y: int) -> bool:
@@ -13,7 +14,14 @@ def equation(x: int, y: int) -> bool:
     pass
 
 
+def fequation(z: float) -> bool:
+    if smt_pre:
+        assert 9.8 + 2 * z == z + 9.11
+    pass
+
+
 assert equation(x, y)
+assert fequation(z)
 check_sat()
-get_value((x, y))
+get_value((x, y, z))
 # z3 -smt2 equations.smt prints: x = 7, y = 0

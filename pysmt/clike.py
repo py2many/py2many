@@ -86,6 +86,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         return f"({op} {left} {right})"
 
+    def _cast(self, name: str, to) -> str:
+        to = to.lower()
+        return f"(to_{to} {name})"
+
     def visit_BinOp(self, node):
         if isinstance(node.op, ast.Pow):
             left = self.visit(node.left)
@@ -103,9 +107,9 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         right_rank = SMT_WIDTH_RANK.get(right_type, -1)
 
         if left_rank > right_rank:
-            right = f"{left_type}({right})"
+            right = self._cast(right, left_type)
         elif right_rank > left_rank:
-            left = f"{right_type}({left})"
+            left = self._cast(left, right_type)
 
         return f"({op} {left} {right})"
 
