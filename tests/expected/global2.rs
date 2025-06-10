@@ -51,7 +51,7 @@ lazy_static! {
         .collect::<HashMap<_, _>>();
 }
 pub fn main() -> Result<()> {
-    assert!(l_b.iter().any(|&x| x == "a"));
+    assert!(l_b.contains(&"a"));
     println!("{}", "OK");
     Ok(())
 }

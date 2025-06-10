@@ -35,17 +35,17 @@ use std::collections::HashMap;
 
 pub fn implicit_keys() -> bool {
     let CODES: &HashMap<&str, i32> = &[("KEY", 1)].iter().cloned().collect::<HashMap<_, _>>();
-    return CODES.keys().any(|&x| x == "KEY");
+    return CODES.contains_key(&"KEY");
 }
 
 pub fn explicit_keys() -> bool {
     let CODES: &HashMap<&str, i32> = &[("KEY", 1)].iter().cloned().collect::<HashMap<_, _>>();
-    return CODES.keys().any(|&x| x == "KEY");
+    return CODES.contains_key(&"KEY");
 }
 
 pub fn dict_values() -> bool {
     let CODES: &HashMap<&str, i32> = &[("KEY", 1)].iter().cloned().collect::<HashMap<_, _>>();
-    return CODES.values().any(|&x| x == 1);
+    return CODES.values().any(|x| x == &1);
 }
 
 pub fn return_dict_index_str(key: &str) -> i32 {

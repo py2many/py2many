@@ -39,7 +39,7 @@ pub fn nested_containers() -> bool {
         .iter()
         .cloned()
         .collect::<HashMap<_, _>>();
-    return CODES[&"KEY"].iter().any(|&x| x == 1);
+    return CODES[&"KEY"].contains(&1);
 }
 
 pub fn main() -> Result<()> {

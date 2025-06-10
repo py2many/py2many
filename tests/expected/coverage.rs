@@ -54,7 +54,7 @@ pub fn indexing() -> i32 {
 }
 
 pub fn infer_bool(code: i32) -> bool {
-    return vec![1, 2, 4].iter().any(|&x| x == code);
+    return vec![1, 2, 4].contains(&code);
 }
 
 pub fn show() {
