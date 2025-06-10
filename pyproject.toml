@@ -45,19 +45,34 @@ Homepage = "https://github.com/adsharma/py2many"
 [tool.setuptools]
 packages = [
     "py2many",
-    "pycpp",
-    "pyd",
-    "pydart",
-    "pygo",
-    "pyjl",
-    "pykt",
-    "pymojo",
-    "pynim",
-    "pyrs",
-    "pysmt",
-    "pyv",
-    "pyzig",
+    "py2many.pycpp",
+    "py2many.pyd",
+    "py2many.pydart",
+    "py2many.pygo",
+    "py2many.pyjl",
+    "py2many.pykt",
+    "py2many.pymojo",
+    "py2many.pynim",
+    "py2many.pyrs",
+    "py2many.pysmt",
+    "py2many.pyv",
+    "py2many.pyzig",
 ]
+
+[tool.setuptools.package-dir]
+"py2many" = "py2many"
+"py2many.pycpp" = "pycpp"
+"py2many.pyd" = "pyd"
+"py2many.pydart" = "pydart"
+"py2many.pygo" = "pygo"
+"py2many.pyjl" = "pyjl"
+"py2many.pykt" = "pykt"
+"py2many.pymojo" = "pymojo"
+"py2many.pynim" = "pynim"
+"py2many.pyrs" = "pyrs"
+"py2many.pysmt" = "pysmt"
+"py2many.pyv" = "pyv"
+"py2many.pyzig" = "pyzig"
 
 [tool.setuptools.dynamic]
 version = {attr = "py2many.version.__version__"}
