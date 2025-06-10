@@ -428,13 +428,21 @@ class RustTranspiler(CLikeTranspiler):
             if value_type and value_type[0] == "Dict":
                 right += ".keys()"
 
-        if not right.endswith(".keys()") and not right.endswith(".values()"):
-            right += ".iter()"
+        cmpop = "contains"
+        left = f"&{left}"
+        if right.endswith(".keys()"):
+            right = right[:-7]  # remove the .keys()
+            cmpop = "contains_key"
+        elif right.endswith(".values()"):
+            if isinstance(node.ops[0], ast.In):
+                return f"{right}.any(|x| x == {left})"
+            elif isinstance(node.ops[0], ast.NotIn):
+                return f"{right}.all(|x| x != {left})"
 
         if isinstance(node.ops[0], ast.In):
-            return f"{right}.any(|&x| x == {left})"  # is it too much?
+            return f"{right}.{cmpop}({left})"
         elif isinstance(node.ops[0], ast.NotIn):
-            return f"{right}.all(|&x| x != {left})"  # is it even more?
+            return f"!{right}.{cmpop}({left})"
 
         return super().visit_Compare(node)
 

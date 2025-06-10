@@ -46,7 +46,7 @@ pub fn main() -> Result<()> {
     for j in l_b {
         println!("{}", *j);
     }
-    if vec!["a", "b"].iter().any(|&x| x == "a") {
+    if vec!["a", "b"].contains(&"a") {
         println!("{}", "OK");
     }
     Ok(())

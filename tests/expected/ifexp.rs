@@ -35,11 +35,7 @@ use std::collections;
 
 pub fn show() {
     let a: i32 = 1;
-    let b = if vec![2, 3].iter().any(|&x| x == a) {
-        2
-    } else {
-        3
-    };
+    let b = if vec![2, 3].contains(&a) { 2 } else { 3 };
     println!("{}", b);
 }
 
