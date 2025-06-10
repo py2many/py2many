@@ -1,7 +1,70 @@
+[project]
+name = "py2many"
+description = "Python to CLike language transpiler."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Arun Sharma"}
+]
+requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pytest",
+    "argparse_dataclass",
+    "typpete @ git+https://github.com/adsharma/Typpete/",
+    "algebraic-data-types @ git+https://github.com/adsharma/adt/",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+    "importlib-resources; python_version < '3.9'",
+    "pytest-cov",
+    "black",
+    "astpretty",
+    "jgo",
+]
+llm = [
+    "mlx_llm; sys_platform == 'darwin'",
+    "llm; sys_platform != 'darwin'",
+    "llm-ollama; sys_platform != 'darwin'",
+]
+
+[project.scripts]
+py2many = "py2many.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/adsharma/py2many"
+
+[tool.setuptools]
+packages = [
+    "py2many",
+    "pycpp",
+    "pyd",
+    "pydart",
+    "pygo",
+    "pyjl",
+    "pykt",
+    "pymojo",
+    "pynim",
+    "pyrs",
+    "pysmt",
+    "pyv",
+    "pyzig",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "py2many.version.__version__"}
+
 [tool.isort]
 profile = "black"
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
-
