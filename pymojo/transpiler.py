@@ -70,9 +70,9 @@ class MojoTranspiler(CLikeTranspiler):
             typename = typenames[i]
             arg = args[i]
             arg_node = node.args.args[i]
-            # special case constructor self which mojo says should be passes as "inout"
+            # special case constructor self which mojo says should be passes as "out"
             if node.name == "__init__" and arg == "self":
-                arg = "inout " + arg
+                arg = "out " + arg
             elif getattr(arg_node, "owned", None):
                 arg = "owned " + arg
 

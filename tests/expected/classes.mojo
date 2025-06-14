@@ -2,7 +2,7 @@ import testing
 
 
 struct Foo:
-    fn __init__(inout self: Foo):
+    fn __init__(out self: Foo):
         pass
 
     fn bar(self: Foo) -> Int:
