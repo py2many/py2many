@@ -8,7 +8,7 @@ fn bubble_sort(owned seq: List[Int]) -> List[Int]:
             if seq[n] < seq[(n - 1)]:
                 (seq[(n - 1)], seq[n]) = (seq[n], seq[(n - 1)])
 
-    return seq ^
+    return seq^
 
 
 fn main() raises:
