@@ -5,8 +5,6 @@
 # Edit the list of languages above based on what you're interested in
 FROM archlinux:base-devel
 
-MAINTAINER Arun Sharma <arun@sharma-home.net>
-
 ARG RUST
 ARG CPP
 ARG GOLANG
@@ -17,6 +15,7 @@ ARG DART
 ARG VLANG
 ARG SMT
 ARG DLANG
+ARG MOJO
 
 RUN useradd --create-home --comment "Arch Build User" build
 ENV HOME /home/build
@@ -46,6 +45,9 @@ RUN test -z "$DART" || pacman -Syu --noconfirm dart
 
 # Dlang
 RUN test -z "$DLANG" || pacman -Syu --noconfirm dlang
+
+# mojo
+RUN test -z "$MOJO" || pacman -Syu --noconfirm pixi
 
 # Install yay
 USER build
@@ -91,6 +93,10 @@ RUN test -z "$DART" || yay -S --noconfirm flutter-target-linux
 RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
     julia -e 'using Pkg; Pkg.add("SuperEnum")' && \
     (cd /home/build/bin && ln -s $(find ~/.julia -name format.jl)))
+
+# mojo
+RUN test -z "$MOJO" || (cd $HOME && pixi init life -c https://conda.modular.com/max-nightly/ -c conda-forge && \
+    cd life && pixi add modular && pixi run mojo --version)
 
 COPY docker/entrypoint.sh /entrypoint.sh
 
