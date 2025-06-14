@@ -29,5 +29,6 @@ dist/
 tests/output
 target/
 Cargo.lock
+uv.lock
 go.mod
 go.sum
