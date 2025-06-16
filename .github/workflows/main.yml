@@ -96,7 +96,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: mlugg/setup-zig@v1
+      - uses: mlugg/setup-zig@v2
         if: ${{ !env.FOCUS || env.FOCUS == 'zig' }}
 
       - name: Set up Visual Studio shell
