@@ -1,6 +1,7 @@
 #include <algorithm>  // NOLINT(build/include_order)
 #include <cstdint>    // NOLINT(build/include_order)
 #include <iostream>   // NOLINT(build/include_order)
+#include <string>     // NOLINT(build/include_order)
 #include <vector>     // NOLINT(build/include_order)
 int code_0 = 0;
 int code_1 = 1;

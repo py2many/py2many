@@ -4,6 +4,7 @@
 #include <iostream>   // NOLINT(build/include_order)
 #include <map>        // NOLINT(build/include_order)
 #include <set>        // NOLINT(build/include_order)
+#include <string>     // NOLINT(build/include_order)
 int code_0 = 0;
 int code_1 = 1;
 std::string code_a = std::string{"a"};  // NOLINT(runtime/string)

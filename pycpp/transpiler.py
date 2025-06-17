@@ -391,6 +391,7 @@ class CppTranspiler(CLikeTranspiler):
     def visit_Str(self, node) -> str:
         """Use a C++ 14 string literal instead of raw string"""
         node.raw_string = super().visit_Str(node)
+        self._usings.add("<string>")
         return f"std::string{{{node.raw_string}}}"
 
     def visit_Bytes(self, node) -> str:
@@ -621,6 +622,7 @@ class CppTranspiler(CLikeTranspiler):
         value = self.visit(node.value)
         lint_exception = self._get_nolint_suffix("runtime/string")
         if typename == "std::string" and is_global(node):
+            self._usings.add("<string>")
             return f"{typename} {target} = {value};{lint_exception}"
 
         return f"{typename} {target} = {value};"

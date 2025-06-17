@@ -2,6 +2,7 @@
 #include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
 #include <map>       // NOLINT(build/include_order)
+#include <string>    // NOLINT(build/include_order)
 
 enum Colors : int {
   RED = 0,
