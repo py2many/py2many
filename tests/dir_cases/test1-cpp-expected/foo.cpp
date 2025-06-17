@@ -1,5 +1,6 @@
 #include <cassert>  // NOLINT(build/include_order)
 #include <cstdint>  // NOLINT(build/include_order)
+#include <string>   // NOLINT(build/include_order)
 
 #include "bar.h"
 #include "baz.h"

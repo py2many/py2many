@@ -28,5 +28,5 @@ repos:
     hooks:
       - id: cpplint
         args:
-          - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference
+          - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference,-build/include_subdir
           - tests/expected/*.cpp
