@@ -4,6 +4,7 @@
 #include <cstdint>                 // NOLINT(build/include_order)
 #include <iostream>                // NOLINT(build/include_order)
 #include <map>                     // NOLINT(build/include_order)
+#include <string>                  // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 
 inline void inline_pass() {

@@ -1,9 +1,11 @@
 #include <math.h>  // NOLINT(build/include_order)
 
+#include <algorithm>               // NOLINT(build/include_order)
 #include <cassert>                 // NOLINT(build/include_order)
 #include <cppitertools/range.hpp>  // NOLINT(build/include_order)
 #include <cstdint>                 // NOLINT(build/include_order)
 #include <iostream>                // NOLINT(build/include_order)
+#include <string>                  // NOLINT(build/include_order)
 #include <tuple>                   // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 

@@ -1,6 +1,7 @@
 #include <cppitertools/range.hpp>  // NOLINT(build/include_order)
 #include <cstdint>                 // NOLINT(build/include_order)
 #include <iostream>                // NOLINT(build/include_order)
+#include <string>                  // NOLINT(build/include_order)
 inline void for_with_break() {
   for (auto i : iter::range(4)) {
     if (i == 2) {
