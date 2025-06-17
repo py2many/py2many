@@ -1,5 +1,6 @@
 #include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
+#include <string>    // NOLINT(build/include_order)
 
 inline void main_func() { std::cout << std::string{"foobar\n"}; }
 

@@ -57,8 +57,8 @@ class CppTranspilerPlugins:
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
         min_max = "max" if is_max else "min"
+        self._usings.add("<algorithm>")
         if hasattr(node.args[0], "container_type"):
-            self._usings.add("<algorithm>")
             return f"*std::{min_max}_element({vargs[0]}.begin(), {vargs[0]}.end());"
         else:
             # C++ can't deal with max(1, size_t), but size_t support here has been

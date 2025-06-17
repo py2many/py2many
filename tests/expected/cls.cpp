@@ -1,5 +1,6 @@
 #include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
+#include <string>    // NOLINT(build/include_order)
 class Foo {
  public:
   inline std::string bar() { return std::string{"a"}; }
