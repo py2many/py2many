@@ -1,64 +1,62 @@
-# py2many: Python to many CLike languages transpiler
+# py2many: Python to Rust, C++, Go, Zig, Mojo & More - Universal Python Transpiler
 
 ![Build](https://github.com/py2many/py2many/actions/workflows/fast.yaml/badge.svg)
 ![License](https://img.shields.io/github/license/adsharma/py2many?color=brightgreen)
 
-## Why
+**Convert Python code to Rust, C++, Go, Zig, Julia, Nim, Dart, and other languages automatically**
 
-Python is popular, easy to program in, but has poor runtime
-performance. We can fix that by transpiling a subset of the language
-into a more performant, statically typed language.
+py2many is a powerful Python transpiler that converts Python source code into multiple statically-typed programming languages. Transform your Python code to Rust for performance, C++ for systems programming, Go for concurrency, or Kotlin for mobile development.
 
-A second benefit is security. Writing security sensitive
-code in a low level language like C is error prone and could
-lead to privilege escalation. Specialized languages such as
-[wuffs](https://github.com/google/wuffs) exist to address this use
-case. py2many can be a more general purpose solution to the problem
-where you can verify the source via unit tests before you transpile.
+## Why Convert Python to Other Languages
 
-A third potential use case is to accelerate python code by transpiling
-it into an [extension](https://github.com/adsharma/py2many/issues/62)
+**Performance**: Python is popular and easy to program in, but has poor runtime
+performance. Transpiling Python to Rust, C++, or Go can dramatically improve execution speed
+while maintaining the development experience of Python.
 
-Swift and Kotlin dominate the mobile app development workflow. However, there is
-no one solution that works well for lower level libraries where there is desire
-to share code between platforms. Kotlin Mobile Multiplatform (KMM) is a player
-in this place, but it hasn't really caught on. py2many provides an alternative.
+**Security**: Writing security-sensitive code in low-level languages like C is error-prone and could
+lead to privilege escalation. With py2many, you can write secure code in Python, verify it
+with unit tests, then transpile to a safer systems language like Rust.
 
-Lastly, it's a great educational tool to learn a new language by implementing
-a backend for your favorite language.
+**Cross-platform Development**: Accelerate Python code by transpiling
+it into native [extensions](https://github.com/adsharma/py2many/issues/62) or standalone applications.
 
-## Status
+**Mobile & Systems Programming**: While Swift and Kotlin dominate mobile app development,
+there's no universal solution for sharing lower-level library code between platforms.
+py2many provides an alternative to Kotlin Mobile Multiplatform (KMM) by letting you
+write once in Python and deploy to multiple targets.
 
-Rust is the language where the focus of development has been.
+**Learning Tool**: It's an excellent educational tool for learning new programming languages
+by comparing Python implementations with their transpiled equivalents.
 
-C++14 is historically the first language to be supported.
-C++17 is now required for some features.
+## Supported Languages & Status
 
-Preliminary support exists for Julia, Kotlin, Nim, Go, Dart, V, and D.
+**Primary Focus**: **Python to Rust** conversion with the most mature feature set and active development.
 
-py2many can also emit Python 3 code that includes inferred type annotations,
-and revisions to the syntax intended to simplify parsing of the code.
+**Production Ready**: **Python to C++** transpilation (C++14 historically supported, C++17+ required for advanced features).
 
-## History
+**Beta Support**: Python to Julia, Python to Kotlin, Python to Nim, Python to Go, Python to Dart, Python to V, and Python to D transpilation.
 
-Based on Julian Konchunas' [pyrs](http://github.com/konchunas/pyrs).
+**Type Inference**: py2many can also emit enhanced Python 3 code with inferred type annotations
+and syntax improvements for better code analysis.
 
-Based on Lukas Martinelli [Py14](https://github.com/lukasmartinelli/py14)
-and [Py14/python-3](https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
-Lorentz.
+## Python to Rust Example
 
-## Example
+See how py2many converts Python code to idiomatic Rust:
 
-Original Python version.
+**Original Python code:**
 
 ```python
 def fib(i: int) -> int:
     if i == 0 or i == 1:
         return 1
     return fib(i - 1) + fib(i - 2)
+
+# Demonstrate overflow handling
+def add(i: i32, j: i32):
+    return i + j
 ```
 
-Transpiled Rust code:
+**Transpiled Rust code:**
 
 ```rust
 fn fib(i: i32) -> i32 {
@@ -67,19 +65,22 @@ fn fib(i: i32) -> i32 {
     }
     return (fib((i - 1)) + fib((i - 2)));
 }
+
+// return type is i64
+pub fn add(i: i32, j: i32) -> i64 {
+    return ((i as i64) + (j as i64)) as i64;
+}
 ```
 
-Transpiled code for other languages:
-
+**More Examples**: View transpiled code for all supported languages at:
 https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
 
-## Trying it out
+## Quick Start: Convert Python to Rust, C++, Go & More
 
-Requirements:
-
+**Requirements:**
 - Python 3.8+
 
-Local installation:
+**Installation:**
 
 ```sh
 pip3 install --user  # installs to $HOME/.local
@@ -91,37 +92,82 @@ OR
 sudo pip3 install  # installs systemwide
 ```
 
-Add the py2many script to your $PATH and run:
+**Usage Examples:**
 
-Transpiling:
+Convert Python to different languages:
 
 ```sh
-py2many --cpp=1 tests/cases/fib.py
+# Python to Rust
 py2many --rust=1 tests/cases/fib.py
-py2many --julia=1 tests/cases/fib.py
-py2many --kotlin=1 tests/cases/fib.py
-py2many --nim=1 tests/cases/fib.py
-py2many --dart=1 tests/cases/fib.py
+
+# Python to C++
+py2many --cpp=1 tests/cases/fib.py
+
+# Python to Go
 py2many --go=1 tests/cases/fib.py
+
+# Python to Kotlin
+py2many --kotlin=1 tests/cases/fib.py
+
+# Python to Julia
+py2many --julia=1 tests/cases/fib.py
+
+# Python to Nim
+py2many --nim=1 tests/cases/fib.py
+
+# Python to Dart
+py2many --dart=1 tests/cases/fib.py
+
+# Python to D
 py2many --dlang=1 tests/cases/fib.py
 ```
 
-Compiling:
+**Compiling Transpiled Code:**
 
 ```sh
+# Compile C++
 clang tests/expected/fib.cpp
+
+# Run Rust
 ./scripts/rust-runner.sh run tests/expected/fib.rs
-...
+
+# Run D
 dmd -run tests/cases/fib.d
 ```
 
-Many of the transpilers rely on a language specific formatter to parse the output and reformat it.
-Typically this is the most prominent formatter for the language, such as `rustfmt` for Rust.
+**Language-Specific Tools:**
 
-Most of the transpilers also rely on external libraries to provide bridges from
-Python constructs to the target language.
+py2many integrates with language-specific formatters and tools:
+- `rustfmt` for Rust code formatting
+- Language-specific standard libraries and external dependencies
 
-The steps to install these external libraries can be found in `.github/workflows/main.yml`.
+For detailed setup instructions for each target language, see `.github/workflows/main.yml`.
+
+## Key Features
+
+- **Multi-Language Support**: Convert Python to 8+ programming languages
+- **Type Inference**: Automatically infer and convert Python types to target language types
+- **Performance Optimization**: Generate optimized code for systems programming languages
+- **Cross-Platform**: Works on Linux, macOS, and Windows
+- **Open Source**: MIT licensed with active community development
+- **Educational**: Compare Python implementations with transpiled code to learn new languages
+
+## Use Cases
+
+- **Performance-Critical Applications**: Convert Python algorithms to Rust or C++ for speed
+- **Systems Programming**: Transform Python prototypes to systems languages
+- **Mobile Development**: Convert Python logic to Kotlin for Android development
+- **WebAssembly**: Transpile Python to Rust for WASM deployment
+- **Embedded Systems**: Convert Python code to C++ or Rust for resource-constrained environments
+- **Cross-Platform Libraries**: Write once in Python, deploy to multiple language ecosystems
+
+## Project History
+
+Based on Julian Konchunas' [pyrs](http://github.com/konchunas/pyrs).
+
+Based on Lukas Martinelli [Py14](https://github.com/lukasmartinelli/py14)
+and [Py14/python-3](https://github.com/ProgVal/py14/tree/python-3) branch by Valentin
+Lorentz.
 
 # Contributing
 
