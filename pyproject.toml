@@ -1,6 +1,6 @@
 [project]
 name = "py2many"
-description = "Python to CLike language transpiler."
+description = "Python to Rust, C++, Go, Zig, Mojo & More - Universal Python Transpiler"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -11,20 +11,27 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Topic :: Software Development",
+    "Programming Language :: Rust",
+    "Programming Language :: C++",
+    "Programming Language :: Go",
+    "Programming Language :: Kotlin",
+    "Topic :: Software Development :: Compilers",
     "Topic :: Utilities",
 ]
 dependencies = [
-    "pytest",
     "argparse_dataclass",
-    "typpete @ git+https://github.com/adsharma/Typpete/",
-    "algebraic-data-types @ git+https://github.com/adsharma/adt/",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
+# pypi doesn't allow direct dependencies
+# dev = [
+#   "typpete @ git+https://github.com/adsharma/Typpete/",
+#   "algebraic-data-types @ git+https://github.com/adsharma/adt/",
+# ]
 test = [
     "importlib-resources; python_version < '3.9'",
+    "pytest",
     "pytest-cov",
     "black",
     "astpretty",
