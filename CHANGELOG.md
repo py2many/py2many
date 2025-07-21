@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.7] - TBD
+
+### Added
+
+- New target: Zig Programming Language support
+- LLM integration with llm-ollama plugin for AI-assisted transpilation
+- Support for lambda expressions in type inference scopes
+- CPP linting with cpplint integration
+- Pre-commit hooks for code quality
+
+### Improved
+
+- Mojo backend updated for version 25.5.0.dev2025061405
+- SMT transpiler enhancements:
+  - Support for float/real types
+  - Fixed equations.smt test case
+  - Improved test inputs validation
+- Rust improvements:
+  - Enhanced development experience (devx)
+  - Fixed --no-prologue support
+  - Efficiency improvements flagged by recent stable toolchain
+  - Better hello-wuffs.py example
+- Type inference improvements:
+  - Fixed type inference for list slices
+  - Better lambda scope handling
+- Dependency management migrated to uv
+- Python backend now honors --no-prologue flag
+- CI/CD enhancements:
+  - PR annotations with test results
+  - Test result archiving
+  - Updated setup actions for Mojo and Zig
+
+### Fixed
+
+- Various test failures and regressions
+- Namespace conflicts resolved through renaming
+- Package version syntax corrections
+- AST deprecation warnings
+- CPP lint issues across multiple files
+
 ## [0.6] - 2025-01-01
 
 - Mojo backend
