@@ -250,7 +250,17 @@ class InferTypesTransformer(ast.NodeTransformer):
         return node
 
     def visit_Constant(self, node):
-        return self.visit_NameConstant(node)
+        if isinstance(node.value, type(...)):
+            # Handle Ellipsis constant
+            return node
+        annotation = self._infer_primitive(node.value)
+        if annotation is not None:
+            node.annotation = annotation
+            node.annotation.lifetime = (
+                LifeTime.STATIC if type(node.value) == str else LifeTime.UNKNOWN
+            )
+        self.generic_visit(node)
+        return node
 
     @staticmethod
     def _annotate(node, typename: str):

@@ -536,7 +536,9 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
-        if isinstance(node.slice, ast.Ellipsis):
+        if isinstance(node.slice, ast.Constant) and isinstance(
+            node.slice.value, type(...)
+        ):
             raise AstNotImplementedError("Ellipsis not supported", node)
 
         slice_value = self._slice_value(node)
