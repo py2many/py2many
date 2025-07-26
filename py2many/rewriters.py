@@ -501,34 +501,37 @@ class LoopElseRewriter(ast.NodeTransformer):
                 test=ast.Compare(
                     left=ast.Name(id=self._has_break_var_name),
                     ops=[ast.NotEq()],
-                    comparators=[ast.Constant(value=True, scopes=scopes)],
-                    scopes=scopes,
+                    comparators=[ast.Constant(value=True)],
                 ),
                 body=[oe for oe in node.orelse],
                 orelse=[],
                 lineno=lineno,
-                scopes=scopes,
             )
+            # Manually set scopes attribute after construction
+            if_expr.test.scopes = scopes
+            if_expr.test.comparators[0].scopes = scopes
             node.if_expr = if_expr
 
     def _visit_Scope(self, node) -> Any:
         self.generic_visit(node)
         scopes = getattr(node, "scopes", ScopeList())
-        assign = ast.Assign(
-            targets=[ast.Name(id=self._has_break_var_name)], value=None, scopes=scopes
-        )
+        assign = ast.Assign(targets=[ast.Name(id=self._has_break_var_name)], value=None)
+        # Manually set scopes attribute after construction
+        assign.targets[0].scopes = scopes
         ast.fix_missing_locations(assign)
         body = []
         for n in node.body:
             if hasattr(n, "if_expr"):
-                assign.value = ast.Constant(value=False, scopes=scopes)
+                assign.value = ast.Constant(value=False)
+                assign.value.scopes = scopes
                 body.append(assign)
                 body.append(n)
                 body.append(n.if_expr)
             elif isinstance(n, ast.Break):
                 for_node = find_node_by_type((ast.For, ast.While), scopes)
                 if hasattr(for_node, "if_expr"):
-                    assign.value = ast.Constant(value=True, scopes=scopes)
+                    assign.value = ast.Constant(value=True)
+                    assign.value.scopes = scopes
                     body.append(assign)
                 body.append(n)
             else:
