@@ -1,2 +1,2 @@
-(define-fun baz1 ()  string
+(define-fun baz1 ()  String
   "foo")
