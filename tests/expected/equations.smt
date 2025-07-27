@@ -5,7 +5,7 @@
 (declare-const z Real)
 
 
-(define-fun equation-pre ((x Int) (y Int))  Bool
+(define-fun equation-pre ((x Int) (y Int)) Bool
   (and
     (> x 2)
     (< y 10)
@@ -17,7 +17,7 @@
   true)
 
 
-(define-fun fequation-pre ((z Real))  Bool
+(define-fun fequation-pre ((z Real)) Bool
   (and
     (= (+ 9.8 (* (to_real 2) z)) (+ z 9.11))))
 

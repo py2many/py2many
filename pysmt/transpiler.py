@@ -79,7 +79,8 @@ class SmtTranspiler(CLikeTranspiler):
         args = " ".join(args_list)
         is_smt_pre = getattr(node, "is_smt_pre", False)
         suffix = "-pre" if is_smt_pre else ""
-        funcdef = f"define-fun {node.name}({args}) {return_type}"
+        fname = node.name.replace("_", "-")
+        funcdef = f"define-fun {fname}({args}) {return_type}"
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         if is_smt_pre:
             self._in_smt_pre = True
@@ -87,7 +88,7 @@ class SmtTranspiler(CLikeTranspiler):
             pre_body = "\n".join([self.indent(self.visit(n)) for n in node.body[:1]])
             self._in_smt_pre = False
 
-            funcdef_pre = f"define-fun {node.name}{suffix}({args}) {return_type}"
+            funcdef_pre = f"define-fun {fname}{suffix}({args}) Bool"
             return f"({funcdef_pre}\n{pre_body})\n\n({funcdef}\n{body})\n"
         else:
             return f"({funcdef}\n{body})\n"
