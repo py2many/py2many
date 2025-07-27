@@ -30,7 +30,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
-        return f"(Array {index_type} {value_type})"
+        return f"(_ {value_type} {index_type})"
 
     def comment(self, text):
         return f";; {text}\n"
@@ -131,7 +131,7 @@ class SmtTranspiler(CLikeTranspiler):
             if typename == self._default_type:
                 variants.append("(None)")
             # Handle known builtin types
-            elif typename == "Callable":
+            elif typename in {"Callable", "Int", "Float", "Bool", "String"}:
                 variants.append(member_id)
             else:
                 complex = True

@@ -15,8 +15,6 @@ def default_value(type_):
         return None
 
 
-class Pre:
-    pass
-
-
-pre = Pre()  # Singleton
+# So the pre/post conditions are compiled out
+pre = False
+post = False
