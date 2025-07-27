@@ -25,21 +25,19 @@ def classify_triangle_correct(a: int, b: int, c: int) -> TriangleType:
 
     # Classify the triangle
     if a == b and b == c:
-        result = TriangleType.EQUILATERAL
+        return TriangleType.EQUILATERAL
     elif a == b or b == c or a == c:
-        result = TriangleType.ISOSCELES
+        return TriangleType.ISOSCELES
     else:
         # Classify by angle using Pythagorean theorem
         # Sort sides so that a is the largest
         x, y, z = sorted([a, b, c], reverse=True)
         if x * x == y * y + z * z:
-            result = TriangleType.RIGHT
+            return TriangleType.RIGHT
         elif x * x < y * y + z * z:
-            result = TriangleType.ACUTE
+            return TriangleType.ACUTE
         else:
-            result = TriangleType.OBTUSE
-
-    return result
+            return TriangleType.OBTUSE
 
 
 def classify_triangle(a: int, b: int, c: int) -> TriangleType:
@@ -55,23 +53,21 @@ def classify_triangle(a: int, b: int, c: int) -> TriangleType:
         # Check for equal sides
         if a == c or b == c:
             if a == b and a == c:
-                result = TriangleType.EQUILATERAL
+                return TriangleType.EQUILATERAL
             else:
-                result = TriangleType.ISOSCELES
+                return TriangleType.ISOSCELES
         else:
             # Check by angle using Pythagorean theorem
             # BUG: Not sorting sides, assuming a is largest (from a >= b >= c)
             if a * a != b * b + c * c:
                 if a * a < b * b + c * c:
-                    result = TriangleType.ACUTE
+                    return TriangleType.ACUTE
                 else:
-                    result = TriangleType.OBTUSE
+                    return TriangleType.OBTUSE
             else:
-                result = TriangleType.RIGHT
+                return TriangleType.RIGHT
     else:
-        result = TriangleType.ILLEGAL
-
-    return result
+        return TriangleType.ILLEGAL
 
 
 # Test with SMT solver

@@ -11,13 +11,13 @@ def equation(x: int, y: int) -> bool:
         assert x > 2
         assert y < 10
         assert x + 2 * y == 7
-    pass
+    True
 
 
 def fequation(z: float) -> bool:
     if smt_pre:
         assert 9.8 + 2 * z == z + 9.11
-    pass
+    True
 
 
 assert equation(x, y)

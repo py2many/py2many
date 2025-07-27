@@ -38,6 +38,22 @@ class SmtTranspiler(CLikeTranspiler):
     def _visit_DeclareFunc(self, node, return_type):
         return f"(declare-fun {node.name}() {return_type})"
 
+    def visit_Attribute(self, node) -> str:
+        attr = node.attr
+        value_id = self.visit(node.value)
+
+        if not value_id:
+            value_id = ""
+
+        type_decl = node.scopes.find(value_id)
+        if type_decl is not None:
+            decorators = [get_id(d) for d in type_decl.decorator_list]
+            if "sealed" in decorators:
+                # SMT prefers to use the datatype name directly
+                return f"{attr}"
+
+        return f"{value_id}.{attr}"
+
     def visit_FunctionDef(self, node):
         typenames, args = self.visit(node.args)
 
@@ -67,7 +83,8 @@ class SmtTranspiler(CLikeTranspiler):
         body = "\n".join([self.indent(self.visit(n)) for n in node.body])
         if is_smt_pre:
             self._in_smt_pre = True
-            pre_body = "\n".join([self.indent(self.visit(n)) for n in node.body])
+            # Only the first statement in the body is considered a pre-condition
+            pre_body = "\n".join([self.indent(self.visit(n)) for n in node.body[:1]])
             self._in_smt_pre = False
 
             funcdef_pre = f"define-fun {node.name}{suffix}({args}) {return_type}"
@@ -280,7 +297,7 @@ class SmtTranspiler(CLikeTranspiler):
                 buf.extend(body)
                 buf.append(")")
             else:
-                buf.append("true")
+                pass
         else:
             buf.append(f"(ite {self.visit(node.test)} ")
             body = [self.visit(child) for child in node.body]

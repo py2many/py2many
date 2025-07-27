@@ -13,6 +13,7 @@
 
 
 (define-fun equation ((x Int) (y Int))  Bool
+
   true)
 
 
@@ -22,6 +23,7 @@
 
 
 (define-fun fequation ((z Real))  Bool
+
   true)
 
 

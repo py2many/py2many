@@ -3,7 +3,7 @@ import os
 from py2many.language import LanguageSettings
 
 from .inference import infer_smt_types
-from .rewriters import AnnotatePreConditions
+from .rewriters import AnnotatePreConditions, RewriteNotEq
 from .transpiler import SmtTranspiler
 
 
@@ -17,6 +17,6 @@ def settings(args, env=os.environ):
             "fix",
         ],
         None,
-        [AnnotatePreConditions()],
+        [AnnotatePreConditions(), RewriteNotEq()],
         [infer_smt_types],
     )
