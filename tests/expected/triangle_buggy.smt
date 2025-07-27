@@ -7,20 +7,31 @@
 (declare-const c Int)
 
 
-(define-fun classify_triangle_correct ((a Int) (b Int) (c Int))  TriangleType
+(define-fun classify-triangle-correct ((a Int) (b Int) (c Int))  TriangleType
   (ite (and (= a b) (= b c))
        EQUILATERAL
        (ite (or (= a b) (= b c) (= a c))
             ISOSCELES
-            (let ((x y z) (sorted ((lambda ((i Int)) (ite (= i 0 1 2) a b c 0)) :init) true)))
-            (ite (= (* x x) (+ (* y y) (* z z)))
-                 RIGHT
-                 (ite (< (* x x) (+ (* y y) (* z z)))
-                      ACUTE
-                      OBTUSE)))))
+            (ite (and (>= a b) (>= a c))
+                 (ite (= (* a a) (+ (* b b) (* c c)))
+                      RIGHT
+                      (ite (< (* a a) (+ (* b b) (* c c)))
+                           ACUTE
+                           OBTUSE))
+                 (ite (and (>= b a) (>= b c))
+                      (ite (= (* b b) (+ (* a a) (* c c)))
+                           RIGHT
+                           (ite (< (* b b) (+ (* a a) (* c c)))
+                                ACUTE
+                                OBTUSE))
+                      (ite (= (* c c) (+ (* a a) (* b b)))
+                           RIGHT
+                           (ite (< (* c c) (+ (* a a) (* b b)))
+                                ACUTE
+                                OBTUSE)))))))
 
 
-(define-fun classify_triangle-pre ((a Int) (b Int) (c Int))  TriangleType
+(define-fun classify-triangle-pre ((a Int) (b Int) (c Int)) Bool
   (and
     (> a 0)
     (> b 0)
@@ -28,7 +39,7 @@
     (< a (+ b c))))
 
 
-(define-fun classify_triangle ((a Int) (b Int) (c Int))  TriangleType
+(define-fun classify-triangle ((a Int) (b Int) (c Int))  TriangleType
 
   (ite (and (>= a b) (>= b c))
        (ite (or (= a c) (= b c))
@@ -43,5 +54,6 @@
        ILLEGAL))
 
 
-(assert (= (classify-triangle-correct a b c) (classify-triangle a b c)))
+(assert (not (= (classify-triangle-correct a b c) (classify-triangle a b c))))
 (check-sat)
+(get-model)

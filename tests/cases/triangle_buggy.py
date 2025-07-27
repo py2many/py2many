@@ -1,6 +1,6 @@
 from adt import adt as sealed
 
-from py2many.smt import check_sat, default_value
+from py2many.smt import check_sat, default_value, get_model
 from py2many.smt import pre as smt_pre
 
 
@@ -30,14 +30,34 @@ def classify_triangle_correct(a: int, b: int, c: int) -> TriangleType:
         return TriangleType.ISOSCELES
     else:
         # Classify by angle using Pythagorean theorem
-        # Sort sides so that a is the largest
-        x, y, z = sorted([a, b, c], reverse=True)
-        if x * x == y * y + z * z:
-            return TriangleType.RIGHT
-        elif x * x < y * y + z * z:
-            return TriangleType.ACUTE
+        # Check all cases where each side could be the largest
+        #
+        # Using x, y, z = sorted([a, b, c]) would be more readable, but harder to translate to SMT
+        # So we manually check each case assuming a >= b >= c
+        if a >= b and a >= c:
+            # a is the largest side
+            if a * a == b * b + c * c:
+                return TriangleType.RIGHT
+            elif a * a < b * b + c * c:
+                return TriangleType.ACUTE
+            else:
+                return TriangleType.OBTUSE
+        elif b >= a and b >= c:
+            # b is the largest side
+            if b * b == a * a + c * c:
+                return TriangleType.RIGHT
+            elif b * b < a * a + c * c:
+                return TriangleType.ACUTE
+            else:
+                return TriangleType.OBTUSE
         else:
-            return TriangleType.OBTUSE
+            # c is the largest side
+            if c * c == a * a + b * b:
+                return TriangleType.RIGHT
+            elif c * c < a * a + b * b:
+                return TriangleType.ACUTE
+            else:
+                return TriangleType.OBTUSE
 
 
 def classify_triangle(a: int, b: int, c: int) -> TriangleType:
@@ -71,5 +91,6 @@ def classify_triangle(a: int, b: int, c: int) -> TriangleType:
 
 
 # Test with SMT solver
-assert classify_triangle_correct(a, b, c) == classify_triangle(a, b, c)
+assert not classify_triangle_correct(a, b, c) == classify_triangle(a, b, c)
 check_sat()
+get_model()
