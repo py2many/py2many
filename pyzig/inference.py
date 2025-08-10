@@ -31,9 +31,9 @@ ZIG_TYPE_MAP = {
 }
 
 ZIG_CONTAINER_TYPE_MAP = {
-    "List": "ArrayList",
-    "Dict": "HashMap",
-    "Set": "HashSet",
+    "List": "pylib.AutoArrayList",
+    "Dict": "pylib.AutoMap",
+    "Set": "pylib.AutoSet",
     "Optional": "Optional",
 }
 

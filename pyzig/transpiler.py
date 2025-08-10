@@ -61,7 +61,7 @@ class ZigTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
-        return f"{value_type}[{index_type}]"
+        return f"{value_type}({index_type})"
 
     def comment(self, text):
         return f"// {text}\n"
@@ -114,7 +114,7 @@ class ZigTranspiler(CLikeTranspiler):
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_zig_type(node.value)
                 if return_type != value_type and value_type is not None:
-                    return f"return {return_type}({ret})"
+                    return f"return {return_type}({ret});"
             return f"return {ret};"
         return "return;"
 
@@ -375,21 +375,48 @@ class ZigTranspiler(CLikeTranspiler):
         return f"from {module_name} import {names}"
 
     def visit_List(self, node) -> str:
+        self._headers.add("pylib")
         elements = [self.visit(e) for e in node.elts]
-        elements = ", ".join(elements)
-        return f"List({elements})"
+        if not elements:
+            return "pylib.AutoArrayList(i32).init(null) catch unreachable"
+        # Infer element type from first element
+        element_type = get_inferred_zig_type(node.elts[0]) if node.elts else "i32"
+        return f"""blk: {{
+            var list = pylib.AutoArrayList({element_type}).init(null) catch unreachable;
+            {'; '.join([f'list.append({elem}) catch unreachable' for elem in elements])};
+            break :blk list;
+        }}"""
 
     def visit_Set(self, node) -> str:
-        self._usings.add("sets")
+        self._headers.add("pylib")
         elements = [self.visit(e) for e in node.elts]
-        elements_str = ", ".join(elements)
-        return f"toHashSet([{elements_str}])"
+        if not elements:
+            return "pylib.AutoSet(i32).init(null) catch unreachable"
+        # Infer element type from first element
+        element_type = get_inferred_zig_type(node.elts[0]) if node.elts else "i32"
+        return f"""blk: {{
+            var set = pylib.AutoSet({element_type}).init(null) catch unreachable;
+            {'; '.join([f'set.put({elem}) catch unreachable' for elem in elements])};
+            break :blk set;
+        }}"""
 
     def visit_Dict(self, node) -> str:
+        self._headers.add("pylib")
         keys = [self.visit(k) for k in node.keys]
         values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
-        return f"{{{kv_pairs}}}"
+        if not keys:
+            return "pylib.AutoMap(i32, i32).init(null) catch unreachable"
+        # Infer key and value types from first elements
+        key_type = get_inferred_zig_type(node.keys[0]) if node.keys else "i32"
+        value_type = get_inferred_zig_type(node.values[0]) if node.values else "i32"
+        kv_pairs = [
+            f"map.put({k}, {v}) catch unreachable" for k, v in zip(keys, values)
+        ]
+        return f"""blk: {{
+            var map = pylib.AutoMap({key_type}, {value_type}).init(null) catch unreachable;
+            {'; '.join(kv_pairs)};
+            break :blk map;
+        }}"""
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
@@ -399,7 +426,7 @@ class ZigTranspiler(CLikeTranspiler):
                 value = self._container_type_map[value]
             if value == "Tuple":
                 return f"({index})"
-            return f"{value}[{index}]"
+            return f"{value}({index})"
         return f"{value}[{index}]"
 
     def visit_Index(self, node) -> str:
@@ -431,8 +458,8 @@ class ZigTranspiler(CLikeTranspiler):
         mut = is_mutable(node.scopes, get_id(target))
         kw = "var" if mut else "const"
         if type_str == self._default_type:
-            return f"{kw} {target} = {val}"
-        return f"{kw} {target}: {type_str} = {val}"
+            return f"{kw} {target} = {val};"
+        return f"{kw} {target}: {type_str} = {val};"
 
     def visit_Assign(self, node) -> str:
         lines = [self._visit_AssignOne(node, target) for target in node.targets]
