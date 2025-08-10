@@ -83,7 +83,7 @@ zig_symbols = {
     ast.BitXor: "^",
     ast.BitOr: "|",
     ast.BitAnd: "&",
-    ast.Not: "not ",
+    ast.Not: "!",
     ast.IsNot: "!=",
     ast.USub: "-",
     ast.And: " and ",

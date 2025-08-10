@@ -50,7 +50,7 @@ class ZigTranspiler(CLikeTranspiler):
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        uses = "\n".join(f"usingnamespace {mod};" for mod in usings)
+        uses = "\n".join(f"const {mod} = std.{mod};" for mod in usings)
         return uses
 
     def aliases(self):
@@ -82,12 +82,18 @@ class ZigTranspiler(CLikeTranspiler):
             args_list.append(f"{arg}: {typename}")
 
         return_type = ""
+        needs_error_union = getattr(node, "needs_error_type", False)
+
         if not is_void_function(node):
             if node.returns:
                 typename = self._typename_from_annotation(node, attr="returns")
-                return_type = f"{typename}"
+                return_type = f"!{typename}" if needs_error_union else f"{typename}"
             else:
                 return_type = ""
+        elif needs_error_union:
+            return_type = "!void"
+        else:
+            return_type = "void"
 
         args = ", ".join(args_list)
         if return_type != "":
@@ -177,14 +183,20 @@ class ZigTranspiler(CLikeTranspiler):
         ret = self._dispatch(node, fname, vargs)
         node_result_type = getattr(node, "result_type", False)
         node_func_result_type = getattr(node.func, "result_type", False)
-        try_prefix = "try " if node_result_type or node_func_result_type else ""
+
+        # Check if the called function might return an error union (contains assertions or other try statements)
+        needs_try = node_result_type or node_func_result_type
+        if fndef and isinstance(fndef, ast.FunctionDef):
+            needs_try = needs_try or getattr(fndef, "needs_error_type", False)
+
+        try_prefix = "try " if needs_try else ""
         if ret is not None:
             return ret
         if vargs:
             args = ", ".join(vargs)
         else:
             args = ""
-        return f"{try_prefix} {fname}({args})"
+        return f"{try_prefix}{fname}({args})"
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -411,9 +423,8 @@ class ZigTranspiler(CLikeTranspiler):
         return f"({elts})"
 
     def visit_Assert(self, node) -> str:
-        self._usings.add("testing")
         self._aliases["expect"] = "std.testing.expect"
-        return f"try expect({self.visit(node.test)})"
+        return f"try expect({self.visit(node.test)});"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)

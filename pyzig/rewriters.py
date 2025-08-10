@@ -24,6 +24,46 @@ class ZigImplicitConstructor(ast.NodeTransformer):
         return node
 
 
+class ZigErrorUnionAnalyzer(ast.NodeTransformer):
+    """Analyzes functions to determine if they need error union return types (!void or !T)"""
+
+    def __init__(self):
+        super().__init__()
+
+    def visit_FunctionDef(self, node):
+        # Initialize needs_error_type to False if not already set
+        if not hasattr(node, "needs_error_type"):
+            node.needs_error_type = False
+        self.generic_visit(node)
+        return node
+
+    def visit_Assert(self, node):
+        """Mark containing function as needing error type when assert is found"""
+        fndef = self._find_containing_function(node)
+        if fndef:
+            fndef.needs_error_type = True
+        self.generic_visit(node)
+        return node
+
+    def visit_Call(self, node):
+        """Mark containing function as needing error type when error-prone call is found"""
+        # Check if it's a function call that might need try
+        if hasattr(node, "result_type") or hasattr(node.func, "result_type"):
+            fndef = self._find_containing_function(node)
+            if fndef:
+                fndef.needs_error_type = True
+        self.generic_visit(node)
+        return node
+
+    def _find_containing_function(self, node):
+        """Find the containing function definition for a given node"""
+        if hasattr(node, "scopes"):
+            for scope in node.scopes:
+                if isinstance(scope, ast.FunctionDef):
+                    return scope
+        return None
+
+
 class ZigInferMoveSemantics(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
