@@ -117,10 +117,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         return "pass"
 
     def visit_BinOp(self, node) -> str:
-        if isinstance(node.op, ast.Pow):
-            left = self.visit(node.left)
-            right = self.visit(node.right)
-            return f"{left}**{right}"
 
         left = self.visit(node.left)
         op = self.visit(node.op)
@@ -136,6 +132,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             right = f"{left_type}({right})"
         elif right_rank > left_rank:
             left = f"{right_type}({left})"
+
+        if isinstance(node.op, ast.Pow):
+            wider_type = left_type if left_rank >= right_rank else right_type
+            return f"std.math.pow({wider_type}, {left}, {right})"
 
         return f"({left} {op} {right})"
 
