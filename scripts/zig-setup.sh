@@ -1,12 +1,22 @@
 #!/bin/bash
 
 # Create a zig project structure for tests
-mkdir -p tests/build
-cd tests/build
+mkdir -p tests/build/common-zig-proj
+cd tests/build/common-zig-proj
 
-# Initialize zig project if build.zig doesn't exist
+# Initialize zig project using zig init if build.zig doesn't exist
 if [ ! -f build.zig ]; then
-    cat > build.zig << 'EOF'
+    echo "Initializing Zig project with zig init..."
+    zig init
+fi
+
+# Add pylib-zig dependency
+echo "Adding pylib-zig dependency..."
+zig fetch --save https://github.com/adsharma/pylib-zig/archive/main.tar.gz
+
+# Update build.zig to use pylib-zig dependency
+echo "Configuring build.zig with pylib-zig..."
+cat > build.zig << 'EOF'
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
@@ -14,9 +24,14 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Add pylib-zig dependency
-    const pylib_zig = b.dependency("pylib-zig", .{
+    const pylib_zig = b.dependency("pylib_zig", .{
         .target = target,
         .optimize = optimize,
+    });
+
+    // Create a module from the pylib-zig dependency
+    const pylib_module = b.createModule(.{
+        .root_source_file = pylib_zig.path("src/root.zig"),
     });
 
     // Create executable for running tests
@@ -27,7 +42,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("pylib", pylib_zig.module("pylib-zig"));
+    // Add the pylib module to our executable
+    exe.root_module.addImport("pylib", pylib_module);
     b.installArtifact(exe);
 
     // Create run step
@@ -41,46 +57,27 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 }
 EOF
-fi
 
-# Initialize build.zig.zon if it doesn't exist
-if [ ! -f build.zig.zon ]; then
-    cat > build.zig.zon << 'EOF'
-.{
-    .name = "py2many-tests",
-    .version = "0.0.1",
-    .minimum_zig_version = "0.13.0",
-    .dependencies = .{
-        .@"pylib-zig" = .{
-            .url = "https://github.com/adsharma/pylib-zig/archive/main.tar.gz",
-            .hash = "12208e7c23456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01",
-        },
-    },
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "src",
-    },
+# Create a simple placeholder main.zig file
+mkdir -p src
+echo "Creating placeholder main.zig..."
+cat > src/main.zig << 'EOF'
+const std = @import("std");
+const print = std.debug.print;
+
+pub fn main() void {
+    print("Zig build environment ready!\n", .{});
+    print("Use zig-runner.sh to run test files.\n", .{});
 }
 EOF
+
+# Test the build to ensure everything is set up correctly
+echo "Testing build setup..."
+if zig build; then
+    echo "Zig build environment setup successful!"
+else
+    echo "Build setup failed!"
+    exit 1
 fi
 
-# Create src directory
-mkdir -p src
-
-# Try to fetch the dependency to get the correct hash
-echo "Fetching pylib-zig dependency..."
-if ! zig build 2>/dev/null; then
-    # If the hash is wrong, zig will tell us the correct one
-    echo "Getting correct hash for pylib-zig..."
-    zig build 2>&1 | grep "expected hash" | sed 's/.*expected hash //' | sed 's/,.*$//' > /tmp/correct_hash.txt
-    if [ -s /tmp/correct_hash.txt ]; then
-        CORRECT_HASH=$(cat /tmp/correct_hash.txt)
-        echo "Updating build.zig.zon with correct hash: $CORRECT_HASH"
-        sed -i "s/12208e7c.*/$CORRECT_HASH\",/" build.zig.zon
-        # Try building again with correct hash
-        zig build
-    fi
-fi
-
-echo "Zig dependencies setup complete!"
+echo "Setup complete! Use zig-runner.sh to run individual test files."
