@@ -57,7 +57,10 @@ COMPILERS = {
     ],
     "vlang": ["v"],
     "mojo": ["mojo", "build"],
-    "zig": ["zig", "build-exe"],
+    "zig": [
+        "../../scripts/zig-runner.sh",
+        "compile",
+    ],
 }
 
 INVOKER = {
