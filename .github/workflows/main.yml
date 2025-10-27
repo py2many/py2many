@@ -239,7 +239,7 @@ jobs:
           files: "tests/current-results.xml"
 
       - name: Archive test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: junit-xml-results
           path: tests/current-results.xml
