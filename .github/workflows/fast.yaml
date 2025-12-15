@@ -39,7 +39,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: cache virtualenv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-venv
         with:
           path: ./.venv/
@@ -90,7 +90,7 @@ jobs:
           files: "tests/current-results.xml"
 
       - name: Archive test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: junit-xml-results
           path: tests/current-results.xml
