@@ -348,11 +348,6 @@ class VTranspiler(CLikeTranspiler):
 
         # Handle generator calls
         if is_generator_call:
-            # Get the yield type
-            yield_type = "any"
-            if fndef.returns:
-                yield_type = self._typename_from_annotation(fndef, attr="returns")
-
             # Create channel and spawn
             args_str = ", ".join(vargs) if vargs else ""
             # We need to return something that can be iterated
@@ -500,7 +495,7 @@ class VTranspiler(CLikeTranspiler):
                         else:
                             fields.append(f"    {target.id}")
 
-        enum_def = f"enum {{\n" + "\n".join(fields) + "\n}"
+        enum_def = "enum {\n" + "\n".join(fields) + "\n}"
         return enum_def
 
     def visit_IntFlag(self, node: ast.ClassDef) -> str:
@@ -515,7 +510,7 @@ class VTranspiler(CLikeTranspiler):
                         else:
                             fields.append(f"    {target.id}")
 
-        enum_def = f"enum {{\n" + "\n".join(fields) + "\n}"
+        enum_def = "enum {\n" + "\n".join(fields) + "\n}"
         return enum_def
 
     def visit_StrEnum(self, node: ast.ClassDef) -> str:
@@ -526,13 +521,19 @@ class VTranspiler(CLikeTranspiler):
                 for target in item.targets:
                     if isinstance(target, ast.Name):
                         if isinstance(item.value, ast.Constant):
-                            fields.append(f"    {target.id} = \"{item.value.value}\"")
+                            fields.append(f'    {target.id} = "{item.value.value}"')
                         else:
                             fields.append(f"    {target.id}")
 
         # Since V doesn't support string enums, we'll use a struct
-        struct_fields = "\n".join(f"    {field.split('=')[0].strip()} string" for field in fields)
-        struct_init = "\n".join(f"    {field.split('=')[0].strip()}: {field.split('=')[1].strip()}" for field in fields if '=' in field)
+        struct_fields = "\n".join(
+            f"    {field.split('=')[0].strip()} string" for field in fields
+        )
+        struct_init = "\n".join(
+            f"    {field.split('=')[0].strip()}: {field.split('=')[1].strip()}"
+            for field in fields
+            if "=" in field
+        )
 
         struct_def = f"struct StrEnum {{\n{struct_fields}\n}}\n\n"
         init_def = f"const (\n{struct_init}\n)"
@@ -766,12 +767,12 @@ class VTranspiler(CLikeTranspiler):
         if not node.generators:
             return "{}"
 
-        # Use the comprehension rewriter logic
-        comp_rewriter = VComprehensionRewriter()
         # For dict comp, we need special handling
         # Let's create a map using a loop
         buf = []
-        buf.append("mut result = map[string]string{}")  # Assuming string keys and values
+        buf.append(
+            "mut result = map[string]string{}"
+        )  # Assuming string keys and values
 
         for comp in node.generators:
             target = comp.target
@@ -936,7 +937,7 @@ class VTranspiler(CLikeTranspiler):
         buf = []
         buf.append(f"// yield from {generator}")
         buf.append(f"for val in {generator} {{")
-        buf.append(f"    ch <- val")
+        buf.append("    ch <- val")
         buf.append("}")
 
         return "\n".join(buf)
