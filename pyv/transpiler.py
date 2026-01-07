@@ -923,8 +923,8 @@ class VTranspiler(CLikeTranspiler):
         # V doesn't have yield from, but we can iterate over another generator
         # yield from generator becomes:
         # for val in generator {
-        //     ch <- val
-        // }
+        #     ch <- val
+        # }
 
         # Get the generator expression
         generator = self.visit(node.value)
