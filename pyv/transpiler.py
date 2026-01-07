@@ -191,13 +191,6 @@ class VTranspiler(CLikeTranspiler):
             id = f"mut {id}"
         return (typename, id)
 
-    def _is_generator_function(self, node: ast.FunctionDef) -> bool:
-        """Check if a function contains yield statements"""
-        for child in ast.walk(node):
-            if isinstance(child, ast.Yield):
-                return True
-        return False
-
     def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
         is_class_method: bool = False
@@ -483,8 +476,8 @@ class VTranspiler(CLikeTranspiler):
         return f"{struct_def}{buf_str}"
 
     def visit_IntEnum(self, node: ast.ClassDef) -> str:
-        # V has enums, but they don't have explicit values
-        # We'll create a struct with constants
+        # V has enums, but they require a name and don't have explicit values
+        # We'll create a struct with constants instead
         fields = []
         for item in node.body:
             if isinstance(item, ast.Assign):
@@ -495,8 +488,9 @@ class VTranspiler(CLikeTranspiler):
                         else:
                             fields.append(f"    {target.id}")
 
-        enum_def = "enum {\n" + "\n".join(fields) + "\n}"
-        return enum_def
+        # Use struct instead of unnamed enum
+        struct_def = f"struct {node.name} {{\n" + "\n".join(fields) + "\n}"
+        return struct_def
 
     def visit_IntFlag(self, node: ast.ClassDef) -> str:
         # V doesn't have flag enums, but we can use a struct with constants
@@ -510,8 +504,9 @@ class VTranspiler(CLikeTranspiler):
                         else:
                             fields.append(f"    {target.id}")
 
-        enum_def = "enum {\n" + "\n".join(fields) + "\n}"
-        return enum_def
+        # Use struct instead of unnamed enum
+        struct_def = f"struct {node.name} {{\n" + "\n".join(fields) + "\n}"
+        return struct_def
 
     def visit_StrEnum(self, node: ast.ClassDef) -> str:
         # V doesn't have string enums, so we'll use a struct with string constants
@@ -702,10 +697,10 @@ class VTranspiler(CLikeTranspiler):
         return f"{target} {op}= {val}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
-        # V supports delete statement for maps and arrays
+        # V supports delete() function for maps and arrays
         targets = []
         for target in node.targets:
-            targets.append(f"delete {self.visit(target)}")
+            targets.append(f"delete({self.visit(target)})")
         return "\n".join(targets)
 
     def visit_Raise(self, node: ast.Raise) -> str:
@@ -737,8 +732,8 @@ class VTranspiler(CLikeTranspiler):
             else:
                 # Just call the context manager
                 context = self.visit(item.context_expr)
-                buf.append(f"{context}.__enter__()")
                 buf.append(f"defer {{ {context}.__exit__() }}")
+                buf.append(f"{context}.__enter__()")
 
         # Process body
         for stmt in node.body:
@@ -749,8 +744,34 @@ class VTranspiler(CLikeTranspiler):
     def visit_Await(self, node: ast.Await) -> str:
         raise AstNotImplementedError("asyncio is not supported.", node)
 
-    def visit_AsyncFunctionDef(self, node: ast.FunctionDef) -> str:
-        raise AstNotImplementedError("asyncio is not supported.", node)
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> str:
+        # V doesn't have async/await, but we can convert async functions to regular ones
+        # with warnings about lost async semantics
+        # The function body will be processed normally, but async operations will be converted
+        import warnings
+
+        warnings.warn(
+            f"Async function '{node.name}' converted to sync. Async semantics lost."
+        )
+
+        # Convert AsyncFunctionDef to FunctionDef for processing
+        # Both have the same structure except the type
+        func_node = ast.FunctionDef(
+            name=node.name,
+            args=node.args,
+            body=node.body,
+            decorator_list=node.decorator_list,
+            returns=node.returns,
+            type_comment=node.type_comment,
+            lineno=node.lineno,
+            col_offset=node.col_offset,
+            end_lineno=node.end_lineno,
+            end_col_offset=node.end_col_offset,
+        )
+        # Copy scopes from original node
+        func_node.scopes = node.scopes
+
+        return self.visit_FunctionDef(func_node)
 
     def visit_Yield(self, node: ast.Yield) -> str:
         # V doesn't have generators, so we use channels
@@ -769,10 +790,22 @@ class VTranspiler(CLikeTranspiler):
 
         # For dict comp, we need special handling
         # Let's create a map using a loop
+        if not node.generators:
+            raise AstNotImplementedError("DictComp with no generators", node)
+
         buf = []
-        buf.append(
-            "mut result = map[string]string{}"
-        )  # Assuming string keys and values
+
+        # Infer types from the key and value expressions
+        key_type = "any"
+        value_type = "any"
+
+        # Try to infer types from annotations if available
+        if hasattr(node, "key_annotation"):
+            key_type = self._typename_from_annotation(node, attr="key_annotation")
+        if hasattr(node, "value_annotation"):
+            value_type = self._typename_from_annotation(node, attr="value_annotation")
+
+        buf.append(f"mut result = map[{key_type}]{value_type}{{}}")
 
         for comp in node.generators:
             target = comp.target
@@ -808,7 +841,7 @@ class VTranspiler(CLikeTranspiler):
         # V doesn't have generators, so we'll use an array
         # This should be handled by VComprehensionRewriter, but if not:
         if not node.generators:
-            return "[]"
+            raise AstNotImplementedError("GeneratorExp with no generators", node)
 
         buf = []
         buf.append("mut result = []")
@@ -887,11 +920,13 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> str:
         # V doesn't support async/await, so we'll convert to regular for
-        # This assumes the iterator is synchronous
+        # WARNING: This loses async semantics - the iterator is assumed to be synchronous
+        # For true async behavior, V uses channels and spawn
         target: str = self.visit(node.target)
         it: str = self.visit(node.iter)
 
         buf = []
+        buf.append("// WARNING: async for converted to sync for")
         buf.append(f"for {target} in {it} {{")
         buf.extend(
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
@@ -901,8 +936,10 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_AsyncWith(self, node: ast.AsyncWith) -> str:
         # V doesn't support async/await, so we'll convert to regular with
-        # This is similar to visit_With but for async context
+        # Using defer for cleanup - most concise and idiomatic V approach
+        # defer guarantees execution on function exit, even with panics/returns
         buf = []
+        buf.append("// WARNING: async with converted to sync with defer")
 
         for item in node.items:
             if item.optional_vars:
@@ -912,8 +949,8 @@ class VTranspiler(CLikeTranspiler):
                 buf.append(f"defer {{ {target}.__exit__() }}")
             else:
                 context = self.visit(item.context_expr)
-                buf.append(f"{context}.__enter__()")
                 buf.append(f"defer {{ {context}.__exit__() }}")
+                buf.append(f"{context}.__enter__()")
 
         for stmt in node.body:
             buf.append(self.visit(stmt))
