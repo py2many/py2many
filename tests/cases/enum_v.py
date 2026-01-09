@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from enum import IntEnum, IntFlag, Enum, auto
+from enum import Enum, IntEnum, IntFlag, auto
 
 
 # IntEnum test
