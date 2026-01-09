@@ -197,7 +197,8 @@ class VTranspiler(CLikeTranspiler):
         signature = ["fn"]
         is_class_method: bool = False
         if (
-            hasattr(node, "scopes") and node.scopes is not None
+            hasattr(node, "scopes")
+            and node.scopes is not None
             and len(getattr(node, "scopes", [])) > 1
             and isinstance(getattr(node, "scopes", [])[-2], ast.ClassDef)
         ):
@@ -377,7 +378,10 @@ class VTranspiler(CLikeTranspiler):
             it: str = self.visit(node.iter)
             buf.append(f"for {target} in {it} {{")
         buf.extend(
-            [self.indent(self.visit(c), level=getattr(node, "level", 0) + 1) for c in node.body]
+            [
+                self.indent(self.visit(c), level=getattr(node, "level", 0) + 1)
+                for c in node.body
+            ]
         )
         buf.append("}")
         return "\n".join(buf)
@@ -389,7 +393,10 @@ class VTranspiler(CLikeTranspiler):
         else:
             buf.append(f"for {self.visit(node.test)} {{")
         buf.extend(
-            [self.indent(self.visit(n), level=getattr(node, "level", 0) + 1) for n in node.body]
+            [
+                self.indent(self.visit(n), level=getattr(node, "level", 0) + 1)
+                for n in node.body
+            ]
         )
         buf.append("}")
         return "\n".join(buf)
@@ -405,8 +412,12 @@ class VTranspiler(CLikeTranspiler):
         return f"[{', '.join(chars)}]"
 
     def visit_If(self, node: ast.If) -> str:
-        body_vars: Set[str] = {get_id(v) for v in getattr(node, "scopes", [None])[-1].body_vars}
-        orelse_vars: Set[str] = {get_id(v) for v in getattr(node, "scopes", [None])[-1].orelse_vars}
+        body_vars: Set[str] = {
+            get_id(v) for v in getattr(node, "scopes", [None])[-1].body_vars
+        }
+        orelse_vars: Set[str] = {
+            get_id(v) for v in getattr(node, "scopes", [None])[-1].orelse_vars
+        }
         node.common_vars = body_vars.intersection(orelse_vars)
 
         body: str = "\n".join(
@@ -423,7 +434,9 @@ class VTranspiler(CLikeTranspiler):
         )
         test: str = self.visit(node.test)
         if node.orelse:
-            orelse = self.indent(f"else {{\n{orelse}\n}}", level=getattr(node, "level", 0))
+            orelse = self.indent(
+                f"else {{\n{orelse}\n}}", level=getattr(node, "level", 0)
+            )
         else:
             orelse = ""
         return f"if {test} {{\n{body}\n}}\n{orelse}"
@@ -941,7 +954,10 @@ class VTranspiler(CLikeTranspiler):
         buf.append("// WARNING: async for converted to sync for")
         buf.append(f"for {target} in {it} {{")
         buf.extend(
-            [self.indent(self.visit(c), level=getattr(node, "level", 0) + 1) for c in node.body]
+            [
+                self.indent(self.visit(c), level=getattr(node, "level", 0) + 1)
+                for c in node.body
+            ]
         )
         buf.append("}")
         return "\n".join(buf)
