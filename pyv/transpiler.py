@@ -47,13 +47,15 @@ def is_dict(node: ast.AST) -> bool:
     elif isinstance(node, ast.Assign):
         return is_dict(node.value)
     elif isinstance(node, ast.Name):
-        var: ast.AST = node.scopes.find(get_id(node))
-        return (
-            hasattr(var, "assigned_from")
-            and not isinstance(var.assigned_from, ast.FunctionDef)
-            and not isinstance(var.assigned_from, ast.For)
-            and is_dict(var.assigned_from.value)
-        )
+        if hasattr(node, "scopes"):
+            var: ast.AST = node.scopes.find(get_id(node))
+            return (
+                hasattr(var, "assigned_from")
+                and not isinstance(var.assigned_from, ast.FunctionDef)
+                and not isinstance(var.assigned_from, ast.For)
+                and is_dict(var.assigned_from.value)
+            )
+        return False
     else:
         return False
 
@@ -195,9 +197,9 @@ class VTranspiler(CLikeTranspiler):
         signature = ["fn"]
         is_class_method: bool = False
         if (
-            node.scopes is not None
-            and len(node.scopes) > 1
-            and isinstance(node.scopes[-2], ast.ClassDef)
+            hasattr(node, "scopes") and node.scopes is not None
+            and len(getattr(node, "scopes", [])) > 1
+            and isinstance(getattr(node, "scopes", [])[-2], ast.ClassDef)
         ):
             is_class_method = True
 
@@ -217,7 +219,7 @@ class VTranspiler(CLikeTranspiler):
             args.append((typename, id))
 
         if is_class_method:
-            signature.append(f"({receiver} {get_id(node.scopes[-2])})")
+            signature.append(f"({receiver} {get_id(getattr(node, 'scopes', [])[-2])})")
         signature.append(node.name)
 
         str_args: List[str] = []
@@ -301,7 +303,7 @@ class VTranspiler(CLikeTranspiler):
         if not hasattr(fndef, "declarations"):
             raise Exception("Missing declarations")
         if node.args:
-            for arg, decl in zip(node.args, fndef.declaration.keys()):
+            for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg: str = self.visit(arg)
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
@@ -313,7 +315,10 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_Call(self, node: ast.Call) -> str:
         fname: str = self.visit(node.func)
-        fndef: ast.AST = node.scopes.find(fname)
+        if hasattr(node, "scopes"):
+            fndef: ast.AST = node.scopes.find(fname)
+        else:
+            fndef = None
 
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
@@ -372,7 +377,7 @@ class VTranspiler(CLikeTranspiler):
             it: str = self.visit(node.iter)
             buf.append(f"for {target} in {it} {{")
         buf.extend(
-            [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
+            [self.indent(self.visit(c), level=getattr(node, "level", 0) + 1) for c in node.body]
         )
         buf.append("}")
         return "\n".join(buf)
@@ -384,7 +389,7 @@ class VTranspiler(CLikeTranspiler):
         else:
             buf.append(f"for {self.visit(node.test)} {{")
         buf.extend(
-            [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
+            [self.indent(self.visit(n), level=getattr(node, "level", 0) + 1) for n in node.body]
         )
         buf.append("}")
         return "\n".join(buf)
@@ -400,25 +405,25 @@ class VTranspiler(CLikeTranspiler):
         return f"[{', '.join(chars)}]"
 
     def visit_If(self, node: ast.If) -> str:
-        body_vars: Set[str] = {get_id(v) for v in node.scopes[-1].body_vars}
-        orelse_vars: Set[str] = {get_id(v) for v in node.scopes[-1].orelse_vars}
+        body_vars: Set[str] = {get_id(v) for v in getattr(node, "scopes", [None])[-1].body_vars}
+        orelse_vars: Set[str] = {get_id(v) for v in getattr(node, "scopes", [None])[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
 
         body: str = "\n".join(
             [
-                self.indent(self.visit(child), level=node.level + 1)
+                self.indent(self.visit(child), level=getattr(node, "level", 0) + 1)
                 for child in node.body
             ]
         )
         orelse: str = "\n".join(
             [
-                self.indent(self.visit(child), level=node.level + 1)
+                self.indent(self.visit(child), level=getattr(node, "level", 0) + 1)
                 for child in node.orelse
             ]
         )
         test: str = self.visit(node.test)
         if node.orelse:
-            orelse = self.indent(f"else {{\n{orelse}\n}}", level=node.level)
+            orelse = self.indent(f"else {{\n{orelse}\n}}", level=getattr(node, "level", 0))
         else:
             orelse = ""
         return f"if {test} {{\n{body}\n}}\n{orelse}"
@@ -648,7 +653,10 @@ class VTranspiler(CLikeTranspiler):
         if use_temp:
             assign.append(f"mut tmp := {self.visit(node.value)}")
         for target in node.targets:
-            kw: str = "mut " if is_mutable(node.scopes, get_id(target)) else ""
+            if hasattr(node, "scopes"):
+                kw: str = "mut " if is_mutable(node.scopes, get_id(target)) else ""
+            else:
+                kw: str = "mut "  # Default to mut for nodes without scopes
             if use_temp:
                 value: str = "tmp"
             else:
@@ -659,13 +667,17 @@ class VTranspiler(CLikeTranspiler):
                 subtargets: List[str] = []
                 op: str = ":="
                 for subtarget in target.elts:
-                    subkw: str = (
-                        "mut " if is_mutable(node.scopes, get_id(subtarget)) else ""
-                    )
+                    if hasattr(node, "scopes"):
+                        subkw: str = (
+                            "mut " if is_mutable(node.scopes, get_id(subtarget)) else ""
+                        )
+                        definition: Optional[ast.AST] = node.scopes.parent_scopes.find(
+                            get_id(subtarget)
+                        ) or node.scopes.find(get_id(subtarget))
+                    else:
+                        subkw: str = "mut "
+                        definition: Optional[ast.AST] = None
                     subtargets.append(f"{subkw}{self.visit(subtarget)}")
-                    definition: Optional[ast.AST] = node.scopes.parent_scopes.find(
-                        get_id(subtarget)
-                    ) or node.scopes.find(get_id(subtarget))
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
@@ -678,8 +690,8 @@ class VTranspiler(CLikeTranspiler):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
             elif isinstance(target, ast.Name) and defined_before(
-                node.scopes.parent_scopes.find(target.id)
-                or node.scopes.find(target.id),
+                getattr(node.scopes, "parent_scopes", None).find(target.id)
+                or getattr(node.scopes, "find", lambda x: None)(target.id),
                 node,
             ):
                 target: str = self.visit(target)
@@ -929,7 +941,7 @@ class VTranspiler(CLikeTranspiler):
         buf.append("// WARNING: async for converted to sync for")
         buf.append(f"for {target} in {it} {{")
         buf.extend(
-            [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
+            [self.indent(self.visit(c), level=getattr(node, "level", 0) + 1) for c in node.body]
         )
         buf.append("}")
         return "\n".join(buf)
