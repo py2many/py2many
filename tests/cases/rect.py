@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""This file implements a rectangle class """
+"""This file implements a rectangle class"""
 
 from dataclasses import dataclass
 

@@ -1,7 +1,10 @@
 @[translated]
 module main
 
-fn async_gen(ch chan any) {
+type Any = bool | int | i64 | f64 | string | []byte
+
+fn async_gen(ch chan Any) {
+	defer { ch.close() }
 	for i in 0 .. 3 {
 		ch <- i
 	}
