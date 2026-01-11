@@ -3,7 +3,7 @@ import re
 import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_mutable, is_void_function, is_generator_function
 from py2many.ast_helpers import create_ast_node
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
@@ -246,7 +246,7 @@ class VTranspiler(CLikeTranspiler):
             is_class_method = True
 
         # Check if this is a generator function
-        is_generator = self._is_generator_function(node)
+        is_generator = is_generator_function(node)
 
         generics: Set[str] = set()
         args: List[Tuple[str, str]] = []
@@ -362,8 +362,8 @@ class VTranspiler(CLikeTranspiler):
             raise Exception("Missing declarations")
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
-                arg: str = self.visit(arg)
-                vargs += [f"{decl}: {arg}"]
+                arg_val: str = self.visit(arg)
+                vargs += [f"{decl}: {arg_val}"]
         if node.keywords:
             for kw in node.keywords:
                 value: str = self.visit(kw.value)
@@ -384,7 +384,7 @@ class VTranspiler(CLikeTranspiler):
         # Check if this is a generator function call
         is_generator_call = False
         if isinstance(fndef, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            is_generator_call = self._is_generator_function(fndef)
+            is_generator_call = is_generator_function(fndef)
 
         vargs: List[str] = []
 
@@ -446,7 +446,7 @@ class VTranspiler(CLikeTranspiler):
                 fndef = node.iter.scopes.find(fname)
                 if isinstance(
                     fndef, (ast.FunctionDef, ast.AsyncFunctionDef)
-                ) and self._is_generator_function(fndef):
+                ) and is_generator_function(fndef):
                     iter_is_generator = True
                     chan_expr = self.visit(node.iter)
                     chan_var = self._new_tmp("gen")
@@ -460,7 +460,7 @@ class VTranspiler(CLikeTranspiler):
                     fndef = call.scopes.find(fname)
                     if isinstance(
                         fndef, (ast.FunctionDef, ast.AsyncFunctionDef)
-                    ) and self._is_generator_function(fndef):
+                    ) and is_generator_function(fndef):
                         iter_is_generator = True
                         chan_var = self.visit(node.iter)
 
@@ -486,7 +486,7 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_While(self, node: ast.While) -> str:
         buf: List[str] = []
-        if isinstance(node.test, ast.Constant) and node.test.value == True:
+        if isinstance(node.test, ast.Constant) and node.test.value is True:
             buf.append("for {")
         else:
             buf.append(f"for {self.visit(node.test)} {{")
@@ -575,7 +575,7 @@ class VTranspiler(CLikeTranspiler):
             fields.append("pub mut:")
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration} {typename}")
@@ -609,20 +609,7 @@ class VTranspiler(CLikeTranspiler):
         return struct_def
 
     def visit_IntFlag(self, node: ast.ClassDef) -> str:
-        # V doesn't have flag enums, but we can use a struct with constants
-        fields = []
-        for item in node.body:
-            if isinstance(item, ast.Assign):
-                for target in item.targets:
-                    if isinstance(target, ast.Name):
-                        if isinstance(item.value, ast.Constant):
-                            fields.append(f"    {target.id} = {item.value.value}")
-                        else:
-                            fields.append(f"    {target.id}")
-
-        # Use struct instead of unnamed enum
-        struct_def = f"struct {node.name} {{\n" + "\n".join(fields) + "\n}"
-        return struct_def
+        return self.visit_IntEnum(node)
 
     def visit_StrEnum(self, node: ast.ClassDef) -> str:
         # V doesn't have string enums, so we'll use a struct with string constants
@@ -657,9 +644,7 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_Set(self, node: ast.Set) -> str:
         # V doesn't have built-in sets, use arrays as a workaround
-        elements: List[str] = [self.visit(e) for e in node.elts]
-        elements_str: str = ", ".join(elements)
-        return f"[{elements_str}]"
+        return self.visit_List(node)
 
     def visit_Dict(self, node: ast.Dict) -> str:
         keys: List[str] = [self.visit(k) for k in node.keys]
@@ -713,7 +698,7 @@ class VTranspiler(CLikeTranspiler):
         elif node.handlers:
             buf.append("else {")
             buf.append("match vexc.get_curr_exc().name {")
-            has_else: bool = False
+            has_else = False
             for handler in node.handlers:
                 buf2 = self.visit(handler)
                 if buf2.startswith("else"):
@@ -828,8 +813,8 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_Raise(self, node: ast.Raise) -> str:
         self._usings.add("div72.vexc")
-        name: str = f'"{get_id(node.exc)}"'
-        msg: str = '""'
+        name = f'"{get_id(node.exc)}"'
+        msg = '""'
         if node.exc is None:
             return "vexc.raise('Exception', '')"
         elif isinstance(node.exc, ast.Call):
