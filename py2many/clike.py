@@ -748,9 +748,3 @@ class CLikeTranspiler(ast.NodeVisitor):
                 return None
         return None
 
-    def _is_generator_function(self, node: ast.FunctionDef) -> bool:
-        """Check if a function contains yield statements"""
-        for child in ast.walk(node):
-            if isinstance(child, ast.Yield):
-                return True
-        return False
