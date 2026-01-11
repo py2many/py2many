@@ -6,5 +6,5 @@ if __name__ == "__main__":
     assert b"foo" != b"bar"
     assert b'"' == b'"'
     assert b"'" == b"'"
-    assert b"\xBBfoo" == b"\xBBfoo"
+    assert b"\xbbfoo" == b"\xbbfoo"
     print("OK")

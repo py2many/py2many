@@ -1,4 +1,5 @@
 import ast
+import re
 import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -10,7 +11,7 @@ from py2many.exceptions import AstNotImplementedError
 from py2many.tracer import defined_before, is_list
 
 from .clike import CLikeTranspiler
-from .inference import V_WIDTH_RANK
+from .inference import V_WIDTH_RANK, get_inferred_v_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
@@ -150,22 +151,37 @@ class VTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set()
         self._indent = " " * indent
-        CLikeTranspiler._default_type = "any"
+        CLikeTranspiler._default_type = "Any"
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._generated_code_has_any_type = False
+        self._tmp_var_id = 0
 
     def indent(self, code: str, level=1) -> str:
         return self._indent * level + code
 
+    def _new_tmp(self, prefix: str = "tmp") -> str:
+        self._tmp_var_id += 1
+        return f"__{prefix}{self._tmp_var_id}"
+
+    def visit_Module(self, node: ast.Module) -> str:
+        code = super().visit_Module(node)
+        self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
+        return code
+
     def usings(self):
         usings: List[str] = sorted(list(set(self._usings)))
         uses: str = "\n".join(f"import {mod}" for mod in usings)
-        # Module statement needs to be here as uses is applied to the top of the file
-        # but V expects the module statement to be at the top.
-        return f"[translated]\nmodule main\n{uses}"
+        buf = ["[translated]", "module main"]
+        if uses:
+            buf.append(uses)
+        if self._generated_code_has_any_type:
+            buf.append("")
+            buf.append("type Any = bool | int | i64 | f64 | string | []byte")
+        return "\n".join(buf)
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
@@ -192,6 +208,31 @@ class VTranspiler(CLikeTranspiler):
         if is_mutable(node.scopes, id):
             id = f"mut {id}"
         return (typename, id)
+
+    def _infer_generator_yield_type(self, node: ast.FunctionDef) -> str:
+        inferred: List[str] = []
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Yield):
+                continue
+            if child.value is None:
+                continue
+            typename = get_inferred_v_type(child.value)
+            if typename:
+                inferred.append(typename)
+
+        if not inferred:
+            return "Any"
+
+        # If all types match, use that.
+        if all(t == inferred[0] for t in inferred):
+            return inferred[0]
+
+        # If all are numeric, pick the widest.
+        ranks = [V_WIDTH_RANK.get(t, -1) for t in inferred]
+        if all(r >= 0 for r in ranks):
+            return inferred[ranks.index(max(ranks))]
+
+        return "Any"
 
     def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
@@ -226,11 +267,14 @@ class VTranspiler(CLikeTranspiler):
         str_args: List[str] = []
         for typename, id in args:
             if typename == "":
-                for c in string.ascii_uppercase:
-                    if c not in generics:
-                        generics.add(c)
-                        typename = c
-                        break
+                if is_class_method:
+                    typename = "Any"
+                else:
+                    for c in string.ascii_uppercase:
+                        if c not in generics:
+                            generics.add(c)
+                            typename = c
+                            break
             if typename == "":
                 raise AstNotImplementedError(
                     "Cannot use more than 26 generics in a function.", node
@@ -240,11 +284,7 @@ class VTranspiler(CLikeTranspiler):
 
         # For generator functions, add channel parameter
         if is_generator:
-            # Determine the yield type from annotations or use 'any'
-            yield_type = "any"
-            if node.returns:
-                # For generators, returns annotation indicates the yield type
-                yield_type = self._typename_from_annotation(node, attr="returns")
+            yield_type = self._infer_generator_yield_type(node)
             str_args.append(f"ch chan {yield_type}")
 
         signature.append(f"({', '.join(str_args)})")
@@ -256,8 +296,25 @@ class VTranspiler(CLikeTranspiler):
             # Generators return void in V (they send values via channel)
             pass
 
-        body = "\n".join([self.indent(self.visit(n)) for n in node.body])
-        return f"{' '.join(signature)} {{\n{body}\n}}"
+        nested_fndefs = [
+            n
+            for n in node.body
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        body_nodes = [n for n in node.body if n not in nested_fndefs]
+
+        nested_code = "\n".join(self.visit(n) for n in nested_fndefs)
+
+        body_lines: List[str] = []
+        if is_generator:
+            body_lines.append(self.indent("defer { ch.close() }"))
+        body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
+        body = "\n".join(body_lines)
+
+        func_code = f"{' '.join(signature)} {{\n{body}\n}}"
+        if nested_code:
+            return f"{nested_code}\n{func_code}"
+        return func_code
 
     def visit_Return(self, node: ast.Return) -> str:
         if node.value:
@@ -326,7 +383,7 @@ class VTranspiler(CLikeTranspiler):
 
         # Check if this is a generator function call
         is_generator_call = False
-        if isinstance(fndef, ast.FunctionDef):
+        if isinstance(fndef, (ast.FunctionDef, ast.AsyncFunctionDef)):
             is_generator_call = self._is_generator_function(fndef)
 
         vargs: List[str] = []
@@ -347,12 +404,18 @@ class VTranspiler(CLikeTranspiler):
 
         # Handle generator calls
         if is_generator_call:
-            # Create channel and spawn
-            args_str = ", ".join(vargs) if vargs else ""
-            # We need to return something that can be iterated
-            # For now, we'll create a pattern that spawns the generator
-            # The caller will need to handle the channel iteration
-            return f"spawn {fname}({args_str}, ch)"
+            yield_type = self._infer_generator_yield_type(fndef)
+            ch_var = self._new_tmp("ch")
+            args_str = ", ".join(vargs)
+            call_args = f"{args_str}, {ch_var}" if args_str else ch_var
+
+            return (
+                f"(fn () chan {yield_type} {{\n"
+                f"    {ch_var} := chan {yield_type}{{}}\n"
+                f"    spawn {fname}({call_args})\n"
+                f"    return {ch_var}\n"
+                f"}}())"
+            )
 
         if vargs:
             args = ", ".join(vargs)
@@ -375,8 +438,43 @@ class VTranspiler(CLikeTranspiler):
                 f"for {target} := {start}; {target} < {end}; {target} += {step} {{"
             )
         else:
-            it: str = self.visit(node.iter)
-            buf.append(f"for {target} in {it} {{")
+            iter_is_generator = False
+            chan_var = ""
+
+            if isinstance(node.iter, ast.Call) and hasattr(node.iter, "scopes"):
+                fname = self.visit(node.iter.func)
+                fndef = node.iter.scopes.find(fname)
+                if isinstance(
+                    fndef, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ) and self._is_generator_function(fndef):
+                    iter_is_generator = True
+                    chan_expr = self.visit(node.iter)
+                    chan_var = self._new_tmp("gen")
+                    buf.append(f"{chan_var} := {chan_expr}")
+            elif isinstance(node.iter, ast.Name) and hasattr(node.iter, "scopes"):
+                definition = node.iter.scopes.find(node.iter.id)
+                assigned_from = getattr(definition, "assigned_from", None)
+                call = getattr(assigned_from, "value", None) if assigned_from else None
+                if isinstance(call, ast.Call) and hasattr(call, "scopes"):
+                    fname = self.visit(call.func)
+                    fndef = call.scopes.find(fname)
+                    if isinstance(
+                        fndef, (ast.FunctionDef, ast.AsyncFunctionDef)
+                    ) and self._is_generator_function(fndef):
+                        iter_is_generator = True
+                        chan_var = self.visit(node.iter)
+
+            if iter_is_generator:
+                buf.append("for {")
+                buf.append(
+                    self.indent(
+                        f"{target} := <-{chan_var} or {{ break }}",
+                        level=getattr(node, "level", 0) + 1,
+                    )
+                )
+            else:
+                it: str = self.visit(node.iter)
+                buf.append(f"for {target} in {it} {{")
         buf.extend(
             [
                 self.indent(self.visit(c), level=getattr(node, "level", 0) + 1)
@@ -807,59 +905,58 @@ class VTranspiler(CLikeTranspiler):
         return "ch <- 0"  # Empty yield
 
     def visit_DictComp(self, node: ast.DictComp) -> str:
-        # V doesn't have dict comprehensions, but we can use map
-        # For dict comprehension {k: v for ...}, we'll create a map
-        # First, we need to handle the generators
         if not node.generators:
             return "{}"
 
-        # For dict comp, we need special handling
-        # Let's create a map using a loop
-        if not node.generators:
-            raise AstNotImplementedError("DictComp with no generators", node)
+        # V does not support expression blocks, so represent dict comprehensions
+        # as an immediately invoked function expression returning a `map[...]...`.
+        key_type = get_inferred_v_type(node.key)
+        if not key_type or key_type == "Any":
+            # Try to infer `int` keys from `for x in range(...)` when the key is the loop var.
+            if isinstance(node.key, ast.Name):
+                for comp in node.generators:
+                    if (
+                        isinstance(comp.target, ast.Name)
+                        and comp.target.id == node.key.id
+                        and isinstance(comp.iter, ast.Call)
+                        and get_id(comp.iter.func) == "range"
+                    ):
+                        key_type = "int"
+                        break
 
-        buf = []
+        # V restricts map keys to basic types.
+        if not key_type or key_type == "Any":
+            key_type = "string"
 
-        # Infer types from the key and value expressions
-        key_type = "any"
-        value_type = "any"
+        value_type = get_inferred_v_type(node.value) or "Any"
 
-        # Try to infer types from annotations if available
-        if hasattr(node, "key_annotation"):
-            key_type = self._typename_from_annotation(node, attr="key_annotation")
-        if hasattr(node, "value_annotation"):
-            value_type = self._typename_from_annotation(node, attr="value_annotation")
-
-        buf.append(f"mut result = map[{key_type}]{value_type}{{}}")
+        buf: List[str] = []
+        buf.append(f"(fn () map[{key_type}]{value_type} {{")
+        buf.append(f"mut result := map[{key_type}]{value_type}{{}}")
 
         for comp in node.generators:
             target = comp.target
             iter_expr = comp.iter
 
-            # Build the for loop
             if isinstance(target, ast.Name):
-                target_name = target.id
-                buf.append(f"for {target_name} in {self.visit(iter_expr)} {{")
+                buf.append(f"for {target.id} in {self.visit(iter_expr)} {{")
             else:
-                # Handle tuple unpacking
                 buf.append(f"for {self.visit(target)} in {self.visit(iter_expr)} {{")
 
-            # Add filters
             for if_clause in comp.ifs:
-                buf.append(f"    if {self.visit(if_clause)} {{")
+                buf.append(f"if {self.visit(if_clause)} {{")
 
-            # Add the dict assignment
             key = self.visit(node.key)
             value = self.visit(node.value)
-            buf.append(f"        result[{key}] = {value}")
+            buf.append(f"result[{key}] = {value}")
 
-            # Close if blocks
             for _ in comp.ifs:
-                buf.append("    }")
+                buf.append("}")
 
             buf.append("}")
 
-        buf.append("result")
+        buf.append("return result")
+        buf.append("}())")
         return "\n".join(buf)
 
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> str:
@@ -944,22 +1041,21 @@ class VTranspiler(CLikeTranspiler):
         return f"// nonlocal {names}  // V doesn't support nonlocal keyword"
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> str:
-        # V doesn't support async/await, so we'll convert to regular for
-        # WARNING: This loses async semantics - the iterator is assumed to be synchronous
-        # For true async behavior, V uses channels and spawn
-        target: str = self.visit(node.target)
-        it: str = self.visit(node.iter)
+        # V doesn't support async/await, so we'll convert to a synchronous loop.
+        # The iterator may still be a channel-based generator.
+        buf = ["// WARNING: async for converted to sync for"]
 
-        buf = []
-        buf.append("// WARNING: async for converted to sync for")
-        buf.append(f"for {target} in {it} {{")
-        buf.extend(
-            [
-                self.indent(self.visit(c), level=getattr(node, "level", 0) + 1)
-                for c in node.body
-            ]
+        for_node = ast.For(
+            target=node.target,
+            iter=node.iter,
+            body=node.body,
+            orelse=getattr(node, "orelse", []),
         )
-        buf.append("}")
+        if hasattr(node, "scopes"):
+            for_node.scopes = node.scopes
+        for_node.level = getattr(node, "level", 0)
+
+        buf.append(self.visit_For(for_node))
         return "\n".join(buf)
 
     def visit_AsyncWith(self, node: ast.AsyncWith) -> str:
@@ -992,16 +1088,14 @@ class VTranspiler(CLikeTranspiler):
         #     ch <- val
         # }
 
-        # Get the generator expression
-        generator = self.visit(node.value)
+        gen_expr = self.visit(node.value)
+        gen_var = self._new_tmp("gen")
 
-        # We need to handle this carefully - the generator might be a function call
-        # that returns a channel, or it might be an iterable
-        # For now, we'll assume it's a generator that needs to be spawned
-
-        buf = []
-        buf.append(f"// yield from {generator}")
-        buf.append(f"for val in {generator} {{")
+        buf: List[str] = []
+        buf.append(f"{gen_var} := {gen_expr}")
+        buf.append(f"// yield from {gen_var}")
+        buf.append("for {")
+        buf.append(f"    val := <-{gen_var} or {{ break }}")
         buf.append("    ch <- val")
         buf.append("}")
 
