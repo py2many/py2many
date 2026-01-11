@@ -5,6 +5,7 @@ from py2many.analysis import (
     CalledWithTransformer,
     FunctionTransformer,
     ImportTransformer,
+    is_generator_function,
     is_void_function,
 )
 from py2many.context import add_variable_context
@@ -28,6 +29,24 @@ def test_is_not_void_for_fun_with_return_value():
     source = parse("def foo(x):", "   return x")
     foo = source.body[0]
     assert not is_void_function(foo)
+
+
+def test_is_generator_for_fun_with_yield():
+    source = parse("def foo(x):", "   yield x")
+    foo = source.body[0]
+    assert is_generator_function(foo)
+
+
+def test_is_not_generator_for_fun_without_yield():
+    source = parse("def foo(x):", "   bar(x)")
+    foo = source.body[0]
+    assert not is_generator_function(foo)
+
+
+def test_is_not_generator_when_inner_has_yield():
+    source = parse("def foo(x):", "   def bar():", "       yield x")
+    foo = source.body[0]
+    assert not is_generator_function(foo)
 
 
 class TestFunctionTransformer:

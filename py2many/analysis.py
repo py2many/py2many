@@ -31,6 +31,13 @@ def is_void_function(fun):
     return not (finder.returns or fun.returns is not None)
 
 
+def is_generator_function(fun):
+    finder = YieldFinder()
+    finder._current_fun = fun
+    finder.visit(fun)
+    return finder.yields
+
+
 def is_global(target):
     return isinstance(target.scopes[-1], ast.Module)
 
@@ -57,6 +64,21 @@ class ReturnFinder(ast.NodeVisitor):
     def visit_Return(self, node):
         if node.value != None:
             self.returns = True
+
+
+class YieldFinder(ast.NodeVisitor):
+    yields = False
+
+    def visit_Yield(self, node):
+        self.yields = True
+
+    def visit_FunctionDef(self, node):
+        if node is self._current_fun:
+            self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        if node is self._current_fun:
+            self.generic_visit(node)
 
 
 class FunctionTransformer(ast.NodeTransformer):
