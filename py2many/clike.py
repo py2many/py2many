@@ -747,4 +747,3 @@ class CLikeTranspiler(ast.NodeVisitor):
             except IndexError:
                 return None
         return None
-

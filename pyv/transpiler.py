@@ -3,7 +3,7 @@ import re
 import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from py2many.analysis import get_id, is_mutable, is_void_function, is_generator_function
+from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
 from py2many.ast_helpers import create_ast_node
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
