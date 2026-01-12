@@ -513,7 +513,7 @@ class RustTranspiler(CLikeTranspiler):
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
+            and (isinstance(node.right, ast.Constant) and isinstance(node.value, int))
         ):
             elt, n = self.visit(node.left.elts[0]), self.visit(node.right)
             return f"vec![{elt};{n}]"

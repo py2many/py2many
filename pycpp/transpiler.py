@@ -460,7 +460,7 @@ class CppTranspiler(CLikeTranspiler):
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
+            and (isinstance(node.right, ast.Constant) and isinstance(node.value, int))
         ):
             self._usings.add("<vector>")
             return "std::vector ({},{})".format(

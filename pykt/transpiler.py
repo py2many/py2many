@@ -276,7 +276,7 @@ class KotlinTranspiler(CLikeTranspiler):
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
+            and (isinstance(node.right, ast.Constant) and isinstance(node.value, int))
         ):
             num = self.visit(node.right)
             elt = self.visit(node.left.elts[0])
