@@ -298,7 +298,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
-            and isinstance(node.right, ast.Num)
+            and (isinstance(node.right, ast.Constant) and isinstance(node.value, int))
         ):
             return "std::vector ({},{})".format(
                 self.visit(node.right), self.visit(node.left.elts[0])

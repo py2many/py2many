@@ -252,9 +252,7 @@ class DocStringToCommentRewriter(ast.NodeTransformer):
         if not (node.body and isinstance(node.body[0], ast.Expr)):
             return None
         node = node.body[0].value
-        if isinstance(node, ast.Str):
-            return node
-        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node
         return None
 
