@@ -286,7 +286,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
     def visit_UnaryOp(self, node) -> str:
         if isinstance(node.op, ast.USub):
-            if isinstance(node.operand, (ast.Call, ast.Num)):
+            if isinstance(node.operand, ast.Call) or (isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, (int, float))):
                 # Shortcut if parenthesis are not needed
                 return f"-{self.visit(node.operand)}"
             else:
