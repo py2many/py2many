@@ -501,7 +501,7 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_UnaryOp(self, node) -> str:
         if isinstance(node.op, ast.USub):
-            if isinstance(node.operand, ast.Call) or (isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, (int, float))):
+            if isinstance(node.operand, ast.Call) or self._is_number(node.operand):
                 # Shortcut if parenthesis are not needed
                 return f"-{self.visit(node.operand)}"
             else:
@@ -513,7 +513,10 @@ class RustTranspiler(CLikeTranspiler):
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
-            and (isinstance(node.right, ast.Constant) and isinstance(node.value, int))
+            and (
+                isinstance(node.right, ast.Constant)
+                and isinstance(node.right.value, int)
+            )
         ):
             elt, n = self.visit(node.left.elts[0]), self.visit(node.right)
             return f"vec![{elt};{n}]"
