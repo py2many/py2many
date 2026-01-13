@@ -1019,12 +1019,6 @@ class VTranspiler(CLikeTranspiler):
         # We'll need to handle this carefully in context
         return f"{kw}{target} := {value}"
 
-    def visit_Nonlocal(self, node: ast.Nonlocal) -> str:
-        # V doesn't have nonlocal keyword
-        # Variables in V are accessible from nested functions if they're in the same scope
-        names = ", ".join(node.names)
-        return f"// nonlocal {names}  // V doesn't support nonlocal keyword"
-
     def visit_AsyncFor(self, node: ast.AsyncFor) -> str:
         # V doesn't support async/await, so we'll convert to a synchronous loop.
         # The iterator may still be a channel-based generator.

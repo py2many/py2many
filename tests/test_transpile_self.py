@@ -168,7 +168,12 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            expected_success=set(["transpiler.py"]),
+            expected_success={
+                "clike.py",
+                "transpiler.py",
+                "plugins.py",
+                "inference.py",
+            },
         )
 
         assert_some_failures(
@@ -273,15 +278,14 @@ class SelfTranspileTests(unittest.TestCase):
 
         transpiler_module = ROOT_DIR / "pyv"
 
-        assert_some_failures(
+        assert_only_reformat_failures(
             *_process_dir(
                 settings,
                 transpiler_module,
                 OUT_DIR,
                 False,
                 _suppress_exceptions=suppress_exceptions,
-            ),
-            expected_success={"clike.py"},
+            )
         )
         assert_counts(
             *_process_dir(
@@ -291,6 +295,6 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            format_error_count=10,
-            failure_count=12,
+            format_error_count=27,
+            failure_count=2,
         )

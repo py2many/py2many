@@ -33,7 +33,7 @@ extern crate pyo3;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-/* This file implements a rectangle class  */
+/* This file implements a rectangle class */
 
 #[pyclass]
 pub struct Rectangle {
