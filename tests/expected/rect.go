@@ -11,17 +11,17 @@ type Rectangle struct {
 	length int
 }
 
-func is_square(self Rectangle) bool {
+func (self Rectangle) is_square() bool {
 	return self.height == self.length
 }
 
 func Show() {
 	var r Rectangle = Rectangle{height: 1, length: 1}
-	if !(is_square(r)) {
+	if !(r.is_square()) {
 		panic("assert")
 	}
 	r = Rectangle{height: 1, length: 2}
-	if !(!(is_square(r))) {
+	if !(!(r.is_square())) {
 		panic("assert")
 	}
 	fmt.Printf("%v\n", r.height)

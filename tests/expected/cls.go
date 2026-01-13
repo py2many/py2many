@@ -7,12 +7,12 @@ import (
 type Foo struct {
 }
 
-func bar(self Foo) string {
+func (self Foo) bar() string {
 	return "a"
 }
 
 func main() {
 	var f Foo = Foo{}
-	b := bar(f)
+	b := f.bar()
 	fmt.Printf("%v\n", b)
 }
