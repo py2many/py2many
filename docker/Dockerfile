@@ -56,11 +56,8 @@ USER root
 RUN cd $HOME/yay-bin && pacman -U --noconfirm *.zst && cd .. && rm -rf yay-bin
 
 # Vlang:
-RUN test -z "$VLANG" || (RUNNER_OS=Linux RELEASE=weekly.2021.29 \
-    FILE=v_$(echo ${RUNNER_OS} | tr '[:upper:]' '[:lower:]').zip \
-    && (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/download/${RELEASE}/${FILE}) \
-    && (cd /tmp && unzip ${FILE} && rm ${FILE}) \
-    && ln -s /tmp/v/v /usr/bin)
+RUN test -z "$VLANG" || (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/latest/download/v_linux.zip && \
+    unzip -o v_linux.zip && rm v_linux.zip && ln -s /tmp/v/v /usr/bin)
 
 # TODO: Add all formatters and other auxilliary setup from main.yml
 
