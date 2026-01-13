@@ -2,7 +2,7 @@ import ast
 import textwrap
 from typing import List
 
-from py2many.analysis import IGNORED_MODULE_SET, get_id, is_global, is_void_function
+from py2many.analysis import get_id, is_global, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
@@ -29,14 +29,6 @@ class GoMethodCallRewriter(ast.NodeTransformer):
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
                 needs_assign = True
-            value_id = get_id(fname.value)
-            if value_id not in IGNORED_MODULE_SET:
-                if value_id:
-                    node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
-                else:
-                    node0 = fname.value
-                node.args = [node0] + node.args
-                node.func = ast.Name(id=fname.attr, lineno=node.lineno, ctx=fname.ctx)
         if needs_assign:
             ret = ast.Assign(
                 targets=[ast.Name(id=fname.value.id, lineno=node.lineno)],
@@ -161,8 +153,17 @@ class GoTranspiler(CLikeTranspiler):
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
 
-        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
-            typenames[0] = node.self_type
+        is_class_method = hasattr(node, "self_type")
+
+        if is_class_method:
+            if len(typenames) and typenames[0] is None:
+                typenames[0] = node.self_type
+            receiver = "self"
+            receiver_type = node.self_type
+        else:
+            receiver = None
+            if len(typenames) and typenames[0] is None:
+                typenames[0] = node.self_type
 
         args_list = []
         typedecls = []
@@ -170,6 +171,9 @@ class GoTranspiler(CLikeTranspiler):
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
+
+            if is_class_method and arg == "self":
+                continue
 
             if typename == "T":
                 typename = f"T{index} any"
@@ -193,7 +197,10 @@ class GoTranspiler(CLikeTranspiler):
             template = "[{}]".format(", ".join(typedecls))
 
         args = ", ".join(args_list)
-        funcdef = f"func {node.name}{template}({args}){return_type} {{"
+        if is_class_method:
+            funcdef = f"func ({receiver} {receiver_type}) {node.name}{template}({args}){return_type} {{"
+        else:
+            funcdef = f"func {node.name}{template}({args}){return_type} {{"
         return f"{funcdef}\n{body}}}\n\n"
 
     def visit_Return(self, node) -> str:
