@@ -202,6 +202,10 @@ class CLikeTranspiler(ast.NodeVisitor):
             slice_value = node.slice
         return slice_value
 
+    @staticmethod
+    def _is_number(node):
+        return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+
     @classmethod
     def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
         if isinstance(typename, list):
