@@ -77,6 +77,11 @@ RUN test -z "$CPP" || (source  $HOME/.venv/bin/activate && pip3 install conan &&
 RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
    sh -s -- -y --default-toolchain nightly-2024-01-01)
 
+# Astral uv
+USER build
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+USER root
+
 # Go
 RUN test -z "$GOLANG" || /scripts/go-setup.sh
 
