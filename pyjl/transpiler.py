@@ -21,6 +21,7 @@ from .plugins import (
 
 class JuliaMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
+        self.generic_visit(node)
         fname = node.func
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
