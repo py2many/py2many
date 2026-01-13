@@ -32,7 +32,7 @@
 extern crate anyhow;
 use anyhow::Result;
 
-/* This file implements a rectangle class  */
+/* This file implements a rectangle class */
 
 pub struct Rectangle {
     pub height: i32,
