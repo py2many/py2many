@@ -8,6 +8,7 @@ from .transpiler import (
     VDictRewriter,
     VNoneCompareRewriter,
     VTranspiler,
+    VWalrusRewriter,
 )
 
 
@@ -23,6 +24,11 @@ def settings(args, env=os.environ):
         "V",
         ["v", *vfmt_args],
         None,
-        [VNoneCompareRewriter(), VDictRewriter(), VComprehensionRewriter()],
+        [
+            VWalrusRewriter(),
+            VNoneCompareRewriter(),
+            VDictRewriter(),
+            VComprehensionRewriter(),
+        ],
         [infer_v_types],
     )
