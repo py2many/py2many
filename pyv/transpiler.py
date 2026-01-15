@@ -525,12 +525,17 @@ class VTranspiler(CLikeTranspiler):
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
-        # Check for stdlib methods (e.g. str.lower)
+        # Check for stdlib methods (e.g. str.lower, re.split)
         if isinstance(node.func, ast.Attribute):
             attr = node.func.attr
-            # We try to infer if it's a string method or other stdlib method
-            # For now, we use a simple heuristic or check if it's in our stub table
-            # In a more advanced version, we'd use type inference
+            # Check for module calls like re.search FIRST to avoid collision with str.split etc.
+            if isinstance(node.func.value, ast.Name):
+                module_name = node.func.value.id
+                method_key = f"{module_name}.{attr}"
+                if method_key in STDLIB_DISPATCH_TABLE:
+                    return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
+
+            # Fallback to string methods or other type methods
             method_key = f"str.{attr}"
             if method_key in STDLIB_DISPATCH_TABLE:
                 return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)

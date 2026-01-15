@@ -1,5 +1,5 @@
 import ast
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, Any
 
 def visit_str_join(self, node: ast.Call, vargs: List[str]) -> str:
     if len(vargs) == 1:
@@ -21,6 +21,12 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
     "str.split": lambda self, node, vargs: f"{self.visit(node.func.value)}.split({vargs[0]})" if vargs else f"{self.visit(node.func.value)}.fields()",
     "str.join": visit_str_join,
     "str.isalpha": lambda self, node, vargs: f"{self.visit(node.func.value)}.bytes().all(it.is_letter())",
-    "str.isdigit": lambda self, node, vargs: f"{self.visit(node.func.value)}.bytes().all(it.is_digit())",
     "str.isspace": lambda self, node, vargs: f"({self.visit(node.func.value)}.trim_space() == '')",
+    # re module
+    "re.search": lambda self, node, vargs: (self._usings.add("regex") or True) and f"(fn(p string, s string) bool {{ mut re := regex.regex_opt(p) or {{ panic(err) }}; return re.find_all_str(s).len > 0 }}({vargs[0]}, {vargs[1]}))",
+    "re.match": lambda self, node, vargs: (self._usings.add("regex") or True) and f"(fn(p string, s string) bool {{ mut re := regex.regex_opt('^' + p) or {{ panic(err) }}; return re.find_all_str(s).len > 0 }}({vargs[0]}, {vargs[1]}))",
+    "re.findall": lambda self, node, vargs: (self._usings.add("regex") or True) and f"(fn(p string, s string) []string {{ mut re := regex.regex_opt(p) or {{ panic(err) }}; return re.find_all_str(s) }}({vargs[0]}, {vargs[1]}))",
+    "re.sub": lambda self, node, vargs: (self._usings.add("regex") or True) and f"(fn(p string, r string, s string) string {{ mut re := regex.regex_opt(p) or {{ panic(err) }}; return re.replace(s, r) }}({vargs[0]}, {vargs[1]}, {vargs[2]}))",
+    "re.split": lambda self, node, vargs: (self._usings.add("regex") or True) and f"(fn(p string, s string) []string {{ mut re := regex.regex_opt(p) or {{ panic(err) }}; return re.split(s) }}({vargs[0]}, {vargs[1]}))",
+    "re.compile": lambda self, node, vargs: (self._usings.add("regex") or True) and f"regex.regex_opt({vargs[0]}) or {{ panic(err) }}",
 }
