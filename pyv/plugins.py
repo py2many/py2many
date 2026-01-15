@@ -119,6 +119,8 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "getattr": lambda n, vargs: f"/* getattr({', '.join(vargs)}) not supported */",
     "setattr": lambda n, vargs: f"/* setattr({', '.join(vargs)}) not supported */",
     "hasattr": lambda n, vargs: f"/* hasattr({', '.join(vargs)}) not supported */",
+    "os.path.exists": lambda n, vargs: f"os.exists({vargs[0]})",
+    "os.remove": lambda n, vargs: f"os.rm({vargs[0]}) or {{ panic(err) }}",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {
