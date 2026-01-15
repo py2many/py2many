@@ -1,6 +1,6 @@
 import ast
-import re
 import string
+import re
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
@@ -291,6 +291,17 @@ class VTranspiler(CLikeTranspiler):
             id = f"mut {id}"
         return (typename, id)
 
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
+        parts = []
+        for val in node.values:
+            if isinstance(val, ast.Constant):
+                parts.append(str(val.value))
+            elif isinstance(val, ast.FormattedValue):
+                parts.append(f"${{{self.visit(val.value)}}}")
+            else:
+                parts.append(f"${{{self.visit(val)}}}")
+        return f"'{''.join(parts)}'"
+
     def _infer_generator_yield_type(self, node: ast.FunctionDef) -> str:
         inferred: List[str] = []
         for child in ast.walk(node):
@@ -319,6 +330,7 @@ class VTranspiler(CLikeTranspiler):
     def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
         is_class_method: bool = False
+        class_node = None
         if (
             hasattr(node, "scopes")
             and node.scopes is not None
@@ -326,38 +338,50 @@ class VTranspiler(CLikeTranspiler):
             and isinstance(getattr(node, "scopes", [])[-2], ast.ClassDef)
         ):
             is_class_method = True
+            class_node = node.scopes[-2]
 
         # Check if this is a generator function
         is_generator = is_generator_function(node)
 
         generics: Set[str] = set()
         args: List[Tuple[str, str]] = []
-        receiver: str = ""
-        for arg in node.args.args:
+        receiver: str = "self"
+        for i, arg in enumerate(node.args.args):
             typename, id = self.visit(arg)
-            if typename is None and is_class_method:  # receiver
-                receiver = id
+            if i == 0 and is_class_method:  # receiver
+                receiver = id.replace("mut ", "")
                 continue
-            elif len(typename) == 1 and typename.isupper():
+            elif typename is not None and len(typename) == 1 and typename.isupper():
                 generics.add(typename)
             args.append((typename, id))
 
         if node.args.vararg:
             typename, id = self.visit(node.args.vararg)
-            if typename.startswith("[]"):
-                typename = "..." + typename[2:]
-            else:
-                typename = "..." + typename
+            if typename is not None:
+                if typename.startswith("[]"):
+                    typename = "..." + typename[2:]
+                else:
+                    typename = "..." + typename
             args.append((typename, id))
 
-        if is_class_method:
-            signature.append(f"({receiver} {get_id(getattr(node, 'scopes', [])[-2])})")
-        signature.append(node.name)
+        fn_name = node.name
+        is_init = fn_name == "__init__"
+        is_del = fn_name == "__del__"
+        
+        if is_init and class_node:
+            fn_name = f"new_{class_node.name.lower()}"
+        elif is_del:
+            fn_name = "free"
+
+        if is_class_method and not is_init:
+            signature.append(f"(mut {receiver} {get_id(class_node)})")
+        
+        signature.append(fn_name)
 
         str_args: List[str] = []
         for typename, id in args:
             if typename in {"", "...", "Any", "...Any"}:
-                if is_class_method:
+                if is_class_method and not is_init:
                     typename = "Any" if typename in {"", "Any"} else "...Any"
                 else:
                     for c in string.ascii_uppercase:
@@ -365,7 +389,8 @@ class VTranspiler(CLikeTranspiler):
                             generics.add(c)
                             typename = c if typename in {"", "Any"} else f"...{c}"
                             break
-            if typename in {"", "...", "Any", "...Any"}:
+            # Only raise if we still have an empty/starred-only type
+            if typename in {"", "..."}:
                 raise AstNotImplementedError(
                     "Cannot use more than 26 generics in a function.", node
                 )
@@ -383,7 +408,9 @@ class VTranspiler(CLikeTranspiler):
         signature.append(f"({', '.join(str_args)})")
 
         # Generator functions don't return a value directly
-        if not is_void_function(node) and not is_generator:
+        if is_init and class_node:
+            signature.append(class_node.name)
+        elif not is_void_function(node) and not is_generator:
             signature.append(self._typename_from_annotation(node, attr="returns"))
         elif is_generator:
             # Generators return void in V (they send values via channel)
@@ -401,7 +428,21 @@ class VTranspiler(CLikeTranspiler):
         body_lines: List[str] = []
         if is_generator:
             body_lines.append(self.indent("defer { ch.close() }"))
+        
+        if is_init and class_node:
+            body_lines.append(self.indent(f"mut {receiver} := {class_node.name}{{}}"))
+
         body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
+        
+        if is_init and class_node:
+            # Check for __post_init__
+            # Only call if not already in body
+            has_post_init = any(isinstance(b, ast.FunctionDef) and b.name == "__post_init__" for b in class_node.body)
+            already_called = any(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) and get_id(n.value.func) == f"{receiver}.__post_init__" for n in body_nodes)
+            if has_post_init and not already_called:
+                body_lines.append(self.indent(f"{receiver}.__post_init__()"))
+            body_lines.append(self.indent(f"return {receiver}"))
+
         body = "\n".join(body_lines)
 
         func_code = f"{' '.join(signature)} {{\n{body}\n}}"
@@ -443,34 +484,27 @@ class VTranspiler(CLikeTranspiler):
         if not value_id:
             value_id: str = ""
         ret: str = f"{value_id}.{attr}"
+        if attr == "write" and ("os.open" in value_id or "os.create" in value_id or "f" == value_id):
+            # Special case for file write
+            return f"{value_id}.write_string"
         if ret in self._attr_dispatch_table:
             return self._attr_dispatch_table[ret](self, node)
         return value_id + "." + attr
 
-    def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
-        vargs: List[str] = []  # visited args
-        if not hasattr(fndef, "declarations"):
-            raise Exception("Missing declarations")
-        if node.args:
-            for arg, decl in zip(node.args, fndef.declarations.keys()):
-                arg_val: str = self.visit(arg)
-                vargs += [f"{decl}: {arg_val}"]
-        if node.keywords:
-            for kw in node.keywords:
-                value: str = self.visit(kw.value)
-                vargs += [f"{kw.arg}: {value}"]
-        args: str = ", ".join(vargs)
-        return f"{fname}{{{args}}}"
-
     def visit_Call(self, node: ast.Call) -> str:
         fname: str = self.visit(node.func)
+        fndef: Optional[ast.AST] = None
         if hasattr(node, "scopes"):
-            fndef: ast.AST = node.scopes.find(fname)
-        else:
-            fndef = None
+            fndef = node.scopes.find(fname)
 
         if isinstance(fndef, ast.ClassDef):
-            return self._visit_object_literal(node, fname, fndef)
+            vargs = [self.visit(a) for a in node.args]
+            if node.keywords:
+                vargs += [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
+            
+            if vargs:
+                return f"new_{fname.lower()}({', '.join(vargs)})"
+            return f"{fname}{{}}"
 
         # Check if this is a generator function call
         is_generator_call = False
@@ -478,11 +512,10 @@ class VTranspiler(CLikeTranspiler):
             is_generator_call = is_generator_function(fndef)
 
         vargs: List[str] = []
-
         for idx, arg in enumerate(node.args):
             is_starred = isinstance(arg, ast.Starred)
             visited_arg = self.visit(arg)
-            if hasattr(fndef, "args") and not is_starred and is_mutable(
+            if hasattr(fndef, "args") and not is_starred and idx < len(fndef.args.args) and is_mutable(
                 fndef.scopes, fndef.args.args[idx].arg
             ):
                 vargs.append(f"mut {visited_arg}")
@@ -493,6 +526,8 @@ class VTranspiler(CLikeTranspiler):
 
         ret: Optional[str] = self._dispatch(node, fname, vargs)
         if ret is not None:
+            if "write_string" in ret:
+                return f"{ret} or {{ panic(err) }}"
             return ret
 
         # Handle generator calls
@@ -510,11 +545,11 @@ class VTranspiler(CLikeTranspiler):
                 f"}}())"
             )
 
-        if vargs:
-            args = ", ".join(vargs)
-        else:
-            args = ""
-        return f"{fname}({args})"
+        args_str = ", ".join(vargs)
+        result = f"{fname}({args_str})"
+        if "write_string" in result:
+             return f"{result} or {{ panic(err) }}"
+        return result
 
     def visit_Starred(self, node: ast.Starred) -> str:
         return f"...{self.visit(node.value)}"
@@ -1035,23 +1070,29 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_With(self, node: ast.With) -> str:
         # V doesn't have 'with' statement, but we can use defer for cleanup
-        # For now, we'll just generate the body and add defer if needed
         buf = []
 
         # Process items
         for item in node.items:
+            context = self.visit(item.context_expr)
             if item.optional_vars:
                 # Assign context manager to variable
                 target = self.visit(item.optional_vars)
-                context = self.visit(item.context_expr)
-                buf.append(f"{target} := {context}")
-                # Add defer for __exit__ if it exists
-                buf.append(f"defer {{ {target}.__exit__() }}")
+                buf.append(f"mut {target} := {context}")
+                # Add defer for cleanup
+                if "os.open" in context or "os.create" in context:
+                    buf.append(f"defer {{ {target}.close() }}")
+                else:
+                    buf.append(f"defer {{ {target}.__exit__() }}")
             else:
                 # Just call the context manager
-                context = self.visit(item.context_expr)
-                buf.append(f"defer {{ {context}.__exit__() }}")
-                buf.append(f"{context}.__enter__()")
+                if "os.open" in context or "os.create" in context:
+                    # This case is odd (opening file without target)
+                    buf.append(f"mut tmp_file := {context}")
+                    buf.append("defer { tmp_file.close() }")
+                else:
+                    buf.append(f"defer {{ {context}.__exit__() }}")
+                    buf.append(f"{context}.__enter__()")
 
         # Process body
         for stmt in node.body:
