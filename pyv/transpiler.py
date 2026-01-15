@@ -228,7 +228,7 @@ class VTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set()
         self._indent = " " * indent
-        CLikeTranspiler._default_type = "Any"
+        CLikeTranspiler._default_type = ""
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -282,6 +282,11 @@ class VTranspiler(CLikeTranspiler):
         typename = ""
         if node.annotation:
             typename = self._typename_from_annotation(node)
+        else:
+            inferred = get_inferred_v_type(node)
+            if inferred:
+                typename = inferred
+
         if is_mutable(node.scopes, id):
             id = f"mut {id}"
         return (typename, id)
@@ -351,21 +356,24 @@ class VTranspiler(CLikeTranspiler):
 
         str_args: List[str] = []
         for typename, id in args:
-            if typename == "":
+            if typename in {"", "...", "Any", "...Any"}:
                 if is_class_method:
-                    typename = "Any"
+                    typename = "Any" if typename in {"", "Any"} else "...Any"
                 else:
                     for c in string.ascii_uppercase:
                         if c not in generics:
                             generics.add(c)
-                            typename = c
+                            typename = c if typename in {"", "Any"} else f"...{c}"
                             break
-            if typename == "":
+            if typename in {"", "...", "Any", "...Any"}:
                 raise AstNotImplementedError(
                     "Cannot use more than 26 generics in a function.", node
                 )
 
             str_args.append(f"{id} {typename}")
+
+        if generics:
+            signature.append(f"[{', '.join(sorted(list(generics)))}]")
 
         # For generator functions, add channel parameter
         if is_generator:
@@ -772,31 +780,24 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_List(self, node: ast.List) -> str:
         if any(isinstance(e, ast.Starred) for e in node.elts):
-            # V doesn't have spread operator in list literals, use .concat()
-            # [1, *others, 2] -> ([1]).concat(others).concat([2])
-            parts = []
-            curr_list = []
+            self._usings.add("arrays")
+            # V uses arrays.concat(a, ...b) to concatenate arrays
+            # We chain these calls for multiple elements/stars
+            res = None
             for e in node.elts:
                 if isinstance(e, ast.Starred):
-                    if curr_list:
-                        parts.append(f"[{', '.join(curr_list)}]")
-                        curr_list = []
-                    parts.append(self.visit(e.value))
+                    starred_val = self.visit(e.value)
+                    if res is None:
+                        res = starred_val
+                    else:
+                        res = f"arrays.concat({res}, ...{starred_val})"
                 else:
-                    curr_list.append(self.visit(e))
-            if curr_list:
-                parts.append(f"[{', '.join(curr_list)}]")
-            
-            if not parts:
-                return "[]"
-            
-            res = parts[0]
-            if not res.startswith("["):
-                res = f"([]).concat({res})"
-            
-            for part in parts[1:]:
-                res = f"({res}).concat({part})"
-            return res
+                    val = self.visit(e)
+                    if res is None:
+                        res = f"[{val}]"
+                    else:
+                        res = f"arrays.concat({res}, {val})"
+            return res if res else "[]"
 
         elements: List[str] = [self.visit(e) for e in node.elts]
         elements_str: str = ", ".join(elements)
