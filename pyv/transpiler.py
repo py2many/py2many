@@ -20,6 +20,7 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+from .stubs import STDLIB_DISPATCH_TABLE
 
 _is_mutable = is_mutable
 
@@ -523,6 +524,16 @@ class VTranspiler(CLikeTranspiler):
                 vargs.append(visited_arg)
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
+
+        # Check for stdlib methods (e.g. str.lower)
+        if isinstance(node.func, ast.Attribute):
+            attr = node.func.attr
+            # We try to infer if it's a string method or other stdlib method
+            # For now, we use a simple heuristic or check if it's in our stub table
+            # In a more advanced version, we'd use type inference
+            method_key = f"str.{attr}"
+            if method_key in STDLIB_DISPATCH_TABLE:
+                return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
 
         ret: Optional[str] = self._dispatch(node, fname, vargs)
         if ret is not None:
