@@ -102,7 +102,9 @@ def _transpile(
         generic_post_rewriters.append(LoopElseRewriter(language))
 
     rewriters = [r for r in generic_rewriters if r is not None] + rewriters
-    post_rewriters = [r for r in generic_post_rewriters if r is not None] + post_rewriters
+    post_rewriters = [
+        r for r in generic_post_rewriters if r is not None
+    ] + post_rewriters
     outputs = {}
     successful = []
     for filename, tree in zip(topo_filenames, trees):

@@ -1,6 +1,6 @@
 import ast
-import string
 import re
+import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
@@ -211,9 +211,9 @@ class VWalrusRewriter(ast.NodeTransformer):
                     stmt.iter = extractor.visit(stmt.iter)
                 elif hasattr(stmt, "value"):
                     stmt.value = extractor.visit(stmt.value)
-                elif hasattr(stmt, "test"): # Assert
+                elif hasattr(stmt, "test"):  # Assert
                     stmt.test = extractor.visit(stmt.test)
-                
+
                 new_body.extend(assignments)
                 new_body.append(stmt)
         return new_body
@@ -367,7 +367,7 @@ class VTranspiler(CLikeTranspiler):
         fn_name = node.name
         is_init = fn_name == "__init__"
         is_del = fn_name == "__del__"
-        
+
         if is_init and class_node:
             fn_name = f"new_{class_node.name.lower()}"
         elif is_del:
@@ -375,7 +375,7 @@ class VTranspiler(CLikeTranspiler):
 
         if is_class_method and not is_init:
             signature.append(f"(mut {receiver} {get_id(class_node)})")
-        
+
         signature.append(fn_name)
 
         str_args: List[str] = []
@@ -428,17 +428,25 @@ class VTranspiler(CLikeTranspiler):
         body_lines: List[str] = []
         if is_generator:
             body_lines.append(self.indent("defer { ch.close() }"))
-        
+
         if is_init and class_node:
             body_lines.append(self.indent(f"mut {receiver} := {class_node.name}{{}}"))
 
         body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
-        
+
         if is_init and class_node:
             # Check for __post_init__
             # Only call if not already in body
-            has_post_init = any(isinstance(b, ast.FunctionDef) and b.name == "__post_init__" for b in class_node.body)
-            already_called = any(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) and get_id(n.value.func) == f"{receiver}.__post_init__" for n in body_nodes)
+            has_post_init = any(
+                isinstance(b, ast.FunctionDef) and b.name == "__post_init__"
+                for b in class_node.body
+            )
+            already_called = any(
+                isinstance(n, ast.Expr)
+                and isinstance(n.value, ast.Call)
+                and get_id(n.value.func) == f"{receiver}.__post_init__"
+                for n in body_nodes
+            )
             if has_post_init and not already_called:
                 body_lines.append(self.indent(f"{receiver}.__post_init__()"))
             body_lines.append(self.indent(f"return {receiver}"))
@@ -484,7 +492,9 @@ class VTranspiler(CLikeTranspiler):
         if not value_id:
             value_id: str = ""
         ret: str = f"{value_id}.{attr}"
-        if attr == "write" and ("os.open" in value_id or "os.create" in value_id or "f" == value_id):
+        if attr == "write" and (
+            "os.open" in value_id or "os.create" in value_id or "f" == value_id
+        ):
             # Special case for file write
             return f"{value_id}.write_string"
         if ret in self._attr_dispatch_table:
@@ -501,7 +511,7 @@ class VTranspiler(CLikeTranspiler):
             vargs = [self.visit(a) for a in node.args]
             if node.keywords:
                 vargs += [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
-            
+
             if vargs:
                 return f"new_{fname.lower()}({', '.join(vargs)})"
             return f"{fname}{{}}"
@@ -515,8 +525,11 @@ class VTranspiler(CLikeTranspiler):
         for idx, arg in enumerate(node.args):
             is_starred = isinstance(arg, ast.Starred)
             visited_arg = self.visit(arg)
-            if hasattr(fndef, "args") and not is_starred and idx < len(fndef.args.args) and is_mutable(
-                fndef.scopes, fndef.args.args[idx].arg
+            if (
+                hasattr(fndef, "args")
+                and not is_starred
+                and idx < len(fndef.args.args)
+                and is_mutable(fndef.scopes, fndef.args.args[idx].arg)
             ):
                 vargs.append(f"mut {visited_arg}")
             else:
@@ -548,7 +561,7 @@ class VTranspiler(CLikeTranspiler):
         args_str = ", ".join(vargs)
         result = f"{fname}({args_str})"
         if "write_string" in result:
-             return f"{result} or {{ panic(err) }}"
+            return f"{result} or {{ panic(err) }}"
         return result
 
     def visit_Starred(self, node: ast.Starred) -> str:
@@ -659,6 +672,7 @@ class VTranspiler(CLikeTranspiler):
         elif isinstance(val, bytes):
             if not node.value:
                 return "[]byte{}"
+
             chars = []
             chars.append(f"byte({hex(node.value[0])})")
             for c in node.value[1:]:
@@ -960,7 +974,8 @@ class VTranspiler(CLikeTranspiler):
                     if isinstance(elt, ast.Starred):
                         if starred_idx != -1:
                             raise AstNotImplementedError(
-                                "Only one starred expression allowed in assignment", node
+                                "Only one starred expression allowed in assignment",
+                                node,
                             )
                         starred_idx = i
 
@@ -969,7 +984,7 @@ class VTranspiler(CLikeTranspiler):
                     # We need a temporary variable if 'value' is complex
                     tmp_var = self._new_tmp("unpack")
                     assign.append(f"{tmp_var} := {value}")
-                    
+
                     for i, elt in enumerate(target.elts):
                         if i < starred_idx:
                             idx_val = f"{tmp_var}[{i}]"
@@ -989,18 +1004,30 @@ class VTranspiler(CLikeTranspiler):
                             if dist_from_end == 0:
                                 idx_val = f"{tmp_var}.last()"
                             else:
-                                idx_val = f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
+                                idx_val = (
+                                    f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
+                                )
                             target_elt = elt
 
                         subkw = ""
                         subop = ":="
                         if hasattr(node, "scopes"):
-                            subkw = "mut " if is_mutable(node.scopes, get_id(target_elt)) else ""
-                            definition = node.scopes.parent_scopes.find(get_id(target_elt)) or node.scopes.find(get_id(target_elt))
-                            if definition is not None and defined_before(definition, target_elt):
+                            subkw = (
+                                "mut "
+                                if is_mutable(node.scopes, get_id(target_elt))
+                                else ""
+                            )
+                            definition = node.scopes.parent_scopes.find(
+                                get_id(target_elt)
+                            ) or node.scopes.find(get_id(target_elt))
+                            if definition is not None and defined_before(
+                                definition, target_elt
+                            ):
                                 subop = "="
-                        
-                        assign.append(f"{subkw}{self.visit(target_elt)} {subop} {idx_val}")
+
+                        assign.append(
+                            f"{subkw}{self.visit(target_elt)} {subop} {idx_val}"
+                        )
                     continue
 
                 value = value[1:-1]
