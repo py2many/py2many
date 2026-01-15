@@ -4,9 +4,10 @@ def sum_all(*nums):
         total += n
     return total
 
+
 def main():
     # 4. Multiplication
-    print('a' * 5)
+    print("a" * 5)
     print([0] * 3)
 
     # 1. Splat in calls
@@ -24,6 +25,7 @@ def main():
     print(a)
     print(rest)
     print(e)
+
 
 if __name__ == "__main__":
     main()

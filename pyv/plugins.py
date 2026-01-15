@@ -169,7 +169,10 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         lambda self, node, vargs: f"/* partial({', '.join(vargs)}) not supported */",
         False,
     ),
-    "functools.lru_cache": (lambda self, node, vargs: "/* lru_cache not supported */", False),
+    "functools.lru_cache": (
+        lambda self, node, vargs: "/* lru_cache not supported */",
+        False,
+    ),
     "divmod": (
         lambda self, node, vargs: f"({vargs[0]} / {vargs[1]}, {vargs[0]} % {vargs[1]})",
         False,
