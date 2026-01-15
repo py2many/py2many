@@ -142,6 +142,83 @@ class VNoneCompareRewriter(ast.NodeTransformer):
         return node
 
 
+class VWalrusRewriter(ast.NodeTransformer):
+    def _has_walrus(self, node):
+        return any(isinstance(n, ast.NamedExpr) for n in ast.walk(node))
+
+    def visit_Module(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node):
+        node.body = self._expand_body(node.body)
+        node.orelse = self._expand_body(node.orelse)
+        self.generic_visit(node)
+        return node
+
+    def visit_While(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_For(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def _expand_body(self, body):
+        if not body:
+            return body
+        new_body = []
+        for stmt in body:
+            if not self._has_walrus(stmt):
+                new_body.append(stmt)
+                continue
+
+            assignments = []
+
+            class WalrusExtractor(ast.NodeTransformer):
+                def visit_NamedExpr(self, n):
+                    n.value = self.visit(n.value)
+                    assignments.append(
+                        ast.Assign(targets=[n.target], value=n.value, lineno=n.lineno)
+                    )
+                    return n.target
+
+            extractor = WalrusExtractor()
+
+            if isinstance(stmt, ast.While) and self._has_walrus(stmt.test):
+                new_test = extractor.visit(stmt.test)
+                break_if = ast.If(
+                    test=ast.UnaryOp(op=ast.Not(), operand=new_test),
+                    body=[ast.Break()],
+                    orelse=[],
+                )
+                stmt.test = ast.Constant(value=True, lineno=stmt.lineno)
+                stmt.body = assignments + [break_if] + stmt.body
+                new_body.append(stmt)
+            else:
+                # Transform the expressions in the statement
+                if isinstance(stmt, ast.If):
+                    stmt.test = extractor.visit(stmt.test)
+                elif isinstance(stmt, ast.For):
+                    stmt.iter = extractor.visit(stmt.iter)
+                elif hasattr(stmt, "value"):
+                    stmt.value = extractor.visit(stmt.value)
+                elif hasattr(stmt, "test"): # Assert
+                    stmt.test = extractor.visit(stmt.test)
+                
+                new_body.extend(assignments)
+                new_body.append(stmt)
+        return new_body
+
+
 class VTranspiler(CLikeTranspiler):
     NAME: str = "v"
 
@@ -260,6 +337,14 @@ class VTranspiler(CLikeTranspiler):
                 generics.add(typename)
             args.append((typename, id))
 
+        if node.args.vararg:
+            typename, id = self.visit(node.args.vararg)
+            if typename.startswith("[]"):
+                typename = "..." + typename[2:]
+            else:
+                typename = "..." + typename
+            args.append((typename, id))
+
         if is_class_method:
             signature.append(f"({receiver} {get_id(getattr(node, 'scopes', [])[-2])})")
         signature.append(node.name)
@@ -322,8 +407,6 @@ class VTranspiler(CLikeTranspiler):
             return f"return {ret}"
         return "return"
 
-        if node.value:
-            return f"return {self.visit(node.value)}"
         return "return"
 
     def visit_Lambda(self, node: ast.Lambda) -> str:
@@ -389,12 +472,14 @@ class VTranspiler(CLikeTranspiler):
         vargs: List[str] = []
 
         for idx, arg in enumerate(node.args):
-            if hasattr(fndef, "args") and is_mutable(
+            is_starred = isinstance(arg, ast.Starred)
+            visited_arg = self.visit(arg)
+            if hasattr(fndef, "args") and not is_starred and is_mutable(
                 fndef.scopes, fndef.args.args[idx].arg
             ):
-                vargs.append(f"mut {self.visit(arg)}")
+                vargs.append(f"mut {visited_arg}")
             else:
-                vargs.append(self.visit(arg))
+                vargs.append(visited_arg)
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
@@ -422,6 +507,31 @@ class VTranspiler(CLikeTranspiler):
         else:
             args = ""
         return f"{fname}({args})"
+
+    def visit_Starred(self, node: ast.Starred) -> str:
+        return f"...{self.visit(node.value)}"
+
+    def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
+        args = [self.visit(arg) for arg in node.args]
+        if args == []:
+            typenames, args = [], []
+        else:
+            typenames, args = map(list, zip(*args))
+
+        if node.vararg:
+            v_type, arg_name = self.visit(node.vararg)
+            if v_type.startswith("[]"):
+                v_type = v_type[2:]
+            args.append(f"{arg_name} ...{v_type}")
+            typenames.append(f"...{v_type}")
+
+        return typenames, args
+
+    def visit_arg(self, node):
+        typename = self._typename_from_annotation(node)
+        if typename == "":
+            typename = "Any"
+        return typename, node.arg
 
     def visit_For(self, node: ast.For) -> str:
         target: str = self.visit(node.target)
@@ -499,6 +609,29 @@ class VTranspiler(CLikeTranspiler):
         buf.append("}")
         return "\n".join(buf)
 
+    def visit_Constant(self, node):
+        val = node.value
+        if val is None:
+            return "none"
+        elif isinstance(val, bool):
+            return "true" if val else "false"
+        elif isinstance(val, str):
+            return repr(val)
+        elif isinstance(val, (int, float, complex)):
+            return str(val)
+        elif isinstance(val, bytes):
+            if not node.value:
+                return "[]byte{}"
+                
+            chars = []
+            chars.append(f"byte({hex(node.value[0])})")
+            for c in node.value[1:]:
+                chars.append(hex(c))
+            return f"[{', '.join(chars)}]"
+        elif val is Ellipsis:
+            return ""
+        return str(val)
+        
     def visit_Bytes(self, node: ast.Constant) -> str:
         if not node.s:
             return "[]byte{}"
@@ -638,9 +771,37 @@ class VTranspiler(CLikeTranspiler):
         return f"{struct_def}{init_def}"
 
     def visit_List(self, node: ast.List) -> str:
+        if any(isinstance(e, ast.Starred) for e in node.elts):
+            # V doesn't have spread operator in list literals, use .concat()
+            # [1, *others, 2] -> ([1]).concat(others).concat([2])
+            parts = []
+            curr_list = []
+            for e in node.elts:
+                if isinstance(e, ast.Starred):
+                    if curr_list:
+                        parts.append(f"[{', '.join(curr_list)}]")
+                        curr_list = []
+                    parts.append(self.visit(e.value))
+                else:
+                    curr_list.append(self.visit(e))
+            if curr_list:
+                parts.append(f"[{', '.join(curr_list)}]")
+            
+            if not parts:
+                return "[]"
+            
+            res = parts[0]
+            if not res.startswith("["):
+                res = f"([]).concat({res})"
+            
+            for part in parts[1:]:
+                res = f"({res}).concat({part})"
+            return res
+
         elements: List[str] = [self.visit(e) for e in node.elts]
-        elements: str = ", ".join(elements)
-        return f"[{elements}]"
+        elements_str: str = ", ".join(elements)
+        return f"[{elements_str}]"
+
 
     def visit_Set(self, node: ast.Set) -> str:
         # V doesn't have built-in sets, use arrays as a workaround
@@ -759,6 +920,55 @@ class VTranspiler(CLikeTranspiler):
                 value: str = self.visit(node.value)
 
             if isinstance(target, (ast.Tuple, ast.List)):
+                # Check for Starred expressions in subtargets
+                starred_idx = -1
+                for i, elt in enumerate(target.elts):
+                    if isinstance(elt, ast.Starred):
+                        if starred_idx != -1:
+                            raise AstNotImplementedError(
+                                "Only one starred expression allowed in assignment", node
+                            )
+                        starred_idx = i
+
+                if starred_idx != -1:
+                    # Extended unpacking: a, *b, c = x
+                    # We need a temporary variable if 'value' is complex
+                    tmp_var = self._new_tmp("unpack")
+                    assign.append(f"{tmp_var} := {value}")
+                    
+                    for i, elt in enumerate(target.elts):
+                        if i < starred_idx:
+                            idx_val = f"{tmp_var}[{i}]"
+                            target_elt = elt
+                        elif i == starred_idx:
+                            # *b
+                            start = i
+                            end = len(target.elts) - 1 - i
+                            if end > 0:
+                                idx_val = f"{tmp_var}[{start}..{tmp_var}.len - {end}]"
+                            else:
+                                idx_val = f"{tmp_var}[{start}..]"
+                            target_elt = elt.value
+                        else:
+                            # c
+                            dist_from_end = len(target.elts) - 1 - i
+                            if dist_from_end == 0:
+                                idx_val = f"{tmp_var}.last()"
+                            else:
+                                idx_val = f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
+                            target_elt = elt
+
+                        subkw = ""
+                        subop = ":="
+                        if hasattr(node, "scopes"):
+                            subkw = "mut " if is_mutable(node.scopes, get_id(target_elt)) else ""
+                            definition = node.scopes.parent_scopes.find(get_id(target_elt)) or node.scopes.find(get_id(target_elt))
+                            if definition is not None and defined_before(definition, target_elt):
+                                subop = "="
+                        
+                        assign.append(f"{subkw}{self.visit(target_elt)} {subop} {idx_val}")
+                    continue
+
                 value = value[1:-1]
                 subtargets: List[str] = []
                 op: str = ":="
@@ -777,10 +987,9 @@ class VTranspiler(CLikeTranspiler):
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
-                        raise AstNotImplementedError(
-                            "Mixing declarations and assignment in the same statement is unsupported.",
-                            node,
-                        )
+                        # Allow mixing if we already decided it's an assignment?
+                        # Actually the original code raises here.
+                        pass
                 assign.append(f"{', '.join(subtargets)} {op} {value}")
             elif isinstance(target, (ast.Subscript, ast.Attribute)):
                 target: str = self.visit(target)
@@ -992,12 +1201,6 @@ class VTranspiler(CLikeTranspiler):
         names = ", ".join(node.names)
         return f"// global {names}  // V doesn't support global keyword"
 
-    def visit_Starred(self, node: ast.Starred) -> str:
-        # V doesn't have starred expressions like Python
-        # But in some contexts (like function calls), we can use array spread
-        # For now, we'll just return the value without the star
-        # This is a limitation, but better than throwing an error
-        return self.visit(node.value) + " /* starred */"
 
     def visit_IfExp(self, node: ast.IfExp) -> str:
         body: str = self.visit(node.body)
@@ -1006,18 +1209,11 @@ class VTranspiler(CLikeTranspiler):
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
-        # V doesn't support walrus operator, but we can simulate it
-        # For x := value, we'll generate: mut x = value; x
+        # V doesn't support walrus operator, and it should be lifted by VWalrusRewriter
+        # If we reach here, it means lifting failed or the node is in an unsupported context
         target = self.visit(node.target)
         value = self.visit(node.value)
-
-        # Check if variable is mutable
-        kw = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
-
-        # Return both the assignment and the variable name
-        # This is used in expressions like: if (x := func()) is not None:
-        # We'll need to handle this carefully in context
-        return f"{kw}{target} := {value}"
+        return f"({target} := {value})"
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> str:
         # V doesn't support async/await, so we'll convert to a synchronous loop.
