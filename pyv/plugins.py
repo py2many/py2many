@@ -2,9 +2,9 @@ import ast
 import functools
 from typing import Callable, Dict, List, Tuple, Union
 
+import os
 from py2many.analysis import get_id
-
-from .inference import V_WIDTH_RANK, get_inferred_v_type
+from .inference import V_WIDTH_RANK, get_inferred_v_type, V_TYPE_MAP
 
 
 class VTranspilerPlugins:
@@ -14,9 +14,9 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"0..{vargs[0]}"
+            return f"(0..{vargs[0]})"
         elif len(node.args) == 2:
-            return f"{vargs[0]}..{vargs[1]}"
+            return f"({vargs[0]}..{vargs[1]})"
 
         raise Exception(
             f"encountered range() call with unknown parameters: range({vargs})"
@@ -167,10 +167,7 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
         lambda self, node, vargs: f"/* partial({', '.join(vargs)}) not supported */",
         False,
     ),
-    "functools.lru_cache": (
-        lambda self, node, vargs: "/* lru_cache not supported */",
-        False,
-    ),
+    "functools.lru_cache": (lambda self, node, vargs: "/* lru_cache not supported */", False),
     "divmod": (
         lambda self, node, vargs: f"({vargs[0]} / {vargs[1]}, {vargs[0]} % {vargs[1]})",
         False,
