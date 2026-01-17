@@ -1,3 +1,4 @@
+import ast as py_ast
 import ast
 import importlib
 import io  # noqa: F401
@@ -54,30 +55,30 @@ c_uint32 = u32
 c_uint64 = u64
 
 symbols = {
-    ast.Eq: "==",
-    ast.Is: "==",
-    ast.NotEq: "!=",
-    ast.Mult: "*",
-    ast.Add: "+",
-    ast.Sub: "-",
-    ast.Div: "/",
-    ast.FloorDiv: "/",
-    ast.Mod: "%",
-    ast.Lt: "<",
-    ast.Gt: ">",
-    ast.GtE: ">=",
-    ast.LtE: "<=",
-    ast.LShift: "<<",
-    ast.RShift: ">>",
-    ast.BitXor: "^",
-    ast.BitOr: "|",
-    ast.BitAnd: "&",
-    ast.Not: "!",
-    ast.IsNot: "!=",
-    ast.USub: "-",
-    ast.And: "&&",
-    ast.Or: "||",
-    ast.In: "in",
+    py_ast.Eq: "==",
+    py_ast.Is: "==",
+    py_ast.NotEq: "!=",
+    py_ast.Mult: "*",
+    py_ast.Add: "+",
+    py_ast.Sub: "-",
+    py_ast.Div: "/",
+    py_ast.FloorDiv: "/",
+    py_ast.Mod: "%",
+    py_ast.Lt: "<",
+    py_ast.Gt: ">",
+    py_ast.GtE: ">=",
+    py_ast.LtE: "<=",
+    py_ast.LShift: "<<",
+    py_ast.RShift: ">>",
+    py_ast.BitXor: "^",
+    py_ast.BitOr: "|",
+    py_ast.BitAnd: "&",
+    py_ast.Not: "!",
+    py_ast.IsNot: "!=",
+    py_ast.USub: "-",
+    py_ast.And: "&&",
+    py_ast.Or: "||",
+    py_ast.In: "in",
 }
 
 _AUTO = "auto"
@@ -119,7 +120,7 @@ def c_symbol(node):
     return symbols[symbol_type]
 
 
-class CLikeTranspiler(ast.NodeVisitor):
+class CLikeTranspiler(py_ast.NodeVisitor):
     """Provides a base for C-like programming languages"""
 
     NAME: str
@@ -189,22 +190,22 @@ class CLikeTranspiler(ast.NodeVisitor):
         return f"({to}) {name}"
 
     @staticmethod
-    def _slice_value(node: ast.Subscript):
+    def _slice_value(node: py_ast.Subscript):
         # 3.9 compatibility shim
         if sys.version_info < (3, 9, 0):
-            if isinstance(node.slice, ast.Index):
+            if isinstance(node.slice, py_ast.Index):
                 slice_value = node.slice.value
             else:
                 slice_value = node.slice
         else:
-            if isinstance(node.slice, ast.Slice):
+            if isinstance(node.slice, py_ast.Slice):
                 raise AstNotImplementedError("Advanced Slicing not supported", node)
             slice_value = node.slice
         return slice_value
 
     @staticmethod
     def _is_number(node):
-        return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+        return isinstance(node, py_ast.Constant) and isinstance(node.value, (int, float))
 
     @classmethod
     def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
@@ -243,22 +244,22 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     @classmethod
     def _typename_from_type_node(cls, node) -> Union[List, str, None]:
-        if isinstance(node, ast.Name):
+        if isinstance(node, py_ast.Name):
             return cls._map_type(
                 get_id(node), getattr(node, "lifetime", LifeTime.UNKNOWN)
             )
-        elif isinstance(node, ast.Constant) and node.value is not None:
+        elif isinstance(node, py_ast.Constant) and node.value is not None:
             return node.value
-        elif isinstance(node, ast.ClassDef):
+        elif isinstance(node, py_ast.ClassDef):
             return get_id(node)
-        elif isinstance(node, ast.Tuple):
+        elif isinstance(node, py_ast.Tuple):
             return [cls._typename_from_type_node(e) for e in node.elts]
-        elif isinstance(node, ast.Attribute):
+        elif isinstance(node, py_ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return node_id
-        elif isinstance(node, ast.Subscript):
+        elif isinstance(node, py_ast.Subscript):
             # Store a tuple like (List, int) or (Dict, (str, int)) for container types
             # in node.container_type
             # And return a target specific type
@@ -273,20 +274,20 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     @classmethod
     def _generic_typename_from_type_node(cls, node) -> Union[List, str, None]:
-        if isinstance(node, ast.Name):
+        if isinstance(node, py_ast.Name):
             return get_id(node)
-        elif isinstance(node, ast.Constant):
+        elif isinstance(node, py_ast.Constant):
             return node.value
-        elif isinstance(node, ast.ClassDef):
+        elif isinstance(node, py_ast.ClassDef):
             return get_id(node)
-        elif isinstance(node, ast.Tuple):
+        elif isinstance(node, py_ast.Tuple):
             return [cls._generic_typename_from_type_node(e) for e in node.elts]
-        elif isinstance(node, ast.Attribute):
+        elif isinstance(node, py_ast.Attribute):
             node_id = get_id(node)
             if node_id.startswith("typing."):
                 node_id = node_id.split(".")[1]
             return node_id
-        elif isinstance(node, ast.Subscript):
+        elif isinstance(node, py_ast.Subscript):
             slice_value = cls._slice_value(node)
             (value_type, index_type) = tuple(
                 map(cls._generic_typename_from_type_node, (node.value, slice_value))
@@ -302,7 +303,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         if hasattr(node, attr):
             type_node = getattr(node, attr)
             typename = cls._typename_from_type_node(type_node)
-            if isinstance(type_node, ast.Subscript):
+            if isinstance(type_node, py_ast.Subscript):
                 node.container_type = type_node.container_type
                 try:
                     return cls._visit_container_type(type_node.container_type)
@@ -321,7 +322,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         if hasattr(node, attr):
             type_node = getattr(node, attr)
             ret = cls._generic_typename_from_type_node(type_node)
-            if isinstance(type_node, ast.Subscript):
+            if isinstance(type_node, py_ast.Subscript):
                 node.generic_container_type = type_node.generic_container_type
             return ret
         return typename
@@ -333,10 +334,15 @@ class CLikeTranspiler(ast.NodeVisitor):
             return c_symbol(node)
         else:
             try:
+                import ast
                 return super().visit(node)
             except AstNotImplementedError:
                 raise
             except Exception as e:
+                print(f"Error in visit: {type(node)} {e}")
+                print(f"Exception args: {e.args}")
+                import traceback
+                traceback.print_tb(e.__traceback__)
                 raise AstNotImplementedError(e, node) from e
 
     def visit_Pass(self, node) -> str:
@@ -349,14 +355,14 @@ class CLikeTranspiler(ast.NodeVisitor):
         self._reset()
         if filename is not None:
             self._module = Path(filename).stem
-        body_dict: Dict[ast.AST, str] = OrderedDict()
+        body_dict: Dict[py_ast.AST, str] = OrderedDict()
         for b in node.body:
-            if not isinstance(b, ast.FunctionDef):
+            if not isinstance(b, py_ast.FunctionDef):
                 body_dict[b] = self.visit(b)
         # Second pass to handle functiondefs whose body
         # may refer to other members of node.body
         for b in node.body:
-            if isinstance(b, ast.FunctionDef):
+            if isinstance(b, py_ast.FunctionDef):
                 body_dict[b] = self.visit(b)
 
         buf += [body_dict[b] for b in node.body]
@@ -441,7 +447,7 @@ class CLikeTranspiler(ast.NodeVisitor):
 
     def visit_Expr(self, node) -> str:
         s = self.visit(node.value)
-        if isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:
+        if isinstance(node.value, py_ast.Constant) and node.value.value is Ellipsis:
             return s
         if not s:
             return ""
@@ -492,7 +498,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         # This is a idiom used by rewriters to transform a single ast Node s0
         # into multiple statements s1, s2
         return (
-            isinstance(node.test, ast.Constant)
+            isinstance(node.test, py_ast.Constant)
             and node.test.value == True
             and node.orelse == []
             and hasattr(node, "rewritten")
@@ -539,7 +545,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         return "\n".join(buf)
 
     def visit_Compare(self, node) -> str:
-        if isinstance(node.ops[0], ast.In):
+        if isinstance(node.ops[0], py_ast.In):
             return self.visit_In(node)
 
         left = self.visit(node.left)
@@ -572,7 +578,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         target = self.visit(node.target)
         if (
             hasattr(node.target, "annotation")
-            and isinstance(node.target.annotation, ast.Subscript)
+            and isinstance(node.target.annotation, py_ast.Subscript)
             and get_id(node.target.annotation.value) == "Callable"
         ):
             type_str = self._default_type

@@ -2,6 +2,8 @@ import ast
 import functools
 from typing import Callable, Dict, List, Tuple, Union
 
+from py2many.analysis import get_id
+
 from .inference import V_WIDTH_RANK, get_inferred_v_type
 
 
@@ -12,9 +14,9 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"0..{vargs[0]}"
+            return f"(0..{vargs[0]})"
         elif len(node.args) == 2:
-            return f"{vargs[0]}..{vargs[1]}"
+            return f"({vargs[0]}..{vargs[1]})"
 
         raise Exception(
             f"encountered range() call with unknown parameters: range({vargs})"
@@ -54,16 +56,26 @@ class VTranspilerPlugins:
                 return "0"
             elif cast_to == "f64":
                 return "0.0"
+        
+        # Check if argument is Any or a sum type (heuristically)
+        # We can't easily check inferred type here without access to self or scopes in staticmethod
+        # But we can check if it looks like a variable (which might be Any in lambdas)
+        if cast_to in ("int", "f64"):
+             # If it's a direct variable name (likely Any in our test case), use `as`
+             # This is a heuristic. Ideally we'd check get_inferred_v_type(node.args[0])
+             # But this method is static.
+             # Better to inspect the node argument directly if possible or update signature.
+             pass
         return f"{cast_to}({vargs[0]})"
 
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
-        if not vargs:
-            return "0"
-        return f"int({vargs[0]})"
+        # Placeholder for post-processing in VTranspiler.visit_Module
+        # Converts int(x) to (x as int) for Any/Sum types
+        return f"CAST_INT({vargs[0]})"
 
     def visit_min_max(self, node: ast.Call, vargs: List[str]) -> str:
         self._usings.add("arrays")
-        func = "min" if node.func.id == "min" else "max"
+        func = "min" if get_id(node.func) == "min" else "max"
         # Since python allows calling min/max on either a container or
         # multiple integers while V only allows containers, the latter case
         # is turned to a container when passing it to the V side.
@@ -71,6 +83,27 @@ class VTranspilerPlugins:
             return f"arrays.{func}({vargs[0]}) or {{ panic('!') }}"
         else:
             return f"arrays.{func}([{', '.join(vargs)}]) or {{ panic('!') }}"
+
+    def visit_sorted(self, node: ast.Call, vargs: List[str]) -> str:
+        # V's sort is in-place, so we clone, sort and return
+        return f"(fn (a []Any) []Any {{ mut b := a.clone(); b.sort(); return b }}({vargs[0]}))"
+
+    def visit_enumerate(self, node: ast.Call, vargs: List[str]) -> str:
+        # V doesn't have enumerate outside of for loops easily
+        # This is a placeholder for when it's used as an expression
+        return f"{vargs[0]} /* enumerate is usually used in for loops in V */"
+
+    def visit_zip(self, node: ast.Call, vargs: List[str]) -> str:
+        # Placeholder for zip
+        return f"/* zip({', '.join(vargs)}) not fully supported as expression */"
+
+    def visit_open(self, node: ast.Call, vargs: List[str]) -> str:
+        self._usings.add("os")
+        if len(vargs) > 1:
+            mode = vargs[1].replace("'", "").replace('"', "")
+            if "w" in mode:
+                return f"os.create({vargs[0]}) or {{ panic(err) }}"
+        return f"os.open({vargs[0]}) or {{ panic(err) }}"
 
 
 SMALL_DISPATCH_MAP: Dict[str, Callable] = {
@@ -81,10 +114,32 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "sys.exit": lambda n, vargs: f"exit({vargs[0] if vargs else '0'})",
     "all": lambda n, vargs: f"{vargs[0]}.all(it)",
     "any": lambda n, vargs: f"{vargs[0]}.any(it)",
+    "abs": lambda n, vargs: f"math.abs({vargs[0]})",
+    "round": lambda n, vargs: f"math.round({vargs[0]})",
+    "pow": lambda n, vargs: f"math.pow({vargs[0]}, {vargs[1]})",
+    "sum": lambda n, vargs: f"arrays.sum({vargs[0]}) or {{ 0 }}",
+    "input": lambda n, vargs: f"os.input({vargs[0] if vargs else ''})",
+    "type": lambda n, vargs: f"typeof({vargs[0]}).name",
+    "id": lambda n, vargs: f"ptr_str({vargs[0]})",
+    "isinstance": lambda n, vargs: f"{vargs[0]} is {vargs[1]}",
+    "list": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
+    "tuple": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
+    "set": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
+    "dict": lambda n, vargs: f"{vargs[0]}" if vargs else "{}",
+    "getattr": lambda n, vargs: f"/* getattr({', '.join(vargs)}) not supported */",
+    "setattr": lambda n, vargs: f"/* setattr({', '.join(vargs)}) not supported */",
+    "hasattr": lambda n, vargs: f"/* hasattr({', '.join(vargs)}) not supported */",
+    "os.path.exists": lambda n, vargs: f"os.exists({vargs[0]})",
+    "os.remove": lambda n, vargs: f"os.rm({vargs[0]}) or {{ panic(err) }}",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {
     "floor": "math",
+    "abs": "math",
+    "round": "math",
+    "pow": "math",
+    "sum": "arrays",
+    "input": "os",
 }
 
 DISPATCH_MAP: Dict[str, Callable] = {}
@@ -110,4 +165,26 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     int: (VTranspilerPlugins.visit_int, False),
     min: (VTranspilerPlugins.visit_min_max, False),
     max: (VTranspilerPlugins.visit_min_max, False),
+    map: (lambda self, node, vargs: f"{vargs[1]}.map({vargs[0]})", False),
+    filter: (lambda self, node, vargs: f"{vargs[1]}.filter({vargs[0]})", False),
+    sorted: (VTranspilerPlugins.visit_sorted, False),
+    enumerate: (VTranspilerPlugins.visit_enumerate, False),
+    zip: (VTranspilerPlugins.visit_zip, False),
+    open: (VTranspilerPlugins.visit_open, True),
+    "functools.reduce": (
+        lambda self, node, vargs: f"{vargs[1]}.reduce({vargs[0]})",
+        False,
+    ),
+    "functools.partial": (
+        lambda self, node, vargs: f"/* partial({', '.join(vargs)}) not supported */",
+        False,
+    ),
+    "functools.lru_cache": (
+        lambda self, node, vargs: "/* lru_cache not supported */",
+        False,
+    ),
+    "divmod": (
+        lambda self, node, vargs: f"({vargs[0]} / {vargs[1]}, {vargs[0]} % {vargs[1]})",
+        False,
+    ),
 }

@@ -9,7 +9,7 @@ from ctypes import (
     c_uint32,
     c_uint64,
 )
-from typing import Dict
+from typing import Dict, List
 
 from py2many.analysis import get_id
 from py2many.inference import InferTypesTransformer, LanguageInferenceBase
@@ -20,6 +20,8 @@ V_TYPE_MAP: Dict[type, str] = {
     bytes: "[]byte",
     str: "string",
     bool: "bool",
+    list: "[]Any",
+    List: "[]Any",
     c_int8: "i8",
     c_int16: "i16",
     c_int32: "int",
@@ -32,8 +34,11 @@ V_TYPE_MAP: Dict[type, str] = {
 
 V_CONTAINER_TYPE_MAP = {
     "List": "[]",
+    "list": "[]",
     "Dict": "map",
+    "dict": "map",
     "Set": "set",
+    "set": "set",
     "Optional": "?",
 }
 
