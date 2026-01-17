@@ -119,8 +119,10 @@ def _transpile(
 
             formatted_lines = traceback.format_exc().splitlines()
             if isinstance(e, AstErrorBase):
+                traceback.print_exc()
                 print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
+                traceback.print_exc()
                 print(f"{filename}: {formatted_lines[-1]}")
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
                 raise
