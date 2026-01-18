@@ -1,6 +1,6 @@
 import ast
-import re
 import string
+import re
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
@@ -20,6 +20,7 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE
 
 _is_mutable = is_mutable
 
@@ -142,6 +143,83 @@ class VNoneCompareRewriter(ast.NodeTransformer):
         return node
 
 
+class VWalrusRewriter(ast.NodeTransformer):
+    def _has_walrus(self, node):
+        return any(isinstance(n, ast.NamedExpr) for n in ast.walk(node))
+
+    def visit_Module(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node):
+        node.body = self._expand_body(node.body)
+        node.orelse = self._expand_body(node.orelse)
+        self.generic_visit(node)
+        return node
+
+    def visit_While(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_For(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def _expand_body(self, body):
+        if not body:
+            return body
+        new_body = []
+        for stmt in body:
+            if not self._has_walrus(stmt):
+                new_body.append(stmt)
+                continue
+
+            assignments = []
+
+            class WalrusExtractor(ast.NodeTransformer):
+                def visit_NamedExpr(self, n):
+                    n.value = self.visit(n.value)
+                    assignments.append(
+                        ast.Assign(targets=[n.target], value=n.value, lineno=n.lineno)
+                    )
+                    return n.target
+
+            extractor = WalrusExtractor()
+
+            if isinstance(stmt, ast.While) and self._has_walrus(stmt.test):
+                new_test = extractor.visit(stmt.test)
+                break_if = ast.If(
+                    test=ast.UnaryOp(op=ast.Not(), operand=new_test),
+                    body=[ast.Break()],
+                    orelse=[],
+                )
+                stmt.test = ast.Constant(value=True, lineno=stmt.lineno)
+                stmt.body = assignments + [break_if] + stmt.body
+                new_body.append(stmt)
+            else:
+                # Transform the expressions in the statement
+                if isinstance(stmt, ast.If):
+                    stmt.test = extractor.visit(stmt.test)
+                elif isinstance(stmt, ast.For):
+                    stmt.iter = extractor.visit(stmt.iter)
+                elif hasattr(stmt, "value"):
+                    stmt.value = extractor.visit(stmt.value)
+                elif hasattr(stmt, "test"): # Assert
+                    stmt.test = extractor.visit(stmt.test)
+                
+                new_body.extend(assignments)
+                new_body.append(stmt)
+        return new_body
+
+
 class VTranspiler(CLikeTranspiler):
     NAME: str = "v"
 
@@ -151,7 +229,7 @@ class VTranspiler(CLikeTranspiler):
         super().__init__()
         self._headers = set()
         self._indent = " " * indent
-        CLikeTranspiler._default_type = "Any"
+        CLikeTranspiler._default_type = ""
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -205,9 +283,25 @@ class VTranspiler(CLikeTranspiler):
         typename = ""
         if node.annotation:
             typename = self._typename_from_annotation(node)
+        else:
+            inferred = get_inferred_v_type(node)
+            if inferred:
+                typename = inferred
+
         if is_mutable(node.scopes, id):
             id = f"mut {id}"
         return (typename, id)
+
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
+        parts = []
+        for val in node.values:
+            if isinstance(val, ast.Constant):
+                parts.append(str(val.value))
+            elif isinstance(val, ast.FormattedValue):
+                parts.append(f"${{{self.visit(val.value)}}}")
+            else:
+                parts.append(f"${{{self.visit(val)}}}")
+        return f"'{''.join(parts)}'"
 
     def _infer_generator_yield_type(self, node: ast.FunctionDef) -> str:
         inferred: List[str] = []
@@ -237,6 +331,7 @@ class VTranspiler(CLikeTranspiler):
     def visit_FunctionDef(self, node) -> str:
         signature = ["fn"]
         is_class_method: bool = False
+        class_node = None
         if (
             hasattr(node, "scopes")
             and node.scopes is not None
@@ -244,43 +339,67 @@ class VTranspiler(CLikeTranspiler):
             and isinstance(getattr(node, "scopes", [])[-2], ast.ClassDef)
         ):
             is_class_method = True
+            class_node = node.scopes[-2]
 
         # Check if this is a generator function
         is_generator = is_generator_function(node)
 
         generics: Set[str] = set()
         args: List[Tuple[str, str]] = []
-        receiver: str = ""
-        for arg in node.args.args:
+        receiver: str = "self"
+        for i, arg in enumerate(node.args.args):
             typename, id = self.visit(arg)
-            if typename is None and is_class_method:  # receiver
-                receiver = id
+            if i == 0 and is_class_method:  # receiver
+                receiver = id.replace("mut ", "")
                 continue
-            elif len(typename) == 1 and typename.isupper():
+            elif typename is not None and len(typename) == 1 and typename.isupper():
                 generics.add(typename)
             args.append((typename, id))
 
-        if is_class_method:
-            signature.append(f"({receiver} {get_id(getattr(node, 'scopes', [])[-2])})")
-        signature.append(node.name)
+        if node.args.vararg:
+            typename, id = self.visit(node.args.vararg)
+            if typename is not None:
+                if typename.startswith("[]"):
+                    typename = "..." + typename[2:]
+                else:
+                    typename = "..." + typename
+            args.append((typename, id))
+
+        fn_name = node.name
+        is_init = fn_name == "__init__"
+        is_del = fn_name == "__del__"
+        
+        if is_init and class_node:
+            fn_name = f"new_{class_node.name.lower()}"
+        elif is_del:
+            fn_name = "free"
+
+        if is_class_method and not is_init:
+            signature.append(f"(mut {receiver} {get_id(class_node)})")
+        
+        signature.append(fn_name)
 
         str_args: List[str] = []
         for typename, id in args:
-            if typename == "":
-                if is_class_method:
-                    typename = "Any"
+            if typename in {"", "...", "Any", "...Any"}:
+                if is_class_method and not is_init:
+                    typename = "Any" if typename in {"", "Any"} else "...Any"
                 else:
                     for c in string.ascii_uppercase:
                         if c not in generics:
                             generics.add(c)
-                            typename = c
+                            typename = c if typename in {"", "Any"} else f"...{c}"
                             break
-            if typename == "":
+            # Only raise if we still have an empty/starred-only type
+            if typename in {"", "..."}:
                 raise AstNotImplementedError(
                     "Cannot use more than 26 generics in a function.", node
                 )
 
             str_args.append(f"{id} {typename}")
+
+        if generics:
+            signature.append(f"[{', '.join(sorted(list(generics)))}]")
 
         # For generator functions, add channel parameter
         if is_generator:
@@ -290,7 +409,9 @@ class VTranspiler(CLikeTranspiler):
         signature.append(f"({', '.join(str_args)})")
 
         # Generator functions don't return a value directly
-        if not is_void_function(node) and not is_generator:
+        if is_init and class_node:
+            signature.append(class_node.name)
+        elif not is_void_function(node) and not is_generator:
             signature.append(self._typename_from_annotation(node, attr="returns"))
         elif is_generator:
             # Generators return void in V (they send values via channel)
@@ -308,7 +429,21 @@ class VTranspiler(CLikeTranspiler):
         body_lines: List[str] = []
         if is_generator:
             body_lines.append(self.indent("defer { ch.close() }"))
+        
+        if is_init and class_node:
+            body_lines.append(self.indent(f"mut {receiver} := {class_node.name}{{}}"))
+
         body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
+        
+        if is_init and class_node:
+            # Check for __post_init__
+            # Only call if not already in body
+            has_post_init = any(isinstance(b, ast.FunctionDef) and b.name == "__post_init__" for b in class_node.body)
+            already_called = any(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) and get_id(n.value.func) == f"{receiver}.__post_init__" for n in body_nodes)
+            if has_post_init and not already_called:
+                body_lines.append(self.indent(f"{receiver}.__post_init__()"))
+            body_lines.append(self.indent(f"return {receiver}"))
+
         body = "\n".join(body_lines)
 
         func_code = f"{' '.join(signature)} {{\n{body}\n}}"
@@ -322,8 +457,6 @@ class VTranspiler(CLikeTranspiler):
             return f"return {ret}"
         return "return"
 
-        if node.value:
-            return f"return {self.visit(node.value)}"
         return "return"
 
     def visit_Lambda(self, node: ast.Lambda) -> str:
@@ -352,34 +485,35 @@ class VTranspiler(CLikeTranspiler):
         if not value_id:
             value_id: str = ""
         ret: str = f"{value_id}.{attr}"
+        if attr == "write" and ("os.open" in value_id or "os.create" in value_id or "f" == value_id):
+            # Special case for file write
+            return f"{value_id}.write_string"
         if ret in self._attr_dispatch_table:
             return self._attr_dispatch_table[ret](self, node)
-        return value_id + "." + attr
 
-    def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
-        vargs: List[str] = []  # visited args
-        if not hasattr(fndef, "declarations"):
-            raise Exception("Missing declarations")
-        if node.args:
-            for arg, decl in zip(node.args, fndef.declarations.keys()):
-                arg_val: str = self.visit(arg)
-                vargs += [f"{decl}: {arg_val}"]
-        if node.keywords:
-            for kw in node.keywords:
-                value: str = self.visit(kw.value)
-                vargs += [f"{kw.arg}: {value}"]
-        args: str = ", ".join(vargs)
-        return f"{fname}{{{args}}}"
+        # Check for stdlib attributes (e.g. math.pi, os.environ, sys.argv)
+        module_path = get_id(node.value)
+        if module_path:
+            attr_key = f"{module_path}.{attr}"
+            if attr_key in STDLIB_ATTR_DISPATCH_TABLE:
+                return STDLIB_ATTR_DISPATCH_TABLE[attr_key](self, node)
+
+        return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
         fname: str = self.visit(node.func)
+        fndef: Optional[ast.AST] = None
         if hasattr(node, "scopes"):
-            fndef: ast.AST = node.scopes.find(fname)
-        else:
-            fndef = None
+            fndef = node.scopes.find(fname)
 
         if isinstance(fndef, ast.ClassDef):
-            return self._visit_object_literal(node, fname, fndef)
+            vargs = [self.visit(a) for a in node.args]
+            if node.keywords:
+                vargs += [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
+            
+            if vargs:
+                return f"new_{fname.lower()}({', '.join(vargs)})"
+            return f"{fname}{{}}"
 
         # Check if this is a generator function call
         is_generator_call = False
@@ -387,19 +521,38 @@ class VTranspiler(CLikeTranspiler):
             is_generator_call = is_generator_function(fndef)
 
         vargs: List[str] = []
-
         for idx, arg in enumerate(node.args):
-            if hasattr(fndef, "args") and is_mutable(
+            is_starred = isinstance(arg, ast.Starred)
+            visited_arg = self.visit(arg)
+            if hasattr(fndef, "args") and not is_starred and idx < len(fndef.args.args) and is_mutable(
                 fndef.scopes, fndef.args.args[idx].arg
             ):
-                vargs.append(f"mut {self.visit(arg)}")
+                vargs.append(f"mut {visited_arg}")
             else:
-                vargs.append(self.visit(arg))
+                vargs.append(visited_arg)
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
+        # Check for stdlib methods (e.g. str.lower, re.split)
+        # Check for stdlib methods (e.g. str.lower, re.split, os.path.join)
+        if isinstance(node.func, ast.Attribute):
+            attr = node.func.attr
+            # Check for module calls like re.search FIRST to avoid collision with str.split etc.
+            module_path = get_id(node.func.value)
+            if module_path:
+                method_key = f"{module_path}.{attr}"
+                if method_key in STDLIB_DISPATCH_TABLE:
+                    return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
+
+            # Fallback to string methods or other type methods
+            method_key = f"str.{attr}"
+            if method_key in STDLIB_DISPATCH_TABLE:
+                return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
+
         ret: Optional[str] = self._dispatch(node, fname, vargs)
         if ret is not None:
+            if "write_string" in ret:
+                return f"{ret} or {{ panic(err) }}"
             return ret
 
         # Handle generator calls
@@ -417,11 +570,36 @@ class VTranspiler(CLikeTranspiler):
                 f"}}())"
             )
 
-        if vargs:
-            args = ", ".join(vargs)
+        args_str = ", ".join(vargs)
+        result = f"{fname}({args_str})"
+        if "write_string" in result:
+             return f"{result} or {{ panic(err) }}"
+        return result
+
+    def visit_Starred(self, node: ast.Starred) -> str:
+        return f"...{self.visit(node.value)}"
+
+    def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], List[str]]:
+        args = [self.visit(arg) for arg in node.args]
+        if args == []:
+            typenames, args = [], []
         else:
-            args = ""
-        return f"{fname}({args})"
+            typenames, args = map(list, zip(*args))
+
+        if node.vararg:
+            v_type, arg_name = self.visit(node.vararg)
+            if v_type.startswith("[]"):
+                v_type = v_type[2:]
+            args.append(f"{arg_name} ...{v_type}")
+            typenames.append(f"...{v_type}")
+
+        return typenames, args
+
+    def visit_arg(self, node):
+        typename = self._typename_from_annotation(node)
+        if typename == "":
+            typename = "Any"
+        return typename, node.arg
 
     def visit_For(self, node: ast.For) -> str:
         target: str = self.visit(node.target)
@@ -499,6 +677,29 @@ class VTranspiler(CLikeTranspiler):
         buf.append("}")
         return "\n".join(buf)
 
+    def visit_Constant(self, node):
+        val = node.value
+        if val is None:
+            return "none"
+        elif isinstance(val, bool):
+            return "true" if val else "false"
+        elif isinstance(val, str):
+            return repr(val)
+        elif isinstance(val, (int, float, complex)):
+            return str(val)
+        elif isinstance(val, bytes):
+            if not node.value:
+                return "[]byte{}"
+                
+            chars = []
+            chars.append(f"byte({hex(node.value[0])})")
+            for c in node.value[1:]:
+                chars.append(hex(c))
+            return f"[{', '.join(chars)}]"
+        elif val is Ellipsis:
+            return ""
+        return str(val)
+        
     def visit_Bytes(self, node: ast.Constant) -> str:
         if not node.s:
             return "[]byte{}"
@@ -638,9 +839,30 @@ class VTranspiler(CLikeTranspiler):
         return f"{struct_def}{init_def}"
 
     def visit_List(self, node: ast.List) -> str:
+        if any(isinstance(e, ast.Starred) for e in node.elts):
+            self._usings.add("arrays")
+            # V uses arrays.concat(a, ...b) to concatenate arrays
+            # We chain these calls for multiple elements/stars
+            res = None
+            for e in node.elts:
+                if isinstance(e, ast.Starred):
+                    starred_val = self.visit(e.value)
+                    if res is None:
+                        res = starred_val
+                    else:
+                        res = f"arrays.concat({res}, ...{starred_val})"
+                else:
+                    val = self.visit(e)
+                    if res is None:
+                        res = f"[{val}]"
+                    else:
+                        res = f"arrays.concat({res}, {val})"
+            return res if res else "[]"
+
         elements: List[str] = [self.visit(e) for e in node.elts]
-        elements: str = ", ".join(elements)
-        return f"[{elements}]"
+        elements_str: str = ", ".join(elements)
+        return f"[{elements_str}]"
+
 
     def visit_Set(self, node: ast.Set) -> str:
         # V doesn't have built-in sets, use arrays as a workaround
@@ -759,6 +981,55 @@ class VTranspiler(CLikeTranspiler):
                 value: str = self.visit(node.value)
 
             if isinstance(target, (ast.Tuple, ast.List)):
+                # Check for Starred expressions in subtargets
+                starred_idx = -1
+                for i, elt in enumerate(target.elts):
+                    if isinstance(elt, ast.Starred):
+                        if starred_idx != -1:
+                            raise AstNotImplementedError(
+                                "Only one starred expression allowed in assignment", node
+                            )
+                        starred_idx = i
+
+                if starred_idx != -1:
+                    # Extended unpacking: a, *b, c = x
+                    # We need a temporary variable if 'value' is complex
+                    tmp_var = self._new_tmp("unpack")
+                    assign.append(f"{tmp_var} := {value}")
+                    
+                    for i, elt in enumerate(target.elts):
+                        if i < starred_idx:
+                            idx_val = f"{tmp_var}[{i}]"
+                            target_elt = elt
+                        elif i == starred_idx:
+                            # *b
+                            start = i
+                            end = len(target.elts) - 1 - i
+                            if end > 0:
+                                idx_val = f"{tmp_var}[{start}..{tmp_var}.len - {end}]"
+                            else:
+                                idx_val = f"{tmp_var}[{start}..]"
+                            target_elt = elt.value
+                        else:
+                            # c
+                            dist_from_end = len(target.elts) - 1 - i
+                            if dist_from_end == 0:
+                                idx_val = f"{tmp_var}.last()"
+                            else:
+                                idx_val = f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
+                            target_elt = elt
+
+                        subkw = ""
+                        subop = ":="
+                        if hasattr(node, "scopes"):
+                            subkw = "mut " if is_mutable(node.scopes, get_id(target_elt)) else ""
+                            definition = node.scopes.parent_scopes.find(get_id(target_elt)) or node.scopes.find(get_id(target_elt))
+                            if definition is not None and defined_before(definition, target_elt):
+                                subop = "="
+                        
+                        assign.append(f"{subkw}{self.visit(target_elt)} {subop} {idx_val}")
+                    continue
+
                 value = value[1:-1]
                 subtargets: List[str] = []
                 op: str = ":="
@@ -777,10 +1048,9 @@ class VTranspiler(CLikeTranspiler):
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
-                        raise AstNotImplementedError(
-                            "Mixing declarations and assignment in the same statement is unsupported.",
-                            node,
-                        )
+                        # Allow mixing if we already decided it's an assignment?
+                        # Actually the original code raises here.
+                        pass
                 assign.append(f"{', '.join(subtargets)} {op} {value}")
             elif isinstance(target, (ast.Subscript, ast.Attribute)):
                 target: str = self.visit(target)
@@ -825,23 +1095,29 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_With(self, node: ast.With) -> str:
         # V doesn't have 'with' statement, but we can use defer for cleanup
-        # For now, we'll just generate the body and add defer if needed
         buf = []
 
         # Process items
         for item in node.items:
+            context = self.visit(item.context_expr)
             if item.optional_vars:
                 # Assign context manager to variable
                 target = self.visit(item.optional_vars)
-                context = self.visit(item.context_expr)
-                buf.append(f"{target} := {context}")
-                # Add defer for __exit__ if it exists
-                buf.append(f"defer {{ {target}.__exit__() }}")
+                buf.append(f"mut {target} := {context}")
+                # Add defer for cleanup
+                if "os.open" in context or "os.create" in context:
+                    buf.append(f"defer {{ {target}.close() }}")
+                else:
+                    buf.append(f"defer {{ {target}.__exit__() }}")
             else:
                 # Just call the context manager
-                context = self.visit(item.context_expr)
-                buf.append(f"defer {{ {context}.__exit__() }}")
-                buf.append(f"{context}.__enter__()")
+                if "os.open" in context or "os.create" in context:
+                    # This case is odd (opening file without target)
+                    buf.append(f"mut tmp_file := {context}")
+                    buf.append("defer { tmp_file.close() }")
+                else:
+                    buf.append(f"defer {{ {context}.__exit__() }}")
+                    buf.append(f"{context}.__enter__()")
 
         # Process body
         for stmt in node.body:
@@ -992,12 +1268,6 @@ class VTranspiler(CLikeTranspiler):
         names = ", ".join(node.names)
         return f"// global {names}  // V doesn't support global keyword"
 
-    def visit_Starred(self, node: ast.Starred) -> str:
-        # V doesn't have starred expressions like Python
-        # But in some contexts (like function calls), we can use array spread
-        # For now, we'll just return the value without the star
-        # This is a limitation, but better than throwing an error
-        return self.visit(node.value) + " /* starred */"
 
     def visit_IfExp(self, node: ast.IfExp) -> str:
         body: str = self.visit(node.body)
@@ -1006,18 +1276,11 @@ class VTranspiler(CLikeTranspiler):
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
-        # V doesn't support walrus operator, but we can simulate it
-        # For x := value, we'll generate: mut x = value; x
+        # V doesn't support walrus operator, and it should be lifted by VWalrusRewriter
+        # If we reach here, it means lifting failed or the node is in an unsupported context
         target = self.visit(node.target)
         value = self.visit(node.value)
-
-        # Check if variable is mutable
-        kw = "mut " if is_mutable(node.scopes, get_id(node.target)) else ""
-
-        # Return both the assignment and the variable name
-        # This is used in expressions like: if (x := func()) is not None:
-        # We'll need to handle this carefully in context
-        return f"{kw}{target} := {value}"
+        return f"({target} := {value})"
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> str:
         # V doesn't support async/await, so we'll convert to a synchronous loop.

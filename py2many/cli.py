@@ -87,7 +87,7 @@ def _transpile(
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
-        FStringJoinRewriter(language),
+        FStringJoinRewriter(language) if language != "v" else None,
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
@@ -101,8 +101,8 @@ def _transpile(
     if settings.ext != ".py":
         generic_post_rewriters.append(LoopElseRewriter(language))
 
-    rewriters = generic_rewriters + rewriters
-    post_rewriters = generic_post_rewriters + post_rewriters
+    rewriters = [r for r in generic_rewriters if r is not None] + rewriters
+    post_rewriters = [r for r in generic_post_rewriters if r is not None] + post_rewriters
     outputs = {}
     successful = []
     for filename, tree in zip(topo_filenames, trees):

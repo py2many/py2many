@@ -123,6 +123,7 @@ class RenameTransformer(ast.NodeTransformer):
 class WithToBlockTransformer(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()
+        self._language = language
         self._no_underscore = False
         if language in {"nim"}:
             self._no_underscore = True
@@ -135,6 +136,8 @@ class WithToBlockTransformer(ast.NodeTransformer):
         return f"__tmp{self._temp}"
 
     def visit_With(self, node):
+        if self._language == "v":
+            return node
         self.generic_visit(node)
         stmts = []
         for i in node.items:
