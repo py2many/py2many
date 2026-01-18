@@ -20,7 +20,7 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
-from .stubs import STDLIB_DISPATCH_TABLE
+from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE
 
 _is_mutable = is_mutable
 
@@ -490,6 +490,14 @@ class VTranspiler(CLikeTranspiler):
             return f"{value_id}.write_string"
         if ret in self._attr_dispatch_table:
             return self._attr_dispatch_table[ret](self, node)
+
+        # Check for stdlib attributes (e.g. math.pi, os.environ, sys.argv)
+        module_path = get_id(node.value)
+        if module_path:
+            attr_key = f"{module_path}.{attr}"
+            if attr_key in STDLIB_ATTR_DISPATCH_TABLE:
+                return STDLIB_ATTR_DISPATCH_TABLE[attr_key](self, node)
+
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
@@ -526,12 +534,13 @@ class VTranspiler(CLikeTranspiler):
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
         # Check for stdlib methods (e.g. str.lower, re.split)
+        # Check for stdlib methods (e.g. str.lower, re.split, os.path.join)
         if isinstance(node.func, ast.Attribute):
             attr = node.func.attr
             # Check for module calls like re.search FIRST to avoid collision with str.split etc.
-            if isinstance(node.func.value, ast.Name):
-                module_name = node.func.value.id
-                method_key = f"{module_name}.{attr}"
+            module_path = get_id(node.func.value)
+            if module_path:
+                method_key = f"{module_path}.{attr}"
                 if method_key in STDLIB_DISPATCH_TABLE:
                     return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
 
