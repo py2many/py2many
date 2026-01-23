@@ -1,11 +1,11 @@
 import ast as py_ast
-import ast
 import importlib
 import io  # noqa: F401
 import logging
 import math  # noqa: F401
 import os  # noqa: F401
 import random  # noqa: F401
+import re
 import sys
 import time  # noqa: F401
 
@@ -96,6 +96,14 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
     ):
         # Cant eval super; causes RuntimeError
         return None
+    if not isinstance(typename, str) or len(typename) > 256:
+        return default_type
+
+    # Only allow simple identifiers, attribute access, and generics
+    # Avoid arbitrary expressions with function calls (except super())
+    if not re.match(r"^[a-zA-Z0-9_.[\] ,]*$", typename):
+        return default_type
+
     try:
         # TODO: take into account any imports happening in the file being parsed
         # and pass them into eval
@@ -198,14 +206,14 @@ class CLikeTranspiler(py_ast.NodeVisitor):
             else:
                 slice_value = node.slice
         else:
-            if isinstance(node.slice, py_ast.Slice):
-                raise AstNotImplementedError("Advanced Slicing not supported", node)
             slice_value = node.slice
         return slice_value
 
     @staticmethod
     def _is_number(node):
-        return isinstance(node, py_ast.Constant) and isinstance(node.value, (int, float))
+        return isinstance(node, py_ast.Constant) and isinstance(
+            node.value, (int, float)
+        )
 
     @classmethod
     def _map_type(cls, typename, lifetime=LifeTime.UNKNOWN) -> str:
@@ -232,9 +240,9 @@ class CLikeTranspiler(py_ast.NodeVisitor):
         if isinstance(index_type, List):
             index_contains_default = "Any" in index_type
             if not index_contains_default:
-                if any(t is None for t in index_type):
-                    raise TypeNotSupported(typename)
-                index_type = ", ".join(index_type)
+                index_type = ", ".join(
+                    [str(t) if t is not None else "None" for t in index_type]
+                )
         else:
             index_contains_default = index_type == "Any"
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
@@ -270,6 +278,19 @@ class CLikeTranspiler(py_ast.NodeVisitor):
             value_type = cls._map_container_type(value_type)
             node.container_type = (value_type, index_type)
             return cls._combine_value_index(value_type, index_type)
+        elif isinstance(node, py_ast.BinOp) and isinstance(node.op, py_ast.BitOr):
+            # Recursively flatten Union
+            def flatten_union(n):
+                if isinstance(n, py_ast.BinOp) and isinstance(n.op, py_ast.BitOr):
+                    return flatten_union(n.left) + flatten_union(n.right)
+                return [cls._typename_from_type_node(n)]
+
+            union_types = flatten_union(node)
+            # Remove duplicates while preserving order
+            unique_types = list(dict.fromkeys(union_types))
+            return "Union[{}]".format(", ".join(unique_types))
+        elif isinstance(node, py_ast.Constant) and node.value is None:
+            return "None"
         return cls._default_type
 
     @classmethod
@@ -294,6 +315,20 @@ class CLikeTranspiler(py_ast.NodeVisitor):
             )
             node.generic_container_type = (value_type, index_type)
             return f"{value_type}[{index_type}]"
+        elif isinstance(node, py_ast.BinOp) and isinstance(node.op, py_ast.BitOr):
+            # Recursively flatten Union
+            def flatten_union(n):
+                if isinstance(n, py_ast.BinOp) and isinstance(n.op, py_ast.BitOr):
+                    return flatten_union(n.left) + flatten_union(n.right)
+                return [cls._generic_typename_from_type_node(n)]
+
+            union_types = flatten_union(node)
+            # Remove duplicates while preserving order
+            unique_types = list(dict.fromkeys(union_types))
+            unique_types = [t for t in unique_types if t is not None]
+            if not unique_types:
+                return "Any"
+            return "Union[{}]".format(", ".join(unique_types))
         return cls._default_type
 
     @classmethod
@@ -334,7 +369,6 @@ class CLikeTranspiler(py_ast.NodeVisitor):
             return c_symbol(node)
         else:
             try:
-                import ast
                 return super().visit(node)
             except AstNotImplementedError:
                 raise
@@ -342,6 +376,7 @@ class CLikeTranspiler(py_ast.NodeVisitor):
                 print(f"Error in visit: {type(node)} {e}")
                 print(f"Exception args: {e.args}")
                 import traceback
+
                 traceback.print_tb(e.__traceback__)
                 raise AstNotImplementedError(e, node) from e
 
@@ -388,7 +423,7 @@ class CLikeTranspiler(py_ast.NodeVisitor):
             if asname is not None:
                 try:
                     imported_name = importlib.import_module(name)
-                except ImportError:
+                except Exception:
                     imported_name = name
                 self._imported_names[asname] = imported_name
         return "\n".join(imports)
@@ -412,7 +447,10 @@ class CLikeTranspiler(py_ast.NodeVisitor):
         for name, asname in names:
             asname = asname if asname is not None else name
             if imported_module:
-                self._imported_names[asname] = getattr(imported_module, name, None)
+                try:
+                    self._imported_names[asname] = getattr(imported_module, name, None)
+                except Exception:
+                    self._imported_names[asname] = (imported_name, name)
             else:
                 self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
@@ -468,7 +506,7 @@ class CLikeTranspiler(py_ast.NodeVisitor):
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.s
+        bytes_str = node.value if isinstance(node, py_ast.Constant) else node.s
         byte_array = ", ".join([hex(c) for c in bytes_str])
         return f"{{{byte_array}}}"
 
@@ -685,14 +723,13 @@ class CLikeTranspiler(py_ast.NodeVisitor):
         return self.visit_unsupported_body(node, "except handler", node.body)
 
     def visit_Try(self, node, finallybody=None) -> str:
-        buf = self.visit_unsupported_body(node, "try_dummy", node.body)
+        buf = [self.visit_unsupported_body(node, "try_dummy", node.body)]
 
         for handler in node.handlers:
-            buf += self.visit(handler)
-        # buf.append("\n".join(excepts));
+            buf.append(self.visit(handler))
 
         if finallybody:
-            buf += self.visit_unsupported_body(node, "finally_dummy", finallybody)
+            buf.append(self.visit_unsupported_body(node, "finally_dummy", finallybody))
 
         return "\n".join(buf)
 

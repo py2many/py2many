@@ -42,6 +42,8 @@ def create_ast_node(code, at_node=None) -> py_ast.AST:
 
 
 def is_dict(node: py_ast.AST) -> bool:
+    if node is None:
+        return False
     if isinstance(node, (py_ast.Dict, py_ast.DictComp)):
         return True
     elif isinstance(node, py_ast.Call) and get_id(node.func) == "dict":
@@ -53,8 +55,10 @@ def is_dict(node: py_ast.AST) -> bool:
             var: py_ast.AST = node.scopes.find(get_id(node))
             return (
                 hasattr(var, "assigned_from")
+                and isinstance(var.assigned_from, (py_ast.Assign, py_ast.AnnAssign))
                 and not isinstance(var.assigned_from, py_ast.FunctionDef)
                 and not isinstance(var.assigned_from, py_ast.For)
+                and var.assigned_from.value is not None
                 and is_dict(var.assigned_from.value)
             )
         return False
@@ -298,7 +302,13 @@ class VTranspiler(CLikeTranspiler):
             return (None, "self")
         typename = ""
         if node.annotation:
-            typename = self._typename_from_annotation(node)
+            if (
+                isinstance(node.annotation, py_ast.Constant)
+                and node.annotation.value is Ellipsis
+            ):
+                typename = "Any"
+            else:
+                typename = str(self._typename_from_annotation(node))
         else:
             inferred = get_inferred_v_type(node)
             if inferred:
@@ -385,11 +395,14 @@ class VTranspiler(CLikeTranspiler):
         fn_name = node.name
         is_init = fn_name == "__init__"
         is_del = fn_name == "__del__"
+        is_str = fn_name == "__str__"
 
         if is_init and class_node:
             fn_name = f"new_{class_node.name.lower()}"
         elif is_del:
             fn_name = "free"
+        elif is_str:
+            fn_name = "str"
 
         if is_class_method and not is_init:
             signature.append(f"(mut {receiver} {get_id(class_node)})")
@@ -427,6 +440,8 @@ class VTranspiler(CLikeTranspiler):
         ret = self._typename_from_annotation(node, attr="returns")
         if is_init and class_node:
             signature.append(class_node.name)
+        elif is_str:
+            signature.append("string")
         elif (ret and ret != "void") or not is_void_function(node):
             if not ret or ret == "void":
                 # Special case for context managers returning self
@@ -620,6 +635,38 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: py_ast.Call) -> str:
+        # Handle super().__init__()
+        if isinstance(node.func, py_ast.Attribute) and node.func.attr == "__init__":
+            is_super = False
+            if isinstance(node.func.value, py_ast.Call):
+                if get_id(node.func.value.func) == "super":
+                    is_super = True
+            
+            if is_super:
+                # Find current class name
+                # We assume we are inside a method, so scopes[-2] should be ClassDef
+                class_node = None
+                if hasattr(node, "scopes"):
+                    for scope in reversed(node.scopes):
+                        if isinstance(scope, py_ast.ClassDef):
+                            class_node = scope
+                            break
+                
+                if class_node and class_node.bases:
+                    # V allows embedding. We initialize the embedded struct.
+                    # Assuming single inheritance or picking first base for super().
+                    base_id = self.visit(class_node.bases[0])
+                    if base_id and base_id != "object":
+                         # Transpile arguments
+                         args = [self.visit(a) for a in node.args]
+                         args_str = ", ".join(args)
+                         return f"self.{base_id} = new_{base_id.lower()}({args_str})"
+                    elif base_id == "object":
+                        return "/* super().__init__() (object) */"
+                else:
+                     # No bases or implicit object
+                     return "/* super().__init__() */"
+
         fname: str = self.visit(node.func)
         fndef: Optional[py_ast.AST] = None
         if hasattr(node, "scopes"):
@@ -848,6 +895,13 @@ class VTranspiler(CLikeTranspiler):
         return f"[{', '.join(chars)}]"
 
     def visit_If(self, node: py_ast.If) -> str:
+        if get_id(node.test) == "TYPE_CHECKING" or (
+            isinstance(node.test, py_ast.Attribute)
+            and get_id(node.test.value) == "typing"
+            and node.test.attr == "TYPE_CHECKING"
+        ):
+            return "\n".join([self.visit(child) for child in node.body])
+
         body_vars: Set[str] = {
             get_id(v) for v in getattr(node, "scopes", [None])[-1].body_vars
         }
@@ -909,6 +963,11 @@ class VTranspiler(CLikeTranspiler):
                     return ret
 
         fields = []
+        bases = [self.visit(base) for base in node.bases]
+        for base in bases:
+            if base and base != "object":
+                fields.append(base)
+
         if declarations:
             fields.append("pub mut:")
         for declaration, typename in declarations.items():
@@ -995,8 +1054,14 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Dict(self, node: py_ast.Dict) -> str:
-        keys: List[str] = [self.visit(k) for k in node.keys]
-        values: List[str] = [self.visit(k) for k in node.values]
+        keys: List[str] = []
+        values: List[str] = []
+        for k, v in zip(node.keys, node.values):
+            if k is None:
+                # Dict unpacking **kwargs not supported in V dict literal yet
+                continue
+            keys.append(self.visit(k))
+            values.append(self.visit(v))
         kv_pairs: str = " ".join([f"{k}: {v}" for k, v in zip(keys, values)])
         return f"{{{kv_pairs}}}"
 
@@ -1079,6 +1144,8 @@ class VTranspiler(CLikeTranspiler):
         return f"assert {self.visit(node.test)}"
 
     def visit_AnnAssign(self, node: py_ast.AnnAssign) -> str:
+        if node.value is None:
+            return ""
         if isinstance(node.value, py_ast.Lambda) and hasattr(node, "annotation"):
             node.value.callable_type = node.annotation
         target, type_str, val = super().visit_AnnAssign(node)
@@ -1206,16 +1273,22 @@ class VTranspiler(CLikeTranspiler):
             elif isinstance(target, (py_ast.Subscript, py_ast.Attribute)):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
-            elif isinstance(target, py_ast.Name) and defined_before(
-                getattr(node.scopes, "parent_scopes", None).find(target.id)
-                or getattr(node.scopes, "find", lambda x: None)(target.id),
-                node,
-            ):
-                target: str = self.visit(target)
-                assign.append(f"{target} = {value}")
+            elif isinstance(target, py_ast.Name):
+                definition = getattr(node.scopes, "parent_scopes", None).find(target.id)
+                # If found in parent scopes (e.g. function args), it's a re-assignment
+                if definition is not None:
+                    target: str = self.visit(target)
+                    assign.append(f"{target} = {value}")
+                elif defined_before(
+                    getattr(node.scopes, "find", lambda x: None)(target.id), node
+                ):
+                    target: str = self.visit(target)
+                    assign.append(f"{target} = {value}")
+                else:
+                    target: str = self.visit(target)
+                    assign.append(f"{kw}{target} := {value}")
             else:
                 target: str = self.visit(target)
-
                 assign.append(f"{kw}{target} := {value}")
         return "\n".join(assign)
 
@@ -1286,7 +1359,7 @@ class VTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Await(self, node: py_ast.Await) -> str:
-        raise AstNotImplementedError("asyncio is not supported.", node)
+        return f"/* await */ {self.visit(node.value)}"
 
     def visit_AsyncFunctionDef(self, node: py_ast.AsyncFunctionDef) -> str:
         # V doesn't have async/await, but we can convert async functions to regular ones
@@ -1421,6 +1494,15 @@ class VTranspiler(CLikeTranspiler):
         # If it reaches here, it means the rewriter didn't process it
         # So we fall back to the same logic as ListComp
         return self.visit_GeneratorExp(node)
+
+
+    def visit_Expr(self, node: py_ast.Expr) -> str:
+        if isinstance(node.value, py_ast.Constant) and isinstance(
+            node.value.value, str
+        ):
+            # docstrings
+            return f"/* {node.value.value} */"
+        return super().visit_Expr(node)
 
     def visit_Global(self, node: py_ast.Global) -> str:
         # V doesn't have global keyword, but module-level variables are accessible

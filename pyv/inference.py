@@ -108,6 +108,12 @@ class InferVTypesTransformer(InferTypesTransformer):
         node.v_annotation = ret
         return node
 
+    def visit_For(self, node):
+        self.generic_visit(node)
+        if isinstance(node.iter, ast.Call) and get_id(node.iter.func) == "range":
+            node.target.v_annotation = "int"
+        return node
+
 
 def infer_v_types(node):
     visitor = InferVTypesTransformer()

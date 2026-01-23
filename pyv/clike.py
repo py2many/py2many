@@ -1,10 +1,15 @@
-import ast as py_ast
 import ast
+import ast as py_ast
 from typing import Dict, Set
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import V_CONTAINER_TYPE_MAP, V_TYPE_MAP, V_WIDTH_RANK
+from .inference import (
+    V_CONTAINER_TYPE_MAP,
+    V_TYPE_MAP,
+    V_WIDTH_RANK,
+    get_inferred_v_type,
+)
 
 # allowed as names in Python but treated as keywords in V
 v_keywords: Set[str] = frozenset(
@@ -99,6 +104,12 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         CommonCLikeTranspiler._container_type_map = V_CONTAINER_TYPE_MAP
         self._statement_separator: str = ""
 
+    @classmethod
+    def _typename_from_type_node(cls, node) -> str:
+        if isinstance(node, py_ast.Constant) and node.value is Ellipsis:
+            return "Any"
+        return super()._typename_from_type_node(node)
+
     def visit(self, node: py_ast.AST) -> str:
         if type(node) in v_symbols:
             return v_symbol(node)
@@ -115,8 +126,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         op: str = self.visit(node.op)
         right: str = self.visit(node.right)
 
-        left_type: str = self._typename_from_annotation(node.left)
-        right_type: str = self._typename_from_annotation(node.right)
+        left_type = self._typename_from_annotation(node.left)
+        if not left_type or left_type == self._default_type:
+            left_type = get_inferred_v_type(node.left)
+
+        right_type = self._typename_from_annotation(node.right)
+        if not right_type or right_type == self._default_type:
+            right_type = get_inferred_v_type(node.right)
 
         left_rank: int = V_WIDTH_RANK.get(left_type, -1)
         right_rank: int = V_WIDTH_RANK.get(right_type, -1)
@@ -124,14 +140,18 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, py_ast.Mult):
             if left_type == "string" and right_type == "int":
                 return f"({left}.repeat({right}))"
-            if left_type.startswith("[]") and right_type == "int":
+            if left_type and left_type.startswith("[]") and right_type == "int":
                 return f"({left}.repeat({right}))"
 
         if left_rank > right_rank:
-            right = f"CAST_INT({right})" if left_type == "int" else f"{left_type}({right})"
+            right = (
+                f"CAST_INT({right})" if left_type == "int" else f"{left_type}({right})"
+            )
         elif right_rank > left_rank:
-            left = f"CAST_INT({left})" if right_type == "int" else f"{right_type}({left})"
-        if "bool" in (left_type, right_type):
+            left = (
+                f"CAST_INT({left})" if right_type == "int" else f"{right_type}({left})"
+            )
+        if left_type and right_type and "bool" in (left_type, right_type):
             op = {"&": "&&", "|": "||", "^": "!="}.get(op, op)
         return f"({left} {op} {right})"
 
@@ -142,6 +162,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return super().visit_Name(node)
         except Exception:
             import traceback
+
             traceback.print_exc()
             raise
 

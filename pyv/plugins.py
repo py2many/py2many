@@ -14,8 +14,11 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"(0..{vargs[0]})"
+            return f"[]int{{len: {vargs[0]}, init: it}}"
         elif len(node.args) == 2:
+            return f"[]int{{len: {vargs[1]} - {vargs[0]}, init: it + {vargs[0]}}}"
+        elif len(node.args) == 3:
+            # Step is not easily supported in array init, fallback to range
             return f"({vargs[0]}..{vargs[1]})"
 
         raise Exception(
@@ -52,20 +55,20 @@ class VTranspilerPlugins:
     @staticmethod
     def visit_cast(node, vargs, cast_to: str) -> str:
         if not vargs:
-            if cast_to == "i32":
+            if cast_to in ("i32", "int"):
                 return "0"
             elif cast_to == "f64":
                 return "0.0"
-        
+
         # Check if argument is Any or a sum type (heuristically)
         # We can't easily check inferred type here without access to self or scopes in staticmethod
         # But we can check if it looks like a variable (which might be Any in lambdas)
         if cast_to in ("int", "f64"):
-             # If it's a direct variable name (likely Any in our test case), use `as`
-             # This is a heuristic. Ideally we'd check get_inferred_v_type(node.args[0])
-             # But this method is static.
-             # Better to inspect the node argument directly if possible or update signature.
-             pass
+            # If it's a direct variable name (likely Any in our test case), use `as`
+            # This is a heuristic. Ideally we'd check get_inferred_v_type(node.args[0])
+            # But this method is static.
+            # Better to inspect the node argument directly if possible or update signature.
+            pass
         return f"{cast_to}({vargs[0]})"
 
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
@@ -131,6 +134,8 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "hasattr": lambda n, vargs: f"/* hasattr({', '.join(vargs)}) not supported */",
     "os.path.exists": lambda n, vargs: f"os.exists({vargs[0]})",
     "os.remove": lambda n, vargs: f"os.rm({vargs[0]}) or {{ panic(err) }}",
+    "NamedTemporaryFile": lambda n, vargs: "os.create(os.join_path(os.temp_dir(), 'temp_file')) or { panic(err) }",
+    "tempfile.NamedTemporaryFile": lambda n, vargs: "os.create(os.join_path(os.temp_dir(), 'temp_file')) or { panic(err) }",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {
