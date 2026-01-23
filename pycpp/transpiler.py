@@ -396,7 +396,8 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Bytes(self, node) -> str:
         byte_literal = super().visit_Bytes(node)
-        n = len(node.s)
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        n = len(bytes_str)
         return f"((std::array<unsigned char, {n}>){byte_literal})"
 
     def visit_Name(self, node) -> str:
@@ -523,9 +524,16 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Dict(self, node) -> str:
         self._usings.add("<map>")
-        keys = [self.visit(k) for k in node.keys]
-        values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{{ {k}, {v} }}" for k, v in zip(keys, values)])
+        kv_pairs = []
+        for k, v in zip(node.keys, node.values):
+            if k is not None:
+                kv_pairs.append(f"{{ {self.visit(k)}, {self.visit(v)} }}")
+            else:
+                # Dictionary unpacking: {**d}
+                # C++ doesn't have a direct equivalent in initialize_list
+                # For now, we skip it or could potentially use a merge function
+                kv_pairs.append(f"/* unpacking {self.visit(v)} */")
+        kv_pairs_str = ", ".join(kv_pairs)
         _ = self._typename_from_annotation(node)
         if hasattr(node, "container_type"):
             container_type, element_type = node.container_type
@@ -534,8 +542,8 @@ class CppTranspiler(CLikeTranspiler):
                 key_typename = "int"
         else:
             typename = decltype(node)
-            return f"{typename}{{{kv_pairs}}}"
-        return f"std::map<{key_typename}, {value_typename}>{{{kv_pairs}}}"
+            return f"{typename}{{{kv_pairs_str}}}"
+        return f"std::map<{key_typename}, {value_typename}>{{{kv_pairs_str}}}"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)

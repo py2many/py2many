@@ -144,9 +144,16 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     slice_value = recursive_tuple(slice_value)
                     if len(slice_value) == 2:
                         # Kotlin lambda syntax
-                        args = ", ".join(self._map_types(slice_value[0]))
+                        if isinstance(slice_value[0], list):
+                            args = ", ".join(self._map_types(slice_value[0]))
+                        else:
+                            # Handle Callable[..., T]
+                            args = "..."
                         ret = self._map_type(slice_value[1])
                         return f"func({args}) {ret}"
                     return f"{slice_value}"
 
-        return super()._typename_from_annotation(node, attr)
+        typename = super()._typename_from_annotation(node, attr)
+        if isinstance(typename, str) and (typename.startswith("Union[") or typename.startswith("Optional[")):
+            return "any"
+        return typename

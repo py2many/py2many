@@ -82,6 +82,8 @@ def _transpile(
         tree.__file__ = filename
         tree_list.append(tree)
     trees = toposort(tree_list)
+    for tree in trees:
+        add_scope_context(tree)
     topo_filenames = [t.__file__ for t in trees]
     language = transpiler.NAME
     generic_rewriters = [

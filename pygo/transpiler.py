@@ -150,7 +150,8 @@ class GoTranspiler(CLikeTranspiler):
         return f"// {text}\n"
 
     def visit_FunctionDef(self, node) -> str:
-        body = "\n".join([self.visit(n) for n in node.body])
+        body_elements = [self.visit(n) for n in node.body]
+        body = "\n".join([b for b in body_elements if b is not None])
         typenames, args = self.visit(node.args)
 
         is_class_method = hasattr(node, "self_type")
@@ -162,8 +163,6 @@ class GoTranspiler(CLikeTranspiler):
             receiver_type = node.self_type
         else:
             receiver = None
-            if len(typenames) and typenames[0] is None:
-                typenames[0] = node.self_type
 
         args_list = []
         typedecls = []
@@ -267,11 +266,14 @@ class GoTranspiler(CLikeTranspiler):
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-            raise AstClassUsedBeforeDeclaration(fndef, node)
-        if node.args:
-            for arg, decl in zip(node.args, fndef.declarations.keys()):
-                arg = self.visit(arg)
-                vargs += [f"{decl}: {arg}"]
+             # Fallback to positional args if struct definition not seen yet
+             if node.args:
+                vargs += [self.visit(a) for a in node.args]
+        else:
+            if node.args:
+                for arg, decl in zip(node.args, fndef.declarations.keys()):
+                    arg = self.visit(arg)
+                    vargs += [f"{decl}: {arg}"]
         if node.keywords:
             for kw in node.keywords:
                 value = self.visit(kw.value)
@@ -328,7 +330,8 @@ class GoTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = f"{node.s}"
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = f"{bytes_str}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def _visit_container_compare(self, node) -> str:
@@ -512,9 +515,15 @@ class GoTranspiler(CLikeTranspiler):
         return f"map[{element_type}]bool{{{kv_pairs}}}"
 
     def visit_Dict(self, node) -> str:
-        keys = [self.visit(k) for k in node.keys]
-        values = [self.visit(k) for k in node.values]
-        kv_pairs = ", ".join([f"{k}: {v}" for k, v in zip(keys, values)])
+        kv_pairs = []
+        for k, v in zip(node.keys, node.values):
+            if k is not None:
+                kv_pairs.append(f"{self.visit(k)}: {self.visit(v)}")
+            else:
+                # Dictionary unpacking: {**d}
+                # Go doesn't have a direct equivalent in map literals
+                kv_pairs.append(f"/* unpacking {self.visit(v)} */")
+        kv_pairs_str = ", ".join(kv_pairs)
         _ = self._typename_from_annotation(node)
         key_typename = value_typename = self._default_type
         if hasattr(node, "container_type"):
@@ -522,7 +531,7 @@ class GoTranspiler(CLikeTranspiler):
             key_typename, value_typename = element_type
             if key_typename == self._default_type:
                 key_typename = "int"
-        return f"map[{key_typename}]{value_typename}{{{kv_pairs}}}"
+        return f"map[{key_typename}]{value_typename}{{{kv_pairs_str}}}"
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
