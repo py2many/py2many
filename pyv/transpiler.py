@@ -641,7 +641,7 @@ class VTranspiler(CLikeTranspiler):
             if isinstance(node.func.value, py_ast.Call):
                 if get_id(node.func.value.func) == "super":
                     is_super = True
-            
+
             if is_super:
                 # Find current class name
                 # We assume we are inside a method, so scopes[-2] should be ClassDef
@@ -651,21 +651,21 @@ class VTranspiler(CLikeTranspiler):
                         if isinstance(scope, py_ast.ClassDef):
                             class_node = scope
                             break
-                
+
                 if class_node and class_node.bases:
                     # V allows embedding. We initialize the embedded struct.
                     # Assuming single inheritance or picking first base for super().
                     base_id = self.visit(class_node.bases[0])
                     if base_id and base_id != "object":
-                         # Transpile arguments
-                         args = [self.visit(a) for a in node.args]
-                         args_str = ", ".join(args)
-                         return f"self.{base_id} = new_{base_id.lower()}({args_str})"
+                        # Transpile arguments
+                        args = [self.visit(a) for a in node.args]
+                        args_str = ", ".join(args)
+                        return f"self.{base_id} = new_{base_id.lower()}({args_str})"
                     elif base_id == "object":
                         return "/* super().__init__() (object) */"
                 else:
-                     # No bases or implicit object
-                     return "/* super().__init__() */"
+                    # No bases or implicit object
+                    return "/* super().__init__() */"
 
         fname: str = self.visit(node.func)
         fndef: Optional[py_ast.AST] = None
@@ -1494,7 +1494,6 @@ class VTranspiler(CLikeTranspiler):
         # If it reaches here, it means the rewriter didn't process it
         # So we fall back to the same logic as ListComp
         return self.visit_GeneratorExp(node)
-
 
     def visit_Expr(self, node: py_ast.Expr) -> str:
         if isinstance(node.value, py_ast.Constant) and isinstance(
