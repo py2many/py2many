@@ -154,6 +154,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                     return f"{slice_value}"
 
         typename = super()._typename_from_annotation(node, attr)
-        if isinstance(typename, str) and (typename.startswith("Union[") or typename.startswith("Optional[")):
+        if isinstance(typename, str) and (
+            typename.startswith("Union[") or typename.startswith("Optional[")
+        ):
             return "any"
         return typename

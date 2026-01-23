@@ -5,7 +5,7 @@ from typing import List
 from py2many.analysis import get_id, is_global, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
+from py2many.exceptions import AstCouldNotInfer
 from py2many.rewriters import camel_case, capitalize_first, rename
 from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
 
@@ -266,8 +266,8 @@ class GoTranspiler(CLikeTranspiler):
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-             # Fallback to positional args if struct definition not seen yet
-             if node.args:
+            # Fallback to positional args if struct definition not seen yet
+            if node.args:
                 vargs += [self.visit(a) for a in node.args]
         else:
             if node.args:
