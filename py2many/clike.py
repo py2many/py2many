@@ -594,7 +594,15 @@ class CLikeTranspiler(py_ast.NodeVisitor):
 
     def visit_BoolOp(self, node) -> str:
         op = self.visit(node.op)
-        return op.join([self.visit(v) for v in node.values])
+        # Defensive check
+        values = []
+        for v in node.values:
+            val = self.visit(v)
+            if val is None:
+                values.append(f"/* unhandled {type(v).__name__} */")
+            else:
+                values.append(val)
+        return op.join(values)
 
     def visit_UnaryOp(self, node) -> str:
         return f"{self.visit(node.op)}({self.visit(node.operand)})"

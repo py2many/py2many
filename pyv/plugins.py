@@ -72,9 +72,9 @@ class VTranspilerPlugins:
         return f"{cast_to}({vargs[0]})"
 
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
-        # Placeholder for post-processing in VTranspiler.visit_Module
-        # Converts int(x) to (x as int) for Any/Sum types
-        return f"CAST_INT({vargs[0]})"
+        if not vargs:
+            return "0"
+        return f"int({vargs[0]})"
 
     def visit_min_max(self, node: ast.Call, vargs: List[str]) -> str:
         self._usings.add("arrays")

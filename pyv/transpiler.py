@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
 from py2many.ast_helpers import create_ast_node
+from py2many.astx import LifeTime
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
@@ -249,6 +250,18 @@ class VTranspiler(CLikeTranspiler):
     def indent(self, code: str, level=1) -> str:
         return self._indent * level + code
 
+    @classmethod
+    def _typename_from_annotation(cls, node, attr="annotation") -> str:
+        if hasattr(node, attr):
+            annotation = getattr(node, attr)
+            if isinstance(annotation, py_ast.Subscript):
+                if (
+                    isinstance(annotation.value, py_ast.Name)
+                    and get_id(annotation.value) == "Type"
+                ):
+                    return "Any"
+        return super()._typename_from_annotation(node, attr=attr)
+
     def _new_tmp(self, prefix: str = "tmp") -> str:
         self._tmp_var_id += 1
         return f"__{prefix}{self._tmp_var_id}"
@@ -276,13 +289,152 @@ class VTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
-        return f"{value_type}{index_type}"
+        if value_type == "[]":
+            return f"{value_type}{index_type}"
+        if value_type == "map":
+            if ", " in index_type:
+                k, v = index_type.split(", ", 1)
+                return f"map[{k}]{v}"
+            return f"map[{index_type}]"
+        return f"{value_type}[{index_type}]"
+
+    @classmethod
+    def _typename_from_type_node(cls, node) -> Union[List, str, None]:
+        if isinstance(node, py_ast.List):
+            return [cls._typename_from_type_node(e) for e in node.elts]
+
+        # Handle PEP 604 Union (A | B)
+        if isinstance(node, py_ast.BinOp) and isinstance(node.op, py_ast.BitOr):
+
+            def flatten(n):
+                if isinstance(n, py_ast.BinOp) and isinstance(n.op, py_ast.BitOr):
+                    return flatten(n.left) + flatten(n.right)
+                return [cls._typename_from_type_node(n)]
+
+            types = flatten(node)
+            # Remove None/NoneType to check for Optional
+            non_none = [t for t in types if t not in ("None", "NoneType", "none")]
+
+            if len(non_none) < len(types):
+                # It's an Optional (contains None)
+                if len(non_none) == 1:
+                    return f"?{non_none[0]}"
+                elif len(non_none) > 1:
+                    # Optional Sum Type? ?(A | B) is not standard V, usually just A | B | none?
+                    # But V supports A | B. If undefined allowed, maybe ?(SumType).
+                    # For now: join with | and prefix ?
+                    return f"?({' | '.join(non_none)})"
+                return "void"  # Only None?
+
+            # Sum Type A | B
+            return " | ".join(types)
+
+        if isinstance(node, py_ast.Subscript):
+            # Manually handle subscript (generic/container types) to ensure our _visit_container_type is used
+            if isinstance(node.value, py_ast.Name) and get_id(node.value) == "Type":
+                return "Any"
+
+            value_type = cls._typename_from_type_node(node.value)
+
+            # Extract slice value (handling Index wrapper if present)
+            slice_val = node.slice
+            if isinstance(slice_val, py_ast.Index):
+                slice_val = slice_val.value
+
+            index_type = cls._typename_from_type_node(slice_val)
+
+            # Process container type
+            node.container_type = (value_type, index_type)
+            return cls._visit_container_type((value_type, index_type))
+
+        if isinstance(node, py_ast.Name):
+            id = get_id(node)
+            if id == "Dict":
+                return "map[string]Any"
+            if id == "Type":
+                return "Any"
+            # Sanitize potential generic type vars (e.g. _T -> T)
+            if id.startswith("_") and len(id) > 1 and id[1].isupper():
+                return id[1:]
+            return cls._map_type(id, getattr(node, "lifetime", LifeTime.UNKNOWN))
+
+        return super()._typename_from_type_node(node)
 
     @classmethod
     def _visit_container_type(cls, typename: Tuple) -> str:
         value_type, index_type = typename
+        value_type, index_type = typename
+
+        # Robust stringification helper
+        def stringify(val):
+            if isinstance(val, list):
+                return f"[{', '.join(map(stringify, val))}]"
+            return str(val)
+
+        if value_type == "Callable":
+            args = ""
+            ret = "void"
+            if isinstance(index_type, list) and len(index_type) == 2:
+                arg_types = index_type[0]
+                # arg_types might be a list (from py_ast.List) or a string
+                if isinstance(arg_types, list):
+                    args = ", ".join(map(str, arg_types))
+                else:
+                    # It might be a single string, or a stringified list if already processed
+                    args = str(arg_types).strip("[]")
+                ret = index_type[1]
+            elif isinstance(index_type, list):
+                # Fallback for weird shapes
+                args = ", ".join(map(str, index_type))
+
+            return f"fn ({args}) {ret}"
+
+        if value_type == "Dict":
+            if isinstance(index_type, list) and len(index_type) >= 2:
+                key = stringify(index_type[0])
+                val = stringify(index_type[1])
+                return f"map[{key}]{val}"
+            # Fallback for weird Dicts
+            return "map[string]Any"
+
+        if value_type == "List":
+            if isinstance(index_type, list) and len(index_type) > 0:
+                val = stringify(index_type[0])
+                return f"[]{val}"
+            return f"[]{stringify(index_type)}"
+
+        if value_type == "Union":
+            if isinstance(index_type, list):
+                return " | ".join(map(stringify, index_type))
+            return str(index_type)
+
+        if value_type == "Optional":
+            return f"?{stringify(index_type)}"
+
+        if value_type in {"Iterable", "Sequence", "Set"}:
+            val = stringify(index_type)
+            if isinstance(index_type, list) and len(index_type) > 0:
+                val = stringify(index_type[0])
+            return f"[]{val}"
+
         if isinstance(index_type, list):
-            index_type = ", ".join(index_type)
+            # Flatten or stringify nested lists to avoid join errors
+            index_str_list = []
+            for item in index_type:
+                if isinstance(item, list):
+                    # Flatten inner list to string (e.g. generic args)
+                    index_str_list.append(
+                        ", ".join(map(str, item))
+                    )  # Or keep brackets? V generics: T<A, B>
+                    # If it was [int, str], it becomes "int, str".
+                    # If it's `Union[[int], str]`, then `[int]` -> "int"?
+                    # Python `List` in AST usually implies grouping or Callable args.
+                    # If it fell through here, it's likely not Callable.
+                    # Just stringify safely.
+                else:
+                    index_str_list.append(str(item))
+            index_type = ", ".join(index_str_list)
+
         return cls._combine_value_index(value_type, index_type)
 
     def comment(self, text: str) -> str:
@@ -322,9 +474,25 @@ class VTranspiler(CLikeTranspiler):
         parts = []
         for val in node.values:
             if isinstance(val, py_ast.Constant):
-                parts.append(str(val.value))
+                # Safe string escaping for V '...' strings
+                val_str = str(val.value)
+                val_str = (
+                    val_str.replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                )
+                parts.append(val_str)
             elif isinstance(val, py_ast.FormattedValue):
-                parts.append(f"${{{self.visit(val.value)}}}")
+                # V uses ${expr} for interpolation
+                # Check for format specifiers? V supports some like ${x:.2f}
+                formatted = self.visit(val.value)
+                if val.format_spec:
+                    fmt = self.visit(val.format_spec)
+                    # V format specifiers are somewhat compatible (e.g. .2f), passing through
+                    parts.append(f"${{{formatted}:{fmt}}}")
+                else:
+                    parts.append(f"${{{formatted}}}")
             else:
                 parts.append(f"${{{self.visit(val)}}}")
         return f"'{''.join(parts)}'"
@@ -396,16 +564,18 @@ class VTranspiler(CLikeTranspiler):
         is_init = fn_name == "__init__"
         is_del = fn_name == "__del__"
         is_str = fn_name == "__str__"
+        is_repr = fn_name == "__repr__"
 
         if is_init and class_node:
             fn_name = f"new_{class_node.name.lower()}"
         elif is_del:
             fn_name = "free"
-        elif is_str:
+        elif is_str or is_repr:
             fn_name = "str"
 
         if is_class_method and not is_init:
-            signature.append(f"(mut {receiver} {get_id(class_node)})")
+            receiver_type = getattr(node, "self_type", get_id(class_node))
+            signature.append(f"(mut {receiver} {receiver_type})")
 
         signature.append(fn_name)
 
@@ -440,7 +610,7 @@ class VTranspiler(CLikeTranspiler):
         ret = self._typename_from_annotation(node, attr="returns")
         if is_init and class_node:
             signature.append(class_node.name)
-        elif is_str:
+        elif is_str or is_repr:
             signature.append("string")
         elif (ret and ret != "void") or not is_void_function(node):
             if not ret or ret == "void":
@@ -608,7 +778,26 @@ class VTranspiler(CLikeTranspiler):
     def visit_Attribute(self, node: py_ast.Attribute) -> str:
         attr: str = node.attr
 
+        # Handle super().attr
+        if isinstance(node.value, py_ast.Call) and get_id(node.value.func) == "super":
+            class_node = None
+            if hasattr(node, "scopes"):
+                for scope in reversed(node.scopes):
+                    if isinstance(scope, py_ast.ClassDef):
+                        class_node = scope
+                        break
+
+            if class_node and class_node.bases:
+                base_id = self.visit(class_node.bases[0])
+                if base_id and base_id != "object":
+                    return f"self.{base_id}.{attr}"
+
         value_id: str = self.visit(node.value)
+
+        if node.attr == "__class__":
+            return f"typeof({value_id})"
+        if node.attr == "__name__":
+            return f"{value_id}.name"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -635,16 +824,12 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: py_ast.Call) -> str:
-        # Handle super().__init__()
-        if isinstance(node.func, py_ast.Attribute) and node.func.attr == "__init__":
-            is_super = False
-            if isinstance(node.func.value, py_ast.Call):
-                if get_id(node.func.value.func) == "super":
-                    is_super = True
-
-            if is_super:
+        # Handle super() calls
+        if isinstance(node.func, py_ast.Attribute) and isinstance(
+            node.func.value, py_ast.Call
+        ):
+            if get_id(node.func.value.func) == "super":
                 # Find current class name
-                # We assume we are inside a method, so scopes[-2] should be ClassDef
                 class_node = None
                 if hasattr(node, "scopes"):
                     for scope in reversed(node.scopes):
@@ -653,21 +838,41 @@ class VTranspiler(CLikeTranspiler):
                             break
 
                 if class_node and class_node.bases:
-                    # V allows embedding. We initialize the embedded struct.
-                    # Assuming single inheritance or picking first base for super().
-                    base_id = self.visit(class_node.bases[0])
+                    base_expr = class_node.bases[0]
+                    if isinstance(base_expr, py_ast.Subscript):
+                        base_expr = base_expr.value
+                    base_id = self.visit(base_expr)
                     if base_id and base_id != "object":
                         # Transpile arguments
                         args = [self.visit(a) for a in node.args]
                         args_str = ", ".join(args)
-                        return f"self.{base_id} = new_{base_id.lower()}({args_str})"
-                    elif base_id == "object":
+
+                        if node.func.attr == "__init__":
+                            return f"self.{base_id} = new_{base_id.lower()}({args_str})"
+                        else:
+                            # Generic method call: super().method() -> self.Parent.method()
+                            return f"self.{base_id}.{node.func.attr}({args_str})"
+
+                    elif base_id == "object" and node.func.attr == "__init__":
                         return "/* super().__init__() (object) */"
                 else:
                     # No bases or implicit object
-                    return "/* super().__init__() */"
+                    return f"/* super().{node.func.attr}() */"
 
         fname: str = self.visit(node.func)
+
+        if fname == "isinstance":
+            obj = self.visit(node.args[0])
+            type_check = self.visit(node.args[1])
+            # V uses 'is' for sum type inspection
+            return f"({obj} is {type_check})"
+
+        if fname == "cast" or fname == "typing.cast":
+            if len(node.args) == 2:
+                type_str = self.visit(node.args[0])
+                val_str = self.visit(node.args[1])
+                return f"{type_str}({val_str})"
+
         fndef: Optional[py_ast.AST] = None
         if hasattr(node, "scopes"):
             fndef = node.scopes.find(fname)
@@ -680,6 +885,24 @@ class VTranspiler(CLikeTranspiler):
             if vargs:
                 return f"new_{fname.lower()}({', '.join(vargs)})"
             return f"{fname}{{}}"
+
+        # Check if it is a generic class instantiation Base[T]()
+        if isinstance(node.func, py_ast.Subscript):
+            # Resolving the base type name
+            base_node = node.func.value
+            if isinstance(base_node, py_ast.Name) and hasattr(node, "scopes"):
+                base_name = get_id(base_node)
+                base_def = node.scopes.find(base_name)
+                if isinstance(base_def, py_ast.ClassDef):
+                    # It is a class, so use {}
+                    vargs = [self.visit(a) for a in node.args]
+                    if node.keywords:
+                        vargs += [
+                            f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords
+                        ]
+
+                    # V generic instantiation Base[int]{...}
+                    return f"{fname}{{ {', '.join(vargs)} }}"
 
         vargs: List[str] = []
         for idx, arg in enumerate(node.args):
@@ -894,6 +1117,36 @@ class VTranspiler(CLikeTranspiler):
             chars.append(hex(c))
         return f"[{', '.join(chars)}]"
 
+    def visit_Compare(self, node: py_ast.Compare) -> str:
+        left = self.visit(node.left)
+        ops = node.ops
+        comparators = node.comparators
+        result = []
+
+        for i, (op, comparator) in enumerate(zip(ops, comparators)):
+            if i == 0:
+                result.append(left)
+
+            # Handle is None / is not None
+            is_none_check = False
+            if isinstance(comparator, py_ast.Constant) and comparator.value is None:
+                if isinstance(op, py_ast.Is):
+                    result.append("== none")
+                    is_none_check = True
+                elif isinstance(op, py_ast.IsNot):
+                    result.append("!= none")
+                    is_none_check = True
+
+            if not is_none_check:
+                # Fallback to standard generic transpilation for other ops
+                # We can't easily call super().visit_Compare because it handles the whole chain
+                # So we replicate basic logic here or call visit on op
+                op_str = self.visit(op)
+                comp_str = self.visit(comparator)
+                result.append(f"{op_str} {comp_str}")
+
+        return " ".join(result)
+
     def visit_If(self, node: py_ast.If) -> str:
         if get_id(node.test) == "TYPE_CHECKING" or (
             isinstance(node.test, py_ast.Attribute)
@@ -938,8 +1191,22 @@ class VTranspiler(CLikeTranspiler):
                 return f"-{self.visit(node.operand)}"
             else:
                 return f"-({self.visit(node.operand)})"
-        else:
-            return super().visit_UnaryOp(node)
+        return super().visit_UnaryOp(node)
+
+    def _visit_base_class(self, node) -> str:
+        if isinstance(node, py_ast.Subscript):
+            value = self._visit_base_class(node.value)
+            slice_val = self._slice_value(node)
+            if isinstance(slice_val, py_ast.Tuple):
+                elts = [self._visit_base_class(e) for e in slice_val.elts]
+                return f"{value}[{', '.join(elts)}]"
+            else:
+                return f"{value}[{self._visit_base_class(slice_val)}]"
+        name = self.visit(node)
+        # Sanitize generic type vars in base classes (e.g. _T -> T)
+        if name.startswith("_") and len(name) > 1 and name[1].isupper():
+            return name[1:]
+        return name
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(VTranspiler())
@@ -963,10 +1230,82 @@ class VTranspiler(CLikeTranspiler):
                     return ret
 
         fields = []
-        bases = [self.visit(base) for base in node.bases]
-        for base in bases:
-            if base and base != "object":
-                fields.append(base)
+        generic_types = []
+        bases = []
+
+        # First pass: Check for explicit Generic[...] base
+        for base in node.bases:
+            base_str = self._visit_base_class(base)
+            if base_str.startswith("Generic["):
+                inner = base_str[8:-1]
+                if ", " in inner:
+                    for p in inner.split(", "):
+                        if p not in generic_types:
+                            generic_types.append(p)
+                elif inner not in generic_types:
+                    generic_types.append(inner)
+
+        # Second pass: Heuristics for implicit generics in Subscript bases
+        for base in node.bases:
+            if isinstance(base, py_ast.Subscript):
+                # Handle slice which might be a Tuple or single element
+                slice_val = base.slice
+                candidates = []
+                if isinstance(slice_val, py_ast.Tuple):
+                    candidates = [e for e in slice_val.elts]
+                else:
+                    candidates = [slice_val]
+
+                for cand in candidates:
+                    if isinstance(cand, py_ast.Name):
+                        name = get_id(cand)
+                        # Filter standard/known types
+                        if name in {
+                            "int",
+                            "str",
+                            "float",
+                            "bool",
+                            "list",
+                            "dict",
+                            "set",
+                            "tuple",
+                            "Any",
+                            "None",
+                            "object",
+                            "bytes",
+                        }:
+                            continue
+
+                        # Heuristic for TypeVar-like names
+                        is_type_var = False
+                        if len(name) == 1 and name.isupper():
+                            is_type_var = True
+                        elif (
+                            name.startswith("_") and len(name) > 1 and name[1].isupper()
+                        ):
+                            is_type_var = True  # e.g. _T
+                        elif name.endswith("T") and len(name) > 1 and name[0].isupper():
+                            is_type_var = True  # e.g. KeyT
+
+                        if is_type_var:
+                            # Sanitize
+                            if name.startswith("_"):
+                                name = name[1:]
+                            # Uppercase first letter
+                            if name and name[0].islower():
+                                name = name[0].upper() + name[1:]
+
+                            if name not in generic_types:
+                                generic_types.append(name)
+
+        for base in node.bases:
+            base_str = self._visit_base_class(base)
+            if base_str.startswith("Generic["):
+                pass  # Already handled
+            elif "Generic[" not in base_str and base_str != "object":
+                bases.append(base_str)
+
+        fields.extend(bases)
 
         if declarations:
             fields.append("pub mut:")
@@ -975,12 +1314,16 @@ class VTranspiler(CLikeTranspiler):
                 typename = "Any"
             fields.append(f"{declaration} {typename}")
 
+        struct_name = node.name
+        if generic_types:
+            struct_name += f"[{', '.join(generic_types)}]"
+
         for b in node.body:
             if isinstance(b, py_ast.FunctionDef):
-                b.self_type = node.name
+                b.self_type = struct_name
 
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
-            node.name, "\n".join(fields)
+            struct_name, "\n".join(fields)
         )
         buf = [self.visit(b) for b in node.body]
         buf_str = "\n".join(buf)
@@ -1067,7 +1410,17 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_Subscript(self, node: py_ast.Subscript) -> str:
         value: str = self.visit(node.value)
-        index: str = self.visit(node.slice)
+
+        # Helper to unwrap generic args (avoid [T1, T2] array syntax from visit_Tuple)
+        slice_node = node.slice
+        if isinstance(slice_node, py_ast.Index):
+            slice_node = slice_node.value
+
+        if isinstance(slice_node, py_ast.Tuple):
+            index = ", ".join([self.visit(e) for e in slice_node.elts])
+        else:
+            index = self.visit(node.slice)
+
         if hasattr(node, "is_annotation"):
             if value in self._container_type_map:
                 value = self._container_type_map[value]
@@ -1100,32 +1453,26 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Try(self, node: py_ast.Try, finallybody: bool = None) -> str:
-        self._usings.add("div72.vexc")
+        # V does not support try/except blocks (it uses Result types).
+        # We cannot map arbitrary Python try blocks to V.
+        # Strategy: Execute the 'try' body. Comment out handlers. Execute finally.
         buf = []
-        buf.append("if C.try() {")
+        buf.append("/* try */ {")
         buf.extend(map(self.visit, node.body))
-        buf.append("vexc.end_try()")
         buf.append("}")
-        if len(node.handlers) == 1 and not node.handlers[0].type:
-            # Just except:
-            buf.append("else {")
-            buf.extend(map(self.visit, node.handlers[0].body))
-            buf.append("}")
-        elif node.handlers:
-            buf.append("else {")
-            buf.append("match vexc.get_curr_exc().name {")
-            has_else = False
+
+        if node.handlers:
+            buf.append("/* except (unsupported in V) {")
             for handler in node.handlers:
-                buf2 = self.visit(handler)
-                if buf2.startswith("else"):
-                    has_else = True
-                buf.append(buf2)
-            if not has_else:
-                buf.append("else {}")
-            buf.append("}")
-            buf.append("}")
+                buf.append(self.visit(handler))
+            buf.append("} */")
+
         if node.finalbody:
+            # simple finally execution (not guaranteed on panic unless defer used, but complex to map)
+            buf.append("/* finally */ {")
             buf.extend(map(self.visit, node.finalbody))
+            buf.append("}")
+
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
@@ -1170,6 +1517,53 @@ class VTranspiler(CLikeTranspiler):
             return f"{kw}{target} := {val}"
 
     def visit_Assign(self, node: py_ast.Assign) -> str:
+        # Skip TypeVar assignments
+        # Skip or map TypeVar assignments
+        if isinstance(node.value, py_ast.Call):
+            func_id = get_id(node.value.func)
+            if func_id == "TypeVar":
+                # Check for bound or constraints
+                bound_type = None
+
+                # Check keyword 'bound'
+                for kw in node.value.keywords:
+                    if kw.arg == "bound":
+                        bound_type = self._typename_from_type_node(kw.value)
+                        break
+
+                # Check positional constraints (e.g. TypeVar("T", int, str))
+                if not bound_type and len(node.value.args) > 1:
+                    constraints = [
+                        self._typename_from_type_node(a) for a in node.value.args[1:]
+                    ]
+                    bound_type = " | ".join(constraints)
+
+                if bound_type:
+                    return f"type {get_id(node.targets[0])} = {bound_type}"
+
+                return self.comment(
+                    f"TypeVar {', '.join([get_id(t) for t in node.targets])} ignored"
+                )
+
+        # Detect Type Aliases (e.g. MyType = Callable[...])
+        if len(node.targets) == 1 and isinstance(node.targets[0], py_ast.Name):
+            target_id = get_id(node.targets[0])
+            if isinstance(node.value, py_ast.Subscript):
+                val_root = get_id(node.value.value)
+                if val_root in (
+                    "Callable",
+                    "Union",
+                    "Optional",
+                    "List",
+                    "Dict",
+                    "Set",
+                    "Sequence",
+                    "Iterable",
+                ):
+                    # It's a type alias
+                    type_str = self._typename_from_type_node(node.value)
+                    return f"type {target_id} = {type_str}"
+
         assign: List[str] = []
         use_temp: bool = len(node.targets) > 1 and isinstance(node.value, py_ast.Call)
         if use_temp:
