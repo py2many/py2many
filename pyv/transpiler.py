@@ -1453,26 +1453,32 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Try(self, node: py_ast.Try, finallybody: bool = None) -> str:
-        # V does not support try/except blocks (it uses Result types).
-        # We cannot map arbitrary Python try blocks to V.
-        # Strategy: Execute the 'try' body. Comment out handlers. Execute finally.
+        self._usings.add("div72.vexc")
         buf = []
-        buf.append("/* try */ {")
+        buf.append("if C.try() {")
         buf.extend(map(self.visit, node.body))
+        buf.append("vexc.end_try()")
         buf.append("}")
-
-        if node.handlers:
-            buf.append("/* except (unsupported in V) {")
-            for handler in node.handlers:
-                buf.append(self.visit(handler))
-            buf.append("} */")
-
-        if node.finalbody:
-            # simple finally execution (not guaranteed on panic unless defer used, but complex to map)
-            buf.append("/* finally */ {")
-            buf.extend(map(self.visit, node.finalbody))
+        if len(node.handlers) == 1 and not node.handlers[0].type:
+            # Just except:
+            buf.append("else {")
+            buf.extend(map(self.visit, node.handlers[0].body))
             buf.append("}")
-
+        elif node.handlers:
+            buf.append("else {")
+            buf.append("match vexc.get_curr_exc().name {")
+            has_else = False
+            for handler in node.handlers:
+                buf2 = self.visit(handler)
+                if buf2.startswith("else"):
+                    has_else = True
+                buf.append(buf2)
+            if not has_else:
+                buf.append("else {}")
+            buf.append("}")
+            buf.append("}")
+        if node.finalbody:
+            buf.extend(map(self.visit, node.finalbody))
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
