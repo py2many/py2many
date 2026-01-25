@@ -82,12 +82,14 @@ def _transpile(
         tree.__file__ = filename
         tree_list.append(tree)
     trees = toposort(tree_list)
+    for tree in trees:
+        add_scope_context(tree)
     topo_filenames = [t.__file__ for t in trees]
     language = transpiler.NAME
     generic_rewriters = [
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
-        FStringJoinRewriter(language),
+        FStringJoinRewriter(language) if language != "v" else None,
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
@@ -101,8 +103,10 @@ def _transpile(
     if settings.ext != ".py":
         generic_post_rewriters.append(LoopElseRewriter(language))
 
-    rewriters = generic_rewriters + rewriters
-    post_rewriters = generic_post_rewriters + post_rewriters
+    rewriters = [r for r in generic_rewriters if r is not None] + rewriters
+    post_rewriters = [
+        r for r in generic_post_rewriters if r is not None
+    ] + post_rewriters
     outputs = {}
     successful = []
     for filename, tree in zip(topo_filenames, trees):
@@ -117,8 +121,10 @@ def _transpile(
 
             formatted_lines = traceback.format_exc().splitlines()
             if isinstance(e, AstErrorBase):
+                traceback.print_exc()
                 print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
             else:
+                traceback.print_exc()
                 print(f"{filename}: {formatted_lines[-1]}")
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
                 raise
@@ -256,7 +262,16 @@ def _format_one(settings, output_path, env=None):
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
         proc = run(cmd, env=env, capture_output=True)
-        if proc.returncode:
+
+        # Check for V specific formatting errors (sometimes return code is 0 but prints error)
+        v_error = False
+        if settings.ext == ".v":
+            # Check combined output just in case
+            output_combined = (proc.stderr + proc.stdout).lower()
+            if proc.returncode != 0 or b"error" in output_combined:
+                v_error = True
+
+        if proc.returncode or v_error:
             # format.jl exit code is unreliable
             if settings.ext == ".jl":
                 if proc.stderr is not None:
@@ -266,9 +281,36 @@ def _format_one(settings, output_path, env=None):
                     if b"ERROR: " in proc.stderr:
                         return False
                 return True
+
+            # Print the error from standard formatter so user sees it
             print(
                 f"Error: {cmd} (code: {proc.returncode}):\n{proc.stderr}{proc.stdout}"
             )
+
+            # V language fallback
+            if settings.ext == ".v":
+                print("Standard formatting failed, falling back to simple formatter...")
+                try:
+                    from . import vformat
+
+                    # Programmatic invocation
+                    with open(output_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+
+                    formatted = vformat.format_v(content)
+
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        f.write(formatted)
+
+                    if restore_cwd:
+                        os.chdir(restore_cwd)
+                    # Return False because standard formatting (validation) failed
+                    return False
+                except ImportError:
+                    print("Fallback failed: vformat module not found in package.")
+                except Exception as e:
+                    print(f"Fallback vformat callback failed: {e}")
+
             if restore_cwd:
                 os.chdir(restore_cwd)
             return False

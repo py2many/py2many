@@ -75,6 +75,7 @@ ALL_SETTINGS = {
     "dlang": dlang_settings,
     "dart": dart_settings,
     "go": go_settings,
+    "golang": go_settings,
     "vlang": vlang_settings,
     "smt": smt_settings,
     "zig": zig_settings,

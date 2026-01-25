@@ -163,6 +163,8 @@ class InferTypesTransformer(ast.NodeTransformer):
         bytes: "bytes",
         complex: "complex",
         type(...): "...",
+        type(None): "None",
+        "Path": "Path",
     }
     FIXED_WIDTH_INTS_LIST = [
         bool,
@@ -412,7 +414,19 @@ class InferTypesTransformer(ast.NodeTransformer):
                 type_str = get_id(scope.returns)
                 if type_str is not None:
                     if new_type_str != type_str:
-                        type_str = f"Union[{type_str},{new_type_str}]"
+                        # flatten_union_str logic duplicated from visit_BinOp
+                        # TODO: Refactor into a shared helper method
+                        def flatten_union_str(t):
+                            if t.startswith("Union[") and t.endswith("]"):
+                                inner = t[6:-1]
+                                return [x.strip() for x in inner.split(",")]
+                            return [t]
+
+                        types = flatten_union_str(type_str) + flatten_union_str(
+                            new_type_str
+                        )
+                        unique = list(dict.fromkeys(types))
+                        type_str = f"Union[{', '.join(unique)}]"
                         scope.returns.id = type_str
                 else:
                     # Do not overwrite source annotation with inferred
@@ -548,9 +562,59 @@ class InferTypesTransformer(ast.NodeTransformer):
             node.annotation = ast.Name(id=left_id)
             return node
 
-        LEGAL_COMBINATIONS = {("str", ast.Mod), ("List", ast.Add)}
+        LEGAL_COMBINATIONS = {
+            ("str", ast.Mod),
+            ("List", ast.Add),
+            ("Path", ast.Div),
+            ("str", ast.Add),
+        }
 
         if left_id is not None and (left_id, type(node.op)) not in LEGAL_COMBINATIONS:
+            if isinstance(node.op, ast.BitOr):
+                # PEP 604 union types: A | B
+                left_id = left_id or "Any"
+                right_id = right_id or "Any"
+
+                def flatten_union_str(type_str):
+                    if type_str.startswith("Union[") and type_str.endswith("]"):
+                        # strip Union[ and ]
+                        inner = type_str[6:-1]
+                        # This is a simple split, might fail for nested generics like List[int]
+                        # distinct_types logic handles re-unification
+                        return [t.strip() for t in inner.split(",")]
+                    return [type_str]
+
+                # If either side is already a Union string, allow blending
+                # Note: node.left and node.right might not be BitOp if we are visiting specific nodes
+                # But here we are relying on left_id/right_id strings
+
+                # Flatten
+                types = flatten_union_str(left_id) + flatten_union_str(right_id)
+                unique = list(dict.fromkeys(types))
+                self._annotate(node, f"Union[{', '.join(unique)}]")
+                return node
+
+            # Handle Unions on either side
+            if "Union" in str(left_id) or "Union" in str(right_id):
+                # For now, be optimistic and allow if it's a common operator
+                if isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod)):
+                    node.annotation = left if left else right
+                    return node
+
+            if (
+                left_id == "str"
+                and isinstance(node.op, ast.Add)
+                and "str" in str(right_id)
+            ):
+                node.annotation = left
+                return node
+
+            if (left_id == "Path" or "Path" in str(left_id)) and isinstance(
+                node.op, ast.Div
+            ):
+                node.annotation = left
+                return node
+
             raise AstUnrecognisedBinOp(left_id, right_id, node)
 
         return node

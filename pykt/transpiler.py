@@ -234,7 +234,8 @@ class KotlinTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = f"{node.s}"
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = f"{bytes_str}"
         return bytes_str.replace("'", '"')  # replace single quote with double quote
 
     def visit_Name(self, node) -> str:

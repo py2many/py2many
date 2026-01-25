@@ -45,7 +45,7 @@ def is_global(target):
 def is_mutable(scopes, target):
     for scope in scopes:
         if isinstance(scope, ast.FunctionDef):
-            if target in scope.mutable_vars:
+            if target in getattr(scope, "mutable_vars", []):
                 return True
     return False
 
