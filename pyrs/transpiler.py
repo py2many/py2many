@@ -91,6 +91,94 @@ class RustTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._allows = set()
         self._rust_mods = set()
+        self._keywords = {
+            "abstract",
+            "as",
+            "async",
+            "await",
+            "become",
+            "box",
+            "break",
+            "const",
+            "continue",
+            "crate",
+            "do",
+            "dyn",
+            "else",
+            "enum",
+            "extern",
+            "false",
+            "final",
+            "fn",
+            "for",
+            "if",
+            "impl",
+            "in",
+            "let",
+            "loop",
+            "macro",
+            "match",
+            "mod",
+            "move",
+            "mut",
+            "override",
+            "priv",
+            "pub",
+            "ref",
+            "return",
+            "static",
+            "struct",
+            "super",
+            "trait",
+            "true",
+            "type",
+            "typeof",
+            "unsafe",
+            "unsized",
+            "use",
+            "virtual",
+            "where",
+            "while",
+            "yield",
+            "try",
+        }
+
+    @classmethod
+    def _typename_from_type_node(cls, node) -> Union[List, str, None]:
+        if (isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr)) or (
+            isinstance(node, ast.Subscript) and get_id(node.value) == "Union"
+        ):
+            if isinstance(node, ast.Subscript):
+                slice_value = cls._slice_value(node)
+                if isinstance(slice_value, ast.Tuple):
+                    union_types = [
+                        cls._typename_from_type_node(e) for e in slice_value.elts
+                    ]
+                else:
+                    union_types = [cls._typename_from_type_node(slice_value)]
+            else:
+
+                def flatten_union(n):
+                    if isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr):
+                        return flatten_union(n.left) + flatten_union(n.right)
+                    return [cls._typename_from_type_node(n)]
+
+                union_types = flatten_union(node)
+
+            unique_types = list(dict.fromkeys(union_types))
+            if "None" in unique_types:
+                unique_types.remove("None")
+                if len(unique_types) == 1:
+                    if isinstance(node, ast.Subscript):
+                        node.container_type = ("Option", unique_types[0])
+                    return f"Option<{unique_types[0]}>"
+
+            if isinstance(node, ast.Subscript):
+                node.container_type = (cls._default_type, "Any")
+
+            return cls._default_type if unique_types else "Any"
+
+        return super()._typename_from_type_node(node)
 
     def usings(self):
         if self._extension:
@@ -346,7 +434,11 @@ class RustTranspiler(CLikeTranspiler):
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
-            raise AstClassUsedBeforeDeclaration(fndef, node)
+            extractor = DeclarationExtractor(RustTranspiler())
+            extractor.visit(fndef)
+            fndef.declarations = extractor.get_declarations()
+            fndef.declarations_with_defaults = extractor.get_declarations_with_defaults()
+            fndef.class_assignments = extractor.class_assignments
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
                 arg = self.visit(arg)
@@ -409,10 +501,16 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
-        return "" + super().visit_Str(node) + ""
+        s = node.value if hasattr(node, "value") else node.s
+        s = s.replace("\\", "\\\\")
+        s = s.replace('"', '\\"')
+        s = s.replace("\n", "\\n")
+        s = s.replace("\r", "\\r")
+        s = s.replace("\t", "\\t")
+        return f'"{s}"'
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.s
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
         bytes_str = bytes_str.replace(b'"', b'\\"')
         return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 
@@ -471,6 +569,9 @@ class RustTranspiler(CLikeTranspiler):
             return super().visit_NameConstant(node)
 
     def visit_If(self, node) -> str:
+        if get_id(node.test) == "TYPE_CHECKING":
+            return ""
+
         body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
         orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
@@ -655,10 +756,18 @@ class RustTranspiler(CLikeTranspiler):
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         if module_name in self._rust_ignored_module_set:
             return ""
+
         if level > 0:
-            self._rust_mods.add(module_name)
+            prefix = "super::" * (level - 1) if level > 1 else "self::"
+            if module_name and module_name != ".":
+                module_name = prefix + module_name.replace(".", "::")
+                self._rust_mods.add(module_name)
+            else:
+                module_name = prefix.rstrip("::")
         else:
+            module_name = module_name.replace(".", "::")
             self._usings.add(module_name)
+
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]
@@ -666,7 +775,6 @@ class RustTranspiler(CLikeTranspiler):
             if lookup in MODULE_DISPATCH_TABLE:
                 rust_use = MODULE_DISPATCH_TABLE[lookup]
                 return f"use {rust_use};"
-        module_name = module_name.replace(".", "::")
         names = ", ".join(names)
         return f"use {module_name}::{{{names}}};"
 
