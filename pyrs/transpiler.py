@@ -12,7 +12,6 @@ from py2many.analysis import (
 )
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
 from py2many.inference import is_reference
 from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
@@ -437,7 +436,9 @@ class RustTranspiler(CLikeTranspiler):
             extractor = DeclarationExtractor(RustTranspiler())
             extractor.visit(fndef)
             fndef.declarations = extractor.get_declarations()
-            fndef.declarations_with_defaults = extractor.get_declarations_with_defaults()
+            fndef.declarations_with_defaults = (
+                extractor.get_declarations_with_defaults()
+            )
             fndef.class_assignments = extractor.class_assignments
         if node.args:
             for arg, decl in zip(node.args, fndef.declarations.keys()):
