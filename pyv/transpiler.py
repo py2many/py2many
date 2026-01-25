@@ -914,69 +914,13 @@ class VTranspiler(CLikeTranspiler):
             else:
                 value: str = self.visit(node.value)
 
+            if isinstance(target, (ast.Tuple, ast.List)) and any(
+                isinstance(e, ast.Starred) for e in target.elts
+            ):
+                assign.extend(self._handle_starred_unpack(target, value, node))
+                continue
+
             if isinstance(target, (ast.Tuple, ast.List)):
-                # Check for Starred expressions in subtargets
-                starred_idx = -1
-                for i, elt in enumerate(target.elts):
-                    if isinstance(elt, ast.Starred):
-                        if starred_idx != -1:
-                            raise AstNotImplementedError(
-                                "Only one starred expression allowed in assignment",
-                                node,
-                            )
-                        starred_idx = i
-
-                if starred_idx != -1:
-                    # Extended unpacking: a, *b, c = x
-                    # We need a temporary variable if 'value' is complex
-                    tmp_var = self._new_tmp("unpack")
-                    assign.append(f"{tmp_var} := {value}")
-
-                    for i, elt in enumerate(target.elts):
-                        if i < starred_idx:
-                            idx_val = f"{tmp_var}[{i}]"
-                            target_elt = elt
-                        elif i == starred_idx:
-                            # *b
-                            start = i
-                            end = len(target.elts) - 1 - i
-                            if end > 0:
-                                idx_val = f"{tmp_var}[{start}..{tmp_var}.len - {end}]"
-                            else:
-                                idx_val = f"{tmp_var}[{start}..]"
-                            target_elt = elt.value
-                        else:
-                            # c
-                            dist_from_end = len(target.elts) - 1 - i
-                            if dist_from_end == 0:
-                                idx_val = f"{tmp_var}.last()"
-                            else:
-                                idx_val = (
-                                    f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
-                                )
-                            target_elt = elt
-
-                        subkw = ""
-                        subop = ":="
-                        if hasattr(node, "scopes"):
-                            subkw = (
-                                "mut "
-                                if is_mutable(node.scopes, get_id(target_elt))
-                                else ""
-                            )
-                            definition = node.scopes.parent_scopes.find(
-                                get_id(target_elt)
-                            ) or node.scopes.find(get_id(target_elt))
-                            if definition is not None and defined_before(
-                                definition, target_elt
-                            ):
-                                subop = "="
-
-                        assign.append(
-                            f"{subkw}{self.visit(target_elt)} {subop} {idx_val}"
-                        )
-                    continue
-
                 value = value[1:-1]
                 subtargets: List[str] = []
                 op: str = ":="
@@ -995,8 +939,6 @@ class VTranspiler(CLikeTranspiler):
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
-                        # Allow mixing if we already decided it's an assignment?
-                        # Actually the original code raises here.
                         pass
                 assign.append(f"{', '.join(subtargets)} {op} {value}")
             elif isinstance(target, (ast.Subscript, ast.Attribute)):
@@ -1014,6 +956,46 @@ class VTranspiler(CLikeTranspiler):
 
                 assign.append(f"{kw}{target} := {value}")
         return "\n".join(assign)
+
+    def _handle_starred_unpack(self, target, value, node):
+        starred_idx = next(
+            i for i, e in enumerate(target.elts) if isinstance(e, ast.Starred)
+        )
+        tmp_var = self._new_tmp("unpack")
+        assigns = [f"{tmp_var} := {value}"]
+        for i, elt in enumerate(target.elts):
+            if i < starred_idx:
+                idx_val = f"{tmp_var}[{i}]"
+                target_elt = elt
+            elif i == starred_idx:
+                end = len(target.elts) - 1 - i
+                idx_val = (
+                    f"{tmp_var}[{i}..{tmp_var}.len - {end}]"
+                    if end > 0
+                    else f"{tmp_var}[{i}..]"
+                )
+                target_elt = elt.value
+            else:
+                dist = len(target.elts) - 1 - i
+                idx_val = (
+                    f"{tmp_var}.last()"
+                    if dist == 0
+                    else f"{tmp_var}[{tmp_var}.len - {dist + 1}]"
+                )
+                target_elt = elt
+
+            subkw = ""
+            subop = ":="
+            if hasattr(node, "scopes"):
+                subkw = "mut " if is_mutable(node.scopes, get_id(target_elt)) else ""
+                definition = node.scopes.parent_scopes.find(
+                    get_id(target_elt)
+                ) or node.scopes.find(get_id(target_elt))
+                if definition and defined_before(definition, target_elt):
+                    subop = "="
+
+            assigns.append(f"{subkw}{self.visit(target_elt)} {subop} {idx_val}")
+        return assigns
 
     def visit_AugAssign(self, node: ast.AugAssign) -> str:
         target: str = self.visit(node.target)
