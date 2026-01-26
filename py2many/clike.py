@@ -1,5 +1,4 @@
 import ast
-import importlib
 import io  # noqa: F401
 import logging
 import math  # noqa: F401
@@ -17,7 +16,6 @@ from ctypes import c_uint8 as u8
 from ctypes import c_uint16 as u16
 from ctypes import c_uint32 as u32
 from ctypes import c_uint64 as u64
-from pathlib import Path
 from typing import (  # noqa: F401
     Any,
     Callable,
@@ -78,6 +76,7 @@ symbols = {
     ast.And: "&&",
     ast.Or: "||",
     ast.In: "in",
+    ast.NotIn: "!in",
 }
 
 _AUTO = "auto"
@@ -100,12 +99,14 @@ def class_for_typename(typename, default_type, locals=None) -> Union[str, object
         # and pass them into eval
         typeclass = eval(typename, globals(), locals)
         if hasattr(typeclass, "__self__") and not isinstance(
-            typeclass.__self__, type(sys)
+            typeclass.__self__, types.ModuleType
         ):
             # Method of an instance instead of a class.
             return getattr(typeclass.__self__.__class__, typeclass.__name__)
 
-        if not isinstance(typeclass, (type, type(open), type(class_for_typename))):
+        if not isinstance(
+            typeclass, (type, types.BuiltinFunctionType, types.FunctionType)
+        ):
             return typeclass.__class__
         return typeclass
     except (NameError, SyntaxError, AttributeError, TypeError):
@@ -233,13 +234,16 @@ class CLikeTranspiler(ast.NodeVisitor):
             if not index_contains_default:
                 if any(t is None for t in index_type):
                     raise TypeNotSupported(typename)
-                index_type = ", ".join(index_type)
+                index_type_s = ", ".join(index_type)
+            else:
+                index_type_s = ""
         else:
             index_contains_default = index_type == "Any"
+            index_type_s = index_type
         # Avoid types like HashMap<_, foo>. Prefer default_type instead
         if index_contains_default or value_type == cls._default_type:
             return cls._default_type
-        return cls._combine_value_index(value_type, index_type)
+        return cls._combine_value_index(value_type, index_type_s)
 
     @classmethod
     def _typename_from_type_node(cls, node) -> Union[List, str, None]:
@@ -399,6 +403,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             except ImportError:
                 pass
         else:
+        if not node.module:
             # Import from '.'
             imported_name = "."
 
@@ -409,6 +414,7 @@ class CLikeTranspiler(ast.NodeVisitor):
                 self._imported_names[asname] = getattr(imported_module, name, None)
             else:
                 self._imported_names[asname] = (imported_name, name)
+            self._imported_names[asname] = (imported_name, name)
         names = [n for n, _ in names]
         return self._import_from(imported_name, names, node.level)
 
