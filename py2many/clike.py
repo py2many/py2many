@@ -1,4 +1,5 @@
 import ast
+import importlib
 import io  # noqa: F401
 import logging
 import math  # noqa: F401
@@ -16,6 +17,7 @@ from ctypes import c_uint8 as u8
 from ctypes import c_uint16 as u16
 from ctypes import c_uint32 as u32
 from ctypes import c_uint64 as u64
+from pathlib import Path
 from typing import (  # noqa: F401
     Any,
     Callable,
@@ -403,7 +405,6 @@ class CLikeTranspiler(ast.NodeVisitor):
             except ImportError:
                 pass
         else:
-        if not node.module:
             # Import from '.'
             imported_name = "."
 
