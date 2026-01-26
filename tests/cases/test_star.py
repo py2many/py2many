@@ -1,5 +1,5 @@
-def sum_all(*nums):
-    total = 0
+def sum_all(*nums: int) -> int:
+    total: int = 0
     for n in nums:
         total += n
     return total
@@ -11,16 +11,19 @@ def main():
     print([0] * 3)
 
     # 1. Splat in calls
-    numbers = [1, 2, 3]
+    numbers: list[int] = [1, 2, 3]
     print(sum_all(*numbers))
 
     # 2. List concatenation
-    others = [4, 5]
-    all_nums = [0, *numbers, *others, 6]
+    others: list[int] = [4, 5]
+    all_nums: list[int] = [0, *numbers, *others, 6]
     print(all_nums)
 
     # 3. Extended unpacking
-    data = [10, 20, 30, 40, 50]
+    data: list[int] = [10, 20, 30, 40, 50]
+    a: int
+    rest: list[int]
+    e: int
     a, *rest, e = data
     print(a)
     print(rest)
