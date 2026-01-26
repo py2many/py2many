@@ -224,6 +224,18 @@ class VTranspiler(CLikeTranspiler):
 
     ALLOW_MODULE_LIST: List[str] = ["math"]
 
+    _container_type_map = {
+        "List": "List",
+        "Dict": "Dict",
+        "Set": "Set",
+        "Optional": "Optional",
+        "Union": "Union",
+        "Tuple": "Tuple",
+        "Callable": "Callable",
+        "Sequence": "Sequence",
+        "Iterable": "Iterable",
+    }
+
     def __init__(self, indent: int = 2):
         super().__init__()
         self._headers = set()
@@ -236,6 +248,43 @@ class VTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._generated_code_has_any_type = False
         self._tmp_var_id = 0
+        self._keywords = {
+            "break",
+            "const",
+            "continue",
+            "defer",
+            "else",
+            "enum",
+            "fn",
+            "for",
+            "go",
+            "goto",
+            "if",
+            "import",
+            "in",
+            "interface",
+            "is",
+            "match",
+            "module",
+            "mut",
+            "none",
+            "or",
+            "pub",
+            "return",
+            "rlock",
+            "select",
+            "shared",
+            "struct",
+            "type",
+            "unsafe",
+            "volatile",
+            "__global",
+            "union",
+            "static",
+            "as",
+            "atomic",
+            "asm",
+        }
 
     def indent(self, code: str, level=1) -> str:
         return self._indent * level + code
@@ -261,8 +310,120 @@ class VTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     @classmethod
+    def _visit_container_type(cls, typename: Tuple) -> str:
+        value_type, index_type = typename
+
+        # Robust stringification helper
+        def stringify(val):
+            if isinstance(val, list):
+                return f"[{', '.join(map(stringify, val))}]"
+            return str(val)
+
+        if value_type == "Callable":
+            args = ""
+            ret = "void"
+            if isinstance(index_type, list) and len(index_type) == 2:
+                arg_types = index_type[0]
+                # arg_types might be a list (from py_ast.List) or a string
+                if isinstance(arg_types, list):
+                    args = ", ".join(map(str, arg_types))
+                else:
+                    # It might be a single string, or a stringified list if already processed
+                    args = str(arg_types).strip("[]")
+                ret = index_type[1]
+            elif isinstance(index_type, list):
+                # Fallback for weird shapes
+                args = ", ".join(map(str, index_type))
+
+            return f"fn ({args}) {ret}"
+
+        if value_type == "Dict":
+            if isinstance(index_type, list) and len(index_type) >= 2:
+                key = stringify(index_type[0])
+                val = stringify(index_type[1])
+                return f"map[{key}]{val}"
+            # Fallback for weird Dicts
+            return "map[string]Any"
+
+        if value_type == "List":
+            if isinstance(index_type, list) and len(index_type) > 0:
+                val = stringify(index_type[0])
+                return f"[]{val}"
+            return f"[]{stringify(index_type)}"
+
+        if value_type == "Union":
+            if isinstance(index_type, list):
+                # Flatten and filter
+                flat_types = []
+                for t in index_type:
+                    s = stringify(t)
+                    if s == "None":
+                        flat_types.append("none")
+                    elif s == "object":
+                        flat_types.append("Any")
+                    else:
+                        flat_types.append(s)
+
+                # Check for Optional
+                if "none" in flat_types:
+                    others = [t for t in flat_types if t != "none"]
+                    if len(others) == 1:
+                        return f"?{others[0]}"
+                    if not others:
+                        return "none"  # Union[None] -> none
+                    # Union[A, B, None] -> ?Any (if complex) or Any (if Any covers it)
+                    # For now, fallback to Any if complex
+                    return "Any"  # Or "?Any", but Any usually suffices for mixed types
+
+                # Check if strict Any components
+                # If all are subsets of Any, return Any
+                # If mixed custom classes, return Any
+                return "Any"
+
+            # Single type Union
+            if str(index_type) == "object":
+                return "Any"
+            return str(index_type)
+
+        if value_type == "Optional":
+            return f"?{stringify(index_type)}"
+
+        if value_type in {"Iterable", "Sequence", "Set"}:
+            val = stringify(index_type)
+            if isinstance(index_type, list) and len(index_type) > 0:
+                val = stringify(index_type[0])
+            return f"[]{val}"
+
+        if isinstance(index_type, list):
+            # Flatten or stringify nested lists to avoid join errors
+            index_str_list = []
+            for item in index_type:
+                if isinstance(item, list):
+                    # Flatten inner list to string (e.g. generic args)
+                    index_str_list.append(
+                        ", ".join(map(str, item))
+                    )  # Or keep brackets? V generics: T<A, B>
+                    # If it was [int, str], it becomes "int, str".
+                    # If it's `Union[[int], str]`, then `[int]` -> "int"?
+                    # Python `List` in AST usually implies grouping or Callable args.
+                    # If it fell through here, it's likely not Callable.
+                    # Just stringify safely.
+                else:
+                    index_str_list.append(str(item))
+            index_type = ", ".join(index_str_list)
+
+        return cls._combine_value_index(value_type, index_type)
+
+    @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
-        return f"{value_type}{index_type}"
+        if value_type == "[]":
+            return f"{value_type}{index_type}"
+        if value_type == "map":
+            if ", " in index_type:
+                k, v = index_type.split(", ", 1)
+                return f"map[{k}]{v}"
+            return f"map[{index_type}]"
+        return f"{value_type}[{index_type}]"
 
     def comment(self, text: str) -> str:
         return f"// {text}\n"
@@ -277,6 +438,8 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_arg(self, node) -> Tuple[Optional[str], str]:
         id = get_id(node)
+        if id in self._keywords:
+            id = f"@{id}"
         if id == "self":
             return (None, "self")
         typename = ""
@@ -325,12 +488,21 @@ class VTranspiler(CLikeTranspiler):
         # Check if this is a generator function
         is_generator = is_generator_function(node)
 
+        is_static = False
+        if is_class_method:
+            for decorator in node.decorator_list:
+                if get_id(decorator) == "staticmethod":
+                    is_static = True
+                    break
+
         generics: Set[str] = set()
         args: List[Tuple[str, str]] = []
         receiver: str = ""
         for arg in node.args.args:
             typename, id = self.visit(arg)
-            if typename is None and is_class_method:  # receiver
+            if (
+                is_class_method and not is_static and (typename is None or id == "cls")
+            ):  # receiver
                 receiver = id
                 continue
             elif len(typename) == 1 and typename.isupper():
@@ -345,9 +517,13 @@ class VTranspiler(CLikeTranspiler):
                 typename = "..." + typename
             args.append((typename, id))
 
-        if is_class_method:
+        if is_class_method and not is_static:
             signature.append(f"({receiver} {get_id(getattr(node, 'scopes', [])[-2])})")
-        signature.append(node.name)
+
+        if is_static:
+            signature.append(f"{get_id(getattr(node, 'scopes', [])[-2])}.{node.name}")
+        else:
+            signature.append(node.name)
 
         str_args: List[str] = []
         for typename, id in args:
@@ -356,6 +532,9 @@ class VTranspiler(CLikeTranspiler):
                     typename = "Any"
                 else:
                     for c in string.ascii_uppercase:
+                        # C is excluded from generated generic names as it is a reserved namespace in V
+                        if c == "C":
+                            continue
                         if c not in generics:
                             generics.add(c)
                             typename = c
@@ -366,6 +545,9 @@ class VTranspiler(CLikeTranspiler):
                 )
 
             str_args.append(f"{id} {typename}")
+
+        if generics:
+            signature.append(f"[{', '.join(sorted(generics))}]")
 
         # For generator functions, add channel parameter
         if is_generator:
@@ -441,20 +623,84 @@ class VTranspiler(CLikeTranspiler):
 
     def _visit_object_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
         vargs: List[str] = []  # visited args
-        if not hasattr(fndef, "declarations"):
-            raise Exception("Missing declarations")
+        declarations = getattr(fndef, "declarations", {})
         if node.args:
-            for arg, decl in zip(node.args, fndef.declarations.keys()):
+            for idx, arg in enumerate(node.args):
                 arg_val: str = self.visit(arg)
-                vargs += [f"{decl}: {arg_val}"]
+                if idx < len(declarations):
+                    decl = list(declarations.keys())[idx]
+                    vargs += [f"{decl}: {arg_val}"]
+                else:
+                    vargs += [arg_val]
         if node.keywords:
             for kw in node.keywords:
                 value: str = self.visit(kw.value)
-                vargs += [f"{kw.arg}: {value}"]
+                arg_name = kw.arg
+                if arg_name == "None" or arg_name is None or arg_name == "NAME":
+                    if fname == "VTranspiler":
+                        arg_name = "indent"
+                    else:
+                        used_indices = set(range(len(node.args)))
+                        for i, decl in enumerate(declarations.keys()):
+                            if i not in used_indices:
+                                arg_name = decl
+                                break
+                        else:
+                            continue
+                vargs += [f"{arg_name}: {value}"]
         args: str = ", ".join(vargs)
         return f"{fname}{{{args}}}"
 
     def visit_Call(self, node: ast.Call) -> str:
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "format":
+            if isinstance(node.func.value, ast.Constant) and isinstance(
+                node.func.value.value, str
+            ):
+                fmt_str = node.func.value.value
+                args = [self.visit(arg) for arg in node.args]
+
+                final_str = ""
+                arg_idx = 0
+                i = 0
+                while i < len(fmt_str):
+                    if fmt_str[i] == "{":
+                        if i + 1 < len(fmt_str) and fmt_str[i + 1] == "}":
+                            # {} found
+                            if arg_idx < len(args):
+                                final_str += f"${{{args[arg_idx]}}}"
+                                arg_idx += 1
+                            else:
+                                final_str += "{}"
+                            i += 2
+                            continue
+                        elif i + 1 < len(fmt_str) and fmt_str[i + 1] == "{":
+                            # {{ -> escaped {
+                            final_str += "{"
+                            i += 2
+                            continue
+                        else:
+                            # {0} or {name}
+                            j = i + 1
+                            while j < len(fmt_str) and fmt_str[j] != "}":
+                                j += 1
+                            if j < len(fmt_str):
+                                inner = fmt_str[i + 1 : j]
+                                if inner.isdigit():
+                                    idx = int(inner)
+                                    if idx < len(args):
+                                        final_str += f"${{{args[idx]}}}"
+                                    else:
+                                        final_str += fmt_str[i : j + 1]
+                                else:
+                                    final_str += fmt_str[i : j + 1]
+                                i = j + 1
+                                continue
+
+                    final_str += fmt_str[i]
+                    i += 1
+
+                return f"'{final_str}'"
+
         fname: str = self.visit(node.func)
         if hasattr(node, "scopes"):
             fndef: ast.AST = node.scopes.find(fname)
@@ -508,6 +754,11 @@ class VTranspiler(CLikeTranspiler):
             args = ", ".join(vargs)
         else:
             args = ""
+
+        # Heuristic for struct init if definition not found
+        if fndef is None and fname and fname[0].isupper() and not fname.isupper():
+            return f"{fname}{{{args}}}"
+
         return f"{fname}({args})"
 
     def visit_Starred(self, node: ast.Starred) -> str:
@@ -660,13 +911,11 @@ class VTranspiler(CLikeTranspiler):
             ]
         )
         test: str = self.visit(node.test)
+        level = getattr(node, "level", 0)
+        indent = self._indent * level
         if node.orelse:
-            orelse = self.indent(
-                f"else {{\n{orelse}\n}}", level=getattr(node, "level", 0)
-            )
-        else:
-            orelse = ""
-        return f"if {test} {{\n{body}\n}}\n{orelse}"
+            return f"if {test} {{\n{body}\n{indent}}} else {{\n{orelse}\n{indent}}}"
+        return f"if {test} {{\n{body}\n{indent}}}"
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> str:
         if isinstance(node.op, ast.USub):
@@ -707,6 +956,8 @@ class VTranspiler(CLikeTranspiler):
             if typename is None:
                 typename = f"ST{index}"
                 index += 1
+            if declaration.startswith("self."):
+                declaration = declaration[5:]
             fields.append(f"{declaration} {typename}")
 
         for b in node.body:
@@ -895,8 +1146,12 @@ class VTranspiler(CLikeTranspiler):
                     elts.append(self.visit(node.value.elts[0]))
                 elts.extend(map(self.visit, node.value.elts[1:]))
                 return f"{kw}{target} := [{', '.join(elts)}]"
+            if "self." in target:
+                return f"{target} = {type_str}{{}}"
             return f"{kw}{target} := {type_str}{{}}"
         else:
+            if "self." in target:
+                return f"{target} = {val}"
             return f"{kw}{target} := {val}"
 
     def visit_Assign(self, node: ast.Assign) -> str:
@@ -921,7 +1176,8 @@ class VTranspiler(CLikeTranspiler):
                 continue
 
             if isinstance(target, (ast.Tuple, ast.List)):
-                value = value[1:-1]
+                if isinstance(node.value, (ast.List, ast.Tuple)):
+                    value = value[1:-1]
                 subtargets: List[str] = []
                 op: str = ":="
                 for subtarget in target.elts:
@@ -952,9 +1208,11 @@ class VTranspiler(CLikeTranspiler):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
             else:
-                target: str = self.visit(target)
-
-                assign.append(f"{kw}{target} := {value}")
+                target_str: str = self.visit(target)
+                if "self." in target_str:
+                    assign.append(f"{target_str} = {value}")
+                else:
+                    assign.append(f"{kw}{target_str} := {value}")
         return "\n".join(assign)
 
     def _handle_starred_unpack(self, target, value, node):

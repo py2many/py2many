@@ -1,5 +1,4 @@
 import ast
-import functools
 from typing import Callable, Dict, List, Tuple, Union
 
 from py2many.analysis import get_id
@@ -14,9 +13,12 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"0..{vargs[0]}"
+            return f"[]int{{len: {vargs[0]}, init: index}}"
         elif len(node.args) == 2:
-            return f"{vargs[0]}..{vargs[1]}"
+            return f"[]int{{len: {vargs[1]} - {vargs[0]}, init: index + {vargs[0]}}}"
+        elif len(node.args) == 3:
+            # Step is not easily supported in array init, fallback to range
+            return f"({vargs[0]}..{vargs[1]})"
 
         raise Exception(
             f"encountered range() call with unknown parameters: range({vargs})"
@@ -99,7 +101,7 @@ class VTranspilerPlugins:
 SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "str": lambda n, vargs: f"({vargs[0]}).str()" if vargs else '""',
     "floor": lambda n, vargs: f"int(math.floor({vargs[0]}))",
-    "float": functools.partial(VTranspilerPlugins.visit_cast, cast_to="f64"),
+    "float": lambda n, vargs: f"f64({vargs[0]})" if vargs else "0.0",
     "len": lambda n, vargs: f"{vargs[0]}.len",
     "sys.exit": lambda n, vargs: f"exit({vargs[0] if vargs else '0'})",
     "all": lambda n, vargs: f"{vargs[0]}.all(it)",
@@ -111,14 +113,18 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "input": lambda n, vargs: f"os.input({vargs[0] if vargs else ''})",
     "type": lambda n, vargs: f"typeof({vargs[0]}).name",
     "id": lambda n, vargs: f"ptr_str({vargs[0]})",
-    "isinstance": lambda n, vargs: f"{vargs[0]} is {vargs[1]}",
+    "isinstance": lambda n, vargs: (
+        f"({' || '.join([f'{vargs[0]} is {t.strip()}' for t in vargs[1].strip('[]()').split(',')])})"
+        if vargs[1].startswith(("[", "("))
+        else f"{vargs[0]} is {vargs[1]}"
+    ),
     "list": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "tuple": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "set": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "dict": lambda n, vargs: f"{vargs[0]}" if vargs else "{}",
     "getattr": lambda n, vargs: f"/* getattr({', '.join(vargs)}) not supported */",
     "setattr": lambda n, vargs: f"/* setattr({', '.join(vargs)}) not supported */",
-    "hasattr": lambda n, vargs: f"/* hasattr({', '.join(vargs)}) not supported */",
+    "hasattr": lambda n, vargs: f"false /* hasattr({', '.join(vargs)}) not supported */",
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {
