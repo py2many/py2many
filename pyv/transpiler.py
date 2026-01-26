@@ -524,22 +524,26 @@ class VTranspiler(CLikeTranspiler):
                     else:
                         # Receiver is first
                         vararg_idx -= 1
-                    
+
                     for i in range(vararg_idx, len(vargs)):
                         arg = node.args[i]
                         # Get required type for vararg
                         vararg_typename = fndef.args.vararg.annotation
                         required_type = "Any"
                         if vararg_typename:
-                             required_type = self._typename_from_annotation(fndef.args.vararg)
+                            required_type = self._typename_from_annotation(
+                                fndef.args.vararg
+                            )
 
                         if isinstance(arg, ast.Starred):
-                            inner_val = vargs[i][3:] # remove ...
+                            inner_val = vargs[i][3:]  # remove ...
                             if required_type != "Any":
                                 vargs[i] = f"...{inner_val}.map({required_type}(it))"
                             else:
                                 vargs[i] = f"...{inner_val}.map(Any(it))"
-                        elif not vargs[i].startswith("Any(") and not vargs[i].startswith(f"{required_type}("):
+                        elif not vargs[i].startswith("Any(") and not vargs[
+                            i
+                        ].startswith(f"{required_type}("):
                             if required_type != "Any":
                                 vargs[i] = f"{required_type}({vargs[i]})"
                             else:
@@ -838,7 +842,7 @@ class VTranspiler(CLikeTranspiler):
 
         if len(parts) == 1:
             return parts[0]
-        
+
         res = parts[0]
         if res.startswith("["):
             # Ensure at least first element is of the correct type
@@ -859,7 +863,7 @@ class VTranspiler(CLikeTranspiler):
                 res = f"{res}.map({target_type}(it))"
             else:
                 res = f"{res}.map(Any(it))"
-        
+
         for part in parts[1:]:
             if part.startswith("["):
                 # Wrap elements
@@ -1112,16 +1116,16 @@ class VTranspiler(CLikeTranspiler):
         val: str = self.visit(node.value)
         # If value is from a variadic Any, it must be unboxed using 'as'
         if val in ["n", "it"]:
-            # Check if it's really Any. 
+            # Check if it's really Any.
             # This is a bit of a hack since we don't have full type info here easily,
             # but we can check if the current function has a vararg of type Any.
             # However, for now, let's just check if 'Any' is defined in the module.
             if self._generated_code_has_any_type:
-                 # In sum_all(*nums: int), n is int, not Any.
-                 # We should only use 'as' if the parent loop iter is over a slice of Any.
-                 # For now, let's keep it simple: only use 'as int' if it's likely needed.
-                 # Better yet, let's check if the target is int and value is Any.
-                 pass
+                # In sum_all(*nums: int), n is int, not Any.
+                # We should only use 'as' if the parent loop iter is over a slice of Any.
+                # For now, let's keep it simple: only use 'as int' if it's likely needed.
+                # Better yet, let's check if the target is int and value is Any.
+                pass
 
         return f"{target} {op}= {val}"
 
