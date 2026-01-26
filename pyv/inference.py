@@ -32,8 +32,11 @@ V_TYPE_MAP: Dict[type, str] = {
 
 V_CONTAINER_TYPE_MAP = {
     "List": "[]",
+    "list": "[]",
     "Dict": "map",
+    "dict": "map",
     "Set": "set",
+    "set": "set",
     "Optional": "?",
 }
 
