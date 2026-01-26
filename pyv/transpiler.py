@@ -684,15 +684,15 @@ class VTranspiler(CLikeTranspiler):
                             while j < len(fmt_str) and fmt_str[j] != "}":
                                 j += 1
                             if j < len(fmt_str):
-                                inner = fmt_str[i + 1:j]
+                                inner = fmt_str[i + 1 : j]
                                 if inner.isdigit():
                                     idx = int(inner)
                                     if idx < len(args):
                                         final_str += f"${{{args[idx]}}}"
                                     else:
-                                        final_str += fmt_str[i:j + 1]
+                                        final_str += fmt_str[i : j + 1]
                                 else:
-                                    final_str += fmt_str[i:j + 1]
+                                    final_str += fmt_str[i : j + 1]
                                 i = j + 1
                                 continue
 
