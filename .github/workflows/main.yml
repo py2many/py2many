@@ -227,10 +227,9 @@ jobs:
           PYTHON_VERSION="${{ matrix.python-version }}"
           export TOXENV="py${PYTHON_VERSION//.}"
           if [ "$FOCUS" ]; then
-            tox -- -k "$FOCUS"
-          else
-            tox
+            export PYTEST_ADDOPTS="-k $FOCUS"
           fi
+          tox -v
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
