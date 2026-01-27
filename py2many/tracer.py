@@ -41,6 +41,8 @@ def is_enum(name, scopes):
 
 def is_self_arg(name, scopes):
     for scope in scopes:
+        if not isinstance(scope.body, Iterable):
+            continue
         for entry in scope.body:
             if isinstance(entry, ast.FunctionDef):
                 if len(entry.args.args):
@@ -129,10 +131,10 @@ class ValueExpressionVisitor(ast.NodeVisitor):
         self._stack = []
 
     def visit_Constant(self, node):
-        return str(node.n)
+        return str(node.value)
 
     def visit_Str(self, node):
-        return node.s
+        return node.value if isinstance(node, ast.Constant) else node.s
 
     def visit_Name(self, node):
         name = get_id(node)

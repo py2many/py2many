@@ -462,7 +462,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.s
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
         byte_array = ", ".join([hex(c) for c in bytes_str])
         return f"{{{byte_array}}}"
 
