@@ -329,7 +329,9 @@ class GoTranspiler(CLikeTranspiler):
 
     def visit_Bytes(self, node) -> str:
         bytes_str = node.value if isinstance(node, ast.Constant) else node.s
-        return f"{bytes_str}".replace("'", '"')  # replace single quote with double quote
+        return f"{bytes_str}".replace(
+            "'", '"'
+        )  # replace single quote with double quote
 
     def _visit_container_compare(self, node) -> str:
         left = self.visit(node.left)
