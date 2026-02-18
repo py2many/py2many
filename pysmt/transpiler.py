@@ -187,7 +187,7 @@ class SmtTranspiler(CLikeTranspiler):
         fields = []
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration}: {typename}")
@@ -226,7 +226,7 @@ class SmtTranspiler(CLikeTranspiler):
 
     def visit_AnnAssign(self, node):
         target, type_str, val = super().visit_AnnAssign(node)
-        if val == None or "default-value" in val:
+        if val is None or "default-value" in val:
             return f"(declare-const {target} {type_str})"
         else:
             raise AstNotImplementedError(f"{val} can't be assigned", node)

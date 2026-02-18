@@ -280,7 +280,7 @@ class DartTranspiler(CLikeTranspiler):
         index = 0
         constructor = ""
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{typename} {declaration};")

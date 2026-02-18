@@ -425,7 +425,7 @@ class GoTranspiler(CLikeTranspiler):
         fields = []
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration} {typename}")
@@ -599,7 +599,7 @@ class GoTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
+            if value is None:
                 value = "None"
             return f"{target} = {value}"
 

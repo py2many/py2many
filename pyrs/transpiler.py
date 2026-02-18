@@ -485,7 +485,7 @@ class RustTranspiler(CLikeTranspiler):
         # Sometimes if True: ... gets compiled into an expression, needing a semicolon
         make_block = (
             isinstance(node.test, ast.Constant)
-            and node.test.value == True
+            and node.test.value
             and node.orelse == []
         )
         if make_block:
@@ -533,7 +533,7 @@ class RustTranspiler(CLikeTranspiler):
             camel_member_id = camel_case(member_id)
             lower_member_id = member_id.lower()
             typename = node.declarations_with_defaults.get(member_id, None)
-            if typename == None:
+            if typename is None:
                 variants.append(f"{member_id},")
             else:
                 typename, _ = typename
@@ -587,7 +587,7 @@ class RustTranspiler(CLikeTranspiler):
         fields = []
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"pub {declaration}: {typename},")
@@ -806,7 +806,7 @@ class RustTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
+            if value is None:
                 value = "None"
             return f"{target} = {value};"
 

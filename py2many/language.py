@@ -24,5 +24,5 @@ class LanguageSettings:
 
     def __hash__(self):
         f = tuple(self.formatter) if self.formatter is not None else ()
-        l = tuple(self.linter) if self.linter is not None else ()
-        return hash((self.transpiler, f, l))
+        lint = tuple(self.linter) if self.linter is not None else ()
+        return hash((self.transpiler, f, lint))

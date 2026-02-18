@@ -227,7 +227,7 @@ class InferTypesTransformer(ast.NodeTransformer):
             annotation = ast.Name(id=InferTypesTransformer.TYPE_DICT[t])
         elif t in InferTypesTransformer.FIXED_WIDTH_INTS:
             annotation = ast.Name(id=str(t))
-        elif t != type(None):
+        elif t is not type(None):
             raise NotImplementedError(f"{t} not found in TYPE_DICT")
         return annotation
 
@@ -238,7 +238,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         if annotation is not None:
             node.annotation = annotation
             node.annotation.lifetime = (
-                LifeTime.STATIC if type(node.value) == str else LifeTime.UNKNOWN
+                LifeTime.STATIC if type(node.value) is str else LifeTime.UNKNOWN
             )
         self.generic_visit(node)
         return node
@@ -257,7 +257,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         if annotation is not None:
             node.annotation = annotation
             node.annotation.lifetime = (
-                LifeTime.STATIC if type(node.value) == str else LifeTime.UNKNOWN
+                LifeTime.STATIC if type(node.value) is str else LifeTime.UNKNOWN
             )
         self.generic_visit(node)
         return node
@@ -332,7 +332,7 @@ class InferTypesTransformer(ast.NodeTransformer):
                 if hasattr(e, "annotation")
             }
             only_lifetime = next(iter(lifetimes)) if len(lifetimes) == 1 else None
-            if len(lifetimes) == 1 and only_lifetime != None:
+            if len(lifetimes) == 1 and only_lifetime is not None:
                 lifetime = only_lifetime
             else:
                 lifetime = LifeTime.UNKNOWN
@@ -377,7 +377,7 @@ class InferTypesTransformer(ast.NodeTransformer):
         value_class = class_for_typename(value_typename, None)
         if (
             not is_compatible(target_class, value_class, target, node.value)
-            and target_class != None
+            and target_class is not None
         ):
             raise AstIncompatibleAssign(
                 f"{target_class} incompatible with {value_class}", node

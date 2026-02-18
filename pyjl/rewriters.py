@@ -127,12 +127,14 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
 
     def _build_runtime_comparison(self, node):
         # Perform dynamic comparison
-        instance_check = lambda args: ast.Call(
-            func=ast.Name(id="isinstance"),
-            args=args,
-            keywords=[],
-            scopes=getattr(node, "scopes", None),
-        )
+        def instance_check(args):
+            return ast.Call(
+                func=ast.Name(id="isinstance"),
+                args=args,
+                keywords=[],
+                scopes=getattr(node, "scopes", None),
+            )
+
         test_node = ast.BoolOp(
             op=ast.Or(),
             values=[
@@ -194,7 +196,10 @@ class JuliaBoolOpRewriter(ast.NodeTransformer):
         # Julia comparisons with 'None' use Henry Baker's EGAL predicate
         # https://stackoverflow.com/questions/38601141/what-is-the-difference-between-and-comparison-operators-in-julia
         self.generic_visit(node)
-        find_none = lambda x: isinstance(x, ast.Constant) and x.value == None
+
+        def find_none(x):
+            return isinstance(x, ast.Constant) and x.value is None
+
         comps_none = next(filter(find_none, node.comparators), None)
         if find_none(node.left) or comps_none:
             for i in range(len(node.ops)):

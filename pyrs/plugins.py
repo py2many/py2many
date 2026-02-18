@@ -13,7 +13,7 @@ from typing import Callable, Dict, List, Tuple, Union
 try:
     from argparse_dataclass import ArgumentParser
     from argparse_dataclass import dataclass as ap_dataclass
-except:
+except Exception:
     ArgumentParser = "ArgumentParser"
     ap_dataclass = "ap_dataclass"
 
@@ -28,7 +28,7 @@ class RustTranspilerPlugins:
             typename_with_default,
         ) in node.declarations_with_defaults.items():
             typename, default_value = typename_with_default
-            if typename == None:
+            if typename is None:
                 return None
             if default_value is not None and typename != "bool":
                 default_value = self.visit(default_value)

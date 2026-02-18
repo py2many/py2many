@@ -17,7 +17,7 @@ class MutabilityTransformer(ast.NodeTransformer):
         self.lvalue = False
 
     def increase_use_count(self, name):
-        if not name in self.var_usage_count:
+        if name not in self.var_usage_count:
             self.var_usage_count[name] = 0
         self.var_usage_count[name] += 1
 
