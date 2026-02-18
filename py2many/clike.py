@@ -493,7 +493,7 @@ class CLikeTranspiler(ast.NodeVisitor):
         # into multiple statements s1, s2
         return (
             isinstance(node.test, ast.Constant)
-            and node.test.value == True
+            and node.test.value
             and node.orelse == []
             and hasattr(node, "rewritten")
             and node.rewritten
@@ -653,7 +653,7 @@ class CLikeTranspiler(ast.NodeVisitor):
             return self.visit_StrEnum(node)
         if len(bases) != 1:
             return None
-        if not bases[0] in {"Enum", "IntEnum", "IntFlag"}:
+        if bases[0] not in {"Enum", "IntEnum", "IntFlag"}:
             return None
         if bases == ["IntEnum"] or bases == ["Enum"]:
             return self.visit_IntEnum(node)

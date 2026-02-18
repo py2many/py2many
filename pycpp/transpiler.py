@@ -258,7 +258,7 @@ class CppTranspiler(CLikeTranspiler):
         fields = []
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{typename} {declaration}")

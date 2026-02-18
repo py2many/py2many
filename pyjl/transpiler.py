@@ -89,7 +89,7 @@ class JuliaTranspiler(CLikeTranspiler):
 
         is_python_main = getattr(node, "python_main", False)
 
-        if len(typenames) and typenames[0] == None and hasattr(node, "self_type"):
+        if len(typenames) and typenames[0] is None and hasattr(node, "self_type"):
             typenames[0] = node.self_type
 
         for i in range(len(args)):
@@ -334,7 +334,7 @@ class JuliaTranspiler(CLikeTranspiler):
         fields = []
         index = 0
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             fields.append(f"{declaration}::{typename}")
@@ -525,7 +525,7 @@ class JuliaTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            if value == None:
+            if value is None:
                 value = "None"
             return f"{target} = {value}"
 

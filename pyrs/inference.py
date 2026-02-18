@@ -94,13 +94,13 @@ class RustInference(LanguageInferenceBase):
     def extension_map_type(cls, typename, return_type=False):
         if typename == "_":
             return "&PyAny"
-        if typename == None and return_type:
+        if typename is None and return_type:
             return "PyResult<()>"
 
         typeclass = class_for_typename(typename, "&PyAny")
 
         if typeclass in RUST_EXTENSION_TYPE_MAP:
-            if return_type and typeclass == str:
+            if return_type and typeclass is str:
                 typename = "String"
                 return f"PyResult<{typename}>"
             else:

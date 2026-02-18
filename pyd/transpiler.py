@@ -320,7 +320,7 @@ class DTranspiler(CLikeTranspiler):
         index = 0
         constructor = ""
         for declaration, typename in declarations.items():
-            if typename == None:
+            if typename is None:
                 typename = f"ST{index}"
                 index += 1
             raw_fields.append(f"{typename} {declaration}")

@@ -62,7 +62,7 @@ class ReturnFinder(ast.NodeVisitor):
     returns = False
 
     def visit_Return(self, node):
-        if node.value != None:
+        if node.value is not None:
             self.returns = True
 
 
