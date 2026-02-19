@@ -32,3 +32,4 @@ Cargo.lock
 uv.lock
 go.mod
 go.sum
+.env

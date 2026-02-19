@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.8] - 2025-02-19
+
+### Added
+
+- V language transpiler improvements:
+  - V-idiomatic handling for Python's dunder methods and context managers
+  - Proper range syntax and int(bool) conversion
+  - math.pow() for exponentiation instead of XOR
+  - Improved async and generator function handling
+  - Additional test cases and expected outputs
+- Python 3.14 compatibility fixes
+- Zig 0.15 build API compatibility
+
+### Improved
+
+- CLI: more ergonomic to type `py2many --rust test.py`
+- Julia: fixed nested method call rewriting in JuliaMethodCallRewriter
+- Go: fixed class method receiver syntax
+- Documentation: added AGENTS.md and split documentation into doc/agent/
+- Dependencies: updated GitHub Actions and development tools
+
+### Fixed
+
+- Various lint errors and formatting issues
+- V language test expectations aligned with `v fmt`
+- Code refactoring to reduce verbosity
+- Star operator bug fix
+- tox relative paths problem
+
 ## [0.7] - 2025-07-20
 
 ### Added
