@@ -235,7 +235,7 @@ class TestCodeGenerator:
             expected_output = expected_output.splitlines()
 
         args = [
-            f"--{lang}=1",
+            f"--{lang}",
             "--comment-unsupported",
             str(case_filename),
             "--outdir",
@@ -395,7 +395,7 @@ class TestCodeGenerator:
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         args = [
-            f"--{lang}=1",
+            f"--{lang}",
             "--comment-unsupported",
             str(case_filename),
             "--outdir",
@@ -446,7 +446,7 @@ class TestCodeGenerator:
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         args = [
-            "--rust=1",
+            "--rust",
             "--extension",
             str(case_filename),
             "--outdir",
@@ -490,7 +490,7 @@ class TestCodeGenerator:
         expected_output_dir = ROOT_DIR / Path("tests/dir_cases") / EXPECTED_OUTPUT
         output_dir.mkdir(exist_ok=True)
         args = [
-            f"--{lang}=1",
+            f"--{lang}",
             str(case_dirname),
             "--project=0",
             "--outdir",
