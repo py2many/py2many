@@ -156,6 +156,7 @@ EXPECTED_SUCCESSES = [
     "complex_dict.rs",
     "class_vars.rs",
     "del.d",
+    "del.v",
     # "del.rs", not sure why this is now broken
     "default_init.dart",
     "dict_empty.d",
@@ -173,7 +174,8 @@ EXPECTED_SUCCESSES = [
     "dict_keys_explicit.d",
     "dict_keys_explicit.jl",
     "dict_keys_explicit.rs",
-    #    "dict_keys_explicit.v", # -translated switch breaks this now, will fix later.
+    "dict_keys_explicit.v",
+    "dict_order.v",
     "dict_value_type.d",
     "dict_value_type.dart",
     "dict_value_type.jl",
@@ -201,6 +203,7 @@ EXPECTED_SUCCESSES = [
     "nested_func.dart",
     "nested_func.kt",
     "nested_func.rs",
+    "nested_func.v",
     "print_None.d",
     "print_None.dart",
     "print_None.jl",
