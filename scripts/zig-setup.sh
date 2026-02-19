@@ -32,14 +32,18 @@ pub fn build(b: *std.Build) void {
     // Create a module from the pylib-zig dependency
     const pylib_module = b.createModule(.{
         .root_source_file = pylib_zig.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
     });
 
     // Create executable for running tests
     const exe = b.addExecutable(.{
         .name = "test",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Add the pylib module to our executable
