@@ -1,11 +1,10 @@
 import ast
 import functools
-import os
 from typing import Callable, Dict, List, Tuple, Union
 
 from py2many.analysis import get_id
 
-from .inference import V_TYPE_MAP, V_WIDTH_RANK, get_inferred_v_type
+from .inference import V_WIDTH_RANK, get_inferred_v_type
 
 
 class VTranspilerPlugins:
@@ -15,9 +14,9 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"(0..{vargs[0]})"
+            return f"0..{vargs[0]}"
         elif len(node.args) == 2:
-            return f"({vargs[0]}..{vargs[1]})"
+            return f"{vargs[0]}..{vargs[1]}"
 
         raise Exception(
             f"encountered range() call with unknown parameters: range({vargs})"
@@ -70,6 +69,11 @@ class VTranspilerPlugins:
         return f"{cast_to}({vargs[0]})"
 
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
+        if not vargs:
+            return "0"
+        # For bool, use direct cast function instead of 'as int'
+        if node.args and get_inferred_v_type(node.args[0]) == "bool":
+            return f"int({vargs[0]})"
         # Placeholder for post-processing in VTranspiler.visit_Module
         # Converts int(x) to (x as int) for Any/Sum types
         return f"CAST_INT({vargs[0]})"
