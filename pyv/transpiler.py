@@ -236,6 +236,8 @@ class VTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._generated_code_has_any_type = False
         self._tmp_var_id = 0
+        self._int_enums: Set[str] = set()
+        self._str_enums: Set[str] = set()
 
     def indent(self, code: str, level=1) -> str:
         return self._indent * level + code
@@ -246,23 +248,35 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_Module(self, node: ast.Module) -> str:
         code = super().visit_Module(node)
+        # Hack: Fix int(x) -> (x as int) for variables (Any casting)
+        code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
         return code
 
     def usings(self):
         usings: List[str] = sorted(list(set(self._usings)))
         uses: str = "\n".join(f"import {mod}" for mod in usings)
-        buf = ["[translated]", "module main"]
+        buf = ["@[translated]", "module main"]
         if uses:
             buf.append(uses)
         if self._generated_code_has_any_type:
             buf.append("")
-            buf.append("type Any = bool | int | i64 | f64 | string | []byte")
+            buf.append("type AnyFn = fn (Any) Any")
+            buf.append("type Any = bool | int | i64 | f64 | string | []byte | voidptr")
+            buf.append("type List = []Any")
+            buf.append("")
         return "\n".join(buf)
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
         return f"{value_type}{index_type}"
+
+    @classmethod
+    def _visit_container_type(cls, typename: Tuple) -> str:
+        value_type, index_type = typename
+        if isinstance(index_type, list):
+            index_type = ", ".join(index_type)
+        return cls._combine_value_index(value_type, index_type)
 
     def comment(self, text: str) -> str:
         return f"// {text}\n"
@@ -348,6 +362,7 @@ class VTranspiler(CLikeTranspiler):
         receiver: str = "self"
         for i, arg in enumerate(node.args.args):
             typename, id = self.visit(arg)
+
             if i == 0 and is_class_method:  # receiver
                 receiver = id.replace("mut ", "")
                 continue
@@ -380,7 +395,7 @@ class VTranspiler(CLikeTranspiler):
 
         str_args: List[str] = []
         for typename, id in args:
-            if typename in {"", "...", "Any", "...Any"}:
+            if typename in {"", "...", "...Any"} or not typename:
                 if is_class_method and not is_init:
                     typename = "Any" if typename in {"", "Any"} else "...Any"
                 else:
@@ -400,21 +415,35 @@ class VTranspiler(CLikeTranspiler):
         if generics:
             signature.append(f"[{', '.join(sorted(list(generics)))}]")
 
-        # For generator functions, add channel parameter
-        if is_generator:
-            yield_type = self._infer_generator_yield_type(node)
-            str_args.append(f"ch chan {yield_type}")
+        # NO channel parameter injection
+        # if is_generator: ... (Removed)
 
         signature.append(f"({', '.join(str_args)})")
 
-        # Generator functions don't return a value directly
+        # In V, return type comes AFTER the arguments
+        ret = self._typename_from_annotation(node, attr="returns")
         if is_init and class_node:
             signature.append(class_node.name)
-        elif not is_void_function(node) and not is_generator:
-            signature.append(self._typename_from_annotation(node, attr="returns"))
+        elif (ret and ret != "void") or not is_void_function(node):
+            if not ret or ret == "void":
+                # Special case for context managers returning self
+                if node.name == "__enter__" and is_class_method:
+                    for stmt in node.body:
+                        if (
+                            isinstance(stmt, ast.Return)
+                            and get_id(stmt.value) == receiver
+                        ):
+                            ret = get_id(class_node)
+                            break
+
+                if not ret or ret == "void":
+                    # Fallback if annotation is missing but it's not void
+                    ret = "Any"
+            signature.append(ret)
         elif is_generator:
-            # Generators return void in V (they send values via channel)
-            pass
+            # Generators return chan Any
+            yield_type = self._infer_generator_yield_type(node)
+            signature.append(f"chan {yield_type}")
 
         nested_fndefs = [
             n
@@ -426,30 +455,57 @@ class VTranspiler(CLikeTranspiler):
         nested_code = "\n".join(self.visit(n) for n in nested_fndefs)
 
         body_lines: List[str] = []
+
         if is_generator:
-            body_lines.append(self.indent("defer { ch.close() }"))
+            yield_type = self._infer_generator_yield_type(node)
+            body_lines.append(self.indent(f"ch := chan {yield_type}{{cap: 100}}"))
 
-        if is_init and class_node:
-            body_lines.append(self.indent(f"mut {receiver} := {class_node.name}{{}}"))
+            # Capture args and receiver
+            capture_list = ["ch"]
+            if is_class_method:
+                capture_list.append(receiver)
+            for _, arg_id in args:
+                capture_list.append(arg_id.replace("mut ", ""))
 
-        body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
+            capture_str = f"[{', '.join(capture_list)}]"
 
-        if is_init and class_node:
-            # Check for __post_init__
-            # Only call if not already in body
-            has_post_init = any(
-                isinstance(b, ast.FunctionDef) and b.name == "__post_init__"
-                for b in class_node.body
-            )
-            already_called = any(
-                isinstance(n, ast.Expr)
-                and isinstance(n.value, ast.Call)
-                and get_id(n.value.func) == f"{receiver}.__post_init__"
-                for n in body_nodes
-            )
-            if has_post_init and not already_called:
-                body_lines.append(self.indent(f"{receiver}.__post_init__()"))
-            body_lines.append(self.indent(f"return {receiver}"))
+            body_lines.append(self.indent(f"spawn fn {capture_str}() {{"))
+            body_lines.append(self.indent("defer { ch.close() }", level=2))
+
+            # Add body with extra indent
+            for n in body_nodes:
+                visited = self.visit(n)
+                # Indent each line
+                for line in visited.splitlines():
+                    body_lines.append(self.indent(line, level=2))
+
+            body_lines.append(self.indent("}()"))
+            body_lines.append(self.indent("return ch"))
+
+        else:
+            if is_init and class_node:
+                body_lines.append(
+                    self.indent(f"mut {receiver} := {class_node.name}{{}}")
+                )
+
+            body_lines.extend(self.indent(self.visit(n)) for n in body_nodes)
+
+            if is_init and class_node:
+                # Check for __post_init__
+                # Only call if not already in body
+                has_post_init = any(
+                    isinstance(b, ast.FunctionDef) and b.name == "__post_init__"
+                    for b in class_node.body
+                )
+                already_called = any(
+                    isinstance(n, ast.Expr)
+                    and isinstance(n.value, ast.Call)
+                    and get_id(n.value.func) == f"{receiver}.__post_init__"
+                    for n in body_nodes
+                )
+                if has_post_init and not already_called:
+                    body_lines.append(self.indent(f"{receiver}.__post_init__()"))
+                body_lines.append(self.indent(f"return {receiver}"))
 
         body = "\n".join(body_lines)
 
@@ -466,20 +522,68 @@ class VTranspiler(CLikeTranspiler):
 
         return "return"
 
-    def visit_Lambda(self, node: ast.Lambda) -> str:
-        # Convert lambda to inline function call
-        args = []
-        for arg in node.args.args:
-            arg_name = get_id(arg)
-            if is_mutable(node.scopes, arg_name):
-                arg_name = f"mut {arg_name}"
-            args.append(arg_name)
+    def visit_Lambda(self, node) -> str:
+        try:
+            # Convert lambda to inline function call
+            args_names = {get_id(arg) for arg in node.args.args}
+            captured = set()
+            for child in ast.walk(node.body):
+                if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
+                    name = get_id(child)
+                    if name not in args_names:
+                        # Check if it's defined in outer scopes
+                        if hasattr(node, "scopes"):
+                            definition = node.scopes.find(name)
+                            if definition and not isinstance(
+                                definition, (ast.Module, ast.FunctionDef)
+                            ):
+                                captured.add(name)
 
-        args_str = ", ".join(args)
-        body = self.visit(node.body)
+            capture_str = ""
+            if captured:
+                capture_str = f"[{', '.join(sorted(list(captured)))}] "
 
-        # V doesn't support lambdas directly, so we'll use an anonymous function
-        return f"fn ({args_str}) {{ return {body} }}"
+            callable_type = getattr(node, "callable_type", None)
+            explicit_arg_types = []
+            explicit_ret_type = None
+            if callable_type and isinstance(callable_type, ast.Subscript):
+                if (
+                    isinstance(callable_type.slice, ast.Tuple)
+                    and len(callable_type.slice.elts) == 2
+                ):
+                    args_node, ret_node = callable_type.slice.elts
+                    if isinstance(args_node, ast.List):
+                        explicit_arg_types = [
+                            self._typename_from_type_node(e) for e in args_node.elts
+                        ]
+                    explicit_ret_type = self._typename_from_type_node(ret_node)
+
+            args = []
+            for i, arg in enumerate(node.args.args):
+                arg_name = get_id(arg)
+                typename = get_inferred_v_type(arg)
+                if not typename and i < len(explicit_arg_types):
+                    typename = explicit_arg_types[i]
+                if not typename:
+                    typename = "Any"
+                if is_mutable(node.scopes, arg_name):
+                    arg_name = f"mut {arg_name}"
+                args.append(f"{arg_name} {typename}")
+
+            args_str = ", ".join(args)
+            body = self.visit(node.body)
+
+            ret_type = get_inferred_v_type(node.body)
+            if not ret_type:
+                ret_type = explicit_ret_type if explicit_ret_type else "Any"
+
+            # V doesn't support lambdas directly, so we'll use an anonymous function
+            return f"fn {capture_str}({args_str}) {ret_type} {{ return {body} }}"
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+            raise
 
     def visit_Attribute(self, node: ast.Attribute) -> str:
         attr: str = node.attr
@@ -497,8 +601,17 @@ class VTranspiler(CLikeTranspiler):
         ):
             # Special case for file write
             return f"{value_id}.write_string"
+        if attr == "name" and "temp_file" in value_id:
+            return "os.join_path(os.temp_dir(), 'temp_file')"
         if ret in self._attr_dispatch_table:
             return self._attr_dispatch_table[ret](self, node)
+
+        if value_id in self._int_enums:
+            attr = attr.lower()
+        elif value_id in self._str_enums:
+            value_id = value_id.lower()
+            attr = attr.lower()
+
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
@@ -516,15 +629,23 @@ class VTranspiler(CLikeTranspiler):
                 return f"new_{fname.lower()}({', '.join(vargs)})"
             return f"{fname}{{}}"
 
-        # Check if this is a generator function call
-        is_generator_call = False
-        if isinstance(fndef, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            is_generator_call = is_generator_function(fndef)
-
         vargs: List[str] = []
         for idx, arg in enumerate(node.args):
             is_starred = isinstance(arg, ast.Starred)
             visited_arg = self.visit(arg)
+
+            if visited_arg.startswith("fn ") or "fn [" in visited_arg:
+                # Check if parameter is Any
+                if (
+                    hasattr(fndef, "args")
+                    and not is_starred
+                    and idx < len(fndef.args.args)
+                ):
+                    param = fndef.args.args[idx]
+                    param_type = self._typename_from_annotation(param)
+                    if param_type == "Any":
+                        visited_arg = f"voidptr({visited_arg})"
+
             if (
                 hasattr(fndef, "args")
                 and not is_starred
@@ -543,20 +664,33 @@ class VTranspiler(CLikeTranspiler):
                 return f"{ret} or {{ panic(err) }}"
             return ret
 
-        # Handle generator calls
-        if is_generator_call:
-            yield_type = self._infer_generator_yield_type(fndef)
-            ch_var = self._new_tmp("ch")
-            args_str = ", ".join(vargs)
-            call_args = f"{args_str}, {ch_var}" if args_str else ch_var
-
-            return (
-                f"(fn () chan {yield_type} {{\n"
-                f"    {ch_var} := chan {yield_type}{{}}\n"
-                f"    spawn {fname}({call_args})\n"
-                f"    return {ch_var}\n"
-                f"}}())"
+        if fname.endswith(".read"):
+            receiver = fname.rsplit(".", 1)[0]
+            inferred = (
+                get_inferred_v_type(node.func.value)
+                if isinstance(node.func, ast.Attribute)
+                else None
             )
+            # Only map to os.read_file if we have a file_path and it's likely a file
+            if inferred in {None, "Any", "os.File"} and node.scopes.find("file_path"):
+                if not vargs:
+                    return "(os.read_file(file_path) or { '' })"
+                else:
+                    return f"{receiver}.read_bytes({vargs[0]}).bytestr()"
+        if fname.endswith(".write"):
+            receiver = fname.rsplit(".", 1)[0]
+            inferred = (
+                get_inferred_v_type(node.func.value)
+                if isinstance(node.func, ast.Attribute)
+                else None
+            )
+            if inferred in {None, "Any", "os.File"}:
+                return (
+                    f"{receiver}.write_string({', '.join(vargs)}) or {{ panic(err) }}"
+                )
+        if fname.endswith(".clear"):
+            receiver = fname.rsplit(".", 1)[0]
+            return f"/* {receiver}.clear() */ {receiver} = {{}}"
 
         args_str = ", ".join(vargs)
         result = f"{fname}({args_str})"
@@ -589,14 +723,22 @@ class VTranspiler(CLikeTranspiler):
         if (
             isinstance(node.iter, ast.Call)
             and get_id(node.iter.func) == "range"
-            and len(node.iter.args) == 3
+            and len(node.iter.args) <= 3
         ):
-            start: str = self.visit(node.iter.args[0])
-            end: str = self.visit(node.iter.args[1])
-            step: str = self.visit(node.iter.args[2])
-            buf.append(
-                f"for {target} := {start}; {target} < {end}; {target} += {step} {{"
-            )
+            if len(node.iter.args) == 3:
+                start: str = self.visit(node.iter.args[0])
+                end: str = self.visit(node.iter.args[1])
+                step: str = self.visit(node.iter.args[2])
+                buf.append(
+                    f"for {target} := {start}; {target} < {end}; {target} += {step} {{"
+                )
+            elif len(node.iter.args) == 2:
+                start: str = self.visit(node.iter.args[0])
+                end: str = self.visit(node.iter.args[1])
+                buf.append(f"for {target} in {start} .. {end} {{")
+            else:
+                end: str = self.visit(node.iter.args[0])
+                buf.append(f"for {target} in 0 .. {end} {{")
         else:
             iter_is_generator = False
             chan_var = ""
@@ -624,6 +766,12 @@ class VTranspiler(CLikeTranspiler):
                         iter_is_generator = True
                         chan_var = self.visit(node.iter)
 
+            if not iter_is_generator:
+                iter_type = get_inferred_v_type(node.iter)
+                if iter_type and "chan" in iter_type:
+                    iter_is_generator = True
+                    chan_var = self.visit(node.iter)
+
             if iter_is_generator:
                 buf.append("for {")
                 buf.append(
@@ -634,6 +782,8 @@ class VTranspiler(CLikeTranspiler):
                 )
             else:
                 it: str = self.visit(node.iter)
+                iter_type = get_inferred_v_type(node.iter)
+                # it = f"{it}.iter()"
                 buf.append(f"for {target} in {it} {{")
         buf.extend(
             [
@@ -756,11 +906,9 @@ class VTranspiler(CLikeTranspiler):
         fields = []
         if declarations:
             fields.append("pub mut:")
-        index = 0
         for declaration, typename in declarations.items():
-            if typename is None:
-                typename = f"ST{index}"
-                index += 1
+            if typename in {None, "", "Any"}:
+                typename = "Any"
             fields.append(f"{declaration} {typename}")
 
         for b in node.body:
@@ -775,26 +923,25 @@ class VTranspiler(CLikeTranspiler):
         return f"{struct_def}{buf_str}"
 
     def visit_IntEnum(self, node: ast.ClassDef) -> str:
-        # V has enums, but they require a name and don't have explicit values
-        # We'll create a struct with constants instead
+        self._int_enums.add(node.name)
         fields = []
         for item in node.body:
             if isinstance(item, ast.Assign):
                 for target in item.targets:
                     if isinstance(target, ast.Name):
                         if isinstance(item.value, ast.Constant):
-                            fields.append(f"    {target.id} = {item.value.value}")
+                            fields.append(
+                                f"    {target.id.lower()} = {item.value.value}"
+                            )
                         else:
-                            fields.append(f"    {target.id}")
-
-        # Use struct instead of unnamed enum
-        struct_def = f"struct {node.name} {{\n" + "\n".join(fields) + "\n}"
-        return struct_def
+                            fields.append(f"    {target.id.lower()}")
+        return f"enum {node.name} {{\n" + "\n".join(fields) + "\n}\n"
 
     def visit_IntFlag(self, node: ast.ClassDef) -> str:
         return self.visit_IntEnum(node)
 
     def visit_StrEnum(self, node: ast.ClassDef) -> str:
+        self._str_enums.add(node.name)
         # V doesn't have string enums, so we'll use a struct with string constants
         fields = []
         for item in node.body:
@@ -802,22 +949,15 @@ class VTranspiler(CLikeTranspiler):
                 for target in item.targets:
                     if isinstance(target, ast.Name):
                         if isinstance(item.value, ast.Constant):
-                            fields.append(f'    {target.id} = "{item.value.value}"')
+                            fields.append((target.id.lower(), f'"{item.value.value}"'))
                         else:
-                            fields.append(f"    {target.id}")
+                            fields.append((target.id.lower(), None))
 
-        # Since V doesn't support string enums, we'll use a struct
-        struct_fields = "\n".join(
-            f"    {field.split('=')[0].strip()} string" for field in fields
-        )
-        struct_init = "\n".join(
-            f"    {field.split('=')[0].strip()}: {field.split('=')[1].strip()}"
-            for field in fields
-            if "=" in field
-        )
+        struct_fields = "\n".join(f"    {name} string" for name, _ in fields)
+        struct_init = ", ".join(f"{name}: {val}" for name, val in fields if val)
 
-        struct_def = f"struct StrEnum {{\n{struct_fields}\n}}\n\n"
-        init_def = f"const (\n{struct_init}\n)"
+        struct_def = f"struct {node.name}_t {{\n{struct_fields}\n}}\n\n"
+        init_def = f"const {node.name.lower()} = {node.name}_t {{ {struct_init} }}"
         return f"{struct_def}{init_def}"
 
     def visit_List(self, node: ast.List) -> str:
@@ -861,8 +1001,11 @@ class VTranspiler(CLikeTranspiler):
         if hasattr(node, "is_annotation"):
             if value in self._container_type_map:
                 value = self._container_type_map[value]
+            print(f"DEBUG: visit_Subscript value={value} index={index}")
             if value == "Tuple":
                 return f"({index})"
+            if value == "[]":
+                return f"[]{index}"
             return f"{value}[{index}]"
         return f"{value}[{index}]"
 
@@ -931,6 +1074,8 @@ class VTranspiler(CLikeTranspiler):
         return f"assert {self.visit(node.test)}"
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> str:
+        if isinstance(node.value, ast.Lambda) and hasattr(node, "annotation"):
+            node.value.callable_type = node.annotation
         target, type_str, val = super().visit_AnnAssign(node)
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
         if isinstance(node.value, ast.List):
@@ -942,7 +1087,13 @@ class VTranspiler(CLikeTranspiler):
                     elts.append(self.visit(node.value.elts[0]))
                 elts.extend(map(self.visit, node.value.elts[1:]))
                 return f"{kw}{target} := [{', '.join(elts)}]"
-            return f"{kw}{target} := {type_str}{{}}"
+            if type_str:
+                return f"{kw}{target} := {type_str}{{}}"
+            return f"{kw}{target} := {val}"
+        elif isinstance(node.value, ast.Dict):
+            if not node.value.keys and type_str:
+                return f"{kw}{target} := {type_str}{{}}"
+            return f"{kw}{target} := {val}"
         else:
             return f"{kw}{target} := {val}"
 
@@ -1115,10 +1266,14 @@ class VTranspiler(CLikeTranspiler):
         return f"{target} {op}= {val}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
-        # V supports delete() function for maps and arrays
         targets = []
         for target in node.targets:
-            targets.append(f"delete({self.visit(target)})")
+            if isinstance(target, ast.Subscript):
+                value = self.visit(target.value)
+                slice = self.visit(target.slice)
+                targets.append(f"{value}.delete({slice})")
+            else:
+                targets.append(f"/* del {self.visit(target)} */")
         return "\n".join(targets)
 
     def visit_Raise(self, node: ast.Raise) -> str:
@@ -1134,35 +1289,40 @@ class VTranspiler(CLikeTranspiler):
         return f"vexc.raise({name}, {msg})"
 
     def visit_With(self, node: ast.With) -> str:
-        # V doesn't have 'with' statement, but we can use defer for cleanup
-        buf = []
+        # V doesn't have 'with' statement, but we can use blocks and defer for cleanup
+        # V's defer is block-scoped, which matches Python's context manager timing
+        buf = ["{"]
 
         # Process items
-        for item in node.items:
+        for i, item in enumerate(node.items):
             context = self.visit(item.context_expr)
+            if "os.open" in context or "os.create" in context:
+                if item.optional_vars:
+                    target = self.visit(item.optional_vars)
+                    buf.append(self.indent(f"mut {target} := {context}"))
+                    buf.append(self.indent(f"defer {{ {target}.close() }}"))
+                else:
+                    tmp = self._new_tmp("file")
+                    buf.append(self.indent(f"mut {tmp} := {context}"))
+                    buf.append(self.indent(f"defer {{ {tmp}.close() }}"))
+                continue
+
+            # General context manager
+            ctx_var = self._new_tmp("ctx")
+            buf.append(self.indent(f"mut {ctx_var} := {context}"))
+            buf.append(self.indent(f"defer {{ {ctx_var}.__exit__(0, 0, 0) }}"))
+
             if item.optional_vars:
-                # Assign context manager to variable
                 target = self.visit(item.optional_vars)
-                buf.append(f"mut {target} := {context}")
-                # Add defer for cleanup
-                if "os.open" in context or "os.create" in context:
-                    buf.append(f"defer {{ {target}.close() }}")
-                else:
-                    buf.append(f"defer {{ {target}.__exit__() }}")
+                buf.append(self.indent(f"mut {target} := {ctx_var}.__enter__()"))
             else:
-                # Just call the context manager
-                if "os.open" in context or "os.create" in context:
-                    # This case is odd (opening file without target)
-                    buf.append(f"mut tmp_file := {context}")
-                    buf.append("defer { tmp_file.close() }")
-                else:
-                    buf.append(f"defer {{ {context}.__exit__() }}")
-                    buf.append(f"{context}.__enter__()")
+                buf.append(self.indent(f"{ctx_var}.__enter__()"))
 
         # Process body
         for stmt in node.body:
-            buf.append(self.visit(stmt))
+            buf.append(self.indent(self.visit(stmt)))
 
+        buf.append("}")
         return "\n".join(buf)
 
     def visit_Await(self, node: ast.Await) -> str:

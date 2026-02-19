@@ -120,6 +120,14 @@ class DeclarationExtractor(ast.NodeVisitor):
             if target not in self.class_assignments:
                 self.class_assignments[target] = node.value
 
+    def visit_With(self, node):
+        for item in node.items:
+            if item.optional_vars:
+                target = get_id(item.optional_vars)
+                if target and target not in self.class_assignments:
+                    self.class_assignments[target] = item.context_expr
+        self.generic_visit(node)
+
     def is_member(self, node):
         if hasattr(node, "value"):
             if self.transpiler.visit(node.value) == "self":
