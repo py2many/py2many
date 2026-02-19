@@ -1,4 +1,4 @@
-@[translated]
+[translated]
 module main
 
 global_var := 10
