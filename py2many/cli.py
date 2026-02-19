@@ -385,7 +385,7 @@ def main(args=None, env=os.environ):
     for lang, settings in LANGS.items():
         parser.add_argument(
             f"--{lang}",
-            type=bool,
+            action="store_true",
             default=False,
             help=f"Generate {settings.display_name} code",
         )

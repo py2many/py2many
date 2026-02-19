@@ -98,28 +98,28 @@ Convert Python to different languages:
 
 ```sh
 # Python to Rust
-py2many --rust=1 tests/cases/fib.py
+py2many --rust tests/cases/fib.py
 
 # Python to C++
-py2many --cpp=1 tests/cases/fib.py
+py2many --cpp tests/cases/fib.py
 
 # Python to Go
-py2many --go=1 tests/cases/fib.py
+py2many --go tests/cases/fib.py
 
 # Python to Kotlin
-py2many --kotlin=1 tests/cases/fib.py
+py2many --kotlin tests/cases/fib.py
 
 # Python to Julia
-py2many --julia=1 tests/cases/fib.py
+py2many --julia tests/cases/fib.py
 
 # Python to Nim
-py2many --nim=1 tests/cases/fib.py
+py2many --nim tests/cases/fib.py
 
 # Python to Dart
-py2many --dart=1 tests/cases/fib.py
+py2many --dart tests/cases/fib.py
 
 # Python to D
-py2many --dlang=1 tests/cases/fib.py
+py2many --dlang tests/cases/fib.py
 ```
 
 **Compiling Transpiled Code:**
