@@ -1,4 +1,4 @@
-@[translated]
+[translated]
 module main
 
 type Any = bool | int | i64 | f64 | string | []byte

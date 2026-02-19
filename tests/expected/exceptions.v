@@ -1,4 +1,4 @@
-@[translated]
+[translated]
 module main
 
 import div72.vexc
