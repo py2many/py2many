@@ -333,16 +333,10 @@ class CLikeTranspiler(ast.NodeVisitor):
             return c_symbol(node)
         else:
             try:
-
                 return super().visit(node)
             except AstNotImplementedError:
                 raise
             except Exception as e:
-                print(f"Error in visit: {type(node)} {e}")
-                print(f"Exception args: {e.args}")
-                import traceback
-
-                traceback.print_tb(e.__traceback__)
                 raise AstNotImplementedError(e, node) from e
 
     def visit_Pass(self, node) -> str:
