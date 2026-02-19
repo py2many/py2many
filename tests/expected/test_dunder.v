@@ -45,9 +45,11 @@ fn main_func() {
 	u := new_user('Alice')
 	u.say_hello()
 	du := new_datauser('Bob', 30)
-	mut f := os.create('test.txt') or { panic(err) }
-	defer { f.close() }
-	f.write_string('Hello Vlang') or { panic(err) }
+	{
+		mut f := os.create('test.txt') or { panic(err) }
+		defer { f.close() }
+		f.write_string('Hello Vlang') or { panic(err) }
+	}
 	if os.exists('test.txt') {
 		os.rm('test.txt') or { panic(err) }
 	}

@@ -109,7 +109,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, py_ast.Pow):
             left: str = self.visit(node.left)
             right: str = self.visit(node.right)
-            return f"{left}^{right}"
+            self._usings.add("math")
+            return f"int(math.pow({left}, {right}))"
 
         left: str = self.visit(node.left)
         op: str = self.visit(node.op)
@@ -128,13 +129,19 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                 return f"({left}.repeat({right}))"
 
         if left_rank > right_rank:
-            right = (
-                f"CAST_INT({right})" if left_type == "int" else f"{left_type}({right})"
-            )
+            if left_type == "int" and right_type != "bool":
+                right = f"CAST_INT({right})"
+            elif right_type == "bool":
+                right = f"int({right})"
+            else:
+                right = f"{left_type}({right})"
         elif right_rank > left_rank:
-            left = (
-                f"CAST_INT({left})" if right_type == "int" else f"{right_type}({left})"
-            )
+            if right_type == "int" and left_type != "bool":
+                left = f"CAST_INT({left})"
+            elif left_type == "bool":
+                left = f"int({left})"
+            else:
+                left = f"{right_type}({left})"
         if "bool" in (left_type, right_type):
             op = {"&": "&&", "|": "||", "^": "!="}.get(op, op)
         return f"({left} {op} {right})"
