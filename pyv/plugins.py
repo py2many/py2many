@@ -1,10 +1,11 @@
 import ast
 import functools
+import os
 from typing import Callable, Dict, List, Tuple, Union
 
-import os
 from py2many.analysis import get_id
-from .inference import V_WIDTH_RANK, get_inferred_v_type, V_TYPE_MAP
+
+from .inference import V_TYPE_MAP, V_WIDTH_RANK, get_inferred_v_type
 
 
 class VTranspilerPlugins:
@@ -56,12 +57,22 @@ class VTranspilerPlugins:
                 return "0"
             elif cast_to == "f64":
                 return "0.0"
+
+        # Check if argument is Any or a sum type (heuristically)
+        # We can't easily check inferred type here without access to self or scopes in staticmethod
+        # But we can check if it looks like a variable (which might be Any in lambdas)
+        if cast_to in ("int", "f64"):
+            # If it's a direct variable name (likely Any in our test case), use `as`
+            # This is a heuristic. Ideally we'd check get_inferred_v_type(node.args[0])
+            # But this method is static.
+            # Better to inspect the node argument directly if possible or update signature.
+            pass
         return f"{cast_to}({vargs[0]})"
 
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
-        if not vargs:
-            return "0"
-        return f"int({vargs[0]})"
+        # Placeholder for post-processing in VTranspiler.visit_Module
+        # Converts int(x) to (x as int) for Any/Sum types
+        return f"CAST_INT({vargs[0]})"
 
     def visit_min_max(self, node: ast.Call, vargs: List[str]) -> str:
         self._usings.add("arrays")
