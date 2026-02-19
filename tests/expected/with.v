@@ -1,7 +1,10 @@
 @[translated]
 module main
 
-type Any = bool | int | i64 | f64 | string | []byte
+type AnyFn = fn (Any) Any
+
+type Any = bool | int | i64 | f64 | string | []byte | voidptr
+type List = []Any
 
 pub struct MockFile {
 pub mut:
@@ -9,31 +12,33 @@ pub mut:
 	closed bool
 }
 
-fn (self MockFile) __init__(name Any) {
+fn new_mockfile[A](name A) MockFile {
+	mut self := MockFile{}
 	self.name = name
 	self.closed = false
-}
-
-fn (self MockFile) __enter__() Any {
-	println((''.join(['Opening ', (self.name).str()])).str())
 	return self
 }
 
-fn (self MockFile) __exit__(exc_type Any, exc_val Any, exc_tb Any) bool {
-	println((''.join(['Closing ', (self.name).str()])).str())
+fn (mut self MockFile) __enter__() MockFile {
+	println(('Opening ${self.name}').str())
+	return self
+}
+
+fn (mut self MockFile) __exit__(exc_type Any, exc_val Any, exc_tb Any) bool {
+	println(('Closing ${self.name}').str())
 	self.closed = true
 	return false
 }
 
-fn (self MockFile) read() string {
+fn (mut self MockFile) read() string {
 	return 'content'
 }
 
 fn show() {
-	if true {
-		f := MockFile{
-			name: 'test.txt'
-		}
+	{
+		mut __ctx1 := new_mockfile('test.txt')
+		defer { __ctx1.__exit__(0, 0, 0) }
+		mut f := __ctx1.__enter__()
 		println((f.read()).str())
 	}
 }

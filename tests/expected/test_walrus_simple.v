@@ -1,12 +1,13 @@
-[translated]
+@[translated]
 module main
 
-fn show () {
-  if x := 5 > 3 {
-    println((x).str())
+fn show() {
+	x := 5
+	if x > 3 {
+		println(x.str())
+	}
 }
 
-}
-fn main () {
-  show()
+fn main() {
+	show()
 }

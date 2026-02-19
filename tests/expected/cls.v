@@ -4,7 +4,7 @@ module main
 pub struct Foo {
 }
 
-fn (self Foo) bar() string {
+fn (mut self Foo) bar() string {
 	return 'a'
 }
 

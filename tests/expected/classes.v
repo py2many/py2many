@@ -4,11 +4,11 @@ module main
 pub struct Foo {
 }
 
-fn (self Foo) bar() int {
+fn (mut self Foo) bar() int {
 	return self.baz()
 }
 
-fn (self Foo) baz() int {
+fn (mut self Foo) baz() int {
 	return 10
 }
 
