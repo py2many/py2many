@@ -833,12 +833,13 @@ class VTranspiler(CLikeTranspiler):
         return str(val)
 
     def visit_Bytes(self, node: ast.Constant) -> str:
-        if not node.s:
+        bytes_val = node.value if isinstance(node, ast.Constant) else node.s
+        if not bytes_val:
             return "[]byte{}"
 
         chars: List[str] = []
-        chars.append(f"byte({hex(node.s[0])})")
-        for c in node.s[1:]:
+        chars.append(f"byte({hex(bytes_val[0])})")
+        for c in bytes_val[1:]:
             chars.append(hex(c))
         return f"[{', '.join(chars)}]"
 
