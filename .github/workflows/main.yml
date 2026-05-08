@@ -145,6 +145,7 @@ jobs:
                   clang-14 \
                   libc++-14-dev \
                   libc++abi-14-dev \
+                  libgc-dev \
                   z3 \
                 && true
               pip3 install conan
@@ -179,9 +180,25 @@ jobs:
 
       - name: Install V
         if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
-        uses: vlang/setup-v@v1.4
-        with:
-          token: ${{ github.token }}
+        shell: bash
+        run: |
+          set -ex
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) v_asset="v_linux.zip" ;;
+            Linux-ARM64) v_asset="v_linux_arm64.zip" ;;
+            macOS-X64) v_asset="v_macos_x86_64.zip" ;;
+            macOS-ARM64) v_asset="v_macos_arm64.zip" ;;
+            Windows-*) v_asset="v_windows.zip" ;;
+            *) echo "Unsupported V release target: ${RUNNER_OS}-${RUNNER_ARCH}" >&2; exit 1 ;;
+          esac
+          curl -fsSL -o "$RUNNER_TEMP/v.zip" "https://github.com/vlang/v/releases/download/0.5.1/${v_asset}"
+          unzip -q "$RUNNER_TEMP/v.zip" -d "$RUNNER_TEMP"
+          v_bin="$RUNNER_TEMP/v/v"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            v_bin="$RUNNER_TEMP/v/v.exe"
+          fi
+          echo "$RUNNER_TEMP/v" >> "$GITHUB_PATH"
+          "$v_bin" version
 
       - name: Install V packages
         if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
