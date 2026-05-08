@@ -216,7 +216,6 @@ EXPECTED_SUCCESSES = [
     "simple_dict.rs",
     "simple_dict.v",
     "str_format.kt",
-    "str_format.v",
     "str_mult.dart",
     "str_mult.v",
     "tuple_destruct.jl",
