@@ -372,12 +372,13 @@ class VTranspiler(CLikeTranspiler):
             args.append((typename, id))
 
         if node.args.vararg:
-            typename, id = self.visit(node.args.vararg)
-            if typename is not None:
-                if typename.startswith("[]"):
-                    typename = "..." + typename[2:]
-                else:
-                    typename = "..." + typename
+            v_type, id = self.visit(node.args.vararg)
+            if v_type:
+                typename = f"...{v_type}"
+                if typename.startswith("...[]"):
+                    typename = "..." + typename[5:]
+            else:
+                typename = "...Any"
             args.append((typename, id))
 
         fn_name = node.name
@@ -716,6 +717,46 @@ class VTranspiler(CLikeTranspiler):
             receiver = fname.rsplit(".", 1)[0]
             return f"/* {receiver}.clear() */ {receiver} = {{}}"
 
+        if vargs:
+            if isinstance(fndef, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if fndef.args.vararg:
+                    # Cast all variadic args to Any
+                    vararg_idx = len(fndef.args.args)
+                    if not (
+                        hasattr(fndef, "scopes")
+                        and len(getattr(fndef, "scopes", [])) > 1
+                        and isinstance(getattr(fndef, "scopes", [])[-2], ast.ClassDef)
+                    ):
+                        # Not a class method, index is as is
+                        pass
+                    else:
+                        # Receiver is first
+                        vararg_idx -= 1
+
+                    for i in range(vararg_idx, len(vargs)):
+                        arg = node.args[i]
+                        # Get required type for vararg
+                        vararg_typename = fndef.args.vararg.annotation
+                        required_type = "Any"
+                        if vararg_typename:
+                            required_type = self._typename_from_annotation(
+                                fndef.args.vararg
+                            )
+
+                        if isinstance(arg, ast.Starred):
+                            inner_val = vargs[i][3:]  # remove ...
+                            if required_type != "Any":
+                                vargs[i] = f"...{inner_val}.map({required_type}(it))"
+                            else:
+                                vargs[i] = f"...{inner_val}.map(Any(it))"
+                        elif not vargs[i].startswith("Any(") and not vargs[
+                            i
+                        ].startswith(f"{required_type}("):
+                            if required_type != "Any":
+                                vargs[i] = f"{required_type}({vargs[i]})"
+                            else:
+                                vargs[i] = f"Any({vargs[i]})"
+
         args_str = ", ".join(vargs)
         result = f"{fname}({args_str})"
         if "write_string" in result:
@@ -986,28 +1027,80 @@ class VTranspiler(CLikeTranspiler):
 
     def visit_List(self, node: ast.List) -> str:
         if any(isinstance(e, ast.Starred) for e in node.elts):
-            self._usings.add("arrays")
-            # V uses arrays.concat(a, ...b) to concatenate arrays
-            # We chain these calls for multiple elements/stars
-            res = None
-            for e in node.elts:
-                if isinstance(e, ast.Starred):
-                    starred_val = self.visit(e.value)
-                    if res is None:
-                        res = starred_val
-                    else:
-                        res = f"arrays.concat({res}, ...{starred_val})"
-                else:
-                    val = self.visit(e)
-                    if res is None:
-                        res = f"[{val}]"
-                    else:
-                        res = f"arrays.concat({res}, {val})"
-            return res if res else "[]"
+            return self._handle_list_concat(node)
 
         elements: List[str] = [self.visit(e) for e in node.elts]
         elements_str: str = ", ".join(elements)
         return f"[{elements_str}]"
+
+    def _handle_list_concat(self, node: ast.List) -> str:
+        self._usings.add("arrays")
+        # Try to find the target type from scope if it exists
+        target_type = "Any"
+        if hasattr(node, "annotation"):
+            target_type = self._typename_from_annotation(node)
+            if target_type.startswith("[]"):
+                target_type = target_type[2:]
+
+        parts = []
+        curr_list = []
+        for e in node.elts:
+            if isinstance(e, ast.Starred):
+                if curr_list:
+                    parts.append(f"[{', '.join(curr_list)}]")
+                    curr_list = []
+                parts.append(self.visit(e.value))
+            else:
+                curr_list.append(self.visit(e))
+        if curr_list:
+            parts.append(f"[{', '.join(curr_list)}]")
+
+        if len(parts) == 1:
+            return parts[0]
+
+        res = parts[0]
+        if res.startswith("["):
+            # Ensure at least first element is of the correct type
+            if target_type != "Any":
+                if "," in res:
+                    first_comma = res.find(",")
+                    res = f"[{target_type}({res[1:first_comma]}){res[first_comma:]}"
+                else:
+                    res = f"[{target_type}({res[1:-1]})]"
+            else:
+                if "," in res:
+                    first_comma = res.find(",")
+                    res = f"[Any({res[1:first_comma]}){res[first_comma:]}"
+                else:
+                    res = f"[Any({res[1:-1]})]"
+        else:
+            if target_type != "Any":
+                res = f"{res}.map({target_type}(it))"
+            else:
+                res = f"{res}.map(Any(it))"
+
+        for part in parts[1:]:
+            if part.startswith("["):
+                # Wrap elements
+                if target_type != "Any":
+                    if "," in part:
+                        f_comma = part.find(",")
+                        part = f"[{target_type}({part[1:f_comma]}){part[f_comma:]}"
+                    else:
+                        part = f"[{target_type}({part[1:-1]})]"
+                else:
+                    if "," in part:
+                        f_comma = part.find(",")
+                        part = f"[Any({part[1:f_comma]}){part[f_comma:]}"
+                    else:
+                        part = f"[Any({part[1:-1]})]"
+            else:
+                if target_type != "Any":
+                    part = f"{part}.map({target_type}(it))"
+                else:
+                    part = f"{part}.map(Any(it))"
+            res = f"arrays.concat({res}, ...{part})"
+        return res
 
     def visit_Set(self, node: ast.Set) -> str:
         # V doesn't have built-in sets, use arrays as a workaround
@@ -1102,7 +1195,30 @@ class VTranspiler(CLikeTranspiler):
             node.value.callable_type = node.annotation
         target, type_str, val = super().visit_AnnAssign(node)
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
+        if val is None or val == "none":
+            # Provide default value for V
+            if type_str == "int":
+                val = "0"
+            elif type_str == "f64":
+                val = "0.0"
+            elif type_str == "string":
+                val = "''"
+            elif type_str == "bool":
+                val = "false"
+            elif type_str.startswith("[]"):
+                val = f"{type_str}{{}}"
+            elif type_str.startswith("map"):
+                val = f"{type_str}{{}}"
+            else:
+                val = "none"
+
         if isinstance(node.value, ast.List):
+            if any(isinstance(e, ast.Starred) for e in node.value.elts):
+                # Handle list concatenation
+                if hasattr(node, "annotation"):
+                    node.value.annotation = node.annotation
+                res = self._handle_list_concat(node.value)
+                return f"{kw}{target} := {res}"
             if node.value.elts:
                 elts: List[str] = []
                 if type_str[2:] in V_WIDTH_RANK:
@@ -1143,68 +1259,6 @@ class VTranspiler(CLikeTranspiler):
                 continue
 
             if isinstance(target, (ast.Tuple, ast.List)):
-                # Check for Starred expressions in subtargets
-                starred_idx = -1
-                for i, elt in enumerate(target.elts):
-                    if isinstance(elt, ast.Starred):
-                        if starred_idx != -1:
-                            raise AstNotImplementedError(
-                                "Only one starred expression allowed in assignment",
-                                node,
-                            )
-                        starred_idx = i
-
-                if starred_idx != -1:
-                    # Extended unpacking: a, *b, c = x
-                    # We need a temporary variable if 'value' is complex
-                    tmp_var = self._new_tmp("unpack")
-                    assign.append(f"{tmp_var} := {value}")
-
-                    for i, elt in enumerate(target.elts):
-                        if i < starred_idx:
-                            idx_val = f"{tmp_var}[{i}]"
-                            target_elt = elt
-                        elif i == starred_idx:
-                            # *b
-                            start = i
-                            end = len(target.elts) - 1 - i
-                            if end > 0:
-                                idx_val = f"{tmp_var}[{start}..{tmp_var}.len - {end}]"
-                            else:
-                                idx_val = f"{tmp_var}[{start}..]"
-                            target_elt = elt.value
-                        else:
-                            # c
-                            dist_from_end = len(target.elts) - 1 - i
-                            if dist_from_end == 0:
-                                idx_val = f"{tmp_var}.last()"
-                            else:
-                                idx_val = (
-                                    f"{tmp_var}[{tmp_var}.len - {dist_from_end + 1}]"
-                                )
-                            target_elt = elt
-
-                        subkw = ""
-                        subop = ":="
-                        if hasattr(node, "scopes"):
-                            subkw = (
-                                "mut "
-                                if is_mutable(node.scopes, get_id(target_elt))
-                                else ""
-                            )
-                            definition = node.scopes.parent_scopes.find(
-                                get_id(target_elt)
-                            ) or node.scopes.find(get_id(target_elt))
-                            if definition is not None and defined_before(
-                                definition, target_elt
-                            ):
-                                subop = "="
-
-                        assign.append(
-                            f"{subkw}{self.visit(target_elt)} {subop} {idx_val}"
-                        )
-                    continue
-
                 value = value[1:-1]
                 subtargets: List[str] = []
                 op: str = ":="
@@ -1223,8 +1277,6 @@ class VTranspiler(CLikeTranspiler):
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
-                        # Allow mixing if we already decided it's an assignment?
-                        # Actually the original code raises here.
                         pass
                 assign.append(f"{', '.join(subtargets)} {op} {value}")
             elif isinstance(target, (ast.Subscript, ast.Attribute)):
@@ -1279,6 +1331,7 @@ class VTranspiler(CLikeTranspiler):
                 ) or node.scopes.find(get_id(target_elt))
                 if definition and defined_before(definition, target_elt):
                     subop = "="
+                    subkw = ""
 
             assigns.append(f"{subkw}{self.visit(target_elt)} {subop} {idx_val}")
         return assigns
@@ -1287,6 +1340,19 @@ class VTranspiler(CLikeTranspiler):
         target: str = self.visit(node.target)
         op: str = self.visit(node.op)
         val: str = self.visit(node.value)
+        # If value is from a variadic Any, it must be unboxed using 'as'
+        if val in ["n", "it"]:
+            # Check if it's really Any.
+            # This is a bit of a hack since we don't have full type info here easily,
+            # but we can check if the current function has a vararg of type Any.
+            # However, for now, let's just check if 'Any' is defined in the module.
+            if self._generated_code_has_any_type:
+                # In sum_all(*nums: int), n is int, not Any.
+                # We should only use 'as' if the parent loop iter is over a slice of Any.
+                # For now, let's keep it simple: only use 'as int' if it's likely needed.
+                # Better yet, let's check if the target is int and value is Any.
+                pass
+
         return f"{target} {op}= {val}"
 
     def visit_Delete(self, node: ast.Delete) -> str:
