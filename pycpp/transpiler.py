@@ -396,7 +396,8 @@ class CppTranspiler(CLikeTranspiler):
 
     def visit_Bytes(self, node) -> str:
         byte_literal = super().visit_Bytes(node)
-        n = len(node.s)
+        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        n = len(bytes_str)
         return f"((std::array<unsigned char, {n}>){byte_literal})"
 
     def visit_Name(self, node) -> str:
