@@ -69,7 +69,9 @@ class TopologicalSorter:
     def get_ready(self):
         ready = [node for node in self._active_nodes if self._in_degree[node] == 0]
         if not ready and self._active_nodes:
-            # Cycle detected
+            # graphlib.TopologicalSorter would raise CycleError here. Pick the
+            # lexicographically smallest active node so cyclic inputs still
+            # produce deterministic output.
             ready = [min(self._active_nodes)]
         return tuple(ready)
 
