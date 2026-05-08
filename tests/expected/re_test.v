@@ -3,6 +3,20 @@ module main
 
 import regex
 
+type AnyFn = fn (Any) Any
+
+type Any = bool | int | i64 | f64 | string | []byte | voidptr
+type List = []Any
+
+fn any_to_string(value Any) string {
+	return match value {
+		string { value }
+		bool, int, i64, f64 { value.str() }
+		[]byte { value.bytestr() }
+		voidptr { ptr_str(value) }
+	}
+}
+
 fn test_re_methods() {
 	text := 'The quick brown fox jumps over the lazy dog'
 	search_res := (fn (p string, s string) bool {
@@ -25,7 +39,7 @@ fn test_re_methods() {
 		mut re := regex.regex_opt(p) or { panic(err) }
 		return re.find_all_str(s)
 	}('\\w+', text))
-	println((findall_res.len).str())
+	println(any_to_string(findall_res.len))
 	sub_res := (fn (p string, r string, s string) string {
 		mut re := regex.regex_opt(p) or { panic(err) }
 		return re.replace(s, r)
@@ -35,7 +49,7 @@ fn test_re_methods() {
 		mut re := regex.regex_opt(p) or { panic(err) }
 		return re.split(s)
 	}('\\s+', text))
-	println((split_res.len).str())
+	println(any_to_string(split_res.len))
 	pattern := regex.regex_opt('\\d+') or { panic(err) }
 	println('Pattern compiled')
 }
