@@ -15,9 +15,17 @@ fn test_str_methods() {
 	println(joined.str())
 	println((s.index('World') or { -1 }).str())
 	println((s.replace('World', 'Vlang')).str())
-	println(('123'.bytes().all(it.is_digit())).str())
-	println(('abc'.bytes().all(it.is_letter())).str())
-	println(('   '.trim_space() == '').str())
+	if '123'.bytes().all(it.is_digit()) {
+		println('digit')
+	}
+
+	if 'abc'.bytes().all(it.is_letter()) {
+		println('alpha')
+	}
+
+	if ('   '.trim_space() == '') {
+		println('space')
+	}
 }
 
 fn main() {
