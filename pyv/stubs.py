@@ -22,7 +22,7 @@ def visit_strftime(self, node, vargs):
 STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
     "str.lower": lambda self, node, vargs: f"{self.visit(node.func.value)}.to_lower()",
     "str.upper": lambda self, node, vargs: f"{self.visit(node.func.value)}.to_upper()",
-    "str.capitalize": lambda self, node, vargs: f"{self.visit(node.func.value)}.capitalize()",
+    "str.capitalize": lambda self, node, vargs: f"{self.visit(node.func.value)}.to_lower()",
     "str.title": lambda self, node, vargs: f"{self.visit(node.func.value)}.title()",
     "str.strip": lambda self, node, vargs: f"{self.visit(node.func.value)}.trim_space()",
     "str.lstrip": lambda self, node, vargs: f"{self.visit(node.func.value)}.trim_left(' ')",

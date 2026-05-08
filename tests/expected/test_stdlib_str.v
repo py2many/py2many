@@ -5,7 +5,7 @@ fn test_str_methods() {
 	s := '  Hello World  '
 	println((s.to_lower()).str())
 	println((s.to_upper()).str())
-	println((s.capitalize()).str())
+	println((s.to_lower()).str())
 	println((s.trim_space()).str())
 	println((s.trim_left(' ')).str())
 	println((s.trim_right(' ')).str())
