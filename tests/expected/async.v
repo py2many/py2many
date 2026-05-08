@@ -1,13 +1,20 @@
-[translated]
+@[translated]
 module main
 
-type Any = bool | int | i64 | f64 | string | []byte
+type AnyFn = fn (Any) Any
 
-fn async_gen(ch chan Any) {
-	defer { ch.close() }
-	for i in 0 .. 3 {
-		ch <- i
-	}
+type Any = bool | int | i64 | f64 | string | []byte | voidptr
+type List = []Any
+
+fn async_gen() chan Any {
+	ch := chan Any{cap: 100}
+	spawn fn [ch] () {
+		defer { ch.close() }
+		for i in 0 .. 3 {
+			ch <- i
+		}
+	}()
+	return ch
 }
 
 fn show_async() {

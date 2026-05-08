@@ -236,6 +236,7 @@ class VTranspiler(CLikeTranspiler):
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._generated_code_has_any_type = False
+        self._generated_code_uses_any_to_string = False
         self._tmp_var_id = 0
         self._int_enums: Set[str] = set()
         self._str_enums: Set[str] = set()
@@ -260,11 +261,21 @@ class VTranspiler(CLikeTranspiler):
         buf = ["@[translated]", "module main"]
         if uses:
             buf.append(uses)
-        if self._generated_code_has_any_type:
+        if self._generated_code_has_any_type or self._generated_code_uses_any_to_string:
             buf.append("")
             buf.append("type AnyFn = fn (Any) Any")
             buf.append("type Any = bool | int | i64 | f64 | string | []byte | voidptr")
             buf.append("type List = []Any")
+        if self._generated_code_uses_any_to_string:
+            buf.append("")
+            buf.append("fn any_to_string(value Any) string {")
+            buf.append("\treturn match value {")
+            buf.append("\t\tstring { value }")
+            buf.append("\t\tbool, int, i64, f64 { value.str() }")
+            buf.append("\t\t[]byte { value.bytestr() }")
+            buf.append("\t\tvoidptr { ptr_str(value) }")
+            buf.append("\t}")
+            buf.append("}")
             buf.append("")
         return "\n".join(buf)
 
@@ -312,7 +323,14 @@ class VTranspiler(CLikeTranspiler):
             if isinstance(val, ast.Constant):
                 parts.append(str(val.value))
             elif isinstance(val, ast.FormattedValue):
-                parts.append(f"${{{self.visit(val.value)}}}")
+                formatted = self.visit(val.value)
+                inferred = get_inferred_v_type(val.value)
+                if inferred == "Any" or (
+                    not inferred and isinstance(val.value, ast.Attribute)
+                ):
+                    self._generated_code_uses_any_to_string = True
+                    formatted = f"any_to_string({formatted})"
+                parts.append(f"${{{formatted}}}")
             else:
                 parts.append(f"${{{self.visit(val)}}}")
         return f"'{''.join(parts)}'"
@@ -591,6 +609,12 @@ class VTranspiler(CLikeTranspiler):
         attr: str = node.attr
 
         value_id: str = self.visit(node.value)
+        if (
+            isinstance(node.value, ast.Call)
+            and get_id(node.value.func) == "range"
+            and ".." in value_id
+        ):
+            value_id = f"({value_id})"
 
         if is_list(node.value):
             if node.attr == "append":
@@ -624,6 +648,28 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "map"
+            and isinstance(node.func.value, ast.Call)
+            and get_id(node.func.value.func) == "range"
+            and len(node.args) == 1
+        ):
+            iter_expr = self.visit(node.func.value)
+            elt = self.visit(node.args[0])
+            elt_type = get_inferred_v_type(node.args[0]) or "int"
+            return "\n".join(
+                [
+                    f"(fn () []{elt_type} {{",
+                    f"{self.indent(f'mut result := []{elt_type}{{}}')}",
+                    f"{self.indent(f'for it in {iter_expr} {{')}",
+                    f"{self.indent(f'result << {elt}', level=2)}",
+                    f"{self.indent('}')}",
+                    f"{self.indent('return result')}",
+                    "}())",
+                ]
+            )
+
         fname: str = self.visit(node.func)
         fndef: Optional[ast.AST] = None
         if hasattr(node, "scopes"):
