@@ -412,7 +412,7 @@ class RustTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = self._get_bytes(node)
         byte_array = ", ".join([hex(c) for c in bytes_str])
         return f"[{byte_array}].to_vec()"
 
