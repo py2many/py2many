@@ -3,7 +3,7 @@ module main
 
 import arrays
 
-fn sum_all[A](nums ...A) int {
+fn sum_all(nums ...int) int {
 	mut total := 0
 	for n in nums {
 		total += n
@@ -14,17 +14,20 @@ fn sum_all[A](nums ...A) int {
 fn main_func() {
 	println(('a'.repeat(5)).str())
 	println(([0].repeat(3)).str())
-	numbers := [1, 2, 3]
-	println((sum_all(...numbers)).str())
-	others := [4, 5]
-	all_nums := arrays.concat(arrays.concat(arrays.concat([0], ...numbers), ...others),
-		6)
+	numbers := [int(1), 2, 3]
+	println((sum_all(...numbers.map(int(it)))).str())
+	others := [int(4), 5]
+	all_nums := arrays.concat(arrays.concat(arrays.concat([int(0)], ...numbers.map(int(it))),
+		...others.map(int(it))), ...[int(6)])
 	println(all_nums.str())
-	data := [10, 20, 30, 40, 50]
+	data := [int(10), 20, 30, 40, 50]
+	mut a := 0
+	mut rest := []int{}
+	mut e := 0
 	__unpack1 := data
-	mut a := __unpack1[0]
-	mut rest := __unpack1[1..__unpack1.len - 1]
-	mut e := __unpack1.last()
+	a = __unpack1[0]
+	rest = __unpack1[1..__unpack1.len - 1]
+	e = __unpack1.last()
 	println(a.str())
 	println(rest.str())
 	println(e.str())
