@@ -1,6 +1,5 @@
 import ast
 from collections import defaultdict
-from graphlib import TopologicalSorter
 from pathlib import Path
 from typing import Tuple
 
@@ -44,13 +43,55 @@ def get_dependencies(trees):
     return visitor.deps
 
 
-class StableTopologicalSorter(TopologicalSorter):
+class TopologicalSorter:
+    def __init__(self, graph=None):
+        self._graph = defaultdict(set)
+        self._dependent_nodes = defaultdict(set)
+        self._nodes = set()
+        if graph:
+            for node, predecessors in graph.items():
+                self.add(node, *predecessors)
+
+    def add(self, node, *predecessors):
+        self._nodes.add(node)
+        self._graph[node].update(predecessors)
+        for p in predecessors:
+            self._nodes.add(p)
+            self._dependent_nodes[p].add(node)
+
+    def prepare(self):
+        self._in_degree = {node: len(self._graph[node]) for node in self._nodes}
+        self._active_nodes = set(self._nodes)
+
+    def is_active(self):
+        return bool(self._active_nodes)
+
+    def get_ready(self):
+        ready = [node for node in self._active_nodes if self._in_degree[node] == 0]
+        if not ready and self._active_nodes:
+            # Cycle detected
+            ready = [min(self._active_nodes)]
+        return tuple(ready)
+
+    def done(self, *nodes):
+        for node in nodes:
+            if node in self._active_nodes:
+                self._active_nodes.remove(node)
+                for dependent in self._dependent_nodes[node]:
+                    if dependent in self._active_nodes:
+                        self._in_degree[dependent] -= 1
+
     def static_order(self):
         self.prepare()
         while self.is_active():
             node_group = self.get_ready()
-            yield from sorted(node_group)
+            for node in sorted(node_group):
+                yield node
             self.done(*node_group)
+
+
+class StableTopologicalSorter(TopologicalSorter):
+    pass
 
 
 def toposort(trees) -> Tuple:
