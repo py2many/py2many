@@ -16,9 +16,12 @@ def test_str_methods():
     print(s.find("World"))
     print(s.replace("World", "Vlang"))
 
-    print("123".isdigit())
-    print("abc".isalpha())
-    print("   ".isspace())
+    if "123".isdigit():
+        print("digit")
+    if "abc".isalpha():
+        print("alpha")
+    if "   ".isspace():
+        print("space")
 
 
 if __name__ == "__main__":
