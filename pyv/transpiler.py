@@ -324,16 +324,49 @@ class VTranspiler(CLikeTranspiler):
                 parts.append(str(val.value))
             elif isinstance(val, ast.FormattedValue):
                 formatted = self.visit(val.value)
-                inferred = get_inferred_v_type(val.value)
-                if inferred == "Any" or (
-                    not inferred and isinstance(val.value, ast.Attribute)
-                ):
+                if self._expr_needs_any_to_string(val.value):
                     self._generated_code_uses_any_to_string = True
                     formatted = f"any_to_string({formatted})"
                 parts.append(f"${{{formatted}}}")
             else:
                 parts.append(f"${{{self.visit(val)}}}")
         return f"'{''.join(parts)}'"
+
+    def _expr_needs_any_to_string(self, node: ast.AST) -> bool:
+        if get_inferred_v_type(node) == "Any":
+            return True
+
+        if isinstance(node, ast.Call) and hasattr(node, "scopes"):
+            fname = get_id(node.func)
+            definition = node.scopes.find(fname) if fname else None
+            if isinstance(definition, ast.FunctionDef):
+                return (
+                    self._typename_from_annotation(definition, attr="returns") == "Any"
+                )
+            assigned_from = getattr(definition, "assigned_from", None)
+            if isinstance(assigned_from, ast.Lambda):
+                return get_inferred_v_type(assigned_from.body) == "Any"
+
+        return False
+
+    @staticmethod
+    def _lambda_arg_used_in_numeric_binop(node: ast.AST, arg_name: str) -> bool:
+        for child in ast.walk(node):
+            if not isinstance(child, ast.BinOp):
+                continue
+            left_is_arg = isinstance(child.left, ast.Name) and child.left.id == arg_name
+            right_is_arg = (
+                isinstance(child.right, ast.Name) and child.right.id == arg_name
+            )
+            left_is_number = isinstance(child.left, ast.Constant) and isinstance(
+                child.left.value, (int, float)
+            )
+            right_is_number = isinstance(child.right, ast.Constant) and isinstance(
+                child.right.value, (int, float)
+            )
+            if (left_is_arg and right_is_number) or (right_is_arg and left_is_number):
+                return True
+        return False
 
     def _infer_generator_yield_type(self, node: ast.FunctionDef) -> str:
         inferred: List[str] = []
@@ -584,6 +617,10 @@ class VTranspiler(CLikeTranspiler):
                 typename = get_inferred_v_type(arg)
                 if not typename and i < len(explicit_arg_types):
                     typename = explicit_arg_types[i]
+                if not typename and self._lambda_arg_used_in_numeric_binop(
+                    node.body, arg_name
+                ):
+                    typename = "int"
                 if not typename:
                     typename = "Any"
                 if is_mutable(node.scopes, arg_name):
@@ -596,6 +633,8 @@ class VTranspiler(CLikeTranspiler):
             ret_type = get_inferred_v_type(node.body)
             if not ret_type:
                 ret_type = explicit_ret_type if explicit_ret_type else "Any"
+            if ret_type == "Any" and isinstance(node.body, ast.BinOp):
+                ret_type = "int"
 
             # V doesn't support lambdas directly, so we'll use an anonymous function
             return f"fn {capture_str}({args_str}) {ret_type} {{ return {body} }}"

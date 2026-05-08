@@ -6,15 +6,6 @@ type AnyFn = fn (Any) Any
 type Any = bool | int | i64 | f64 | string | []byte | voidptr
 type List = []Any
 
-fn any_to_string(value Any) string {
-	return match value {
-		string { value }
-		bool, int, i64, f64 { value.str() }
-		[]byte { value.bytestr() }
-		voidptr { ptr_str(value) }
-	}
-}
-
 pub struct MockFile {
 pub mut:
 	name   Any
@@ -29,12 +20,12 @@ fn new_mockfile[A](name A) MockFile {
 }
 
 fn (mut self MockFile) __enter__() MockFile {
-	println(('Opening ${any_to_string(self.name)}').str())
+	println(('Opening ${self.name}').str())
 	return self
 }
 
 fn (mut self MockFile) __exit__(exc_type Any, exc_val Any, exc_tb Any) bool {
-	println(('Closing ${any_to_string(self.name)}').str())
+	println(('Closing ${self.name}').str())
 	self.closed = true
 	return false
 }
@@ -48,7 +39,7 @@ fn show() {
 		mut __ctx1 := new_mockfile('test.txt')
 		defer { __ctx1.__exit__(0, 0, 0) }
 		mut f := __ctx1.__enter__()
-		println(any_to_string(f.read()))
+		println((f.read()).str())
 	}
 }
 

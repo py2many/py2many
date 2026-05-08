@@ -1,20 +1,6 @@
 @[translated]
 module main
 
-type AnyFn = fn (Any) Any
-
-type Any = bool | int | i64 | f64 | string | []byte | voidptr
-type List = []Any
-
-fn any_to_string(value Any) string {
-	return match value {
-		string { value }
-		bool, int, i64, f64 { value.str() }
-		[]byte { value.bytestr() }
-		voidptr { ptr_str(value) }
-	}
-}
-
 fn inline_pass() {
 }
 
@@ -60,14 +46,14 @@ fn show() {
 	sum1 := indexing()
 	println(sum1.str())
 	a5 := [1, 2, 3]
-	println(any_to_string(a5.len))
+	println((a5.len).str())
 	a9 := ['a', 'b', 'c', 'd']
-	println(any_to_string(a9.len))
+	println((a9.len).str())
 	a7 := {
 		'a': 1
 		'b': 2
 	}
-	println(any_to_string(a7.len))
+	println((a7.len).str())
 	a8 := true
 	if a8 {
 		println('true')
