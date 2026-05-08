@@ -3,20 +3,6 @@ module main
 
 import os
 
-type AnyFn = fn (Any) Any
-
-type Any = bool | int | i64 | f64 | string | []byte | voidptr
-type List = []Any
-
-fn any_to_string(value Any) string {
-	return match value {
-		string { value }
-		bool, int, i64, f64 { value.str() }
-		[]byte { value.bytestr() }
-		voidptr { ptr_str(value) }
-	}
-}
-
 pub struct User {
 pub mut:
 	name string
@@ -25,16 +11,16 @@ pub mut:
 fn new_user(name string) User {
 	mut self := User{}
 	self.name = name
-	println(('Initializing ${any_to_string(self.name)}').str())
+	println(('Initializing ${self.name}').str())
 	return self
 }
 
 fn (mut self User) free() {
-	println(('Deleting ${any_to_string(self.name)}').str())
+	println(('Deleting ${self.name}').str())
 }
 
 fn (mut self User) say_hello() {
-	println(('Hello, I am ${any_to_string(self.name)}').str())
+	println(('Hello, I am ${self.name}').str())
 }
 
 pub struct DataUser {
@@ -52,7 +38,7 @@ fn new_datauser(name string, age int) DataUser {
 }
 
 fn (mut self DataUser) __post_init__() {
-	println(('Post-init for ${any_to_string(self.name)}, age ${any_to_string(self.age)}').str())
+	println(('Post-init for ${self.name}, age ${self.age}').str())
 }
 
 fn main_func() {

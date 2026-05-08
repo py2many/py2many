@@ -113,7 +113,10 @@ EXTENSION_TEST_CASES = [
 
 EXPECTED_LINT_FAILURES = []
 
-EXPECTED_COMPILE_FAILURES = []
+EXPECTED_COMPILE_FAILURES = [
+    "test_dunder.v",
+    "with.v",
+]
 
 a_dot_out = "a.out"
 

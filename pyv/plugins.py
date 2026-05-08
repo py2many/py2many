@@ -26,14 +26,12 @@ class VTranspilerPlugins:
         args: List[str] = []
         total_args: List[str] = []
         for arg in node.args:
+            inferred = get_inferred_v_type(arg)
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 args.append(arg.value.replace("'", ""))
-            elif get_inferred_v_type(arg) == "string":
+            elif inferred == "string":
                 args.append(f"${{{self.visit(arg)}}}")
-            elif get_inferred_v_type(arg) == "Any" or (
-                not get_inferred_v_type(arg)
-                and isinstance(arg, (ast.Attribute, ast.Call))
-            ):
+            elif self._expr_needs_any_to_string(arg):
                 if args:
                     total_args.append(f"'{' '.join(args)}'")
                     args = []
