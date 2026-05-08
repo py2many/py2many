@@ -413,8 +413,17 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_Bytes(self, node) -> str:
         bytes_str = self._get_bytes(node)
-        byte_array = ", ".join([hex(c) for c in bytes_str])
-        return f"[{byte_array}].to_vec()"
+        escaped = []
+        for byte in bytes_str:
+            if byte == 0x22:  # "
+                escaped.append('\\"')
+            elif byte == 0x5C:  # backslash
+                escaped.append("\\\\")
+            elif 0x20 <= byte <= 0x7E:
+                escaped.append(chr(byte))
+            else:
+                escaped.append(f"\\x{byte:02x}")
+        return f'b"{"".join(escaped)}"'
 
     def visit_Compare(self, node) -> str:
         left = self.visit(node.left)
