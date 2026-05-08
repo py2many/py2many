@@ -1,7 +1,7 @@
 [translated]
 module main
 
-type Any = bool | int | i64 | f64 | string | []byte
+type Any = bool | int | i64 | f64 | string | []u8
 
 // Test cases for generator functions and yield statements
 

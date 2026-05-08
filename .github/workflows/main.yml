@@ -228,8 +228,10 @@ jobs:
           export TOXENV="py${PYTHON_VERSION//.}"
           if [ "$FOCUS" ]; then
             export PYTEST_ADDOPTS="-k $FOCUS"
+            tox -v -- --cov-fail-under=0
+          else
+            tox -v
           fi
-          tox -v
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
