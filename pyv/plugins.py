@@ -31,7 +31,7 @@ class VTranspilerPlugins:
                 args.append(arg.value.replace("'", ""))
             elif inferred == "string":
                 args.append(f"${{{self.visit(arg)}}}")
-            elif self._expr_needs_any_to_string(arg):
+            elif getattr(arg, "v_needs_any_to_string", False):
                 if args:
                     total_args.append(f"'{' '.join(args)}'")
                     args = []
