@@ -215,6 +215,7 @@ EXPECTED_SUCCESSES = [
     "simple_dict.rs",
     "simple_dict.v",
     "str_format.kt",
+    "str_format.v",
     "str_mult.dart",
     "str_mult.v",
     "tuple_destruct.jl",
@@ -417,7 +418,7 @@ class TestCodeGenerator:
                 None,
             )
         except Exception as e:
-            assert type(e) == expected_error
+            assert type(e) is expected_error
 
 
 if __name__ == "__main__":

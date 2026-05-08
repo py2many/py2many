@@ -1,12 +1,19 @@
-[translated]
+@[translated]
 module main
 
-fn show () {
-  gen := 0..5.map((it * it))
-  for val in gen {
-    println((val).str())
+fn show() {
+	gen := (fn () []int {
+		mut result := []int{}
+		for it in 0 .. 5 {
+			result << (it * it)
+		}
+		return result
+	}())
+	for val in gen {
+		println(val.str())
+	}
 }
-}
-fn main () {
-  show()
+
+fn main() {
+	show()
 }

@@ -295,6 +295,6 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            format_error_count=27,
-            failure_count=2,
+            format_error_count=20,
+            failure_count=0,
         )

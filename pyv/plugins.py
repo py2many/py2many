@@ -14,9 +14,9 @@ class VTranspilerPlugins:
 
     def visit_range(self, node: ast.Call, vargs: List[str]) -> str:
         if len(node.args) == 1:
-            return f"0..{vargs[0]}"
+            return f"0 .. {vargs[0]}"
         elif len(node.args) == 2:
-            return f"{vargs[0]}..{vargs[1]}"
+            return f"{vargs[0]} .. {vargs[1]}"
 
         raise Exception(
             f"encountered range() call with unknown parameters: range({vargs})"
@@ -30,6 +30,15 @@ class VTranspilerPlugins:
                 args.append(arg.value.replace("'", ""))
             elif get_inferred_v_type(arg) == "string":
                 args.append(f"${{{self.visit(arg)}}}")
+            elif get_inferred_v_type(arg) == "Any" or (
+                not get_inferred_v_type(arg)
+                and isinstance(arg, (ast.Attribute, ast.Call))
+            ):
+                if args:
+                    total_args.append(f"'{' '.join(args)}'")
+                    args = []
+                self._generated_code_uses_any_to_string = True
+                total_args.append(f"any_to_string({self.visit(arg)})")
             else:
                 if args:
                     total_args.append(f"'{' '.join(args)}'")
