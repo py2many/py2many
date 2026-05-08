@@ -224,7 +224,7 @@ class FStringJoinRewriter(ast.NodeTransformer):
     def visit_JoinedStr(self, node):
         # mojo fstrings will be implemented at some point
         # https://github.com/modularml/mojo/issues/398
-        if self._language in {"mojo", "python"}:
+        if self._language in {"mojo", "python", "v"}:
             return node
         new_node = cast(ast.Expr, create_ast_node('"".join([])', node)).value
         new_node = cast(ast.Call, new_node)
