@@ -3,7 +3,7 @@ module main
 
 type AnyFn = fn (Any) Any
 
-type Any = bool | int | i64 | f64 | string | []byte | voidptr
+type Any = bool | int | i64 | f64 | string | []u8 | voidptr
 type List = []Any
 
 pub struct MockFile {

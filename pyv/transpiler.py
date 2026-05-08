@@ -264,7 +264,7 @@ class VTranspiler(CLikeTranspiler):
         if self._generated_code_has_any_type or self._generated_code_uses_any_to_string:
             buf.append("")
             buf.append("type AnyFn = fn (Any) Any")
-            buf.append("type Any = bool | int | i64 | f64 | string | []byte | voidptr")
+            buf.append("type Any = bool | int | i64 | f64 | string | []u8 | voidptr")
             buf.append("type List = []Any")
         if self._generated_code_uses_any_to_string:
             buf.append("")
@@ -272,7 +272,7 @@ class VTranspiler(CLikeTranspiler):
             buf.append("\treturn match value {")
             buf.append("\t\tstring { value }")
             buf.append("\t\tbool, int, i64, f64 { value.str() }")
-            buf.append("\t\t[]byte { value.bytestr() }")
+            buf.append("\t\t[]u8 { value.bytestr() }")
             buf.append("\t\tvoidptr { ptr_str(value) }")
             buf.append("\t}")
             buf.append("}")
@@ -971,10 +971,10 @@ class VTranspiler(CLikeTranspiler):
             return str(val)
         elif isinstance(val, bytes):
             if not node.value:
-                return "[]byte{}"
+                return "[]u8{}"
 
             chars = []
-            chars.append(f"byte({hex(node.value[0])})")
+            chars.append(f"u8({hex(node.value[0])})")
             for c in node.value[1:]:
                 chars.append(hex(c))
             return f"[{', '.join(chars)}]"
@@ -985,10 +985,10 @@ class VTranspiler(CLikeTranspiler):
     def visit_Bytes(self, node: ast.Constant) -> str:
         bytes_val = self._get_bytes(node)
         if not bytes_val:
-            return "[]byte{}"
+            return "[]u8{}"
 
         chars: List[str] = []
-        chars.append(f"byte({hex(bytes_val[0])})")
+        chars.append(f"u8({hex(bytes_val[0])})")
         for c in bytes_val[1:]:
             chars.append(hex(c))
         return f"[{', '.join(chars)}]"

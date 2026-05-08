@@ -34,7 +34,7 @@ fn add4(x i64, y i64) i64 {
 	return x + y
 }
 
-fn add5(x byte, y byte) u16 {
+fn add5(x u8, y u8) u16 {
 	return x + y
 }
 

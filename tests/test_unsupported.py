@@ -159,6 +159,7 @@ EXPECTED_SUCCESSES = [
     "del.v",
     # "del.rs", not sure why this is now broken
     "default_init.dart",
+    "default_init.v",
     "dict_empty.d",
     "dict_get.kt",
     "dict_get_default.d",
