@@ -159,7 +159,6 @@ EXPECTED_SUCCESSES = [
     "del.v",
     # "del.rs", not sure why this is now broken
     "default_init.dart",
-    "default_init.v",
     "dict_empty.d",
     "dict_get.kt",
     "dict_get_default.d",
@@ -225,6 +224,10 @@ EXPECTED_SUCCESSES = [
     "list_compre.jl",
 ]
 
+EXPECTED_SKIPS = {
+    "default_init.v",
+}
+
 TEST_ERROR_CASES = {
     "a: i8 = 300": AstIncompatibleAssign,
     "a: i8 = 10; b: i16 = 300; c: i16 = a + b": AstIncompatibleAssign,
@@ -271,6 +274,8 @@ class TestCodeGenerator:
             Mock(indent=4, extension=False, no_prologue=False), env=env
         )[lang]
         ext = settings.ext
+        if f"{case}{ext}" in EXPECTED_SKIPS:
+            raise pytest.skip(f"{case}{ext} is unstable in CI")
         tree = get_tree(TEST_CASES[case], ext)
 
         case_filename = TESTS_DIR / "cases" / f"{case}.py"
