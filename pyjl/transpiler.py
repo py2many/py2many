@@ -219,7 +219,7 @@ class JuliaTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = self._get_bytes(node)
         bytes_str = bytes_str.replace(b'"', b'\\"')
         return 'b"' + bytes_str.decode("ascii", "backslashreplace") + '"'
 

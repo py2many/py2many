@@ -221,7 +221,7 @@ class ZigTranspiler(CLikeTranspiler):
         return "" + super().visit_Str(node) + ""
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = self._get_bytes(node)
         return f"{bytes_str}".replace(
             "'", '"'
         )  # replace single quote with double quote

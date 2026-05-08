@@ -462,9 +462,13 @@ class CLikeTranspiler(ast.NodeVisitor):
         return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
-        bytes_str = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_str = self._get_bytes(node)
         byte_array = ", ".join([hex(c) for c in bytes_str])
         return f"{{{byte_array}}}"
+
+    @staticmethod
+    def _get_bytes(node) -> bytes:
+        return node.value if isinstance(node, ast.Constant) else node.s
 
     def visit_arguments(self, node) -> Tuple[List[str], List[str]]:
         args = [self.visit(arg) for arg in node.args]

@@ -898,7 +898,7 @@ class VTranspiler(CLikeTranspiler):
         return str(val)
 
     def visit_Bytes(self, node: ast.Constant) -> str:
-        bytes_val = node.value if isinstance(node, ast.Constant) else node.s
+        bytes_val = self._get_bytes(node)
         if not bytes_val:
             return "[]byte{}"
 
