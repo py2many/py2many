@@ -305,8 +305,5 @@ class SelfTranspileTests(unittest.TestCase):
             successful,
             format_errors,
             failures,
-            # macOS V 0.5.1 and CI's Linux V 0.5.1 disagree on how many
-            # best-effort self-transpiled files reach the formatter.
-            # This check is intentionally a coarse regression guard.
-            expected_counts={(19, 0), (27, 0), (27, 2)},
+            expected_counts={(21, 0)},
         )
