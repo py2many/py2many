@@ -439,28 +439,26 @@ class GoTranspiler(CLikeTranspiler):
             if attr == "compile" and len(vargs) == 1:
                 return f"regexp.MustCompile({vargs[0]})"
 
-        string_methods = {
-            "lower": ('"strings"', lambda: f"strings.ToLower({value})"),
-            "upper": ('"strings"', lambda: f"strings.ToUpper({value})"),
-            "strip": ('"strings"', lambda: f"strings.TrimSpace({value})"),
-            "split": (
-                '"strings"',
-                lambda: (
-                    f"strings.Fields({value})"
-                    if not vargs
-                    else f"strings.Split({value}, {vargs[0]})"
-                ),
-            ),
-            "find": ('"strings"', lambda: f"strings.Index({value}, {vargs[0]})"),
-            "replace": (
-                '"strings"',
-                lambda: f"strings.ReplaceAll({value}, {vargs[0]}, {vargs[1]})",
-            ),
-        }
-        if attr in string_methods:
-            using, build = string_methods[attr]
-            self._usings.add(using)
-            return build()
+        if attr == "lower":
+            self._usings.add('"strings"')
+            return f"strings.ToLower({value})"
+        if attr == "upper":
+            self._usings.add('"strings"')
+            return f"strings.ToUpper({value})"
+        if attr == "strip":
+            self._usings.add('"strings"')
+            return f"strings.TrimSpace({value})"
+        if attr == "split":
+            self._usings.add('"strings"')
+            if not vargs:
+                return f"strings.Fields({value})"
+            return f"strings.Split({value}, {vargs[0]})"
+        if attr == "find":
+            self._usings.add('"strings"')
+            return f"strings.Index({value}, {vargs[0]})"
+        if attr == "replace":
+            self._usings.add('"strings"')
+            return f"strings.ReplaceAll({value}, {vargs[0]}, {vargs[1]})"
         if attr == "capitalize":
             self._usings.add('"strings"')
             return f"(strings.ToUpper({value}[:1]) + strings.ToLower({value}[1:]))"
@@ -842,6 +840,7 @@ class GoTranspiler(CLikeTranspiler):
                 message = self._try_raise_message(node)
                 self._usings.add('"fmt"')
                 lines.append(f'{handler.name} := fmt.Errorf("{message}")')
+                lines.append(f"_ = {handler.name}")
             lines.append(self.visit(handler))
         if node.finalbody:
             lines.append(self.comment("finally unsupported"))
@@ -965,13 +964,27 @@ class GoTranspiler(CLikeTranspiler):
                 maybe_tail = ""
                 if target_str.startswith("_") and target_str != "_":
                     maybe_tail = f"\n_ = {target_str}"
+                if self._is_re_compile_call(node.value):
+                    maybe_tail = f"\n_ = {target_str}"
                 if target_str == "_":
                     return f"{target_str} = {value}"
                 return f"var {target_str} {typename} = {value}{maybe_tail}"
 
             if is_global(node):
                 return f"var {target_str} = {value}"
+            if self._is_re_compile_call(node.value) and target_str != "_":
+                return f"{target_str} := {value}\n_ = {target_str}"
             return f"{target_str} := {value}"
+
+    @staticmethod
+    def _is_re_compile_call(node) -> bool:
+        return (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "compile"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "re"
+        )
 
     def _visit_starred_unpack(self, node, target) -> str:
         value = self.visit(node.value)
@@ -1034,7 +1047,7 @@ class GoTranspiler(CLikeTranspiler):
                 "parts := make([]string, len(items)); "
                 "for i, item := range items { "
                 "switch v := any(item).(type) { "
-                'case string: parts[i] = fmt.Sprintf("%q", v); '
+                'case string: parts[i] = fmt.Sprintf("\'%s\'", strings.ReplaceAll(v, "\'", "\\\\\'")); '
                 'default: parts[i] = fmt.Sprintf("%v", item) '
                 "} "
                 "}; "

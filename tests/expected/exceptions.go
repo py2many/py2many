@@ -10,6 +10,7 @@ func Show() {
 		// try unsupported
 
 		e := fmt.Errorf("foo")
+		_ = e
 		fmt.Printf("%v\n", "caught")
 		// finally unsupported
 
@@ -24,6 +25,7 @@ func Show() {
 		// try unsupported
 
 		e := fmt.Errorf("foo")
+		_ = e
 		if !(strings.Contains(fmt.Sprintf("%v", e), "foo")) {
 			panic("assert")
 		}
