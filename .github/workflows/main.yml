@@ -51,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.image.outputs.image }}
+      desktop_image: ${{ steps.image.outputs.desktop_image }}
 
     steps:
       - uses: actions/checkout@v6
@@ -61,8 +62,17 @@ jobs:
         run: |
           image_hash="$(git ls-files docker/Dockerfile docker/entrypoint.sh scripts | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
           focus="${FOCUS:-all}"
-          image="ghcr.io/${GITHUB_REPOSITORY,,}-ci:${focus}-${image_hash:0:20}"
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}-ci"
+          if [ "${focus}" = "all" ]; then
+            image="${image_base}:all-${image_hash:0:20}"
+            desktop_image="${image_base}:latest"
+          else
+            image="${image_base}-${focus}:${image_hash:0:20}"
+            desktop_image="${image_base}-${focus}:latest"
+          fi
           echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "desktop_image=${desktop_image}" >> "$GITHUB_OUTPUT"
+          echo "Developer image: \`${desktop_image}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log in to GHCR
         shell: bash
@@ -95,6 +105,7 @@ jobs:
             --build-arg FOCUS="${FOCUS}" \
             --file docker/Dockerfile \
             --tag "${{ steps.image.outputs.image }}" \
+            --tag "${{ steps.image.outputs.desktop_image }}" \
             --push \
             .
 

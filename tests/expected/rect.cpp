@@ -1,7 +1,7 @@
 #include <cassert>   // NOLINT(build/include_order)
 #include <cstdint>   // NOLINT(build/include_order)
 #include <iostream>  // NOLINT(build/include_order)
-/* This file implements a rectangle class  */
+/* This file implements a rectangle class */
 
 class Rectangle {
  public:

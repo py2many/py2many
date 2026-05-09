@@ -303,6 +303,8 @@ class TestCodeGenerator:
                 case_output = _relative_to_cwd(case_output)
             proc = run([*settings.formatter, case_output], env=env, capture_output=True)
             if proc.returncode and not self.SHOW_ERRORS:
+                if not expect_success:
+                    return
                 raise pytest.skip(
                     f"Error: Could not reformat using {settings.formatter}:\n{proc.stdout}{proc.stderr}"
                 )
@@ -317,6 +319,8 @@ class TestCodeGenerator:
                 proc = run(cmd, env=env, capture_output=True)
 
                 if proc.returncode and not expect_success and not self.SHOW_ERRORS:
+                    return
+                if proc.returncode and not self.SHOW_ERRORS:
                     raise pytest.skip(
                         f"{case}{ext} doesnt compile:\n{proc.stdout}{proc.stderr}"
                     )
@@ -329,6 +333,8 @@ class TestCodeGenerator:
                 proc = run([*invoker, case_output], env=env, capture_output=True)
 
                 if proc.returncode and not expect_success and not self.SHOW_ERRORS:
+                    return
+                if proc.returncode and not self.SHOW_ERRORS:
                     raise pytest.skip(
                         f"Execution of {case}{ext} failed:\n{proc.stdout}{proc.stderr}"
                     )
@@ -341,6 +347,8 @@ class TestCodeGenerator:
             elif exe.exists() and os.access(exe, os.X_OK):
                 proc = run([exe], env=env, capture_output=True)
                 if proc.returncode and not expect_success and not self.SHOW_ERRORS:
+                    return
+                if proc.returncode and not self.SHOW_ERRORS:
                     raise pytest.skip(
                         f"Invocation error {proc.returncode}:\n{proc.stdout}{proc.stderr}"
                     )
