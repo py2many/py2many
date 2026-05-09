@@ -27,7 +27,7 @@ func MainFunc() {
 		for i, item := range items {
 			switch v := any(item).(type) {
 			case string:
-				parts[i] = fmt.Sprintf("%q", v)
+				parts[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "\\'"))
 			default:
 				parts[i] = fmt.Sprintf("%v", item)
 			}
@@ -44,7 +44,7 @@ func MainFunc() {
 		for i, item := range items {
 			switch v := any(item).(type) {
 			case string:
-				parts[i] = fmt.Sprintf("%q", v)
+				parts[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "\\'"))
 			default:
 				parts[i] = fmt.Sprintf("%v", item)
 			}
@@ -66,7 +66,7 @@ func MainFunc() {
 		for i, item := range items {
 			switch v := any(item).(type) {
 			case string:
-				parts[i] = fmt.Sprintf("%q", v)
+				parts[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "\\'"))
 			default:
 				parts[i] = fmt.Sprintf("%v", item)
 			}

@@ -22,6 +22,7 @@ func TestReMethods() {
 	var split_res []string = regexp.MustCompile("\\s+").Split(text, -1)
 	fmt.Printf("%v\n", len(split_res))
 	pattern := regexp.MustCompile("\\d+")
+	_ = pattern
 	fmt.Printf("%v\n", "Pattern compiled")
 }
 
