@@ -1,0 +1,291 @@
+name: Hosted Platform Matrix
+
+# Controls when the action will run.
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      focus:
+        type: choice
+        description: 'Which langauges to test'
+        default: ''
+        options:
+        - cpp
+        - dart
+        - go
+        - julia
+        - kotlin
+        - nim
+        - smt
+        - vlang
+        - dlang
+        - mojo
+        - zig
+        - ''
+      os:
+        type: choice
+        description: 'Which OSes to test'
+        default: 'ubuntu-24.04'
+        options:
+        - ubuntu-22.04
+        - ubuntu-24.04
+        - macos-12
+        - windows-2022
+      python_version:
+        description: 'Which python versions to test'
+        default: '["3.12"]'
+
+# Cancel previous jobs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOCUS: ${{ github.event.inputs.focus }}
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        python-version: ${{ fromJSON(github.event.inputs.python_version)}}
+    runs-on: ${{ github.event.inputs.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+        with:
+          distribution: adopt
+          java-version: 15
+
+      - name: Add missing dependencies on act Medium runner
+        if: ${{ env.ACT }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+              clang-format \
+              powershell \
+            && true
+
+      - uses: subosito/flutter-action@v2
+        if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
+        with:
+          flutter-version: '3.22.3'
+
+      - uses: julia-actions/setup-julia@v3
+        if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
+
+      - uses: fwilhe2/setup-kotlin@main
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+      - name: Set KOTLIN_HOME
+        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+        shell: bash
+        run: |
+          echo KOTLIN_HOME=$(kotlin -e 'System.getProperty("kotlin.home")') >> $GITHUB_ENV
+
+      - uses: jiro4989/setup-nim-action@v2
+        if: ${{ !env.FOCUS || env.FOCUS == 'nim' }}
+      - uses: actions/setup-go@v6
+        if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
+        # Needed as https://github.com/actions/setup-go/pull/89 is not merged
+        with:
+          go-version: '1.21.5'
+      - uses: fabasoad/setup-mojo-action@v3
+        if: ${{ !env.FOCUS || env.FOCUS == 'mojo' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: mlugg/setup-zig@v2
+        if: ${{ !env.FOCUS || env.FOCUS == 'zig' }}
+
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
+
+      - name: Install go packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
+        shell: bash
+        run: |
+          scripts/go-setup.sh
+
+      - name: Install zig packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'zig' }}
+        shell: bash
+        run: |
+          scripts/zig-setup.sh
+
+      - name: Install SMT packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'smt' }}
+        shell: bash
+        run: |
+          echo "$(pwd)/scripts/" >> $GITHUB_PATH
+
+      - name: Install tox
+        run: |
+          pip3 --version
+          pip3 install setuptools tox
+
+      - name: Install Julia packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'julia' }}
+        shell: bash
+        run: |
+          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
+          julia -e 'using Pkg; Pkg.add("SuperEnum")'
+          JULIA_FORMATTER_ROOT=$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')
+          echo "${JULIA_FORMATTER_ROOT}/bin/" >> $GITHUB_PATH
+
+      - name: Install dependencies for ${{ runner.os }}.
+        shell: bash
+        run: |
+          set -ex
+          if [ "$RUNNER_OS" == "Linux" ]; then
+              sudo apt-get install --yes \
+                  astyle \
+                  catch2 \
+                  clang-14 \
+                  libc++-14-dev \
+                  libc++abi-14-dev \
+                  libgc-dev \
+                  z3 \
+                && true
+              pip3 install conan
+              echo "CXX=clang++-14" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+              brew install \
+                  astyle \
+                  catch2 \
+                  clang-format \
+                  conan \
+                  z3 \
+                && true
+              # brew's vlang 0.2.4 is too old, and has no @head
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+              choco install \
+                  astyle \
+                  conan \
+                  curl \
+                  llvm \
+                  z3 \
+                  zip \
+                && true
+              echo "C:/Program Files/Conan/conan/" >> $GITHUB_PATH
+          fi
+          echo "WHICH_V=$(which v 2>/dev/null)" >> $GITHUB_ENV
+
+      - name: Install C++ packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'cpp' }}
+        shell: bash
+        run: |
+          scripts/cpp-setup.sh
+
+      - name: Install V
+        if: ${{ !env.WHICH_V && (!env.FOCUS || env.FOCUS == 'vlang') }}
+        shell: bash
+        run: |
+          set -ex
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) v_asset="v_linux.zip" ;;
+            Linux-ARM64) v_asset="v_linux_arm64.zip" ;;
+            macOS-X64) v_asset="v_macos_x86_64.zip" ;;
+            macOS-ARM64) v_asset="v_macos_arm64.zip" ;;
+            Windows-*) v_asset="v_windows.zip" ;;
+            *) echo "Unsupported V release target: ${RUNNER_OS}-${RUNNER_ARCH}" >&2; exit 1 ;;
+          esac
+          curl -fsSL -o "$RUNNER_TEMP/v.zip" "https://github.com/vlang/v/releases/download/0.5.1/${v_asset}"
+          unzip -q "$RUNNER_TEMP/v.zip" -d "$RUNNER_TEMP"
+          v_bin="$RUNNER_TEMP/v/v"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            v_bin="$RUNNER_TEMP/v/v.exe"
+          fi
+          echo "$RUNNER_TEMP/v" >> "$GITHUB_PATH"
+          "$v_bin" version
+
+      - name: Install V packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
+        shell: bash
+        run: |
+          v install div72.vexc
+
+      - name: Install Dlang
+        if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
+        uses: dlang-community/setup-dlang@v2
+        with:
+          token: ${{ github.token }}
+
+      - name: Install D Packages
+        if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
+        shell: bash
+        run: |
+          mkdir -p tests/build && cd tests/build
+          dub init -n .
+          dub add dfmt
+          dub fetch dfmt --cache=local
+
+      - name: Install dart dependencies
+        if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
+        shell: bash
+        run: |
+          scripts/dart-setup.sh
+
+      - name: Install rust nightly toolchain
+        if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2024-01-01
+          components: clippy,rustfmt
+
+      - name: Run tox
+        shell: bash
+        run: |
+          set -ex
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            export PATH="$PATH:/C/Program Files/LLVM/bin:/tmp/v"
+          fi
+          PYTHON_VERSION="${{ matrix.python-version }}"
+          export TOXENV="py${PYTHON_VERSION//.}"
+          if [ "$FOCUS" ]; then
+            export PYTEST_ADDOPTS="-k $FOCUS"
+            tox -v -- --cov-fail-under=0
+          else
+            tox -v
+          fi
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "tests/current-results.xml"
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-xml-results
+          path: tests/current-results.xml
+
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install linters
+        run: pip install black==24.10.0 cpplint isort flake8
+
+      - name: Remove expected .py files
+        run: rm tests/expected/*.py tests/dir_cases/test1-*-expected/*.py
+
+      - name: Run isort
+        run: isort --check --diff */ *.py
+
+      - name: Run black
+        run: black --check */ *.py
+
+      - name: Remove test case .py files
+        run: rm tests/cases/*.py
+
+      - name: Run flake8
+        run: flake8 .
+
+      - name: Run cpplint
+        run: cpplint --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference tests/expected/*.cpp
