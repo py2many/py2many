@@ -8,6 +8,7 @@ from py2many.ast_helpers import create_ast_node
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstNotImplementedError
+from py2many.stubs import STDLIB_MODULE_NAMES
 from py2many.tracer import defined_before, is_list
 
 from .clike import CLikeTranspiler
@@ -17,6 +18,7 @@ from .plugins import (
     CLASS_DISPATCH_TABLE,
     DISPATCH_MAP,
     FUNC_DISPATCH_TABLE,
+    MODULE_DISPATCH_TABLE,
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
@@ -294,12 +296,25 @@ class VTranspiler(CLikeTranspiler):
         return f"// {text}\n"
 
     def _import(self, name: str) -> str:
-        # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
+        if name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
+            return ""
+        name = name.replace("/", ".")
+        self._usings.add(name)
         return ""
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        # Suppress all imports for now until a reliable way to differentiate submodule imports is used.
-        return ""  # f"import {module_name} {{{' '.join(names)}}}"
+        if module_name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
+            return ""
+        if len(names) == 1:
+            name = names[0]
+            lookup = f"{module_name}.{name}"
+            if lookup in MODULE_DISPATCH_TABLE:
+                v_module_name, v_name = MODULE_DISPATCH_TABLE[lookup]
+                self._usings.add(f"{v_module_name} {{ {v_name} }}")
+                return ""
+        names = " ".join(names)
+        self._usings.add(f"{module_name} {{ {names} }}")
+        return ""
 
     def visit_arg(self, node) -> Tuple[Optional[str], str]:
         id = get_id(node)
