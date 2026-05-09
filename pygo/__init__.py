@@ -12,6 +12,7 @@ from .transpiler import (
     GoPropagateTypeAnnotation,
     GoTranspiler,
     GoVisibilityRewriter,
+    GoWalrusRewriter,
 )
 
 PY2MANY_DIR = Path(py2many.__file__).parent
@@ -33,7 +34,12 @@ def settings(args, env=os.environ):
         "Go",
         ["gofmt", "-w"],
         None,
-        [GoNoneCompareRewriter(), GoVisibilityRewriter(), GoIfExpRewriter()],
+        [
+            GoNoneCompareRewriter(),
+            GoVisibilityRewriter(),
+            GoIfExpRewriter(),
+            GoWalrusRewriter(),
+        ],
         [infer_go_types],
         [GoMethodCallRewriter(), GoPropagateTypeAnnotation()],
         linter=(

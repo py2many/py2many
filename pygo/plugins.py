@@ -21,11 +21,13 @@ class GoTranspilerPlugins:
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
+        printed_args = []
         for n in node.args:
             placeholders.append("%v")
+            printed_args.append(self._print_value(n))
         self._usings.add('"fmt"')
         placeholders_str = " ".join(placeholders)
-        vargs_str = ", ".join(vargs)
+        vargs_str = ", ".join(printed_args)
         return f'fmt.Printf("{placeholders_str}\\n",{vargs_str})'
 
     def visit_min_max(self, node, vargs, is_max: bool) -> str:
@@ -52,13 +54,16 @@ class GoTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
-    "str": lambda n, vargs: f"String({vargs[0]})" if vargs else '""',
+    "str": lambda n, vargs: f'fmt.Sprintf("%v", {vargs[0]})' if vargs else '""',
     "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
     "bool": lambda n, vargs: f"({vargs[0]} != 0)" if vargs else "false",
     "float": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="float64"),
+    "complex": functools.partial(GoTranspilerPlugins.visit_cast, cast_to="complex128"),
 }
 
-SMALL_USINGS_MAP: Dict[str, str] = {}
+SMALL_USINGS_MAP: Dict[str, str] = {
+    "str": '"fmt"',
+}
 
 DISPATCH_MAP = {
     "max": functools.partial(GoTranspilerPlugins.visit_min_max, is_max=True),
