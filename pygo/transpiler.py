@@ -121,6 +121,90 @@ class GoIfExpRewriter(ast.NodeTransformer):
         return node
 
 
+class GoWalrusRewriter(ast.NodeTransformer):
+    def _has_walrus(self, node):
+        return any(isinstance(n, ast.NamedExpr) for n in ast.walk(node))
+
+    def visit_Module(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node):
+        node.body = self._expand_body(node.body)
+        node.orelse = self._expand_body(node.orelse)
+        self.generic_visit(node)
+        return node
+
+    def visit_While(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_For(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def _expand_body(self, body):
+        if not body:
+            return body
+        new_body = []
+        for stmt in body:
+            if not self._has_walrus(stmt):
+                new_body.append(stmt)
+                continue
+
+            assignments = []
+
+            class WalrusExtractor(ast.NodeTransformer):
+                def visit_NamedExpr(self, named_expr):
+                    named_expr.value = self.visit(named_expr.value)
+                    assignments.append(
+                        ast.Assign(
+                            targets=[named_expr.target],
+                            value=named_expr.value,
+                            lineno=named_expr.lineno,
+                            col_offset=getattr(named_expr, "col_offset", 0),
+                        )
+                    )
+                    return named_expr.target
+
+            extractor = WalrusExtractor()
+
+            if isinstance(stmt, ast.While) and self._has_walrus(stmt.test):
+                new_test = extractor.visit(stmt.test)
+                break_if = ast.If(
+                    test=ast.UnaryOp(op=ast.Not(), operand=new_test),
+                    body=[ast.Break()],
+                    orelse=[],
+                    lineno=stmt.lineno,
+                    col_offset=getattr(stmt, "col_offset", 0),
+                )
+                stmt.test = ast.Constant(value=True, lineno=stmt.lineno)
+                stmt.body = assignments + [break_if] + stmt.body
+                ast.fix_missing_locations(stmt)
+                new_body.append(stmt)
+            else:
+                if isinstance(stmt, ast.If):
+                    stmt.test = extractor.visit(stmt.test)
+                elif isinstance(stmt, ast.For):
+                    stmt.iter = extractor.visit(stmt.iter)
+                elif hasattr(stmt, "value"):
+                    stmt.value = extractor.visit(stmt.value)
+                elif hasattr(stmt, "test"):
+                    stmt.test = extractor.visit(stmt.test)
+                ast.fix_missing_locations(stmt)
+                new_body.extend(assignments)
+                new_body.append(stmt)
+        return new_body
+
+
 class GoTranspiler(CLikeTranspiler):
     NAME = "go"
 
@@ -178,8 +262,12 @@ class GoTranspiler(CLikeTranspiler):
                 continue
 
             if typename == "T":
-                typename = f"T{index} any"
-                typedecls.append(typename)
+                if is_class_method:
+                    typename = "interface{}"
+                else:
+                    type_param = f"T{index}"
+                    typename = type_param
+                    typedecls.append(f"{type_param} any")
                 index += 1
             args_list.append(f"{arg} {typename}")
 
@@ -234,6 +322,18 @@ class GoTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(node)
         return (typename, id)
 
+    def visit_arguments(self, node):
+        args = [self.visit(arg) for arg in node.args]
+        if node.vararg:
+            typename, arg = self.visit(node.vararg)
+            if typename == "T":
+                typename = "interface{}"
+            args.append((f"...{typename}", arg))
+        if args == []:
+            return [], []
+        typenames, args = map(list, zip(*args))
+        return typenames, args
+
     def visit_Lambda(self, node) -> str:
         typenames, args = self.visit(node.args)
         # HACK: to pass unit tests. TODO: infer types
@@ -282,6 +382,11 @@ class GoTranspiler(CLikeTranspiler):
         return f"{fname}{{{args}}}"
 
     def visit_Call(self, node) -> str:
+        if isinstance(node.func, ast.Attribute):
+            ret = self._dispatch_attribute_call(node)
+            if ret is not None:
+                return ret
+
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
 
@@ -303,6 +408,81 @@ class GoTranspiler(CLikeTranspiler):
         else:
             args = ""
         return f"{fname}({args})"
+
+    def _dispatch_attribute_call(self, node) -> str:
+        attr = node.func.attr
+        value = self.visit(node.func.value)
+        vargs = [self.visit(a) for a in node.args]
+
+        if value == '""' and attr == "join" and len(vargs) == 1:
+            self._usings.add('"strings"')
+            return f'strings.Join({vargs[0]}, "")'
+
+        if attr == "join" and len(vargs) == 1:
+            self._usings.add('"strings"')
+            return f"strings.Join({vargs[0]}, {value})"
+
+        if value == "re":
+            self._usings.add('"regexp"')
+            if attr == "search" and len(vargs) == 2:
+                return (
+                    f"regexp.MustCompile({vargs[0]}).FindStringIndex({vargs[1]}) != nil"
+                )
+            if attr == "match" and len(vargs) == 2:
+                return f'regexp.MustCompile("^" + {vargs[0]}).FindStringIndex({vargs[1]}) != nil'
+            if attr == "findall" and len(vargs) == 2:
+                return f"regexp.MustCompile({vargs[0]}).FindAllString({vargs[1]}, -1)"
+            if attr == "sub" and len(vargs) == 3:
+                return f"regexp.MustCompile({vargs[0]}).ReplaceAllString({vargs[2]}, {vargs[1]})"
+            if attr == "split" and len(vargs) == 2:
+                return f"regexp.MustCompile({vargs[0]}).Split({vargs[1]}, -1)"
+            if attr == "compile" and len(vargs) == 1:
+                return f"regexp.MustCompile({vargs[0]})"
+
+        string_methods = {
+            "lower": ('"strings"', lambda: f"strings.ToLower({value})"),
+            "upper": ('"strings"', lambda: f"strings.ToUpper({value})"),
+            "strip": ('"strings"', lambda: f"strings.TrimSpace({value})"),
+            "split": (
+                '"strings"',
+                lambda: (
+                    f"strings.Fields({value})"
+                    if not vargs
+                    else f"strings.Split({value}, {vargs[0]})"
+                ),
+            ),
+            "find": ('"strings"', lambda: f"strings.Index({value}, {vargs[0]})"),
+            "replace": (
+                '"strings"',
+                lambda: f"strings.ReplaceAll({value}, {vargs[0]}, {vargs[1]})",
+            ),
+        }
+        if attr in string_methods:
+            using, build = string_methods[attr]
+            self._usings.add(using)
+            return build()
+        if attr == "capitalize":
+            self._usings.add('"strings"')
+            return f"(strings.ToUpper({value}[:1]) + strings.ToLower({value}[1:]))"
+        if attr == "lstrip":
+            self._usings.add('"strings"')
+            self._usings.add('"unicode"')
+            return f"strings.TrimLeftFunc({value}, unicode.IsSpace)"
+        if attr == "rstrip":
+            self._usings.add('"strings"')
+            self._usings.add('"unicode"')
+            return f"strings.TrimRightFunc({value}, unicode.IsSpace)"
+        if attr == "isdigit":
+            self._usings.add('"regexp"')
+            return f"regexp.MustCompile(`^\\d+$`).MatchString({value})"
+        if attr == "isalpha":
+            self._usings.add('"regexp"')
+            return f"regexp.MustCompile(`^[A-Za-z]+$`).MatchString({value})"
+        if attr == "isspace":
+            self._usings.add('"regexp"')
+            return f"regexp.MustCompile(`^\\s+$`).MatchString({value})"
+
+        return None
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -327,13 +507,23 @@ class GoTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
-        return "" + super().visit_Str(node) + ""
+        node_str = node.value
+        node_str = node_str.replace("\\", "\\\\")
+        node_str = node_str.replace('"', '\\"')
+        node_str = node_str.replace("\n", "\\n")
+        node_str = node_str.replace("\r", "\\r")
+        node_str = node_str.replace("\t", "\\t")
+        return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
         bytes_str = self._get_bytes(node)
-        return f"{bytes_str}".replace(
-            "'", '"'
-        )  # replace single quote with double quote
+        byte_array = ", ".join([hex(c) for c in bytes_str])
+        return f"[]byte{{{byte_array}}}"
+
+    def visit_Constant(self, node) -> str:
+        if isinstance(node.value, complex):
+            return f"complex({repr(float(node.value.real))}, {repr(float(node.value.imag))})"
+        return super().visit_Constant(node)
 
     def _visit_container_compare(self, node) -> str:
         left = self.visit(node.left)
@@ -344,6 +534,19 @@ class GoTranspiler(CLikeTranspiler):
         return super().visit_Compare(node)
 
     def visit_Compare(self, node) -> str:
+        left_type = get_inferred_go_type(node.left)
+        right_type = get_inferred_go_type(node.comparators[0])
+        if left_type == "[]uint8" or right_type == "[]uint8":
+            self._usings.add('"bytes"')
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            op = self.visit(node.ops[0])
+            cmp = f"bytes.Equal({left}, {right})"
+            if op == "!=":
+                return f"!{cmp}"
+            if op == "==":
+                return cmp
+
         left = node.left
         right = node.comparators[0]
         if hasattr(left, "annotation") or hasattr(right, "annotation"):
@@ -427,11 +630,9 @@ class GoTranspiler(CLikeTranspiler):
                     return ret
 
         fields = []
-        index = 0
         for declaration, typename in declarations.items():
             if typename is None:
-                typename = f"ST{index}"
-                index += 1
+                typename = "interface{}"
             fields.append(f"{declaration} {typename}")
 
         for b in node.body:
@@ -483,6 +684,9 @@ class GoTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "string", members)
 
     def _import(self, name: str) -> str:
+        if name == "re":
+            self._usings.add('"regexp"')
+            return ""
         return f'import ("{name}")'
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
@@ -502,9 +706,40 @@ class GoTranspiler(CLikeTranspiler):
         element_type = self._default_type
         if hasattr(node, "container_type"):
             _, element_type = node.container_type
+        if element_type is None and node.elts:
+            probe = (
+                node.elts[0].value
+                if isinstance(node.elts[0], ast.Starred)
+                else node.elts[0]
+            )
+            element_type = get_inferred_go_type(probe)
+        if any(isinstance(e, ast.Starred) for e in node.elts):
+            return self._visit_list_concat(node, element_type)
         elements = [self.visit(e) for e in node.elts]
         elements_str = ", ".join(elements)
         return f"[]{element_type}{{{elements_str}}}"
+
+    def _visit_list_concat(self, node, element_type) -> str:
+        parts = []
+        current = []
+        for elt in node.elts:
+            if isinstance(elt, ast.Starred):
+                if current:
+                    parts.append(f"[]{element_type}{{{', '.join(current)}}}")
+                    current = []
+                parts.append(self.visit(elt.value))
+            else:
+                current.append(self.visit(elt))
+        if current:
+            parts.append(f"[]{element_type}{{{', '.join(current)}}}")
+
+        if not parts:
+            return f"[]{element_type}{{}}"
+
+        result = parts[0]
+        for part in parts[1:]:
+            result = f"append({result}, {part}...)"
+        return result
 
     def visit_Set(self, node) -> str:
         _ = self._typename_from_annotation(node)
@@ -589,14 +824,72 @@ class GoTranspiler(CLikeTranspiler):
             return elts
         return f"{elts}"
 
+    def visit_Starred(self, node) -> str:
+        return f"{self.visit(node.value)}..."
+
     def visit_Assert(self, node) -> str:
         condition = self.visit(node.test)
         return f'if !({condition}) {{ panic("assert") }}'
+
+    def visit_ExceptHandler(self, node) -> str:
+        return "\n".join(self.visit(child) for child in node.body)
+
+    def visit_Try(self, node) -> str:
+        lines = ["{", self.comment("try unsupported")]
+        if node.handlers:
+            handler = node.handlers[0]
+            if handler.name:
+                message = self._try_raise_message(node)
+                self._usings.add('"fmt"')
+                lines.append(f'{handler.name} := fmt.Errorf("{message}")')
+            lines.append(self.visit(handler))
+        if node.finalbody:
+            lines.append(self.comment("finally unsupported"))
+            lines.extend(self.visit(child) for child in node.finalbody)
+        lines.append("}")
+        return "\n".join(line for line in lines if line is not None)
+
+    def visit_Raise(self, node) -> str:
+        if node.exc is not None:
+            return f"panic({self.visit(node.exc)})"
+        return 'panic("raise")'
+
+    @staticmethod
+    def _try_raise_message(node) -> str:
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Raise):
+                continue
+            exc = stmt.exc
+            if (
+                isinstance(exc, ast.Call)
+                and exc.args
+                and isinstance(exc.args[0], ast.Constant)
+                and isinstance(exc.args[0].value, str)
+            ):
+                return exc.args[0].value.replace("\\", "\\\\").replace('"', '\\"')
+        return "exception"
 
     def visit_AnnAssign(self, node) -> str:
         target = self.visit(node.target)
         type_str = self._typename_from_annotation(node)
         val = self.visit(node.value) if node.value is not None else None
+        if val is None:
+            if type_str == "bool":
+                val = "false"
+            elif type_str in {"int", "int8", "int16", "int32", "int64"}:
+                val = "0"
+            elif type_str in {"uint", "uint8", "uint16", "uint32", "uint64"}:
+                val = "0"
+            elif type_str in {"float32", "float64"}:
+                val = "0.0"
+            elif type_str == "string":
+                val = '""'
+            elif type_str and type_str.startswith("[]"):
+                val = f"{type_str}{{}}"
+            elif type_str and type_str.startswith("map["):
+                val = f"{type_str}{{}}"
+            else:
+                val = "nil"
         if type_str is not self._default_type:
             return f"var {target} {type_str} = {val}"
         else:
@@ -618,6 +911,11 @@ class GoTranspiler(CLikeTranspiler):
         return f"{cast_to}({value_str})"
 
     def _visit_AssignOne(self, node, target) -> str:
+        if isinstance(target, (ast.Tuple, ast.List)) and any(
+            isinstance(e, ast.Starred) for e in target.elts
+        ):
+            return self._visit_starred_unpack(node, target)
+
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
@@ -638,6 +936,12 @@ class GoTranspiler(CLikeTranspiler):
             return f"{target} = {value}"
 
         typename = self._typename_from_annotation(target)
+        if typename is None and self._is_string_slice_expr(node.value):
+            typename = "[]string"
+            target.annotation = ast.Subscript(
+                value=ast.Name(id="List"),
+                slice=ast.Name(id="str"),
+            )
         needs_cast = self._needs_cast(target, node.value)
         target_str = self.visit(target)
         value = self.visit(node.value)
@@ -669,10 +973,105 @@ class GoTranspiler(CLikeTranspiler):
                 return f"var {target_str} = {value}"
             return f"{target_str} := {value}"
 
+    def _visit_starred_unpack(self, node, target) -> str:
+        value = self.visit(node.value)
+        tmp = f"__tmp{node.lineno}_{getattr(node, 'col_offset', 0)}"
+        lines = [f"{tmp} := {value}"]
+        starred_idx = next(
+            i for i, elt in enumerate(target.elts) if isinstance(elt, ast.Starred)
+        )
+        for i, elt in enumerate(target.elts):
+            target_elt = elt.value if isinstance(elt, ast.Starred) else elt
+            target_str = self.visit(target_elt)
+            if i < starred_idx:
+                val = f"{tmp}[{i}]"
+            elif i == starred_idx:
+                tail_count = len(target.elts) - i - 1
+                upper = f"len({tmp}) - {tail_count}" if tail_count else f"len({tmp})"
+                val = f"{tmp}[{i}:{upper}]"
+            else:
+                from_end = len(target.elts) - i
+                val = f"{tmp}[len({tmp})-{from_end}]"
+
+            definition = node.scopes.parent_scopes.find(get_id(target_elt))
+            if definition is None:
+                definition = node.scopes.find(get_id(target_elt))
+            if (
+                definition is not None
+                and isinstance(target_elt, ast.Name)
+                and defined_before(definition, node)
+            ):
+                lines.append(f"{target_str} = {val}")
+                continue
+
+            typename = self._typename_from_annotation(target_elt)
+            if typename is not None:
+                lines.append(f"var {target_str} {typename} = {val}")
+                if target_str != "_":
+                    lines.append(f"_ = {target_str}")
+            else:
+                lines.append(f"{target_str} := {val}")
+                if target_str != "_":
+                    lines.append(f"_ = {target_str}")
+        return "\n".join(lines)
+
     def visit_Print(self, node) -> str:
         buf = []
         self._usings.add('"fmt"')
         for n in node.values:
-            value = self.visit(n)
+            value = self._print_value(n)
             buf.append(f'fmt.Printf("%v\n",{value})')
         return "\n".join(buf)
+
+    def _print_value(self, node) -> str:
+        value = self.visit(node)
+        typename = self._print_typename(node)
+        if typename and typename.startswith("[]"):
+            self._usings.add('"strings"')
+            return (
+                "func() string { "
+                f"items := {value}; "
+                "parts := make([]string, len(items)); "
+                "for i, item := range items { "
+                "switch v := any(item).(type) { "
+                'case string: parts[i] = fmt.Sprintf("%q", v); '
+                'default: parts[i] = fmt.Sprintf("%v", item) '
+                "} "
+                "}; "
+                'return "[" + strings.Join(parts, ", ") + "]" '
+                "}()"
+            )
+        return value
+
+    def _print_typename(self, node) -> str:
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+            if isinstance(node.left, ast.List):
+                element_type = get_inferred_go_type(node.left.elts[0])
+                return f"[]{element_type}"
+            if isinstance(node.right, ast.List):
+                element_type = get_inferred_go_type(node.right.elts[0])
+                return f"[]{element_type}"
+        typename = get_inferred_go_type(node)
+        if typename:
+            return typename
+        if isinstance(node, ast.Name) and hasattr(node, "scopes"):
+            definition = node.scopes.find(node.id)
+            if definition is not None and hasattr(definition, "annotation"):
+                try:
+                    return self._typename_from_annotation(definition)
+                except AstCouldNotInfer:
+                    return None
+        return None
+
+    @staticmethod
+    def _is_string_slice_expr(node) -> bool:
+        if not isinstance(node, ast.Call):
+            return False
+        if isinstance(node.func, ast.Name) and node.func.id in {"list", "list_"}:
+            return True
+        if isinstance(node.func, ast.Attribute) and node.func.attr in {
+            "split",
+            "findall",
+        }:
+            return True
+        return False

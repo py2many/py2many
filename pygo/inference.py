@@ -17,6 +17,7 @@ GO_TYPE_MAP = {
     bool: "bool",
     int: "int",
     float: "float64",
+    complex: "complex128",
     bytes: "[]uint8",
     str: "string",
     c_int8: "int8",
@@ -29,7 +30,15 @@ GO_TYPE_MAP = {
     c_uint64: "uint64",
 }
 
-GO_CONTAINER_TYPE_MAP = {"List": "[]", "Dict": None, "Set": None, "Optional": "nil"}
+GO_CONTAINER_TYPE_MAP = {
+    "List": "[]",
+    "list": "[]",
+    "Dict": None,
+    "dict": None,
+    "Set": None,
+    "set": None,
+    "Optional": "nil",
+}
 
 GO_WIDTH_RANK = {
     "bool": 0,

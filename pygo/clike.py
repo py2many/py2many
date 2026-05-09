@@ -9,6 +9,7 @@ go_type_map = {
     "bool": "bool",
     "int": "int",
     "float": "float64",
+    "complex": "complex128",
     "bytes": "[]uint8",
     "str": "string",
     "c_int8": "int8",
@@ -81,9 +82,35 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
             self._usings.add('"math"')
-            return "math.Pow({}, {})".format(
-                self.visit(node.left), self.visit(node.right)
-            )
+            left = self.visit(node.left)
+            right = self.visit(node.right)
+            pow_call = f"math.Pow(float64({left}), float64({right}))"
+            if (
+                isinstance(node.left, ast.Constant)
+                and isinstance(node.left.value, int)
+                and isinstance(node.right, ast.Constant)
+                and isinstance(node.right.value, int)
+            ):
+                return f"int({pow_call})"
+            return pow_call
+
+        if isinstance(node.op, ast.Mult):
+            if isinstance(node.left, ast.Constant) and isinstance(node.left.value, str):
+                self._usings.add('"strings"')
+                return (
+                    f"strings.Repeat({self.visit(node.left)}, {self.visit(node.right)})"
+                )
+            if isinstance(node.right, ast.Constant) and isinstance(
+                node.right.value, str
+            ):
+                self._usings.add('"strings"')
+                return (
+                    f"strings.Repeat({self.visit(node.right)}, {self.visit(node.left)})"
+                )
+            if isinstance(node.left, ast.List):
+                return self._visit_slice_repeat(node.left, node.right)
+            if isinstance(node.right, ast.List):
+                return self._visit_slice_repeat(node.right, node.left)
 
         left = self.visit(node.left)
         op = self.visit(node.op)
@@ -106,6 +133,25 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return f"({left}{op}{right})"
         else:
             return f"({left} {op} {right})"
+
+    def _visit_slice_repeat(self, list_node, count_node) -> str:
+        element_type = self._default_type
+        if hasattr(list_node, "container_type"):
+            _, element_type = list_node.container_type
+        if element_type is None and list_node.elts:
+            from .inference import get_inferred_go_type
+
+            element_type = get_inferred_go_type(list_node.elts[0])
+        elements = ", ".join(self.visit(e) for e in list_node.elts)
+        list_expr = f"[]{element_type}{{{elements}}}"
+        count = self.visit(count_node)
+        return (
+            f"func() []{element_type} {{ "
+            f"var out []{element_type}; "
+            f"for i := 0; i < {count}; i++ {{ out = append(out, {list_expr}...) }}; "
+            f"return out "
+            f"}}()"
+        )
 
     def visit_In(self, node) -> str:
         self._usings.add('"github.com/electrious/refutil"')
