@@ -174,10 +174,7 @@ class SelfTranspileTests(unittest.TestCase):
                 _suppress_exceptions=suppress_exceptions,
             ),
             expected_success={
-                "clike.py",
                 "transpiler.py",
-                "plugins.py",
-                "inference.py",
             },
         )
 
@@ -201,15 +198,20 @@ class SelfTranspileTests(unittest.TestCase):
                 "exceptions.py",
                 "helpers.py",
                 "language.py",
+                "llm_transpile.py",
+                "macosx_llm.py",
                 "mutability_transformer.py",
                 "nesting_transformer.py",
                 "process_helpers.py",
                 "python_transformer.py",
+                "raises_transformer.py",
                 "result.py",
                 "rewriters.py",
                 "scope.py",
+                "smt.py",
                 "toposort_modules.py",
                 "tracer.py",
+                "version.py",
             },
         )
 

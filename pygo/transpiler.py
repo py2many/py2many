@@ -24,19 +24,21 @@ from .plugins import (
 
 class GoMethodCallRewriter(ast.NodeTransformer):
     def visit_Call(self, node):
-        needs_assign = False
+        self.generic_visit(node)
         fname = node.func
         if isinstance(fname, ast.Attribute):
             if is_list(node.func.value) and fname.attr == "append":
-                needs_assign = True
-        if needs_assign:
-            ret = ast.Assign(
-                targets=[ast.Name(id=fname.value.id, lineno=node.lineno)],
-                value=node,
-                lineno=node.lineno,
-                scopes=node.scopes,
-            )
-            return ret
+                value_id = get_id(fname.value)
+                if not value_id:
+                    return node
+                node.args = [ast.Name(id=value_id, lineno=node.lineno)] + node.args
+                node.func = ast.Name(id="append", lineno=node.lineno, ctx=fname.ctx)
+                return ast.Assign(
+                    targets=[ast.Name(id=value_id, lineno=node.lineno)],
+                    value=node,
+                    lineno=node.lineno,
+                    scopes=node.scopes,
+                )
         return node
 
 

@@ -11,11 +11,12 @@ ARG V_VERSION=0.5.1
 ARG RUST_TOOLCHAIN=nightly-2024-01-01
 ARG DART_VERSION=3.4.4
 ARG FLUTTER_VERSION=3.22.3
+ARG GO_VERSION=1.26.0
 ARG JULIA_VERSION=1.10.5
 ARG KOTLIN_VERSION=2.0.21
 
 ENV HOME=/root \
-    PATH="/root/.venv/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:${PATH}" \
+    PATH="/root/.venv/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:${PATH}" \
     CXX=clang++ \
     CXXFLAGS="-fuse-ld=lld" \
     CLANG_FORMAT_STYLE=Google \
@@ -36,7 +37,6 @@ RUN apk add --no-cache \
       dub \
       gc-dev \
       git \
-      go \
       gcompat \
       libc++ \
       libc++-dev \
@@ -65,6 +65,21 @@ RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
 
 RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
     echo "Building py2many CI image for focus: ${FOCUS:-all}"
+
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install go; then \
+      arch="$(apk --print-arch)" \
+      && case "${arch}" in \
+        x86_64) go_arch="amd64" ;; \
+        aarch64) go_arch="arm64" ;; \
+        *) echo "Unsupported Go release target: ${arch}" >&2; exit 1 ;; \
+      esac \
+      && curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
+      && rm -rf /usr/local/go \
+      && tar -C /usr/local -xzf /tmp/go.tar.gz \
+      && rm /tmp/go.tar.gz \
+      && go version; \
+    fi
 
 RUN python3 -m venv "${HOME}/.venv" \
     && source "${HOME}/.venv/bin/activate" \
