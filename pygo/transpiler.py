@@ -7,6 +7,7 @@ from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
 from py2many.rewriters import camel_case, capitalize_first, rename
+from py2many.stubs import STDLIB_MODULE_NAMES
 from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
 
 from .clike import CLikeTranspiler
@@ -20,7 +21,7 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
-from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE, STDLIB_MODULES
+from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
@@ -627,12 +628,12 @@ class GoTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "string", members)
 
     def _import(self, name: str) -> str:
-        if name.split(".", 1)[0] in STDLIB_MODULES:
+        if name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
             return ""
         return f'import ("{name}")'
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        if module_name.split(".", 1)[0] in STDLIB_MODULES:
+        if module_name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
             return ""
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
