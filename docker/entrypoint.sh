@@ -1,3 +1,6 @@
 #!/bin/bash
+set -e
 
-source $HOME/.venv/bin/activate && cd $HOME && bash
+source "${HOME}/.venv/bin/activate"
+
+exec "$@"

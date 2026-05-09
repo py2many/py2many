@@ -1,104 +1,193 @@
-# docker buildx create --use --name insecure-builder --buildkitd-flags '--allow-insecure-entitlement security.insecure'
-# docker buildx build -t archlinux:py2many --allow security.insecure -o type=docker \
-#   --build-arg RUST=1 --build-arg CPP=1 --build-arg GOLANG=1 . -f docker/Dockerfile
+# syntax=docker/dockerfile:1
 #
-# Edit the list of languages above based on what you're interested in
-FROM archlinux:base-devel
+# .github/workflows/main.yml builds and pushes this image before running tests.
+#
+# The image intentionally contains the language runtimes and test helpers that
+# used to be assembled by GitHub Actions setup actions in main.yml.
+FROM alpine:3.20
 
-ARG RUST
-ARG CPP
-ARG GOLANG
-ARG JULIA
-ARG NIM
-ARG KOTLIN
-ARG DART
-ARG VLANG
-ARG SMT
-ARG DLANG
-ARG MOJO
+ARG FOCUS=
+ARG V_VERSION=0.5.1
+ARG RUST_TOOLCHAIN=nightly-2024-01-01
+ARG DART_VERSION=3.4.4
+ARG FLUTTER_VERSION=3.22.3
+ARG JULIA_VERSION=1.10.5
+ARG KOTLIN_VERSION=2.0.21
 
-RUN useradd --create-home --comment "Arch Build User" build
-ENV HOME /home/build
-ENV PATH "$PATH:/home/build/.local/bin:/home/build/.cargo/bin:/home/build/bin"
-RUN usermod -aG wheel build
-RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+ENV HOME=/root \
+    PATH="/root/.venv/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:${PATH}" \
+    CXX=clang++ \
+    CXXFLAGS="-fuse-ld=lld" \
+    CLANG_FORMAT_STYLE=Google \
+    KOTLIN_HOME=/opt/kotlinc \
+    PUB_CACHE=/root/.pub-cache \
+    VFLAGS="-cc gcc -gc none"
 
-RUN pacman -Syu --noconfirm python python-pip unzip git
+RUN apk add --no-cache \
+      astyle \
+      bash \
+      build-base \
+      ca-certificates \
+      catch2 \
+      clang \
+      clang-extra-tools \
+      cmake \
+      curl \
+      dub \
+      gc-dev \
+      git \
+      go \
+      gcompat \
+      libc++ \
+      libc++-dev \
+      libstdc++ \
+      linux-headers \
+      lld \
+      ldc \
+      make \
+      nim \
+      openjdk17-jdk \
+      python3 \
+      py3-pip \
+      py3-virtualenv \
+      sudo \
+      tar \
+      unzip \
+      xz \
+      z3 \
+      z3-dev \
+      zig \
+      zip
 
-# C++
-RUN test -z "$CPP" || pacman -Syu --noconfirm clang libc++
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Go
-RUN test -z "$GOLANG" || pacman -Syu --noconfirm go
+RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
 
-# Julia
-RUN test -z "$JULIA" || pacman -Syu --noconfirm julia
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    echo "Building py2many CI image for focus: ${FOCUS:-all}"
 
-# Nim
-RUN test -z "$NIM" || pacman -Syu --noconfirm nim
+RUN python3 -m venv "${HOME}/.venv" \
+    && source "${HOME}/.venv/bin/activate" \
+    && pip install --upgrade pip \
+    && pip install \
+      black==24.10.0 \
+      conan \
+      cpplint \
+      flake8 \
+      isort \
+      setuptools \
+      tox
 
-# Kotlin
-RUN test -z "$KOTLIN" || pacman -Syu --noconfirm kotlin
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install rust; then \
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain "${RUST_TOOLCHAIN}" --component clippy,rustfmt; \
+    fi
 
-# Dart
-RUN test -z "$DART" || pacman -Syu --noconfirm dart
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install vlang; then \
+      curl -fsSL -o /tmp/v.zip "https://github.com/vlang/v/releases/download/${V_VERSION}/v_linux.zip" \
+      && unzip -q /tmp/v.zip -d /opt \
+      && rm /tmp/v.zip \
+      && ln -sf /opt/v/v /usr/local/bin/v \
+      && v version; \
+    fi
 
-# Dlang
-RUN test -z "$DLANG" || pacman -Syu --noconfirm dlang
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install julia; then \
+      curl -fsSL -o /tmp/julia.tar.gz \
+        "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" \
+      && mkdir -p /opt/julia \
+      && tar -xzf /tmp/julia.tar.gz -C /opt/julia --strip-components=1 \
+      && rm /tmp/julia.tar.gz \
+      && julia --version; \
+    fi
 
-# mojo
-RUN test -z "$MOJO" || pacman -Syu --noconfirm pixi
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install kotlin; then \
+      curl -fsSL -o /tmp/kotlin.zip \
+        "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip" \
+      && unzip -q /tmp/kotlin.zip -d /opt \
+      && rm /tmp/kotlin.zip \
+      && kotlin -version; \
+    fi
 
-# Install yay
-USER build
-RUN cd $HOME && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -s
-USER root
-RUN cd $HOME/yay-bin && pacman -U --noconfirm *.zst && cd .. && rm -rf yay-bin
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install dart; then \
+      curl -fsSL -o /tmp/dart.zip \
+        "https://storage.googleapis.com/dart-archive/channels/stable/release/${DART_VERSION}/sdk/dartsdk-linux-x64-release.zip" \
+      && unzip -q /tmp/dart.zip -d /opt \
+      && rm /tmp/dart.zip; \
+    fi
 
-# Vlang:
-RUN test -z "$VLANG" || (cd /tmp && curl -sSLO https://github.com/vlang/v/releases/latest/download/v_linux.zip && \
-    unzip -o v_linux.zip && rm v_linux.zip && ln -s /tmp/v/v /usr/bin)
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install dart; then \
+      curl -fsSL -o /tmp/flutter.tar.xz \
+        "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+      && tar -xJf /tmp/flutter.tar.xz -C /opt \
+      && rm /tmp/flutter.tar.xz \
+      && git config --global --add safe.directory /opt/flutter \
+      && flutter config --no-analytics \
+      && flutter --version; \
+    fi
 
-# TODO: Add all formatters and other auxilliary setup from main.yml
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install mojo; then \
+      curl -fsSL https://pixi.sh/install.sh | bash \
+      && ln -sf "${HOME}/.pixi/bin/pixi" /usr/local/bin/pixi \
+      && cd "${HOME}" \
+      && pixi init life -c https://conda.modular.com/max-nightly/ -c conda-forge \
+      && cd life \
+      && pixi add modular \
+      && pixi run mojo --version \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/mojo" /usr/local/bin/mojo; \
+    fi
 
-USER build
-RUN mkdir -p /home/build/bin
-ADD scripts /scripts
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install julia; then \
+      julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
+      && JULIA_FORMATTER_ROOT="$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')" \
+      && ln -sf "${JULIA_FORMATTER_ROOT}/bin/format.jl" /usr/local/bin/format.jl; \
+    fi
 
-# Per user package setup. Note that /root is inaccessible to user build
-RUN python -m venv $HOME/.venv
-RUN source  $HOME/.venv/bin/activate && pip3 install tox black isort flake8
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install dlang; then \
+      mkdir -p /tmp/dlang-build \
+      && cd /tmp/dlang-build \
+      && dub init -n . \
+      && dub add dfmt \
+      && dub fetch dfmt --cache=local \
+      && rm -rf /tmp/dlang-build; \
+    fi
 
-# C++
-RUN test -z "$CPP" || (source  $HOME/.venv/bin/activate && pip3 install conan && \
-    /scripts/cpp-setup.sh)
+COPY scripts /scripts
 
-# Rust
-RUN test -z "$RUST" || (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-   sh -s -- -y --default-toolchain nightly-2024-01-01)
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install cpp; then \
+      source "${HOME}/.venv/bin/activate" \
+      && mkdir -p /work/tests \
+      && cd /work \
+      && /scripts/cpp-setup.sh; \
+    fi
 
-# Astral uv
-USER build
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-USER root
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install go; then \
+      mkdir -p /work/tests \
+      && cd /work \
+      && /scripts/go-setup.sh; \
+    fi
 
-# Go
-RUN test -z "$GOLANG" || /scripts/go-setup.sh
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install zig; then \
+      mkdir -p /work/tests \
+      && cd /work \
+      && /scripts/zig-setup.sh; \
+    fi
 
-# SMT
-RUN test -z "$SMT" || yay -S --noconfirm cljstyle-bin
-
-# DART/flutter
-RUN test -z "$DART" || yay -S --noconfirm flutter-target-linux
-
-# Julia
-RUN test -z "$JULIA" || (julia -e 'using Pkg; Pkg.add("JuliaFormatter")' && \
-    julia -e 'using Pkg; Pkg.add("SuperEnum")' && \
-    (cd /home/build/bin && ln -s $(find ~/.julia -name format.jl)))
-
-# mojo
-RUN test -z "$MOJO" || (cd $HOME && pixi init life -c https://conda.modular.com/max-nightly/ -c conda-forge && \
-    cd life && pixi add modular && pixi run mojo --version)
+RUN should_install() { test -z "${FOCUS}" || test "${FOCUS}" = "$1"; }; \
+    if should_install vlang; then \
+      v install div72.vexc; \
+    fi
 
 COPY docker/entrypoint.sh /entrypoint.sh
 
