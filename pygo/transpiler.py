@@ -528,6 +528,36 @@ class GoTranspiler(CLikeTranspiler):
                 key_typename = "int"
         return f"map[{key_typename}]{value_typename}{{{kv_pairs}}}"
 
+    def visit_Delete(self, node) -> str:
+        ret = []
+        for target in node.targets:
+            if not isinstance(target, ast.Subscript):
+                ret.append(super().visit_Delete(node))
+                continue
+
+            container = self.visit(target.value)
+            index = self.visit(target.slice)
+            container_type = get_inferred_go_type(target.value)
+            annotation = getattr(target.value, "annotation", None)
+            generic_container_type = (
+                get_id(annotation.value)
+                if isinstance(annotation, ast.Subscript)
+                else None
+            )
+            if generic_container_type == "Dict" or (
+                container_type and container_type.startswith("map[")
+            ):
+                ret.append(f"delete({container}, {index})")
+            elif generic_container_type == "List" or (
+                container_type and container_type.startswith("[]")
+            ):
+                ret.append(
+                    f"{container} = append({container}[:{index}], {container}[{index}+1:]...)"
+                )
+            else:
+                ret.append(super().visit_Delete(node))
+        return "\n".join(ret)
+
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
         index = self.visit(node.slice)
