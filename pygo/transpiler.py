@@ -20,6 +20,7 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE, STDLIB_MODULES
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
@@ -350,10 +351,11 @@ class GoTranspiler(CLikeTranspiler):
 
         value_id = self.visit(node.value)
 
-        if value_id == "sys":
-            if attr == "argv":
-                self._usings.add('"os"')
-                return "os.Args"
+        module_path = get_id(node.value)
+        if module_path:
+            attr_key = f"{module_path}.{attr}"
+            if attr_key in STDLIB_ATTR_DISPATCH_TABLE:
+                return STDLIB_ATTR_DISPATCH_TABLE[attr_key](self, node)
 
         if not value_id:
             value_id = ""
@@ -411,74 +413,17 @@ class GoTranspiler(CLikeTranspiler):
 
     def _dispatch_attribute_call(self, node) -> str:
         attr = node.func.attr
-        value = self.visit(node.func.value)
         vargs = [self.visit(a) for a in node.args]
 
-        if value == '""' and attr == "join" and len(vargs) == 1:
-            self._usings.add('"strings"')
-            return f'strings.Join({vargs[0]}, "")'
+        module_path = get_id(node.func.value)
+        if module_path:
+            method_key = f"{module_path}.{attr}"
+            if method_key in STDLIB_DISPATCH_TABLE:
+                return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
 
-        if attr == "join" and len(vargs) == 1:
-            self._usings.add('"strings"')
-            return f"strings.Join({vargs[0]}, {value})"
-
-        if value == "re":
-            self._usings.add('"regexp"')
-            if attr == "search" and len(vargs) == 2:
-                return (
-                    f"regexp.MustCompile({vargs[0]}).FindStringIndex({vargs[1]}) != nil"
-                )
-            if attr == "match" and len(vargs) == 2:
-                return f'regexp.MustCompile("^" + {vargs[0]}).FindStringIndex({vargs[1]}) != nil'
-            if attr == "findall" and len(vargs) == 2:
-                return f"regexp.MustCompile({vargs[0]}).FindAllString({vargs[1]}, -1)"
-            if attr == "sub" and len(vargs) == 3:
-                return f"regexp.MustCompile({vargs[0]}).ReplaceAllString({vargs[2]}, {vargs[1]})"
-            if attr == "split" and len(vargs) == 2:
-                return f"regexp.MustCompile({vargs[0]}).Split({vargs[1]}, -1)"
-            if attr == "compile" and len(vargs) == 1:
-                return f"regexp.MustCompile({vargs[0]})"
-
-        if attr == "lower":
-            self._usings.add('"strings"')
-            return f"strings.ToLower({value})"
-        if attr == "upper":
-            self._usings.add('"strings"')
-            return f"strings.ToUpper({value})"
-        if attr == "strip":
-            self._usings.add('"strings"')
-            return f"strings.TrimSpace({value})"
-        if attr == "split":
-            self._usings.add('"strings"')
-            if not vargs:
-                return f"strings.Fields({value})"
-            return f"strings.Split({value}, {vargs[0]})"
-        if attr == "find":
-            self._usings.add('"strings"')
-            return f"strings.Index({value}, {vargs[0]})"
-        if attr == "replace":
-            self._usings.add('"strings"')
-            return f"strings.ReplaceAll({value}, {vargs[0]}, {vargs[1]})"
-        if attr == "capitalize":
-            self._usings.add('"strings"')
-            return f"(strings.ToUpper({value}[:1]) + strings.ToLower({value}[1:]))"
-        if attr == "lstrip":
-            self._usings.add('"strings"')
-            self._usings.add('"unicode"')
-            return f"strings.TrimLeftFunc({value}, unicode.IsSpace)"
-        if attr == "rstrip":
-            self._usings.add('"strings"')
-            self._usings.add('"unicode"')
-            return f"strings.TrimRightFunc({value}, unicode.IsSpace)"
-        if attr == "isdigit":
-            self._usings.add('"regexp"')
-            return f"regexp.MustCompile(`^\\d+$`).MatchString({value})"
-        if attr == "isalpha":
-            self._usings.add('"regexp"')
-            return f"regexp.MustCompile(`^[A-Za-z]+$`).MatchString({value})"
-        if attr == "isspace":
-            self._usings.add('"regexp"')
-            return f"regexp.MustCompile(`^\\s+$`).MatchString({value})"
+        method_key = f"str.{attr}"
+        if method_key in STDLIB_DISPATCH_TABLE:
+            return STDLIB_DISPATCH_TABLE[method_key](self, node, vargs)
 
         return None
 
@@ -682,12 +627,13 @@ class GoTranspiler(CLikeTranspiler):
         return self._visit_enum(node, "string", members)
 
     def _import(self, name: str) -> str:
-        if name == "re":
-            self._usings.add('"regexp"')
+        if name.split(".", 1)[0] in STDLIB_MODULES:
             return ""
         return f'import ("{name}")'
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+        if module_name.split(".", 1)[0] in STDLIB_MODULES:
+            return ""
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]
