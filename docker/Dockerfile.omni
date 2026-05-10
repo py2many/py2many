@@ -133,7 +133,7 @@ RUN curl -fsSL -o /tmp/dart.zip \
       "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
     && tar -xJf /tmp/flutter.tar.xz -C /opt \
     && rm /tmp/flutter.tar.xz \
-    && git config --global --add safe.directory /opt/flutter \
+    && git config --system --add safe.directory /opt/flutter \
     && flutter config --no-analytics \
     && flutter --version
 
