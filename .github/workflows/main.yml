@@ -21,6 +21,7 @@ on:
         - dlang
         - mojo
         - zig
+        - omni
         - ''
       os:
         type: choice
@@ -131,25 +132,25 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Set KOTLIN_HOME
-        if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'kotlin' }}
         shell: bash
         run: |
           echo KOTLIN_HOME=$(kotlin -e 'System.getProperty("kotlin.home")') >> $GITHUB_ENV
 
       - name: Install go packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'go' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'go' }}
         shell: bash
         run: |
           scripts/go-setup.sh
 
       - name: Install zig packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'zig' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'zig' }}
         shell: bash
         run: |
           scripts/zig-setup.sh
 
       - name: Install SMT packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'smt' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'smt' }}
         shell: bash
         run: |
           echo "$(pwd)/scripts/" >> $GITHUB_PATH
@@ -160,19 +161,19 @@ jobs:
           tox --version
 
       - name: Install C++ packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'cpp' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'cpp' }}
         shell: bash
         run: |
           scripts/cpp-setup.sh
 
       - name: Install V packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'vlang' }}
         shell: bash
         run: |
           v install div72.vexc
 
       - name: Install D Packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'dlang' }}
         shell: bash
         run: |
           mkdir -p tests/build && cd tests/build
@@ -181,13 +182,13 @@ jobs:
           dub fetch dfmt --cache=local
 
       - name: Install dart dependencies
-        if: ${{ !env.FOCUS || env.FOCUS == 'dart' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'dart' }}
         shell: bash
         run: |
           scripts/dart-setup.sh
 
       - name: Install rust nightly toolchain
-        if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
+        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'rust' }}
         shell: bash
         run: |
           rustup default nightly-2024-01-01
@@ -198,7 +199,10 @@ jobs:
         run: |
           set -ex
           PYTHON_VERSION="${{ matrix.python-version }}"
-          if [ "$FOCUS" ]; then
+          if [ "$FOCUS" = "omni" ]; then
+            export TOXENV="py${PYTHON_VERSION//.}-full"
+            tox -v
+          elif [ "$FOCUS" ]; then
             export TOXENV="py${PYTHON_VERSION//.}-${FOCUS}"
             export PYTEST_ADDOPTS="-k $FOCUS"
             tox -v -- --cov-fail-under=0
