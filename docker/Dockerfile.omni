@@ -13,7 +13,7 @@ ARG GO_VERSION=1.26.0
 ARG JULIA_VERSION=1.10.5
 ARG KOTLIN_VERSION=2.0.21
 ARG NIM_VERSION=2.0.8
-ARG ZIG_VERSION=0.13.0
+ARG ZIG_VERSION=0.14.1
 
 ENV HOME=/root \
     PATH="/root/.venv/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:/opt/zig:${PATH}" \
