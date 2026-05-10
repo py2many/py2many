@@ -3,7 +3,7 @@
 # Omni CI image with all backend runtimes, formatters, and test helpers.
 # This image uses a glibc base because the official Julia binaries are not
 # supported on Alpine/musl.
-FROM julia:1.10.5-bookworm
+FROM debian:stable-slim
 
 ARG V_VERSION=0.5.1
 ARG RUST_TOOLCHAIN=nightly-2024-01-01
@@ -62,8 +62,8 @@ RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
 
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
-      amd64) go_arch="amd64"; zig_arch="x86_64" ;; \
-      arm64) go_arch="arm64"; zig_arch="aarch64" ;; \
+      amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64" ;; \
+      arm64) go_arch="arm64"; zig_arch="aarch64"; julia_path_arch="aarch64"; julia_tar_arch="aarch64" ;; \
       *) echo "Unsupported release target: ${arch}" >&2; exit 1 ;; \
     esac \
     && curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
@@ -75,7 +75,13 @@ RUN arch="$(dpkg --print-architecture)" \
     && mkdir -p /opt/zig \
     && tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 \
     && rm /tmp/zig.tar.xz \
-    && zig version
+    && zig version \
+    && curl -fsSL -o /tmp/julia.tar.gz \
+      "https://julialang-s3.julialang.org/bin/linux/${julia_path_arch}/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-${julia_tar_arch}.tar.gz" \
+    && mkdir -p /opt/julia \
+    && tar -xzf /tmp/julia.tar.gz -C /opt/julia --strip-components=1 \
+    && rm /tmp/julia.tar.gz \
+    && julia --version
 
 RUN python3 -m venv "${HOME}/.venv" \
     && source "${HOME}/.venv/bin/activate" \
