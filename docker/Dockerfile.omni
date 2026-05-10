@@ -106,7 +106,7 @@ RUN python3 -m venv "${HOME}/.venv" \
       cpplint \
       flake8 \
       isort \
-      jgo \
+      "jgo @ git+https://github.com/jayvdb/jgo@sort-jars" \
       setuptools \
       tox
 
@@ -148,7 +148,8 @@ RUN curl -fsSL https://pixi.sh/install.sh | bash \
 
 RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
     && JULIA_FORMATTER_ROOT="$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')" \
-    && ln -sf "${JULIA_FORMATTER_ROOT}/bin/format.jl" /usr/local/bin/format.jl
+    && printf '#!/usr/bin/env bash\nexec julia "%s/bin/format.jl" "$@"\n' "${JULIA_FORMATTER_ROOT}" > /usr/local/bin/format.jl \
+    && chmod +x /usr/local/bin/format.jl
 
 RUN mkdir -p /tmp/dlang-build \
     && cd /tmp/dlang-build \
