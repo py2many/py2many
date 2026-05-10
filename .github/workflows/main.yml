@@ -137,20 +137,29 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Prepare omni test workspace
+        if: ${{ env.FOCUS == 'omni' }}
+        shell: bash
+        run: |
+          mkdir -p tests/build
+          cp -a /work/tests/build/. tests/build/
+          mkdir -p tests/build/tests/build
+          cp -a /work/tests/build/. tests/build/tests/build/
+
       - name: Set KOTLIN_HOME
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'kotlin' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'kotlin') }}
         shell: bash
         run: |
           echo KOTLIN_HOME=$(kotlin -e 'System.getProperty("kotlin.home")') >> $GITHUB_ENV
 
       - name: Install go packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'go' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'go') }}
         shell: bash
         run: |
           scripts/go-setup.sh
 
       - name: Install zig packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'zig' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'zig') }}
         shell: bash
         run: |
           scripts/zig-setup.sh
@@ -167,19 +176,19 @@ jobs:
           tox --version
 
       - name: Install C++ packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'cpp' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'cpp') }}
         shell: bash
         run: |
           scripts/cpp-setup.sh
 
       - name: Install V packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'vlang' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'vlang') }}
         shell: bash
         run: |
           v install div72.vexc
 
       - name: Install D Packages
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'dlang' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'dlang') }}
         shell: bash
         run: |
           mkdir -p tests/build && cd tests/build
@@ -188,13 +197,13 @@ jobs:
           dub fetch dfmt --cache=local
 
       - name: Install dart dependencies
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'dart' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'dart') }}
         shell: bash
         run: |
           scripts/dart-setup.sh
 
       - name: Install rust nightly toolchain
-        if: ${{ !env.FOCUS || env.FOCUS == 'omni' || env.FOCUS == 'rust' }}
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'rust') }}
         shell: bash
         run: |
           rustup default nightly-2024-01-01
