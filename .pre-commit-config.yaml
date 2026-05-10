@@ -2,6 +2,8 @@
 # See https://pre-commit.com/hooks.html for more hooks
 # .pre-commit-config.yaml
 
+exclude: ^tests/expected/.*\.py$
+
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
