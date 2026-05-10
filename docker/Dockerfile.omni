@@ -96,6 +96,10 @@ RUN arch="$(dpkg --print-architecture)" \
 RUN python3 -m venv "${HOME}/.venv" \
     && source "${HOME}/.venv/bin/activate" \
     && pip install --upgrade pip \
+    && pip install uv \
+    && uv python install 3.12 \
+    && ln -sf "$(uv python find 3.12)" /usr/local/bin/python3.12 \
+    && python3.12 --version \
     && pip install \
       black==24.10.0 \
       conan \
