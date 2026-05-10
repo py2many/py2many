@@ -116,6 +116,7 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       && mkdir -p /opt/julia \
       && tar -xzf /tmp/julia.tar.gz -C /opt/julia --strip-components=1 \
       && rm /tmp/julia.tar.gz \
+      && rm -f /opt/julia/lib/julia/libgcc_s.so.1 \
       && julia --version; \
     fi
 
