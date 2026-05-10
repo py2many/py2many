@@ -61,8 +61,13 @@ jobs:
         id: image
         shell: bash
         run: |
-          image_hash="$(git ls-files docker/Dockerfile docker/entrypoint.sh scripts | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
           focus="${FOCUS:-all}"
+          if [ "${focus}" = "omni" ]; then
+            docker_file="docker/Dockerfile.omni"
+          else
+            docker_file="docker/Dockerfile"
+          fi
+          image_hash="$(git ls-files "${docker_file}" docker/entrypoint.sh scripts | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
           image_base="ghcr.io/${GITHUB_REPOSITORY,,}-ci"
           if [ "${focus}" = "all" ]; then
             image="${image_base}:all-${image_hash:0:20}"
@@ -73,6 +78,7 @@ jobs:
           fi
           echo "image=${image}" >> "$GITHUB_OUTPUT"
           echo "desktop_image=${desktop_image}" >> "$GITHUB_OUTPUT"
+          echo "docker_file=${docker_file}" >> "$GITHUB_OUTPUT"
           echo "Developer image: \`${desktop_image}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log in to GHCR
@@ -104,7 +110,7 @@ jobs:
             --cache-from type=gha,scope=py2many-ci \
             --cache-to type=gha,mode=max,scope=py2many-ci \
             --build-arg FOCUS="${FOCUS}" \
-            --file docker/Dockerfile \
+            --file "${{ steps.image.outputs.docker_file }}" \
             --tag "${{ steps.image.outputs.image }}" \
             --tag "${{ steps.image.outputs.desktop_image }}" \
             --push \
