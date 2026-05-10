@@ -10,7 +10,9 @@ ARG RUST_TOOLCHAIN=nightly-2024-01-01
 ARG DART_VERSION=3.4.4
 ARG FLUTTER_VERSION=3.22.3
 ARG GO_VERSION=1.26.0
+ARG JULIA_VERSION=1.10.5
 ARG KOTLIN_VERSION=2.0.21
+ARG NIM_VERSION=2.0.8
 ARG ZIG_VERSION=0.13.0
 
 ENV HOME=/root \
@@ -44,8 +46,7 @@ RUN apt-get update \
       lld \
       ldc \
       make \
-      nim \
-      openjdk-17-jdk \
+      default-jdk \
       python3 \
       python3-pip \
       python3-venv \
@@ -62,8 +63,8 @@ RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
 
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
-      amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64" ;; \
-      arm64) go_arch="arm64"; zig_arch="aarch64"; julia_path_arch="aarch64"; julia_tar_arch="aarch64" ;; \
+      amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64"; nim_arch="x64" ;; \
+      arm64) go_arch="arm64"; zig_arch="aarch64"; julia_path_arch="aarch64"; julia_tar_arch="aarch64"; nim_arch="arm64" ;; \
       *) echo "Unsupported release target: ${arch}" >&2; exit 1 ;; \
     esac \
     && curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
@@ -81,7 +82,14 @@ RUN arch="$(dpkg --print-architecture)" \
     && mkdir -p /opt/julia \
     && tar -xzf /tmp/julia.tar.gz -C /opt/julia --strip-components=1 \
     && rm /tmp/julia.tar.gz \
-    && julia --version
+    && julia --version \
+    && curl -fsSL -o /tmp/nim.tar.xz "https://nim-lang.org/download/nim-${NIM_VERSION}-linux_${nim_arch}.tar.xz" \
+    && mkdir -p /opt/nim \
+    && tar -xJf /tmp/nim.tar.xz -C /opt/nim --strip-components=1 \
+    && rm /tmp/nim.tar.xz \
+    && ln -sf /opt/nim/bin/nim /usr/local/bin/nim \
+    && ln -sf /opt/nim/bin/nimpretty /usr/local/bin/nimpretty \
+    && nim --version
 
 RUN python3 -m venv "${HOME}/.venv" \
     && source "${HOME}/.venv/bin/activate" \
