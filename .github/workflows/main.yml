@@ -214,6 +214,9 @@ jobs:
         shell: bash
         run: |
           set -exo pipefail
+          export HOME=/root
+          export CARGO_HOME=/root/.cargo
+          export RUSTUP_HOME=/root/.rustup
           PYTHON_VERSION="${{ matrix.python-version }}"
           if [ "$FOCUS" = "omni" ]; then
             export TOXENV="py${PYTHON_VERSION//.}-full"
