@@ -213,18 +213,34 @@ jobs:
       - name: Run tox
         shell: bash
         run: |
-          set -ex
+          set -exo pipefail
           PYTHON_VERSION="${{ matrix.python-version }}"
           if [ "$FOCUS" = "omni" ]; then
             export TOXENV="py${PYTHON_VERSION//.}-full"
-            tox -v
+            tox -v 2>&1 | tee tests/tox.log
           elif [ "$FOCUS" ]; then
             export TOXENV="py${PYTHON_VERSION//.}-${FOCUS}"
             export PYTEST_ADDOPTS="-k $FOCUS"
-            tox -v -- --cov-fail-under=0
+            tox -v -- --cov-fail-under=0 2>&1 | tee tests/tox.log
           else
             export TOXENV="py${PYTHON_VERSION//.}-full"
-            tox -v
+            tox -v 2>&1 | tee tests/tox.log
+          fi
+
+      - name: Summarize tox results
+        if: always()
+        shell: bash
+        run: |
+          echo "### Tox result" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f tests/tox.log ]; then
+            summary="$(grep -E '={2,} .* (failed|passed|skipped|warnings|errors) .* ={2,}' tests/tox.log | tail -n 1 || true)"
+            if [ -n "$summary" ]; then
+              echo "\`$summary\`" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No pytest summary line found in tests/tox.log." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "tests/tox.log was not created." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Publish Test Results
