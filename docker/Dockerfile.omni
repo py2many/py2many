@@ -1,0 +1,153 @@
+# syntax=docker/dockerfile:1
+#
+# Omni CI image with all backend runtimes, formatters, and test helpers.
+# This image uses a glibc base because the official Julia binaries are not
+# supported on Alpine/musl.
+FROM julia:1.10.5-bookworm
+
+ARG V_VERSION=0.5.1
+ARG RUST_TOOLCHAIN=nightly-2024-01-01
+ARG DART_VERSION=3.4.4
+ARG FLUTTER_VERSION=3.22.3
+ARG GO_VERSION=1.26.0
+ARG KOTLIN_VERSION=2.0.21
+ARG ZIG_VERSION=0.13.0
+
+ENV HOME=/root \
+    PATH="/root/.venv/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:/opt/zig:${PATH}" \
+    CXX=clang++ \
+    CXXFLAGS="-fuse-ld=lld" \
+    CLANG_FORMAT_STYLE=Google \
+    KOTLIN_HOME=/opt/kotlinc \
+    PUB_CACHE=/root/.pub-cache \
+    VFLAGS="-cc gcc -gc none"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+      astyle \
+      bash \
+      build-essential \
+      ca-certificates \
+      catch2 \
+      clang \
+      clang-format \
+      clang-tidy \
+      cmake \
+      curl \
+      dub \
+      git \
+      libc++-dev \
+      libc++abi-dev \
+      libgc-dev \
+      lld \
+      ldc \
+      make \
+      nim \
+      openjdk-17-jdk \
+      python3 \
+      python3-pip \
+      python3-venv \
+      sudo \
+      tar \
+      unzip \
+      xz-utils \
+      z3 \
+      libz3-dev \
+      zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
+
+RUN arch="$(dpkg --print-architecture)" \
+    && case "${arch}" in \
+      amd64) go_arch="amd64"; zig_arch="x86_64" ;; \
+      arm64) go_arch="arm64"; zig_arch="aarch64" ;; \
+      *) echo "Unsupported release target: ${arch}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz \
+    && go version \
+    && curl -fsSL -o /tmp/zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${zig_arch}-${ZIG_VERSION}.tar.xz" \
+    && mkdir -p /opt/zig \
+    && tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 \
+    && rm /tmp/zig.tar.xz \
+    && zig version
+
+RUN python3 -m venv "${HOME}/.venv" \
+    && source "${HOME}/.venv/bin/activate" \
+    && pip install --upgrade pip \
+    && pip install \
+      black==24.10.0 \
+      conan \
+      cpplint \
+      flake8 \
+      isort \
+      jgo \
+      setuptools \
+      tox
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      | sh -s -- -y --default-toolchain "${RUST_TOOLCHAIN}" --component clippy,rustfmt
+
+RUN curl -fsSL -o /tmp/v.zip "https://github.com/vlang/v/releases/download/${V_VERSION}/v_linux.zip" \
+    && unzip -q /tmp/v.zip -d /opt \
+    && rm /tmp/v.zip \
+    && ln -sf /opt/v/v /usr/local/bin/v \
+    && v version
+
+RUN curl -fsSL -o /tmp/kotlin.zip \
+      "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip" \
+    && unzip -q /tmp/kotlin.zip -d /opt \
+    && rm /tmp/kotlin.zip \
+    && kotlin -version
+
+RUN curl -fsSL -o /tmp/dart.zip \
+      "https://storage.googleapis.com/dart-archive/channels/stable/release/${DART_VERSION}/sdk/dartsdk-linux-x64-release.zip" \
+    && unzip -q /tmp/dart.zip -d /opt \
+    && rm /tmp/dart.zip \
+    && curl -fsSL -o /tmp/flutter.tar.xz \
+      "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+    && tar -xJf /tmp/flutter.tar.xz -C /opt \
+    && rm /tmp/flutter.tar.xz \
+    && git config --global --add safe.directory /opt/flutter \
+    && flutter config --no-analytics \
+    && flutter --version
+
+RUN curl -fsSL https://pixi.sh/install.sh | bash \
+    && ln -sf "${HOME}/.pixi/bin/pixi" /usr/local/bin/pixi \
+    && cd "${HOME}" \
+    && pixi init life -c https://conda.modular.com/max-nightly/ -c conda-forge \
+    && cd life \
+    && pixi add modular \
+    && pixi run mojo --version \
+    && ln -sf "${HOME}/life/.pixi/envs/default/bin/mojo" /usr/local/bin/mojo
+
+RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
+    && JULIA_FORMATTER_ROOT="$(julia -e 'import JuliaFormatter;print(dirname(dirname(pathof(JuliaFormatter))));')" \
+    && ln -sf "${JULIA_FORMATTER_ROOT}/bin/format.jl" /usr/local/bin/format.jl
+
+RUN mkdir -p /tmp/dlang-build \
+    && cd /tmp/dlang-build \
+    && dub init -n . \
+    && dub add dfmt \
+    && dub fetch dfmt --cache=local \
+    && rm -rf /tmp/dlang-build
+
+COPY scripts /scripts
+
+RUN source "${HOME}/.venv/bin/activate" \
+    && mkdir -p /work/tests \
+    && cd /work \
+    && /scripts/cpp-setup.sh \
+    && /scripts/dart-setup.sh \
+    && /scripts/go-setup.sh \
+    && /scripts/zig-setup.sh \
+    && v install div72.vexc
+
+COPY docker/entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
