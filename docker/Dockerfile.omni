@@ -106,7 +106,7 @@ RUN python3 -m venv "${HOME}/.venv" \
       cpplint \
       flake8 \
       isort \
-      "jgo @ git+https://github.com/jayvdb/jgo@sort-jars" \
+      "jgo<2" \
       setuptools \
       tox
 

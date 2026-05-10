@@ -13,7 +13,6 @@ def settings(args, env=os.environ):
         "Kotlin",
         [
             "jgo",
-            "--log-level=DEBUG",
             "--add-opens",
             "java.base/java.lang=ALL-UNNAMED",
             "com.pinterest.ktlint:ktlint-cli",
@@ -25,7 +24,6 @@ def settings(args, env=os.environ):
         post_rewriters=[KotlinPrintRewriter()],
         linter=[
             "jgo",
-            "--log-level=DEBUG",
             "--add-opens",
             "java.base/java.lang=ALL-UNNAMED",
             "com.pinterest.ktlint:ktlint-cli",
