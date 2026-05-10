@@ -88,7 +88,6 @@ INVOKER = {
 if os.getenv("KOTLIN_HOME"):
     INVOKER["kotlin"] = [
         "jgo",
-        "--log-level=DEBUG",
         "--additional-endpoints",
         "commons-cli:commons-cli",
         "commons-codec:commons-codec",
