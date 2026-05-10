@@ -35,7 +35,7 @@ test = [
     "pytest-cov",
     "black",
     "astpretty",
-    "jgo",
+    "jgo @ git+https://github.com/jayvdb/jgo@sort-jars",
 ]
 llm = [
     "mlx_llm; sys_platform == 'darwin'",
