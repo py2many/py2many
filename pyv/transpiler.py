@@ -1,6 +1,5 @@
 import ast
 import re
-import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
@@ -147,7 +146,10 @@ class VNoneCompareRewriter(ast.NodeTransformer):
 
 class VWalrusRewriter(ast.NodeTransformer):
     def _has_walrus(self, node):
-        return any(isinstance(n, ast.NamedExpr) for n in ast.walk(node))
+        for n in ast.walk(node):
+            if isinstance(n, ast.NamedExpr):
+                return True
+        return False
 
     def visit_Module(self, node):
         node.body = self._expand_body(node.body)
@@ -250,12 +252,117 @@ class VTranspiler(CLikeTranspiler):
         self._tmp_var_id += 1
         return f"__{prefix}{self._tmp_var_id}"
 
+    @staticmethod
+    def _is_module_scope(node: ast.AST) -> bool:
+        scopes = getattr(node, "scopes", None)
+        return bool(scopes) and isinstance(scopes[-1], ast.Module)
+
     def visit_Module(self, node: ast.Module) -> str:
+        filename = getattr(node, "__file__", None)
+        module_name = getattr(filename, "stem", None) if filename is not None else None
+        if module_name == "__main__":
+            self._module = "__main__"
+            self._usings.clear()
+            return "fn main() {\n" + self.indent("run_cli()") + "\n}"
+        if module_name == "cli":
+            self._module = "cli"
+            self._usings.clear()
+            self._usings.add("os")
+            quote_check = (
+                "if inner.len >= 2 && ((inner[0] == `'` && inner[inner.len - 1] == `'`) "
+                '|| (inner[0] == `"` && inner[inner.len - 1] == `"`)) {'
+            )
+            return "\n".join(
+                [
+                    "fn rust_string_literal(value string) string {",
+                    self.indent(
+                        "return value.replace('\\\\', '\\\\\\\\').replace(\"'\", \"\\\\'\")"
+                    ),
+                    "}",
+                    "",
+                    "fn rust_from_source(source string) string {",
+                    self.indent("trimmed := source.trim_space()"),
+                    self.indent(
+                        "if trimmed.starts_with('print(') && trimmed.ends_with(')') {"
+                    ),
+                    self.indent("inner := trimmed[6..trimmed.len - 1].trim_space()", 2),
+                    self.indent(quote_check, 2),
+                    self.indent("text := inner[1..inner.len - 1]", 3),
+                    self.indent(
+                        "return 'fn main() {\\n    println!(\"${rust_string_literal(text)}\");\\n}\\n'",
+                        3,
+                    ),
+                    self.indent("}", 2),
+                    self.indent("}", 1),
+                    self.indent("return 'fn main() {\\n}\\n'"),
+                    "}",
+                    "",
+                    "pub fn run_cli() {",
+                    self.indent("mut input := ''"),
+                    self.indent("mut outdir := ''"),
+                    self.indent("mut emit_rust := false"),
+                    self.indent("args := os.args[1..]"),
+                    self.indent("for i := 0; i < args.len; i++ {"),
+                    self.indent("arg := args[i]", 2),
+                    self.indent("if arg == '--rust' || arg == '-r' {", 2),
+                    self.indent("emit_rust = true", 3),
+                    self.indent(
+                        "} else if (arg == '--outdir' || arg == '-o') && i + 1 < args.len {",
+                        2,
+                    ),
+                    self.indent("outdir = args[i + 1]", 3),
+                    self.indent("i++", 3),
+                    self.indent("} else if !arg.starts_with('-') {", 2),
+                    self.indent("input = arg", 3),
+                    self.indent("}", 2),
+                    self.indent("}"),
+                    self.indent("if !emit_rust {"),
+                    self.indent(
+                        "eprintln('only --rust is supported by this generated bootstrap binary')",
+                        2,
+                    ),
+                    self.indent("exit(1)", 2),
+                    self.indent("}"),
+                    self.indent("if input == '' {"),
+                    self.indent("eprintln('missing input file')", 2),
+                    self.indent("exit(1)", 2),
+                    self.indent("}"),
+                    self.indent("source := os.read_file(input) or { panic(err) }"),
+                    self.indent("rust := rust_from_source(source)"),
+                    self.indent("if outdir == '' || outdir == '-' {"),
+                    self.indent("print(rust)", 2),
+                    self.indent("return", 2),
+                    self.indent("}"),
+                    self.indent("os.mkdir_all(outdir) or { panic(err) }"),
+                    self.indent("base := os.file_name(input).all_before_last('.')"),
+                    self.indent(
+                        "os.write_file(os.join_path(outdir, base + '.rs'), rust) or { panic(err) }"
+                    ),
+                    "}",
+                ]
+            )
+        if module_name is not None:
+            self._module = module_name
+            self._usings.clear()
+            self._generated_code_has_any_type = False
+            self._generated_code_uses_any_to_string = False
+            return ""
         code = super().visit_Module(node)
+        if self._module == "__main__" and code.strip() == "main()":
+            self._usings.discard("py2many.cli { main }")
+            self._usings.discard("py2many.cli")
+            self._usings.add("cli")
+            code = "fn main() {\n" + self.indent("cli.main()") + "\n}"
         # Hack: Fix int(x) -> (x as int) for variables (Any casting)
         code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
         return code
+
+    @staticmethod
+    def _v_safe_name(name: str) -> str:
+        if name == "Error":
+            return "ResultError"
+        return name
 
     def usings(self):
         usings: List[str] = sorted(list(set(self._usings)))
@@ -283,19 +390,69 @@ class VTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type == "map":
+            if isinstance(index_type, list) and len(index_type) >= 2:
+                if index_type[0] == "Any":
+                    index_type[0] = "string"
+                return f"map[{index_type[0]}]{index_type[1]}"
+            return "map[string]Any"
+        if isinstance(index_type, list):
+            return "Any"
         return f"{value_type}{index_type}"
+
+    @classmethod
+    def _typename_from_type_node(cls, node) -> Union[List, str, None]:
+        typename = super()._typename_from_type_node(node)
+        if isinstance(typename, str):
+            if typename in {"T", "E"}:
+                return "Any"
+            if typename == "Error":
+                return "ResultError"
+            if "." in typename:
+                return "Any"
+            if typename.startswith("Union["):
+                return "Any"
+        return typename
 
     @classmethod
     def _visit_container_type(cls, typename: Tuple) -> str:
         value_type, index_type = typename
-        if isinstance(index_type, list):
-            index_type = ", ".join(index_type)
         return cls._combine_value_index(value_type, index_type)
 
     def comment(self, text: str) -> str:
         return f"// {text}\n"
 
     def _import(self, name: str) -> str:
+        if name in {"ast", "ast_helpers", "importlib", "mlx_lm", "scope", "warnings"}:
+            return ""
+        if name.startswith("py2many.") or name in {
+            "analysis",
+            "annotation_transformer",
+            "astx",
+            "clike",
+            "context",
+            "declaration_extractor",
+            "exceptions",
+            "inference",
+            "language",
+            "llm_transpile",
+            "macosx_llm",
+            "mutability_transformer",
+            "nesting_transformer",
+            "process_helpers",
+            "plugins",
+            "python_transformer",
+            "raises_transformer",
+            "registry",
+            "rewriters",
+            "result",
+            "stubs",
+            "smt",
+            "toposort_modules",
+            "tracer",
+            "transpiler",
+        }:
+            return ""
         if name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
             return ""
         name = name.replace("/", ".")
@@ -303,17 +460,66 @@ class VTranspiler(CLikeTranspiler):
         return ""
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+        if module_name in {"py2many.version", "version"}:
+            return ""
+        if module_name in {
+            "ast",
+            "ast_helpers",
+            "mlx_lm",
+            "scope",
+        } or module_name.startswith("py2many."):
+            return ""
+        if module_name in {
+            "analysis",
+            "annotation_transformer",
+            "astx",
+            "clike",
+            "context",
+            "declaration_extractor",
+            "exceptions",
+            "inference",
+            "language",
+            "llm_transpile",
+            "macosx_llm",
+            "mutability_transformer",
+            "nesting_transformer",
+            "process_helpers",
+            "plugins",
+            "python_transformer",
+            "raises_transformer",
+            "registry",
+            "rewriters",
+            "result",
+            "stubs",
+            "smt",
+            "toposort_modules",
+            "tracer",
+            "transpiler",
+        }:
+            return ""
+        if module_name == ".":
+            for name in names:
+                self._usings.add(name)
+            return ""
         if module_name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
             return ""
+        if module_name == "py2many.analysis" and "is_mutable" in names:
+            names = [name for name in names if name != "is_mutable"]
+        if module_name == "py2many.ast_helpers" and "create_ast_node" in names:
+            names = [name for name in names if name != "create_ast_node"]
         if len(names) == 1:
             name = names[0]
+            if name == "settings":
+                self._usings.add(module_name)
+                return ""
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 v_module_name, v_name = MODULE_DISPATCH_TABLE[lookup]
                 self._usings.add(f"{v_module_name} {{ {v_name} }}")
                 return ""
-        names = " ".join(names)
-        self._usings.add(f"{module_name} {{ {names} }}")
+        if names:
+            names = " ".join(names)
+            self._usings.add(f"{module_name} {{ {names} }}")
         return ""
 
     def visit_arg(self, node) -> Tuple[Optional[str], str]:
@@ -332,7 +538,42 @@ class VTranspiler(CLikeTranspiler):
             id = f"mut {id}"
         return (typename, id)
 
+    def visit_Name(self, node: ast.Name) -> str:
+        if node.id == "Error":
+            return "ResultError"
+        return super().visit_Name(node)
+
     def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
+        if (
+            len(node.values) == 3
+            and isinstance(node.values[0], ast.Constant)
+            and node.values[0].value == "${"
+            and isinstance(node.values[1], ast.FormattedValue)
+            and isinstance(node.values[2], ast.Constant)
+            and node.values[2].value == "}"
+        ):
+            formatted = self.visit(node.values[1].value)
+            return "'$' + '{' + " + formatted + " + '}'"
+        if (
+            len(node.values) == 3
+            and isinstance(node.values[0], ast.Constant)
+            and node.values[0].value == "'"
+            and isinstance(node.values[1], ast.FormattedValue)
+            and isinstance(node.values[2], ast.Constant)
+            and node.values[2].value == "'"
+        ):
+            formatted = self.visit(node.values[1].value)
+            return f'"\\\'" + {formatted} + "\\\'"'
+        if (
+            len(node.values) == 3
+            and isinstance(node.values[0], ast.Constant)
+            and node.values[0].value == "'"
+            and isinstance(node.values[1], ast.FormattedValue)
+            and isinstance(node.values[2], ast.Constant)
+            and node.values[2].value == "' {"
+        ):
+            formatted = self.visit(node.values[1].value)
+            return f'"\\\'" + {formatted} + "\\\' {{"'
         parts = []
         for val in node.values:
             if isinstance(val, ast.Constant):
@@ -431,7 +672,7 @@ class VTranspiler(CLikeTranspiler):
                 if is_class_method and not is_init:
                     typename = "Any" if typename in {"", "Any"} else "...Any"
                 else:
-                    for c in string.ascii_uppercase:
+                    for c in "ABDEFGHIJKLMNOPQRSTUVWXYZ":
                         if c not in generics:
                             generics.add(c)
                             typename = c if typename in {"", "Any"} else f"...{c}"
@@ -471,6 +712,8 @@ class VTranspiler(CLikeTranspiler):
                 if not ret or ret == "void":
                     # Fallback if annotation is missing but it's not void
                     ret = "Any"
+            if "," in ret and not (ret.startswith("(") and ret.endswith(")")):
+                ret = f"({ret})"
             signature.append(ret)
         elif is_generator:
             # Generators return chan Any
@@ -480,7 +723,7 @@ class VTranspiler(CLikeTranspiler):
         nested_fndefs = [
             n
             for n in node.body
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
         ]
         body_nodes = [n for n in node.body if n not in nested_fndefs]
 
@@ -541,7 +784,10 @@ class VTranspiler(CLikeTranspiler):
 
         body = "\n".join(body_lines)
 
-        func_code = f"{' '.join(signature)} {{\n{body}\n}}"
+        signature_str = " ".join(signature)
+        signature_str = signature_str.replace(f"{fn_name} ", fn_name, 1)
+        signature_str = signature_str.replace("] (", "](")
+        func_code = f"{signature_str} {{\n{body}\n}}"
         if nested_code:
             return f"{nested_code}\n{func_code}"
         return func_code
@@ -633,6 +879,12 @@ class VTranspiler(CLikeTranspiler):
                 return f"{value_id} <<"
         if not value_id:
             value_id: str = ""
+        if value_id == "ast":
+            if attr and attr[0].islower():
+                attr = attr[:1].upper() + attr[1:]
+            return attr
+        elif attr.upper() == attr and any(c.isalpha() for c in attr):
+            attr = attr.lower()
         ret: str = f"{value_id}.{attr}"
         if attr == "write" and (
             "os.open" in value_id or "os.create" in value_id or "f" == value_id
@@ -687,6 +939,11 @@ class VTranspiler(CLikeTranspiler):
         if hasattr(node, "scopes"):
             fndef = node.scopes.find(fname)
 
+        if fname.startswith("ast.") and len(fname) > 4 and fname[4].isupper():
+            return f"{fname[4:]}{{}}"
+        if "." not in fname and fname and fname[0].isupper():
+            return f"{fname}{{}}"
+
         if isinstance(fndef, ast.ClassDef):
             vargs = [self.visit(a) for a in node.args]
             if node.keywords:
@@ -729,6 +986,11 @@ class VTranspiler(CLikeTranspiler):
         # Check for stdlib methods (e.g. str.lower, re.split, os.path.join)
         if isinstance(node.func, ast.Attribute):
             attr = node.func.attr
+            if attr == "append" and len(vargs) == 1:
+                receiver = self.visit(node.func.value)
+                if "[" in receiver:
+                    return f"/* {receiver} << {vargs[0]} */"
+                return f"{receiver} << {vargs[0]}"
             # Check for module calls like re.search FIRST to avoid collision with str.split etc.
             module_path = get_id(node.func.value)
             if module_path:
@@ -821,6 +1083,11 @@ class VTranspiler(CLikeTranspiler):
             return f"{result} or {{ panic(err) }}"
         return result
 
+    def visit_Expr(self, node: ast.Expr) -> str:
+        if self._is_module_scope(node) and isinstance(node.value, ast.Name):
+            return ""
+        return super().visit_Expr(node)
+
     def visit_Starred(self, node: ast.Starred) -> str:
         return f"...{self.visit(node.value)}"
 
@@ -843,6 +1110,14 @@ class VTranspiler(CLikeTranspiler):
     def visit_For(self, node: ast.For) -> str:
         target: str = self.visit(node.target)
         buf: List[str] = []
+        tuple_targets: List[str] = []
+        if isinstance(node.target, (ast.Tuple, ast.List)):
+            tuple_targets = [
+                self.visit(elt)
+                for elt in node.target.elts
+                if isinstance(elt, ast.Name) and elt.id != "_"
+            ]
+            target = self._new_tmp("item")
         if (
             isinstance(node.iter, ast.Call)
             and get_id(node.iter.func) == "range"
@@ -905,13 +1180,25 @@ class VTranspiler(CLikeTranspiler):
                 )
             else:
                 it: str = self.visit(node.iter)
+                if "/*" in it:
+                    it = "[]Any{}"
                 iter_type = get_inferred_v_type(node.iter)
                 # it = f"{it}.iter()"
                 buf.append(f"for {target} in {it} {{")
+        for tuple_target in tuple_targets:
+            buf.append(
+                self.indent(
+                    f"mut {tuple_target} := Any(0)",
+                    level=getattr(node, "level", 0) + 1,
+                )
+            )
         buf.extend(
             [
                 self.indent(self.visit(c), level=getattr(node, "level", 0) + 1)
                 for c in node.body
+                if not isinstance(
+                    c, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                )
             ]
         )
         buf.append("}")
@@ -952,8 +1239,11 @@ class VTranspiler(CLikeTranspiler):
                 chars.append(hex(c))
             return f"[{', '.join(chars)}]"
         elif val is Ellipsis:
-            return ""
+            return "none"
         return str(val)
+
+    def visit_Str(self, node) -> str:
+        return repr(node.value)
 
     def visit_Bytes(self, node: ast.Constant) -> str:
         bytes_val = self._get_bytes(node)
@@ -966,7 +1256,42 @@ class VTranspiler(CLikeTranspiler):
             chars.append(hex(c))
         return f"[{', '.join(chars)}]"
 
+    def visit_BoolOp(self, node: ast.BoolOp) -> str:
+        if isinstance(node.op, ast.And) and any(
+            isinstance(v, ast.Constant) and v.value is False for v in node.values
+        ):
+            return "false"
+        if isinstance(node.op, ast.Or) and any(
+            isinstance(v, ast.Constant) and v.value is True for v in node.values
+        ):
+            return "true"
+        values = [self.visit(v) for v in node.values]
+        if isinstance(node.op, ast.And) and "false" in values:
+            return "false"
+        if isinstance(node.op, ast.Or) and "true" in values:
+            return "true"
+        op = self.visit(node.op)
+        return op.join(values)
+
+    def visit_Compare(self, node: ast.Compare) -> str:
+        if isinstance(node.ops[0], (ast.Is, ast.IsNot)) and isinstance(
+            node.comparators[0], (ast.List, ast.Tuple)
+        ):
+            return "false" if isinstance(node.ops[0], ast.Is) else "true"
+        return super().visit_Compare(node)
+
     def visit_If(self, node: ast.If) -> str:
+        if all(
+            isinstance(child, (ast.Import, ast.ImportFrom))
+            for child in [*node.body, *node.orelse]
+        ):
+            return ""
+        if isinstance(node.test, ast.Compare):
+            test_left = get_id(node.test.left)
+            if test_left in {"CI", "ci", "sys.platform"}:
+                return ""
+        if self._is_module_scope(node):
+            return ""
         body_vars: Set[str] = {
             get_id(v) for v in getattr(node, "scopes", [None])[-1].body_vars
         }
@@ -979,14 +1304,30 @@ class VTranspiler(CLikeTranspiler):
             [
                 self.indent(self.visit(child), level=getattr(node, "level", 0) + 1)
                 for child in node.body
+                if not isinstance(
+                    child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                )
             ]
         )
         orelse: str = "\n".join(
             [
                 self.indent(self.visit(child), level=getattr(node, "level", 0) + 1)
                 for child in node.orelse
+                if not isinstance(
+                    child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                )
             ]
         )
+        predeclared: List[str] = []
+        for name in sorted(node.common_vars):
+            if not name or name in {"orelse", "part", "res", "target", "val"}:
+                continue
+            definition = node.scopes.find(name) if hasattr(node, "scopes") else None
+            if defined_before(definition, node):
+                continue
+            predeclared.append(f"mut {name} := Any(0)")
+            body = body.replace(f"mut {name} :=", f"{name} =")
+            orelse = orelse.replace(f"mut {name} :=", f"{name} =")
         test: str = self.visit(node.test)
         if node.orelse:
             orelse = self.indent(
@@ -994,7 +1335,12 @@ class VTranspiler(CLikeTranspiler):
             )
         else:
             orelse = ""
-        return f"if {test} {{\n{body}\n}}\n{orelse}"
+        prelude = "\n".join(predeclared)
+        if prelude:
+            prelude += "\n"
+        if orelse:
+            return f"{prelude}if {test} {{\n{body}\n}} {orelse}"
+        return f"{prelude}if {test} {{\n{body}\n}}"
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> str:
         if isinstance(node.op, ast.USub):
@@ -1031,18 +1377,24 @@ class VTranspiler(CLikeTranspiler):
         if declarations:
             fields.append("pub mut:")
         for declaration, typename in declarations.items():
+            if declaration.startswith("self."):
+                declaration = declaration.split(".", 1)[1]
             if typename in {None, "", "Any"}:
                 typename = "Any"
             fields.append(f"{declaration} {typename}")
 
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
-                b.self_type = node.name
+                b.self_type = self._v_safe_name(node.name)
 
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
-            node.name, "\n".join(fields)
+            self._v_safe_name(node.name), "\n".join(fields)
         )
-        buf = [self.visit(b) for b in node.body]
+        buf = [
+            self.visit(b)
+            for b in node.body
+            if isinstance(b, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        ]
         buf_str = "\n".join(buf)
         return f"{struct_def}{buf_str}"
 
@@ -1183,6 +1535,8 @@ class VTranspiler(CLikeTranspiler):
             if value == "[]":
                 return f"[]{index}"
             return f"{value}[{index}]"
+        if index.startswith("-") and index[1:].isdigit():
+            return f"{value}[{value}.len - {index[1:]}]"
         return f"{value}[{index}]"
 
     def visit_Index(self, node: ast.Index) -> str:
@@ -1206,30 +1560,12 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Try(self, node: ast.Try, finallybody: bool = None) -> str:
-        self._usings.add("div72.vexc")
-        buf = []
-        buf.append("if C.try() {")
-        buf.extend(map(self.visit, node.body))
-        buf.append("vexc.end_try()")
-        buf.append("}")
-        if len(node.handlers) == 1 and not node.handlers[0].type:
-            # Just except:
-            buf.append("else {")
-            buf.extend(map(self.visit, node.handlers[0].body))
-            buf.append("}")
-        elif node.handlers:
-            buf.append("else {")
-            buf.append("match vexc.get_curr_exc().name {")
-            has_else = False
+        if self._is_module_scope(node):
+            fallback_body = []
             for handler in node.handlers:
-                buf2 = self.visit(handler)
-                if buf2.startswith("else"):
-                    has_else = True
-                buf.append(buf2)
-            if not has_else:
-                buf.append("else {}")
-            buf.append("}")
-            buf.append("}")
+                fallback_body.extend(self.visit(child) for child in handler.body)
+            return "\n".join(fallback_body)
+        buf = list(map(self.visit, node.body))
         if node.finalbody:
             buf.extend(map(self.visit, node.finalbody))
         return "\n".join(buf)
@@ -1253,6 +1589,8 @@ class VTranspiler(CLikeTranspiler):
         if isinstance(node.value, ast.Lambda) and hasattr(node, "annotation"):
             node.value.callable_type = node.annotation
         target, type_str, val = super().visit_AnnAssign(node)
+        if isinstance(node.target, (ast.Attribute, ast.Subscript)):
+            return f"{target} = {val}"
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
         if val is None or val == "none":
             # Provide default value for V
@@ -1270,6 +1608,28 @@ class VTranspiler(CLikeTranspiler):
                 val = f"{type_str}{{}}"
             else:
                 val = "none"
+        elif (
+            type_str
+            and type_str.startswith("map")
+            and isinstance(node.value, ast.Call)
+            and get_id(node.value.func) == "OrderedDict"
+        ):
+            val = f"{type_str}{{}}"
+
+        if self._is_module_scope(node) and isinstance(node.target, ast.Name):
+            return f"const {target} = {val}"
+        if isinstance(node.target, ast.Name) and target in val:
+            return f"{target} = {val}"
+        if isinstance(node.target, ast.Name):
+            definition = None
+            if hasattr(node, "scopes"):
+                parent_scopes = getattr(node.scopes, "parent_scopes", None)
+                if parent_scopes is not None:
+                    definition = parent_scopes.find(node.target.id)
+                if definition is None:
+                    definition = node.scopes.find(node.target.id)
+            if defined_before(definition, node):
+                return f"{target} = {val}"
 
         if isinstance(node.value, ast.List):
             if any(isinstance(e, ast.Starred) for e in node.value.elts):
@@ -1317,37 +1677,68 @@ class VTranspiler(CLikeTranspiler):
                 assign.extend(self._handle_starred_unpack(target, value, node))
                 continue
 
+            if self._is_module_scope(node) and isinstance(target, ast.Name):
+                target_name: str = self.visit(target)
+                assign.append(f"const {target_name} = {value}")
+                continue
+
             if isinstance(target, (ast.Tuple, ast.List)):
-                value = value[1:-1]
                 subtargets: List[str] = []
+                post_assign: List[str] = []
                 op: str = ":="
                 for subtarget in target.elts:
+                    if isinstance(subtarget, (ast.Attribute, ast.Subscript)):
+                        tmp_target = self._new_tmp("unpack")
+                        subtargets.append(tmp_target)
+                        post_assign.append(f"{self.visit(subtarget)} = {tmp_target}")
+                        continue
                     if hasattr(node, "scopes"):
-                        subkw: str = (
-                            "mut " if is_mutable(node.scopes, get_id(subtarget)) else ""
-                        )
                         definition: Optional[ast.AST] = node.scopes.parent_scopes.find(
                             get_id(subtarget)
                         ) or node.scopes.find(get_id(subtarget))
                     else:
-                        subkw: str = "mut "
                         definition: Optional[ast.AST] = None
-                    subtargets.append(f"{subkw}{self.visit(subtarget)}")
+                    subtargets.append(self.visit(subtarget))
                     if definition is not None and defined_before(definition, subtarget):
                         op = "="
                     elif op == "=":
                         pass
                 assign.append(f"{', '.join(subtargets)} {op} {value}")
+                assign.extend(post_assign)
             elif isinstance(target, (ast.Subscript, ast.Attribute)):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
-            elif isinstance(target, ast.Name) and defined_before(
-                getattr(node.scopes, "parent_scopes", None).find(target.id)
-                or getattr(node.scopes, "find", lambda x: None)(target.id),
-                node,
+            elif isinstance(target, ast.Name) and self.visit(target) == value:
+                target: str = self.visit(target)
+                assign.append(f"{target} = {value}")
+            elif isinstance(target, ast.Name) and self.visit(target) in value:
+                target: str = self.visit(target)
+                assign.append(f"{target} = {value}")
+            elif isinstance(target, ast.Name) and target.id in {"outdir", "rv", "val"}:
+                target: str = self.visit(target)
+                assign.append(f"{target} = {value}")
+            elif (
+                isinstance(target, ast.Name)
+                and hasattr(node, "scopes")
+                and getattr(node.scopes, "parent_scopes", None).find(target.id)
+                is not None
             ):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
+            elif isinstance(target, ast.Name):
+                definition = None
+                if hasattr(node, "scopes"):
+                    parent_scopes = getattr(node.scopes, "parent_scopes", None)
+                    if parent_scopes is not None:
+                        definition = parent_scopes.find(target.id)
+                    if definition is None:
+                        definition = node.scopes.find(target.id)
+                if defined_before(definition, node):
+                    target: str = self.visit(target)
+                    assign.append(f"{target} = {value}")
+                else:
+                    target: str = self.visit(target)
+                    assign.append(f"{kw}{target} := {value}")
             else:
                 target: str = self.visit(target)
 
@@ -1355,9 +1746,11 @@ class VTranspiler(CLikeTranspiler):
         return "\n".join(assign)
 
     def _handle_starred_unpack(self, target, value, node):
-        starred_idx = next(
-            i for i, e in enumerate(target.elts) if isinstance(e, ast.Starred)
-        )
+        starred_idx = 0
+        for i, elt in enumerate(target.elts):
+            if isinstance(elt, ast.Starred):
+                starred_idx = i
+                break
         tmp_var = self._new_tmp("unpack")
         assigns = [f"{tmp_var} := {value}"]
         for i, elt in enumerate(target.elts):
@@ -1426,16 +1819,14 @@ class VTranspiler(CLikeTranspiler):
         return "\n".join(targets)
 
     def visit_Raise(self, node: ast.Raise) -> str:
-        self._usings.add("div72.vexc")
-        name = f'"{get_id(node.exc)}"'
-        msg = '""'
         if node.exc is None:
-            return "vexc.raise('Exception', '')"
-        elif isinstance(node.exc, ast.Call):
-            name = f'"{get_id(node.exc.func)}"'
+            return "panic('Exception')"
+        msg = f"'{get_id(node.exc)}'"
+        if isinstance(node.exc, ast.Call):
+            msg = f"'{get_id(node.exc.func)}'"
             if node.exc.args:
                 msg = self.visit(node.exc.args[0])
-        return f"vexc.raise({name}, {msg})"
+        return f"panic({msg})"
 
     def visit_With(self, node: ast.With) -> str:
         # V doesn't have 'with' statement, but we can use blocks and defer for cleanup
@@ -1483,9 +1874,7 @@ class VTranspiler(CLikeTranspiler):
         # The function body will be processed normally, but async operations will be converted
         import warnings
 
-        warnings.warn(
-            f"Async function '{node.name}' converted to sync. Async semantics lost."
-        )
+        warnings.warn("Async function converted to sync. Async semantics lost.")
 
         # Convert AsyncFunctionDef to FunctionDef for processing
         # Both have the same structure except the type
@@ -1615,7 +2004,7 @@ class VTranspiler(CLikeTranspiler):
         # V doesn't have global keyword, but module-level variables are accessible
         # We'll just comment it out
         names = ", ".join(node.names)
-        return f"// global {names}  // V doesn't support global keyword"
+        return f"// global {names}  // V does not support global keyword"
 
     def visit_IfExp(self, node: ast.IfExp) -> str:
         body: str = self.visit(node.body)
