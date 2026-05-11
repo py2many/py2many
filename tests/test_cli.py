@@ -530,6 +530,25 @@ class TestCodeGenerator:
             _get_output_path(Path("dir/foo.py"), ".rs", base) == Path("dir") / "foo.rs"
         )
 
+    def test_main_processes_multiple_inputs(self, monkeypatch, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        outdir = tmp_path / "out"
+        first.mkdir()
+        second.mkdir()
+        calls = []
+
+        def fake_process_dir(settings, source, outdir, project, env=None):
+            calls.append(source)
+            return ({Path("module.py")}, set(), set())
+
+        monkeypatch.setattr(py2many.cli, "_process_dir", fake_process_dir)
+
+        rv = main(args=["--vlang", str(first), str(second), "--outdir", str(outdir)])
+
+        assert rv == 0
+        assert calls == [first, second]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
