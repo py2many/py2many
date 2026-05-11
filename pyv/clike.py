@@ -82,6 +82,7 @@ v_symbols: Dict[type, str] = {
     ast.And: "&&",
     ast.Or: "||",
     ast.In: "in",
+    ast.NotIn: "!in",
 }
 
 
@@ -150,6 +151,10 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         try:
             if node.id in v_keywords:
                 return f"@{node.id}"
+            if node.id == "Ellipsis":
+                return "none"
+            if node.id.upper() == node.id and any(c.isalpha() for c in node.id):
+                return node.id.lower()
             return super().visit_Name(node)
         except Exception:
             import traceback

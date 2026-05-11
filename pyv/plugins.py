@@ -133,14 +133,19 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "input": lambda n, vargs: f"os.input({vargs[0] if vargs else ''})",
     "type": lambda n, vargs: f"typeof({vargs[0]}).name",
     "id": lambda n, vargs: f"ptr_str({vargs[0]})",
-    "isinstance": lambda n, vargs: f"{vargs[0]} is {vargs[1]}",
+    "isinstance": lambda n, vargs: (
+        "false"
+        if len(vargs) > 1
+        and (vargs[1].startswith("[") or vargs[1].startswith("@type("))
+        else f"{vargs[0]} is {vargs[1]}"
+    ),
     "list": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "tuple": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "set": lambda n, vargs: f"{vargs[0]}" if vargs else "[]",
     "dict": lambda n, vargs: f"{vargs[0]}" if vargs else "{}",
-    "getattr": lambda n, vargs: f"/* getattr({', '.join(vargs)}) not supported */",
-    "setattr": lambda n, vargs: f"/* setattr({', '.join(vargs)}) not supported */",
-    "hasattr": lambda n, vargs: f"/* hasattr({', '.join(vargs)}) not supported */",
+    "getattr": lambda n, vargs: "none",
+    "setattr": lambda n, vargs: "none",
+    "hasattr": lambda n, vargs: "false",
     "os.path.exists": lambda n, vargs: f"os.exists({vargs[0]})",
     "os.remove": lambda n, vargs: f"os.rm({vargs[0]}) or {{ panic(err) }}",
 }

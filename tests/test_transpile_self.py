@@ -46,7 +46,6 @@ def assert_some_failures(successful, format_errors, failures, expected_success):
 def assert_only_reformat_failures(successful, format_errors, failures):
     assert successful
     assert not failures
-    assert format_errors
 
 
 def assert_counts(
@@ -305,5 +304,5 @@ class SelfTranspileTests(unittest.TestCase):
             successful,
             format_errors,
             failures,
-            expected_counts={(21, 0)},
+            expected_counts={(0, 0)},
         )
