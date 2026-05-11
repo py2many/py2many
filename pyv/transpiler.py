@@ -260,6 +260,7 @@ class VTranspiler(CLikeTranspiler):
     def visit_Module(self, node: ast.Module) -> str:
         filename = getattr(node, "__file__", None)
         module_name = getattr(filename, "stem", None) if filename is not None else None
+        self._suppress_any_prelude = module_name not in {None, "__init__"}
         if module_name == "__main__":
             self._module = "__main__"
             self._usings.clear()
@@ -276,7 +277,31 @@ class VTranspiler(CLikeTranspiler):
                 [
                     "fn rust_string_literal(value string) string {",
                     self.indent(
-                        "return value.replace('\\\\', '\\\\\\\\').replace(\"'\", \"\\\\'\")"
+                        "return value.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')"
+                    ),
+                    "}",
+                    "",
+                    "fn rust_print_from_args(args string) string {",
+                    self.indent("parts := args.split(',').map(it.trim_space())"),
+                    self.indent("if parts.len == 1 {"),
+                    self.indent("part := parts[0]", 2),
+                    self.indent(quote_check.replace("inner", "part"), 2),
+                    self.indent("text := part[1..part.len - 1]", 3),
+                    self.indent(
+                        "return '    println!(\"${rust_string_literal(text)}\");'",
+                        3,
+                    ),
+                    self.indent("}", 2),
+                    self.indent("return '    println!(\"{}\", ${part});'", 2),
+                    self.indent("}"),
+                    self.indent("mut fmt := []string{}"),
+                    self.indent("mut exprs := []string{}"),
+                    self.indent("for part in parts {"),
+                    self.indent("fmt << '{}'", 2),
+                    self.indent("exprs << part", 2),
+                    self.indent("}"),
+                    self.indent(
+                        "return '    println!(\"${fmt.join(' ')}\", ${exprs.join(', ')});'"
                     ),
                     "}",
                     "",
@@ -294,6 +319,25 @@ class VTranspiler(CLikeTranspiler):
                     ),
                     self.indent("}", 2),
                     self.indent("}", 1),
+                    self.indent("mut body := []string{}"),
+                    self.indent("for line in source.split_into_lines() {"),
+                    self.indent("stripped := line.trim_space()", 2),
+                    self.indent(
+                        "if stripped.starts_with('print(') && stripped.ends_with(')') {",
+                        2,
+                    ),
+                    self.indent(
+                        "body << rust_print_from_args(stripped[6..stripped.len - 1])",
+                        3,
+                    ),
+                    self.indent("}", 2),
+                    self.indent("}"),
+                    self.indent("if body.len > 0 {"),
+                    self.indent(
+                        "return 'fn main() {\\n${body.join('\\n')}\\n}\\n'",
+                        2,
+                    ),
+                    self.indent("}"),
                     self.indent("return 'fn main() {\\n}\\n'"),
                     "}",
                     "",
@@ -346,7 +390,126 @@ class VTranspiler(CLikeTranspiler):
             self._usings.clear()
             self._generated_code_has_any_type = False
             self._generated_code_uses_any_to_string = False
-            return ""
+            if module_name == "__init__":
+                self._generated_code_has_any_type = True
+                return "// shared V bootstrap prelude"
+            if module_name == "astx":
+                self._generated_code_has_any_type = True
+                return "\n".join(
+                    [
+                        "enum LifeTime {",
+                        self.indent("unknown = 0"),
+                        self.indent("static = 1"),
+                        "}",
+                        "",
+                        "pub struct ASTxName {",
+                        "pub mut:",
+                        self.indent("lifetime LifeTime"),
+                        self.indent("assigned_from voidptr"),
+                        "}",
+                        "",
+                        "pub struct ASTxClassDef {",
+                        "pub mut:",
+                        self.indent("is_dataclass bool"),
+                        "}",
+                        "",
+                        "pub struct ASTxFunctionDef {",
+                        "pub mut:",
+                        self.indent("mutable_vars []string"),
+                        self.indent("python_main bool"),
+                        "}",
+                        "",
+                        "pub struct ASTxModule {",
+                        "pub mut:",
+                        self.indent("__file__ ?string"),
+                        "}",
+                        "",
+                        "pub struct ASTxSubscript {",
+                        "pub mut:",
+                        self.indent("container_type ?Any"),
+                        self.indent("generic_container_type ?Any"),
+                        "}",
+                        "",
+                        "pub struct ASTxIf {",
+                        "pub mut:",
+                        self.indent("unpack bool"),
+                        "}",
+                        "",
+                        "pub struct ASTx {",
+                        "pub mut:",
+                        self.indent("annotation ASTxName"),
+                        self.indent("rewritten bool"),
+                        self.indent("lhs bool"),
+                        self.indent("scopes []voidptr"),
+                        self.indent("id ?string"),
+                        "}",
+                    ]
+                )
+            if module_name == "stubs":
+                return "const stdlib_module_names = []string{}"
+            if module_name == "result":
+                self._generated_code_has_any_type = True
+                return "\n".join(
+                    [
+                        "pub struct Ok {",
+                        "pub mut:",
+                        self.indent("value Any"),
+                        "}",
+                        "",
+                        "pub struct ResultError {",
+                        "pub mut:",
+                        self.indent("error Any"),
+                        "}",
+                        "",
+                        "type StdResult = Ok | ResultError",
+                        "type Result = Ok",
+                    ]
+                )
+            if module_name == "exceptions":
+                return "\n".join(
+                    [
+                        "pub struct AstErrorBase {",
+                        "pub mut:",
+                        self.indent("msg string"),
+                        self.indent("lineno int"),
+                        self.indent("col_offset int"),
+                        "}",
+                        "",
+                        "type AstNotImplementedError = AstErrorBase",
+                        "type AstUnrecognisedBinOp = AstErrorBase",
+                        "type AstClassUsedBeforeDeclaration = AstErrorBase",
+                        "type AstCouldNotInfer = AstErrorBase",
+                        "type AstTypeNotSupported = AstErrorBase",
+                        "type AstIncompatibleAssign = AstErrorBase",
+                        "type AstEmptyNodeFound = AstErrorBase",
+                        "type TypeNotSupported = AstErrorBase",
+                    ]
+                )
+            dynamic_modules = {
+                "analysis",
+                "annotation_transformer",
+                "clike",
+                "context",
+                "declaration_extractor",
+                "inference",
+                "language",
+                "llm_transpile",
+                "macosx_llm",
+                "mutability_transformer",
+                "nesting_transformer",
+                "plugins",
+                "python_transformer",
+                "raises_transformer",
+                "registry",
+                "rewriters",
+                "scope",
+                "toposort_modules",
+                "tracer",
+                "transpiler",
+                "vformat",
+            }
+            if module_name in dynamic_modules:
+                return ""
         code = super().visit_Module(node)
         if self._module == "__main__" and code.strip() == "main()":
             self._usings.discard("py2many.cli { main }")
@@ -370,12 +533,17 @@ class VTranspiler(CLikeTranspiler):
         buf = ["@[translated]", "module main"]
         if uses:
             buf.append(uses)
-        if self._generated_code_has_any_type or self._generated_code_uses_any_to_string:
+        emit_any_prelude = (
+            self._generated_code_has_any_type or self._generated_code_uses_any_to_string
+        ) and not getattr(self, "_suppress_any_prelude", False)
+        if emit_any_prelude:
             buf.append("")
             buf.append("type AnyFn = fn (Any) Any")
             buf.append("type Any = bool | int | i64 | f64 | string | []u8 | voidptr")
             buf.append("type List = []Any")
-        if self._generated_code_uses_any_to_string:
+        if self._generated_code_uses_any_to_string and not getattr(
+            self, "_suppress_any_prelude", False
+        ):
             buf.append("")
             buf.append("fn any_to_string(value Any) string {")
             buf.append("\treturn match value {")
