@@ -47,7 +47,8 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     CONTAINER_TYPE_MAP = {
         "List": "Seq",
         "Tuple": "Array",
-        "Dict": "Table",
+        "Dict": "Array",
+        "Array": "Array",
         "Set": "set",
         "Optional": "Option",
         "BitVec": "BitVec",
@@ -58,6 +59,40 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         CommonCLikeTranspiler._type_map = SMT_TYPE_MAP
         CommonCLikeTranspiler._container_type_map = self.CONTAINER_TYPE_MAP
         self._statement_separator = ""
+
+    @staticmethod
+    def _split_union_types(typename: str):
+        parts = []
+        depth = 0
+        start = 0
+        for index, char in enumerate(typename):
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+            elif char == "," and depth == 0:
+                parts.append(typename[start:index])
+                start = index + 1
+        parts.append(typename[start:])
+        return parts
+
+    @classmethod
+    def _map_type(cls, typename, lifetime=None) -> str:
+        if isinstance(typename, str):
+            typename = typename.replace("Union [", "Union[")
+        if (
+            isinstance(typename, str)
+            and typename.startswith("Union[")
+            and typename.endswith("]")
+        ):
+            union_body = typename.removeprefix("Union[").removesuffix("]")
+            mapped_types = {
+                cls._map_type(part.strip(), lifetime)
+                for part in cls._split_union_types(union_body)
+            }
+            if len(mapped_types) == 1:
+                return mapped_types.pop()
+        return super()._map_type(typename, lifetime)
 
     def visit(self, node):
         if type(node) in smt_symbols:
