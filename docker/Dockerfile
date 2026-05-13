@@ -45,6 +45,7 @@ RUN apk add --no-cache \
       lld \
       ldc \
       make \
+      maven \
       nim \
       openjdk17-jdk \
       python3 \
