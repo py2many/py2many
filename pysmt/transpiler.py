@@ -30,6 +30,14 @@ class SmtTranspiler(CLikeTranspiler):
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type.startswith("Array "):
+            return f"({value_type} {index_type})"
+        if value_type == "Array":
+            if isinstance(index_type, list):
+                index_type = " ".join(index_type)
+            else:
+                index_type = index_type.replace(",", "")
+            return f"(Array {index_type})"
         return f"(_ {value_type} {index_type})"
 
     def comment(self, text):
@@ -204,12 +212,7 @@ class SmtTranspiler(CLikeTranspiler):
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
         index = self.visit(node.slice)
-        if (
-            hasattr(node.value, "smt_annotation")
-            and "Array" in node.value.smt_annotation
-        ):
-            return f"(select {value} {index})"
-        return super().visit_Subscript(node)
+        return f"(select {value} {index})"
 
     def visit_Tuple(self, node):
         elts = [self.visit(e) for e in node.elts]
