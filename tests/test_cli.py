@@ -594,6 +594,7 @@ class TestCodeGenerator:
                 "--outdir",
                 str(v_outdir),
                 str(ROOT_DIR / "pyv"),
+                str(ROOT_DIR / "pyrs"),
                 str(ROOT_DIR / "py2many"),
             ]
         )
