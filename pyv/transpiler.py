@@ -244,6 +244,7 @@ class VTranspiler(CLikeTranspiler):
         self._tmp_var_id = 0
         self._int_enums: Set[str] = set()
         self._str_enums: Set[str] = set()
+        self._argparse_specs: Dict[str, List[Dict[str, str]]] = {}
 
     def indent(self, code: str, level=1) -> str:
         return self._indent * level + code
@@ -306,6 +307,7 @@ class VTranspiler(CLikeTranspiler):
                     "}",
                     "",
                     "fn rust_from_source(source string) string {",
+                    self.indent("_ := parse_python_source_json(source)"),
                     self.indent("trimmed := source.trim_space()"),
                     self.indent(
                         "if trimmed.starts_with('print(') && trimmed.ends_with(')') {"
@@ -339,6 +341,12 @@ class VTranspiler(CLikeTranspiler):
                     ),
                     self.indent("}"),
                     self.indent("return 'fn main() {\\n}\\n'"),
+                    "}",
+                    "",
+                    "pub fn parse_python_source_json(source string) string {",
+                    self.indent("mut parser := new_parser(source) or { return '{}' }"),
+                    self.indent("mod := parser.parse_module() or { return '{}' }"),
+                    self.indent("return module_json(mod)"),
                     "}",
                     "",
                     "pub fn run_cli() {",
@@ -511,6 +519,9 @@ class VTranspiler(CLikeTranspiler):
             if module_name in dynamic_modules:
                 return ""
         code = super().visit_Module(node)
+        argparse_struct = self._argparse_struct()
+        if argparse_struct:
+            code = argparse_struct + "\n\n" + code
         if self._module == "__main__" and code.strip() == "main()":
             self._usings.discard("py2many.cli { main }")
             self._usings.discard("py2many.cli")
@@ -520,6 +531,102 @@ class VTranspiler(CLikeTranspiler):
         code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
         return code
+
+    def _argparse_struct(self) -> str:
+        fields: Dict[str, str] = {}
+        for specs in self._argparse_specs.values():
+            for spec in specs:
+                fields[spec["dest"]] = spec["type"]
+        if not fields:
+            return ""
+        lines = ["struct ArgparseArgs {", "pub mut:"]
+        for name, typ in sorted(fields.items()):
+            lines.append(self.indent(f"{name} {typ}"))
+        lines.append("}")
+        return "\n".join(lines)
+
+    def _argparse_keyword(self, node: ast.Call, name: str) -> Optional[ast.AST]:
+        for keyword in node.keywords:
+            if keyword.arg == name:
+                return keyword.value
+        return None
+
+    def _argparse_spec(self, node: ast.Call) -> Dict[str, str]:
+        option_names = [
+            arg.value
+            for arg in node.args
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+        ]
+        dest_node = self._argparse_keyword(node, "dest")
+        if isinstance(dest_node, ast.Constant) and isinstance(dest_node.value, str):
+            dest = dest_node.value
+        else:
+            long_opts = [name for name in option_names if name.startswith("--")]
+            selected = long_opts[-1] if long_opts else option_names[-1]
+            dest = selected.lstrip("-").replace("-", "_")
+
+        abbr = "0"
+        for name in option_names:
+            if name.startswith("-") and not name.startswith("--") and len(name) == 2:
+                abbr = f"`{name[1]}`"
+                break
+
+        action = ""
+        action_node = self._argparse_keyword(node, "action")
+        if isinstance(action_node, ast.Constant) and isinstance(action_node.value, str):
+            action = action_node.value
+
+        type_node = self._argparse_keyword(node, "type")
+        if action in {"store_true", "store_false"}:
+            typ = "bool"
+            method = "bool"
+            default = "false" if action == "store_true" else "true"
+        elif isinstance(type_node, ast.Name) and type_node.id == "int":
+            typ = "int"
+            method = "int"
+            default = "0"
+        else:
+            typ = "string"
+            method = "string"
+            default = "''"
+
+        default_node = self._argparse_keyword(node, "default")
+        if default_node is not None and not (
+            isinstance(default_node, ast.Constant) and default_node.value is None
+        ):
+            default = self.visit(default_node)
+
+        help_node = self._argparse_keyword(node, "help")
+        if isinstance(help_node, ast.Constant) and isinstance(help_node.value, str):
+            help_text = repr(help_node.value)
+        else:
+            help_text = "''"
+
+        return {
+            "dest": dest,
+            "type": typ,
+            "method": method,
+            "default": default,
+            "help": help_text,
+            "abbr": abbr,
+        }
+
+    def _argparse_parse_args(self, parser_name: str) -> str:
+        specs = self._argparse_specs.get(parser_name, [])
+        fields = [
+            (
+                f"{spec['dest']}: {parser_name}.{spec['method']}('{spec['dest']}', "
+                f"{spec['abbr']}, {spec['default']}, {spec['help']}, flag.FlagConfig{{}})"
+            )
+            for spec in specs
+        ]
+        if not fields:
+            return "ArgparseArgs{}"
+        return (
+            "ArgparseArgs{\n"
+            + "\n".join(self.indent(field) for field in fields)
+            + "\n}"
+        )
 
     @staticmethod
     def _v_safe_name(name: str) -> str:
@@ -1080,6 +1187,15 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
+        if isinstance(node.func, ast.Attribute):
+            receiver = get_id(node.func.value)
+            if node.func.attr == "add_argument" and receiver:
+                spec = self._argparse_spec(node)
+                self._argparse_specs.setdefault(receiver, []).append(spec)
+                return ""
+            if node.func.attr in {"parse_args", "parse_known_args"} and receiver:
+                return self._argparse_parse_args(receiver)
+
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr == "map"
@@ -1252,6 +1368,12 @@ class VTranspiler(CLikeTranspiler):
         return result
 
     def visit_Expr(self, node: ast.Expr) -> str:
+        if (
+            isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "add_argument"
+        ):
+            return self.visit(node.value)
         if self._is_module_scope(node) and isinstance(node.value, ast.Name):
             return ""
         return super().visit_Expr(node)
@@ -1825,6 +1947,47 @@ class VTranspiler(CLikeTranspiler):
             return f"{kw}{target} := {val}"
 
     def visit_Assign(self, node: ast.Assign) -> str:
+        if (
+            isinstance(node.value, ast.Call)
+            and get_id(node.value.func) == "argparse.ArgumentParser"
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        ):
+            target = self.visit(node.targets[0])
+            return f"mut {target} := {self.visit(node.value)}"
+        if (
+            isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "parse_known_args"
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], (ast.Tuple, ast.List))
+            and len(node.targets[0].elts) == 2
+        ):
+            parser_name = get_id(node.value.func.value)
+            if parser_name:
+                args_target = self.visit(node.targets[0].elts[0])
+                rest_target = self.visit(node.targets[0].elts[1])
+                return "\n".join(
+                    [
+                        f"mut {args_target} := {self._argparse_parse_args(parser_name)}",
+                        f"{rest_target} := {parser_name}.finalize() or {{ []string{{}} }}",
+                    ]
+                )
+        if (
+            isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "parse_args"
+            and len(node.targets) == 1
+        ):
+            parser_name = get_id(node.value.func.value)
+            if parser_name:
+                target = self.visit(node.targets[0])
+                return "\n".join(
+                    [
+                        f"mut {target} := {self._argparse_parse_args(parser_name)}",
+                        f"_ := {parser_name}.finalize() or {{ []string{{}} }}",
+                    ]
+                )
         assign: List[str] = []
         use_temp: bool = len(node.targets) > 1 and isinstance(node.value, ast.Call)
         if use_temp:

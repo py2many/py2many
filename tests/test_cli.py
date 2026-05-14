@@ -530,6 +530,53 @@ class TestCodeGenerator:
             _get_output_path(Path("dir/foo.py"), ".rs", base) == Path("dir") / "foo.rs"
         )
 
+    def test_vlang_argparse(self, tmp_path):
+        if not find_executable("v"):
+            raise pytest.skip("v not available")
+
+        source = tmp_path / "argparse_case.py"
+        outdir = tmp_path / "out"
+        binary = tmp_path / "argparse_case"
+        source.write_text(
+            "\n".join(
+                [
+                    "import argparse",
+                    "",
+                    "def main():",
+                    "    parser = argparse.ArgumentParser()",
+                    "    parser.add_argument('--rust', action='store_true', default=False, help='Generate Rust code')",
+                    "    parser.add_argument('--outdir', default='', help='Output directory')",
+                    "    parser.add_argument('-i', '--indent', type=int, default=4, help='Indent')",
+                    "    args, rest = parser.parse_known_args()",
+                    "    if args.rust:",
+                    "        print(args.outdir)",
+                    "    print(args.indent)",
+                    "",
+                    "if __name__ == '__main__':",
+                    "    main()",
+                    "",
+                ]
+            )
+        )
+
+        rv = main(args=["--vlang", str(source), "--outdir", str(outdir)])
+        assert rv == 0
+        generated = (outdir / "argparse_case.v").read_text()
+        assert "parser.bool('rust'" in generated
+        assert "parser.string('outdir'" in generated
+        assert "parser.int('indent'" in generated
+
+        proc = run(
+            ["v", "-gc", "none", "-o", str(binary), str(outdir / "argparse_case.v")]
+        )
+        assert proc.returncode == 0
+        proc = run(
+            [str(binary), "--rust", "--outdir", "generated", "-i", "2"],
+            capture_output=True,
+            text=True,
+        )
+        assert proc.stdout.splitlines() == ["generated", "2"]
+
     def test_main_processes_multiple_inputs(self, monkeypatch, tmp_path):
         first = tmp_path / "first"
         second = tmp_path / "second"
