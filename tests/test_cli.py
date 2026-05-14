@@ -577,6 +577,64 @@ class TestCodeGenerator:
         )
         assert proc.stdout.splitlines() == ["generated", "2"]
 
+    def test_vlang_bootstrap_transpiles_three_rust_cases(self, tmp_path):
+        if not find_executable("v"):
+            raise pytest.skip("v not available")
+        if not find_executable("rustc"):
+            raise pytest.skip("rustc not available")
+        if not (Path.home() / ".vmodules" / "pyast" / "ext.v").exists():
+            raise pytest.skip("pyast V module not installed")
+
+        v_outdir = tmp_path / "v_bootstrap"
+        binary = tmp_path / "py2many-incremental-v"
+
+        rv = main(
+            args=[
+                "--vlang",
+                "--outdir",
+                str(v_outdir),
+                str(ROOT_DIR / "pyv"),
+                str(ROOT_DIR / "py2many"),
+            ]
+        )
+        assert rv == 0
+
+        proc = run(["v", "-gc", "none", "-o", str(binary), str(v_outdir)])
+        assert proc.returncode == 0
+
+        cases = {
+            "hello_world": (0, ["Hello world!", "Hello world!"]),
+            "sys_exit": (1, ["OK"]),
+            "binit": (0, ["OK"]),
+        }
+        for case, (expected_returncode, expected_stdout) in cases.items():
+            rust_outdir = tmp_path / f"{case}_rust"
+            rust_binary = tmp_path / case
+            proc = run(
+                [
+                    str(binary),
+                    "--rust",
+                    str(TESTS_DIR / "cases" / f"{case}.py"),
+                    "-o",
+                    str(rust_outdir),
+                ]
+            )
+            assert proc.returncode == 0
+
+            proc = run(
+                [
+                    "rustc",
+                    str(rust_outdir / f"{case}.rs"),
+                    "-o",
+                    str(rust_binary),
+                ]
+            )
+            assert proc.returncode == 0
+
+            proc = run([str(rust_binary)], capture_output=True, text=True)
+            assert proc.returncode == expected_returncode
+            assert proc.stdout.splitlines() == expected_stdout
+
     def test_main_processes_multiple_inputs(self, monkeypatch, tmp_path):
         first = tmp_path / "first"
         second = tmp_path / "second"
