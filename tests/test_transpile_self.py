@@ -306,3 +306,5 @@ class SelfTranspileTests(unittest.TestCase):
             failures,
             expected_counts={(0, 0)},
         )
+        assert (OUT_DIR / "v.mod").is_file()
+        assert not (OUT_DIR / "parser.v").exists()
