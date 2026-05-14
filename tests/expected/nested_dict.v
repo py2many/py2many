@@ -2,10 +2,10 @@
 module main
 
 fn nested_containers() bool {
-	CODES := {
+	codes := {
 		'KEY': [1, 3]
 	}
-	return 1 in CODES['KEY']
+	return 1 in codes['KEY']
 }
 
 fn main() {

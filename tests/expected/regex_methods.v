@@ -12,7 +12,6 @@ fn test_re_methods() {
 	if search_res {
 		println('Found fox')
 	}
-
 	match_res := (fn (p string, s string) bool {
 		mut re := regex.regex_opt('^' + p) or { panic(err) }
 		return re.find_all_str(s).len > 0
@@ -20,7 +19,6 @@ fn test_re_methods() {
 	if match_res {
 		println('Matched The')
 	}
-
 	findall_res := (fn (p string, s string) []string {
 		mut re := regex.regex_opt(p) or { panic(err) }
 		return re.find_all_str(s)

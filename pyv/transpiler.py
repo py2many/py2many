@@ -261,7 +261,49 @@ class VTranspiler(CLikeTranspiler):
     def visit_Module(self, node: ast.Module) -> str:
         filename = getattr(node, "__file__", None)
         module_name = getattr(filename, "stem", None) if filename is not None else None
-        self._suppress_any_prelude = module_name not in {None, "__init__"}
+        module_parent = getattr(getattr(filename, "parent", None), "name", None)
+        self_transpile_module_names = {
+            "__init__",
+            "analysis",
+            "annotation_transformer",
+            "__main__",
+            "ast_helpers",
+            "astx",
+            "clike",
+            "context",
+            "declaration_extractor",
+            "exceptions",
+            "helpers",
+            "inference",
+            "language",
+            "llm_transpile",
+            "macosx_llm",
+            "mutability_transformer",
+            "nesting_transformer",
+            "plugins",
+            "python_transformer",
+            "raises_transformer",
+            "registry",
+            "result",
+            "rewriters",
+            "scope",
+            "smt",
+            "stubs",
+            "process_helpers",
+            "toposort_modules",
+            "tracer",
+            "transpiler",
+            "vformat",
+        }
+        is_self_transpile_module = module_parent in {
+            "py2many",
+            "pyv",
+            "output",
+        } or (module_parent != "cases" and module_name in self_transpile_module_names)
+        self._suppress_any_prelude = is_self_transpile_module and module_name not in {
+            None,
+            "__init__",
+        }
         if module_name == "__main__":
             self._module = "__main__"
             self._usings.clear()
@@ -278,9 +320,7 @@ class VTranspiler(CLikeTranspiler):
             return "\n".join(
                 [
                     "fn rust_string_literal(value string) string {",
-                    self.indent(
-                        "return value.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')"
-                    ),
+                    self.indent("return value"),
                     "}",
                     "",
                     "fn rust_print_from_args(args string) string {",
@@ -290,11 +330,11 @@ class VTranspiler(CLikeTranspiler):
                     self.indent(quote_check.replace("inner", "part"), 2),
                     self.indent("text := part[1..part.len - 1]", 3),
                     self.indent(
-                        "return '    println!(\"${rust_string_literal(text)}\");'",
+                        "return '    println!(\"' + rust_string_literal(text) + '\");'",
                         3,
                     ),
                     self.indent("}", 2),
-                    self.indent("return '    println!(\"{}\", ${part});'", 2),
+                    self.indent("return '    println!(\"{}\", ' + part + ');'", 2),
                     self.indent("}"),
                     self.indent("mut fmt := []string{}"),
                     self.indent("mut exprs := []string{}"),
@@ -303,7 +343,7 @@ class VTranspiler(CLikeTranspiler):
                     self.indent("exprs << part", 2),
                     self.indent("}"),
                     self.indent(
-                        "return '    println!(\"${fmt.join(' ')}\", ${exprs.join(', ')});'"
+                        "return '    println!(\"' + fmt.join(' ') + '\", ' + exprs.join(', ') + ');'"
                     ),
                     "}",
                     "",
@@ -317,7 +357,7 @@ class VTranspiler(CLikeTranspiler):
                     self.indent(quote_check, 2),
                     self.indent("text := inner[1..inner.len - 1]", 3),
                     self.indent(
-                        "return 'fn main() {\\n    println!(\"${rust_string_literal(text)}\");\\n}\\n'",
+                        "return 'fn main() {\\n    println!(\"' + rust_string_literal(text) + '\");\\n}\\n'",
                         3,
                     ),
                     self.indent("}", 2),
@@ -337,7 +377,7 @@ class VTranspiler(CLikeTranspiler):
                     self.indent("}"),
                     self.indent("if body.len > 0 {"),
                     self.indent(
-                        "return 'fn main() {\\n${body.join('\\n')}\\n}\\n'",
+                        "return 'fn main() {\\n' + body.join('\\n') + '\\n}\\n'",
                         2,
                     ),
                     self.indent("}"),
@@ -397,126 +437,127 @@ class VTranspiler(CLikeTranspiler):
             self._usings.clear()
             self._generated_code_has_any_type = False
             self._generated_code_uses_any_to_string = False
-            if module_name == "__init__":
-                self._generated_code_has_any_type = True
-                return "// shared V bootstrap prelude"
-            if module_name == "astx":
-                self._generated_code_has_any_type = True
-                return "\n".join(
-                    [
-                        "enum LifeTime {",
-                        self.indent("unknown = 0"),
-                        self.indent("static = 1"),
-                        "}",
-                        "",
-                        "pub struct ASTxName {",
-                        "pub mut:",
-                        self.indent("lifetime LifeTime"),
-                        self.indent("assigned_from voidptr"),
-                        "}",
-                        "",
-                        "pub struct ASTxClassDef {",
-                        "pub mut:",
-                        self.indent("is_dataclass bool"),
-                        "}",
-                        "",
-                        "pub struct ASTxFunctionDef {",
-                        "pub mut:",
-                        self.indent("mutable_vars []string"),
-                        self.indent("python_main bool"),
-                        "}",
-                        "",
-                        "pub struct ASTxModule {",
-                        "pub mut:",
-                        self.indent("__file__ ?string"),
-                        "}",
-                        "",
-                        "pub struct ASTxSubscript {",
-                        "pub mut:",
-                        self.indent("container_type ?Any"),
-                        self.indent("generic_container_type ?Any"),
-                        "}",
-                        "",
-                        "pub struct ASTxIf {",
-                        "pub mut:",
-                        self.indent("unpack bool"),
-                        "}",
-                        "",
-                        "pub struct ASTx {",
-                        "pub mut:",
-                        self.indent("annotation ASTxName"),
-                        self.indent("rewritten bool"),
-                        self.indent("lhs bool"),
-                        self.indent("scopes []voidptr"),
-                        self.indent("id ?string"),
-                        "}",
-                    ]
-                )
-            if module_name == "stubs":
-                return "const stdlib_module_names = []string{}"
-            if module_name == "result":
-                self._generated_code_has_any_type = True
-                return "\n".join(
-                    [
-                        "pub struct Ok {",
-                        "pub mut:",
-                        self.indent("value Any"),
-                        "}",
-                        "",
-                        "pub struct ResultError {",
-                        "pub mut:",
-                        self.indent("error Any"),
-                        "}",
-                        "",
-                        "type StdResult = Ok | ResultError",
-                        "type Result = Ok",
-                    ]
-                )
-            if module_name == "exceptions":
-                return "\n".join(
-                    [
-                        "pub struct AstErrorBase {",
-                        "pub mut:",
-                        self.indent("msg string"),
-                        self.indent("lineno int"),
-                        self.indent("col_offset int"),
-                        "}",
-                        "",
-                        "type AstNotImplementedError = AstErrorBase",
-                        "type AstUnrecognisedBinOp = AstErrorBase",
-                        "type AstClassUsedBeforeDeclaration = AstErrorBase",
-                        "type AstCouldNotInfer = AstErrorBase",
-                        "type AstTypeNotSupported = AstErrorBase",
-                        "type AstIncompatibleAssign = AstErrorBase",
-                        "type AstEmptyNodeFound = AstErrorBase",
-                        "type TypeNotSupported = AstErrorBase",
-                    ]
-                )
-            dynamic_modules = {
-                "analysis",
-                "annotation_transformer",
-                "clike",
-                "context",
-                "declaration_extractor",
-                "inference",
-                "language",
-                "llm_transpile",
-                "macosx_llm",
-                "mutability_transformer",
-                "nesting_transformer",
-                "plugins",
-                "python_transformer",
-                "raises_transformer",
-                "registry",
-                "rewriters",
-                "scope",
-                "toposort_modules",
-                "tracer",
-                "transpiler",
-                "vformat",
-            }
-            if module_name in dynamic_modules:
-                return ""
+            if is_self_transpile_module:
+                if module_name == "__init__":
+                    self._generated_code_has_any_type = True
+                    return "// shared V bootstrap prelude"
+                if module_name == "astx":
+                    self._generated_code_has_any_type = True
+                    return "\n".join(
+                        [
+                            "enum LifeTime {",
+                            self.indent("unknown = 0"),
+                            self.indent("static = 1"),
+                            "}",
+                            "",
+                            "pub struct ASTxName {",
+                            "pub mut:",
+                            self.indent("lifetime LifeTime"),
+                            self.indent("assigned_from voidptr"),
+                            "}",
+                            "",
+                            "pub struct ASTxClassDef {",
+                            "pub mut:",
+                            self.indent("is_dataclass bool"),
+                            "}",
+                            "",
+                            "pub struct ASTxFunctionDef {",
+                            "pub mut:",
+                            self.indent("mutable_vars []string"),
+                            self.indent("python_main bool"),
+                            "}",
+                            "",
+                            "pub struct ASTxModule {",
+                            "pub mut:",
+                            self.indent("__file__ ?string"),
+                            "}",
+                            "",
+                            "pub struct ASTxSubscript {",
+                            "pub mut:",
+                            self.indent("container_type ?Any"),
+                            self.indent("generic_container_type ?Any"),
+                            "}",
+                            "",
+                            "pub struct ASTxIf {",
+                            "pub mut:",
+                            self.indent("unpack bool"),
+                            "}",
+                            "",
+                            "pub struct ASTx {",
+                            "pub mut:",
+                            self.indent("annotation ASTxName"),
+                            self.indent("rewritten bool"),
+                            self.indent("lhs bool"),
+                            self.indent("scopes []voidptr"),
+                            self.indent("id ?string"),
+                            "}",
+                        ]
+                    )
+                if module_name == "stubs":
+                    return "const stdlib_module_names = []string{}"
+                if module_name == "result":
+                    self._generated_code_has_any_type = True
+                    return "\n".join(
+                        [
+                            "pub struct Ok {",
+                            "pub mut:",
+                            self.indent("value Any"),
+                            "}",
+                            "",
+                            "pub struct ResultError {",
+                            "pub mut:",
+                            self.indent("error Any"),
+                            "}",
+                            "",
+                            "type StdResult = Ok | ResultError",
+                            "type Result = Ok",
+                        ]
+                    )
+                if module_name == "exceptions":
+                    return "\n".join(
+                        [
+                            "pub struct AstErrorBase {",
+                            "pub mut:",
+                            self.indent("msg string"),
+                            self.indent("lineno int"),
+                            self.indent("col_offset int"),
+                            "}",
+                            "",
+                            "type AstNotImplementedError = AstErrorBase",
+                            "type AstUnrecognisedBinOp = AstErrorBase",
+                            "type AstClassUsedBeforeDeclaration = AstErrorBase",
+                            "type AstCouldNotInfer = AstErrorBase",
+                            "type AstTypeNotSupported = AstErrorBase",
+                            "type AstIncompatibleAssign = AstErrorBase",
+                            "type AstEmptyNodeFound = AstErrorBase",
+                            "type TypeNotSupported = AstErrorBase",
+                        ]
+                    )
+                dynamic_modules = {
+                    "analysis",
+                    "annotation_transformer",
+                    "clike",
+                    "context",
+                    "declaration_extractor",
+                    "inference",
+                    "language",
+                    "llm_transpile",
+                    "macosx_llm",
+                    "mutability_transformer",
+                    "nesting_transformer",
+                    "plugins",
+                    "python_transformer",
+                    "raises_transformer",
+                    "registry",
+                    "rewriters",
+                    "scope",
+                    "toposort_modules",
+                    "tracer",
+                    "transpiler",
+                    "vformat",
+                }
+                if module_name in dynamic_modules:
+                    return ""
         code = super().visit_Module(node)
         argparse_struct = self._argparse_struct()
         if argparse_struct:
@@ -612,13 +653,24 @@ class VTranspiler(CLikeTranspiler):
 
     def _argparse_parse_args(self, parser_name: str) -> str:
         specs = self._argparse_specs.get(parser_name, [])
-        fields = [
-            (
-                f"{spec['dest']}: {parser_name}.{spec['method']}('{spec['dest']}', "
-                f"{spec['abbr']}, {spec['default']}, {spec['help']}, flag.FlagConfig{{}})"
+        fields = []
+        for spec in specs:
+            fields.append(
+                spec["dest"]
+                + ": "
+                + parser_name
+                + "."
+                + spec["method"]
+                + "('"
+                + spec["dest"]
+                + "', "
+                + spec["abbr"]
+                + ", "
+                + spec["default"]
+                + ", "
+                + spec["help"]
+                + ", flag.FlagConfig{})"
             )
-            for spec in specs
-        ]
         if not fields:
             return "ArgparseArgs{}"
         return (
@@ -1222,18 +1274,27 @@ class VTranspiler(CLikeTranspiler):
         if hasattr(node, "scopes"):
             fndef = node.scopes.find(fname)
 
-        if fname.startswith("ast.") and len(fname) > 4 and fname[4].isupper():
-            return f"{fname[4:]}{{}}"
-        if "." not in fname and fname and fname[0].isupper():
-            return f"{fname}{{}}"
-
         if isinstance(fndef, ast.ClassDef):
             vargs = [self.visit(a) for a in node.args]
             if node.keywords:
-                vargs += [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
+                keyed = [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
+                has_init = any(
+                    isinstance(child, ast.FunctionDef) and child.name == "__init__"
+                    for child in fndef.body
+                )
+                if not has_init and not vargs:
+                    return f"{fname}{{{', '.join(keyed)}}}"
+                vargs += keyed
 
             if vargs:
                 return f"new_{fname.lower()}({', '.join(vargs)})"
+            return f"{fname}{{}}"
+        if fname.startswith("ast.") and len(fname) > 4 and fname[4].isupper():
+            return f"{fname[4:]}{{}}"
+        if "." not in fname and fname and fname[0].isupper() and node.keywords:
+            keyed = [f"{kw.arg}: {self.visit(kw.value)}" for kw in node.keywords]
+            return f"{fname}{{{', '.join(keyed)}}}"
+        if "." not in fname and fname and fname[0].isupper():
             return f"{fname}{{}}"
 
         vargs: List[str] = []
@@ -1611,7 +1672,13 @@ class VTranspiler(CLikeTranspiler):
         for name in sorted(node.common_vars):
             if not name or name in {"orelse", "part", "res", "target", "val"}:
                 continue
-            definition = node.scopes.find(name) if hasattr(node, "scopes") else None
+            definition = None
+            if hasattr(node, "scopes"):
+                parent_scopes = getattr(node.scopes, "parent_scopes", None)
+                if parent_scopes is not None:
+                    definition = parent_scopes.find(name)
+                if definition is None:
+                    definition = node.scopes.find(name)
             if defined_before(definition, node):
                 continue
             predeclared.append(f"mut {name} := Any(0)")
@@ -1849,14 +1916,42 @@ class VTranspiler(CLikeTranspiler):
         return self.visit_List(node)
 
     def visit_Try(self, node: ast.Try, finallybody: bool = None) -> str:
-        if self._is_module_scope(node):
-            fallback_body = []
+        raises = [child for child in node.body if isinstance(child, ast.Raise)]
+        if raises and node.handlers:
+            msg = "'Exception'"
+            exc = raises[0].exc
+            if isinstance(exc, ast.Call) and exc.args:
+                msg = self.visit(exc.args[0])
+            elif exc is not None:
+                msg = f"'{get_id(exc)}'"
+            buf = []
+            for handler in node.handlers[:1]:
+                uses_handler_name = handler.name and any(
+                    isinstance(child, ast.Name) and child.id == handler.name
+                    for body_node in handler.body
+                    for child in ast.walk(body_node)
+                )
+                if uses_handler_name:
+                    buf.append(f"{handler.name} := {msg}")
+                buf.extend(map(self.visit, handler.body))
+        elif self._is_module_scope(node):
+            buf = []
             for handler in node.handlers:
-                fallback_body.extend(self.visit(child) for child in handler.body)
-            return "\n".join(fallback_body)
-        buf = list(map(self.visit, node.body))
+                buf.extend(self.visit(child) for child in handler.body)
+        else:
+            buf = list(map(self.visit, node.body))
         if node.finalbody:
-            buf.extend(map(self.visit, node.finalbody))
+            finalbody = "\n".join(
+                self.indent(self.visit(child), 2) for child in node.finalbody
+            )
+            body = "\n".join(self.indent(line) for line in buf)
+            return (
+                "{\n"
+                + self.indent("defer {")
+                + f"\n{finalbody}\n"
+                + self.indent("}")
+                + f"\n{body}\n}}"
+            )
         return "\n".join(buf)
 
     def visit_ExceptHandler(self, node) -> str:
@@ -1907,8 +2002,6 @@ class VTranspiler(CLikeTranspiler):
 
         if self._is_module_scope(node) and isinstance(node.target, ast.Name):
             return f"const {target} = {val}"
-        if isinstance(node.target, ast.Name) and target in val:
-            return f"{target} = {val}"
         if isinstance(node.target, ast.Name):
             definition = None
             if hasattr(node, "scopes"):
@@ -2041,17 +2134,16 @@ class VTranspiler(CLikeTranspiler):
             elif isinstance(target, ast.Name) and self.visit(target) == value:
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")
-            elif isinstance(target, ast.Name) and self.visit(target) in value:
-                target: str = self.visit(target)
-                assign.append(f"{target} = {value}")
-            elif isinstance(target, ast.Name) and target.id in {"outdir", "rv", "val"}:
-                target: str = self.visit(target)
-                assign.append(f"{target} = {value}")
             elif (
                 isinstance(target, ast.Name)
                 and hasattr(node, "scopes")
-                and getattr(node.scopes, "parent_scopes", None).find(target.id)
+                and (
+                    definition := getattr(node.scopes, "parent_scopes", None).find(
+                        target.id
+                    )
+                )
                 is not None
+                and defined_before(definition, node)
             ):
                 target: str = self.visit(target)
                 assign.append(f"{target} = {value}")

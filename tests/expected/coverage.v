@@ -5,6 +5,7 @@ fn inline_pass() {
 }
 
 fn inline_ellipsis() {
+	none
 }
 
 fn indexing() int {
@@ -70,17 +71,14 @@ fn show() {
 	if 1 != 0 {
 		println('World is sane')
 	}
-
 	println((if true { 'True' } else { 'False' }).str())
 	if true {
 		a1 += 1
 	}
-
 	assert a1 == 11
 	if true {
 		println('true')
 	}
-
 	inline_pass()
 	s := '1    2'
 	println('${s}')
@@ -88,7 +86,7 @@ fn show() {
 	_escape_quotes := ' foo "bar" baz '
 	assert 'aaabbccc'.contains('bbc')
 	assert 1 != 0
-	mut _c1, _, mut _c2 := 1, 2, 3
+	_c1, _, _c2 := [1, 2, 3]
 }
 
 fn main() {

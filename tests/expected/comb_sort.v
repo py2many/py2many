@@ -12,7 +12,9 @@ fn comb_sort(mut seq []int) []int {
 		swap = false
 		for i in 0 .. (seq.len - gap) {
 			if seq[i] > seq[(i + gap)] {
-				seq[i], seq[(i + gap)] = seq[(i + gap)], seq[i]
+				__unpack1, __unpack2 := [seq[(i + gap)], seq[i]]
+				seq[i] = __unpack1
+				seq[(i + gap)] = __unpack2
 				swap = true
 			}
 		}
