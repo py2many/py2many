@@ -509,6 +509,7 @@ def main(args=None, env=os.environ):
 
     settings.ignore_formatter_errors = args.ignore_formatter_errors
 
+    failed = []
     for filename in rest:
         source = Path(filename)
         if args.outdir is None:
@@ -540,5 +541,5 @@ def main(args=None, env=os.environ):
                 settings, source, outdir, args.project, env=env
             )
             rv = not (failures or format_errors)
-        rv = 0 if rv is True else 1
-        return rv
+        failed.append(rv is not True)
+    return 1 if any(failed) else 0
