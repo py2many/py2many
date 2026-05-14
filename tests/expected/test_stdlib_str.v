@@ -18,11 +18,9 @@ fn test_str_methods() {
 	if '123'.bytes().all(it.is_digit()) {
 		println('digit')
 	}
-
 	if 'abc'.bytes().all(it.is_letter()) {
 		println('alpha')
 	}
-
 	if ('   '.trim_space() == '') {
 		println('space')
 	}

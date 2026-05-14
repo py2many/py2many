@@ -1,40 +1,16 @@
 @[translated]
 module main
 
-import div72.vexc
-
 fn show() {
-	if C.try() {
-		vexc.raise('Exception', 'foo')
-		vexc.end_try()
-	} else {
-		match vexc.get_curr_exc().name {
-			'Exception' {
-				e := vexc.get_curr_exc()
-				println('caught')
-			}
-			else {}
+	{
+		defer {
+			println('Finally')
 		}
+		println('caught')
 	}
-	println('Finally')
-	if C.try() {
-		vexc.raise('Exception', 'foo')
-		vexc.end_try()
-	} else {
-		println('Got it')
-	}
-	if C.try() {
-		vexc.raise('Exception', 'foo')
-		vexc.end_try()
-	} else {
-		match vexc.get_curr_exc().name {
-			'Exception' {
-				e := vexc.get_curr_exc()
-				assert e.str().contains('foo')
-			}
-			else {}
-		}
-	}
+	println('Got it')
+	e := 'foo'
+	assert e.str().contains('foo')
 }
 
 fn main() {

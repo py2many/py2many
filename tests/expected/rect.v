@@ -14,9 +14,15 @@ fn (mut self Rectangle) is_square() bool {
 }
 
 fn show() {
-	mut r := new_rectangle(height: 1, length: 1)
+	mut r := Rectangle{
+		height: 1
+		length: 1
+	}
 	assert r.is_square()
-	r = new_rectangle(height: 1, length: 2)
+	r = Rectangle{
+		height: 1
+		length: 2
+	}
 	assert !(r.is_square())
 	println((r.height).str())
 	println((r.length).str())

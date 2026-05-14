@@ -190,6 +190,7 @@ EXPECTED_SUCCESSES = [
     "empty_print.kt",
     "empty_print.rs",
     "intenum_iter.nim",
+    "intflag_bitop.v",
     "float_1.jl",
     "float_1.nim",
     "float_str.kt",

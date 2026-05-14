@@ -6,7 +6,6 @@ fn for_with_break() {
 		if i == 2 {
 			break
 		}
-
 		println(i.str())
 	}
 }
@@ -16,7 +15,6 @@ fn for_with_continue() {
 		if i == 2 {
 			continue
 		}
-
 		println(i.str())
 	}
 }
@@ -37,7 +35,6 @@ fn while_with_break() {
 		if i == 2 {
 			break
 		}
-
 		println(i.str())
 		i += 1
 	}
@@ -50,7 +47,6 @@ fn while_with_continue() {
 		if i == 2 {
 			continue
 		}
-
 		println(i.str())
 	}
 }
