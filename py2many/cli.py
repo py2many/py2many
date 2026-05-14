@@ -1,6 +1,7 @@
 import argparse
 import ast
 import os
+import shutil
 import sys
 import tempfile
 from functools import lru_cache
@@ -370,6 +371,8 @@ def _process_dir(
         env=env,
         _suppress_exceptions=_suppress_exceptions,
     )
+    if settings.ext == ".v":
+        _copy_v_ast_parser(outdir)
     failures = set(input_paths) - set(successful)
 
     print("\nFinished!")
@@ -379,6 +382,12 @@ def _process_dir(
     print(f"Failed to convert: {len(failures)}")
     print()
     return (successful, format_errors, failures)
+
+
+def _copy_v_ast_parser(outdir):
+    parser_src = ROOT_DIR.parent / "v-ast" / "vlang_match_parser" / "parser.v"
+    if parser_src.is_file():
+        shutil.copyfile(parser_src, outdir / "parser.v")
 
 
 def main(args=None, env=os.environ):
