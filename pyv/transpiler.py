@@ -21,6 +21,13 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+from .self_transpile import (
+    render_self_transpile_module,
+    rewrite_main_forwarder,
+    should_ignore_import,
+    should_ignore_import_from,
+    should_suppress_any_prelude,
+)
 from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE
 
 _is_mutable = is_mutable
@@ -262,311 +269,24 @@ class VTranspiler(CLikeTranspiler):
         filename = getattr(node, "__file__", None)
         module_name = getattr(filename, "stem", None) if filename is not None else None
         module_parent = getattr(getattr(filename, "parent", None), "name", None)
-        self_transpile_module_names = {
-            "__init__",
-            "analysis",
-            "annotation_transformer",
-            "__main__",
-            "ast_helpers",
-            "astx",
-            "clike",
-            "context",
-            "declaration_extractor",
-            "exceptions",
-            "helpers",
-            "inference",
-            "language",
-            "llm_transpile",
-            "macosx_llm",
-            "mutability_transformer",
-            "nesting_transformer",
-            "plugins",
-            "python_transformer",
-            "raises_transformer",
-            "registry",
-            "result",
-            "rewriters",
-            "scope",
-            "smt",
-            "stubs",
-            "process_helpers",
-            "toposort_modules",
-            "tracer",
-            "transpiler",
-            "vformat",
-        }
-        is_self_transpile_module = module_parent in {
-            "py2many",
-            "pyv",
-            "output",
-        } or (module_parent != "cases" and module_name in self_transpile_module_names)
-        self._suppress_any_prelude = is_self_transpile_module and module_name not in {
-            None,
-            "__init__",
-        }
-        if module_name == "__main__":
-            self._module = "__main__"
-            self._usings.clear()
-            return "fn main() {\n" + self.indent("run_cli()") + "\n}"
-        if module_name == "cli":
-            self._module = "cli"
-            self._usings.clear()
-            self._usings.add("os")
-            self._usings.add("pyast")
-            quote_check = (
-                "if inner.len >= 2 && ((inner[0] == `'` && inner[inner.len - 1] == `'`) "
-                '|| (inner[0] == `"` && inner[inner.len - 1] == `"`)) {'
-            )
-            return "\n".join(
-                [
-                    "fn rust_string_literal(value string) string {",
-                    self.indent("return value"),
-                    "}",
-                    "",
-                    "fn rust_print_from_args(args string) string {",
-                    self.indent("parts := args.split(',').map(it.trim_space())"),
-                    self.indent("if parts.len == 1 {"),
-                    self.indent("part := parts[0]", 2),
-                    self.indent(quote_check.replace("inner", "part"), 2),
-                    self.indent("text := part[1..part.len - 1]", 3),
-                    self.indent(
-                        "return '    println!(\"' + rust_string_literal(text) + '\");'",
-                        3,
-                    ),
-                    self.indent("}", 2),
-                    self.indent("return '    println!(\"{}\", ' + part + ');'", 2),
-                    self.indent("}"),
-                    self.indent("mut fmt := []string{}"),
-                    self.indent("mut exprs := []string{}"),
-                    self.indent("for part in parts {"),
-                    self.indent("fmt << '{}'", 2),
-                    self.indent("exprs << part", 2),
-                    self.indent("}"),
-                    self.indent(
-                        "return '    println!(\"' + fmt.join(' ') + '\", ' + exprs.join(', ') + ');'"
-                    ),
-                    "}",
-                    "",
-                    "fn rust_from_source(source string) string {",
-                    self.indent("_ := parse_python_source_json(source)"),
-                    self.indent("trimmed := source.trim_space()"),
-                    self.indent(
-                        "if trimmed.starts_with('print(') && trimmed.ends_with(')') {"
-                    ),
-                    self.indent("inner := trimmed[6..trimmed.len - 1].trim_space()", 2),
-                    self.indent(quote_check, 2),
-                    self.indent("text := inner[1..inner.len - 1]", 3),
-                    self.indent(
-                        "return 'fn main() {\\n    println!(\"' + rust_string_literal(text) + '\");\\n}\\n'",
-                        3,
-                    ),
-                    self.indent("}", 2),
-                    self.indent("}", 1),
-                    self.indent("mut body := []string{}"),
-                    self.indent("for line in source.split_into_lines() {"),
-                    self.indent("stripped := line.trim_space()", 2),
-                    self.indent(
-                        "if stripped.starts_with('print(') && stripped.ends_with(')') {",
-                        2,
-                    ),
-                    self.indent(
-                        "body << rust_print_from_args(stripped[6..stripped.len - 1])",
-                        3,
-                    ),
-                    self.indent("}", 2),
-                    self.indent("}"),
-                    self.indent("if body.len > 0 {"),
-                    self.indent(
-                        "return 'fn main() {\\n' + body.join('\\n') + '\\n}\\n'",
-                        2,
-                    ),
-                    self.indent("}"),
-                    self.indent("return 'fn main() {\\n}\\n'"),
-                    "}",
-                    "",
-                    "pub fn parse_python_source_json(source string) string {",
-                    self.indent("return pyast.parse_module_json(source) or { '{}' }"),
-                    "}",
-                    "",
-                    "pub fn run_cli() {",
-                    self.indent("mut input := ''"),
-                    self.indent("mut outdir := ''"),
-                    self.indent("mut emit_rust := false"),
-                    self.indent("args := os.args[1..]"),
-                    self.indent("for i := 0; i < args.len; i++ {"),
-                    self.indent("arg := args[i]", 2),
-                    self.indent("if arg == '--rust' || arg == '-r' {", 2),
-                    self.indent("emit_rust = true", 3),
-                    self.indent(
-                        "} else if (arg == '--outdir' || arg == '-o') && i + 1 < args.len {",
-                        2,
-                    ),
-                    self.indent("outdir = args[i + 1]", 3),
-                    self.indent("i++", 3),
-                    self.indent("} else if !arg.starts_with('-') {", 2),
-                    self.indent("input = arg", 3),
-                    self.indent("}", 2),
-                    self.indent("}"),
-                    self.indent("if !emit_rust {"),
-                    self.indent(
-                        "eprintln('only --rust is supported by this generated bootstrap binary')",
-                        2,
-                    ),
-                    self.indent("exit(1)", 2),
-                    self.indent("}"),
-                    self.indent("if input == '' {"),
-                    self.indent("eprintln('missing input file')", 2),
-                    self.indent("exit(1)", 2),
-                    self.indent("}"),
-                    self.indent("source := os.read_file(input) or { panic(err) }"),
-                    self.indent("rust := rust_from_source(source)"),
-                    self.indent("if outdir == '' || outdir == '-' {"),
-                    self.indent("print(rust)", 2),
-                    self.indent("return", 2),
-                    self.indent("}"),
-                    self.indent("os.mkdir_all(outdir) or { panic(err) }"),
-                    self.indent("base := os.file_name(input).all_before_last('.')"),
-                    self.indent(
-                        "os.write_file(os.join_path(outdir, base + '.rs'), rust) or { panic(err) }"
-                    ),
-                    "}",
-                ]
-            )
+        self._suppress_any_prelude = should_suppress_any_prelude(
+            module_name, module_parent
+        )
+        rendered_self_module = render_self_transpile_module(
+            self, module_name, module_parent
+        )
+        if rendered_self_module is not None:
+            return rendered_self_module
         if module_name is not None:
             self._module = module_name
             self._usings.clear()
             self._generated_code_has_any_type = False
             self._generated_code_uses_any_to_string = False
-            if is_self_transpile_module:
-                if module_name == "__init__":
-                    self._generated_code_has_any_type = True
-                    return "// shared V bootstrap prelude"
-                if module_name == "astx":
-                    self._generated_code_has_any_type = True
-                    return "\n".join(
-                        [
-                            "enum LifeTime {",
-                            self.indent("unknown = 0"),
-                            self.indent("static = 1"),
-                            "}",
-                            "",
-                            "pub struct ASTxName {",
-                            "pub mut:",
-                            self.indent("lifetime LifeTime"),
-                            self.indent("assigned_from voidptr"),
-                            "}",
-                            "",
-                            "pub struct ASTxClassDef {",
-                            "pub mut:",
-                            self.indent("is_dataclass bool"),
-                            "}",
-                            "",
-                            "pub struct ASTxFunctionDef {",
-                            "pub mut:",
-                            self.indent("mutable_vars []string"),
-                            self.indent("python_main bool"),
-                            "}",
-                            "",
-                            "pub struct ASTxModule {",
-                            "pub mut:",
-                            self.indent("__file__ ?string"),
-                            "}",
-                            "",
-                            "pub struct ASTxSubscript {",
-                            "pub mut:",
-                            self.indent("container_type ?Any"),
-                            self.indent("generic_container_type ?Any"),
-                            "}",
-                            "",
-                            "pub struct ASTxIf {",
-                            "pub mut:",
-                            self.indent("unpack bool"),
-                            "}",
-                            "",
-                            "pub struct ASTx {",
-                            "pub mut:",
-                            self.indent("annotation ASTxName"),
-                            self.indent("rewritten bool"),
-                            self.indent("lhs bool"),
-                            self.indent("scopes []voidptr"),
-                            self.indent("id ?string"),
-                            "}",
-                        ]
-                    )
-                if module_name == "stubs":
-                    return "const stdlib_module_names = []string{}"
-                if module_name == "result":
-                    self._generated_code_has_any_type = True
-                    return "\n".join(
-                        [
-                            "pub struct Ok {",
-                            "pub mut:",
-                            self.indent("value Any"),
-                            "}",
-                            "",
-                            "pub struct ResultError {",
-                            "pub mut:",
-                            self.indent("error Any"),
-                            "}",
-                            "",
-                            "type StdResult = Ok | ResultError",
-                            "type Result = Ok",
-                        ]
-                    )
-                if module_name == "exceptions":
-                    return "\n".join(
-                        [
-                            "pub struct AstErrorBase {",
-                            "pub mut:",
-                            self.indent("msg string"),
-                            self.indent("lineno int"),
-                            self.indent("col_offset int"),
-                            "}",
-                            "",
-                            "type AstNotImplementedError = AstErrorBase",
-                            "type AstUnrecognisedBinOp = AstErrorBase",
-                            "type AstClassUsedBeforeDeclaration = AstErrorBase",
-                            "type AstCouldNotInfer = AstErrorBase",
-                            "type AstTypeNotSupported = AstErrorBase",
-                            "type AstIncompatibleAssign = AstErrorBase",
-                            "type AstEmptyNodeFound = AstErrorBase",
-                            "type TypeNotSupported = AstErrorBase",
-                        ]
-                    )
-                dynamic_modules = {
-                    "analysis",
-                    "annotation_transformer",
-                    "clike",
-                    "context",
-                    "declaration_extractor",
-                    "inference",
-                    "language",
-                    "llm_transpile",
-                    "macosx_llm",
-                    "mutability_transformer",
-                    "nesting_transformer",
-                    "plugins",
-                    "python_transformer",
-                    "raises_transformer",
-                    "registry",
-                    "rewriters",
-                    "scope",
-                    "toposort_modules",
-                    "tracer",
-                    "transpiler",
-                    "vformat",
-                }
-                if module_name in dynamic_modules:
-                    return ""
         code = super().visit_Module(node)
         argparse_struct = self._argparse_struct()
         if argparse_struct:
             code = argparse_struct + "\n\n" + code
-        if self._module == "__main__" and code.strip() == "main()":
-            self._usings.discard("py2many.cli { main }")
-            self._usings.discard("py2many.cli")
-            self._usings.add("cli")
-            code = "fn main() {\n" + self.indent("cli.main()") + "\n}"
+        code = rewrite_main_forwarder(self, code)
         # Hack: Fix int(x) -> (x as int) for variables (Any casting)
         code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
@@ -749,35 +469,7 @@ class VTranspiler(CLikeTranspiler):
         return f"// {text}\n"
 
     def _import(self, name: str) -> str:
-        if name in {"ast", "ast_helpers", "importlib", "mlx_lm", "scope", "warnings"}:
-            return ""
-        if name.startswith("py2many.") or name in {
-            "analysis",
-            "annotation_transformer",
-            "astx",
-            "clike",
-            "context",
-            "declaration_extractor",
-            "exceptions",
-            "inference",
-            "language",
-            "llm_transpile",
-            "macosx_llm",
-            "mutability_transformer",
-            "nesting_transformer",
-            "process_helpers",
-            "plugins",
-            "python_transformer",
-            "raises_transformer",
-            "registry",
-            "rewriters",
-            "result",
-            "stubs",
-            "smt",
-            "toposort_modules",
-            "tracer",
-            "transpiler",
-        }:
+        if should_ignore_import(name):
             return ""
         if name.split(".", 1)[0] in STDLIB_MODULE_NAMES:
             return ""
@@ -786,42 +478,7 @@ class VTranspiler(CLikeTranspiler):
         return ""
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        if module_name in {"py2many.version", "version"}:
-            return ""
-        if module_name in {
-            "ast",
-            "ast_helpers",
-            "mlx_lm",
-            "scope",
-        } or module_name.startswith("py2many."):
-            return ""
-        if module_name in {
-            "analysis",
-            "annotation_transformer",
-            "astx",
-            "clike",
-            "context",
-            "declaration_extractor",
-            "exceptions",
-            "inference",
-            "language",
-            "llm_transpile",
-            "macosx_llm",
-            "mutability_transformer",
-            "nesting_transformer",
-            "process_helpers",
-            "plugins",
-            "python_transformer",
-            "raises_transformer",
-            "registry",
-            "rewriters",
-            "result",
-            "stubs",
-            "smt",
-            "toposort_modules",
-            "tracer",
-            "transpiler",
-        }:
+        if should_ignore_import_from(module_name):
             return ""
         if module_name == ".":
             for name in names:
