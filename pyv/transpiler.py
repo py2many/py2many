@@ -270,6 +270,7 @@ class VTranspiler(CLikeTranspiler):
             self._module = "cli"
             self._usings.clear()
             self._usings.add("os")
+            self._usings.add("v_ast")
             quote_check = (
                 "if inner.len >= 2 && ((inner[0] == `'` && inner[inner.len - 1] == `'`) "
                 '|| (inner[0] == `"` && inner[inner.len - 1] == `"`)) {'
@@ -344,9 +345,7 @@ class VTranspiler(CLikeTranspiler):
                     "}",
                     "",
                     "pub fn parse_python_source_json(source string) string {",
-                    self.indent("mut parser := new_parser(source) or { return '{}' }"),
-                    self.indent("mod := parser.parse_module() or { return '{}' }"),
-                    self.indent("return module_json(mod)"),
+                    self.indent("return v_ast.parse_module_json(source) or { '{}' }"),
                     "}",
                     "",
                     "pub fn run_cli() {",
