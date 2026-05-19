@@ -48,7 +48,7 @@ pub fn test_str_methods() {
     println!("{}", s.trim_start());
     println!("{}", s.trim_end());
     let parts = s.split_whitespace().collect::<Vec<_>>();
-    println!("{}", format!("{:?}", parts).replace("\"", "'"));
+    println!("{}", format!("{:?}", parts).replace('"', "'"));
     let joined = vec!["a", "b", "c"].join("-");
     println!("{}", joined);
     println!("{}", s.find("World").map_or(-1, |i| i as i32));

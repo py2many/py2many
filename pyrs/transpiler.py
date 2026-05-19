@@ -644,6 +644,9 @@ class RustTranspiler(CLikeTranspiler):
         #     definition = node.scopes.find(cv)
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
+        if self.is_block(node):
+            return f"{self._make_block(node)};"
+
         buf = [f"if {self._truthy_expr(node.test)} {{"]
         body = [self.visit(child) for child in node.body]
         body = [b for b in body if b is not None]
@@ -1127,6 +1130,15 @@ class RustTranspiler(CLikeTranspiler):
     def visit_DictComp(self, node) -> str:
         if not node.generators:
             return "HashMap::new()"
+
+        if any(
+            not (
+                isinstance(generator.iter, ast.Call)
+                and get_id(generator.iter.func) == "range"
+            )
+            for generator in node.generators
+        ):
+            return super().visit_DictComp(node)
 
         self._usings.add("std::collections::HashMap")
         buf = ["{", "let mut result = HashMap::new();"]

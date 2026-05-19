@@ -136,7 +136,7 @@ class RustTranspilerPlugins:
             )
             if is_split_result:
                 placeholders.append("{}")
-                formatted_args.append(f'format!("{{:?}}", {varg}).replace("\\"", "\'")')
+                formatted_args.append(f'format!("{{:?}}", {varg}).replace(\'"\', "\'")')
             elif hasattr(arg, "container_type") or hasattr(
                 definition, "container_type"
             ):
