@@ -29,6 +29,25 @@ from .plugins import (
     SMALL_DISPATCH_MAP,
     SMALL_USINGS_MAP,
 )
+from .rust_ast import (
+    RustAssignment,
+    RustAugAssignment,
+    RustAwait,
+    RustCall,
+    RustExprStatement,
+    RustForLoop,
+    RustFunction,
+    RustIf,
+    RustLet,
+    RustLoop,
+    RustMacroCall,
+    RustNode,
+    RustRenderer,
+    RustReturn,
+    RustSourceFile,
+    RustWhileLoop,
+    RustYield,
+)
 
 
 class RustLoopIndexRewriter(ast.NodeTransformer):
@@ -77,6 +96,21 @@ class RustStringJoinRewriter(ast.NodeTransformer):
 class RustTranspiler(CLikeTranspiler):
     NAME = "rust"
 
+    def __getattribute__(self, name):
+        attr = super().__getattribute__(name)
+        if not callable(attr):
+            return attr
+        if not (name.startswith("visit_") or name.startswith("_visit_")):
+            return attr
+
+        def rust_node_visitor(*args, **kwargs):
+            result = attr(*args, **kwargs)
+            if isinstance(result, str):
+                return RustNode(result)
+            return result
+
+        return rust_node_visitor
+
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         CLikeTranspiler._default_type = "_"
@@ -91,6 +125,37 @@ class RustTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._allows = set()
         self._rust_mods = set()
+
+    def visit(self, node) -> RustNode:
+        result = super().visit(node)
+        if isinstance(result, str):
+            return RustNode(result)
+        return result
+
+    def visit_Module(self, node) -> RustNode:
+        rust_ast = self.visit_Module_ast(node)
+        return RustNode(RustRenderer().render(rust_ast))
+
+    def visit_Module_ast(self, node) -> RustSourceFile:
+        docstring = getattr(node, "docstring_comment", None)
+        items = [self.comment(docstring.value)] if docstring is not None else []
+        filename = getattr(node, "__file__", None)
+        self._reset()
+        if filename is not None:
+            self._module = Path(filename).stem
+
+        body_items = {}
+        for b in node.body:
+            if not isinstance(b, ast.FunctionDef):
+                body_items[b] = self.visit(b)
+        # Second pass to handle functiondefs whose body may refer to other
+        # members of node.body.
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body_items[b] = self.visit(b)
+
+        items += [body_items[b] for b in node.body]
+        return RustSourceFile.from_items(items)
 
     def usings(self):
         if self._extension:
@@ -185,12 +250,17 @@ class RustTranspiler(CLikeTranspiler):
             )
         return ""
 
-    def visit_Expr(self, node) -> str:
+    def visit_Expr(self, node) -> RustNode:
         if hasattr(node, "unused"):
             self._allows.add("clippy::no_effect")
-        return super().visit_Expr(node)
+        expression = self.visit(node.value)
+        if isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:
+            return expression
+        if not expression:
+            return RustNode("")
+        return RustExprStatement(expression)
 
-    def visit_FunctionDef(self, node, async_prefix="") -> str:
+    def visit_FunctionDef(self, node, async_prefix="") -> RustNode:
         body = "\n".join([self.visit(n) for n in node.body])
         typenames, args = self.visit(node.args)
 
@@ -240,13 +310,17 @@ class RustTranspiler(CLikeTranspiler):
         if len(typedecls) > 0:
             template = "<{}>".format(", ".join(typedecls))
 
-        extension = "#[pyfunction]\n" if self.extension else ""
         args_list = ", ".join(args_list)
-        funcdef = f"{extension}pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
+        signature = (
+            f"pub {async_prefix}fn {node.name}{template}({args_list}) {return_type}"
+        )
         return_success = (
             "Ok(())" if is_python_main else ""
         )  # TODO: generalize this to functions that return Result<T, E>
-        return f"{funcdef} {{\n{body}\n {return_success}}}\n"
+        extension = "#[pyfunction]\n" if self.extension else ""
+        return RustFunction(
+            signature, [body], return_success=return_success, prefix=extension
+        )
 
     def visit_arg(self, node):
         id = get_id(node)
@@ -268,7 +342,7 @@ class RustTranspiler(CLikeTranspiler):
                 typename = f"&{mut}{typename}"
         return (typename, id)
 
-    def visit_Return(self, node) -> str:
+    def visit_Return(self, node) -> RustNode:
         fndef = None
         for scope in node.scopes:
             if isinstance(scope, ast.FunctionDef):
@@ -291,20 +365,20 @@ class RustTranspiler(CLikeTranspiler):
                     # TODO: Handle other container types
                     ret = f"{ret}.to_vec()"
                 if return_type != value_type and value_type is not None:
-                    return f"return {ret} as {return_type};"
-            return f"return {ret};"
+                    return RustReturn(f"{ret} as {return_type}")
+            return RustReturn(ret)
         if fndef:
             if getattr(fndef, "rust_pyresult_type", False):
-                return "return Ok(())"
-        return "return;"
+                return RustReturn("Ok(())")
+        return RustReturn()
 
-    def visit_Lambda(self, node) -> str:
+    def visit_Lambda(self, node) -> RustNode:
         _, args = self.visit(node.args)
         args_string = ", ".join(args)
         body = self.visit(node.body)
         return f"|{args_string}| {body}"
 
-    def visit_Attribute(self, node) -> str:
+    def visit_Attribute(self, node) -> RustNode:
         attr = node.attr
         if attr in self._keywords:
             attr = attr + "_"
@@ -343,7 +417,7 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return ("", splits[0])
 
-    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> str:
+    def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> RustNode:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
             raise AstClassUsedBeforeDeclaration(fndef, node)
@@ -362,7 +436,7 @@ class RustTranspiler(CLikeTranspiler):
         args = ", ".join(vargs)
         return f"{fname}{{{args}}}"
 
-    def visit_Call(self, node) -> str:
+    def visit_Call(self, node) -> RustNode:
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
 
@@ -395,23 +469,18 @@ class RustTranspiler(CLikeTranspiler):
         else:
             ref_args = vargs
 
-        args = ", ".join(ref_args)
         unwrap = "?" if node_result_type or node_func_result_type else ""
-        return f"{fname}({args}){unwrap}"
+        return RustCall(fname, ref_args, suffix=unwrap)
 
-    def visit_For(self, node) -> str:
+    def visit_For(self, node) -> RustNode:
         target = self.visit(node.target)
         it = self.visit(node.iter)
-        buf = []
-        buf.append(f"for {target} in {it} {{")
-        buf.extend([self.visit(c) for c in node.body])
-        buf.append("}")
-        return "\n".join(buf)
+        return RustForLoop(target, it, [self.visit(c) for c in node.body])
 
-    def visit_Str(self, node) -> str:
+    def visit_Str(self, node) -> RustNode:
         return "" + super().visit_Str(node) + ""
 
-    def visit_Bytes(self, node) -> str:
+    def visit_Bytes(self, node) -> RustNode:
         bytes_str = self._get_bytes(node)
         escaped = []
         for byte in bytes_str:
@@ -425,7 +494,7 @@ class RustTranspiler(CLikeTranspiler):
                 escaped.append(f"\\x{byte:02x}")
         return f'b"{"".join(escaped)}"'
 
-    def visit_Compare(self, node) -> str:
+    def visit_Compare(self, node) -> RustNode:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
 
@@ -455,7 +524,7 @@ class RustTranspiler(CLikeTranspiler):
 
         return super().visit_Compare(node)
 
-    def visit_Name(self, node) -> str:
+    def visit_Name(self, node) -> RustNode:
         if node.id == "None":
             return "None"
         else:
@@ -469,7 +538,7 @@ class RustTranspiler(CLikeTranspiler):
                 return f"*{ret}"
             return ret
 
-    def visit_NameConstant(self, node) -> str:
+    def visit_NameConstant(self, node) -> RustNode:
         if node.value is True:
             return "true"
         elif node.value is False:
@@ -479,10 +548,13 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
-    def visit_If(self, node) -> str:
+    def visit_If(self, node) -> RustNode:
         body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
         orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
+
+        if self.is_block(node):
+            return f"{self._make_block(node)};"
 
         # TODO find out if this can be useful
         var_definitions = []
@@ -490,7 +562,11 @@ class RustTranspiler(CLikeTranspiler):
         #     definition = node.scopes.find(cv)
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
-        ret = "".join(var_definitions) + super().visit_If(node, use_parens=False)
+        ret = "".join(var_definitions) + RustIf(
+            self.visit(node.test),
+            [self.visit(child) for child in node.body],
+            [self.visit(child) for child in node.orelse],
+        )
         # Sometimes if True: ... gets compiled into an expression, needing a semicolon
         make_block = (
             isinstance(node.test, ast.Constant)
@@ -501,14 +577,13 @@ class RustTranspiler(CLikeTranspiler):
             return f"{ret};"
         return ret
 
-    def visit_While(self, node) -> str:
+    def visit_While(self, node) -> RustNode:
         test = self.visit(node.test)
         if test == "true":
-            body = [self.visit(n) for n in node.body]
-            return "loop {{\n{}\n}}\n".format("\n".join(body))
-        return super().visit_While(node, use_parens=False)
+            return RustLoop([self.visit(n) for n in node.body])
+        return RustWhileLoop(test, [self.visit(n) for n in node.body])
 
-    def visit_UnaryOp(self, node) -> str:
+    def visit_UnaryOp(self, node) -> RustNode:
         if isinstance(node.op, ast.USub):
             if isinstance(node.operand, ast.Call) or self._is_number(node.operand):
                 # Shortcut if parenthesis are not needed
@@ -518,7 +593,7 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
-    def visit_BinOp(self, node) -> str:
+    def visit_BinOp(self, node) -> RustNode:
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
@@ -532,7 +607,7 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
-    def visit_sealed_class(self, node) -> str:
+    def visit_sealed_class(self, node) -> RustNode:
         variants = []
         accessors = []
         tag_checkers = []
@@ -569,7 +644,7 @@ class RustTranspiler(CLikeTranspiler):
         impl_str = "\n".join(accessors) + "\n" + "\n".join(tag_checkers)
         return f"enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
 
-    def visit_ClassDef(self, node) -> str:
+    def visit_ClassDef(self, node) -> RustNode:
         extractor = DeclarationExtractor(RustTranspiler())
         extractor.visit(node)
         node.declarations = declarations = extractor.get_declarations()
@@ -615,7 +690,7 @@ class RustTranspiler(CLikeTranspiler):
         buf_str = "\n".join(buf)
         return f"{extension}{struct_def}{impl_def}{buf_str} \n}}"
 
-    def visit_IntEnum(self, node) -> str:
+    def visit_IntEnum(self, node) -> RustNode:
         fields = []
         for member, var in node.class_assignments.items():
             var = self.visit(var)
@@ -626,7 +701,7 @@ class RustTranspiler(CLikeTranspiler):
         fields = "\n".join(fields)
         return f"#[derive(Clone, Eq, Hash, PartialEq)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
 
-    def visit_StrEnum(self, node) -> str:
+    def visit_StrEnum(self, node) -> RustNode:
         self._usings.add("strum")
         self._usings.add("strum_macros::{Display, EnumString, VariantNames}")
 
@@ -641,7 +716,7 @@ class RustTranspiler(CLikeTranspiler):
 
         return f"#[derive(Clone, Debug, Display, EnumString, VariantNames, Eq, Hash, PartialEq)]\npub enum {node.name} {{\n{fields}\n}}\n\n"
 
-    def visit_IntFlag(self, node) -> str:
+    def visit_IntFlag(self, node) -> RustNode:
         self._usings.add("flagset::flags")
         self._usings.add("std::os::raw::c_int")
         fields = []
@@ -679,7 +754,7 @@ class RustTranspiler(CLikeTranspiler):
         names = ", ".join(names)
         return f"use {module_name}::{{{names}}};"
 
-    def visit_List(self, node) -> str:
+    def visit_List(self, node) -> RustNode:
         self._usings.add("std::collections")
         if len(node.elts) > 0:
             elements = [self.visit(e) for e in node.elts]
@@ -688,7 +763,7 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return "vec![]"
 
-    def visit_Dict(self, node) -> str:
+    def visit_Dict(self, node) -> RustNode:
         self._usings.add("std::collections::HashMap")
         if len(node.keys) > 0:
             self._usings.add("std::collections::HashMap")
@@ -707,7 +782,7 @@ class RustTranspiler(CLikeTranspiler):
     def _cast(self, name: str, to) -> str:
         return f"{name} as {to}"
 
-    def visit_Subscript(self, node) -> str:
+    def visit_Subscript(self, node) -> RustNode:
         value = self.visit(node.value)
         index = self.visit(node.slice)
         if hasattr(node, "is_annotation"):
@@ -734,10 +809,10 @@ class RustTranspiler(CLikeTranspiler):
                     index = "&" + index
         return f"{value}[{index}]"
 
-    def visit_Index(self, node) -> str:
+    def visit_Index(self, node) -> RustNode:
         return self.visit(node.value)
 
-    def visit_Slice(self, node) -> str:
+    def visit_Slice(self, node) -> RustNode:
         lower = ""
         if node.lower:
             lower = self.visit(node.lower)
@@ -747,15 +822,15 @@ class RustTranspiler(CLikeTranspiler):
 
         return f"{lower}..{upper}"
 
-    def visit_Tuple(self, node) -> str:
+    def visit_Tuple(self, node) -> RustNode:
         elts = [self.visit(e) for e in node.elts]
         elts = ", ".join(elts)
         if hasattr(node, "is_annotation"):
             return elts
         return f"({elts})"
 
-    def visit_Assert(self, node) -> str:
-        return f"assert!({self.visit(node.test)});"
+    def visit_Assert(self, node) -> RustNode:
+        return RustMacroCall("assert", [self.visit(node.test)])
 
     def _compute_kw(self, node, target) -> str:
         kw = "let"
@@ -768,10 +843,10 @@ class RustTranspiler(CLikeTranspiler):
             kw = "let mut"
         return kw
 
-    def visit_AnnAssign(self, node) -> str:
+    def visit_AnnAssign(self, node) -> RustNode:
         target, type_str, val = super().visit_AnnAssign(node)
         kw = self._compute_kw(node, node.target)
-        return f"{kw} {target}: {type_str} = {val};"
+        return RustLet(target, val, keyword=kw, typename=type_str)
 
     def _needs_cast(self, left, right) -> bool:
         if not hasattr(left, "annotation") or not hasattr(right, "annotation"):
@@ -788,7 +863,7 @@ class RustTranspiler(CLikeTranspiler):
         # python/rust annotations provided to customize the cast if necessary
         return f"{value_str} as {cast_to}"
 
-    def visit_AugAssign(self, node) -> str:
+    def visit_AugAssign(self, node) -> RustNode:
         target = node.target
         target_str = self.visit(node.target)
         op = self.visit(node.op)
@@ -800,9 +875,9 @@ class RustTranspiler(CLikeTranspiler):
             value = self._assign_cast(
                 value, target_type, target.annotation, node.value.rust_annotation
             )
-        return f"{target_str} {op}= {value};"
+        return RustAugAssignment(target_str, op, value)
 
-    def _visit_AssignOne(self, node, target) -> str:
+    def _visit_AssignOne(self, node, target) -> RustNode:
         kw = self._compute_kw(node, target)
 
         if isinstance(node.scopes[-1], ast.If):
@@ -810,14 +885,14 @@ class RustTranspiler(CLikeTranspiler):
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return f"{target_id} = {value};"
+                return RustAssignment(target_id, value)
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
             if value is None:
                 value = "None"
-            return f"{target} = {value};"
+            return RustAssignment(target, value)
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -831,7 +906,7 @@ class RustTranspiler(CLikeTranspiler):
                 value = self._assign_cast(
                     value, target_type, target.annotation, node.value.rust_annotation
                 )
-            return f"{target_str} = {value};"
+            return RustAssignment(target_str, value)
         elif isinstance(node.value, ast.List) and kw.startswith("pub "):
             count = len(node.value.elts)
             target = self.visit(target)
@@ -883,49 +958,47 @@ class RustTranspiler(CLikeTranspiler):
                 mut = "mut " if is_mutable(node.scopes, target_str) else ""
                 typename = f"&{mut}{typename}"
                 value = f"&{mut}{value}"
-            optional_typename = (
-                f": {typename}" if typename != self._default_type else ""
-            )
-            return f"{kw} {target_str}{optional_typename} = {value};"
+            optional_typename = typename if typename != self._default_type else None
+            return RustLet(target_str, value, keyword=kw, typename=optional_typename)
 
-    def visit_Delete(self, node) -> str:
+    def visit_Delete(self, node) -> RustNode:
         target = node.targets[0]
         target_str = self.visit(target)
-        return f"drop({target_str});"
+        return RustCall("drop", [target_str], suffix=";")
 
-    def visit_Raise(self, node) -> str:
+    def visit_Raise(self, node) -> RustNode:
         if node.exc is not None:
             return f"raise!({self.visit(node.exc)}); //unsupported"
         # This handles the case where `raise` is used without
         # specifying the exception.
         return "raise!(); //unsupported"
 
-    def visit_Await(self, node) -> str:
+    def visit_Await(self, node) -> RustNode:
         value = self.visit(node.value)
-        return f"{value}.await"
+        return RustAwait(value)
 
-    def visit_AsyncFunctionDef(self, node) -> str:
+    def visit_AsyncFunctionDef(self, node) -> RustNode:
         return self.visit_FunctionDef(node, async_prefix="async ")
 
-    def visit_Yield(self, node) -> str:
+    def visit_Yield(self, node) -> RustNode:
         self._features.add("generators")
         self._features.add("generator_trait")
         self._usings.add("std::ops::Generator")
         self._usings.add("std::ops::GeneratorState")
         if node.value is not None:
             value = self.visit(node.value)
-            return f"yield {value};"
+            return RustYield(value)
         else:
-            return "yield None;"
+            return RustYield("None")
 
-    def visit_Print(self, node) -> str:
+    def visit_Print(self, node) -> RustNode:
         buf = []
         for n in node.values:
             value = self.visit(n)
-            buf.append(f'println!("{{:?}}",{value});')
+            buf.append(RustMacroCall("println", ['"{:?}"', value], separator=","))
         return "\n".join(buf)
 
-    def visit_GeneratorExp(self, node) -> str:
+    def visit_GeneratorExp(self, node) -> RustNode:
         elt = self.visit(node.elt)
         generator = node.generators[0]
         target = self.visit(generator.target)
@@ -949,16 +1022,16 @@ class RustTranspiler(CLikeTranspiler):
 
         return f"{iter}{filter_str}{map_str}.collect::<Vec<_>>()"
 
-    def visit_ListComp(self, node) -> str:
+    def visit_ListComp(self, node) -> RustNode:
         return self.visit_GeneratorExp(node)  # right now they are the same
 
-    def visit_Global(self, node) -> str:
+    def visit_Global(self, node) -> RustNode:
         return "//global {}".format(", ".join(node.names))
 
-    def visit_Starred(self, node) -> str:
+    def visit_Starred(self, node) -> RustNode:
         return f"starred!({self.visit(node.value)})/*unsupported*/"
 
-    def visit_Set(self, node) -> str:
+    def visit_Set(self, node) -> RustNode:
         self._usings.add("std::collections::HashSet")
         elts = []
         for i in range(len(node.elts)):
@@ -971,13 +1044,13 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return "HashSet::new()"
 
-    def visit_IfExp(self, node) -> str:
+    def visit_IfExp(self, node) -> RustNode:
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
-    def visit_Try(self, node, finallybody=None) -> str:
+    def visit_Try(self, node, finallybody=None) -> RustNode:
         super().visit_Try(node, finallybody)
         # if we got here, parent didn't throw. This can only
         # be because of --no-strict
@@ -988,12 +1061,12 @@ class RustTranspiler(CLikeTranspiler):
         buf.append("};")
 
         for handler in node.handlers:
-            buf.append("//" + self.visit(handler))
+            buf.append(f"//{self.visit(handler)}")
 
         if finallybody:
-            buf.append("//" + self.visit(finallybody))
+            buf.append(f"//{self.visit(finallybody)}")
 
         return "\n".join(buf)
 
-    def visit_ExceptHandler(self, node) -> str:
+    def visit_ExceptHandler(self, node) -> RustNode:
         return "unsupported exception handler"
