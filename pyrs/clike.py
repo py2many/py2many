@@ -10,6 +10,7 @@ from .inference import (
     RUST_WIDTH_RANK,
     is_rust_reference,
 )
+from .rust_ast import RustNode
 
 # allowed as names in Python but treated as keywords in Rust
 RUST_KEYWORDS = frozenset(
@@ -49,12 +50,12 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return f"&'static {ret[1:]}"
         return ret
 
-    def visit_Name(self, node) -> str:
+    def visit_Name(self, node) -> RustNode:
         if node.id in self._keywords:
             return node.id + "_"
         return super().visit_Name(node)
 
-    def visit_BinOp(self, node) -> str:
+    def visit_BinOp(self, node) -> RustNode:
         if isinstance(node.op, ast.Pow):
             return f"pow({self.visit(node.left)}, {self.visit(node.right)})"
 
@@ -90,7 +91,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         else:
             return f"({left} {op} {right})"
 
-    def visit_Compare(self, node) -> str:
+    def visit_Compare(self, node) -> RustNode:
         if isinstance(node.ops[0], ast.In):
             return self.visit_In(node)
 
@@ -118,7 +119,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         return f"{left} {op} {right}"
 
-    def visit_In(self, node) -> str:
+    def visit_In(self, node) -> RustNode:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
         return f"{right}.any({left})"

@@ -20,6 +20,8 @@ classifiers = [
 ]
 dependencies = [
     "argparse_dataclass",
+    "tree-sitter",
+    "tree-sitter-rust",
 ]
 dynamic = ["version"]
 
