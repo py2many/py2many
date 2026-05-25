@@ -1,0 +1,61 @@
+# syntax=docker/dockerfile:1
+#
+# Julia's official binaries target glibc; Alpine's musl runtime cannot load them
+# reliably. Keep the focused Julia CI image on Debian like the omni image.
+FROM debian:stable-slim
+
+ARG JULIA_VERSION=1.10.5
+
+ENV HOME=/root \
+    PATH="/root/.venv/bin:/opt/julia/bin:${PATH}"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+      bash \
+      ca-certificates \
+      curl \
+      git \
+      patchelf \
+      python3 \
+      python3-pip \
+      python3-venv \
+      tar \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN arch="$(dpkg --print-architecture)" \
+    && case "${arch}" in \
+      amd64) julia_path_arch="x64"; julia_tar_arch="x86_64" ;; \
+      arm64) julia_path_arch="aarch64"; julia_tar_arch="aarch64" ;; \
+      *) echo "Unsupported Julia release target: ${arch}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL -o /tmp/julia.tar.gz \
+      "https://julialang-s3.julialang.org/bin/linux/${julia_path_arch}/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-${julia_tar_arch}.tar.gz" \
+    && mkdir -p /opt/julia \
+    && tar -xzf /tmp/julia.tar.gz -C /opt/julia --strip-components=1 \
+    && rm /tmp/julia.tar.gz \
+    && patchelf --clear-execstack /opt/julia/lib/julia/libopenlibm.so \
+    && julia --version
+
+RUN python3 -m venv "${HOME}/.venv" \
+    && source "${HOME}/.venv/bin/activate" \
+    && pip install --upgrade pip \
+    && pip install uv \
+    && uv python install 3.12 \
+    && ln -sf "$(uv python find 3.12)" /usr/local/bin/python3.12 \
+    && python3.12 --version \
+    && pip install \
+      black==24.10.0 \
+      astpretty \
+      jgo \
+      setuptools \
+      tox
+
+RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
+    && printf '#!/usr/bin/env julia\nusing JuliaFormatter\nJuliaFormatter.main(ARGS)\n' > /usr/local/bin/format.jl \
+    && chmod +x /usr/local/bin/format.jl
+
+COPY docker/entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
