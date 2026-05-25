@@ -48,13 +48,16 @@ RUN python3 -m venv "${HOME}/.venv" \
     && pip install \
       black==24.10.0 \
       astpretty \
+      cpplint \
+      flake8 \
+      isort \
       jgo \
       setuptools \
       tox
 
-RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
-    && printf '#!/usr/bin/env julia\nusing JuliaFormatter\nJuliaFormatter.main(ARGS)\n' > /usr/local/bin/format.jl \
-    && chmod +x /usr/local/bin/format.jl
+COPY scripts /scripts
+
+RUN /scripts/julia-setup.sh
 
 COPY docker/entrypoint.sh /entrypoint.sh
 
