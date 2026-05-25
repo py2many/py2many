@@ -7,7 +7,7 @@ FROM debian:stable-slim
 ARG JULIA_VERSION=1.10.5
 
 ENV HOME=/root \
-    PATH="/root/.venv/bin:/opt/julia/bin:${PATH}"
+    PATH="/root/.venv/bin:/root/.juliaup/bin:/opt/julia/bin:${PATH}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
