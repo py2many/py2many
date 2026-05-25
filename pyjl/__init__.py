@@ -21,7 +21,11 @@ def _julia_formatter_path():
         return str(Path(proc.stdout.decode("utf8")).parent.parent / "bin" / "format.jl")
 
 
-def settings(args, env=os.environ):
+def _formatter_cmd():
+    jlfmt = find_executable("jlfmt")
+    if jlfmt:
+        return [jlfmt, "--inplace"]
+
     format_jl = find_executable("format.jl")
     if not format_jl:
         julia = find_executable("julia")
@@ -32,6 +36,12 @@ def settings(args, env=os.environ):
         format_jl = ["julia", "-O0", "--compile=min", "--startup=no", format_jl, "-v"]
     else:
         format_jl = ["format.jl", "-v"]
+
+    return format_jl
+
+
+def settings(args, env=os.environ):
+    format_jl = _formatter_cmd()
     return LanguageSettings(
         JuliaTranspiler(),
         ".jl",
