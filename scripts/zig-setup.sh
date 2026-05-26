@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Create a zig project structure for tests
 mkdir -p tests/build/common-zig-proj

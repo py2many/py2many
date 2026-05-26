@@ -17,7 +17,7 @@ brew install astyle clang-format flutter gcc go julia kotlin maven nim rust vlan
 
 ### Install Python Dependencies
 ```bash
-pip3 install -e .[test]
+pip3 install -e '.[test]'
 ```
 
 ## Running Tests
@@ -27,7 +27,7 @@ pip3 install -e .[test]
 pytest
 
 # Specific language
-pytest tests/test_transpiler.py -k rust
+pytest -k rust
 
 # Update expected output
 export UPDATE_EXPECTED=1

@@ -33,3 +33,5 @@ uv.lock
 go.mod
 go.sum
 .env
+tests/current-results.xml
+.*_cache/
