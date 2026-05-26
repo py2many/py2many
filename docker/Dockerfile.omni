@@ -152,13 +152,6 @@ RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
     && printf '#!/usr/bin/env julia\nusing JuliaFormatter\nJuliaFormatter.main(ARGS)\n' > /usr/local/bin/format.jl \
     && chmod +x /usr/local/bin/format.jl
 
-RUN mkdir -p /tmp/dlang-build \
-    && cd /tmp/dlang-build \
-    && dub init -n . \
-    && dub add dfmt \
-    && dub fetch dfmt --cache=local \
-    && rm -rf /tmp/dlang-build
-
 COPY scripts /scripts
 
 RUN source "${HOME}/.venv/bin/activate" \
@@ -166,6 +159,7 @@ RUN source "${HOME}/.venv/bin/activate" \
     && cd /work \
     && /scripts/cpp-setup.sh \
     && /scripts/dart-setup.sh \
+    && /scripts/dlang-setup.sh \
     && /scripts/go-setup.sh \
     && /scripts/vlang-setup.sh \
     && /scripts/zig-setup.sh

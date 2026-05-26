@@ -183,16 +183,6 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       && ln -sf "${JULIA_FORMATTER_ROOT}/bin/format.jl" /usr/local/bin/format.jl; \
     fi
 
-RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
-    if should_install dlang; then \
-      mkdir -p /tmp/dlang-build \
-      && cd /tmp/dlang-build \
-      && dub init -n . \
-      && dub add dfmt \
-      && dub fetch dfmt --cache=local \
-      && rm -rf /tmp/dlang-build; \
-    fi
-
 COPY scripts /scripts
 
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
@@ -208,6 +198,11 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       mkdir -p /work/tests \
       && cd /work \
       && /scripts/dart-setup.sh; \
+    fi
+
+RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
+    if should_install dlang; then \
+      /scripts/dlang-setup.sh; \
     fi
 
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
