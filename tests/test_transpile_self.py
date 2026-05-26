@@ -111,7 +111,7 @@ class SelfTranspileTests(unittest.TestCase):
 
         transpiler_module = ROOT_DIR / "pyd"
 
-        assert_some_failures(
+        assert_no_failures(
             *_process_dir(
                 settings,
                 transpiler_module,
@@ -119,7 +119,7 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            expected_success={"clike.py"},
+            expected_success={"clike.py", "plugins.py", "transpiler.py"},
         )
         assert_counts(
             *_process_dir(
@@ -129,8 +129,8 @@ class SelfTranspileTests(unittest.TestCase):
                 False,
                 _suppress_exceptions=suppress_exceptions,
             ),
-            format_error_count=10,
-            failure_count=17,
+            format_error_count=6,
+            failure_count=0,
         )
 
     def test_kotlin_recursive(self):
@@ -208,6 +208,7 @@ class SelfTranspileTests(unittest.TestCase):
                 "rewriters.py",
                 "scope.py",
                 "smt.py",
+                "stubs.py",
                 "toposort_modules.py",
                 "tracer.py",
                 "version.py",
