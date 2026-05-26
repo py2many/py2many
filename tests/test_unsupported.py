@@ -197,6 +197,7 @@ EXPECTED_SUCCESSES = [
     "float_1.nim",
     "float_str.kt",
     "int_str.kt",
+    "list_slice.d",
     "list_slice.nim",
     "list_slice.v",
     "list_slice.jl",
