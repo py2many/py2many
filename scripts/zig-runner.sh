@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Check if we have at least one argument
 if [ $# -eq 0 ]; then
