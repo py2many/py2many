@@ -60,6 +60,13 @@ class InferredAnnAssignRewriter(ast.NodeTransformer):
         return create_ast_block(body=assigns, at_node=node)
 
 
+class DropClassGetItemRewriter(ast.NodeTransformer):
+    def visit_FunctionDef(self, node):
+        if node.name == "__class_getitem__":
+            return None
+        return node
+
+
 class ComplexDestructuringRewriter(ast.NodeTransformer):
     def __init__(self, language):
         super().__init__()

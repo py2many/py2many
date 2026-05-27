@@ -21,6 +21,7 @@ from .registry import ALL_SETTINGS, FAKE_ARGS, _get_all_settings
 from .rewriters import (
     ComplexDestructuringRewriter,
     DocStringToCommentRewriter,
+    DropClassGetItemRewriter,
     FStringJoinRewriter,
     IgnoredAssignRewriter,
     LoopElseRewriter,
@@ -91,6 +92,7 @@ def _transpile(
         DocStringToCommentRewriter(language),
         WithToBlockTransformer(language),
         IgnoredAssignRewriter(language),
+        DropClassGetItemRewriter(),
     ]
     # Language independent rewriters that run after type inference
     generic_post_rewriters = [
