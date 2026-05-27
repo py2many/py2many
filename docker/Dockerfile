@@ -14,9 +14,10 @@ ARG FLUTTER_VERSION=3.22.3
 ARG GO_VERSION=1.26.0
 ARG JULIA_VERSION=1.10.5
 ARG KOTLIN_VERSION=2.0.21
+ARG ZIG_VERSION=0.14.0
 
 ENV HOME=/root \
-    PATH="/root/.venv/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:${PATH}" \
+    PATH="/root/.venv/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:/opt/zig:${PATH}" \
     CXX=clang++ \
     CXXFLAGS="-fuse-ld=lld" \
     CLANG_FORMAT_STYLE=Google \
@@ -57,8 +58,8 @@ RUN apk add --no-cache \
       xz \
       z3 \
       z3-dev \
-      zig \
-      zip
+      zip \
+      zstd
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -204,7 +205,14 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
 
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
     if should_install zig; then \
-      mkdir -p /work/tests \
+      arch="$(apk --print-arch)" \
+      && curl -fsSL -o /tmp/zig.tar.xz \
+        "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${arch}-${ZIG_VERSION}.tar.xz" \
+      && mkdir -p /opt/zig \
+      && tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 \
+      && rm /tmp/zig.tar.xz \
+      && zig version \
+      && mkdir -p /work/tests \
       && cd /work \
       && /scripts/zig-setup.sh; \
     fi
