@@ -136,7 +136,10 @@ class WithToBlockTransformer(ast.NodeTransformer):
         return f"__tmp{self._temp}"
 
     def visit_With(self, node):
-        if self._language == "v":
+        # v and python support `with` natively; lowering it to a plain block
+        # drops the context manager's __exit__ (e.g. file close), which leaks
+        # the handle and breaks os.remove on Windows.
+        if self._language in ("python", "v"):
             return node
         self.generic_visit(node)
         stmts = []

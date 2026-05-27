@@ -33,8 +33,7 @@ def main_func():
     u: User = User("Alice")
     u.say_hello()
     du: DataUser = DataUser("Bob", 30)
-    if True:
-        f = open("test.txt", "w")
+    with open("test.txt", "w") as f:
         f.write("Hello Vlang")
     if os.path.exists("test.txt"):
         os.remove("test.txt")
