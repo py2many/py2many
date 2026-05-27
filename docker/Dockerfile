@@ -219,7 +219,7 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
 
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
     if should_install vlang; then \
-      v install div72.vexc; \
+      /scripts/vlang-setup.sh; \
     fi
 
 COPY docker/entrypoint.sh /entrypoint.sh
