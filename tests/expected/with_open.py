@@ -5,14 +5,11 @@ import sys
 from tempfile import NamedTemporaryFile
 
 if __name__ == "__main__":
-    if True:
-        temp_file = NamedTemporaryFile(mode="a+", delete=False)
+    with NamedTemporaryFile(mode="a+", delete=False) as temp_file:
         file_path = temp_file.name
-        if True:
-            f = open(file_path, "w")
+        with open(file_path, "w") as f:
             f.write("hello")
-        if True:
-            f = open(file_path, "r")
+        with open(file_path, "r") as f:
             assert f.read(1) == "h"
             assert f.read() == "ello"
             print("OK")
