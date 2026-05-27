@@ -132,7 +132,7 @@ clang tests/expected/fib.cpp
 ./scripts/rust-runner.sh run tests/expected/fib.rs
 
 # Run D
-dmd -run tests/cases/fib.d
+ldmd2 -run tests/cases/fib.d
 ```
 
 **Language-Specific Tools:**
