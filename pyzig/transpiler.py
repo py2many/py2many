@@ -366,15 +366,19 @@ class ZigTranspiler(CLikeTranspiler):
         return f'const {name} = @import ("{name}");'
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        names = ", ".join(names)
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 zig_module_name, zig_name = MODULE_DISPATCH_TABLE[lookup]
-                return f"from {zig_module_name} import {zig_name}"
-        return f"from {module_name} import {names}"
+                return (
+                    f'const {zig_name} = @import("{zig_module_name}.zig").{zig_name};'
+                )
+        lines = []
+        for name in names:
+            lines.append(f'const {name} = @import("{module_name}.zig").{name};')
+        return "\n".join(lines)
 
     def visit_List(self, node) -> str:
         self._headers.add("pylib")
