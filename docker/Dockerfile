@@ -148,16 +148,32 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       && flutter --version; \
     fi
 
+ENV MODULAR_HOME=${HOME}/life/.pixi/envs/default/share/max
+COPY docker/mojo-alpine/pixi.toml docker/mojo-alpine/pixi.lock ${HOME}/life/
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
     if should_install mojo; then \
       curl -fsSL https://pixi.sh/install.sh | bash \
       && ln -sf "${HOME}/.pixi/bin/pixi" /usr/local/bin/pixi \
-      && cd "${HOME}" \
-      && pixi init life -c https://conda.modular.com/max-nightly/ -c conda-forge \
-      && cd life \
-      && pixi add modular \
-      && pixi run mojo --version \
-      && ln -sf "${HOME}/life/.pixi/envs/default/bin/mojo" /usr/local/bin/mojo; \
+      && GLIBC_VER=2.35-r1 \
+      && curl -fsSL -o "/tmp/glibc-${GLIBC_VER}.apk" "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk" \
+      && curl -fsSL -o "/tmp/glibc-bin-${GLIBC_VER}.apk" "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk" \
+      && apk add --no-cache --allow-untrusted --force-overwrite "/tmp/glibc-${GLIBC_VER}.apk" "/tmp/glibc-bin-${GLIBC_VER}.apk" \
+      && rm -f /tmp/glibc-*.apk \
+      && cd "${HOME}/life" \
+      && CONDA_OVERRIDE_GLIBC=2.35 pixi install --frozen \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/mblack" /usr/local/bin/mblack \
+      && mkdir -p /opt/mojo-toolchain \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/x86_64-conda-linux-gnu-gcc" /opt/mojo-toolchain/cc \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/x86_64-conda-linux-gnu-gcc" /opt/mojo-toolchain/gcc \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/x86_64-conda-linux-gnu-g++" /opt/mojo-toolchain/c++ \
+      && ln -sf "${HOME}/life/.pixi/envs/default/bin/x86_64-conda-linux-gnu-g++" /opt/mojo-toolchain/g++ \
+      && printf '#!/bin/sh\nexport PATH=/opt/mojo-toolchain:$PATH\nexec %s/life/.pixi/envs/default/bin/mojo "$@"\n' "${HOME}" > /usr/local/bin/mojo \
+      && chmod +x /usr/local/bin/mojo \
+      && mojo --version \
+      && printf 'fn main():\n    print("mojo build works on alpine")\n' > /tmp/t.mojo \
+      && mojo build /tmp/t.mojo -o /tmp/t.out && /tmp/t.out \
+      && mojo format /tmp/t.mojo \
+      && rm -f /tmp/t.mojo /tmp/t.out; \
     fi
 
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \

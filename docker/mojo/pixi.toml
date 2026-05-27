@@ -1,0 +1,11 @@
+[workspace]
+authors = ["John Vandenberg <jayvdb@gmail.com>"]
+channels = ["https://conda.modular.com/max", "conda-forge"]
+name = "mojo"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+mojo = "==0.26.2.0"

@@ -35,3 +35,4 @@ go.sum
 .env
 tests/current-results.xml
 .*_cache/
+.pixi/
