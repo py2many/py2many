@@ -63,8 +63,6 @@ RUN apt-get update \
       zip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
-
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
       amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64"; nim_arch="x64" ;; \

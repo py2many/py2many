@@ -63,8 +63,6 @@ RUN apk add --no-cache \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN ln -sf /usr/bin/ldmd2 /usr/local/bin/dmd
-
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
     echo "Building py2many CI image for focus: ${FOCUS:-all}"
 
