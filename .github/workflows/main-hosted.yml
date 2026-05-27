@@ -204,7 +204,7 @@ jobs:
         if: ${{ !env.FOCUS || env.FOCUS == 'vlang' }}
         shell: bash
         run: |
-          v install div72.vexc
+          scripts/vlang-setup.sh
 
       - name: Install Dlang
         if: ${{ !env.FOCUS || env.FOCUS == 'dlang' }}

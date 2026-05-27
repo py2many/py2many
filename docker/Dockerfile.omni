@@ -168,8 +168,8 @@ RUN source "${HOME}/.venv/bin/activate" \
     && /scripts/cpp-setup.sh \
     && /scripts/dart-setup.sh \
     && /scripts/go-setup.sh \
-    && /scripts/zig-setup.sh \
-    && v install div72.vexc
+    && /scripts/vlang-setup.sh \
+    && /scripts/zig-setup.sh
 
 COPY docker/entrypoint.sh /entrypoint.sh
 

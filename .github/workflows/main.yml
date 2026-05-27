@@ -188,7 +188,7 @@ jobs:
         if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'vlang') }}
         shell: bash
         run: |
-          v install div72.vexc
+          scripts/vlang-setup.sh
 
       - name: Install D Packages
         if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'dlang') }}
