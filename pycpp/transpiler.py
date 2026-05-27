@@ -398,6 +398,9 @@ class CppTranspiler(CLikeTranspiler):
         byte_literal = super().visit_Bytes(node)
         bytes_str = self._get_bytes(node)
         n = len(bytes_str)
+        # libstdc++ >= 14 no longer pulls <array> in transitively via
+        # <cassert>/<cstdint>/<iostream>/<string>.
+        self._headers.append("#include <array>")
         return f"((std::array<unsigned char, {n}>){byte_literal})"
 
     def visit_Name(self, node) -> str:
