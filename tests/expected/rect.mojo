@@ -1,10 +1,10 @@
-import testing
+from std.testing import assert_true
 
 # This file implements a rectangle class
 
 
-@value
-struct Rectangle:
+@fieldwise_init
+struct Rectangle(Copyable, Movable):
     var height: Int
     var length: Int
 
@@ -14,9 +14,9 @@ struct Rectangle:
 
 fn show() raises:
     var r = Rectangle(height=1, length=1)
-    testing.assert_true(r.is_square())
+    assert_true(r.is_square())
     r = Rectangle(height=1, length=2)
-    testing.assert_true(not (r.is_square()))
+    assert_true(not (r.is_square()))
     print(r.height)
     print(r.length)
 

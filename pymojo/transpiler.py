@@ -46,7 +46,12 @@ class MojoTranspiler(CLikeTranspiler):
 
     def usings(self):
         usings = sorted(list(set(self._usings)))
-        uses = "\n".join(f"import {mod}" for mod in usings)
+        # Entries that already begin with "from " are emitted verbatim so callers
+        # (e.g. visit_Assert -> "from testing import assert_true") can specify
+        # `from X import Y` instead of a bare `import X`.
+        uses = "\n".join(
+            mod if mod.startswith("from ") else f"import {mod}" for mod in usings
+        )
         return uses
 
     @classmethod
@@ -74,7 +79,7 @@ class MojoTranspiler(CLikeTranspiler):
             if node.name == "__init__" and arg == "self":
                 arg = "out " + arg
             elif getattr(arg_node, "owned", None):
-                arg = "owned " + arg
+                arg = "var " + arg
 
             args_list.append(f"{arg}: {typename}")
 
@@ -168,10 +173,26 @@ class MojoTranspiler(CLikeTranspiler):
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
 
+        # For obj.method(args), fndef.args.args[0] is self, so the i-th
+        # positional caller arg corresponds to fndef.args.args[i+1].
+        fn_args = fndef.args.args if isinstance(fndef, ast.FunctionDef) else []
+        arg_offset = (
+            1
+            if isinstance(node.func, ast.Attribute)
+            and fn_args
+            and getattr(fn_args[0], "arg", None) == "self"
+            else 0
+        )
+
         vargs = []
 
         if node.args:
-            vargs += [self.visit(a) for a in node.args]
+            for i, a in enumerate(node.args):
+                s = self.visit(a)
+                j = i + arg_offset
+                if j < len(fn_args) and getattr(fn_args[j], "owned", None):
+                    s = f"{s}^"
+                vargs.append(s)
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
@@ -296,7 +317,10 @@ class MojoTranspiler(CLikeTranspiler):
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
 
-        struct_def = f"{mojo_decorators}struct {node.name}:\n"
+        struct_traits = (
+            "(Copyable, Movable)" if "@fieldwise_init" in mojo_decorators else ""
+        )
+        struct_def = f"{mojo_decorators}struct {node.name}{struct_traits}:\n"
         struct_def += "\n".join([self.indent(f, level=node.level + 1) for f in fields])
         struct_def += "\n"
         for b in node.body:
@@ -347,8 +371,22 @@ class MojoTranspiler(CLikeTranspiler):
         fields = "\n".join([self.indent(f) for f in fields])
         return f"type {node.name} = enum\n{fields}\n\n"
 
+    # Mojo deprecates bare `import math` / `from testing import …` in 0.26+ and
+    # will make them an error; the compiler wants every stdlib reference to be
+    # fully qualified with `std.`. Prepend it for modules we know are part of
+    # mojo's stdlib so the emitted code stays warning-clean.
+    _MOJO_STDLIB_MODULES = frozenset({"testing", "math"})
+
+    @classmethod
+    def _qualify_stdlib(cls, module_name: str) -> str:
+        return (
+            f"std.{module_name}"
+            if module_name in cls._MOJO_STDLIB_MODULES
+            else module_name
+        )
+
     def _import(self, name: str) -> str:
-        return f"import {name}"
+        return f"import {self._qualify_stdlib(name)}"
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
         names = ", ".join(names)
@@ -358,13 +396,15 @@ class MojoTranspiler(CLikeTranspiler):
             lookup = f"{module_name}.{name}"
             if lookup in MODULE_DISPATCH_TABLE:
                 mojo_module_name, mojo_name = MODULE_DISPATCH_TABLE[lookup]
-                return f"from {mojo_module_name} import {mojo_name}"
-        return f"from {module_name} import {names}"
+                return (
+                    f"from {self._qualify_stdlib(mojo_module_name)} import {mojo_name}"
+                )
+        return f"from {self._qualify_stdlib(module_name)} import {names}"
 
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
         elements = ", ".join(elements)
-        return f"List({elements})"
+        return f"[{elements}]"
 
     def visit_Set(self, node) -> str:
         self._usings.add("sets")
@@ -410,8 +450,8 @@ class MojoTranspiler(CLikeTranspiler):
         return f"({elts})"
 
     def visit_Assert(self, node) -> str:
-        self._usings.add("testing")
-        return f"testing.assert_true({self.visit(node.test)})"
+        self._usings.add("from std.testing import assert_true")
+        return f"assert_true({self.visit(node.test)})"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
