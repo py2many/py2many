@@ -91,8 +91,19 @@ if os.getenv("KOTLIN_HOME"):
         "--additional-endpoints",
         "commons-cli:commons-cli",
         "commons-codec:commons-codec",
-        "io.github.kscripting:shell",
-        "io.github.kscripting:kscript:io.github.kscripting.kscript.KscriptKt",
+        "io.github.kscripting:shell:0.5.2",
+        # kscript 4.2.3's bytecode references ExternalDependenciesResolver$DefaultImpls,
+        # which only exists in kotlin-scripting-dependencies <= 1.7.20 (removed in
+        # 1.8 when the interface moved to JVM default methods). jgo otherwise
+        # resolves it to the latest kotlin (no DefaultImpls); pin it to 1.7.20.
+        "org.jetbrains.kotlin:kotlin-scripting-dependencies:1.7.20",
+        "org.jetbrains.kotlin:kotlin-scripting-dependencies-maven-all:1.7.20",
+        # ...but kscript/shell themselves need a >=1.9 stdlib (kotlin.enums.EnumEntriesKt),
+        # which the 1.7.20 pin above would otherwise drag down. Pin stdlib back.
+        "org.jetbrains.kotlin:kotlin-stdlib:1.9.25",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25",
+        "io.github.kscripting:kscript:4.2.3:io.github.kscripting.kscript.KscriptKt",
         platform.system().lower(),
     ]
 else:
