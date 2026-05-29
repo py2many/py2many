@@ -6,6 +6,7 @@ from .inference import infer_v_types
 from .transpiler import (
     VComprehensionRewriter,
     VDictRewriter,
+    VForRangeTypeRewriter,
     VNoneCompareRewriter,
     VTranspiler,
     VWalrusRewriter,
@@ -25,6 +26,7 @@ def settings(args, env=os.environ):
         ["v", *vfmt_args],
         None,
         [
+            VForRangeTypeRewriter(),
             VWalrusRewriter(),
             VNoneCompareRewriter(),
             VDictRewriter(),

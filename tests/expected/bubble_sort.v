@@ -5,9 +5,9 @@ fn bubble_sort(mut seq []int) []int {
 	l := seq.len
 	for _ in 0 .. l {
 		for n in 1 .. l {
-			if seq[n] < seq[((n as int) - 1)] {
-				__unpack1, __unpack2 := [seq[n], seq[((n as int) - 1)]]
-				seq[((n as int) - 1)] = __unpack1
+			if seq[n] < seq[(n - 1)] {
+				__unpack1, __unpack2 := seq[n], seq[(n - 1)]
+				seq[(n - 1)] = __unpack1
 				seq[n] = __unpack2
 			}
 		}

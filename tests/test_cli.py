@@ -57,7 +57,9 @@ COMPILERS = {
         "../../scripts/rust-runner.sh",
         "compile",
     ],
-    "vlang": ["v"],
+    # -enable-globals: py2many emits `__global` for Python module vars that are
+    # reassigned via `global` (V has no other mutable-global mechanism).
+    "vlang": ["v", "-enable-globals"],
     "mojo": ["mojo", "build"],
     "zig": [
         "../../scripts/zig-runner.sh",
@@ -76,7 +78,7 @@ INVOKER = {
         "run",
     ],
     "smt": ["z3", "-smt2"],
-    "vlang": ["v", "run"],
+    "vlang": ["v", "-enable-globals", "run"],
     "mojo": ["mojo"],
     "zig": [
         "../../scripts/zig-runner.sh",
@@ -126,7 +128,7 @@ EXTENSION_TEST_CASES = [
 EXPECTED_LINT_FAILURES = []
 
 EXPECTED_COMPILE_FAILURES = [
-    "test_dunder.v",
+    "dunder.v",
     "with.v",
 ]
 

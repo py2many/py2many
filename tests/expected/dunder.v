@@ -43,6 +43,7 @@ fn (mut self DataUser) __post_init__() {
 
 fn main_func() {
 	u := new_user('Alice')
+	defer { u.free() }
 	u.say_hello()
 	du := new_datauser('Bob', 30)
 	{

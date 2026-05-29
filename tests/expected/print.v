@@ -9,7 +9,7 @@ fn show() {
 	b := 2.1
 	println(b.str())
 	c := true
-	println((if c { 'True' } else { 'False' }).str())
+	println((if c { 'True' } else { 'False' }))
 }
 
 fn main() {

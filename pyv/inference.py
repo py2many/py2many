@@ -36,6 +36,10 @@ V_TYPE_MAP: Dict[type, str] = {
 V_CONTAINER_TYPE_MAP = {
     "List": "[]",
     "list": "[]",
+    # The builtin `list` resolves through V_TYPE_MAP to `[]Any` before the
+    # container lookup (unlike the `List`/`list` strings), so map that form too
+    # -- otherwise `list[int]` collapses to its index type (`int`).
+    "[]Any": "[]",
     "Dict": "map",
     "dict": "map",
     "Set": "set",

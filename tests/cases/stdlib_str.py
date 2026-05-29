@@ -1,4 +1,7 @@
-def test_str_methods():
+#!/usr/bin/env python3
+
+
+def str_methods():
     s = "  Hello World  "
     print(s.lower())
     print(s.upper())
@@ -25,4 +28,4 @@ def test_str_methods():
 
 
 if __name__ == "__main__":
-    test_str_methods()
+    str_methods()
