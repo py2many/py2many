@@ -387,14 +387,31 @@ class TestCodeGenerator:
             raise pytest.skip(f"{expected_filename} not found")
 
         env = os.environ.copy()
-        env["CXX"] = "g++-11" if sys.platform == "darwin" else "g++"
+        # Prefer an explicit CXX_GCC path when set (also augment PATH so g++ can
+        # exec its sibling tools, e.g. conda-gxx's clang assembler). Otherwise
+        # fall back to plain g++ from PATH -- but on macOS the Command Line
+        # Tools ship a clang-as-g++ shim, which we reject loudly because it
+        # would silently bypass what this test is meant to exercise.
+        cxx = env.get("CXX_GCC")
+        if cxx:
+            if not find_executable(cxx):
+                pytest.fail(f"CXX_GCC={cxx} not executable")
+            env["PATH"] = os.path.dirname(cxx) + os.pathsep + env.get("PATH", "")
+        else:
+            if not find_executable("g++"):
+                pytest.fail("g++ not on PATH; install real GCC and set CXX_GCC")
+            ver = run(["g++", "--version"], capture_output=True, text=True)
+            if "clang" in ver.stdout.lower():
+                pytest.fail(
+                    "g++ on PATH is Apple's Command Line Tools clang shim, not "
+                    "real GCC; install real GCC and set CXX_GCC to its absolute path"
+                )
+            cxx = "g++"
+        env["CXX"] = cxx
         env["CXXFLAGS"] = "-std=c++17 -Wall -Werror"
 
-        if not find_executable(env["CXX"]):
-            raise pytest.skip(f"{env['CXX']} not available")
-
         settings = _get_all_settings(Mock(indent=4), env=env)[lang]
-        assert settings.linter[0].startswith("g++")
+        assert os.path.basename(settings.linter[0]).startswith("g++")
 
         if not find_executable("astyle"):
             raise pytest.skip("astyle not available")

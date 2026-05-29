@@ -36,7 +36,7 @@ def _conan_include_args():
 def settings(args, env=os.environ):
     clang_format_style = env.get("CLANG_FORMAT_STYLE")
     cxx = env.get("CXX")
-    default_cxx = ["clang++", "g++-11", "g++"]
+    default_cxx = ["clang++", "g++"]
     if cxx:
         if not find_executable(cxx):
             print(f"Warning: CXX({cxx}) not found")
