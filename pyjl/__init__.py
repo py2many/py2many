@@ -1,7 +1,6 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from subprocess import run
 
 from py2many.language import LanguageSettings
 from py2many.process_helpers import find_executable
@@ -13,6 +12,8 @@ from .transpiler import JuliaMethodCallRewriter, JuliaTranspiler
 
 @lru_cache()
 def _julia_formatter_path():
+    from py2many.cli import _run as run
+
     proc = run(
         ["julia", "-e", "import JuliaFormatter;print(pathof(JuliaFormatter))"],
         capture_output=True,

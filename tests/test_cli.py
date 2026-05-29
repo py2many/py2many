@@ -6,7 +6,6 @@ import sys
 from functools import lru_cache
 from itertools import product
 from pathlib import Path
-from subprocess import run
 from unittest.mock import Mock
 
 import pytest
@@ -16,6 +15,9 @@ from py2many.cli import (
     _get_all_settings,
     _get_output_path,
     _relative_to_cwd,
+)
+from py2many.cli import _run as run
+from py2many.cli import (
     main,
 )
 from py2many.process_helpers import find_executable
