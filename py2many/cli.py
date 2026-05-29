@@ -216,7 +216,9 @@ def _run(cmd, **kwargs):
     .sh scripts (e.g. the rust/zig runners) through Git-for-Windows' bash."""
 
     if cmd and sys.platform == "win32":
-        argv0 = cmd[0].lower()
+        # cmd[0] may be a pathlib.Path (test rig passes compiled-exe paths) --
+        # coerce to str before the extension check so .lower() doesn't blow up.
+        argv0 = str(cmd[0]).lower()
         if argv0.endswith((".bat", ".cmd")):
             cmd = ["cmd", "/c", *cmd]
         elif argv0.endswith(".sh"):
