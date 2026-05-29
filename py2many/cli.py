@@ -5,7 +5,7 @@ import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from subprocess import run
+from subprocess import run as subprocess_run
 from typing import List, Optional, Set, Tuple
 
 from .analysis import add_imports
@@ -16,6 +16,7 @@ from .inference import infer_types, infer_types_typpete
 from .language import LanguageSettings
 from .mutability_transformer import detect_mutable_vars
 from .nesting_transformer import detect_nesting_levels
+from .process_helpers import find_executable
 from .raises_transformer import detect_raises
 from .registry import ALL_SETTINGS, FAKE_ARGS, _get_all_settings
 from .rewriters import (
@@ -182,6 +183,47 @@ def _create_cmd(parts, filename, **kw):
     return [*parts, str(filename)]
 
 
+@lru_cache(maxsize=1)
+def _git_bash():
+    """Locate Git-for-Windows' bash.exe specifically. A bare ``bash`` on the
+    native Windows PATH usually resolves to C:\\Windows\\System32\\bash.exe -- the
+    WSL launcher -- which runs scripts in a Linux VM where Windows paths and the
+    native cargo.exe/zig.exe don't exist, so the runner scripts fail. Git's bash
+    has the MSYS semantics they expect. Derive it from git.exe (Git\\cmd\\git.exe
+    -> Git\\bin\\bash.exe), then fall back to common locations, then bare bash."""
+    git = find_executable("git")
+    if git:
+        root = os.path.dirname(os.path.dirname(git))
+        candidates = [
+            os.path.join(root, "bin", "bash.exe"),
+            os.path.join(root, "usr", "bin", "bash.exe"),
+        ]
+    else:
+        candidates = []
+    candidates += [
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files (x86)\Git\bin\bash.exe",
+    ]
+    for cand in candidates:
+        if os.path.isfile(cand):
+            return cand
+    return "bash"
+
+
+def _run(cmd, **kwargs):
+    """Run a command, routing Windows launchers that subprocess can't exec
+    directly: .bat/.cmd (e.g. the jlfmt JuliaFormatter app) through cmd.exe, and
+    .sh scripts (e.g. the rust/zig runners) through Git-for-Windows' bash."""
+
+    if cmd and sys.platform == "win32":
+        argv0 = cmd[0].lower()
+        if argv0.endswith((".bat", ".cmd")):
+            cmd = ["cmd", "/c", *cmd]
+        elif argv0.endswith(".sh"):
+            cmd = [_git_bash(), *cmd]
+    return subprocess_run(cmd, **kwargs)
+
+
 def _relative_to_cwd(absolute_path):
     return Path(os.path.relpath(absolute_path, CWD))
 
@@ -257,7 +299,7 @@ def _format_one(settings, output_path, env=None):
             os.chdir(output_path.parent)
             output_path = output_path.name
         cmd = _create_cmd(settings.formatter, filename=output_path)
-        proc = run(cmd, env=env, capture_output=True)
+        proc = _run(cmd, env=env, capture_output=True)
 
         if proc.returncode:
             # format.jl exit code is unreliable
@@ -278,7 +320,7 @@ def _format_one(settings, output_path, env=None):
             return False
         if settings.ext == ".kt":
             # ktlint formatter needs to be invoked twice before output is lint free
-            if run(cmd, env=env).returncode:
+            if _run(cmd, env=env).returncode:
                 print(f"Error: Could not reformat: {cmd}")
                 if restore_cwd:
                     os.chdir(restore_cwd)
@@ -341,7 +383,7 @@ def _process_dir(
 
     if settings.create_project is not None and project:
         cmd = settings.create_project + [f"{outdir}"]
-        proc = run(cmd, env=env, capture_output=True)
+        proc = _run(cmd, env=env, capture_output=True)
         if proc.returncode:
             cmd_str = " ".join(cmd)
             print(f"Error: running {cmd_str}: {proc.stderr}")

@@ -3,7 +3,6 @@ import os.path
 import sys
 from functools import lru_cache, partial
 from itertools import product
-from subprocess import run
 from textwrap import dedent
 from unittest.mock import Mock
 
@@ -32,6 +31,9 @@ from py2many.cli import (
     _create_cmd,
     _get_all_settings,
     _relative_to_cwd,
+)
+from py2many.cli import _run as run
+from py2many.cli import (
     _transpile,
     _transpile_one,
 )

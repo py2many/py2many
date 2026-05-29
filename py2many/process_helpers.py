@@ -8,13 +8,18 @@ def find_executable(executable, path=None):
 
     A string listing directories separated by 'os.pathsep'; defaults to
     os.environ['PATH'].  Returns the complete filename or None if not found.
+    On Windows the Windows executable extensions (PATHEXT, e.g. .exe/.bat/.cmd)
+    are tried for a bare name, so launchers like jlfmt.bat are found.
     """
-    _, ext = os.path.splitext(executable)
-    if (sys.platform == "win32") and (ext != ".exe"):
-        executable = executable + ".exe"
-
+    # An explicit path to an existing file (any extension) is used as-is.
     if os.path.isfile(executable):
         return executable
+
+    _, ext = os.path.splitext(executable)
+    if sys.platform == "win32" and not ext:
+        exts = os.environ.get("PATHEXT", ".EXE;.BAT;.CMD;.COM").split(os.pathsep)
+    else:
+        exts = [""]
 
     if path is None:
         path = os.environ.get("PATH", None)
@@ -31,10 +36,11 @@ def find_executable(executable, path=None):
     if not path:
         return None
 
-    paths = path.split(os.pathsep)
-    for p in paths:
-        f = os.path.join(p, executable)
-        if os.path.isfile(f):
-            # the file exists, we have a shot at spawn working
-            return f
+    for p in path.split(os.pathsep):
+        base = os.path.join(p, executable)
+        for e in exts:
+            f = base + e
+            if os.path.isfile(f):
+                # the file exists, we have a shot at spawn working
+                return f
     return None
