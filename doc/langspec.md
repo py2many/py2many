@@ -8,8 +8,8 @@ py2many supports a subset of python and mixes it with concepts from other static
 * int, float, bool, str, bytes
 * Fixed width signed ints (i8, i16, i32, i64)
 * Fixed width unsigned ints (u8, u16, u32, u64)
-* Homogenous List, Set, Dicts
-* Explicit type coersion (bool(1))
+* Homogeneous List, Set, Dicts
+* Explicit type coercion (bool(1))
 
 ## Operators
 * Unary operators
@@ -54,8 +54,8 @@ py2many supports a subset of python and mixes it with concepts from other static
 * Dynamic typing. Every variable should have an explicit type or the type inference code must be able to infer the type.
 * Eval, metaclasses, monkey patching
 * Introspection. isinstance(...) and friends
-* Aribtrary precision ints. Int transpiles to i32.
-* Heterogenous List, Set, Dicts
+* Arbitrary precision ints. Int transpiles to i32.
+* Heterogeneous List, Set, Dicts
 
 # TODO
 * Underflow protection (for subtraction and possibly other ops)
