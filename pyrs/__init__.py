@@ -9,6 +9,7 @@ from .transpiler import (
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
     RustTranspiler,
+    RustWalrusRewriter,
 )
 
 
@@ -22,7 +23,7 @@ def settings(args, env=os.environ):
             "--edition=2021",
         ],
         None,
-        [RustNoneCompareRewriter()],
+        [RustNoneCompareRewriter(), RustWalrusRewriter()],
         [partial(infer_rust_types, extension=args.extension)],
         [RustLoopIndexRewriter(), RustStringJoinRewriter()],
         linter=[

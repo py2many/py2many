@@ -74,6 +74,90 @@ class RustStringJoinRewriter(ast.NodeTransformer):
         return node
 
 
+class RustWalrusRewriter(ast.NodeTransformer):
+    def _has_walrus(self, node):
+        return any(isinstance(n, ast.NamedExpr) for n in ast.walk(node))
+
+    def visit_Module(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node):
+        node.body = self._expand_body(node.body)
+        node.orelse = self._expand_body(node.orelse)
+        self.generic_visit(node)
+        return node
+
+    def visit_While(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def visit_For(self, node):
+        node.body = self._expand_body(node.body)
+        self.generic_visit(node)
+        return node
+
+    def _expand_body(self, body):
+        if not body:
+            return body
+        new_body = []
+        for stmt in body:
+            if not self._has_walrus(stmt):
+                new_body.append(stmt)
+                continue
+
+            assignments = []
+
+            class WalrusExtractor(ast.NodeTransformer):
+                def visit_NamedExpr(self, named_expr):
+                    named_expr.value = self.visit(named_expr.value)
+                    assignments.append(
+                        ast.Assign(
+                            targets=[named_expr.target],
+                            value=named_expr.value,
+                            lineno=named_expr.lineno,
+                            col_offset=getattr(named_expr, "col_offset", 0),
+                        )
+                    )
+                    return named_expr.target
+
+            extractor = WalrusExtractor()
+
+            if isinstance(stmt, ast.While) and self._has_walrus(stmt.test):
+                new_test = extractor.visit(stmt.test)
+                break_if = ast.If(
+                    test=ast.UnaryOp(op=ast.Not(), operand=new_test),
+                    body=[ast.Break()],
+                    orelse=[],
+                    lineno=stmt.lineno,
+                    col_offset=getattr(stmt, "col_offset", 0),
+                )
+                stmt.test = ast.Constant(value=True, lineno=stmt.lineno)
+                stmt.body = assignments + [break_if] + stmt.body
+                ast.fix_missing_locations(stmt)
+                new_body.append(stmt)
+            else:
+                if isinstance(stmt, ast.If):
+                    stmt.test = extractor.visit(stmt.test)
+                elif isinstance(stmt, ast.For):
+                    stmt.iter = extractor.visit(stmt.iter)
+                elif hasattr(stmt, "value"):
+                    stmt.value = extractor.visit(stmt.value)
+                elif hasattr(stmt, "test"):
+                    stmt.test = extractor.visit(stmt.test)
+                ast.fix_missing_locations(stmt)
+                new_body.extend(assignments)
+                new_body.append(stmt)
+        return new_body
+
+
 class RustTranspiler(CLikeTranspiler):
     NAME = "rust"
 
@@ -81,7 +165,7 @@ class RustTranspiler(CLikeTranspiler):
         super().__init__()
         CLikeTranspiler._default_type = "_"
         self._extension = extension
-        self._rust_ignored_module_set = {"argparse_dataclass"}
+        self._rust_ignored_module_set = {"argparse_dataclass", "re"}
         self._no_prologue = no_prologue
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
@@ -145,7 +229,9 @@ class RustTranspiler(CLikeTranspiler):
             if not self._no_prologue
             else ""
         )
-        lint_ignores += "\n".join(f"#![allow({allow})]" for allow in self._allows)
+        lint_ignores += "\n".join(
+            f"#![allow({allow})]" for allow in sorted(self._allows)
+        )
         cargo_toml = f"""\
         //! ```cargo
         //! [package]
@@ -375,6 +461,37 @@ class RustTranspiler(CLikeTranspiler):
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
+        if isinstance(node.func, ast.Attribute):
+            value = self.visit(node.func.value)
+            attr = node.func.attr
+            if attr == "lower":
+                return f"{value}.to_lowercase()"
+            if attr == "upper":
+                return f"{value}.to_uppercase()"
+            if attr == "capitalize":
+                return (
+                    f"{{ let mut c = {value}.chars(); match c.next() {{ "
+                    "None => String::new(), "
+                    "Some(f) => f.to_uppercase().collect::<String>() "
+                    "+ &c.as_str().to_lowercase() } }"
+                )
+            if attr == "strip":
+                return f"{value}.trim()"
+            if attr == "lstrip":
+                return f"{value}.trim_start()"
+            if attr == "rstrip":
+                return f"{value}.trim_end()"
+            if attr == "split" and not vargs:
+                return f"{value}.split_whitespace().collect::<Vec<_>>()"
+            if attr == "find" and len(vargs) == 1:
+                return f"{value}.find({vargs[0]}).map_or(-1, |i| i as i32)"
+            if attr == "isdigit":
+                return f"{value}.chars().all(|c| c.is_ascii_digit())"
+            if attr == "isalpha":
+                return f"{value}.chars().all(|c| c.is_alphabetic())"
+            if attr == "isspace":
+                return f"{value}.chars().all(|c| c.is_whitespace())"
+
         ret = self._dispatch(node, fname, vargs)
         node_result_type = getattr(node, "result_type", False)
         node_func_result_type = getattr(node.func, "result_type", False)
@@ -409,7 +526,13 @@ class RustTranspiler(CLikeTranspiler):
         return "\n".join(buf)
 
     def visit_Str(self, node) -> str:
-        return "" + super().visit_Str(node) + ""
+        node_str = node.value
+        node_str = node_str.replace("\\", "\\\\")
+        node_str = node_str.replace('"', '\\"')
+        node_str = node_str.replace("\n", "\\n")
+        node_str = node_str.replace("\r", "\\r")
+        node_str = node_str.replace("\t", "\\t")
+        return f'"{node_str}"'
 
     def visit_Bytes(self, node) -> str:
         bytes_str = self._get_bytes(node)
@@ -479,6 +602,37 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
+    def _truthy_expr(self, node) -> str:
+        expr = self.visit(node)
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, bool):
+                return expr
+            if isinstance(node.value, (int, float)):
+                self._allows.add("unused_assignments")
+                self._allows.add("unused_variables")
+                return f"{expr} != 0"
+            if isinstance(node.value, str):
+                return f"!{expr}.is_empty()"
+        typename = self._typename_from_annotation(node)
+        if typename in {
+            "i8",
+            "u8",
+            "i16",
+            "u16",
+            "i32",
+            "u32",
+            "i64",
+            "u64",
+            "f32",
+            "f64",
+        }:
+            self._allows.add("unused_assignments")
+            self._allows.add("unused_variables")
+            return f"{expr} != 0"
+        if typename in {"&str", "String"}:
+            return f"!{expr}.is_empty()"
+        return expr
+
     def visit_If(self, node) -> str:
         body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
         orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
@@ -490,7 +644,19 @@ class RustTranspiler(CLikeTranspiler):
         #     definition = node.scopes.find(cv)
         #     var_type = decltype(definition)
         #     var_definitions.append("{0} {1};\n".format(var_type, cv))
-        ret = "".join(var_definitions) + super().visit_If(node, use_parens=False)
+        if self.is_block(node):
+            return f"{self._make_block(node)};"
+
+        buf = [f"if {self._truthy_expr(node.test)} {{"]
+        body = [self.visit(child) for child in node.body]
+        body = [b for b in body if b is not None]
+        buf.extend(body)
+        orelse = [self.visit(child) for child in node.orelse]
+        if orelse:
+            buf.append("} else {")
+            buf.extend(orelse)
+        buf.append("}")
+        ret = "".join(var_definitions) + "\n".join(buf)
         # Sometimes if True: ... gets compiled into an expression, needing a semicolon
         make_block = (
             isinstance(node.test, ast.Constant)
@@ -502,7 +668,7 @@ class RustTranspiler(CLikeTranspiler):
         return ret
 
     def visit_While(self, node) -> str:
-        test = self.visit(node.test)
+        test = self._truthy_expr(node.test)
         if test == "true":
             body = [self.visit(n) for n in node.body]
             return "loop {{\n{}\n}}\n".format("\n".join(body))
@@ -519,6 +685,15 @@ class RustTranspiler(CLikeTranspiler):
             return super().visit_UnaryOp(node)
 
     def visit_BinOp(self, node) -> str:
+        if isinstance(node.op, ast.Pow):
+            left = self.visit(node.left)
+            right = self.visit(node.right)
+            left_type = self._typename_from_annotation(node.left)
+            if left_type in {"f32", "f64"}:
+                return f"{left}.powf({right})"
+            if left_type in {"i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64"}:
+                return f"({left} as {left_type}).pow({right} as u32)"
+            return f"{left}.pow({right} as u32)"
         if (
             isinstance(node.left, ast.List)
             and isinstance(node.op, ast.Mult)
@@ -951,6 +1126,53 @@ class RustTranspiler(CLikeTranspiler):
 
     def visit_ListComp(self, node) -> str:
         return self.visit_GeneratorExp(node)  # right now they are the same
+
+    def visit_DictComp(self, node) -> str:
+        if not node.generators:
+            return "HashMap::new()"
+
+        if any(
+            not (
+                isinstance(generator.iter, ast.Call)
+                and get_id(generator.iter.func) == "range"
+            )
+            for generator in node.generators
+        ):
+            return super().visit_DictComp(node)
+
+        self._usings.add("std::collections::HashMap")
+        buf = ["{", "let mut result = HashMap::new();"]
+
+        for generator in node.generators:
+            target = self.visit(generator.target)
+            iter_expr = self.visit(generator.iter)
+            is_range = (
+                ("range" in get_id(generator.iter.func))
+                if isinstance(generator.iter, ast.Call) and get_id(generator.iter.func)
+                else False
+            )
+            if not (
+                iter_expr.endswith("keys()")
+                or iter_expr.endswith("values()")
+                or is_range
+            ):
+                iter_expr += ".iter()"
+
+            buf.append(f"for {target} in {iter_expr} {{")
+            for if_clause in generator.ifs:
+                buf.append(f"if {self.visit(if_clause)} {{")
+
+            key = self.visit(node.key)
+            value = self.visit(node.value)
+            buf.append(f"result.insert({key}, {value});")
+
+            for _ in generator.ifs:
+                buf.append("}")
+            buf.append("}")
+
+        buf.append("result")
+        buf.append("}")
+        return "\n".join(buf)
 
     def visit_Global(self, node) -> str:
         return "//global {}".format(", ".join(node.names))

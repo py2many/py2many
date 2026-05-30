@@ -124,9 +124,32 @@ class RustTranspilerPlugins:
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
-        for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{}",{});'.format(" ".join(placeholders), ", ".join(vargs))
+        formatted_args = []
+        for arg, varg in zip(node.args, vargs):
+            definition = node.scopes.find(get_id(arg)) if get_id(arg) else None
+            assigned_from = getattr(definition, "assigned_from", None)
+            definition_value = getattr(assigned_from, "value", None)
+            is_split_result = (
+                isinstance(definition_value, ast.Call)
+                and isinstance(definition_value.func, ast.Attribute)
+                and definition_value.func.attr == "split"
+            )
+            if is_split_result:
+                placeholders.append("{}")
+                formatted_args.append(f'format!("{{:?}}", {varg}).replace(\'"\', "\'")')
+            elif hasattr(arg, "container_type") or hasattr(
+                definition, "container_type"
+            ):
+                placeholders.append("{:?}")
+            else:
+                placeholders.append("{}")
+                formatted_args.append(varg)
+                continue
+            if not is_split_result:
+                formatted_args.append(varg)
+        return 'println!("{}",{});'.format(
+            " ".join(placeholders), ", ".join(formatted_args)
+        )
 
     def visit_exit(self, node, vargs) -> str:
         self._allows.add("unreachable_code")
@@ -162,6 +185,33 @@ class RustTranspilerPlugins:
     @staticmethod
     def visit_asyncio_run(node, vargs) -> str:
         return f"block_on({vargs[0]})"
+
+    def visit_re_search(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        return f"Regex::new({vargs[0]}).unwrap().is_match({vargs[1]})"
+
+    def visit_re_match(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        return (
+            f'Regex::new(&format!("^{{}}", {vargs[0]})).unwrap().is_match({vargs[1]})'
+        )
+
+    def visit_re_findall(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        return f"Regex::new({vargs[0]}).unwrap().find_iter({vargs[1]}).map(|m| m.as_str()).collect::<Vec<_>>()"
+
+    def visit_re_sub(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        return f"Regex::new({vargs[0]}).unwrap().replace_all({vargs[2]}, {vargs[1]})"
+
+    def visit_re_split(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        return f"Regex::new({vargs[0]}).unwrap().split({vargs[1]}).collect::<Vec<_>>()"
+
+    def visit_re_compile(self, node, vargs) -> str:
+        self._usings.add("regex::Regex")
+        self._allows.add("unused_variables")
+        return f"Regex::new({vargs[0]}).unwrap()"
 
 
 FIXED_SIZE_INT_MAP = {
@@ -199,6 +249,13 @@ DISPATCH_MAP = {
     "range": RustTranspilerPlugins.visit_range,
     "xrange": RustTranspilerPlugins.visit_range,
     "print": RustTranspilerPlugins.visit_print,
+    "re.search": RustTranspilerPlugins.visit_re_search,
+    "re.match": RustTranspilerPlugins.visit_re_match,
+    "re.match_": RustTranspilerPlugins.visit_re_match,
+    "re.findall": RustTranspilerPlugins.visit_re_findall,
+    "re.sub": RustTranspilerPlugins.visit_re_sub,
+    "re.split": RustTranspilerPlugins.visit_re_split,
+    "re.compile": RustTranspilerPlugins.visit_re_compile,
 }
 
 MODULE_DISPATCH_TABLE = {
