@@ -1,7 +1,7 @@
 # AGENTS.md - Agent Guidelines for py2many
 
 ## Project Overview
-py2many transpiles Python code to Rust, C++, Go, Zig, Julia, Nim, Dart, V, D, and Kotlin.
+py2many transpiles Python code to Rust, C++, Go, Zig, Julia, Nim, Dart, V, D, Kotlin, Mojo, SMT, and Lean.
 
 ## Development Commands
 ```bash

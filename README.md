@@ -36,6 +36,10 @@ by comparing Python implementations with their transpiled equivalents.
 
 **Beta Support**: Python to Julia, Python to Kotlin, Python to Nim, Python to Go, Python to Dart, Python to V, and Python to D transpilation.
 
+**Experimental Support**: Python to Zig and Python to Mojo transpilation (early stage, limited feature coverage).
+
+**Proof of Concept**: Python to Lean transpilation (only a handful of cases transpile so far).
+
 **Type Inference**: py2many can also emit enhanced Python 3 code with inferred type annotations
 and syntax improvements for better code analysis.
 
@@ -120,6 +124,9 @@ py2many --dart tests/cases/fib.py
 
 # Python to D
 py2many --dlang tests/cases/fib.py
+
+# Python to Lean (proof of concept)
+py2many --lean tests/cases/hello_world.py
 ```
 
 **Compiling Transpiled Code:**

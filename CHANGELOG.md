@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- New target: Lean transpiler (proof of concept). Transpiles a small subset of
+  Python to [Lean 4](https://lean-lang.org); `hello_world`, `math_func`, `loop`,
+  and `sys_exit` cases transpile, run, and match their Python output.
+
 ## [0.8] - 2025-02-19
 
 ### Added

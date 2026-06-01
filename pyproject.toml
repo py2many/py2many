@@ -58,6 +58,7 @@ packages = [
     "py2many.pygo",
     "py2many.pyjl",
     "py2many.pykt",
+    "py2many.pylean",
     "py2many.pymojo",
     "py2many.pynim",
     "py2many.pyrs",
@@ -74,6 +75,7 @@ packages = [
 "py2many.pygo" = "pygo"
 "py2many.pyjl" = "pyjl"
 "py2many.pykt" = "pykt"
+"py2many.pylean" = "pylean"
 "py2many.pymojo" = "pymojo"
 "py2many.pynim" = "pynim"
 "py2many.pyrs" = "pyrs"
