@@ -23,6 +23,13 @@
 "github:vlang/v" = { version = "0.5.1", strip_components = 1 }
 "github:Z3Prover/z3" = "z3-4.15.4"
 "go:github.com/mgechev/revive" = "latest"
+# Lean 4 ships standalone per-platform toolchain archives (bin/lean, bin/lake,
+# bin/leanc, ...) at github.com/leanprover/lean4 releases, so install the
+# toolchain directly rather than via the elan version-manager (whose release
+# tarball is just an installer shim that needs a separate `elan default`
+# toolchain-fetch step before lean/lake exist). The archive's single top-level
+# dir carries the platform suffix, so bin_path is set per-platform.
+"http:lean" = { version = "4.30.0", platforms = { linux-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-linux.zip", bin_path = "lean-{{ version }}-linux/bin" }, linux-arm64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-linux_aarch64.zip", bin_path = "lean-{{ version }}-linux_aarch64/bin" }, macos-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-darwin.zip", bin_path = "lean-{{ version }}-darwin/bin" }, macos-arm64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-darwin_aarch64.zip", bin_path = "lean-{{ version }}-darwin_aarch64/bin" }, windows-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-windows.zip", bin_path = "lean-{{ version }}-windows/bin" } } }
 # Portable standalone MinGW-w64 GCC for Windows (winlibs). The archive unpacks
 # to a top-level mingw64/, with g++ in mingw64/bin and cc1plus alongside under
 # mingw64/, so the driver resolves it correctly (unlike conda:gxx above).

@@ -14,6 +14,7 @@ if CI in ["1", "true"]:  # pragma: no cover
     from .pygo import settings as go_settings
     from .pyjl import settings as julia_settings
     from .pykt import settings as kotlin_settings
+    from .pylean import settings as lean_settings
     from .pymojo import settings as mojo_settings
     from .pynim import settings as nim_settings
     from .pyrs import settings as rust_settings
@@ -28,6 +29,7 @@ else:
         from .pygo import settings as go_settings
         from .pyjl import settings as julia_settings
         from .pykt import settings as kotlin_settings
+        from .pylean import settings as lean_settings
         from .pymojo import settings as mojo_settings
         from .pynim import settings as nim_settings
         from .pyrs import settings as rust_settings
@@ -41,6 +43,7 @@ else:
         from pygo import settings as go_settings
         from pyjl import settings as julia_settings
         from pykt import settings as kotlin_settings
+        from pylean import settings as lean_settings
         from pymojo import settings as mojo_settings
         from pynim import settings as nim_settings
         from pyrs import settings as rust_settings
@@ -70,6 +73,7 @@ ALL_SETTINGS = {
     "rust": rust_settings,
     "julia": julia_settings,
     "kotlin": kotlin_settings,
+    "lean": lean_settings,
     "nim": nim_settings,
     "mojo": mojo_settings,
     "dlang": dlang_settings,
