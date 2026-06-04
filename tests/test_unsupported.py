@@ -27,16 +27,9 @@ from test_cli import LANGS as _LANGS
 from test_cli import SHOW_ERRORS, TESTS_DIR, get_exe_filename, has_main_lines
 
 import py2many.cli
-from py2many.cli import (
-    _create_cmd,
-    _get_all_settings,
-    _relative_to_cwd,
-)
+from py2many.cli import _create_cmd, _get_all_settings, _relative_to_cwd
 from py2many.cli import _run as run
-from py2many.cli import (
-    _transpile,
-    _transpile_one,
-)
+from py2many.cli import _transpile, _transpile_one
 from py2many.exceptions import AstIncompatibleAssign
 from py2many.process_helpers import find_executable
 

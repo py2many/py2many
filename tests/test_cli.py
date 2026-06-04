@@ -1,4 +1,5 @@
 import argparse
+import difflib
 import logging
 import os.path
 import platform
@@ -17,9 +18,7 @@ from py2many.cli import (
     _relative_to_cwd,
 )
 from py2many.cli import _run as run
-from py2many.cli import (
-    main,
-)
+from py2many.cli import main
 from py2many.process_helpers import find_executable
 
 try:
@@ -44,6 +43,36 @@ ENV = {
     "cpp": {"CLANG_FORMAT_STYLE": "Google"},
     "rust": {"RUSTFLAGS": "--deny warnings"},
 }
+
+
+def assert_expected_matches_generated(
+    expected: str,
+    generated: str,
+    *,
+    case: str,
+    lang: str,
+    expected_filename: Path,
+    generated_filename: Path,
+):
+    if expected == generated:
+        return
+
+    diff = "".join(
+        difflib.unified_diff(
+            expected.splitlines(keepends=True),
+            generated.splitlines(keepends=True),
+            fromfile=str(expected_filename),
+            tofile=str(generated_filename),
+        )
+    )
+    raise AssertionError(
+        f"Generated output mismatch for {case}-{lang}\n"
+        f"Expected: {expected_filename}\n"
+        f"Generated: {generated_filename}\n"
+        f"\n{diff}"
+    )
+
+
 COMPILERS = {
     "cpp": [CXX, "-std=c++17", "-I", str(ROOT_DIR)]
     + _conan_include_args()
@@ -272,7 +301,14 @@ class TestCodeGenerator:
                                 expected_case_contents
                             )
                             generated_cleaned = standardise_python(generated)
-                        assert expected_case_contents == generated_cleaned
+                        assert_expected_matches_generated(
+                            expected_case_contents,
+                            generated_cleaned,
+                            case=case,
+                            lang=lang,
+                            expected_filename=expected_filename,
+                            generated_filename=case_output,
+                        )
                         print("expected = generated")
 
             expect_failure = (

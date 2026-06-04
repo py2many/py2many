@@ -1,5 +1,6 @@
 import ast
 import textwrap
+from pathlib import Path
 from typing import List, Tuple
 
 from py2many.analysis import add_imports, get_id, is_global, is_void_function
@@ -20,6 +21,18 @@ from py2many.tracer import (
 )
 
 from .clike import CLikeTranspiler
+from .cpp_ast import (
+    CppAssignment,
+    CppAugAssignment,
+    CppCall,
+    CppDeclaration,
+    CppExprStatement,
+    CppFunction,
+    CppNode,
+    CppRenderer,
+    CppReturn,
+    CppSourceFile,
+)
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
@@ -108,6 +121,21 @@ class CppListComparisonRewriter(ast.NodeTransformer):
 class CppTranspiler(CLikeTranspiler):
     NAME = "cpp"
 
+    def __getattribute__(self, name):
+        attr = super().__getattribute__(name)
+        if not callable(attr):
+            return attr
+        if not (name.startswith("visit_") or name.startswith("_visit_")):
+            return attr
+
+        def cpp_node_visitor(*args, **kwargs):
+            result = attr(*args, **kwargs)
+            if isinstance(result, str):
+                return CppNode(result)
+            return result
+
+        return cpp_node_visitor
+
     def __init__(self, extension: bool = False, no_prologue: bool = False):
         super().__init__()
         self._headers = []
@@ -130,6 +158,37 @@ class CppTranspiler(CLikeTranspiler):
     def _get_nolint_suffix(self, nolint="build/include_order"):
         return f"  // NOLINT({nolint})" if not self._no_prologue else ""
 
+    def visit(self, node) -> CppNode:
+        result = super().visit(node)
+        if isinstance(result, str):
+            return CppNode(result)
+        return result
+
+    def visit_Module(self, node) -> CppNode:
+        cpp_ast = self.visit_Module_ast(node)
+        return CppNode(CppRenderer().render(cpp_ast))
+
+    def visit_Module_ast(self, node) -> CppSourceFile:
+        docstring = getattr(node, "docstring_comment", None)
+        items = [self.comment(docstring.value)] if docstring is not None else []
+        filename = getattr(node, "__file__", None)
+        self._reset()
+        if filename is not None:
+            self._module = Path(filename).stem
+
+        body_items = {}
+        for b in node.body:
+            if not isinstance(b, ast.FunctionDef):
+                body_items[b] = self.visit(b)
+        # Second pass to handle functiondefs whose body may refer to other
+        # members of node.body.
+        for b in node.body:
+            if isinstance(b, ast.FunctionDef):
+                body_items[b] = self.visit(b)
+
+        items += [body_items[b] for b in node.body]
+        return CppSourceFile.from_items(items)
+
     def usings(self):
         usings = sorted(list(set(self._usings)))
         lint_exception = self._get_nolint_suffix()
@@ -144,7 +203,7 @@ class CppTranspiler(CLikeTranspiler):
             self._headers.append("#include <stdint.h>")
         return "\n".join([f"{line}{lint_exception}" for line in self._headers])
 
-    def visit_FunctionDef(self, node) -> str:
+    def visit_FunctionDef(self, node) -> CppNode:
         body = "\n".join([self.visit(n) for n in node.body])
         # If rewriter inserted a block, we need to terminate it with a semicolon
         if len(node.body):
@@ -157,7 +216,7 @@ class CppTranspiler(CLikeTranspiler):
             and is_void_function(node)
             and node.name.startswith("test")
         ):
-            return generate_catch_test_case(node, body)
+            return CppNode(generate_catch_test_case(node, body))
 
         is_python_main = getattr(node, "python_main", False)
         typenames, args = self.visit(node.args)
@@ -199,9 +258,9 @@ class CppTranspiler(CLikeTranspiler):
             return_type = "void"
 
         args = ", ".join(args_list)
-        funcdef = f"{template}{return_type} {node.name}({args}) {{"
+        funcdef = f"{template}{return_type} {node.name}({args})"
 
-        return funcdef + "\n" + body + "}\n"
+        return CppFunction(funcdef, [body])
 
     def visit_Global(self, node) -> str:
         return ""
@@ -336,7 +395,7 @@ class CppTranspiler(CLikeTranspiler):
             """
         )
 
-    def visit_Call(self, node) -> str:
+    def visit_Call(self, node) -> CppNode:
         fname = self.visit(node.func)
         vargs = []
 
@@ -347,13 +406,12 @@ class CppTranspiler(CLikeTranspiler):
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
-            return ret
+            return CppNode(ret)
 
         if any(i is None for i in vargs):
             raise AstNotImplementedError(f"Call {fname} ({vargs}) not supported", node)
 
-        args = ", ".join(vargs)
-        return f"{fname}({args})"
+        return CppCall(fname, vargs)
 
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
@@ -419,11 +477,42 @@ class CppTranspiler(CLikeTranspiler):
         else:
             return super().visit_Constant(node)
 
-    def visit_Expr(self, node) -> str:
+    @staticmethod
+    def _is_none_constant(node):
+        return isinstance(node, ast.Constant) and node.value is None
+
+    @staticmethod
+    def _is_non_none_constant(node):
+        return isinstance(node, ast.Constant) and node.value is not None
+
+    def visit_Compare(self, node) -> CppNode:
+        if len(node.ops) == 1 and len(node.comparators) == 1:
+            left = node.left
+            right = node.comparators[0]
+            none_compared_to_value = (
+                self._is_none_constant(left) and self._is_non_none_constant(right)
+            ) or (self._is_non_none_constant(left) and self._is_none_constant(right))
+            if none_compared_to_value:
+                if isinstance(node.ops[0], (ast.NotEq, ast.IsNot)):
+                    return CppNode("true")
+                if isinstance(node.ops[0], (ast.Eq, ast.Is)):
+                    return CppNode("false")
+        return CppNode(super().visit_Compare(node))
+
+    def visit_Expr(self, node) -> CppNode:
         s = super().visit_Expr(node)
         if getattr(node, "unused", False):
             s = "(void) " + s
-        return s
+        if isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:
+            return CppNode(s)
+        if not s:
+            return CppNode("")
+        return CppExprStatement(s)
+
+    def visit_Return(self, node) -> CppNode:
+        if node.value:
+            return CppReturn(self.visit(node.value))
+        return CppReturn()
 
     def _make_block(self, node):
         buf = []
@@ -593,22 +682,33 @@ class CppTranspiler(CLikeTranspiler):
             return f"assert({self.visit(node.test)});"
         return f"REQUIRE({self.visit(node.test)});"
 
-    def _visit_AssignOne(self, node, target) -> str:
+    def visit_Assign(self, node) -> CppNode:
+        return CppNode(
+            "\n".join([self._visit_AssignOne(node, target) for target in node.targets])
+        )
+
+    def visit_AugAssign(self, node) -> CppNode:
+        target = self.visit(node.target)
+        op = self.visit(node.op)
+        val = self.visit(node.value)
+        return CppAugAssignment(target, op, val)
+
+    def _visit_AssignOne(self, node, target) -> CppNode:
         if isinstance(target, ast.Tuple):
             elts = [self.visit(e) for e in target.elts]
             value = self.visit(node.value)
-            return "std::tie({}) = {};".format(", ".join(elts), value)
+            return CppNode("std::tie({}) = {};".format(", ".join(elts), value))
 
         if isinstance(node.scopes[-1], ast.If) and isinstance(target, ast.Name):
             outer_if = node.scopes[-1]
             if target.id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return f"{target.id} = {value};"
+                return CppAssignment(target.id, value)
 
         if isinstance(target, ast.Subscript):
             target = self.visit(target)
             value = self.visit(node.value)
-            return f"{target} = {value};"
+            return CppAssignment(target, value)
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -616,7 +716,7 @@ class CppTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return f"{target} = {value};"
+            return CppAssignment(target, value)
 
         if isinstance(node.value, ast.List):
             element_type = self._get_element_type(node.value)
@@ -632,13 +732,13 @@ class CppTranspiler(CLikeTranspiler):
         lint_exception = self._get_nolint_suffix("runtime/string")
         if typename == "std::string" and is_global(node):
             self._usings.add("<string>")
-            return f"{typename} {target} = {value};{lint_exception}"
+            return CppDeclaration(typename, target, value, suffix=lint_exception)
 
-        return f"{typename} {target} = {value};"
+        return CppDeclaration(typename, target, value)
 
-    def visit_AnnAssign(self, node) -> str:
+    def visit_AnnAssign(self, node) -> CppNode:
         target, type_str, val = super().visit_AnnAssign(node)
-        return f"{type_str} {target} = {val};"
+        return CppDeclaration(type_str, target, val)
 
     def visit_Print(self, node) -> str:
         buf = []
