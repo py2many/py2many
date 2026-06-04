@@ -89,7 +89,7 @@ RUN python3 -m venv "${HOME}/.venv" \
       conan \
       cpplint \
       flake8 \
-      isort \
+      isort==5.13.2 \
       jgo \
       setuptools \
       tox

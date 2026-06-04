@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "argparse_dataclass",
     "tree-sitter",
+    "tree-sitter-cpp",
     "tree-sitter-rust",
 ]
 dynamic = ["version"]

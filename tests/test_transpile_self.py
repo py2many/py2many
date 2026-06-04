@@ -246,7 +246,7 @@ class SelfTranspileTests(unittest.TestCase):
         successful, format_errors, failures = _process_dir(
             settings, transpiler_module, OUT_DIR, False, _suppress_exceptions=False
         )
-        assert len(successful) == 5
+        assert len(successful) == 6
 
         successful, format_errors, failures = _process_dir(
             settings, PY2MANY_MODULE, OUT_DIR, False, _suppress_exceptions=False

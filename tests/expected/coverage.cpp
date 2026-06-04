@@ -7,11 +7,9 @@
 #include <string>                  // NOLINT(build/include_order)
 #include <vector>                  // NOLINT(build/include_order)
 
-inline void inline_pass() {
-/* pass */}
+inline void inline_pass() { /* pass */ }
 
-inline void inline_ellipsis() {
-/* ... */}
+inline void inline_ellipsis() { /* ... */ }
 
 inline int indexing() {
   int sum = 0;
@@ -87,7 +85,7 @@ inline void show() {
     std::cout << std::string{"true"};
     std::cout << std::endl;
   }
-  if (1 != NULL) {
+  if (true) {
     std::cout << std::string{"World is sane"};
     std::cout << std::endl;
   }
