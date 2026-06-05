@@ -1,7 +1,7 @@
 # py2many: Python to Rust, C++, Go, Zig, Mojo & More - Universal Python Transpiler
 
 ![Build](https://github.com/py2many/py2many/actions/workflows/fast.yaml/badge.svg)
-![License](https://img.shields.io/github/license/adsharma/py2many?color=brightgreen)
+![License](https://img.shields.io/github/license/py2many/py2many?color=brightgreen)
 
 **Convert Python code to Rust, C++, Go, Zig, Julia, Nim, Dart, and other languages automatically**
 
@@ -18,7 +18,7 @@ lead to privilege escalation. With py2many, you can write secure code in Python,
 with unit tests, then transpile to a safer systems language like Rust.
 
 **Cross-platform Development**: Accelerate Python code by transpiling
-it into native [extensions](https://github.com/adsharma/py2many/issues/62) or standalone applications.
+it into native [extensions](https://github.com/py2many/py2many/issues/62) or standalone applications.
 
 **Mobile & Systems Programming**: While Swift and Kotlin dominate mobile app development,
 there's no universal solution for sharing lower-level library code between platforms.
@@ -77,7 +77,7 @@ pub fn add(i: i32, j: i32) -> i64 {
 ```
 
 **More Examples**: View transpiled code for all supported languages at:
-https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
+https://github.com/py2many/py2many/tree/main/tests/expected (fib*)
 
 ## Quick Start: Convert Python to Rust, C++, Go & More
 
@@ -181,5 +181,5 @@ Lorentz.
 
 # Contributing
 
-See [CONTRIBUTING.md](https://github.com/adsharma/py2many/blob/main/CONTRIBUTING.md)
+See [CONTRIBUTING.md](https://github.com/py2many/py2many/blob/main/CONTRIBUTING.md)
 for how to test your changes and contribute to this project.
