@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           focus="${FOCUS:-all}"
-          if [ "${focus}" = "omni" ]; then
+          if [ "${focus}" = "all" ] || [ "${focus}" = "omni" ]; then
             docker_file="docker/Dockerfile.omni"
           elif [ "${focus}" = "julia" ]; then
             docker_file="docker/Dockerfile.julia"
