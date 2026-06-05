@@ -87,20 +87,23 @@ https://github.com/adsharma/py2many/tree/main/tests/expected (fib*)
 **Installation:**
 
 ```sh
-pip3 install --user  # installs to $HOME/.local
+uv pip install py2many
 ```
 
-OR
+You can also run py2many without a separate install using `uvx`:
 
 ```sh
-sudo pip3 install  # installs systemwide
+uvx py2many --mylang test.py
 ```
 
 **Usage Examples:**
 
-Convert Python to different languages:
+To transpile a Python file, run py2many with the target language flag:
 
 ```sh
+# General form
+uvx py2many --mylang test.py
+
 # Python to Rust
 py2many --rust tests/cases/fib.py
 
