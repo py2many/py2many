@@ -148,11 +148,9 @@ RUN curl -fsSL https://pixi.sh/install.sh | bash \
     && ln -sf "${HOME}/life/.pixi/envs/default/bin/mblack" /usr/local/bin/mblack \
     && mojo --version
 
-RUN julia -e 'using Pkg; Pkg.add("JuliaFormatter"); Pkg.add("SuperEnum")' \
-    && printf '#!/usr/bin/env julia\nusing JuliaFormatter\nJuliaFormatter.main(ARGS)\n' > /usr/local/bin/format.jl \
-    && chmod +x /usr/local/bin/format.jl
-
 COPY scripts /scripts
+
+RUN /scripts/julia-setup.sh
 
 RUN source "${HOME}/.venv/bin/activate" \
     && mkdir -p /work/tests \
