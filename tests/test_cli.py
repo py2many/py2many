@@ -568,6 +568,8 @@ class TestCodeGenerator:
         case_dirname = ROOT_DIR / Path("tests/dir_cases") / case
         output_dir = ROOT_DIR / Path("tests/dir_cases") / TEST_OUTPUT
         expected_output_dir = ROOT_DIR / Path("tests/dir_cases") / EXPECTED_OUTPUT
+        if not expected_output_dir.exists():
+            raise pytest.skip(f"{expected_output_dir} not found")
         output_dir.mkdir(exist_ok=True)
         args = [
             f"--{lang}",
@@ -662,6 +664,8 @@ class TestCodeGenerator:
             raise pytest.skip("rustc not available")
         if not (Path.home() / ".vmodules" / "pyast" / "ext.v").exists():
             raise pytest.skip("pyast V module not installed")
+        if not (Path.home() / ".vmodules" / "tree_sitter").exists():
+            raise pytest.skip("tree_sitter V module not installed")
 
         v_outdir = tmp_path / "v_bootstrap"
         binary = tmp_path / "py2many-incremental-v"

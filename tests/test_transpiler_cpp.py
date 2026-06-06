@@ -21,7 +21,8 @@ def test_empty_return():
     cpp = transpile(source)
     expected = """\
     inline void foo() {
-    return;}
+    return;
+    }
     """
     assert cpp == textwrap.dedent(expected)
 
@@ -87,7 +88,8 @@ def test_print_program_args():
         "for(auto arg : std::vector<std::string>(argv, argv + argc)) {",
         "std::cout << arg;",
         "std::cout << std::endl;",
-        "}}",
+        "}",
+        "}",
         "",
     )
 
@@ -111,7 +113,8 @@ def test_function_with_return():
     cpp = transpile(source)
     expected = """\
         template <typename T0>auto fun(T0 x) {
-        return x;}
+        return x;
+        }
     """
     assert cpp == textwrap.dedent(expected)
 
@@ -121,7 +124,8 @@ def test_void_function():
     cpp = transpile(source, testing=False)
     expected = """\
         inline void test_fun() {
-        assert(true);}
+        assert(true);
+        }
     """
     assert cpp == textwrap.dedent(expected)
 
@@ -164,6 +168,7 @@ def test_map_function():
         for(auto v : values) {
         results.push_back(fun(v));
         }
-        return results;}
+        return results;
+        }
     """
     assert cpp == textwrap.dedent(expected)
