@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:sprintf/sprintf.dart';
 
 main(List<String> argv) {
-  List<String> a = (new List<String>.from([Platform.executable])..addAll(argv));
+  List<String> a = (new List<String>.from([Platform.script.toFilePath()])..addAll(argv));
   String cmd = (a[0] ?? (throw Exception("key not found")));
 
   if (cmd == "dart") {

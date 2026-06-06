@@ -128,7 +128,7 @@ class DartTranspiler(CLikeTranspiler):
         if value_id == "sys":
             if attr == "argv":
                 self._usings.add("dart:io")
-                return "(new List<String>.from([Platform.executable])..addAll(argv))"
+                return "(new List<String>.from([Platform.script.toFilePath()])..addAll(argv))"
 
         if is_list(node.value):
             if node.attr == "append":
