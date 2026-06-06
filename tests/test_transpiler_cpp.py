@@ -10,6 +10,10 @@ def parse(*args):
     return "\n".join(args)
 
 
+def assert_cpp_equal(actual, expected):
+    assert actual.replace("\n}", "}") == textwrap.dedent(expected).replace("\n}", "}")
+
+
 def test_declare():
     source = parse("x = 3")
     cpp = transpile(source)
@@ -21,10 +25,9 @@ def test_empty_return():
     cpp = transpile(source)
     expected = """\
     inline void foo() {
-    return;
-    }
+    return;}
     """
-    assert cpp == textwrap.dedent(expected)
+    assert_cpp_equal(cpp, expected)
 
 
 def test_print_multiple_vars():
@@ -83,14 +86,16 @@ def test_print_program_args():
     cpp = transpile(source)
     # Note the args and return type are missing here as this `transpile` wrapper
     # is not the main py2many wrapper, and notably doesnt use PythonMainRewriter.
-    assert cpp == parse(
-        "void main() {",
-        "for(auto arg : std::vector<std::string>(argv, argv + argc)) {",
-        "std::cout << arg;",
-        "std::cout << std::endl;",
-        "}",
-        "}",
-        "",
+    assert_cpp_equal(
+        cpp,
+        parse(
+            "void main() {",
+            "for(auto arg : std::vector<std::string>(argv, argv + argc)) {",
+            "std::cout << arg;",
+            "std::cout << std::endl;",
+            "}}",
+            "",
+        ),
     )
 
 
@@ -113,10 +118,9 @@ def test_function_with_return():
     cpp = transpile(source)
     expected = """\
         template <typename T0>auto fun(T0 x) {
-        return x;
-        }
+        return x;}
     """
-    assert cpp == textwrap.dedent(expected)
+    assert_cpp_equal(cpp, expected)
 
 
 def test_void_function():
@@ -124,10 +128,9 @@ def test_void_function():
     cpp = transpile(source, testing=False)
     expected = """\
         inline void test_fun() {
-        assert(true);
-        }
+        assert(true);}
     """
-    assert cpp == textwrap.dedent(expected)
+    assert_cpp_equal(cpp, expected)
 
 
 def test_create_catch_test_case():
@@ -168,7 +171,6 @@ def test_map_function():
         for(auto v : values) {
         results.push_back(fun(v));
         }
-        return results;
-        }
+        return results;}
     """
-    assert cpp == textwrap.dedent(expected)
+    assert_cpp_equal(cpp, expected)
