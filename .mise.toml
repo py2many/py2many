@@ -121,7 +121,17 @@ set -ex
 # forcing it through git-bash routes the native tox/pytest subprocesses through
 # MSYS path translation, which hides mise's tool dirs from the formatters the
 # tests invoke. mise's native shell keeps a Windows PATH that resolves them.
-[tasks.test]
+
+
+[tasks.test-full]
+description = "Run the full test suite including Typpete and adt"
+alias = "test"
 run = """
 tox -e py312-full
+"""
+
+[tasks.test-all]
+description = "Run the full test suite excluding Typpete and adt"
+run = """
+tox -e py312-all
 """
