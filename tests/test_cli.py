@@ -1,5 +1,6 @@
 import argparse
 import difflib
+import importlib.util
 import logging
 import os.path
 import platform
@@ -144,6 +145,10 @@ else:
 TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
 TEST_PARAMS = [(case, lang) for case, lang in product(TEST_CASES, LANGS)]
 
+# Cases that import `adt` need that package present to run under CPython for
+# the golden-output comparison. The transpiler itself does not need adt.
+ADT_AVAILABLE = importlib.util.find_spec("adt") is not None
+
 CASE_ARGS = {"sys_argv": ("arg1",)}
 CASE_EXPECTED_EXITCODE = {"sys_exit": 1}
 
@@ -167,12 +172,6 @@ logger = logging.Logger("test_cli")
 
 def has_main_lines(lines):
     return any("def main" in line or "__main__" in line for line in lines)
-
-
-def has_main(filename):
-    with open(filename) as f:
-        lines = f.readlines()
-    return has_main_lines(lines)
 
 
 def get_exe_filename(case, ext):
@@ -266,7 +265,11 @@ class TestCodeGenerator:
         exe = get_exe_filename(case, ext)
         exe.unlink(missing_ok=True)
 
-        is_script = has_main(case_filename)
+        with open(case_filename) as f:
+            case_source = f.read()
+        if not ADT_AVAILABLE and "from adt" in case_source:
+            raise pytest.skip(f"adt module not installed; required by {case}")
+        is_script = has_main_lines(case_source.splitlines())
         if not is_script and not is_declarative(ext):
             raise pytest.skip(f"{case} is declarative, not suitable for {lang}")
 
