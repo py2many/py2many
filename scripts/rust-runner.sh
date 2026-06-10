@@ -23,7 +23,9 @@ while IFS= read -r line; do
     case "$line" in *'```cargo'*) in_block=1; continue;; esac
     [ "$in_block" = 1 ] || continue
     case "$line" in *'```'*) break;; esac
-    line=${line#//! }    # strip the "//! " doc-comment prefix
+    line=${line#//!}     # strip the "//!" doc-comment prefix
+    line=${line# }       # ...and the single space that usually follows it,
+                         # but tolerate a bare "//!" (empty line in the block).
     printf '%s\n' "$line"
     [ "$line" = "[package]" ] && printf 'name="%s"\n' "$bin_name"
 done < "$1" > "$DIR/Cargo.toml"
