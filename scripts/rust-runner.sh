@@ -3,16 +3,6 @@
 MODE=$1
 shift
 
-
-# Determine the correct sed command
-if [[ "$(uname)" == "Darwin" ]]; then
-    # macOS: Use gsed
-    SED="gsed"
-else
-    # Linux/Other: Use sed
-    SED="sed"
-fi
-
 # Define the directory path
 DIR="common-rust-proj"
 
@@ -27,9 +17,16 @@ fi
 # Extract the embedded Cargo.toml content
 # Look for lines between ```cargo and ```
 # Remove the first 4 characters (e.g., "//! ") from each line
-$SED -n '/```cargo/,/```/p' "$1" | $SED '1d;$d' | $SED 's#^//!##' | $SED 's/^ //' > $DIR/Cargo.toml
-bin_name=$(basename -s .rs $1)
-$SED -i "s/^.package.\$/[package]\nname=\"$bin_name\"/" $DIR/Cargo.toml
+bin_name=$(basename -s .rs "$1")
+in_block=0
+while IFS= read -r line; do
+    case "$line" in *'```cargo'*) in_block=1; continue;; esac
+    [ "$in_block" = 1 ] || continue
+    case "$line" in *'```'*) break;; esac
+    line=${line#//! }    # strip the "//! " doc-comment prefix
+    printf '%s\n' "$line"
+    [ "$line" = "[package]" ] && printf 'name="%s"\n' "$bin_name"
+done < "$1" > "$DIR/Cargo.toml"
 
 # Now copy the argument to the target dir
 cp $1 $DIR/src/main.rs
