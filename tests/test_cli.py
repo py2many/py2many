@@ -441,10 +441,13 @@ class TestCodeGenerator:
 
         env = os.environ.copy()
         # Prefer an explicit CXX_GCC path when set (also augment PATH so g++ can
-        # exec its sibling tools, e.g. conda-gxx's clang assembler). Otherwise
-        # fall back to plain g++ from PATH -- but on macOS the Command Line
-        # Tools ship a clang-as-g++ shim, which we reject loudly because it
-        # would silently bypass what this test is meant to exercise.
+        # exec its sibling tools, e.g. conda-gxx's clang assembler). CXX_GCC set
+        # is the signal that the cpp toolchain was selected (the cpp mise env
+        # points it at conda-gxx on macOS), so a bad value there is a real
+        # misconfiguration we fail loudly on. With CXX_GCC unset the cpp env was
+        # not selected (e.g. MISE_ENV=lean); fall back to plain g++ from PATH,
+        # but skip -- rather than fail -- when no real GCC is available, since
+        # on macOS plain `g++` is Apple's clang-as-g++ shim, not real GCC.
         cxx = env.get("CXX_GCC")
         if cxx:
             if not find_executable(cxx):
@@ -452,10 +455,10 @@ class TestCodeGenerator:
             env["PATH"] = os.path.dirname(cxx) + os.pathsep + env.get("PATH", "")
         else:
             if not find_executable("g++"):
-                pytest.fail("g++ not on PATH; install real GCC and set CXX_GCC")
+                raise pytest.skip("g++ not on PATH; install real GCC and set CXX_GCC")
             ver = run(["g++", "--version"], capture_output=True, text=True)
             if "clang" in ver.stdout.lower():
-                pytest.fail(
+                raise pytest.skip(
                     "g++ on PATH is Apple's Command Line Tools clang shim, not "
                     "real GCC; install real GCC and set CXX_GCC to its absolute path"
                 )
@@ -524,6 +527,11 @@ class TestCodeGenerator:
 
         settings = _get_all_settings(Mock(indent=2))[lang]
         ext = settings.ext
+
+        if settings.formatter:
+            if not find_executable(settings.formatter[0]):
+                raise pytest.skip(f"{settings.formatter[0]} not available")
+
         expected_filename = TESTS_DIR / "ext_expected" / f"{case}{ext}"
         case_filename = TESTS_DIR / "ext_cases" / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
