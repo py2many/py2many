@@ -1,0 +1,16 @@
+[tools]
+julia = { version = "latest", platforms = { linux-arm64 = { url = """{% if version == "nightly" %}https://julialangnightlies-s3.julialang.org/bin/linux/aarch64/julia-latest-linuxaarch64.tar.gz{% else %}https://julialang-s3.julialang.org/bin/linux/aarch64/{{ version | split(pat='.') | slice(start=0, end=2) | join(sep='.') }}/julia-{{ version }}-linux-aarch64.tar.gz{% endif %}""" }, linux-x64 = { url = """{% if version == "nightly" %}https://julialangnightlies-s3.julialang.org/bin/linux/x64/julia-latest-linux64.tar.gz{% else %}https://julialang-s3.julialang.org/bin/linux/x64/{{ version | split(pat='.') | slice(start=0, end=2) | join(sep='.') }}/julia-{{ version }}-linux-x86_64.tar.gz{% endif %}""" }, macos-arm64 = { url = """{% if version == "nightly" %}https://julialangnightlies-s3.julialang.org/bin/mac/aarch64/julia-latest-macaarch64.tar.gz{% else %}https://julialang-s3.julialang.org/bin/mac/aarch64/{{ version | split(pat='.') | slice(start=0, end=2) | join(sep='.') }}/julia-{{ version }}-macaarch64.tar.gz{% endif %}""" }, macos-x64 = { url = """{% if version == "nightly" %}https://julialangnightlies-s3.julialang.org/bin/mac/x64/julia-latest-mac64.tar.gz{% else %}https://julialang-s3.julialang.org/bin/mac/x64/{{ version | split(pat='.') | slice(start=0, end=2) | join(sep='.') }}/julia-{{ version }}-mac64.tar.gz{% endif %}""" }, windows-x64 = { format = "zip", url = """{% if version == "nightly" %}https://julialangnightlies-s3.julialang.org/bin/winnt/x64/julia-latest-win64.zip{% else %}https://julialang-s3.julialang.org/bin/winnt/x64/{{ version | split(pat='.') | slice(start=0, end=2) | join(sep='.') }}/julia-{{ version }}-win64.zip{% endif %}""" } }, version_expr = 'sortVersions(filter(keys(fromJSON(body)), { # matches "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z\\.-]+)?$" }))', version_list_url = "https://julialang-s3.julialang.org/bin/versions.json" }
+
+[env]
+# ~/.julia/bin holds the JuliaFormatter `jlfmt` app (scripts/julia-setup.sh); it
+# must be on PATH so the formatter resolves directly. The home location differs
+# on Windows (native %USERPROFILE% rather than git-bash's /c/... $HOME), so this
+# entry is OS-specific.
+_.path = [
+  "{% if os() == 'windows' %}{{ env.USERPROFILE }}{% else %}{{ env.HOME }}{% endif %}/.julia/bin",
+]
+
+[tasks."setup:julia"]
+description = "Install Julia deps"
+shell = "bash -c"
+run = "set -ex; ./scripts/julia-setup.sh"

@@ -1,0 +1,10 @@
+[tools]
+# mise's github backend auto-strips the single top-level v/ dir on Linux/macOS
+# but does so unreliably for Windows zips, leaving v.exe nested and off PATH.
+# Force the strip on all platforms so v(.exe) lands at the install root.
+"github:vlang/v" = { version = "0.5.1", strip_components = 1 }
+
+[tasks."setup:vlang"]
+description = "Install V deps"
+shell = "bash -c"
+run = "set -ex; ./scripts/vlang-setup.sh"

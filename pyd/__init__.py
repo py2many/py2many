@@ -12,8 +12,9 @@ def _dfmt_command(dfmt_args):
     # package safely from concurrent processes
     # (https://github.com/dlang/dub/issues/1113), so it races under pytest-xdist
     # with "Failed to execute ... dfmt (No such file or directory)". Prefer the
-    # prebuilt binary on PATH (scripts/dlang-setup.sh builds it and .mise.toml
-    # puts its dir on PATH); fall back to `dub run` only when it's absent.
+    # prebuilt binary on PATH (scripts/dlang-setup.sh builds it and
+    # .mise/config.dlang.toml puts its dir on PATH); fall back to `dub run` only
+    # when it's absent.
     if shutil.which("dfmt"):
         return ["dfmt", *dfmt_args]
     return ["dub", "run", "--yes", "dfmt", "--", *dfmt_args]

@@ -5,12 +5,12 @@ set -euo pipefail
 # call (https://github.com/dlang-community/dfmt/issues/407) and dub can't build
 # a package safely from concurrent processes
 # (https://github.com/dlang/dub/issues/1113), so the test suite (pytest-xdist)
-# calls the prebuilt binary directly via PATH instead (see .mise.toml _.path
-# and pyd/__init__.py). The dfmt version here must match the path in .mise.toml.
+# calls the prebuilt binary directly via PATH instead (see .mise/config.dlang.toml
+# _.path and pyd/__init__.py). The dfmt version here must match that path.
 dub run --yes dfmt@0.15.2 -- --version
 
 # Make `dfmt` resolvable on PATH so pyd/__init__.py calls the prebuilt binary
-# directly. mise already handles this via .mise.toml _.path, so when dfmt is
+# directly. mise already handles this via .mise/config.dlang.toml _.path, so when dfmt is
 # reachable we leave it alone. The Docker image doesn't add the dub cache to
 # PATH, so there we symlink the binary into /usr/local/bin (cf. revive in
 # go-setup.sh). Guarding on PATH (rather than detecting mise) keeps us off

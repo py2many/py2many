@@ -1,0 +1,23 @@
+[tools]
+# Pinned to 21 (LTS): kotlinc 2.0.21 crashes parsing JDK versions newer than it
+# knows about (e.g. JDK 26 -> IllegalArgumentException in IntelliJ's
+# JavaVersion.parse). JDK 21 is also fine for jgo/maven.
+java = "21"
+kotlin = { version = "1.7.20", asset_pattern = "kotlin-compiler-*.zip", bin_path = "kotlinc/bin" }
+maven = "latest"
+"pipx:jgo" = "latest"
+
+[env]
+# Without KOTLIN_HOME the test harness has no way to run kotlin (a bare .class
+# isn't executable), so the kotlin cases used to rely on kotlinc being absent to
+# skip -- but mise installs it. Point KOTLIN_HOME at the mise kotlin install so
+# the jgo/kscript invoker is used to actually run the kotlin cases.
+# Use the exact pinned version (1.7.20) rather than a `1.7` alias or `latest`:
+# mise auto-creates the major.minor symlink on Linux/macOS but not on Windows
+# (creating symlinks there requires Developer Mode or elevated privileges, so
+# mise skips it), and kscript invokes `kotlinc.bat` via cmd which gives a bare
+# `The system cannot find the path specified` when the alias dir doesn't exist.
+# `latest` would also track the highest *installed* kotlin, not the pinned one.
+# kscript 4.2.3 only works with a 1.7.x kotlinc. Keep this in sync with the
+# kotlin pin in the [tools] section.
+KOTLIN_HOME = "{% if os() == 'windows' %}{{ env.LOCALAPPDATA }}/mise/installs/kotlin/1.7.20/kotlinc{% else %}{{ env.HOME }}/.local/share/mise/installs/kotlin/1.7.20/kotlinc{% endif %}"

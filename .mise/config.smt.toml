@@ -1,0 +1,6 @@
+[tools]
+"github:Z3Prover/z3" = "z3-4.15.4"
+# cljstyle formats the s-expression SMT output (invoked via scripts/cljstyle,
+# which shells out to jgo).
+cljstyle = { version = "latest", os = ["linux", "macos"] }
+"pipx:jgo" = "latest"
