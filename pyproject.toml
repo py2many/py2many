@@ -91,6 +91,21 @@ version = {attr = "py2many.version.__version__"}
 
 [tool.isort]
 profile = "black"
+# Golden transpiler output, not source we control -- their import order mirrors
+# the input fixtures, so don't lint it. CI used to `rm` these before isort;
+# skipping here means it doesn't have to.
+extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*"]
+
+[tool.black]
+# Same golden-output fixtures excluded for isort above (black takes a regex on
+# the /-separated path, not a glob). Lets CI run black without first `rm`-ing
+# these files.
+extend-exclude = '''
+/(
+    tests/expected
+  | tests/dir_cases/test1-[^/]*-expected
+)/
+'''
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]

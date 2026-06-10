@@ -24,7 +24,10 @@
 pipx = { version = "latest", os = ["linux", "macos"] }
 "pipx:black" = "24.10.0"
 "pipx:flake8" = "latest"
-"pipx:isort" = "latest"
+# Pinned to match the lint job in .github/workflows/fast.yaml; isort's import
+# wrapping changes between majors, so an unpinned (newer) isort reformats code
+# that CI's 5.13.2 leaves alone.
+"pipx:isort" = "5.13.2"
 "pipx:pytest" = "latest"
 "pipx:tox" = "latest"
 python = "3.12"
