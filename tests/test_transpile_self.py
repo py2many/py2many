@@ -10,6 +10,7 @@ from py2many.exceptions import (
     AstTypeNotSupported,
     AstUnrecognisedBinOp,
 )
+from py2many.process_helpers import find_executable
 
 SHOW_ERRORS = os.environ.get("SHOW_ERRORS", False)
 
@@ -68,8 +69,13 @@ class SelfTranspileTests(unittest.TestCase):
     def setUp(self):
         rmtree(OUT_DIR, ignore_errors=True)
 
+    def _require_formatter(self, settings):
+        if settings.formatter and not find_executable(settings.formatter[0]):
+            self.skipTest(f"{settings.formatter[0]} not available")
+
     def test_rust_recursive(self):
         settings = self.SETTINGS["rust"]
+        self._require_formatter(settings)
 
         transpiler_module = ROOT_DIR / "pyrs"
         assert_only_reformat_failures(
@@ -89,6 +95,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_dart_recursive(self):
         settings = self.SETTINGS["dart"]
+        self._require_formatter(settings)
 
         transpiler_module = ROOT_DIR / "pydart"
         assert_only_reformat_failures(
@@ -105,6 +112,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_dlang_recursive(self):
         settings = self.SETTINGS["dlang"]
+        self._require_formatter(settings)
         suppress_exceptions = (
             False if SHOW_ERRORS else (AstNotImplementedError, AstUnrecognisedBinOp)
         )
@@ -135,6 +143,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_kotlin_recursive(self):
         settings = self.SETTINGS["kotlin"]
+        self._require_formatter(settings)
         suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pykt"
@@ -160,6 +169,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_go_recursive(self):
         settings = self.SETTINGS["go"]
+        self._require_formatter(settings)
 
         suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
@@ -217,6 +227,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_nim_recursive(self):
         settings = self.SETTINGS["nim"]
+        self._require_formatter(settings)
         suppress_exceptions = False if SHOW_ERRORS else AstTypeNotSupported
 
         transpiler_module = ROOT_DIR / "pynim"
@@ -241,6 +252,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_cpp_recursive(self):
         settings = self.SETTINGS["cpp"]
+        self._require_formatter(settings)
 
         transpiler_module = ROOT_DIR / "pycpp"
         successful, format_errors, failures = _process_dir(
@@ -255,6 +267,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_julia_recursive(self):
         settings = self.SETTINGS["julia"]
+        self._require_formatter(settings)
         suppress_exceptions = False
 
         transpiler_module = ROOT_DIR / "pyjl"
@@ -279,6 +292,7 @@ class SelfTranspileTests(unittest.TestCase):
 
     def test_vlang_recursive(self):
         settings = self.SETTINGS["vlang"]
+        self._require_formatter(settings)
         suppress_exceptions = (
             False if SHOW_ERRORS else (AstNotImplementedError, AstUnrecognisedBinOp)
         )
