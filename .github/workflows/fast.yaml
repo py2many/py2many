@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Can be blank, or one of: cpp, dart, go, julia, kotlin, nim, smt, vlang
+  # Can be blank, or one of: cpp, dart, dlang, go, julia, kotlin, lean, mojo, nim, rust, smt, vlang, zig
   FOCUS: 'rust'
 jobs:
   build:
@@ -78,9 +78,9 @@ jobs:
           PYTHON_VERSION="${{ matrix.python-version }}"
           export TOXENV="py${PYTHON_VERSION//.}"
           if [ "$FOCUS" ]; then
-            tox -- -k "$FOCUS"
+            tox -e py-"$FOCUS" -- -k "$FOCUS"
           else
-            tox
+            tox -e py-full
           fi
 
       - name: Publish Test Results
