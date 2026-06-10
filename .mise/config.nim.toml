@@ -1,0 +1,5 @@
+[tools]
+"asdf:mise-plugins/mise-nim" = { version = "2.2.10", os = ["linux", "macos"] }
+# asdf plugins are shell scripts that can't run on Windows; use the official
+# prebuilt Windows binary there instead.
+"http:nim" = { version = "2.2.10", url = "https://nim-lang.org/download/nim-{{ version }}_x64.zip", bin_path = "nim-{{ version }}/bin", os = ["windows"] }

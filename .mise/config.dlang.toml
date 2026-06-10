@@ -1,0 +1,12 @@
+[tools]
+"github:ldc-developers/ldc" = "latest"
+
+[env]
+# dub's default package cache holds the prebuilt dfmt (scripts/dlang-setup.sh);
+# it must be on PATH so the formatter resolves directly (dfmt avoids the
+# race-prone, per-call `dub run dfmt` -- https://github.com/dlang-community/dfmt/issues/407,
+# https://github.com/dlang/dub/issues/1113). The dub cache location differs on
+# Windows (%LOCALAPPDATA%\dub rather than ~/.dub), so this entry is OS-specific.
+_.path = [
+  "{% if os() == 'windows' %}{{ env.LOCALAPPDATA }}/dub{% else %}{{ env.HOME }}/.dub{% endif %}/packages/dfmt/0.15.2/dfmt/bin",
+]

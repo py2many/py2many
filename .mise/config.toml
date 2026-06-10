@@ -1,0 +1,97 @@
+# py2many keeps one mise config per target language under .mise/, each loaded
+# on demand via MISE_ENV. This base config (.mise/config.toml) is always loaded
+# and holds only the Python tooling and shared tasks needed regardless of target
+# language.
+#
+#   Install one language's toolchain:   MISE_ENV=rust mise install
+#   Install several at once:            MISE_ENV=cpp,go,zig mise install
+#   Make the selection sticky:          export MISE_ENV=rust,go
+#                                       (or set it in a git-ignored mise.local.toml)
+#
+# Each language's tools and env live in .mise/config.<env>.toml. The MISE_ENV
+# values match the tox factors / CI FOCUS names:
+#   cpp dart dlang go julia kotlin lean mojo nim rust smt vlang zig
+#
+# Language deps are installed by per-env `setup:<lang>` tasks. The `setup` task
+# below runs all the ones for the active envs:   MISE_ENV=cpp,go mise run setup
+#
+# mise has no MISE_ENV=all (configs can't include each other), so the
+# install-all/setup-all tasks below install/set up every language at once. They
+# read $ALL_LANGS, derived once here by listing the .mise/config.<lang>.toml
+# files, so adding a language needs no task edits.
+
+[tools]
+pipx = { version = "latest", os = ["linux", "macos"] }
+"pipx:black" = "24.10.0"
+"pipx:flake8" = "latest"
+"pipx:isort" = "latest"
+"pipx:pytest" = "latest"
+"pipx:tox" = "latest"
+python = "3.12"
+uv = "latest"
+
+[env]
+# Comma-separated list of every language env, auto-discovered from the sibling
+# config.<lang>.toml filenames (exec runs from this file's dir, i.e. .mise/; the
+# config.*.toml glob excludes this config.toml). Used as MISE_ENV by the *-all
+# tasks to act on every language at once.
+ALL_LANGS = '{{ exec(command="ls config.*.toml | cut -d. -f2 | paste -sd, -") }}'
+
+# Aggregate the per-env setup tasks. `mise run 'setup:*'` errors when no
+# setup:<lang> task is loaded (e.g. MISE_ENV unset), so guard on their presence
+# and print a hint instead.
+[tasks.setup]
+description = "Install deps for the languages selected via MISE_ENV"
+shell = "bash -c"
+run = """
+if mise tasks ls --no-header | grep -q '^setup:'; then
+  mise run 'setup:*'
+else
+  echo "No setup:<lang> tasks for the current MISE_ENV. Try: MISE_ENV=cpp,go mise run setup" >&2
+fi
+"""
+
+# The per-language `setup:<lang>` tasks (in .mise/config.<lang>.toml) run bash
+# scripts and bash-isms (set -ex), so they force `shell = "bash -c"` to work on
+# Windows too, where mise's default task shell is cmd/PowerShell.
+#
+# The test tasks below deliberately use no shell override: they are plain
+# commands (no bash-isms), and on Windows forcing them through git-bash would
+# route the native tox/pytest subprocesses through MSYS path translation, which
+# hides mise's tool dirs from the formatters the tests invoke. mise's native
+# shell keeps a Windows PATH that resolves them.
+# Stand-in for the MISE_ENV=all that mise lacks: install (or set up) every
+# language env in $ALL_LANGS in one go.
+[tasks.install-all]
+description = "Install every language toolchain (all .mise/config.<lang>.toml)"
+shell = "bash -c"
+run = 'MISE_ENV="$ALL_LANGS" mise install'
+
+# Depends on install-all so the toolchains exist before the setup scripts run
+# (julia/dart/go setup need their compilers already installed).
+[tasks.setup-all]
+description = "Run every language's setup:<lang> task"
+depends = ["install-all"]
+shell = "bash -c"
+run = 'MISE_ENV="$ALL_LANGS" mise run setup'
+
+# Generic stand-in for the MISE_ENV=all that mise lacks: run any command with
+# every language env in $ALL_LANGS enabled. The *-all tasks below are shortcuts
+# for common invocations; for anything else use e.g. `mise run all tox -e py312-all`.
+# mise appends the task's CLI args to the run script, so they land right after
+# `mise exec --`, e.g. `mise run all tox -e py312-all`.
+[tasks.all]
+description = "Run a command with every language env enabled (MISE_ENV=all)"
+shell = "bash -c"
+run = 'MISE_ENV="$ALL_LANGS" mise exec --'
+
+[tasks.test-full]
+description = "Run the full test suite including Typpete and adt"
+alias = "test"
+run = """
+tox -e py312-full
+"""
+
+[tasks.test-all]
+description = "Run the full test suite excluding Typpete and adt"
+run = "mise run all tox -e py312-all"

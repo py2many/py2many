@@ -1,0 +1,8 @@
+[tools]
+go = "latest"
+"go:github.com/mgechev/revive" = "latest"
+
+[tasks."setup:go"]
+description = "Install Go deps"
+shell = "bash -c"
+run = "set -ex; ./scripts/go-setup.sh"

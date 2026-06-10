@@ -1,0 +1,7 @@
+[tools]
+zig = "latest"
+
+[tasks."setup:zig"]
+description = "Install Zig deps"
+shell = "bash -c"
+run = "set -ex; ./scripts/zig-setup.sh"

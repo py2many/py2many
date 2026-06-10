@@ -1,0 +1,8 @@
+[tools]
+# Lean 4 ships standalone per-platform toolchain archives (bin/lean, bin/lake,
+# bin/leanc, ...) at github.com/leanprover/lean4 releases, so install the
+# toolchain directly rather than via the elan version-manager (whose release
+# tarball is just an installer shim that needs a separate `elan default`
+# toolchain-fetch step before lean/lake exist). The archive's single top-level
+# dir carries the platform suffix, so bin_path is set per-platform.
+"http:lean" = { version = "4.30.0", platforms = { linux-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-linux.zip", bin_path = "lean-{{ version }}-linux/bin" }, linux-arm64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-linux_aarch64.zip", bin_path = "lean-{{ version }}-linux_aarch64/bin" }, macos-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-darwin.zip", bin_path = "lean-{{ version }}-darwin/bin" }, macos-arm64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-darwin_aarch64.zip", bin_path = "lean-{{ version }}-darwin_aarch64/bin" }, windows-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-windows.zip", bin_path = "lean-{{ version }}-windows/bin" } } }
