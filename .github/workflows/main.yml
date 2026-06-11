@@ -205,11 +205,11 @@ jobs:
         run: |
           scripts/dart-setup.sh
 
-      - name: Install rust nightly toolchain
+      - name: Install rust stable toolchain
         if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'rust') }}
         shell: bash
         run: |
-          rustup default nightly-2024-01-01
+          rustup default stable
           rustup component add clippy rustfmt
 
       - name: Run tox

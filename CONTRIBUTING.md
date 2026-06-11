@@ -44,9 +44,9 @@ sudo apt install clang-format clang++ libc++-dev libc++abi-dev
 - Follow https://rustup.rs/
 
 ```bash
-rustup install nightly
-rustup component add --toolchain nightly clippy
-rustup component add --toolchain nightly rustfmt
+rustup install stable
+rustup component add --toolchain stable clippy
+rustup component add --toolchain stable rustfmt
 ```
 
 ## MacOS dependencies
