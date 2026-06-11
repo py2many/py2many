@@ -6,8 +6,8 @@
 ```bash
 sudo apt install python3 python3-pip python3-pytest tox black flake8
 sudo apt install clang-format clang++ libc++-dev libc++abi-dev
-rustup install nightly
-rustup component add --toolchain nightly clippy rustfmt
+rustup install stable
+rustup component add --toolchain stable clippy rustfmt
 ```
 
 ### MacOS

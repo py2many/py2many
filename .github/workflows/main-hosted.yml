@@ -227,11 +227,11 @@ jobs:
         run: |
           scripts/dart-setup.sh
 
-      - name: Install rust nightly toolchain
+      - name: Install rust stable toolchain
         if: ${{ !env.FOCUS || env.FOCUS == 'rust' }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-01-01
+          toolchain: stable
           components: clippy,rustfmt
 
       - name: Run tox
