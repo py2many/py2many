@@ -1,0 +1,24 @@
+# macOS-only mise config, auto-loaded on macOS via auto_env (see ../.miserc.toml).
+# Holds the base tooling that applies only on macOS; the cross-platform base is in
+# config.toml, which loads first. Per-language toolchains stay in their own
+# config.<lang>.toml, loaded on demand via MISE_ENV.
+
+[tools]
+# Standalone pipx lives in the per-OS files (not the cross-platform base) because
+# it has no Windows build on mise's backend; see config.linux.toml for the full
+# rationale.
+pipx = "latest"
+
+[vars]
+# macOS values of the OS-level path facts the per-language configs reference; see
+# config.linux.toml for what each is and why they live here.
+home = "{{ env.HOME }}"
+mise_installs = "{{ env.HOME }}/.local/share/mise/installs"
+dub_cache = "{{ env.HOME }}/.dub"
+# macOS cpp: skip the conda-libcxx-devel override -- it conflicts with Apple's
+# Command Line Tools SDK headers the cpp tests use instead -- so cxx_override and
+# cxx_libdir are empty. CXX_GCC points at conda-gxx's g++ because plain `g++` is
+# Apple's clang shim, not real GCC.
+cxx_override = ""
+cxx_libdir = ""
+cxx_gcc = "{{ env.HOME }}/.local/share/mise/installs/conda-gxx/latest/bin/g++"

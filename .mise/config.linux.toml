@@ -1,0 +1,30 @@
+# Linux-only mise config, auto-loaded on Linux via auto_env (see ../.miserc.toml).
+# Holds the base tooling that applies only on Linux; the cross-platform base is in
+# config.toml, which loads first. Per-language toolchains stay in their own
+# config.<lang>.toml, loaded on demand via MISE_ENV.
+
+[tools]
+# pipx (the standalone CLI) backs the uvx=false pipx:* tools (e.g. pipx:mojo). It
+# installs cleanly from mise's pipx/aqua backend on Linux and macOS but has no
+# Windows build there, so it lives in the per-OS files instead of the
+# cross-platform base. The plain pipx:* tools in config.toml default to the uvx
+# backend and need no standalone pipx.
+pipx = "latest"
+
+[vars]
+# OS-level path facts the per-language configs build on, so those configs carry
+# no `{% if os() %}` branches: they reference these vars and pick up whichever
+# config.<os>.toml auto-loaded. The same names are defined in config.macos.toml
+# and config.windows.toml with the macOS/Windows values. Defining them here is
+# inert until a config.<lang>.toml that references them is loaded via MISE_ENV,
+# so nothing leaks into unrelated language envs.
+home = "{{ env.HOME }}"
+mise_installs = "{{ env.HOME }}/.local/share/mise/installs"
+# dub's package cache (config.dlang.toml puts its dfmt bin on PATH from here).
+dub_cache = "{{ env.HOME }}/.dub"
+# config.cpp.toml's C++ toolchain values, per OS. On Linux the cpp tests build
+# against conda-libcxx-devel's libc++ headers/libs (CCC_OVERRIDE_OPTIONS is
+# clang-driver only); CXX_GCC is empty because plain `g++` is already real GCC.
+cxx_override = "+-isystem +{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/include/c++/v1 +-L +{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/lib"
+cxx_libdir = "{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/lib"
+cxx_gcc = ""
