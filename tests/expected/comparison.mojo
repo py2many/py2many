@@ -1,4 +1,4 @@
-import testing
+from std.testing import assert_true
 
 
 fn compare_with_integer_variable() raises:
@@ -8,7 +8,7 @@ fn compare_with_integer_variable() raises:
         s = 2
     else:
         s = 3
-    testing.assert_true(s == 3)
+    assert_true(s == 3)
 
 
 fn use_zero_for_comparison() raises:
@@ -18,7 +18,7 @@ fn use_zero_for_comparison() raises:
         s = 2
     else:
         s = 3
-    testing.assert_true(s == 3)
+    assert_true(s == 3)
 
 
 fn main() raises:

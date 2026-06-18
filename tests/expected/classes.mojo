@@ -1,4 +1,4 @@
-import testing
+from std.testing import assert_true
 
 
 struct Foo:
@@ -16,4 +16,4 @@ fn main() raises:
     var f = Foo()
     var b = f.bar()
     print(b)
-    testing.assert_true(b == 10)
+    assert_true(b == 10)

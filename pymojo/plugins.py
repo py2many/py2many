@@ -21,8 +21,8 @@ class MojoTranspilerPlugins:
 SMALL_DISPATCH_MAP = {
     "str": lambda n, vargs: f"$({vargs[0]})" if vargs else '""',
     "bool": lambda n, vargs: f"bool({vargs[0]})" if vargs else "False",
-    "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",
-    "floor": lambda n, vargs: f"int(floor({vargs[0]}))",
+    "int": lambda n, vargs: f"Int({vargs[0]})" if vargs else "0",
+    "floor": lambda n, vargs: f"Int(floor({vargs[0]}))",
     "float": functools.partial(MojoTranspilerPlugins.visit_cast, cast_to="Float64"),
 }
 
@@ -34,7 +34,7 @@ DISPATCH_MAP = {
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE = {"dataclass": lambda n, vargs: "value"}
+DECORATOR_DISPATCH_TABLE = {"dataclass": lambda n, vargs: "fieldwise_init"}
 
 CLASS_DISPATCH_TABLE: Dict[type, Callable] = {}
 

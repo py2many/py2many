@@ -1,4 +1,4 @@
-import testing
+from std.testing import assert_true
 
 
 fn implicit_keys() -> Bool:
@@ -8,7 +8,7 @@ fn implicit_keys() -> Bool:
 
 fn explicit_keys() -> Bool:
     var CODES = {"KEY": 1}
-    return "KEY" in CODES.keys()
+    return "KEY" in CODES
 
 
 fn dict_values() -> Bool:
@@ -27,9 +27,9 @@ fn return_dict_index_int(key: Int) -> String:
 
 
 fn main() raises:
-    testing.assert_true(implicit_keys())
-    testing.assert_true(explicit_keys())
-    testing.assert_true(dict_values())
-    testing.assert_true(return_dict_index_str("KEY") == 1)
-    testing.assert_true(return_dict_index_int(1) == "one")
+    assert_true(implicit_keys())
+    assert_true(explicit_keys())
+    assert_true(dict_values())
+    assert_true(return_dict_index_str("KEY") == 1)
+    assert_true(return_dict_index_int(1) == "one")
     print("OK")

@@ -24,6 +24,34 @@ class MojoImplicitConstructor(ast.NodeTransformer):
         return node
 
 
+class MojoDictKeysInElider(ast.NodeTransformer):
+    """Rewrite `x in d.keys()` to `x in d`.
+
+    Mojo's `Dict.keys()` returns `_DictKeyIter`, which doesn't implement
+    `__contains__`. In Python both forms are equivalent for dicts, so dropping
+    the `.keys()` call is semantics-preserving and lets the emission go through
+    Mojo's `Dict.__contains__`.
+    """
+
+    def visit_Compare(self, node):
+        self.generic_visit(node)
+        if (
+            len(node.ops) == 1
+            and isinstance(node.ops[0], ast.In)
+            and len(node.comparators) == 1
+        ):
+            rhs = node.comparators[0]
+            if (
+                isinstance(rhs, ast.Call)
+                and isinstance(rhs.func, ast.Attribute)
+                and rhs.func.attr == "keys"
+                and not rhs.args
+                and not rhs.keywords
+            ):
+                node.comparators = [rhs.func.value]
+        return node
+
+
 class MojoInferMoveSemantics(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
