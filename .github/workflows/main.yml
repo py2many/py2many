@@ -55,7 +55,7 @@ jobs:
       desktop_image: ${{ steps.image.outputs.desktop_image }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set image name
         id: image
@@ -132,7 +132,7 @@ jobs:
         password: ${{ github.token }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Trust checked-out workspace
         shell: bash
@@ -271,7 +271,7 @@ jobs:
         password: ${{ github.token }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Remove expected .py files
         run: rm tests/expected/*.py tests/dir_cases/test1-*-expected/*.py

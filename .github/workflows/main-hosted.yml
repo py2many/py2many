@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ github.event.inputs.os }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         if: ${{ !env.FOCUS || env.FOCUS == 'kotlin' }}
@@ -267,7 +267,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install linters
         run: pip install black==24.10.0 cpplint isort==5.13.2 flake8
