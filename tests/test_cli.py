@@ -100,7 +100,10 @@ INVOKER = {
     "dlang": ["ldmd2", "-run"],
     "go": ["go", "run"],
     "julia": ["julia", "--compiled-modules=yes"],
-    "lean": ["lean", "--run"],
+    "lean": [
+        "../../scripts/lean-runner.sh",
+        "run",
+    ],
     "python": [sys.executable],
     "rust": [
         "../../scripts/rust-runner.sh",

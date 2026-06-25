@@ -1,4 +1,5 @@
 import ast
+import re
 from typing import List
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -6,6 +7,7 @@ from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
 
 from .clike import CLikeTranspiler
+from .inference import LEAN_WIDTH_RANK
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     DISPATCH_MAP,
@@ -65,9 +67,45 @@ class LeanTranspiler(CLikeTranspiler):
         self._bound_vars: set = set()
         self._needs_float_to_string = False
         self._dict_vars: set = set()  # Track variables assigned from dict/DictComp
+        # Invariant field names of the class whose method is currently being
+        # emitted; used to discharge constructor proof obligations (#805).
+        self._self_invariants: List[str] = []
+        # Names of module-level dependent types (#804) and the local variables
+        # bound to such a type, so their uses can unwrap the subtype via ``.val``.
+        self._dependent_type_names: set = set()
+        self._dependent_vars: set = set()
+        # Method names that carry an ``smt_pre`` precondition (#805); calls to
+        # them must supply a proof argument.
+        self._precondition_methods: set = set()
+        # ``Int``-typed parameters of the function being emitted.  Lean indexes
+        # lists/arrays with ``Nat``, so an index that uses one of these must be
+        # coerced with ``.toNat`` (loop variables and lengths are already
+        # ``Nat`` and must not be coerced).
+        self._int_params: set = set()
 
     def indent(self, code, level=1):
         return self._indent * level + code
+
+    def _collapse_union(self, type_str: str):
+        """Collapse a spurious ``Union[...]`` return type to a single Lean type.
+
+        py2many's return-type inference unions a function's declared annotation
+        with the inferred type of each ``return`` expression.  When those are
+        the same type spelled differently (the Python ``int`` and its mapped
+        ``Int``), it produces ``Union[int, Int]`` even though both denote one
+        Lean type.  Map every member and, if they collapse to a single type,
+        use it; otherwise pick the widest so the value still fits.
+        """
+        if not type_str or "Union[" not in type_str:
+            return type_str
+        members = {
+            self._map_type(tok)
+            for tok in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", type_str)
+            if tok != "Union"
+        }
+        if len(members) == 1:
+            return members.pop()
+        return max(members, key=lambda t: LEAN_WIDTH_RANK.get(t, 0))
 
     def visit_Module(self, node) -> str:
         # Each top-level def trails a newline so consecutive defs are separated
@@ -132,6 +170,10 @@ class LeanTranspiler(CLikeTranspiler):
         # Save and restore _bound_vars per function scope
         saved_bound = self._bound_vars.copy()
         self._bound_vars = set()
+        saved_dep = self._dependent_vars.copy()
+        self._dependent_vars = set()
+        saved_int_params = self._int_params
+        self._int_params = set()
 
         # Python's `if __name__ == "__main__"` block is rewritten into a main()
         # function; Lean's runtime invokes `main : IO Unit` automatically, so no
@@ -153,6 +195,8 @@ class LeanTranspiler(CLikeTranspiler):
             if not body.strip():
                 body = self.indent("pure ()", level=node.level + 1)
             self._bound_vars = saved_bound
+            self._dependent_vars = saved_dep
+            self._int_params = saved_int_params
             return self.indent(
                 f"def {signature} : IO Unit := do\n{body}\n", level=node.level
             )
@@ -165,6 +209,8 @@ class LeanTranspiler(CLikeTranspiler):
                 has_self = True
                 continue
             args_list.append(f"({arg} : {typename})")
+            if typename == "Int":
+                self._int_params.add(arg)
         args_str = (" " + " ".join(args_list)) if args_list else ""
 
         # For methods, add the self parameter with the class type
@@ -172,12 +218,18 @@ class LeanTranspiler(CLikeTranspiler):
         if has_self and self_type:
             args_str = f" (self : {self_type})" + args_str
 
+        # Precondition (#805): a leading ``if smt_pre:`` becomes a proof
+        # parameter and is dropped from the emitted body.  Record the method
+        # name so call sites can supply the proof argument.
+        precond, fn_body = self._extract_precondition(node)
+        if precond:
+            args_str += f" (pre : {precond})"
+            self._precondition_methods.add(node.name)
+
         # Prepend mutable-parameter shadow bindings
         mut_bindings = self._mutable_param_bindings(node)
 
-        body_stmts = [
-            self.indent(self.visit(n), level=node.level + 1) for n in node.body
-        ]
+        body_stmts = [self.indent(self.visit(n), level=node.level + 1) for n in fn_body]
         body_stmts = mut_bindings + body_stmts
 
         body = "\n".join(body_stmts)
@@ -188,7 +240,9 @@ class LeanTranspiler(CLikeTranspiler):
             return_type = "IO Unit"
             intro = "do"
         elif node.returns:
-            return_type = self._typename_from_annotation(node, attr="returns")
+            return_type = self._collapse_union(
+                self._typename_from_annotation(node, attr="returns")
+            )
             # Pure functions with imperative body (loops, mutation) need
             # ``Id.run do``; simple single-expression bodies could omit
             # the ``do`` but using ``Id.run do`` uniformly is safe and
@@ -206,7 +260,30 @@ class LeanTranspiler(CLikeTranspiler):
         # Recursive functions on non-structural types need ``partial``
         partial = "partial " if _is_recursive(node) else ""
 
+        # A pure function whose whole body is a single ``return`` is emitted as
+        # a plain definition ``def f ... : T := expr`` rather than
+        # ``Id.run do return expr``.  This is more idiomatic and, unlike a do
+        # block, the formatter can freely wrap a long expression without
+        # breaking Lean's indentation-sensitive ``do`` parsing.
+        if (
+            not _is_io_function(node)
+            and not mut_bindings
+            and len(fn_body) == 1
+            and isinstance(fn_body[0], ast.Return)
+            and fn_body[0].value is not None
+        ):
+            expr = self.visit(fn_body[0].value)
+            self._bound_vars = saved_bound
+            self._dependent_vars = saved_dep
+            self._int_params = saved_int_params
+            return self.indent(
+                f"{partial}def {func_name}{args_str} : {return_type} := {expr}\n",
+                level=node.level,
+            )
+
         self._bound_vars = saved_bound
+        self._dependent_vars = saved_dep
+        self._int_params = saved_int_params
         return self.indent(
             f"{partial}def {func_name}{args_str} : {return_type} := {intro}\n{body}\n",
             level=node.level,
@@ -226,7 +303,145 @@ class LeanTranspiler(CLikeTranspiler):
         """Return True when the assignment is at the top level of the module."""
         return hasattr(node, "scopes") and isinstance(node.scopes[-1], ast.Module)
 
+    # Comparison operators rendered as Lean propositions (``Prop``) rather than
+    # the boolean (``Bool``) operators used in ``if`` conditions: ``≤``/``≥``
+    # instead of ``<=``/``>=`` and ``=`` instead of ``==``.
+    _PROP_CMP_OPS = {
+        ast.Lt: "<",
+        ast.Gt: ">",
+        ast.LtE: "≤",
+        ast.GtE: "≥",
+        ast.Eq: "=",
+        ast.NotEq: "≠",
+    }
+
+    def _visit_proposition(self, node) -> str:
+        """Render a Python boolean expression as a Lean ``Prop``.
+
+        Used for dependent-type predicates (#804) and structure invariants
+        (#805).  Differs from the ``Bool`` rendering used by ``if`` in two
+        ways: ``and``/``or`` become ``∧``/``∨`` and Python's chained
+        comparisons (``0 < x < 10``) expand to a conjunction
+        (``0 < x ∧ x < 10``) since Lean has no chained relations.
+        """
+        if isinstance(node, ast.BoolOp):
+            sym = "∧" if isinstance(node.op, ast.And) else "∨"
+            return f" {sym} ".join(self._visit_proposition(v) for v in node.values)
+        if isinstance(node, ast.Compare):
+            clauses = []
+            left = node.left
+            for op, right in zip(node.ops, node.comparators):
+                sym = self._PROP_CMP_OPS.get(type(op))
+                if sym is None:
+                    return self.visit(node)
+                clauses.append(f"{self.visit(left)} {sym} {self.visit(right)}")
+                left = right
+            return " ∧ ".join(clauses)
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return f"¬({self._visit_proposition(node.operand)})"
+        return self.visit(node)
+
+    def _dependent_parts(self, value):
+        """Return ``(base_type_node, lambda_node)`` for a dependent-type RHS.
+
+        Recognises ``Annotated[T, lambda x: pred]`` and the alternative
+        ``DependentType(T, lambda x: pred)`` spelling from #804.  Returns
+        ``None`` when ``value`` is an ordinary assignment.
+        """
+        if isinstance(value, ast.Subscript):
+            head = get_id(value.value) or ""
+            if head.split(".")[-1] != "Annotated":
+                return None
+            sl = value.slice
+            if isinstance(sl, ast.Index):  # py < 3.9 compatibility
+                sl = sl.value
+            if (
+                isinstance(sl, ast.Tuple)
+                and len(sl.elts) == 2
+                and isinstance(sl.elts[1], ast.Lambda)
+            ):
+                return sl.elts[0], sl.elts[1]
+            return None
+        if (
+            isinstance(value, ast.Call)
+            and (get_id(value.func) or "").split(".")[-1] == "DependentType"
+            and len(value.args) == 2
+            and isinstance(value.args[1], ast.Lambda)
+        ):
+            return value.args[0], value.args[1]
+        return None
+
+    def _visit_dependent_type(self, name: str, value) -> str:
+        """Emit a Lean subtype ``def Name := { x : T // pred }`` (#804)."""
+        base_node, lam = self._dependent_parts(value)
+        base = self._map_type(self.visit(base_node))
+        binder = lam.args.args[0].arg
+        pred = self._visit_proposition(lam.body)
+        self._dependent_type_names.add(name)
+        return f"def {name} := {{ {binder} : {base} // {pred} }}"
+
+    def _extract_invariants(self, node) -> List[tuple]:
+        """Collect ``(field_name, prop)`` from an ``if invariant:`` class block.
+
+        Realises #805's class invariants as extra structure fields of
+        proposition type, e.g. ``balance >= 0`` becomes
+        ``inv_balance : balance ≥ 0``.  The field name is derived from the
+        first variable mentioned, with a numeric suffix to break ties.
+        """
+        invariants: List[tuple] = []
+        used: set = set()
+        for stmt in node.body:
+            if not (isinstance(stmt, ast.If) and get_id(stmt.test) == "invariant"):
+                continue
+            for inner in stmt.body:
+                if not isinstance(inner, ast.Expr):
+                    continue
+                base = "inv"
+                for sub in ast.walk(inner.value):
+                    if isinstance(sub, ast.Name):
+                        base = f"inv_{sub.id}"
+                        break
+                name = base
+                suffix = 2
+                while name in used:
+                    name = f"{base}_{suffix}"
+                    suffix += 1
+                used.add(name)
+                invariants.append((name, self._visit_proposition(inner.value)))
+        return invariants
+
+    def _extract_precondition(self, node):
+        """Split a leading ``if smt_pre:`` block off a function body (#805).
+
+        Returns ``(precondition_prop_or_None, body_without_smt_pre)``.  The
+        precondition becomes a proof parameter on the emitted ``def``.
+        """
+        pre = None
+        body = []
+        for stmt in node.body:
+            if isinstance(stmt, ast.If) and get_id(stmt.test) == "smt_pre":
+                preds = [
+                    self._visit_proposition(s.value)
+                    for s in stmt.body
+                    if isinstance(s, ast.Expr)
+                ]
+                if preds:
+                    pre = " ∧ ".join(preds)
+                continue
+            body.append(stmt)
+        return pre, body
+
     def _visit_AssignOne(self, node, target) -> str:
+        # Dependent type aliases (#804): ``Uid = Annotated[int, lambda u: ...]``
+        # become Lean subtypes.  Detected before visiting the RHS since the
+        # generic expression visitors don't understand the predicate lambda.
+        if (
+            isinstance(target, ast.Name)
+            and self._is_module_scope(node)
+            and self._dependent_parts(node.value) is not None
+        ):
+            return self._visit_dependent_type(self.visit(target), node.value)
+
         value = self.visit(node.value)
         # Reassignment to an existing binding (subscript/attribute, or a name
         # already bound in this scope) uses `name := value`; the first binding
@@ -308,6 +523,15 @@ class LeanTranspiler(CLikeTranspiler):
         is_reassign = raw_id in self._bound_vars
         if not is_reassign:
             self._bound_vars.add(raw_id)
+        # Dependent-typed local (#804): build the subtype value ``⟨v, proof⟩``
+        # and remember the binding so later uses unwrap it via ``.val``.
+        if (
+            type_str in self._dependent_type_names
+            and val is not None
+            and not self._is_module_scope(node)
+        ):
+            self._dependent_vars.add(raw_id)
+            return f"let {target} : {type_str} := ⟨{val}, by omega⟩"
         # Module-level (top-level) bindings use ``def`` in Lean 4
         if self._is_module_scope(node):
             if val is None:
@@ -349,6 +573,14 @@ class LeanTranspiler(CLikeTranspiler):
             typename = self._typename_from_annotation(node)
         return (typename, id)
 
+    def visit_Name(self, node) -> str:
+        rendered = super().visit_Name(node)
+        # A variable bound to a dependent type (#804) is a Lean subtype value;
+        # unwrap it with ``.val`` wherever the underlying base value is used.
+        if get_id(node) in self._dependent_vars:
+            return f"{rendered}.val"
+        return rendered
+
     def visit_Lambda(self, node) -> str:
         _, args = self.visit(node.args)
         args_str = " ".join(args)
@@ -381,6 +613,19 @@ class LeanTranspiler(CLikeTranspiler):
         if node.keywords:
             for kw in node.keywords:
                 vargs.append(f"{kw.arg} := {self.visit(kw.value)}")
+
+        # Discharge invariant proof obligations (#805).  Bring the source
+        # object's invariants (``self.inv_*``) into scope, then let ``omega``
+        # close the goal.  This handles linear integer invariants; richer
+        # predicates would need a more capable tactic or explicit proof reuse.
+        invariants = getattr(fndef, "invariants", [])
+        for inv_name, _prop in invariants:
+            haves = "".join(
+                f"have h{i} := self.{inv}; "
+                for i, inv in enumerate(self._self_invariants)
+            )
+            vargs.append(f"{inv_name} := by {haves}omega")
+
         if not vargs:
             return f"{fname}.mk"
         args = ", ".join(vargs)
@@ -389,6 +634,35 @@ class LeanTranspiler(CLikeTranspiler):
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
+
+        # ``prove(f)`` (demorgan2): prove that boolean function ``f`` holds for
+        # all inputs via Lean's ``decide`` decision procedure -- the runnable
+        # analogue of an SMT ``check-sat``.  Emitted as a ``have`` so the proof
+        # is checked at compile time inside the enclosing ``do`` block.
+        if isinstance(node.func, ast.Name) and node.func.id == "prove" and node.args:
+            target = node.args[0]
+            pname = get_id(target)
+            pdef = node.scopes.find(pname)
+            if isinstance(pdef, ast.FunctionDef):
+                typenames, pargs = self.visit(pdef.args)
+                params = [(t, a) for t, a in zip(typenames, pargs) if a != "self"]
+                binders = " ".join(f"({a} : {t})" for t, a in params)
+                app = " ".join([pname] + [a for _, a in params])
+                quant = f"∀ {binders}, " if binders else ""
+                return f"have _ : {quant}{app} = true := by decide"
+
+        # ``check(claim)`` (equations2): verify that the values in scope satisfy
+        # a constraint, the runnable analogue of an SMT model.  A call to a
+        # boolean constraint function is discharged by evaluation (``decide``);
+        # a bare linear-arithmetic proposition is discharged by ``omega``.
+        if isinstance(node.func, ast.Name) and node.func.id == "check" and node.args:
+            claim = node.args[0]
+            if isinstance(claim, ast.Call):
+                # Evaluate the boolean constraint function on the concrete model.
+                # ``native_decide`` (compiled evaluation) handles list/array
+                # indexing that the kernel ``decide`` cannot reduce.
+                return f"have _ : {self.visit(claim)} = true := by native_decide"
+            return f"have _ : {self._visit_proposition(claim)} := by omega"
 
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
@@ -437,6 +711,14 @@ class LeanTranspiler(CLikeTranspiler):
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
+
+        # Supply the proof argument for a precondition method (#805).  ``omega``
+        # discharges the concrete (linear integer) precondition at the call.
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in self._precondition_methods
+        ):
+            vargs.append("(by omega)")
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
@@ -528,21 +810,33 @@ class LeanTranspiler(CLikeTranspiler):
                 typename = "_"
             fields.append(f"  {declaration} : {typename}")
 
+        # Class invariants (#805) become extra proposition-typed fields.
+        invariants = node.invariants = self._extract_invariants(node)
+        for inv_name, prop in invariants:
+            fields.append(f"  {inv_name} : {prop}")
+
         fields_str = "\n".join(fields)
         if fields_str:
             struct_def = f"structure {node.name} where\n{fields_str}\n"
         else:
             struct_def = f"structure {node.name} where\n  mk ::\n"
-        if getattr(node, "is_dataclass", False):
+        # ``deriving BEq, Repr`` is only valid when every field is itself
+        # BEq/Repr; proposition-typed invariant fields are not, so skip it.
+        if getattr(node, "is_dataclass", False) and not invariants:
             struct_def += "  deriving BEq, Repr\n"
 
         method_defs = []
+        # Expose the class's invariant field names so constructor calls inside
+        # its methods can discharge the matching proof obligations from ``self``.
+        saved_invariants = self._self_invariants
+        self._self_invariants = [name for name, _ in invariants]
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 if b.name == "__init__":
                     continue
                 b.self_type = node.name
                 method_defs.append(self.visit(b))
+        self._self_invariants = saved_invariants
 
         if method_defs:
             if len(method_defs) > 1:
@@ -653,9 +947,24 @@ class LeanTranspiler(CLikeTranspiler):
             return elts
         return f"({elts})"
 
+    def _index_str(self, slice_node) -> str:
+        """Render a list index, coercing ``Int`` parameters to ``Nat``.
+
+        Lean indexes ``List``/``Array`` with ``Nat``.  Loop variables and
+        lengths are already ``Nat``, but an index computed from an ``Int``
+        parameter (e.g. ``board[row * 4 + col]``) needs an explicit ``.toNat``.
+        """
+        index = self.visit(slice_node)
+        if any(
+            isinstance(n, ast.Name) and get_id(n) in self._int_params
+            for n in ast.walk(slice_node)
+        ):
+            return f"({index}).toNat"
+        return index
+
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
-        index = self.visit(node.slice)
+        index = self._index_str(node.slice)
         return f"{value}[{index}]!"
 
     def visit_Index(self, node) -> str:

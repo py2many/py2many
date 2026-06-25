@@ -4,13 +4,9 @@ structure Foo where mk ::
 
 mutual
   def Foo.bar (self : Foo) : Nat :=
-    Id.run
-      (do
-        return self.baz)
+    self.baz
   def Foo.baz (self : Foo) : Nat :=
-    Id.run
-      (do
-        return 10)
+    10
 end
 
 def main : IO Unit := do

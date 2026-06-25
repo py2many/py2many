@@ -17,64 +17,40 @@ def foo : IO Unit := do
   let _g := (-(Int.ofNat a))
 
 def add1 (x : Int8) (y : Int8) : Int16 :=
-  Id.run
-    (do
-      return ((Int16.ofInt x.toInt) + (Int16.ofInt y.toInt)))
+  ((Int16.ofInt x.toInt) + (Int16.ofInt y.toInt))
 
 def add2 (x : Int16) (y : Int16) : Int32 :=
-  Id.run
-    (do
-      return ((Int32.ofInt x.toInt) + (Int32.ofInt y.toInt)))
+  ((Int32.ofInt x.toInt) + (Int32.ofInt y.toInt))
 
 def add3 (x : Int32) (y : Int32) : Int64 :=
-  Id.run
-    (do
-      return ((Int64.ofInt x.toInt) + (Int64.ofInt y.toInt)))
+  ((Int64.ofInt x.toInt) + (Int64.ofInt y.toInt))
 
 def add4 (x : Int64) (y : Int64) : Int64 :=
-  Id.run
-    (do
-      return (x + y))
+  (x + y)
 
 def add5 (x : UInt8) (y : UInt8) : UInt16 :=
-  Id.run
-    (do
-      return ((UInt16.ofNat x.toNat) + (UInt16.ofNat y.toNat)))
+  ((UInt16.ofNat x.toNat) + (UInt16.ofNat y.toNat))
 
 def add6 (x : UInt16) (y : UInt16) : UInt32 :=
-  Id.run
-    (do
-      return ((UInt32.ofNat x.toNat) + (UInt32.ofNat y.toNat)))
+  ((UInt32.ofNat x.toNat) + (UInt32.ofNat y.toNat))
 
 def add7 (x : UInt32) (y : UInt32) : UInt64 :=
-  Id.run
-    (do
-      return ((UInt64.ofNat x.toNat) + (UInt64.ofNat y.toNat)))
+  ((UInt64.ofNat x.toNat) + (UInt64.ofNat y.toNat))
 
 def add8 (x : UInt64) (y : UInt64) : UInt64 :=
-  Id.run
-    (do
-      return (x + y))
+  (x + y)
 
 def add9 (x : Int8) (y : UInt16) : UInt32 :=
-  Id.run
-    (do
-      return ((UInt32.ofInt x.toInt) + (UInt32.ofNat y.toNat)))
+  ((UInt32.ofInt x.toInt) + (UInt32.ofNat y.toNat))
 
 def sub (x : Int8) (y : Int8) : Int8 :=
-  Id.run
-    (do
-      return (x - y))
+  (x - y)
 
 def mul (x : Int8) (y : Int8) : Int16 :=
-  Id.run
-    (do
-      return ((Int16.ofInt x.toInt) * (Int16.ofInt y.toInt)))
+  ((Int16.ofInt x.toInt) * (Int16.ofInt y.toInt))
 
 def fadd1 (x : Int8) (y : Float) : Float :=
-  Id.run
-    (do
-      return ((Float.ofInt x.toInt) + y))
+  ((Float.ofInt x.toInt) + y)
 
 def show_ : IO Unit := do
   assert! ((fadd1 6 6.0) == (Float.ofNat 12))

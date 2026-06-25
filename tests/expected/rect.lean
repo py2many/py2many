@@ -8,9 +8,7 @@ structure Rectangle where
   deriving BEq, Repr
 
 def Rectangle.is_square (self : Rectangle) : Bool :=
-  Id.run
-    (do
-      return self.height == self.length)
+  self.height == self.length
 
 def show_ : IO Unit := do
   let mut r := { height := 1, length := 1 : Rectangle }
