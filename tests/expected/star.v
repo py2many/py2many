@@ -14,15 +14,15 @@ fn sum_all(nums ...int) int {
 fn main_func() {
 	println(('a'.repeat(5)).str())
 	println(([0].repeat(3)).str())
-	numbers := [1, 2, 3]
+	numbers := [int(1), 2, 3]
 	println((sum_all(...numbers.map(int(it)))).str())
-	others := [4, 5]
+	others := [int(4), 5]
 	all_nums := arrays.concat(arrays.concat(arrays.concat([int(0)], ...numbers.map(int(it))),
 		...others.map(int(it))), ...[int(6)])
 	println(all_nums.str())
-	data := [10, 20, 30, 40, 50]
+	data := [int(10), 20, 30, 40, 50]
 	mut a := 0
-	mut rest := 0
+	mut rest := []int{}
 	mut e := 0
 	__unpack1 := data
 	a = __unpack1[0]

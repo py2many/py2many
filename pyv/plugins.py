@@ -37,6 +37,17 @@ class VTranspilerPlugins:
                     args = []
                 self._generated_code_uses_any_to_string = True
                 total_args.append(f"any_to_string({self.visit(arg)})")
+            elif isinstance(arg, ast.IfExp) and all(
+                isinstance(branch, ast.Constant) and isinstance(branch.value, str)
+                for branch in (arg.body, arg.orelse)
+            ):
+                # A string-valued `if` expression (e.g. PrintBoolRewriter's
+                # `'True' if c else 'False'`) is already a string -- calling
+                # `.str()` on the V `if` expression is a void-expression error.
+                if args:
+                    total_args.append(f"'{' '.join(args)}'")
+                    args = []
+                total_args.append(f"({self.visit(arg)})")
             else:
                 if args:
                     total_args.append(f"'{' '.join(args)}'")
@@ -78,12 +89,12 @@ class VTranspilerPlugins:
     def visit_int(self, node: ast.Call, vargs: List[str]) -> str:
         if not vargs:
             return "0"
-        # For bool, use direct cast function instead of 'as int'
-        if node.args and get_inferred_v_type(node.args[0]) == "bool":
-            return f"int({vargs[0]})"
-        # Placeholder for post-processing in VTranspiler.visit_Module
-        # Converts int(x) to (x as int) for Any/Sum types
-        return f"CAST_INT({vargs[0]})"
+        # `x as int` (the CAST_INT placeholder, expanded in VTranspiler.visit_Module)
+        # only works on sum types. Only use it when the argument is `Any`; for a
+        # concrete type (bool, numeric, ...) use V's `int()` conversion instead.
+        if node.args and get_inferred_v_type(node.args[0]) == "Any":
+            return f"CAST_INT({vargs[0]})"
+        return f"int({vargs[0]})"
 
     def visit_min_max(self, node: ast.Call, vargs: List[str]) -> str:
         self._usings.add("arrays")
@@ -148,6 +159,9 @@ SMALL_DISPATCH_MAP: Dict[str, Callable] = {
     "hasattr": lambda n, vargs: "false",
     "os.path.exists": lambda n, vargs: f"os.exists({vargs[0]})",
     "os.remove": lambda n, vargs: f"os.rm({vargs[0]}) or {{ panic(err) }}",
+    # V has no async runtime; `asyncio.run(coro())` just runs the coroutine
+    # synchronously, which is the already-visited argument.
+    "asyncio.run": lambda n, vargs: vargs[0],
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {

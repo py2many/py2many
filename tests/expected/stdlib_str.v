@@ -1,7 +1,7 @@
 @[translated]
 module main
 
-fn test_str_methods() {
+fn str_methods() {
 	s := '  Hello World  '
 	println((s.to_lower()).str())
 	println((s.to_upper()).str())
@@ -27,5 +27,5 @@ fn test_str_methods() {
 }
 
 fn main() {
-	test_str_methods()
+	str_methods()
 }

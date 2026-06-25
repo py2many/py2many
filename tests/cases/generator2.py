@@ -1,4 +1,4 @@
-"""Test cases for generator functions and yield statements"""
+#!/usr/bin/env python3
 
 
 def simple_generator():
@@ -41,7 +41,7 @@ def generator_with_condition():
 
 
 # Test calls
-def test_generator_calls():
+def generator_calls():
     """Test calling generator functions"""
     # These should be spawned with channels
     gen1 = simple_generator()
@@ -49,3 +49,22 @@ def test_generator_calls():
 
     # Iteration would need channel handling
     # for val in gen1: print(val)
+
+
+def consume_generators():
+    """Consume the generator functions and print their values."""
+    for val in simple_generator():
+        print(val)
+    for val in generator_with_type():
+        print(val)
+    for val in generator_with_args(1, 5):
+        print(val)
+    for val in generator_with_yield_from():
+        print(val)
+    for val in generator_with_condition():
+        print(val)
+
+
+if __name__ == "__main__":
+    generator_calls()
+    consume_generators()

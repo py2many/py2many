@@ -11,7 +11,7 @@ def get_id(var):
         return var.id
     elif isinstance(var, ast.arg):
         return var.arg
-    elif isinstance(var, ast.FunctionDef):
+    elif isinstance(var, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return var.name
     elif isinstance(var, ast.ClassDef):
         return var.name

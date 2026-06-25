@@ -18,8 +18,8 @@ fn show() {
 	evens := (fn () map[int]Any {
 		mut result := map[int]Any{}
 		for x in 0 .. 10 {
-			if ((x as int) % 2) == 0 {
-				result[x] = ((x as int) * 2)
+			if (int(x) % 2) == 0 {
+				result[x] = (int(x) * 2)
 			}
 		}
 		return result

@@ -131,14 +131,17 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         if left_rank > right_rank:
             if left_type == "int" and right_type != "bool":
-                right = f"CAST_INT({right})"
+                # `CAST_INT(x)` becomes `(x as int)`, which V only accepts on a
+                # sum type. For a plain (or untyped) operand use `int(x)` instead
+                # -- `as int` on a non-sum type fails to compile (py2many#793).
+                right = f"CAST_INT({right})" if right_type == "Any" else f"int({right})"
             elif right_type == "bool":
                 right = f"int({right})"
             else:
                 right = f"{left_type}({right})"
         elif right_rank > left_rank:
             if right_type == "int" and left_type != "bool":
-                left = f"CAST_INT({left})"
+                left = f"CAST_INT({left})" if left_type == "Any" else f"int({left})"
             elif left_type == "bool":
                 left = f"int({left})"
             else:

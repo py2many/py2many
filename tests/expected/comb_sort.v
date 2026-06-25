@@ -11,10 +11,10 @@ fn comb_sort(mut seq []int) []int {
 		gap = arrays.max([1, int(math.floor((f64(gap) / 1.25)))]) or { panic('!') }
 		swap = false
 		for i in 0 .. (seq.len - gap) {
-			if seq[i] > seq[(i + gap)] {
-				__unpack1, __unpack2 := [seq[(i + gap)], seq[i]]
+			if seq[i] > seq[(i + int(gap))] {
+				__unpack1, __unpack2 := seq[(i + int(gap))], seq[i]
 				seq[i] = __unpack1
-				seq[(i + gap)] = __unpack2
+				seq[(i + int(gap))] = __unpack2
 				swap = true
 			}
 		}
