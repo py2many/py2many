@@ -26,9 +26,7 @@ def indexing : Nat :=
       return sum)
 
 def infer_bool (code : Nat) : Bool :=
-  Id.run
-    (do
-      return ([1, 2, 4]).contains code)
+  ([1, 2, 4]).contains code
 
 def show_ : IO Unit := do
   let mut a1 := 10

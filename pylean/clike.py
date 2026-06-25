@@ -257,6 +257,14 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         return f"({left} {op} {right})"
 
+    def visit_BoolOp(self, node) -> str:
+        # Parenthesise so precedence is preserved when a boolean expression is
+        # an operand of a tighter operator -- Lean binds ``==`` tighter than
+        # ``&&``, so ``(a and b) == c`` must emit ``(a && b) == c`` rather than
+        # ``a && b == c`` (which parses as ``a && (b == c)``).
+        op = self.visit(node.op)
+        return "(" + op.join([self.visit(v) for v in node.values]) + ")"
+
     @staticmethod
     def _rename_keyword(name: str) -> str:
         """Append ``_`` to names that clash with Lean keywords."""

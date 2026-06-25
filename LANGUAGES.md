@@ -2,7 +2,7 @@
 | --- | --- | --- |
 | Python | 57 |  |
 | V | 48 | global, stdio |
-| Lean | 41 |  |
+| Lean | 46 |  |
 | Go | 40 | stdio |
 | Rust | 38 | math_func, stdio |
 | Julia | 37 | fstring, stdio |
