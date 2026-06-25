@@ -86,6 +86,12 @@ packages = [
 "py2many.pyv" = "pyv"
 "py2many.pyzig" = "pyzig"
 
+[tool.setuptools.package-data]
+# fmt.lean is the Lean pretty-printer driver invoked by pylean's formatter; it
+# is data, not importable, so it must be declared to be installed alongside the
+# package (otherwise site-packages/py2many/pylean/fmt.lean is missing).
+"py2many.pylean" = ["fmt.lean"]
+
 [tool.setuptools.dynamic]
 version = {attr = "py2many.version.__version__"}
 

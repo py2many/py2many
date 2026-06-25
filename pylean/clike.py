@@ -37,6 +37,7 @@ lean_keywords = frozenset(
         "variable",
         "where",
         "with",
+        "show",
     ]
 ) - frozenset(["_"])
 
@@ -84,6 +85,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         # trailing terminator.
         self._statement_separator = ""
 
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
+        """Lean uses juxtaposition for type application: ``List Int``."""
+        if isinstance(index_type, list):
+            index_type = " ".join(index_type)
+        return f"{value_type} {index_type}"
+
     def visit(self, node) -> str:
         if type(node) in lean_symbols:
             return lean_symbol(node)
@@ -101,17 +109,45 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node.op, ast.Pow):
             return f"({left} ^ {right})"
 
+        # When dividing by a float literal (or vice versa), ensure the other
+        # operand is also a Float so Lean's type checker is happy.
+        if isinstance(node.op, (ast.Div, ast.FloorDiv)):
+            left_is_float = isinstance(node.left, ast.Constant) and isinstance(
+                node.left.value, float
+            )
+            right_is_float = isinstance(node.right, ast.Constant) and isinstance(
+                node.right.value, float
+            )
+            if right_is_float and not left_is_float:
+                left = f"(Float.ofNat {left})"
+            elif left_is_float and not right_is_float:
+                right = f"(Float.ofNat {right})"
+
         return f"({left} {op} {right})"
 
+    @staticmethod
+    def _rename_keyword(name: str) -> str:
+        """Append ``_`` to names that clash with Lean keywords."""
+        if name in lean_keywords:
+            return name + "_"
+        return name
+
     def visit_Name(self, node) -> str:
-        if node.id in lean_keywords:
-            return node.id + "_"
-        return super().visit_Name(node)
+        return self._rename_keyword(super().visit_Name(node))
 
     def visit_In(self, node) -> str:
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        return f"({left} ∈ {right})"
+        return f"({right}).contains {left}"
+
+    def visit_Compare(self, node) -> str:
+        if isinstance(node.ops[0], ast.In):
+            return self.visit_In(node)
+        if isinstance(node.ops[0], ast.NotIn):
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            return f"!({right}).contains {left}"
+        return super().visit_Compare(node)
 
     def visit_NameConstant(self, node) -> str:
         if node.value is True:
