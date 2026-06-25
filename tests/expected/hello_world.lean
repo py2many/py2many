@@ -1,3 +1,5 @@
+set_option linter.unusedVariables false
+
 def main : IO Unit := do
   IO.println "Hello world!"
-  IO.println (String.intercalate " " [toString "Hello", toString "world!"])
+  IO.println (String.intercalate " " ["Hello", "world!"])

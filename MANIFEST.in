@@ -1,6 +1,7 @@
 include LICENSE
 include README.md
 include py2many.py
+recursive-include pylean *.lean
 graft doc
 recursive-include examples *.py
 recursive-include tests *.cpp
