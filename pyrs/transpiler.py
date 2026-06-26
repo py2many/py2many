@@ -1,7 +1,7 @@
 import ast
 import textwrap
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from py2many.analysis import (
     FunctionTransformer,
@@ -48,6 +48,33 @@ from .rust_ast import (
     RustWhileLoop,
     RustYield,
 )
+
+# Python str methods -> Rust. A value is the Rust method to append to the
+# receiver (`s.to_lowercase()`); None marks a method whose translation needs
+# extra logic, handled explicitly in _visit_str_method.
+_STR_METHODS = {
+    "lower": "to_lowercase()",
+    "upper": "to_uppercase()",
+    "strip": "trim()",
+    "lstrip": "trim_start()",
+    "rstrip": "trim_end()",
+    "split": None,
+    "replace": None,
+    "find": None,
+    "startswith": None,
+    "endswith": None,
+    "capitalize": None,
+}
+
+# Python str.is*() predicates -> the per-char Rust check.
+_CHAR_PREDICATE = {
+    "isdigit": "is_ascii_digit()",
+    "isalpha": "is_alphabetic()",
+    "isalnum": "is_alphanumeric()",
+    "isspace": "is_whitespace()",
+    "isupper": "is_uppercase()",
+    "islower": "is_lowercase()",
+}
 
 
 class RustLoopIndexRewriter(ast.NodeTransformer):
@@ -436,7 +463,55 @@ class RustTranspiler(CLikeTranspiler):
         args = ", ".join(vargs)
         return f"{fname}{{{args}}}"
 
+    def _visit_str_method(self, node) -> Optional[str]:
+        """Map Python str methods onto Rust &str/String equivalents."""
+        attr = node.func.attr
+        obj = self.visit(node.func.value)
+        args = [self.visit(a) for a in node.args]
+
+        # Simple one-to-one method replacements (no args).
+        easy = _STR_METHODS.get(attr)
+        if easy is not None:
+            return f"{obj}.{easy}"
+
+        if attr == "split":
+            inner = f"split({args[0]})" if args else "split_whitespace()"
+            return f"{obj}.{inner}.collect::<Vec<&str>>()"
+        if attr == "replace" and len(args) == 2:
+            return f"{obj}.replace({args[0]}, {args[1]})"
+        if attr == "find" and len(args) == 1:
+            return f"{obj}.find({args[0]}).map(|i| i as i32).unwrap_or(-1)"
+        if attr == "startswith" and args:
+            return f"{obj}.starts_with({args[0]})"
+        if attr == "endswith" and args:
+            return f"{obj}.ends_with({args[0]})"
+        if attr == "capitalize":
+            return (
+                f"{{ let mut __c = {obj}.chars(); match __c.next() {{ "
+                "Some(__f) => __f.to_uppercase().collect::<String>() "
+                "+ &__c.as_str().to_lowercase(), None => String::new() } }"
+            )
+
+        char_pred = _CHAR_PREDICATE.get(attr)
+        if char_pred:
+            # is_empty on a string literal is a clippy const_is_empty lint, but
+            # the guard is needed for runtime correctness ("" -> False).
+            self._allows.add("clippy::const_is_empty")
+            return f"(!{obj}.is_empty() && {obj}.chars().all(|c| c.{char_pred}))"
+        return None
+
     def visit_Call(self, node) -> RustNode:
+        # Python str methods -> Rust (lists/dicts don't share these names; still
+        # skip when the receiver is a known list to be safe).
+        if (
+            isinstance(node.func, ast.Attribute)
+            and (node.func.attr in _STR_METHODS or node.func.attr in _CHAR_PREDICATE)
+            and not is_list(node.func.value)
+        ):
+            ret = self._visit_str_method(node)
+            if ret is not None:
+                return ret
+
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
 

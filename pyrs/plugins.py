@@ -20,6 +20,16 @@ except Exception:
 from py2many.analysis import get_id
 
 
+def _print_list_elt_type(transpiler, n):
+    """If a print arg is a list, return its element type name, else None."""
+    transpiler._generic_typename_from_annotation(n)
+    ann = getattr(n, "annotation", None)
+    gct = getattr(ann, "generic_container_type", None)
+    if gct and gct[0] in ("List", "list"):
+        return gct[1]
+    return None
+
+
 class RustTranspilerPlugins:
     def visit_argparse_dataclass(self, node):
         fields = []
@@ -124,9 +134,27 @@ class RustTranspilerPlugins:
 
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
-        for n in node.args:
-            placeholders.append("{}")
-        return 'println!("{}",{});'.format(" ".join(placeholders), ", ".join(vargs))
+        out_args = []
+        for n, varg in zip(node.args, vargs):
+            elt = _print_list_elt_type(self, n)
+            if elt is None:
+                placeholders.append("{}")
+                out_args.append(varg)
+                continue
+            # Print lists like Python's repr: ['a', 'b'] (str elements quoted),
+            # [1, 2] otherwise.  The `[{}]` goes in the println! format string so
+            # there's no nested format!() (clippy::format_in_format_args).
+            placeholders.append("[{}]")
+            item_fmt = (
+                "format!(\"'{}'\", __x)" if elt == "str" else 'format!("{}", __x)'
+            )
+            out_args.append(
+                varg
+                + ".iter().map(|__x| "
+                + item_fmt
+                + ').collect::<Vec<_>>().join(", ")'
+            )
+        return 'println!("{}",{});'.format(" ".join(placeholders), ", ".join(out_args))
 
     def visit_exit(self, node, vargs) -> str:
         self._allows.add("unreachable_code")

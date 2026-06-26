@@ -155,6 +155,20 @@ class InferRustTypesTransformer(InferTypesTransformer):
             right_id = RustInference.extension_map_type(right_id)
         return RustInference.handle_overflow(op, left_id, right_id)
 
+    def visit_Call(self, node):
+        super().visit_Call(node)
+        # str.split / rsplit / splitlines return list[str]; annotate so the
+        # result is typed as a list.
+        if isinstance(node.func, ast.Attribute) and node.func.attr in (
+            "split",
+            "rsplit",
+            "splitlines",
+        ):
+            ann = ast.Subscript(value=ast.Name(id="List"), slice=ast.Name(id="str"))
+            ast.fix_missing_locations(ann)
+            node.annotation = ann
+        return node
+
     def visit_BinOp(self, node):
         self.generic_visit(node)
 
