@@ -1,4 +1,5 @@
 import ast
+from pathlib import Path
 from typing import List
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -122,6 +123,15 @@ class LeanTranspiler(CLikeTranspiler):
         # function; Lean's runtime invokes `main : IO Unit` automatically, so no
         # explicit call site is emitted (unlike e.g. the Nim/Julia backends).
         if getattr(node, "python_main", False):
+            # Bind ``args`` only when ``sys.argv`` is used, so other programs
+            # keep the plain ``def main : IO Unit`` signature.
+            uses_argv = any(
+                isinstance(n, ast.Attribute)
+                and n.attr == "argv"
+                and get_id(n.value) == "sys"
+                for n in ast.walk(node)
+            )
+            signature = "main (args : List String)" if uses_argv else "main"
             body_stmts = [
                 self.indent(self.visit(n), level=node.level + 1) for n in node.body
             ]
@@ -129,7 +139,9 @@ class LeanTranspiler(CLikeTranspiler):
             if not body.strip():
                 body = self.indent("pure ()", level=node.level + 1)
             self._bound_vars = saved_bound
-            return self.indent(f"def main : IO Unit := do\n{body}\n", level=node.level)
+            return self.indent(
+                f"def {signature} : IO Unit := do\n{body}\n", level=node.level
+            )
 
         typenames, args = self.visit(node.args)
         args_list = []
@@ -302,8 +314,22 @@ class LeanTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         return f"(fun {args_str} => {body})"
 
+    def _module_stem(self, node) -> str:
+        """Best-effort program name for ``sys.argv[0]`` (the source file stem)."""
+        for scope in getattr(node, "scopes", []):
+            path = getattr(scope, "__file__", None)
+            if path is not None:
+                return Path(path).stem
+        return "main"
+
     def visit_Attribute(self, node) -> str:
         attr = node.attr
+        # ``sys.argv``: Lean's ``main (args : List String)`` and the runtime omit
+        # the program name (argv[0]), and ``lean --run`` exposes only ``args``.
+        # Mirror the Julia/Nim backends, which prepend the program name, by
+        # synthesising argv[0] from the module name so ``a[0]`` is populated.
+        if get_id(node.value) == "sys" and attr == "argv":
+            return f'(["{self._module_stem(node)}"] ++ args)'
         value_id = self.visit(node.value)
         if not value_id:
             value_id = ""
@@ -333,6 +359,20 @@ class LeanTranspiler(CLikeTranspiler):
 
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
+
+        # Handle sys.stdout.write / sys.stderr.write -> IO.print / IO.eprint
+        # (Python's write does not append a newline, and neither does IO.print).
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "write"
+            and isinstance(node.func.value, ast.Attribute)
+            and get_id(node.func.value.value) == "sys"
+            and node.func.value.attr in ("stdout", "stderr")
+            and node.args
+        ):
+            arg = self.visit(node.args[0])
+            fn = "IO.eprint" if node.func.value.attr == "stderr" else "IO.print"
+            return f"({fn} {arg})"
 
         # Handle str.join: "sep".join(list) -> String.intercalate sep list
         if isinstance(node.func, ast.Attribute) and node.func.attr == "join":

@@ -7,7 +7,7 @@ def comb_sort (seq : List Int) : List Int :=
       let mut gap := (seq).length
       let mut swap := true
       while gap > 1 || swap do
-        gap := (Nat.max 1 (Float.toUInt64 (Float.floor ((Float.ofNat gap) / 1.25))).toNat)
+        gap := (max 1 (Float.toUInt64 (Float.floor ((Float.ofNat gap) / 1.25))).toNat)
         swap := false
         for i in (List.range ((seq).length - gap)) do
           if seq[i]! > seq[(i + gap)]! then

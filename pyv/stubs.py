@@ -121,7 +121,7 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
     and f"math.erfc({', '.join(vargs)})",
     # os module
     "os.listdir": lambda self, node, vargs: (self._usings.add("os") or True)
-    and f"os.ls({vargs[0] if vargs else "'.'"}) or {{ panic(err) }}",
+    and "os.ls({}) or {{ panic(err) }}".format(vargs[0] if vargs else "'.'"),
     "os.mkdir": lambda self, node, vargs: (self._usings.add("os") or True)
     and f"os.mkdir({vargs[0]}) or {{ panic(err) }}",
     "os.getcwd": lambda self, node, vargs: (self._usings.add("os") or True)
