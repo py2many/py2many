@@ -7,7 +7,7 @@ import (
 	"unicode"
 )
 
-func TestStrMethods() {
+func StrMethods() {
 	var s string = "  Hello World  "
 	fmt.Printf("%v\n", strings.ToLower(s))
 	fmt.Printf("%v\n", strings.ToUpper(s))
@@ -45,5 +45,5 @@ func TestStrMethods() {
 }
 
 func main() {
-	TestStrMethods()
+	StrMethods()
 }
