@@ -32,8 +32,6 @@ class ZigTranspiler(CLikeTranspiler):
         CLikeTranspiler._default_type = "var"
         if "math" in self._ignored_module_set:
             self._ignored_module_set.remove("math")
-        if "sys" in self._ignored_module_set:
-            self._ignored_module_set.remove("sys")
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -66,7 +64,38 @@ class ZigTranspiler(CLikeTranspiler):
     def comment(self, text):
         return f"// {text}\n"
 
+    def _uses_sysargv(self, node) -> bool:
+        return any(
+            isinstance(n, ast.Attribute)
+            and n.attr == "argv"
+            and get_id(n.value) == "sys"
+            for n in ast.walk(node)
+        )
+
     def visit_FunctionDef(self, node) -> str:
+        # ``main`` using sys.argv: emit zig 0.16's args-aware signature and a
+        # prelude that builds ``__argv`` = [program-name] ++ real args.  zig's
+        # runtime omits a usable argv[0] (under ``zig build run`` it is the
+        # build artifact), so argv[0] is synthesised from the module name.
+        if getattr(node, "python_main", False) and self._uses_sysargv(node):
+            body = "\n".join(
+                [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
+            )
+            prelude = "\n".join(
+                self.indent(line, level=node.level + 1)
+                for line in (
+                    "const arena = init.arena.allocator();",
+                    "const __raw = try init.minimal.args.toSlice(arena);",
+                    "const __argv = try arena.alloc([]const u8, __raw.len);",
+                    f'__argv[0] = "{self._module}";',
+                    "for (__raw[1..], 1..) |__a, __i| __argv[__i] = __a;",
+                )
+            )
+            return self.indent(
+                f"pub fn main(init: std.process.Init) !void {{\n{prelude}\n{body}\n}}\n",
+                level=node.level,
+            )
+
         body = "\n".join(
             [self.indent(self.visit(n), level=node.level + 1) for n in node.body]
         )
@@ -139,8 +168,10 @@ class ZigTranspiler(CLikeTranspiler):
 
         if value_id == "sys":
             if attr == "argv":
-                self._usings.add("os")
-                return "(@[getAppFilename()] & commandLineParams())"
+                # Built by the main() prelude (see visit_FunctionDef): argv[0]
+                # is synthesised from the module name, the rest are the real
+                # program arguments.
+                return "__argv"
 
         if not value_id:
             value_id = ""
@@ -172,6 +203,16 @@ class ZigTranspiler(CLikeTranspiler):
 
         if isinstance(fndef, ast.ClassDef):
             return self._visit_object_literal(node, fname, fndef)
+
+        # str.contains (from `x in s`, via StrStrRewriter) -> std.mem.indexOf.
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "contains"
+            and node.args
+        ):
+            haystack = self.visit(node.func.value)
+            needle = self.visit(node.args[0])
+            return f"(std.mem.indexOf(u8, {haystack}, {needle}) != null)"
 
         vargs = []
 
@@ -363,6 +404,10 @@ class ZigTranspiler(CLikeTranspiler):
         return f"type {node.name} = enum\n{fields}\n\n"
 
     def _import(self, name: str) -> str:
+        # Skip stdlib modules with no zig equivalent (sys, typing, ...); they
+        # would otherwise emit a bogus `@import("sys")`.
+        if name in self._ignored_module_set:
+            return ""
         return f'const {name} = @import ("{name}");'
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
@@ -455,6 +500,9 @@ class ZigTranspiler(CLikeTranspiler):
             return elts
         return f"({elts})"
 
+    def visit_Pass(self, node) -> str:
+        return ""
+
     def visit_Assert(self, node) -> str:
         self._aliases["expect"] = "std.testing.expect"
         return f"try expect({self.visit(node.test)});"
@@ -463,6 +511,14 @@ class ZigTranspiler(CLikeTranspiler):
         target, type_str, val = super().visit_AnnAssign(node)
         mut = is_mutable(node.scopes, get_id(target))
         kw = "var" if mut else "const"
+        # sys.argv is the synthesised ``__argv`` slice; let zig infer its type
+        # rather than forcing the generic List annotation (AutoArrayList).
+        if (
+            isinstance(node.value, ast.Attribute)
+            and node.value.attr == "argv"
+            and get_id(node.value.value) == "sys"
+        ):
+            return f"{kw} {target} = {val};"
         if type_str == self._default_type:
             return f"{kw} {target} = {val};"
         return f"{kw} {target}: {type_str} = {val};"

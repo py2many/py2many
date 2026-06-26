@@ -1,5 +1,4 @@
 import ast
-from pathlib import Path
 from typing import List
 
 from py2many.analysis import get_id, is_mutable, is_void_function
@@ -314,14 +313,6 @@ class LeanTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         return f"(fun {args_str} => {body})"
 
-    def _module_stem(self, node) -> str:
-        """Best-effort program name for ``sys.argv[0]`` (the source file stem)."""
-        for scope in getattr(node, "scopes", []):
-            path = getattr(scope, "__file__", None)
-            if path is not None:
-                return Path(path).stem
-        return "main"
-
     def visit_Attribute(self, node) -> str:
         attr = node.attr
         # ``sys.argv``: Lean's ``main (args : List String)`` and the runtime omit
@@ -329,7 +320,7 @@ class LeanTranspiler(CLikeTranspiler):
         # Mirror the Julia/Nim backends, which prepend the program name, by
         # synthesising argv[0] from the module name so ``a[0]`` is populated.
         if get_id(node.value) == "sys" and attr == "argv":
-            return f'(["{self._module_stem(node)}"] ++ args)'
+            return f'(["{self._module}"] ++ args)'
         value_id = self.visit(node.value)
         if not value_id:
             value_id = ""

@@ -1,7 +1,7 @@
 
 
 fun main(argv: Array<String>) {
-    var a: Array<String> = (arrayOf("") + argv)
+    var a: Array<String> = (arrayOf("sys_argv") + argv)
     var cmd: String = a[0]
     if (cmd == "dart") {
 // pass

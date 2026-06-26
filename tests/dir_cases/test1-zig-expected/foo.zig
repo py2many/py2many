@@ -6,5 +6,5 @@ pub fn main() !void {
     const x: i32 = bar1();
     const y: []const u8 = baz1();
     try expect(x == 0);
-    try expect(y == "foo");
+    try expect(std.mem.eql(u8, y, "foo"));
 }

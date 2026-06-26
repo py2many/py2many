@@ -179,7 +179,9 @@ class KotlinTranspiler(CLikeTranspiler):
 
         if value_id == "sys":
             if attr == "argv":
-                return '(arrayOf("") + argv)'
+                # Synthesise argv[0] from the module name (Kotlin's main(argv)
+                # omits the program name) so a[0] is the program.
+                return f'(arrayOf("{self._module}") + argv)'
 
         if not value_id:
             value_id = ""
