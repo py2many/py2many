@@ -31,10 +31,10 @@ ZIG_TYPE_MAP = {
 }
 
 ZIG_CONTAINER_TYPE_MAP = {
-    "List": "pylib.AutoArrayList",
+    "List": "[]",
     "Dict": "pylib.AutoMap",
     "Set": "pylib.AutoSet",
-    "Optional": "Optional",
+    "Optional": "?",
 }
 
 ZIG_WIDTH_RANK = {

@@ -38,20 +38,34 @@ if [ ! -d "$DIR" ] || [ ! -f "$DIR/build.zig" ] || [ ! -f "$DIR/build.zig.zon" ]
     echo "Zig build environment not found. Running setup..."
     "$SCRIPT_DIR/zig-setup.sh"
 fi
+PROJ="$REPO_ROOT/$DIR"
 
-# Copy the test file to src/main.zig
-cp "$TEST_FILE" "$DIR/src/main.zig"
+# Build in a private per-invocation directory so concurrent runs (pytest-xdist)
+# don't clobber each other's src/main.zig or zig-out/bin/test. build.zig and
+# build.zig.zon are copied from the shared template; the pylib dependency
+# resolves from the shared global cache. The compile cache is shared via
+# --cache-dir (zig locks it for safe concurrent access), so the isolation costs
+# disk, not recompilation.
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/zig-runner.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+mkdir -p "$WORK/src"
+cp "$PROJ/build.zig" "$PROJ/build.zig.zon" "$WORK/"
+cp "$TEST_FILE" "$WORK/src/main.zig"
+CACHE_DIR="$PROJ/.zig-cache"
+cd "$WORK"
 
 if [ "$MODE" = "lint" ]; then
-    cd "$DIR"
     zig fmt src/main.zig
-    zig build
+    zig build --cache-dir "$CACHE_DIR"
 elif [ "$MODE" = "compile" ]; then
-    cd "$DIR"
-    zig build
+    zig build --cache-dir "$CACHE_DIR"
 else
-    # Build src/main.zig through build.zig (so pylib is importable) and run it,
-    # forwarding any program arguments after `--`.
-    cd "$DIR"
-    zig build run -- "${PROG_ARGS[@]}" 2>&1
+    # Build first, then run the binary directly so that non-zero exit codes
+    # from the program are not conflated with zig build failures.
+    zig build --cache-dir "$CACHE_DIR" 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Build failed" >&2
+        exit 1
+    fi
+    ./zig-out/bin/test "${PROG_ARGS[@]}"
 fi

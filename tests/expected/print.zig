@@ -8,11 +8,17 @@ fn print(comptime fmt: []const u8, args: anytype) void {
     out.print(fmt, args) catch return;
     out.flush() catch return;
 }
-pub fn main_func() void {
-    const a: i32 = std.math.pow(i32, 2, 4);
+pub fn show() void {
+    print("{s}\n", .{"b"});
+    print("{} {s}\n", .{ 2, "b" });
+    const a: f64 = 2.1;
     print("{}\n", .{a});
+    const b: f64 = 2.1;
+    print("{}\n", .{b});
+    const c: bool = true;
+    print("{s}\n", .{if (c) "True" else "False"});
 }
 
 pub fn main() void {
-    main_func();
+    show();
 }

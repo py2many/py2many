@@ -1,6 +1,7 @@
 import ast
 from keyword import kwlist, softkwlist
 
+from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 from .inference import ZIG_CONTAINER_TYPE_MAP, ZIG_TYPE_MAP, ZIG_WIDTH_RANK
@@ -126,10 +127,29 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         left_rank = ZIG_WIDTH_RANK.get(left_type, -1)
         right_rank = ZIG_WIDTH_RANK.get(right_type, -1)
 
-        if left_rank > right_rank:
-            right = f"{left_type}({right})"
-        elif right_rank > left_rank:
-            left = f"{right_type}({left})"
+        left_is_float = left_type in ("f32", "f64")
+        right_is_float = right_type in ("f32", "f64")
+
+        if left_rank > right_rank and right_rank >= 0:
+            if left_is_float and not right_is_float:
+                right = f"@as({left_type}, @floatFromInt({right}))"
+            elif not left_is_float and right_is_float:
+                right = f"@as({left_type}, @intFromFloat({right}))"
+            else:
+                right = f"@as({left_type}, @intCast({right}))"
+        elif right_rank > left_rank and left_rank >= 0:
+            if right_is_float and not left_is_float:
+                left = f"@as({right_type}, @floatFromInt({left}))"
+            elif not right_is_float and left_is_float:
+                left = f"@as({right_type}, @intFromFloat({left}))"
+            else:
+                left = f"@as({right_type}, @intCast({left}))"
+        elif left_rank < 0 and right_is_float:
+            # Left type unknown, right is float: cast left to float for the op
+            left = f"@as({right_type}, @floatFromInt({left}))"
+        elif right_rank < 0 and left_is_float:
+            # Right type unknown, left is float: cast right to float for the op
+            right = f"@as({left_type}, @floatFromInt({right}))"
 
         if isinstance(node.op, ast.Pow):
             wider_type = left_type if left_rank >= right_rank else right_type
@@ -140,7 +160,13 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_Name(self, node) -> str:
         if node.id in zig_keywords:
             return node.id + "_"
-        if node.id.startswith("_"):
+        # Single underscore is the zig discard pattern
+        if node.id == "_":
+            return "_"
+        # _-prefixed (but not __-prefixed) names follow Python's "unused"
+        # convention; map them to zig's discard to avoid unused-variable errors.
+        # __-prefixed names (like __tmp1 from rewriters) are kept as-is.
+        if node.id.startswith("_") and not node.id.startswith("__"):
             return "_"
         return super().visit_Name(node)
 
@@ -148,6 +174,36 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return True
         return self._typename_from_annotation(node) in ("str", "string")
+
+    def _is_list(self, node) -> bool:
+        """Check if node has a List annotation (maps to zig slices)."""
+        ann = getattr(node, "annotation", None)
+        if ann is None:
+            # Check the scope for the variable definition
+            if isinstance(node, ast.Name):
+                scopes = getattr(node, "scopes", None)
+                if scopes:
+                    defn = scopes.find(get_id(node))
+                    ann = getattr(defn, "annotation", None)
+        if ann is not None:
+            if isinstance(ann, ast.Subscript):
+                return get_id(ann.value) == "List"
+        return False
+
+    def _list_element_type(self, node):
+        """Get the element type of a List annotation."""
+        ann = getattr(node, "annotation", None)
+        if ann is None and isinstance(node, ast.Name):
+            scopes = getattr(node, "scopes", None)
+            if scopes:
+                defn = scopes.find(get_id(node))
+                ann = getattr(defn, "annotation", None)
+        if ann is not None and isinstance(ann, ast.Subscript):
+            elt_node = ann.slice
+            if isinstance(elt_node, ast.Index):
+                elt_node = elt_node.value
+            return self._typename_from_type_node(elt_node)
+        return "i32"
 
     def visit_Compare(self, node) -> str:
         # Zig strings (``[]const u8``) compare with std.mem.eql, not ``==``.
@@ -158,6 +214,26 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             right = self.visit(node.comparators[0])
             eql = f"std.mem.eql(u8, {left}, {right})"
             return f"!{eql}" if isinstance(node.ops[0], ast.NotEq) else eql
+
+        # Zig slices compare with std.mem.eql, not ``==``.
+        if isinstance(node.ops[0], (ast.Eq, ast.NotEq)) and (
+            self._is_list(node.left) or self._is_list(node.comparators[0])
+        ):
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            # Add & for Name nodes (arrays need address-of to coerce to slice)
+            if isinstance(node.left, ast.Name):
+                left = f"&{left}"
+            if isinstance(node.comparators[0], ast.Name):
+                right = f"&{right}"
+            # Determine element type
+            if self._is_list(node.left):
+                elem_type = self._list_element_type(node.left)
+            else:
+                elem_type = self._list_element_type(node.comparators[0])
+            eql = f"std.mem.eql({elem_type}, {left}, {right})"
+            return f"!{eql}" if isinstance(node.ops[0], ast.NotEq) else eql
+
         return super().visit_Compare(node)
 
     def visit_In(self, node) -> str:

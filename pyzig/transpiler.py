@@ -21,6 +21,20 @@ from .plugins import (
     SMALL_USINGS_MAP,
 )
 
+# Python's print writes to stdout. zig's std.debug.print writes to stderr, so
+# define a stdout equivalent. zig 0.16's I/O goes through an `Io` instance; the
+# global single-threaded one needs no setup, and streaming (not positional)
+# writes append correctly to a pipe/tty.
+_STDOUT_PRINT_HELPER = """
+fn print(comptime fmt: []const u8, args: anytype) void {
+    const io = std.Io.Threaded.global_single_threaded.io();
+    var buffer: [1024]u8 = undefined;
+    var writer = std.Io.File.stdout().writerStreaming(io, &buffer);
+    const out = &writer.interface;
+    out.print(fmt, args) catch return;
+    out.flush() catch return;
+}"""
+
 
 class ZigTranspiler(CLikeTranspiler):
     NAME = "zig"
@@ -30,8 +44,6 @@ class ZigTranspiler(CLikeTranspiler):
         self._headers = set()
         self._indent = " " * indent
         CLikeTranspiler._default_type = "var"
-        if "math" in self._ignored_module_set:
-            self._ignored_module_set.remove("math")
         self._dispatch_map = DISPATCH_MAP
         self._small_dispatch_map = SMALL_DISPATCH_MAP
         self._small_usings_map = SMALL_USINGS_MAP
@@ -39,6 +51,7 @@ class ZigTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._func_usings_map = FUNC_USINGS_MAP
         self._headers.add("std")
+        self._uses_print = False
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -55,10 +68,16 @@ class ZigTranspiler(CLikeTranspiler):
         aliases = []
         for alias, full_name in self._aliases.items():
             aliases.append(f"const {alias} = {full_name};")
+        if self._uses_print:
+            aliases.append(_STDOUT_PRINT_HELPER)
         return "\n".join(aliases)
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type == "[]":
+            return f"[]{index_type}"
+        if value_type == "?":
+            return f"?{index_type}"
         return f"{value_type}({index_type})"
 
     def comment(self, text):
@@ -172,6 +191,8 @@ class ZigTranspiler(CLikeTranspiler):
                 # is synthesised from the module name, the rest are the real
                 # program arguments.
                 return "__argv"
+            if attr == "exit":
+                return "std.process.exit"
 
         if not value_id:
             value_id = ""
@@ -197,6 +218,19 @@ class ZigTranspiler(CLikeTranspiler):
         args = ", ".join(vargs)
         return f"{fname}({args})"
 
+    def _needs_address_of(self, arg_node, param_annotation):
+        """Check if we need to pass &arg for a slice parameter receiving an array."""
+        if param_annotation is None:
+            return False
+        if isinstance(param_annotation, ast.Subscript):
+            if get_id(param_annotation.value) == "List":
+                # The parameter expects a slice (List[T] -> []T)
+                # If the argument is a Name that was assigned from a list literal,
+                # it will be a fixed-size array, so we need &
+                if isinstance(arg_node, ast.Name):
+                    return True
+        return False
+
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
         fndef = node.scopes.find(fname)
@@ -217,7 +251,21 @@ class ZigTranspiler(CLikeTranspiler):
         vargs = []
 
         if node.args:
-            vargs += [self.visit(a) for a in node.args]
+            # Check if we need to add & for array-to-slice coercion
+            if isinstance(fndef, ast.FunctionDef) and hasattr(fndef, "args"):
+                func_params = fndef.args.args
+                for i, a in enumerate(node.args):
+                    visited = self.visit(a)
+                    param_idx = i
+                    if param_idx < len(func_params):
+                        param = func_params[param_idx]
+                        if self._needs_address_of(
+                            a, getattr(param, "annotation", None)
+                        ):
+                            visited = f"&{visited}"
+                    vargs.append(visited)
+            else:
+                vargs += [self.visit(a) for a in node.args]
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
 
@@ -242,6 +290,9 @@ class ZigTranspiler(CLikeTranspiler):
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
         it = self.visit(node.iter)
+        # Zig for loops require parentheses around the iterable
+        if not it.startswith("("):
+            it = f"({it})"
         buf = []
         buf.append(f"for {it} |{target}| {{")
         buf.extend(
@@ -279,7 +330,23 @@ class ZigTranspiler(CLikeTranspiler):
         else:
             return super().visit_NameConstant(node)
 
+    def _make_block(self, node):
+        buf = []
+        buf.append("{")
+        buf.extend(
+            [
+                self.indent(self.visit(child), level=node.level + 1)
+                for child in node.body
+            ]
+        )
+        buf.append("}")
+        return "\n".join(buf)
+
     def visit_If(self, node) -> str:
+        # Handle synthetic blocks created by rewriters (e.g. tuple swap)
+        if self.is_block(node):
+            return self._make_block(node)
+
         body_vars = {get_id(v) for v in node.scopes[-1].body_vars}
         orelse_vars = {get_id(v) for v in node.scopes[-1].orelse_vars}
         node.common_vars = body_vars.intersection(orelse_vars)
@@ -426,17 +493,16 @@ class ZigTranspiler(CLikeTranspiler):
         return "\n".join(lines)
 
     def visit_List(self, node) -> str:
-        self._headers.add("pylib")
         elements = [self.visit(e) for e in node.elts]
         if not elements:
-            return "pylib.AutoArrayList(i32).init(null) catch unreachable"
+            element_type = "i32"
+            return f"[_]{element_type}{{}}"
         # Infer element type from first element
         element_type = get_inferred_zig_type(node.elts[0]) if node.elts else "i32"
-        return f"""blk: {{
-            var list = pylib.AutoArrayList({element_type}).init(null) catch unreachable;
-            {'; '.join([f'list.append({elem}) catch unreachable' for elem in elements])};
-            break :blk list;
-        }}"""
+        if element_type is None:
+            element_type = "i32"
+        elts_str = ", ".join(elements)
+        return f"[_]{element_type}{{ {elts_str} }}"
 
     def visit_Set(self, node) -> str:
         self._headers.add("pylib")
@@ -512,7 +578,7 @@ class ZigTranspiler(CLikeTranspiler):
         mut = is_mutable(node.scopes, get_id(target))
         kw = "var" if mut else "const"
         # sys.argv is the synthesised ``__argv`` slice; let zig infer its type
-        # rather than forcing the generic List annotation (AutoArrayList).
+        # rather than forcing the generic List annotation.
         if (
             isinstance(node.value, ast.Attribute)
             and node.value.attr == "argv"
@@ -520,6 +586,10 @@ class ZigTranspiler(CLikeTranspiler):
         ):
             return f"{kw} {target} = {val};"
         if type_str == self._default_type:
+            return f"{kw} {target} = {val};"
+        # For list types ([]T), let zig infer type from the array literal
+        # since [_]T{...} has a fixed array type, not a slice type.
+        if type_str.startswith("[]") and val and val.startswith("[_]"):
             return f"{kw} {target} = {val};"
         return f"{kw} {target}: {type_str} = {val};"
 
@@ -536,22 +606,35 @@ class ZigTranspiler(CLikeTranspiler):
         kw = "var" if mut else "const"
 
         if isinstance(target, ast.Tuple):
+            # In zig, tuple destructuring is not supported.
+            # Split into individual const assignments.
+            if isinstance(node.value, ast.Tuple) and len(target.elts) == len(
+                node.value.elts
+            ):
+                lines = []
+                for elt, val_elt in zip(target.elts, node.value.elts):
+                    elt_name = self.visit(elt)
+                    val_str = self.visit(val_elt)
+                    lines.append(f"const {elt_name} = {val_str};")
+                return "\n".join(lines)
             elts = [self.visit(e) for e in target.elts]
             elts_str = ", ".join(elts)
             value = self.visit(node.value)
-            return f"({elts_str}) = {value}"
+            return f"({elts_str}) = {value};"
 
-        if isinstance(node.scopes[-1], ast.If):
+        if isinstance(node.scopes[-1], ast.If) and hasattr(
+            node.scopes[-1], "common_vars"
+        ):
             outer_if = node.scopes[-1]
             target_id = self.visit(target)
             if target_id in outer_if.common_vars:
                 value = self.visit(node.value)
-                return f"{target_id} = {value}"
+                return f"{target_id} = {value};"
 
         if isinstance(target, ast.Subscript) or isinstance(target, ast.Attribute):
             target = self.visit(target)
             value = self.visit(node.value)
-            return f"{target} = {value}"
+            return f"{target} = {value};"
 
         definition = node.scopes.parent_scopes.find(get_id(target))
         if definition is None:
@@ -559,11 +642,17 @@ class ZigTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             target = self.visit(target)
             value = self.visit(node.value)
-            return f"{target} = {value}"
+            return f"{target} = {value};"
         else:
             typename = self._typename_from_annotation(target)
             target = self.visit(target)
             value = self.visit(node.value)
+            # Discard pattern: _ = expr; (no const/var)
+            if target == "_":
+                return f"_ = {value};"
+            # For list types ([]T), let zig infer from the array literal
+            if typename.startswith("[]") and value.startswith("[_]"):
+                return f"{kw} {target} = {value};"
             optional_typename = (
                 f": {typename}" if typename != self._default_type else ""
             )
@@ -587,4 +676,4 @@ class ZigTranspiler(CLikeTranspiler):
         body = self.visit(node.body)
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
-        return f"if {test}: {body} else: {orelse}"
+        return f"if ({test}) {body} else {orelse}"

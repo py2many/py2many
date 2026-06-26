@@ -52,6 +52,19 @@ class ZigErrorUnionAnalyzer(ast.NodeTransformer):
             fndef = self._find_containing_function(node)
             if fndef:
                 fndef.needs_error_type = True
+        # If the called function itself needs error type, propagate upward
+        if hasattr(node, "scopes"):
+            fname = get_id(node.func) if hasattr(node.func, "id") else None
+            if fname:
+                called_fndef = node.scopes.find(fname)
+                if (
+                    called_fndef
+                    and isinstance(called_fndef, ast.FunctionDef)
+                    and getattr(called_fndef, "needs_error_type", False)
+                ):
+                    containing = self._find_containing_function(node)
+                    if containing:
+                        containing.needs_error_type = True
         self.generic_visit(node)
         return node
 
