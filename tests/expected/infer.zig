@@ -1,4 +1,5 @@
 const std = @import("std");
+const expect = std.testing.expect;
 
 fn print(comptime fmt: []const u8, args: anytype) void {
     const io = std.Io.Threaded.global_single_threaded.io();
@@ -8,11 +9,13 @@ fn print(comptime fmt: []const u8, args: anytype) void {
     out.print(fmt, args) catch return;
     out.flush() catch return;
 }
-pub fn main_func() void {
-    const a: i32 = std.math.pow(i32, 2, 4);
-    print("{}\n", .{a});
+pub fn foo() !void {
+    const a: i32 = 10;
+    const b: i32 = a;
+    try expect(b == 10);
+    print("{}\n", .{b});
 }
 
-pub fn main() void {
-    main_func();
+pub fn main() !void {
+    try foo();
 }

@@ -8,11 +8,13 @@ fn print(comptime fmt: []const u8, args: anytype) void {
     out.print(fmt, args) catch return;
     out.flush() catch return;
 }
-pub fn main_func() void {
-    const a: i32 = std.math.pow(i32, 2, 4);
-    print("{}\n", .{a});
+pub fn do_unsupported() void {
+    const a: i32 = 1;
+    // dict comprehension ((key + 1), (value + 1)) unimplemented on line 9:4;
+    const b: bool = (a != 0);
+    print("{s}\n", .{if (b) "True" else "False"});
 }
 
 pub fn main() void {
-    main_func();
+    do_unsupported();
 }
