@@ -1,7 +1,27 @@
+import ast
 import functools
 import random
 import time
 from typing import Callable, Dict, List, Tuple, Union
+
+from py2many.analysis import get_id
+
+
+def _arg_is_str(transpiler, n) -> bool:
+    """Whether a print argument prints as a zig string (needs ``{s}``)."""
+    if transpiler._generic_typename_from_annotation(n) == "str":
+        return True
+    # Indexing a List[str] (e.g. argv[1]) yields a string element.
+    if isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name):
+        scopes = getattr(n.value, "scopes", None)
+        var = scopes.find(get_id(n.value)) if scopes is not None else None
+        ann = getattr(var, "annotation", None)
+        if isinstance(ann, ast.Subscript):
+            elt = ann.slice
+            if isinstance(elt, ast.Index):
+                elt = elt.value
+            return get_id(elt) == "str"
+    return False
 
 
 class ZigTranspilerPlugins:
@@ -15,11 +35,7 @@ class ZigTranspilerPlugins:
     def visit_print(self, node, vargs: List[str]) -> str:
         placeholders = []
         for n in node.args:
-            typename = self._generic_typename_from_annotation(n)
-            if typename == "str":
-                placeholders.append("{s}")
-            else:
-                placeholders.append("{}")
+            placeholders.append("{s}" if _arg_is_str(self, n) else "{}")
         self._aliases["print"] = "std.debug.print"
         return 'print("{}\\n", .{{{}}});'.format(
             " ".join(placeholders), ", ".join(vargs)
@@ -38,6 +54,7 @@ class ZigTranspilerPlugins:
 
 # small one liners are inlined here as lambdas
 SMALL_DISPATCH_MAP = {
+    "len": lambda n, vargs: f"{vargs[0]}.len",
     "str": lambda n, vargs: f"$({vargs[0]})" if vargs else '""',
     "bool": lambda n, vargs: f"bool({vargs[0]})" if vargs else "False",
     "int": lambda n, vargs: f"int({vargs[0]})" if vargs else "0",

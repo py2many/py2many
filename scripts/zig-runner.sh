@@ -7,22 +7,20 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-# Parse arguments - mode is optional and comes first
-if [ $# -eq 1 ]; then
-    # Only one argument, assume it's the test file
-    MODE="run"
-    TEST_FILE=$1
-elif [ $# -eq 2 ]; then
-    # Two arguments: mode then test file. Consume the mode with shift so $* holds
-    # the remaining args (the test file, then any program args).
-    MODE=$1
-    shift
-    TEST_FILE=$1
-else
-    echo "Usage: $0 [mode] test_file.zig"
-    echo "Modes: run, compile, lint"
-    exit 1
-fi
+# Parse arguments: an optional leading mode, the test file, then any program
+# arguments (forwarded to the program when running, e.g. sys.argv tests).
+case "$1" in
+    run | compile | lint)
+        MODE=$1
+        shift
+        ;;
+    *)
+        MODE="run"
+        ;;
+esac
+TEST_FILE=$1
+shift
+PROG_ARGS=("$@")
 
 # Run from the repo root so every subsequent path (the project dir, the
 # zig-setup.sh invocation, etc.) resolves the same way regardless of where the
@@ -52,6 +50,8 @@ elif [ "$MODE" = "compile" ]; then
     cd "$DIR"
     zig build
 else
+    # Build src/main.zig through build.zig (so pylib is importable) and run it,
+    # forwarding any program arguments after `--`.
     cd "$DIR"
-    zig run $* 2>&1
+    zig build run -- "${PROG_ARGS[@]}" 2>&1
 fi

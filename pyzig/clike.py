@@ -67,7 +67,7 @@ zig_symbols = {
     ast.Eq: "==",
     ast.Is: "==",
     ast.NotEq: "!=",
-    ast.Pass: "pass",
+    ast.Pass: "",
     ast.Mult: "*",
     ast.Add: "+",
     ast.Sub: "-",
@@ -104,8 +104,6 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         CommonCLikeTranspiler._type_map = ZIG_TYPE_MAP
         CommonCLikeTranspiler._container_type_map = ZIG_CONTAINER_TYPE_MAP
         self._statement_separator = ";"
-        # zig has a sys module
-        self._ignored_module_set.remove("sys")
 
     def visit(self, node) -> str:
         if type(node) in zig_symbols:
@@ -145,6 +143,22 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if node.id.startswith("_"):
             return "_"
         return super().visit_Name(node)
+
+    def _is_str(self, node) -> bool:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return True
+        return self._typename_from_annotation(node) in ("str", "string")
+
+    def visit_Compare(self, node) -> str:
+        # Zig strings (``[]const u8``) compare with std.mem.eql, not ``==``.
+        if isinstance(node.ops[0], (ast.Eq, ast.NotEq)) and (
+            self._is_str(node.left) or self._is_str(node.comparators[0])
+        ):
+            left = self.visit(node.left)
+            right = self.visit(node.comparators[0])
+            eql = f"std.mem.eql(u8, {left}, {right})"
+            return f"!{eql}" if isinstance(node.ops[0], ast.NotEq) else eql
+        return super().visit_Compare(node)
 
     def visit_In(self, node) -> str:
         left = self.visit(node.left)
