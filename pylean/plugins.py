@@ -2,10 +2,19 @@ import ast
 import functools
 from typing import Callable, Dict, List, Tuple, Union
 
+from py2many.analysis import get_id
+
 
 def _is_string_arg(arg_node) -> bool:
     """Check if an AST argument node is a string literal."""
     return isinstance(arg_node, ast.Constant) and isinstance(arg_node.value, str)
+
+
+def _is_float_arg(arg_node) -> bool:
+    """Check whether an argument node is a Float (literal or inferred)."""
+    if isinstance(arg_node, ast.Constant) and isinstance(arg_node.value, float):
+        return True
+    return get_id(getattr(arg_node, "annotation", None)) in ("float", "Float")
 
 
 class LeanTranspilerPlugins:
@@ -16,6 +25,10 @@ class LeanTranspilerPlugins:
                 return "0.0"
             return f"(0 : {cast_to})"
         if cast_to == "Int":
+            # int(float) truncates toward zero; Int.ofNat expects a Nat, so a
+            # Float argument is routed through Float.toUInt64 first.
+            if node.args and _is_float_arg(node.args[0]):
+                return f"(Int.ofNat (Float.toUInt64 {vargs[0]}).toNat)"
             return f"(Int.ofNat {vargs[0]})"
         if cast_to == "Float":
             return f"(Float.ofNat {vargs[0]})"
@@ -62,14 +75,12 @@ class LeanTranspilerPlugins:
         return f"IO.Process.exit {code}"
 
     def visit_max(self, node, vargs: List[str]) -> str:
-        if len(vargs) == 2:
-            return f"(Nat.max {vargs[0]} {vargs[1]})"
-        return f"(Nat.max {' '.join(vargs)})"
+        # Lean's generic ``max`` works for Int and Float (via the Max instance),
+        # unlike ``Nat.max`` which forces Nat.
+        return f"(max {' '.join(vargs)})"
 
     def visit_min(self, node, vargs: List[str]) -> str:
-        if len(vargs) == 2:
-            return f"(Nat.min {vargs[0]} {vargs[1]})"
-        return f"(Nat.min {' '.join(vargs)})"
+        return f"(min {' '.join(vargs)})"
 
     def visit_floor(self, node, vargs: List[str]) -> str:
         return f"(Float.toUInt64 (Float.floor {vargs[0]})).toNat"

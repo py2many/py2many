@@ -1,6 +1,7 @@
 import ast
 from keyword import kwlist, softkwlist
 
+from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
 from .inference import LEAN_CONTAINER_TYPE_MAP, LEAN_TYPE_MAP
@@ -101,6 +102,16 @@ class CLikeTranspiler(CommonCLikeTranspiler):
     def visit_Ellipsis(self, node) -> str:
         return "pure ()"
 
+    def _is_bool(self, node) -> bool:
+        """Best-effort check that an expression is a Lean ``Bool``."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            return True
+        ann = getattr(node, "annotation", None)
+        if ann is None and isinstance(node, ast.Name) and hasattr(node, "scopes"):
+            var = node.scopes.find(get_id(node))
+            ann = getattr(var, "annotation", None)
+        return get_id(ann) in ("bool", "Bool")
+
     def visit_BinOp(self, node) -> str:
         left = self.visit(node.left)
         op = self.visit(node.op)
@@ -108,6 +119,17 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
         if isinstance(node.op, ast.Pow):
             return f"({left} ^ {right})"
+
+        # Python's &, |, ^ on bool are logical; Lean's integer bit operators
+        # (&&&, |||, ^^^) don't apply to Bool, so emit the boolean operators.
+        if isinstance(node.op, (ast.BitAnd, ast.BitOr, ast.BitXor)) and (
+            self._is_bool(node.left) and self._is_bool(node.right)
+        ):
+            if isinstance(node.op, ast.BitAnd):
+                return f"({left} && {right})"
+            if isinstance(node.op, ast.BitOr):
+                return f"({left} || {right})"
+            return f"(xor {left} {right})"
 
         # When dividing by a float literal (or vice versa), ensure the other
         # operand is also a Float so Lean's type checker is happy.
@@ -148,6 +170,12 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             right = self.visit(node.comparators[0])
             return f"!({right}).contains {left}"
         return super().visit_Compare(node)
+
+    def visit_Bytes(self, node) -> str:
+        # Python byte literals (b"...") map to a Lean ByteArray.
+        data = self._get_bytes(node)
+        elts = ", ".join(str(b) for b in data)
+        return f"(⟨#[{elts}]⟩ : ByteArray)"
 
     def visit_NameConstant(self, node) -> str:
         if node.value is True:

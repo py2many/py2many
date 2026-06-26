@@ -361,7 +361,9 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
         _add_using(self, "net/http")
     )
     and f"http.Get({vargs[0]})",
-    "smtplib.SMTP": lambda self, node, vargs: f"smtpClient({vargs[0] if vargs else '\"localhost\"'})",
+    "smtplib.SMTP": lambda self, node, vargs: "smtpClient({})".format(
+        vargs[0] if vargs else '"localhost"'
+    ),
     "poplib.POP3": lambda self, node, vargs: "0",
     "imaplib.IMAP4": lambda self, node, vargs: "0",
     "xmlrpc.client.ServerProxy": lambda self, node, vargs: f"0 /* RPC placeholder for {vargs[0]} */",
