@@ -86,9 +86,22 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             return node.id + "_"
         return super().visit_Name(node)
 
+    def _is_int(self, node) -> bool:
+        if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            return False
+        if isinstance(node, ast.Constant) and isinstance(node.value, int):
+            return True
+        return self._typename_from_annotation(node) == "int"
+
     def visit_BinOp(self, node) -> str:
         if isinstance(node.op, ast.Pow):
-            return f"pow({self.visit(node.left)}, {self.visit(node.right)})"
+            # pow comes from dart:math and is typed `num`; cast back to int when
+            # both operands are ints so it matches Python's int ** int.
+            self._usings.add("dart:math")
+            call = f"pow({self.visit(node.left)}, {self.visit(node.right)})"
+            if self._is_int(node.left) and self._is_int(node.right):
+                return f"({call} as int)"
+            return call
 
         left = self.visit(node.left)
         op = self.visit(node.op)

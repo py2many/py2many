@@ -1,7 +1,7 @@
 import ast
 from typing import List
 
-from py2many.analysis import get_id, is_mutable, is_void_function
+from py2many.analysis import get_id, is_global, is_mutable, is_void_function
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.inference import get_inferred_type
@@ -145,6 +145,18 @@ class DartTranspiler(CLikeTranspiler):
         return f"{value_id}.{attr}"
 
     def visit_Call(self, node) -> str:
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "write"
+            and isinstance(node.func.value, ast.Attribute)
+            and get_id(node.func.value.value) == "sys"
+            and node.func.value.attr in ("stdout", "stderr")
+            and node.args
+        ):
+            self._usings.add("dart:io")
+            stream = node.func.value.attr
+            return f"{stream}.write({self.visit(node.args[0])});"
+
         fname = self.visit(node.func)
         vargs = []
 
@@ -446,8 +458,26 @@ class DartTranspiler(CLikeTranspiler):
         target, type_str, val = super().visit_AnnAssign(node)
         return f"{type_str} {target} = {val};"
 
+    def _module_global_names(self, node) -> set:
+        """Names declared with ``global`` anywhere in the module."""
+        mod = next((s for s in node.scopes if isinstance(s, ast.Module)), None)
+        names = set()
+        if mod is not None:
+            for n in ast.walk(mod):
+                if isinstance(n, ast.Global):
+                    names.update(n.names)
+        return names
+
     def _visit_AssignOne(self, node, target) -> str:
         kw = "var" if is_mutable(node.scopes, get_id(target)) else "final"
+        # A module-level binding reassigned via ``global`` can't be ``final``;
+        # drop the keyword so the (inferred) type makes it a mutable top-level.
+        if (
+            kw == "final"
+            and is_global(target)
+            and get_id(target) in self._module_global_names(node)
+        ):
+            kw = ""
 
         if isinstance(target, ast.Tuple):
             self._usings.add("package:tuple/tuple.dart")
