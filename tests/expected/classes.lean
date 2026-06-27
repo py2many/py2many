@@ -3,11 +3,11 @@ set_option linter.unusedVariables false
 structure Foo where mk ::
 
 mutual
-  def Foo.bar (self : Foo) : Int :=
+  def Foo.bar (self : Foo) : Nat :=
     Id.run
       (do
         return self.baz)
-  def Foo.baz (self : Foo) : Int :=
+  def Foo.baz (self : Foo) : Nat :=
     Id.run
       (do
         return 10)

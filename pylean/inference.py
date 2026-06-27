@@ -16,7 +16,7 @@ from py2many.inference import InferTypesTransformer, LanguageInferenceBase
 # Lean 4 has arbitrary-precision Int/Nat by default and fixed-width types in
 # the stdlib (Int8 .. UInt64), so map the ctypes-sized ints onto those.
 LEAN_TYPE_MAP = {
-    int: "Int",
+    int: "Nat",
     float: "Float",
     bytes: "ByteArray",
     bytearray: "ByteArray",
@@ -67,8 +67,37 @@ def get_inferred_lean_type(node):
 class InferLeanTypesTransformer(InferTypesTransformer):
     """Implements Lean type inference logic as opposed to python type inference logic"""
 
+    # Lean width promotion order: signed and unsigned separately
+    _SIGNED_WIDTHS = ["Int8", "Int16", "Int32", "Int64"]
+    _UNSIGNED_WIDTHS = ["UInt8", "UInt16", "UInt32", "UInt64"]
+
     def _handle_overflow(self, op, left_id, right_id):
-        return LeanInference.handle_overflow(op, left_id, right_id)
+        left_lean = LeanInference.map_type(left_id)
+        right_lean = LeanInference.map_type(right_id)
+
+        widening_op = isinstance(op, (ast.Add, ast.Mult))
+
+        # Determine the wider type
+        left_rank = LEAN_WIDTH_RANK.get(left_lean, -1)
+        right_rank = LEAN_WIDTH_RANK.get(right_lean, -1)
+        max_type = left_lean if left_rank >= right_rank else right_lean
+
+        if widening_op:
+            # Widen by one step if not already at max width
+            if max_type in self._SIGNED_WIDTHS:
+                idx = self._SIGNED_WIDTHS.index(max_type)
+                if idx < len(self._SIGNED_WIDTHS) - 1:
+                    return self._SIGNED_WIDTHS[idx + 1]
+            elif max_type in self._UNSIGNED_WIDTHS:
+                idx = self._UNSIGNED_WIDTHS.index(max_type)
+                if idx < len(self._UNSIGNED_WIDTHS) - 1:
+                    return self._UNSIGNED_WIDTHS[idx + 1]
+
+        # float + int => float
+        if left_lean == "Float" or right_lean == "Float":
+            return "Float"
+
+        return max_type
 
     def visit_BinOp(self, node):
         self.generic_visit(node)

@@ -30,15 +30,15 @@ by comparing Python implementations with their transpiled equivalents.
 
 ## Supported Languages & Status
 
+See [LANGUAGES.md](LANGUAGES.md) for current status of each language.
+
 **Primary Focus**: **Python to Rust** conversion with the most mature feature set and active development.
 
 **Production Ready**: **Python to C++** transpilation (C++14 historically supported, C++17+ required for advanced features).
 
-**Beta Support**: Python to Julia, Python to Kotlin, Python to Nim, Python to Go, Python to Dart, Python to V, and Python to D transpilation.
+**Beta Support**: Python to Lean, Python to Julia, Python to Kotlin, Python to Nim, Python to Go, Python to Dart, Python to V, and Python to D transpilation.
 
 **Experimental Support**: Python to Zig and Python to Mojo transpilation (early stage, limited feature coverage).
-
-**Proof of Concept**: Python to Lean transpilation (only a handful of cases transpile so far).
 
 **Type Inference**: py2many can also emit enhanced Python 3 code with inferred type annotations
 and syntax improvements for better code analysis.
@@ -167,7 +167,8 @@ For detailed setup instructions for each target language, see `.github/workflows
 - **Performance-Critical Applications**: Convert Python algorithms to Rust or C++ for speed
 - **Systems Programming**: Transform Python prototypes to systems languages
 - **Mobile Development**: Convert Python logic to Kotlin for Android development
-- **WebAssembly**: Transpile Python to Rust for WASM deployment
+- **WebAssembly**: Transpile Python to Rust or Zig for WASM deployment
+- **Web**: Transpile Python to Dart which can generate JavaScript
 - **Embedded Systems**: Convert Python code to C++ or Rust for resource-constrained environments
 - **Cross-Platform Libraries**: Write once in Python, deploy to multiple language ecosystems
 

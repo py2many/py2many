@@ -113,3 +113,10 @@ jobs:
 
       - name: Run flake8
         run: flake8 .
+
+      - name: Check LANGUAGES.md is up to date
+        shell: bash
+        run: |
+          python scripts/lang_table.py > LANGUAGES.md
+          git diff --exit-code LANGUAGES.md \
+            || { echo "LANGUAGES.md is stale; run 'python scripts/lang_table.py > LANGUAGES.md' and commit."; exit 1; }

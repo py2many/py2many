@@ -63,6 +63,8 @@ class LeanTranspiler(CLikeTranspiler):
         # subsequent assignments to the same name emit bare ``:=``
         # instead of a new ``let``.
         self._bound_vars: set = set()
+        self._needs_float_to_string = False
+        self._dict_vars: set = set()  # Track variables assigned from dict/DictComp
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -76,7 +78,20 @@ class LeanTranspiler(CLikeTranspiler):
 
     def headers(self, meta=None):
         self._headers.add("set_option linter.unusedVariables false")
-        return "\n".join(sorted(self._headers))
+        if self._needs_float_to_string:
+            # Helper to format floats like Python (trim trailing zeros)
+            self._headers.add(
+                "def floatToString (f : Float) : String :=\n"
+                "  let s := toString f\n"
+                "  if s.contains (Char.ofNat 46) then\n"
+                "    let trimmed := (s.dropEndWhile (· == Char.ofNat 48)).toString\n"
+                '    if trimmed.endsWith "." then trimmed ++ "0" else trimmed\n'
+                "  else s"
+            )
+        # imports must appear first in a Lean file
+        imports = sorted([h for h in self._headers if h.startswith("import ")])
+        rest = sorted([h for h in self._headers if not h.startswith("import ")])
+        return "\n".join(imports + rest)
 
     def usings(self):
         return ""
@@ -237,7 +252,18 @@ class LeanTranspiler(CLikeTranspiler):
             return f"{target_id} := {value}"
         self._bound_vars.add(raw_id)
         kw = "let mut" if is_mutable(node.scopes, raw_id) else "let"
-        return f"{kw} {target_id} := {value}"
+        # Add explicit type annotation when the type can be inferred from the
+        # value (e.g., ``total = float(0.0)`` → ``let mut total : Float := 0.0``)
+        # to help Lean's bidirectional type inference.
+        type_hint = ""
+        if isinstance(node.value, ast.Call):
+            fname = get_id(node.value.func)
+            if fname == "float":
+                type_hint = " : Float"
+        if isinstance(node.value, (ast.DictComp, ast.Dict)):
+            type_hint = " : Std.HashMap _ _"
+            self._dict_vars.add(raw_id)
+        return f"{kw} {target_id}{type_hint} := {value}"
 
     def visit_AugAssign(self, node) -> str:
         # Lean's do-notation has no compound-assignment operators; expand to a
@@ -252,6 +278,22 @@ class LeanTranspiler(CLikeTranspiler):
         target = self.visit(node.target)
         op = self.visit(node.op)
         val = self.visit(node.value)
+        # Handle Float/Nat mixing: if target is Float and value is Nat (or vice versa)
+        target_type = CLikeTranspiler._get_node_type_id(node.target)
+        val_type = CLikeTranspiler._get_node_type_id(node.value)
+        target_is_float = target_type == "Float" or (
+            isinstance(node.target, ast.Name)
+            and not target_type
+            and getattr(node.target, "annotation", None)
+            and get_id(getattr(node.target, "annotation", None)) == "float"
+        )
+        val_is_float = val_type == "Float" or (
+            isinstance(node.value, ast.Constant) and isinstance(node.value.value, float)
+        )
+        if target_is_float and not val_is_float:
+            val = f"(Float.ofNat {val})"
+        elif val_is_float and not target_is_float:
+            target = f"(Float.ofNat {target})"
         return f"{target} := {target} {op} {val}"
 
     def visit_Break(self, node) -> str:
@@ -421,8 +463,14 @@ class LeanTranspiler(CLikeTranspiler):
         # Named constant True/False
         if isinstance(test_node, ast.Constant) and isinstance(test_node.value, bool):
             return test
-        # A bare Name or numeric literal – add truthiness check
-        if isinstance(test_node, (ast.Name, ast.Constant, ast.Subscript)):
+        # A bare Name – check if it's a Bool variable first
+        if isinstance(test_node, ast.Name):
+            ann = getattr(test_node, "annotation", None)
+            if ann and get_id(ann) == "bool":
+                return test
+            return f"{test} != 0"
+        # A numeric literal or subscript – add truthiness check
+        if isinstance(test_node, (ast.Constant, ast.Subscript)):
             return f"{test} != 0"
         # Call result – assume Bool, but if it's not we can't know without
         # type info; leave as is.
@@ -504,6 +552,80 @@ class LeanTranspiler(CLikeTranspiler):
             return struct_def + methods
         return struct_def
 
+    def _lean_enum_hashable(self, node_name, members):
+        """Generate Hashable instance based on toNat for use in HashMap keys."""
+        lines = []
+        lines.append(f"instance : Hashable {node_name} where")
+        lines.append("  hash v := hash v.toNat")
+        lines.append("")
+        return lines
+
+    @staticmethod
+    def _is_auto(var_node) -> bool:
+        """Check if an AST node is an ``auto()`` call."""
+        return isinstance(var_node, ast.Call) and get_id(var_node.func) == "auto"
+
+    def visit_IntEnum(self, node) -> str:
+        members = []
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            if self._is_auto(var):
+                members.append((member, str(i + 1)))
+            else:
+                members.append((member, self.visit(var)))
+        lines = [f"inductive {node.name} where"]
+        for member, _ in members:
+            lines.append(f"  | {member}")
+        lines.append("  deriving BEq, Repr")
+        lines.append("")
+        lines.append(f"def {node.name}.toNat : {node.name} → Nat")
+        for member, val in members:
+            lines.append(f"  | .{member} => {val}")
+        lines.append("")
+        lines.extend(self._lean_enum_hashable(node.name, members))
+        return "\n".join(lines)
+
+    def visit_IntFlag(self, node) -> str:
+        members = []
+        for i, (member, var) in enumerate(node.class_assignments.items()):
+            if self._is_auto(var):
+                members.append((member, str(1 << i)))
+            else:
+                members.append((member, self.visit(var)))
+        lines = [f"inductive {node.name} where"]
+        for member, _ in members:
+            lines.append(f"  | {member}")
+        lines.append("  deriving BEq, Repr")
+        lines.append("")
+        lines.append(f"def {node.name}.toNat : {node.name} → Nat")
+        for member, val in members:
+            lines.append(f"  | .{member} => {val}")
+        lines.append("")
+        lines.extend(self._lean_enum_hashable(node.name, members))
+        return "\n".join(lines)
+
+    def visit_StrEnum(self, node) -> str:
+        members = []
+        for member, var in node.class_assignments.items():
+            var = self.visit(var)
+            members.append((member, var))
+        lines = [f"inductive {node.name} where"]
+        for member, _ in members:
+            lines.append(f"  | {member}")
+        lines.append("  deriving BEq, Repr")
+        lines.append("")
+        lines.append(f"def {node.name}.toString : {node.name} → String")
+        for member, val in members:
+            lines.append(f"  | .{member} => {val}")
+        lines.append("")
+        lines.append(f"instance : ToString {node.name} where")
+        lines.append(f"  toString := {node.name}.toString")
+        lines.append("")
+        # For HashMap key support, we need Hashable
+        lines.append(f"instance : Hashable {node.name} where")
+        lines.append("  hash v := hash v.toString")
+        lines.append("")
+        return "\n".join(lines)
+
     def visit_List(self, node) -> str:
         elements = ", ".join([self.visit(e) for e in node.elts])
         return f"[{elements}]"
@@ -538,6 +660,158 @@ class LeanTranspiler(CLikeTranspiler):
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
+
+    def visit_Delete(self, node) -> str:
+        parts = []
+        for target in node.targets:
+            if isinstance(target, ast.Subscript):
+                name = self.visit(target.value)
+                index = self.visit(target.slice)
+                # For dicts: HashMap.erase; for lists: List.eraseIdx
+                ann = getattr(target.value, "annotation", None)
+                ann_id = get_id(ann) if ann else ""
+                if ann_id and ("Dict" in str(ann_id) or "HashMap" in str(ann_id)):
+                    parts.append(f"{name} := {name}.erase {index}")
+                elif isinstance(ann, ast.Subscript):
+                    val_id = get_id(ann.value) if hasattr(ann, "value") else ""
+                    if val_id and ("Dict" in val_id or "dict" in val_id):
+                        parts.append(f"{name} := {name}.erase {index}")
+                    else:
+                        parts.append(f"{name} := {name}.eraseIdx {index}")
+                else:
+                    parts.append(f"{name} := {name}.eraseIdx {index}")
+            else:
+                return self.comment(f"del unimplemented for {ast.dump(target)}")
+        return "\n".join(parts)
+
+    def visit_UnaryOp(self, node) -> str:
+        if isinstance(node.op, ast.USub):
+            operand = self.visit(node.operand)
+            # Nat doesn't support negation; cast to Int
+            op_type = CLikeTranspiler._get_node_type_id(node.operand)
+            if op_type == "Nat":
+                return f"(-(Int.ofNat {operand}))"
+            if op_type in CLikeTranspiler._SIGNED_FW:
+                return f"(-({operand}))"
+            if op_type in CLikeTranspiler._UNSIGNED_FW:
+                return f"(-(Int.ofNat {operand}.toNat))"
+            if op_type == "Float":
+                return f"(-({operand}))"
+            # Untyped variable (e.g., inferred Nat from integer literal)
+            if not op_type and isinstance(node.operand, ast.Name):
+                return f"(-(Int.ofNat {operand}))"
+            # Constant integer
+            if isinstance(node.operand, ast.Constant) and isinstance(
+                node.operand.value, int
+            ):
+                return f"(-(Int.ofNat {operand}))"
+            return f"(-({operand}))"
+        return f"{self.visit(node.op)}({self.visit(node.operand)})"
+
+    def visit_ListComp(self, node) -> str:
+        """Translate ``[elt for target in iter]`` and
+        ``[elt for target in iter if cond]``."""
+        if len(node.generators) != 1:
+            return self.comment(
+                f"list comprehension with {len(node.generators)} generators unsupported"
+            )
+        gen = node.generators[0]
+        target = self.visit(gen.target)
+        iter_expr = self.visit(gen.iter)
+        elt = self.visit(node.elt)
+
+        # Simple identity comprehension: [i for i in range(n)] -> List.range n
+        if elt == target and not gen.ifs:
+            return iter_expr
+
+        # Build: iter |>.filter cond |>.map (fun target => elt)
+        result = iter_expr
+        for if_clause in gen.ifs:
+            cond = self.visit(if_clause)
+            result = f"({result}).filter (fun {target} => {cond})"
+        if elt != target:
+            result = f"({result}).map (fun {target} => {elt})"
+        return result
+
+    def visit_DictComp(self, node) -> str:
+        """Translate ``{k: v for target in iter [if cond]}``."""
+        self._headers.add("import Std")
+        if len(node.generators) != 1:
+            return self.comment(
+                f"dict comprehension with {len(node.generators)} generators unsupported"
+            )
+        gen = node.generators[0]
+        target = self.visit(gen.target)
+        iter_expr = self.visit(gen.iter)
+        key = self.visit(node.key)
+        value = self.visit(node.value)
+
+        # Build the source list (apply filters if any)
+        # If the source is a dict/HashMap, use .toList first; lists don't need it
+        is_dict_source = isinstance(gen.iter, ast.Dict)
+        if not is_dict_source:
+            ann = getattr(gen.iter, "annotation", None)
+            if ann:
+                ann_str = str(get_id(ann))
+                is_dict_source = "Dict" in ann_str or "HashMap" in ann_str
+        source = f"({iter_expr}).toList" if is_dict_source else iter_expr
+        for if_clause in gen.ifs:
+            cond = self.visit(if_clause)
+            source = f"({source}).filter (fun {target} => {cond})"
+        return (
+            f"({source}).foldl (fun acc {target} => "
+            f"acc.insert {key} {value}) "
+            f"({{}}"
+            ": Std.HashMap _ _)"
+        )
+
+    def visit_Try(self, node, finallybody=None) -> str:
+        level = getattr(node, "level", 0)
+        body_parts = []
+        for c in node.body:
+            stmt = self.visit(c)
+            # Wrap bare expressions (like `3 / 0`) in a throw to make them
+            # compile in an IO try/catch block.  Pure expressions can't raise
+            # Lean exceptions, so we wrap them with ``throwThe IO.Error``.
+            if isinstance(c, ast.Expr) and isinstance(c.value, (ast.BinOp, ast.Call)):
+                body_parts.append(self.indent(f"let _ := {stmt}", level=level + 1))
+            else:
+                body_parts.append(self.indent(stmt, level=level + 1))
+        body = "\n".join(body_parts)
+        buf = f"try\n{body}"
+        for handler in node.handlers:
+            handler.level = level
+            buf += "\n" + self.indent(self.visit(handler), level=level)
+        if node.finalbody:
+            finally_body = "\n".join(
+                [self.indent(self.visit(c), level=level + 1) for c in node.finalbody]
+            )
+            # Lean doesn't have finally; emit the body after the try/catch
+            buf += "\n" + finally_body
+        return buf
+
+    def visit_ExceptHandler(self, node) -> str:
+        level = getattr(node, "level", 0)
+        if node.name:
+            body = "\n".join(
+                [self.indent(self.visit(c), level=level + 1) for c in node.body]
+            )
+            return f"catch {node.name} =>\n{body}"
+        body = "\n".join(
+            [self.indent(self.visit(c), level=level + 1) for c in node.body]
+        )
+        return f"catch _ =>\n{body}"
+
+    def visit_Expr(self, node) -> str:
+        s = self.visit(node.value)
+        if not s:
+            return ""
+        # In a do block, bare expressions that aren't IO actions need
+        # `let _ :=` to discard the value.  IO actions (IO.println etc.)
+        # are fine as bare statements.
+        if isinstance(node.value, (ast.DictComp, ast.ListComp, ast.SetComp)):
+            return f"let _ := {s}"
+        return s
 
     def visit_Global(self, node) -> str:
         return ""

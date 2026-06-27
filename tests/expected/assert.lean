@@ -1,6 +1,6 @@
 set_option linter.unusedVariables false
 
-def compare_assert (a : Int) (b : Int) : IO Unit := do
+def compare_assert (a : Nat) (b : Nat) : IO Unit := do
   assert! a == b
   assert! !(0 == 1)
 

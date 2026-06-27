@@ -67,6 +67,17 @@ class MutabilityTransformer(ast.NodeTransformer):
             self.increase_use_count(get_id(node))
         return node
 
+    def visit_Delete(self, node):
+        """Mark targets of `del` statements as mutable."""
+        for target in node.targets:
+            if isinstance(target, ast.Subscript):
+                name = get_id(target.value)
+                if name:
+                    self.increase_use_count(name)
+                    # Count twice so it crosses the >1 threshold
+                    self.increase_use_count(name)
+        return node
+
     def visit_Call(self, node):
         fname = get_id(node.func)
         fndef = node.scopes.find(fname)
