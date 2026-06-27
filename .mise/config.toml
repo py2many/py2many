@@ -12,6 +12,15 @@
 # values match the tox factors / CI FOCUS names:
 #   cpp dart dlang go julia kotlin lean mojo nim rust smt vlang zig
 #
+# Base config that is OS-specific lives in .mise/config.<os>.toml
+# (config.linux.toml, config.macos.toml, config.windows.toml). These load
+# automatically for the current OS -- no MISE_ENV needed -- via auto_env, set in
+# the repo-root .miserc.toml; that needs mise >= 2026.6.5 (see min_version
+# below). linux/macos/windows are OS environments, not MISE_ENV language values,
+# so the *-all tasks exclude them from $ALL_LANGS. Per-language OS differences
+# stay in the language's own config.<lang>.toml (scoped to its MISE_ENV), not
+# here.
+#
 # Language deps are installed by per-env `setup:<lang>` tasks. The `setup` task
 # below runs all the ones for the active envs:   MISE_ENV=cpp,go mise run setup
 #
@@ -20,8 +29,14 @@
 # read $ALL_LANGS, derived once here by listing the .mise/config.<lang>.toml
 # files, so adding a language needs no task edits.
 
+# auto_env (set in .miserc.toml, which loads the per-OS config.<os>.toml) is a
+# mise 2026.6.5 feature; fail loudly on older mise rather than silently skipping
+# the OS-specific base config.
+min_version = "2026.6.5"
+
 [tools]
-pipx = { version = "latest", os = ["linux", "macos"] }
+# Standalone pipx is OS-specific (no Windows backend build), so it moved to
+# config.linux.toml / config.macos.toml, auto-loaded per OS via auto_env.
 "pipx:black" = "24.10.0"
 "pipx:flake8" = "latest"
 # Pinned to match the lint job in .github/workflows/fast.yaml; isort's import
@@ -36,9 +51,11 @@ uv = "latest"
 [env]
 # Comma-separated list of every language env, auto-discovered from the sibling
 # config.<lang>.toml filenames (exec runs from this file's dir, i.e. .mise/; the
-# config.*.toml glob excludes this config.toml). Used as MISE_ENV by the *-all
-# tasks to act on every language at once.
-ALL_LANGS = '{{ exec(command="ls config.*.toml | cut -d. -f2 | paste -sd, -") }}'
+# config.*.toml glob excludes this config.toml). The per-OS config.<os>.toml
+# files match the same glob but are OS environments, not languages, so they are
+# filtered out -- otherwise the *-all tasks would fold linux/macos/windows into
+# MISE_ENV. Used as MISE_ENV by the *-all tasks to act on every language at once.
+ALL_LANGS = '{{ exec(command="ls config.*.toml | grep -v config.linux.toml | grep -v config.macos.toml | grep -v config.windows.toml | cut -d. -f2 | paste -sd, -") }}'
 
 # Aggregate the per-env setup tasks. `mise run 'setup:*'` errors when no
 # setup:<lang> task is loaded (e.g. MISE_ENV unset), so guard on their presence
