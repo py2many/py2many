@@ -1,6 +1,6 @@
 set_option linter.unusedVariables false
 
-def bubble_sort (seq : List Int) : List Int :=
+def bubble_sort (seq : List Nat) : List Nat :=
   Id.run
     (do
       let mut seq := seq

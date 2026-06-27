@@ -2,10 +2,10 @@
 module main
 
 fn show() {
-	my_list := [1, 2, 3, 4, 5]
+	mut my_list := [1, 2, 3, 4, 5]
 	my_list.delete(2)
 	println((my_list.len).str())
-	my_dict := {
+	mut my_dict := {
 		'a': 1
 		'b': 2
 		'c': 3

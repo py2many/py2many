@@ -3,8 +3,8 @@ set_option linter.unusedVariables false
 
 
 structure Rectangle where
-  height : Int
-  length : Int
+  height : Nat
+  length : Nat
   deriving BEq, Repr
 
 def Rectangle.is_square (self : Rectangle) : Bool :=

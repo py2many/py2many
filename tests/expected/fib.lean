@@ -1,6 +1,6 @@
 set_option linter.unusedVariables false
 
-partial def fib (i : Int) : Int :=
+partial def fib (i : Nat) : Nat :=
   Id.run
     (do
       if i == 0 || i == 1 then

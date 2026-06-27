@@ -1,9 +1,9 @@
 set_option linter.unusedVariables false
 
-def test : Int :=
+def test : Nat :=
   Id.run
     (do
-      let a : List Int := [1, 2, 3]
+      let a : List Nat := [1, 2, 3]
       return a[1]!)
 
 def main : IO Unit := do

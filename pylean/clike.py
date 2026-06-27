@@ -4,7 +4,7 @@ from keyword import kwlist, softkwlist
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import LEAN_CONTAINER_TYPE_MAP, LEAN_TYPE_MAP
+from .inference import LEAN_CONTAINER_TYPE_MAP, LEAN_TYPE_MAP, LEAN_WIDTH_RANK
 
 # allowed as names in Python but reserved (keywords/notation) in Lean 4
 lean_keywords = frozenset(
@@ -112,6 +112,89 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             ann = getattr(var, "annotation", None)
         return get_id(ann) in ("bool", "Bool")
 
+    @staticmethod
+    def _is_bool_operand(node) -> bool:
+        """Return True when a BinOp operand is known to be Bool."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            return True
+        if isinstance(node, ast.Name):
+            ann = getattr(node, "annotation", None)
+            if ann and get_id(ann) == "bool":
+                return True
+        return False
+
+    # Map Python annotation id strings (e.g. "c_int8") to Lean type names
+    _PYNAME_TO_LEAN = {
+        "c_int8": "Int8",
+        "c_int16": "Int16",
+        "c_int32": "Int32",
+        "c_int64": "Int64",
+        "c_uint8": "UInt8",
+        "c_uint16": "UInt16",
+        "c_uint32": "UInt32",
+        "c_uint64": "UInt64",
+        "int": "Nat",
+        "float": "Float",
+        "bool": "Bool",
+    }
+
+    @classmethod
+    def _get_node_type_id(cls, node) -> str:
+        """Return the Lean type name for an AST node, or empty string."""
+        # First check lean_annotation (set by InferLeanTypesTransformer)
+        lean_ann = getattr(node, "lean_annotation", None)
+        if lean_ann and lean_ann in LEAN_WIDTH_RANK:
+            return lean_ann
+        ann = getattr(node, "annotation", None)
+        if ann:
+            aid = get_id(ann)
+            if aid:
+                # Try direct Lean name
+                if aid in LEAN_WIDTH_RANK:
+                    return aid
+                # Try mapping from Python name
+                mapped = cls._PYNAME_TO_LEAN.get(aid, "")
+                if mapped and mapped in LEAN_WIDTH_RANK:
+                    return mapped
+        return ""
+
+    _SIGNED_FW = {"Int8", "Int16", "Int32", "Int64"}
+    _UNSIGNED_FW = {"UInt8", "UInt16", "UInt32", "UInt64"}
+
+    @classmethod
+    def _lean_cast(cls, expr: str, from_type: str, to_type: str) -> str:
+        """Wrap *expr* in a cast from *from_type* to *to_type*.
+
+        Lean fixed-width types don't implicitly widen, so we generate
+        an explicit conversion chain via Int or Nat as intermediate.
+        """
+        if from_type == to_type or not from_type or not to_type:
+            return expr
+
+        from_signed = from_type in cls._SIGNED_FW
+        from_unsigned = from_type in cls._UNSIGNED_FW
+
+        # Float target
+        if to_type == "Float":
+            if from_signed:
+                return f"(Float.ofInt {expr}.toInt)"
+            if from_unsigned:
+                return f"(Float.ofNat {expr}.toNat)"
+            return f"(Float.ofNat {expr})"
+
+        # Fixed-width target: go through Int (for signed src) or Nat (for unsigned src)
+        if to_type in cls._SIGNED_FW or to_type in cls._UNSIGNED_FW:
+            if from_signed:
+                return f"({to_type}.ofInt {expr}.toInt)"
+            if from_unsigned:
+                return f"({to_type}.ofNat {expr}.toNat)"
+            # from Nat/Int
+            if from_type == "Nat":
+                return f"({to_type}.ofNat {expr})"
+            return f"({to_type}.ofInt {expr})"
+
+        return f"({expr} : {to_type})"
+
     def visit_BinOp(self, node) -> str:
         left = self.visit(node.left)
         op = self.visit(node.op)
@@ -131,19 +214,46 @@ class CLikeTranspiler(CommonCLikeTranspiler):
                 return f"({left} || {right})"
             return f"(xor {left} {right})"
 
-        # When dividing by a float literal (or vice versa), ensure the other
-        # operand is also a Float so Lean's type checker is happy.
-        if isinstance(node.op, (ast.Div, ast.FloorDiv)):
-            left_is_float = isinstance(node.left, ast.Constant) and isinstance(
-                node.left.value, float
-            )
-            right_is_float = isinstance(node.right, ast.Constant) and isinstance(
-                node.right.value, float
-            )
-            if right_is_float and not left_is_float:
-                left = f"(Float.ofNat {left})"
-            elif left_is_float and not right_is_float:
+        # Bool bitwise ops: Python's &, |, ^ on bools should map to &&, ||, xor
+        if isinstance(node.op, (ast.BitAnd, ast.BitOr, ast.BitXor)):
+            if self._is_bool_operand(node.left) or self._is_bool_operand(node.right):
+                if isinstance(node.op, ast.BitAnd):
+                    return f"({left} && {right})"
+                elif isinstance(node.op, ast.BitOr):
+                    return f"({left} || {right})"
+                else:  # BitXor
+                    return f"(xor {left} {right})"
+
+        # Fixed-width integer widening casts.
+        # When the inferred result type is wider than the operand types,
+        # insert explicit casts so that both operands match the result type.
+        cast_applied = False
+        result_type = getattr(node, "lean_annotation", None)
+        if result_type and result_type in LEAN_WIDTH_RANK:
+            left_type = self._get_node_type_id(node.left)
+            right_type = self._get_node_type_id(node.right)
+            if left_type and left_type != result_type:
+                left = self._lean_cast(left, left_type, result_type)
+                cast_applied = True
+            if right_type and right_type != result_type:
+                right = self._lean_cast(right, right_type, result_type)
+                cast_applied = True
+
+        # When mixing Float and non-Float operands, ensure both are Float
+        # so Lean's type checker is happy.  Skip if widening cast already handled.
+        if not cast_applied:
+            left_is_float = (
+                isinstance(node.left, ast.Constant)
+                and isinstance(node.left.value, float)
+            ) or self._get_node_type_id(node.left) == "Float"
+            right_is_float = (
+                isinstance(node.right, ast.Constant)
+                and isinstance(node.right.value, float)
+            ) or self._get_node_type_id(node.right) == "Float"
+            if left_is_float and not right_is_float:
                 right = f"(Float.ofNat {right})"
+            elif right_is_float and not left_is_float:
+                left = f"(Float.ofNat {left})"
 
         return f"({left} {op} {right})"
 
@@ -169,7 +279,33 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             left = self.visit(node.left)
             right = self.visit(node.comparators[0])
             return f"!({right}).contains {left}"
-        return super().visit_Compare(node)
+
+        # Handle comparisons with None: ``x != None`` → ``true``,
+        # ``x == None`` → ``false`` (for non-Option types).
+        for op, comp in zip(node.ops, node.comparators):
+            if isinstance(comp, ast.Constant) and comp.value is None:
+                if isinstance(op, (ast.NotEq, ast.IsNot)):
+                    return "true"
+                if isinstance(op, (ast.Eq, ast.Is)):
+                    return "false"
+            if isinstance(node.left, ast.Constant) and node.left.value is None:
+                if isinstance(op, (ast.NotEq, ast.IsNot)):
+                    return "true"
+                if isinstance(op, (ast.Eq, ast.Is)):
+                    return "false"
+
+        # Handle Float/Nat comparison by converting Nat side to Float
+        result = super().visit_Compare(node)
+        left_type = self._get_node_type_id(node.left)
+        if left_type == "Float" and node.comparators:
+            comp = node.comparators[0]
+            if isinstance(comp, ast.Constant) and isinstance(comp.value, (int, float)):
+                if isinstance(comp.value, int):
+                    left = self.visit(node.left)
+                    op = self.visit(node.ops[0])
+                    right = f"(Float.ofNat {self.visit(comp)})"
+                    return f"({left} {op} {right})"
+        return result
 
     def visit_Bytes(self, node) -> str:
         # Python byte literals (b"...") map to a Lean ByteArray.
