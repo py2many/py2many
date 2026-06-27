@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from py2many.cli import _get_all_settings
+from py2many.process_helpers import find_executable
 
 try:
     from py2many.pycpp import (
@@ -13,8 +14,11 @@ try:
 except ImportError:
     from pycpp import REQUIRED_INCLUDE_FILES, _conan_include_args, _conan_include_dirs
 
+HAS_CONAN = find_executable("conan") is not None
+
 
 class TestSettings(unittest.TestCase):
+    @unittest.skipUnless(HAS_CONAN, "conan not installed")
     def test_conan_include_dirs(self):
         include_dirs = _conan_include_dirs()
 
@@ -22,6 +26,7 @@ class TestSettings(unittest.TestCase):
         for i, path in enumerate(include_dirs):
             assert Path(path, REQUIRED_INCLUDE_FILES[i]).exists()
 
+    @unittest.skipUnless(HAS_CONAN, "conan not installed")
     def test_conan_include_args(self):
         assert len(_conan_include_args()) == len(REQUIRED_INCLUDE_FILES) * 2
 

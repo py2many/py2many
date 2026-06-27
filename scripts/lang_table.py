@@ -20,7 +20,20 @@ EXPECTED_DIR = REPO_ROOT / "tests" / "expected"
 SMT_EXT = ".smt"
 
 # Common cases worth flagging when a backend can't transpile them.
-KEY_CASES = ["coverage", "stdio", "bubble_sort", "comb_sort", "sys_argv", "sys_exit"]
+KEY_CASES = [
+    "hello_world",
+    "loop",
+    "global",
+    "fstring",
+    "math_func",
+    "cls",
+    "coverage",
+    "stdio",
+    "bubble_sort",
+    "comb_sort",
+    "sys_argv",
+    "sys_exit",
+]
 
 # Extension -> display name, mirroring py2many/registry.py.
 EXT_TO_LANGUAGE = {
