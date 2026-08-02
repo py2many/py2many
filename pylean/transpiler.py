@@ -144,8 +144,47 @@ class LeanTranspiler(CLikeTranspiler):
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
+        # Drop transpiler-marker imports like ``py2many.theorem`` — these are
+        # not real Python modules, they are annotations recognised by py2many
+        # and have no corresponding Lean library.
+        if module_name in ("py2many.theorem",):
+            return ""
         lookup = MODULE_DISPATCH_TABLE.get(module_name, module_name)
         return f"import {lookup}"
+
+    def _get_theorem_name(self, node) -> str:
+        """Return the decorator id for a function node, checking for @theorem."""
+        for d in node.decorator_list:
+            name = get_id(d)
+            if name == "theorem":
+                return "theorem"
+        return None
+
+    def _extract_by_tactic(self, node) -> str:
+        """If ``@by('tactic')`` is present, return the tactic string."""
+        for d in node.decorator_list:
+            if isinstance(d, ast.Call):
+                fn = get_id(d.func)
+                if fn == "by" and d.args:
+                    val = d.args[0]
+                    if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                        return val.value
+        return None
+
+    def _theorem_proposition(self, node, fn_body) -> str:
+        """Extract the proposition from a @theorem function body.
+
+        The body should contain a single ``return <expr>`` statement which
+        expresses the property to prove.  Returns the Lean expression.
+        """
+        # If body is a single return, use the return expression directly
+        if len(fn_body) == 1 and isinstance(fn_body[0], ast.Return):
+            expr = fn_body[0].value
+            if expr is not None:
+                return f"({self.visit(expr)}) = true"
+        # Otherwise, build the proposition from the full body
+        body_lean = "\n".join(self.visit(s) for s in fn_body)
+        return body_lean
 
     def _mutable_param_bindings(self, node) -> List[str]:
         """Emit ``let mut arg := arg`` for function params that are reassigned.
@@ -174,6 +213,10 @@ class LeanTranspiler(CLikeTranspiler):
         self._dependent_vars = set()
         saved_int_params = self._int_params
         self._int_params = set()
+
+        # Check for @theorem and @by decorators
+        is_theorem = self._get_theorem_name(node) == "theorem"
+        by_tactic = self._extract_by_tactic(node)
 
         # Python's `if __name__ == "__main__"` block is rewritten into a main()
         # function; Lean's runtime invokes `main : IO Unit` automatically, so no
@@ -265,6 +308,23 @@ class LeanTranspiler(CLikeTranspiler):
         # ``Id.run do return expr``.  This is more idiomatic and, unlike a do
         # block, the formatter can freely wrap a long expression without
         # breaking Lean's indentation-sensitive ``do`` parsing.
+        # Emit theorem or def
+        if is_theorem:
+            # Extract the proposition from the return statement in the body
+            prop = self._theorem_proposition(node, fn_body)
+            tactic_block = by_tactic if by_tactic else body
+            theorem_str = f"{partial}theorem {func_name}{args_str} : {prop} := by"
+            if by_tactic:
+                # Single-line tactic (e.g. native_decide, omega)
+                out = f"{theorem_str}\n{self.indent(tactic_block, level=node.level + 1)}\n"
+            else:
+                # Multi-line proof from the transpiled body
+                out = f"{theorem_str}\n{tactic_block}\n"
+            self._bound_vars = saved_bound
+            self._dependent_vars = saved_dep
+            self._int_params = saved_int_params
+            return self.indent(out, level=node.level)
+
         if (
             not _is_io_function(node)
             and not mut_bindings
@@ -699,6 +759,15 @@ class LeanTranspiler(CLikeTranspiler):
             list_name = self.visit(node.func.value)
             val = self.visit(node.args[0])
             return f"{list_name} := {list_name} ++ [{val}]"
+        # Handle list.extend: lst.extend(xs) -> lst := lst ++ xs
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "extend"
+            and node.args
+        ):
+            list_name = self.visit(node.func.value)
+            val = self.visit(node.args[0])
+            return f"{list_name} := {list_name} ++ {val}"
 
         # Handle list.keys() and list.values()
         if isinstance(node.func, ast.Attribute) and node.func.attr == "keys":
@@ -964,11 +1033,37 @@ class LeanTranspiler(CLikeTranspiler):
 
     def visit_Subscript(self, node) -> str:
         value = self.visit(node.value)
+        # Handle slices: arr[:n] or arr[n:]
+        if isinstance(node.slice, ast.Slice):
+            return self.visit_Slice(node.slice, value)
         index = self._index_str(node.slice)
         return f"{value}[{index}]!"
 
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
+
+    def visit_Slice(self, node, list_name=None) -> str:
+        """Translate Python slices to Lean List.take / List.drop.
+
+        ``arr[:n]``  → ``List.take n arr``
+        ``arr[n:]``  → ``List.drop n arr``
+        ``arr[:]``   → ``arr``
+        """
+        if list_name is None:
+            return self.comment("Slice used as annotation -- unsupported")
+        lower = self.visit(node.lower) if node.lower else None
+        upper = self.visit(node.upper) if node.upper else None
+        if lower is not None and upper is not None:
+            # arr[lower:upper] → List.drop lower arr |>.take (upper - lower)
+            return f"(List.drop {lower} {list_name} |>.take ({upper} - {lower}))"
+        if lower is not None:
+            # arr[lower:] → List.drop lower arr
+            return f"(List.drop {lower} {list_name})"
+        if upper is not None:
+            # arr[:upper] → List.take upper arr
+            return f"(List.take {upper} {list_name})"
+        # arr[:]  identity
+        return list_name
 
     def visit_Delete(self, node) -> str:
         parts = []
