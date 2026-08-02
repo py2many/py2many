@@ -280,7 +280,13 @@ MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
 DECORATOR_DISPATCH_TABLE: Dict[str, Callable] = {
     "theorem": lambda self, node: node,
+    "lemma": lambda self, node: node,
     "by": lambda self, node: node,
+    "invariant": lambda self, node: node,
+    "pre": lambda self, node: node,
+    "precondition": lambda self, node: node,
+    "post": lambda self, node: node,
+    "postcondition": lambda self, node: node,
 }
 
 ATTR_DISPATCH_TABLE: Dict[type, Callable] = {}

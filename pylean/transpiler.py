@@ -147,7 +147,7 @@ class LeanTranspiler(CLikeTranspiler):
         # Drop transpiler-marker imports like ``py2many.theorem`` — these are
         # not real Python modules, they are annotations recognised by py2many
         # and have no corresponding Lean library.
-        if module_name in ("py2many.theorem",):
+        if module_name in ("py2many.theorem", "py2many.smt"):
             return ""
         lookup = MODULE_DISPATCH_TABLE.get(module_name, module_name)
         return f"import {lookup}"
@@ -160,19 +160,31 @@ class LeanTranspiler(CLikeTranspiler):
                 return "theorem"
         return None
 
-    def _extract_by_tactic(self, node) -> str:
-        """If ``@by('tactic')`` is present, return the tactic string."""
+    def _get_decorator_name(self, node, names: set) -> str:
+        """Return the first matching decorator name from *names*, or None."""
+        for d in node.decorator_list:
+            name = get_id(d)
+            if name in names:
+                return name
+        return None
+
+    def _extract_decorator_string(self, node, decorator_name: str) -> str:
+        """Extract a string argument from a decorator like ``@invariant('prop')``."""
         for d in node.decorator_list:
             if isinstance(d, ast.Call):
                 fn = get_id(d.func)
-                if fn == "by" and d.args:
+                if fn == decorator_name and d.args:
                     val = d.args[0]
                     if isinstance(val, ast.Constant) and isinstance(val.value, str):
                         return val.value
         return None
 
+    def _extract_by_tactic(self, node) -> str:
+        """If ``@by('tactic')`` is present, return the tactic string."""
+        return self._extract_decorator_string(node, "by")
+
     def _theorem_proposition(self, node, fn_body) -> str:
-        """Extract the proposition from a @theorem function body.
+        """Extract the proposition from a @theorem or @lemma function body.
 
         The body should contain a single ``return <expr>`` statement which
         expresses the property to prove.  Returns the Lean expression.
@@ -185,6 +197,42 @@ class LeanTranspiler(CLikeTranspiler):
         # Otherwise, build the proposition from the full body
         body_lean = "\n".join(self.visit(s) for s in fn_body)
         return body_lean
+
+    def _get_invariant_decorator(self, node) -> List[tuple]:
+        """Collect invariants from @invariant decorators on a class.
+
+        Returns ``[(field_name, prop_str), ...]`` matching the format
+        of ``_extract_invariants`` so the same emission path is reused.
+        """
+        props = []
+        used: set = set()
+        for d in node.decorator_list:
+            if isinstance(d, ast.Call):
+                fn = get_id(d.func)
+                if fn == "invariant" and d.args:
+                    val = d.args[0]
+                    if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                        prop = val.value
+                        # Derive field name from the first identifier in the prop
+                        base = "inv"
+                        for tok in prop.split():
+                            if tok.isidentifier() and tok not in (
+                                "not",
+                                "and",
+                                "or",
+                                "=",
+                                "!=",
+                            ):
+                                base = f"inv_{tok}"
+                                break
+                        name = base
+                        suffix = 2
+                        while name in used:
+                            name = f"{base}_{suffix}"
+                            suffix += 1
+                        used.add(name)
+                        props.append((name, prop))
+        return props
 
     def _mutable_param_bindings(self, node) -> List[str]:
         """Emit ``let mut arg := arg`` for function params that are reassigned.
@@ -215,8 +263,16 @@ class LeanTranspiler(CLikeTranspiler):
         self._int_params = set()
 
         # Check for @theorem and @by decorators
-        is_theorem = self._get_theorem_name(node) == "theorem"
+        # Check for @theorem / @lemma and decorators
+        decor_keyword = self._get_decorator_name(node, {"theorem", "lemma"})
         by_tactic = self._extract_by_tactic(node)
+        # Check for @pre / @precondition and @post / @postcondition
+        pre_cond = self._extract_decorator_string(
+            node, "pre"
+        ) or self._extract_decorator_string(node, "precondition")
+        post_cond = self._extract_decorator_string(
+            node, "post"
+        ) or self._extract_decorator_string(node, "postcondition")
 
         # Python's `if __name__ == "__main__"` block is rewritten into a main()
         # function; Lean's runtime invokes `main : IO Unit` automatically, so no
@@ -308,22 +364,34 @@ class LeanTranspiler(CLikeTranspiler):
         # ``Id.run do return expr``.  This is more idiomatic and, unlike a do
         # block, the formatter can freely wrap a long expression without
         # breaking Lean's indentation-sensitive ``do`` parsing.
-        # Emit theorem or def
-        if is_theorem:
-            # Extract the proposition from the return statement in the body
+        # Emit theorem, lemma, or def
+        if decor_keyword:
+            # Both ``@lemma`` and ``@theorem`` emit ``theorem``; the keyword
+            # ``lemma`` was not yet available in Lean 4 v4.32.2.
             prop = self._theorem_proposition(node, fn_body)
             tactic_block = by_tactic if by_tactic else body
-            theorem_str = f"{partial}theorem {func_name}{args_str} : {prop} := by"
+            thm_str = f"{partial}theorem {func_name}{args_str} : {prop} := by"
             if by_tactic:
                 # Single-line tactic (e.g. native_decide, omega)
-                out = f"{theorem_str}\n{self.indent(tactic_block, level=node.level + 1)}\n"
+                out = f"{thm_str}\n{self.indent(tactic_block, level=node.level + 1)}\n"
             else:
                 # Multi-line proof from the transpiled body
-                out = f"{theorem_str}\n{tactic_block}\n"
+                out = f"{thm_str}\n{tactic_block}\n"
             self._bound_vars = saved_bound
             self._dependent_vars = saved_dep
             self._int_params = saved_int_params
             return self.indent(out, level=node.level)
+
+        # @pre / @precondition adds a proof parameter
+        if pre_cond:
+            args_str += f" (hpre : {pre_cond})"
+            self._precondition_methods.add(node.name)
+        # @post / @postcondition adds a return-type constraint
+        if post_cond and node.returns:
+            ret_type = self._collapse_union(
+                self._typename_from_annotation(node, attr="returns")
+            )
+            return_type = f"{{ r : {ret_type} // {post_cond} }}"
 
         if (
             not _is_io_function(node)
@@ -788,6 +856,12 @@ class LeanTranspiler(CLikeTranspiler):
             and node.func.attr in self._precondition_methods
         ):
             vargs.append("(by omega)")
+        # Same for standalone functions with @pre / @precondition
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id in self._precondition_methods
+        ):
+            vargs.append("(by omega)")
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
@@ -880,7 +954,15 @@ class LeanTranspiler(CLikeTranspiler):
             fields.append(f"  {declaration} : {typename}")
 
         # Class invariants (#805) become extra proposition-typed fields.
+        # Merge invariants from ``if invariant:`` blocks and @invariant decorators.
         invariants = node.invariants = self._extract_invariants(node)
+        decor_invariants = self._get_invariant_decorator(node)
+        # Append decorator invariants, dedup by prop string
+        seen_props = {p for _, p in invariants}
+        for name, prop in decor_invariants:
+            if prop not in seen_props:
+                invariants.append((name, prop))
+                seen_props.add(prop)
         for inv_name, prop in invariants:
             fields.append(f"  {inv_name} : {prop}")
 
@@ -904,7 +986,8 @@ class LeanTranspiler(CLikeTranspiler):
                 if b.name == "__init__":
                     continue
                 b.self_type = node.name
-                method_defs.append(self.visit(b))
+                # Strip indentation — methods are top-level definitions in Lean
+                method_defs.append(self.visit(b).lstrip())
         self._self_invariants = saved_invariants
 
         if method_defs:
