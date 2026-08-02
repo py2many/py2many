@@ -278,7 +278,10 @@ DISPATCH_MAP = {
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}
 
-DECORATOR_DISPATCH_TABLE: Dict[str, Callable] = {}
+DECORATOR_DISPATCH_TABLE: Dict[str, Callable] = {
+    "theorem": lambda self, node: node,
+    "by": lambda self, node: node,
+}
 
 ATTR_DISPATCH_TABLE: Dict[type, Callable] = {}
 
