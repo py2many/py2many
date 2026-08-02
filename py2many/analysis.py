@@ -17,6 +17,7 @@ IGNORED_MODULE_SET = {
     "adt",
     "py2many.result",
     "py2many.smt",
+    "py2many.spec",
 }
 
 
