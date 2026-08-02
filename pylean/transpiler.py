@@ -147,7 +147,7 @@ class LeanTranspiler(CLikeTranspiler):
         # Drop transpiler-marker imports like ``py2many.theorem`` — these are
         # not real Python modules, they are annotations recognised by py2many
         # and have no corresponding Lean library.
-        if module_name in ("py2many.theorem", "py2many.smt"):
+        if module_name in ("py2many.theorem", "py2many.smt", "py2many.spec"):
             return ""
         lookup = MODULE_DISPATCH_TABLE.get(module_name, module_name)
         return f"import {lookup}"
@@ -320,7 +320,7 @@ class LeanTranspiler(CLikeTranspiler):
         # Precondition (#805): a leading ``if smt_pre:`` becomes a proof
         # parameter and is dropped from the emitted body.  Record the method
         # name so call sites can supply the proof argument.
-        precond, fn_body = self._extract_precondition(node)
+        precond, postcond, fn_body = self._extract_precondition(node)
         if precond:
             args_str += f" (pre : {precond})"
             self._precondition_methods.add(node.name)
@@ -443,18 +443,24 @@ class LeanTranspiler(CLikeTranspiler):
         ast.NotEq: "≠",
     }
 
-    def _visit_proposition(self, node) -> str:
+    def _visit_proposition(self, node, class_name: str = None) -> str:
         """Render a Python boolean expression as a Lean ``Prop``.
 
-        Used for dependent-type predicates (#804) and structure invariants
-        (#805).  Differs from the ``Bool`` rendering used by ``if`` in two
+        When *class_name* is given, dotted attribute references like
+        ``BankAccount.balance`` are shortened to just ``balance`` so they
+        work inside structure invariant fields where ``BankAccount`` is
+        being defined.
+
+        Differs from the ``Bool`` rendering used by ``if`` in two
         ways: ``and``/``or`` become ``∧``/``∨`` and Python's chained
         comparisons (``0 < x < 10``) expand to a conjunction
         (``0 < x ∧ x < 10``) since Lean has no chained relations.
         """
         if isinstance(node, ast.BoolOp):
             sym = "∧" if isinstance(node.op, ast.And) else "∨"
-            return f" {sym} ".join(self._visit_proposition(v) for v in node.values)
+            return f" {sym} ".join(
+                self._visit_proposition(v, class_name) for v in node.values
+            )
         if isinstance(node, ast.Compare):
             clauses = []
             left = node.left
@@ -462,11 +468,20 @@ class LeanTranspiler(CLikeTranspiler):
                 sym = self._PROP_CMP_OPS.get(type(op))
                 if sym is None:
                     return self.visit(node)
-                clauses.append(f"{self.visit(left)} {sym} {self.visit(right)}")
+                clauses.append(
+                    f"{self._visit_proposition(left, class_name)} {sym} "
+                    f"{self._visit_proposition(right, class_name)}"
+                )
                 left = right
             return " ∧ ".join(clauses)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            return f"¬({self._visit_proposition(node.operand)})"
+            return f"¬({self._visit_proposition(node.operand, class_name)})"
+        # Strip class prefix from dotted names: ``BankAccount.balance`` → ``balance``
+        if class_name and isinstance(node, ast.Attribute):
+            val_id = get_id(node.value)
+            names = class_name if isinstance(class_name, set) else {class_name}
+            if val_id in names:
+                return node.attr
         return self.visit(node)
 
     def _dependent_parts(self, value):
@@ -511,21 +526,55 @@ class LeanTranspiler(CLikeTranspiler):
     def _extract_invariants(self, node) -> List[tuple]:
         """Collect ``(field_name, prop)`` from an ``if invariant:`` class block.
 
-        Realises #805's class invariants as extra structure fields of
-        proposition type, e.g. ``balance >= 0`` becomes
-        ``inv_balance : balance ≥ 0``.  The field name is derived from the
-        first variable mentioned, with a numeric suffix to break ties.
+        Two styles are recognised inside the block:
+
+        1. Bare expression: ``balance >= 0``
+        2. Class method: ``def invariant(cls): return cls.balance >= 0``
+
+        Both become a structure invariant field, e.g.
+        ``inv_balance : balance ≥ 0``.
         """
         invariants: List[tuple] = []
         used: set = set()
         for stmt in node.body:
-            if not (isinstance(stmt, ast.If) and get_id(stmt.test) == "invariant"):
+            if not (
+                isinstance(stmt, ast.If) and self._checker_attr(stmt.test, "invariant")
+            ):
                 continue
             for inner in stmt.body:
+                # Style 2: ``def invariant(cls): return expr``
+                if isinstance(inner, ast.FunctionDef):
+                    ret = inner.body[-1] if inner.body else None
+                    if isinstance(ret, ast.Return) and ret.value is not None:
+                        # The param (``cls`` / ``self``) is the class reference.
+                        # We pass both the class name and the param name so
+                        # _visit_proposition strips either prefix.
+                        cls_param = inner.args.args[0].arg if inner.args.args else None
+                        class_names = {node.name}
+                        if cls_param:
+                            class_names.add(cls_param)
+                        prop = self._visit_proposition(ret.value, class_names)
+                        base = "inv"
+                        for sub in ast.walk(ret.value):
+                            if isinstance(sub, ast.Attribute):
+                                base = f"inv_{sub.attr}"
+                                break
+                        name = base
+                        suffix = 2
+                        while name in used:
+                            name = f"{base}_{suffix}"
+                            suffix += 1
+                        used.add(name)
+                        invariants.append((name, prop))
+                    continue
+                # Style 1: bare expression
                 if not isinstance(inner, ast.Expr):
                     continue
                 base = "inv"
                 for sub in ast.walk(inner.value):
+                    if isinstance(sub, ast.Attribute):
+                        base = f"inv_{sub.attr}"
+                        break
                     if isinstance(sub, ast.Name):
                         base = f"inv_{sub.id}"
                         break
@@ -535,19 +584,37 @@ class LeanTranspiler(CLikeTranspiler):
                     name = f"{base}_{suffix}"
                     suffix += 1
                 used.add(name)
-                invariants.append((name, self._visit_proposition(inner.value)))
+                invariants.append(
+                    (name, self._visit_proposition(inner.value, node.name))
+                )
         return invariants
 
-    def _extract_precondition(self, node):
-        """Split a leading ``if smt_pre:`` block off a function body (#805).
+    @staticmethod
+    def _checker_attr(node, attr: str) -> bool:
+        """Return True when *node* is ``CHECKER.<attr>`` (dotted access).
 
-        Returns ``(precondition_prop_or_None, body_without_smt_pre)``.  The
-        precondition becomes a proof parameter on the emitted ``def``.
+        Also matches the plain-name form ``<attr>`` for backward compatibility
+        with the older ``py2many.smt`` flat export.
+        """
+        if isinstance(node, ast.Attribute):
+            return get_id(node.value) == "CHECKER" and node.attr == attr
+        return get_id(node) == attr
+
+    def _extract_precondition(self, node):
+        """Split ``if CHECKER.pre:`` / ``if CHECKER.post:`` blocks off a function body.
+
+        Returns ``(precondition_prop_or_None, postcondition_prop_or_None, body_without)``.
+        The precondition becomes a proof parameter; the postcondition is a
+        constraint on the return value.
         """
         pre = None
+        post = None
         body = []
         for stmt in node.body:
-            if isinstance(stmt, ast.If) and get_id(stmt.test) == "smt_pre":
+            if isinstance(stmt, ast.If) and (
+                self._checker_attr(stmt.test, "pre")
+                or self._checker_attr(stmt.test, "smt_pre")
+            ):
                 preds = [
                     self._visit_proposition(s.value)
                     for s in stmt.body
@@ -556,8 +623,17 @@ class LeanTranspiler(CLikeTranspiler):
                 if preds:
                     pre = " ∧ ".join(preds)
                 continue
+            if isinstance(stmt, ast.If) and self._checker_attr(stmt.test, "post"):
+                preds = [
+                    self._visit_proposition(s.value)
+                    for s in stmt.body
+                    if isinstance(s, ast.Expr)
+                ]
+                if preds:
+                    post = " ∧ ".join(preds)
+                continue
             body.append(stmt)
-        return pre, body
+        return pre, post, body
 
     def _visit_AssignOne(self, node, target) -> str:
         # Dependent type aliases (#804): ``Uid = Annotated[int, lambda u: ...]``
