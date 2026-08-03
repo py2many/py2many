@@ -148,24 +148,10 @@ def is_rust_reference(node):
             if isinstance(definition, ast.arg):
                 # Function parameters with container types are borrowed (&Vec<T>)
                 return True
-            if isinstance(definition, ast.Name):
-                # The definition is the Name target of an Assign.
-                # Check if the parent scope's body contains an Assign with
-                # this target whose value has container_type.
-                for scope in node.scopes:
-                    if hasattr(scope, "body") and isinstance(scope.body, list):
-                        for stmt in scope.body:
-                            if isinstance(stmt, ast.Assign):
-                                for t in stmt.targets:
-                                    if isinstance(t, ast.Name) and get_id(t) == get_id(
-                                        definition
-                                    ):
-                                        value = getattr(stmt, "value", None)
-                                        if value is not None and hasattr(
-                                            value, "container_type"
-                                        ):
-                                            return True
-                                        break
+            # The Rust inference pass (InferRustTypesTransformer.visit_Assign)
+            # marks local variables that are transpiled to Rust references.
+            if getattr(definition, "rust_is_reference", False):
+                return True
         # Local variables with annotated assignments are owned (Vec<T>)
         return False
     return True
@@ -183,6 +169,23 @@ class InferRustTypesTransformer(InferTypesTransformer):
             left_id = RustInference.extension_map_type(left_id)
             right_id = RustInference.extension_map_type(right_id)
         return RustInference.handle_overflow(op, left_id, right_id)
+
+    def visit_Assign(self, node):
+        super().visit_Assign(node)
+        annotation = getattr(node.value, "annotation", None)
+        if not isinstance(annotation, ast.Subscript):
+            return node
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                target_has_annotation = hasattr(target, "annotation")
+                inferred = (
+                    getattr(target.annotation, "inferred", False)
+                    if target_has_annotation
+                    else False
+                )
+                if not target_has_annotation or inferred:
+                    target.rust_is_reference = True
+        return node
 
     def visit_Call(self, node):
         super().visit_Call(node)
