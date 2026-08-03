@@ -23,9 +23,9 @@ function use_zero_for_comparison()
 end
 
 function main()
-    compare_with_integer_variable();
-    use_zero_for_comparison();
-    println(join(["OK"], " "));
+    compare_with_integer_variable()
+    use_zero_for_comparison()
+    println(join(["OK"], " "))
 end
 
 main()

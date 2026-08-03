@@ -1,16 +1,16 @@
 | Language | Cases | Notable failures |
 | --- | --- | --- |
-| Python | 58 |  |
-| V | 48 | global, stdio |
-| Lean | 47 |  |
-| Go | 40 | stdio |
+| Python | 65 |  |
+| V | 50 | stdio |
+| Lean | 48 |  |
+| Julia | 42 | stdio |
+| Go | 41 | stdio |
 | Rust | 39 | math_func, stdio |
-| Julia | 37 | fstring, stdio |
 | Dart | 34 | fstring |
-| C++ | 32 | fstring |
-| D | 30 | fstring, coverage |
-| Kotlin | 27 | fstring, math_func, stdio |
-| Nim | 27 | fstring, math_func, stdio |
+| C++ | 33 | fstring |
+| D | 31 | fstring, coverage |
+| Kotlin | 29 | fstring, math_func, stdio |
+| Nim | 28 | fstring, math_func, stdio |
 | Mojo | 15 | global, fstring, coverage, stdio, sys_argv |
 | Zig | 14 | global, fstring, cls, coverage, stdio |
 | SMT | 7 | hello_world, loop, global, fstring, math_func, cls, coverage, stdio, bubble_sort, comb_sort, sys_argv, sys_exit |

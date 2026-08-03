@@ -4,7 +4,7 @@ function test_python(iterations::Int64)
     total = float(0.0)
     array_length = 1000
     array::Array{Int64} = [i for i = 0:(array_length-1)]
-    println(join(["iterations", iterations], " "));
+    println(join(["iterations", iterations], " "))
     while iteration < iterations
         innerloop = 0
         while innerloop < 100
@@ -14,13 +14,13 @@ function test_python(iterations::Int64)
         iteration += 1
     end
     if total == 15150
-        println(join(["OK"], " "));
+        println(join(["OK"], " "))
     end
     # del unimplemented on line 20:4
 end
 
 function main()
-    test_python(3);
+    test_python(3)
 end
 
 main()

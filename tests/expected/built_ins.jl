@@ -11,11 +11,11 @@ end
 
 function main()
     a = max(1, 2)
-    println(join([a], " "));
+    println(join([a], " "))
     b = min(1, 2)
-    println(join([b], " "));
+    println(join([b], " "))
     c = Int64(floor(min(1.0, 2.0)))
-    println(join([c], " "));
+    println(join([c], " "))
 end
 
 main()

@@ -66,12 +66,12 @@ end
 
 function show()
     @assert(fadd1(convert(Int8, 6), 6.0) == 12)
-    println(join(["OK"], " "));
+    println(join(["OK"], " "))
 end
 
 function main()
-    foo();
-    show();
+    foo()
+    show()
 end
 
 main()

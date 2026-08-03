@@ -6,7 +6,7 @@ function fib(i::Int64)::Int64
 end
 
 function main()
-    println(join([fib(5)], " "));
+    println(join([fib(5)], " "))
 end
 
 main()
