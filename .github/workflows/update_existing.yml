@@ -1,0 +1,163 @@
+name: Update Expected
+
+# Regenerate tests/expected (and tests/ext_expected) with UPDATE_EXPECTED=1 and
+# upload a tarball of just the outputs that changed or are newly added (a case x
+# target_language combination that recently started passing produces a brand-new
+# expected file). Download the artifact, drop the files into tests/, and commit.
+#
+# Manual-only: running it writes over the checked-out expected outputs.
+on:
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Which python versions to test'
+        default: '["3.12"]'
+
+# Cancel previous jobs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  checks: write
+  contents: read
+  packages: write
+
+jobs:
+  # Reuse the same omni image (and image tag hash) as the all-language runs of
+  # main.yml, so the GHCR-cached image is used instead of rebuilding it.
+  ci-image:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set image name
+        id: image
+        shell: bash
+        run: |
+          docker_file="docker/Dockerfile.omni"
+          image_hash="$(git ls-files "${docker_file}" docker/entrypoint.sh scripts | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)"
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}-ci"
+          image="${image_base}:all-${image_hash:0:20}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "docker_file=${docker_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        shell: bash
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Check CI image cache
+        id: image-cache
+        shell: bash
+        run: |
+          if docker buildx imagetools inspect "${{ steps.image.outputs.image }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Docker builder
+        if: steps.image-cache.outputs.exists != 'true'
+        shell: bash
+        run: |
+          docker buildx create --use
+
+      - name: Build CI image
+        if: steps.image-cache.outputs.exists != 'true'
+        shell: bash
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=py2many-ci \
+            --cache-to type=gha,mode=max,scope=py2many-ci \
+            --file "${{ steps.image.outputs.docker_file }}" \
+            --tag "${{ steps.image.outputs.image }}" \
+            --push \
+            .
+
+  update:
+    needs: ci-image
+
+    strategy:
+      matrix:
+        python-version: ${{ fromJSON(github.event.inputs.python_version)}}
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.ci-image.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Trust checked-out workspace
+        shell: bash
+        run: |
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Add scripts to PATH (SMT cljstyle)
+        shell: bash
+        run: |
+          echo "$(pwd)/scripts/" >> $GITHUB_PATH
+
+      - name: Regenerate expected outputs
+        shell: bash
+        run: |
+          set -exo pipefail
+          export HOME=/root
+          export CARGO_HOME=/root/.cargo
+          export RUSTUP_HOME=/root/.rustup
+          # UPDATE_EXPECTED makes test_cli overwrite tests/expected/* and
+          # tests/ext_expected/* with the freshly generated output (and create
+          # files for case x target_language combos that now pass).
+          export UPDATE_EXPECTED=1
+          PYTHON_VERSION="${{ matrix.python-version }}"
+          export TOXENV="py${PYTHON_VERSION//.}-full"
+          # Do not gate regeneration on the coverage floor.
+          tox -v -- --cov-fail-under=0 2>&1 | tee tests/tox.log
+
+      - name: Collect updated and new expected outputs
+        shell: bash
+        run: |
+          set -ex
+          # Intent-to-add makes git diff report new (untracked) expected files
+          # alongside the modified ones. tests/build and tests/output are
+          # gitignored, so generated build junk never shows up here.
+          git add -N tests/expected tests/ext_expected
+          { git diff --name-only -- tests/expected tests/ext_expected; \
+            git ls-files --others --exclude-standard -- tests/expected tests/ext_expected; } \
+            | sort -u > changed.txt
+          mkdir -p update_output
+          if [ -s changed.txt ]; then
+            tar -czf update_output/updated-expected.tar.gz -T changed.txt
+            echo "$(wc -l < changed.txt) expected outputs changed" > update_output/README.txt
+          else
+            echo "No expected outputs changed." > update_output/README.txt
+          fi
+          cp changed.txt update_output/changed.txt
+          cat update_output/README.txt
+
+      - name: Upload updated expected outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: updated-expected-${{ matrix.python-version }}
+          path: update_output/
+          if-no-files-found: ignore
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "tests/current-results.xml"
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-xml-results
+          path: tests/current-results.xml
