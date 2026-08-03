@@ -139,6 +139,35 @@ def is_rust_reference(node):
         definition = node.scopes.find(get_id(node.func))
         needs_reference = getattr(definition, "rust_return_needs_reference", True)
         return needs_reference
+    if isinstance(node, (ast.List, ast.ListComp, ast.Set, ast.Dict)):
+        # List/dict/set literals produce owned values (Vec, HashMap, HashSet)
+        return False
+    if isinstance(node, ast.Name):
+        definition = node.scopes.find(get_id(node))
+        if definition is not None:
+            if isinstance(definition, ast.arg):
+                # Function parameters with container types are borrowed (&Vec<T>)
+                return True
+            if isinstance(definition, ast.Name):
+                # The definition is the Name target of an Assign.
+                # Check if the parent scope's body contains an Assign with
+                # this target whose value has container_type.
+                for scope in node.scopes:
+                    if hasattr(scope, "body") and isinstance(scope.body, list):
+                        for stmt in scope.body:
+                            if isinstance(stmt, ast.Assign):
+                                for t in stmt.targets:
+                                    if isinstance(t, ast.Name) and get_id(t) == get_id(
+                                        definition
+                                    ):
+                                        value = getattr(stmt, "value", None)
+                                        if value is not None and hasattr(
+                                            value, "container_type"
+                                        ):
+                                            return True
+                                        break
+        # Local variables with annotated assignments are owned (Vec<T>)
+        return False
     return True
 
 
@@ -221,12 +250,25 @@ class InferRustTypesTransformer(InferTypesTransformer):
             fndef.no_return = False
         if node.value:
             if fndef and fndef.returns:
-                if is_reference(node.value):
-                    mut = is_mutable(node.scopes, get_id(node.value))
-                    fndef.returns.rust_needs_reference = not mut
-                    fndef.rust_return_needs_reference = (
-                        fndef.returns.rust_needs_reference
-                    )
+                if is_rust_reference(node.value):
+                    name = get_id(node.value)
+                    is_param = False
+                    if fndef and name is not None:
+                        is_param = any(get_id(arg) == name for arg in fndef.args.args)
+                    if is_param:
+                        # Returning a parameter - take ownership by cloning
+                        fndef.returns.rust_needs_reference = False
+                        fndef.rust_return_needs_reference = False
+                    else:
+                        mut = is_mutable(node.scopes, name)
+                        fndef.returns.rust_needs_reference = not mut
+                        fndef.rust_return_needs_reference = (
+                            fndef.returns.rust_needs_reference
+                        )
+                else:
+                    # Return value is owned (not a reference)
+                    fndef.returns.rust_needs_reference = False
+                    fndef.rust_return_needs_reference = False
         return node
 
 
