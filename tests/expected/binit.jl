@@ -5,10 +5,10 @@ function bisect_right(data::Array{Int64}, item::Int64)::Int64
     while low < high
         middle = Int64(floor((low + high) / 2))
         if item < data[middle+1]
-            high = middle;
+            high = middle
         else
 
-            low = middle + 1;
+            low = middle + 1
         end
     end
     return low
@@ -17,7 +17,7 @@ end
 function bin_it(limits::Array{Int64}, data::Array{Int64})::Array{Int64}
     bins = [0]
     for _x in limits
-        push!(bins, 0);
+        push!(bins, 0)
     end
     for d in data
         bins[bisect_right(limits, d)+1] += 1
@@ -80,7 +80,7 @@ function main()
         55,
     ]
     @assert(bin_it(limits, data) == [11, 4, 2, 6, 9, 5, 13])
-    println(join(["OK"], " "));
+    println(join(["OK"], " "))
 end
 
 main()

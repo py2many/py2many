@@ -12,14 +12,14 @@ end
 function show()
     r = Rectangle(1, 1)
     @assert(is_square(r))
-    r = Rectangle(1, 2);
+    r = Rectangle(1, 2)
     @assert(!(is_square(r)))
-    println(join([r.height], " "));
-    println(join([r.length], " "));
+    println(join([r.height], " "))
+    println(join([r.length], " "))
 end
 
 function main()
-    show();
+    show()
 end
 
 main()

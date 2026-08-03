@@ -4,16 +4,16 @@ function show()
     catch exn
         let e = exn
             if e isa Exception
-                println(join(["caught"], " "));
+                println(join(["caught"], " "))
             end
         end
     finally
-        println(join(["Finally"], " "));
+        println(join(["Finally"], " "))
     end
     try
         throw(Exception("foo"))
     catch exn
-        println(join(["Got it"], " "));
+        println(join(["Got it"], " "))
     end
     try
         throw(Exception("foo"))
@@ -27,7 +27,7 @@ function show()
 end
 
 function main()
-    show();
+    show()
 end
 
 main()

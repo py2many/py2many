@@ -6,13 +6,13 @@ code_b = "b"
 l_b = [code_a, code_b]
 function main()
     for i in l_a
-        println(join([i], " "));
+        println(join([i], " "))
     end
     for j in l_b
-        println(join([j], " "));
+        println(join([j], " "))
     end
     if "a" in ["a", "b"]
-        println(join(["OK"], " "));
+        println(join(["OK"], " "))
     end
 end
 

@@ -13,7 +13,7 @@ end
 function main()
     f = Foo()
     b = bar(f)
-    println(join([b], " "));
+    println(join([b], " "))
     @assert(b == 10)
 end
 

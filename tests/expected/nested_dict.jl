@@ -5,7 +5,7 @@ end
 
 function main()
     if nested_containers()
-        println(join(["OK"], " "));
+        println(join(["OK"], " "))
     end
 end
 

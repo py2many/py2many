@@ -12,8 +12,8 @@ function complex_test()
 end
 
 function main()
-    complex_test();
-    println(join(["OK"], " "));
+    complex_test()
+    println(join(["OK"], " "))
 end
 
 main()

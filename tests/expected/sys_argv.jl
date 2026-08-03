@@ -10,10 +10,10 @@ function main()
         @assert(findfirst("sys_argv", cmd) != Nothing)
     end
     if length(a) > 1
-        println(join([a[1+1]], " "));
+        println(join([a[1+1]], " "))
     else
 
-        println(join(["OK"], " "));
+        println(join(["OK"], " "))
     end
 end
 

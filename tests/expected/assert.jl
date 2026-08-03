@@ -6,10 +6,10 @@ end
 function main()
     @assert(true)
     @assert(!(false))
-    compare_assert(1, 1);
+    compare_assert(1, 1)
     @assert(true)
     @assert(true)
-    println(join(["OK"], " "));
+    println(join(["OK"], " "))
 end
 
 main()

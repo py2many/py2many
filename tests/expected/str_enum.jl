@@ -11,16 +11,16 @@ function show()
     color_map = Dict(Colors.RED => "1", Colors.GREEN => "2", Colors.BLUE => "3")
     a = Colors.GREEN
     if a == Colors.GREEN
-        println(join(["green"], " "));
+        println(join(["green"], " "))
     else
 
-        println(join(["Not green"], " "));
+        println(join(["Not green"], " "))
     end
-    println(join([length(color_map)], " "));
+    println(join([length(color_map)], " "))
 end
 
 function main()
-    show();
+    show()
 end
 
 main()

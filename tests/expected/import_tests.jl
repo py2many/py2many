@@ -7,7 +7,7 @@ end
 function main()
     b = test()
     @assert(b == 2)
-    println(join(["OK"], " "));
+    println(join(["OK"], " "))
 end
 
 main()
