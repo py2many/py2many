@@ -29,6 +29,7 @@ from .rewriters import (
     LoopElseRewriter,
     PrintBoolRewriter,
     PythonMainRewriter,
+    SelfMutatingMethodRewriter,
     StrStrRewriter,
     UnpackScopeRewriter,
     WithToBlockTransformer,
@@ -89,6 +90,7 @@ def _transpile(
     language = transpiler.NAME
     generic_rewriters = [
         CheckerBlockRemover(language),
+        SelfMutatingMethodRewriter(language),
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         FStringJoinRewriter(language),

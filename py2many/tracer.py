@@ -9,8 +9,28 @@ from py2many.clike import CLikeTranspiler
 from py2many.exceptions import AstNotImplementedError
 
 
+def _binds_variable(name, scopes) -> bool:
+    """True when *name* is bound as a plain variable in one of *scopes*.
+
+    Parameters and assignment targets shadow any class/module of the same
+    name in an outer scope, e.g. ``result = []`` shadowing
+    ``from m import result``.  Class/function definitions are not variables.
+    """
+    for scope in scopes:
+        for var in getattr(scope, "vars", []):
+            if get_id(var) == name and not isinstance(
+                var, (ast.ClassDef, ast.FunctionDef)
+            ):
+                return True
+    return False
+
+
 # TODO: is it slow? is it correct?
 def _lookup_class_or_module(name, scopes) -> Optional[ast.ClassDef]:
+    # Check innermost scopes first: a local variable shadows a same-named
+    # class/module from an outer scope.
+    if _binds_variable(name, reversed(scopes)):
+        return None
     for scope in scopes:
         if not isinstance(scope.body, Iterable):
             continue

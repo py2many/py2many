@@ -4,7 +4,7 @@ from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as 
 import sys
 from dataclasses import dataclass
 from typing import List
-from py2many.spec import CHECKER
+from py2many.spec import CHECKER, result
 from py2many.theorem import by, lemma, theorem
 
 
@@ -13,7 +13,8 @@ class BankAccount:
     balance: int
 
     def deposit(self, amount: int) -> "BankAccount":
-        return BankAccount(self.balance + amount)
+        self.balance += amount
+        return self
 
 
 def safe_sqrt(n: int) -> int:
@@ -84,4 +85,4 @@ def concrete_example() -> bool:
 
 if __name__ == "__main__":
     acct: BankAccount = BankAccount(10)
-    print("OK")
+    print(acct.balance)

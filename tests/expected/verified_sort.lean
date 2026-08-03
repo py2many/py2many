@@ -4,8 +4,9 @@ structure BankAccount where
   balance : Nat
   inv_balance : balance ≥ 0
 
-def BankAccount.deposit (self : BankAccount) (amount : Nat) (pre : amount > 0) : BankAccount :=
-  { balance := (self.balance + amount), inv_balance := by have h0 := self.inv_balance; omega : BankAccount }
+def BankAccount.deposit (self : BankAccount) (amount : Nat) (pre : amount > 0) :
+    { r : BankAccount // r.balance = (self.balance + amount) } :=
+  ⟨{ balance := (self.balance + amount), inv_balance := by have h0 := self.inv_balance; omega : BankAccount }, by rfl⟩
 
 def safe_sqrt (n : Nat) (pre : n ≥ 0) : Nat :=
   Id.run
@@ -72,4 +73,4 @@ theorem concrete_example : ((sort_u64 [3, 1, 4, 1, 5, 9, 2, 6]) == [1, 1, 2, 3, 
 
 def main : IO Unit := do
   let acct := { balance := 10, inv_balance := by omega : BankAccount }
-  IO.println "OK"
+  IO.println (toString acct.balance)

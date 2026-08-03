@@ -120,6 +120,32 @@ class RustStringJoinRewriter(ast.NodeTransformer):
         return node
 
 
+def _mutates_self(node) -> bool:
+    """True when the method body assigns to a ``self`` field (``self.x = ...``)."""
+    for n in ast.walk(node):
+        if isinstance(n, (ast.Assign, ast.AugAssign)):
+            target = n.targets[0] if isinstance(n, ast.Assign) else n.target
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "self"
+            ):
+                return True
+    return False
+
+
+def _returns_self(node) -> bool:
+    """True when the method body returns ``self``."""
+    for n in ast.walk(node):
+        if (
+            isinstance(n, ast.Return)
+            and isinstance(n.value, ast.Name)
+            and n.value.id == "self"
+        ):
+            return True
+    return False
+
+
 class RustTranspiler(CLikeTranspiler):
     NAME = "rust"
 
@@ -295,7 +321,13 @@ class RustTranspiler(CLikeTranspiler):
         if args and args[0] == "self":
             del typenames[0]
             del args[0]
-            args_list.append("&self")
+            # Methods that mutate ``self`` fields or return ``self`` take a
+            # mutable receiver so the mutation is reflected in the returned
+            # reference, matching Python's object semantics.
+            if _mutates_self(node) or _returns_self(node):
+                args_list.append("&mut self")
+            else:
+                args_list.append("&self")
 
         is_python_main = getattr(node, "python_main", False)
         if is_python_main:
@@ -316,7 +348,10 @@ class RustTranspiler(CLikeTranspiler):
         return_type = "" if not is_python_main else "-> Result<()>"
         if node.returns:
             typename = self._typename_from_annotation(node, attr="returns")
-            if getattr(node.returns, "rust_needs_reference", False):
+            if _returns_self(node):
+                # ``return self`` yields the mutable receiver itself.
+                typename = f"&mut {typename}"
+            elif getattr(node.returns, "rust_needs_reference", False):
                 typename = f"&{typename}"
             if getattr(node, "rust_pyresult_type", False):
                 if node.no_return:
@@ -376,6 +411,9 @@ class RustTranspiler(CLikeTranspiler):
                 fndef = scope
                 break
         if node.value:
+            if isinstance(node.value, ast.Name) and node.value.id == "self":
+                # ``self`` already has the right reference type (``&mut T``).
+                return RustReturn("self")
             ret = self.visit(node.value)
             if fndef:
                 if getattr(fndef, "rust_pyresult_type", False):
