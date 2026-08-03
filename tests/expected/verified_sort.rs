@@ -38,10 +38,9 @@ pub struct BankAccount {
 }
 
 impl BankAccount {
-    pub fn deposit(&self, amount: i32) -> BankAccount {
-        return BankAccount {
-            balance: ((self.balance as i32) + amount),
-        };
+    pub fn deposit(&mut self, amount: i32) -> &mut BankAccount {
+        self.balance += amount;
+        return self;
     }
 }
 pub fn safe_sqrt(n: i32) -> i32 {
@@ -116,6 +115,6 @@ pub fn concrete_example() -> bool {
 
 pub fn main() -> Result<()> {
     let acct: BankAccount = BankAccount { balance: 10 };
-    println!("{}", "OK");
+    println!("{}", acct.balance);
     Ok(())
 }

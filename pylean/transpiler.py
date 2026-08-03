@@ -266,13 +266,6 @@ class LeanTranspiler(CLikeTranspiler):
         # Check for @theorem / @lemma and decorators
         decor_keyword = self._get_decorator_name(node, {"theorem", "lemma"})
         by_tactic = self._extract_by_tactic(node)
-        # Check for @pre / @precondition and @post / @postcondition
-        pre_cond = self._extract_decorator_string(
-            node, "pre"
-        ) or self._extract_decorator_string(node, "precondition")
-        post_cond = self._extract_decorator_string(
-            node, "post"
-        ) or self._extract_decorator_string(node, "postcondition")
 
         # Python's `if __name__ == "__main__"` block is rewritten into a main()
         # function; Lean's runtime invokes `main : IO Unit` automatically, so no
@@ -325,6 +318,25 @@ class LeanTranspiler(CLikeTranspiler):
             args_str += f" (pre : {precond})"
             self._precondition_methods.add(node.name)
 
+        # Postcondition (#826): an ``if CHECKER.post:`` block constrains the
+        # return value.  Inside the block, ``result`` names the return value
+        # (Dafny-style); rewrite it to the Lean subtype binder ``r`` and emit
+        # the return type as ``{ r : T // post }``.  Other names (``self``,
+        # parameters) refer to the pre-call state, which is exactly what the
+        # functional Lean translation keeps.  The ``return`` is lifted into the
+        # subtype with ``by rfl``; richer (non-definitional) postconditions
+        # would need a smarter tactic here.
+        post = None
+        if postcond and node.returns and re.search(r"\bresult\b", postcond):
+            post = re.sub(r"\bresult\b", "r", postcond)
+            ret_type = self._collapse_union(
+                self._typename_from_annotation(node, attr="returns")
+            )
+            return_type = f"{{ r : {ret_type} // {post} }}"
+            for stmt in fn_body:
+                if isinstance(stmt, ast.Return) and stmt.value is not None:
+                    stmt.post_return_var = True
+
         # Prepend mutable-parameter shadow bindings
         mut_bindings = self._mutable_param_bindings(node)
 
@@ -339,9 +351,12 @@ class LeanTranspiler(CLikeTranspiler):
             return_type = "IO Unit"
             intro = "do"
         elif node.returns:
-            return_type = self._collapse_union(
-                self._typename_from_annotation(node, attr="returns")
-            )
+            if not post:
+                # With a postcondition the subtype ``{ r : T // post }`` has
+                # already been computed above; keep it as the return type.
+                return_type = self._collapse_union(
+                    self._typename_from_annotation(node, attr="returns")
+                )
             # Pure functions with imperative body (loops, mutation) need
             # ``Id.run do``; simple single-expression bodies could omit
             # the ``do`` but using ``Id.run do`` uniformly is safe and
@@ -382,17 +397,6 @@ class LeanTranspiler(CLikeTranspiler):
             self._int_params = saved_int_params
             return self.indent(out, level=node.level)
 
-        # @pre / @precondition adds a proof parameter
-        if pre_cond:
-            args_str += f" (hpre : {pre_cond})"
-            self._precondition_methods.add(node.name)
-        # @post / @postcondition adds a return-type constraint
-        if post_cond and node.returns:
-            ret_type = self._collapse_union(
-                self._typename_from_annotation(node, attr="returns")
-            )
-            return_type = f"{{ r : {ret_type} // {post_cond} }}"
-
         if (
             not _is_io_function(node)
             and not mut_bindings
@@ -401,6 +405,10 @@ class LeanTranspiler(CLikeTranspiler):
             and fn_body[0].value is not None
         ):
             expr = self.visit(fn_body[0].value)
+            if post:
+                # Lift the single return expression into the postcondition
+                # subtype ``{ r : T // post }`` (definitional case).
+                expr = f"⟨{expr}, by rfl⟩"
             self._bound_vars = saved_bound
             self._dependent_vars = saved_dep
             self._int_params = saved_int_params
@@ -761,7 +769,12 @@ class LeanTranspiler(CLikeTranspiler):
 
     def visit_Return(self, node) -> str:
         if node.value:
-            return f"return {self.visit(node.value)}"
+            rendered = self.visit(node.value)
+            # Lift the returned value into the postcondition subtype
+            # ``{ r : T // post }`` with ``by rfl`` (definitional case).
+            if getattr(node, "post_return_var", False):
+                return f"return ⟨{rendered}, by rfl⟩"
+            return f"return {rendered}"
         return "return"
 
     def visit_Assert(self, node) -> str:

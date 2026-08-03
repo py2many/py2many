@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from py2many.spec import CHECKER
+from py2many.spec import CHECKER, result
 from py2many.theorem import by, lemma, theorem
 
 # ── Class with invariant (CHECKER.invariant) ───────────────────
@@ -19,9 +19,10 @@ class BankAccount:
     def deposit(self, amount: int) -> "BankAccount":
         if CHECKER.pre:
             amount > 0
+        self.balance += amount
         if CHECKER.post:
-            result.balance == self.balance + amount  # noqa: F821 — return value in postcondition
-        return BankAccount(self.balance + amount)
+            result.balance == self.balance + amount
+        return self
 
 
 # ── Function with precondition (CHECKER.pre) ───────────────────
@@ -104,4 +105,4 @@ def concrete_example() -> bool:
 
 if __name__ == "__main__":
     acct = BankAccount(10)
-    print("OK")
+    print(acct.balance)

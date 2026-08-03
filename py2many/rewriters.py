@@ -551,6 +551,128 @@ class LoopElseRewriter(ast.NodeTransformer):
         node.body = body
 
 
+class SelfMutatingMethodRewriter(ast.NodeTransformer):
+    """Rewrite methods that mutate ``self`` fields and ``return self`` into the
+    equivalent functional form ``return ClassName(...)``.
+
+    Backends like Lean and SMT have no in-place object
+    mutation, so ``self.balance += amount; return self`` must become
+    ``return BankAccount(self.balance + amount)``.  The Python backend keeps
+    the mutation as written.  Field updates are folded in program order, so
+    ``self.a += x; self.b = self.a + 1; return self`` becomes
+    ``return C(self.a + x, self.a + 1)`` for fields ``(a, b)``.
+    """
+
+    def __init__(self, language: str):
+        super().__init__()
+        # Python keeps in-place mutation; Rust expresses it natively via a
+        # ``&mut self`` receiver.  The remaining backends get the functional
+        # rewrite.
+        self._enable = language in {"lean", "smt"}
+        self._class_name = None
+        self._class_fields = []
+
+    def visit_ClassDef(self, node):
+        if not self._enable:
+            return node
+        # Field declarations are class-body ``AnnAssign``/``Assign`` to Names
+        # (dataclass style); the order matters for the positional constructor.
+        fields = []
+        for b in node.body:
+            if isinstance(b, ast.AnnAssign) and isinstance(b.target, ast.Name):
+                fields.append(b.target.id)
+            elif (
+                isinstance(b, ast.Assign)
+                and len(b.targets) == 1
+                and isinstance(b.targets[0], ast.Name)
+            ):
+                fields.append(b.targets[0].id)
+        saved_name, saved_fields = self._class_name, self._class_fields
+        self._class_name = node.name
+        self._class_fields = fields
+        self.generic_visit(node)
+        self._class_name, self._class_fields = saved_name, saved_fields
+        return node
+
+    def visit_FunctionDef(self, node):
+        if not self._enable or not self._class_fields:
+            return node
+        args = node.args.args
+        if not args or getattr(args[0], "arg", None) != "self":
+            return node
+
+        # Fold ``self.<field> = / += ...`` updates in program order.
+        cur = {}
+        mutations = []
+        returns_self = False
+        for stmt in node.body:
+            if (
+                isinstance(stmt, (ast.Assign, ast.AugAssign))
+                and len(getattr(stmt, "targets", [stmt.target])) == 1
+                and isinstance(
+                    (stmt.targets if isinstance(stmt, ast.Assign) else stmt.target),
+                    ast.Attribute,
+                )
+            ):
+                target = (
+                    stmt.targets[0] if isinstance(stmt, ast.Assign) else stmt.target
+                )
+                if isinstance(target.value, ast.Name) and target.value.id == "self":
+                    f = target.attr
+                    if f not in self._class_fields:
+                        # Unknown field; don't attempt the rewrite.
+                        return node
+                    left = cur.get(f) or ast.Attribute(
+                        value=ast.Name(id="self", ctx=ast.Load()),
+                        attr=f,
+                        ctx=ast.Load(),
+                    )
+                    if isinstance(stmt, ast.AugAssign):
+                        cur[f] = ast.BinOp(left=left, op=stmt.op, right=stmt.value)
+                    else:
+                        cur[f] = stmt.value
+                    mutations.append(stmt)
+            elif (
+                isinstance(stmt, ast.Return)
+                and isinstance(stmt.value, ast.Name)
+                and stmt.value.id == "self"
+            ):
+                returns_self = True
+
+        if not returns_self or not mutations:
+            return node
+
+        # Rebuild the body: drop the field updates, and point ``return self``
+        # at a fresh constructor call carrying every field (updated ones folded).
+        ctor = ast.Call(
+            func=ast.Name(id=self._class_name, ctx=ast.Load()),
+            args=[
+                cur.get(f)
+                or ast.Attribute(
+                    value=ast.Name(id="self", ctx=ast.Load()),
+                    attr=f,
+                    ctx=ast.Load(),
+                )
+                for f in self._class_fields
+            ],
+            keywords=[],
+        )
+        new_body = []
+        for stmt in node.body:
+            if stmt in mutations:
+                continue
+            if (
+                isinstance(stmt, ast.Return)
+                and isinstance(stmt.value, ast.Name)
+                and stmt.value.id == "self"
+            ):
+                stmt.value = ctor
+            new_body.append(stmt)
+        node.body = new_body
+        ast.fix_missing_locations(node)
+        return node
+
+
 class CheckerBlockRemover(ast.NodeTransformer):
     """Strips ``if CHECKER.pre:`` / ``if CHECKER.post:`` / ``if CHECKER.invariant:``
     blocks from the AST for backends that do not process them (all except Lean).
