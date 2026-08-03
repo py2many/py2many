@@ -1,6 +1,6 @@
 | Language | Cases | Notable failures |
 | --- | --- | --- |
-| Python | 57 |  |
+| Python | 58 |  |
 | V | 48 | global, stdio |
 | Lean | 47 |  |
 | Go | 40 | stdio |

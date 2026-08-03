@@ -18,6 +18,7 @@ IGNORED_MODULE_SET = {
     "py2many.result",
     "py2many.smt",
     "py2many.spec",
+    "py2many.theorem",
 }
 
 
