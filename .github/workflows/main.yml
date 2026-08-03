@@ -15,6 +15,7 @@ on:
         - go
         - julia
         - kotlin
+        - lean
         - nim
         - smt
         - vlang
@@ -211,6 +212,24 @@ jobs:
         run: |
           rustup default stable
           rustup component add clippy rustfmt
+
+      - name: Install lean toolchain
+        if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'lean') }}
+        shell: bash
+        run: |
+          # Lean 4 ships standalone per-platform toolchain archives
+          # (bin/lean, bin/lake, ...), so install directly. Keep the version in
+          # sync with .mise/config.lean.toml ("http:lean").
+          LEAN_VERSION=4.30.0
+          curl -fsSL -o /tmp/lean.zip \
+            "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.zip"
+          unzip -q /tmp/lean.zip -d /opt
+          rm -f /tmp/lean.zip
+          # Make lean/lake available to the Run tox step; also verify now.
+          echo "/opt/lean-${LEAN_VERSION}-linux/bin" >> "$GITHUB_PATH"
+          export PATH="/opt/lean-${LEAN_VERSION}-linux/bin:${PATH}"
+          lean --version
+          lake --version
 
       - name: Run tox
         shell: bash
