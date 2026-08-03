@@ -18,7 +18,7 @@ from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
 
 from .clike import CLikeTranspiler
-from .inference import get_inferred_rust_type, map_type
+from .inference import get_inferred_rust_type, is_rust_reference, map_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
     CLASS_DISPATCH_TABLE,
@@ -386,7 +386,7 @@ class RustTranspiler(CLikeTranspiler):
                     ret = f"Ok({ret})"
                 return_type = self._typename_from_annotation(fndef, attr="returns")
                 value_type = get_inferred_rust_type(node.value)
-                if is_reference(node.value) and not getattr(
+                if is_rust_reference(node.value) and not getattr(
                     fndef.returns, "rust_needs_reference", True
                 ):
                     # TODO: Handle other container types
@@ -537,7 +537,7 @@ class RustTranspiler(CLikeTranspiler):
         ref_args = []
         if fndef and hasattr(fndef, "args"):
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
-                if is_reference(fnarg) and not is_reference(node_arg):
+                if is_reference(fnarg) and not is_rust_reference(node_arg):
                     ref_args.append(f"&{varg}")
                 else:
                     ref_args.append(varg)
