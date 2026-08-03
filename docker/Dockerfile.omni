@@ -12,11 +12,12 @@ ARG FLUTTER_VERSION=3.22.3
 ARG GO_VERSION=1.26.0
 ARG JULIA_VERSION=1.10.5
 ARG KOTLIN_VERSION=1.7.20
+ARG LEAN_VERSION=4.30.0
 ARG NIM_VERSION=2.0.8
 ARG ZIG_VERSION=0.14.0
 
 ENV HOME=/root \
-    PATH="/root/.venv/bin:/root/.juliaup/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:/opt/zig:${PATH}" \
+    PATH="/root/.venv/bin:/root/.juliaup/bin:/root/go/bin:/usr/local/go/bin:/root/.cargo/bin:/root/.pub-cache/bin:/opt/v:/opt/flutter/bin:/opt/dart-sdk/bin:/opt/julia/bin:/opt/kotlinc/bin:/opt/lean/bin:/opt/zig:${PATH}" \
     CXX=clang++ \
     CXXFLAGS="-fuse-ld=lld" \
     CLANG_FORMAT_STYLE=Google \
@@ -65,8 +66,8 @@ RUN apt-get update \
 
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
-      amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64"; nim_arch="x64" ;; \
-      arm64) go_arch="arm64"; zig_arch="aarch64"; julia_path_arch="aarch64"; julia_tar_arch="aarch64"; nim_arch="arm64" ;; \
+      amd64) go_arch="amd64"; zig_arch="x86_64"; julia_path_arch="x64"; julia_tar_arch="x86_64"; nim_arch="x64"; lean_archive="lean-${LEAN_VERSION}-linux" ;; \
+      arm64) go_arch="arm64"; zig_arch="aarch64"; julia_path_arch="aarch64"; julia_tar_arch="aarch64"; nim_arch="arm64"; lean_archive="lean-${LEAN_VERSION}-linux_aarch64" ;; \
       *) echo "Unsupported release target: ${arch}" >&2; exit 1 ;; \
     esac \
     && curl -fsSL -o /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
@@ -92,7 +93,14 @@ RUN arch="$(dpkg --print-architecture)" \
     && rm /tmp/nim.tar.xz \
     && ln -sf /opt/nim/bin/nim /usr/local/bin/nim \
     && ln -sf /opt/nim/bin/nimpretty /usr/local/bin/nimpretty \
-    && nim --version
+    && nim --version \
+    && curl -fsSL -o /tmp/lean.zip \
+      "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/${lean_archive}.zip" \
+    && mkdir -p /opt/lean \
+    && unzip -q /tmp/lean.zip -d /opt/lean --strip-components=1 \
+    && rm /tmp/lean.zip \
+    && lean --version \
+    && lake --version
 
 RUN python3 -m venv "${HOME}/.venv" \
     && source "${HOME}/.venv/bin/activate" \
