@@ -549,3 +549,45 @@ class LoopElseRewriter(ast.NodeTransformer):
                 body.append(n)
 
         node.body = body
+
+
+class CheckerBlockRemover(ast.NodeTransformer):
+    """Strips ``if CHECKER.pre:`` / ``if CHECKER.post:`` / ``if CHECKER.invariant:``
+    blocks from the AST for backends that do not process them (all except Lean).
+
+    Verifies that ``CHECKER`` was imported from ``py2many.spec`` before stripping.
+    """
+
+    def __init__(self, language: str):
+        super().__init__()
+        self._language = language
+        self._checker_import_verified = False
+
+    def _is_checker_import_from_spec(self, tree: ast.Module) -> bool:
+        """Scan module-level imports for ``from py2many.spec import CHECKER``."""
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if node.module == "py2many.spec":
+                    for alias in node.names:
+                        if alias.name == "CHECKER":
+                            return True
+        return False
+
+    def visit_Module(self, node: ast.Module) -> ast.Module:
+        if self._language == "lean":
+            return node  # Lean handles CHECKER blocks itself
+        self._checker_import_verified = self._is_checker_import_from_spec(node)
+        self.generic_visit(node)
+        return node
+
+    def visit_If(self, node: ast.If) -> Any:
+        if not self._checker_import_verified:
+            return node
+        if isinstance(node.test, ast.Attribute):
+            if (
+                isinstance(node.test.value, ast.Name)
+                and node.test.value.id == "CHECKER"
+            ):
+                # Strip the entire if block
+                return None
+        return node

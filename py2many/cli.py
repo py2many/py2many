@@ -20,6 +20,7 @@ from .process_helpers import find_executable
 from .raises_transformer import detect_raises
 from .registry import ALL_SETTINGS, FAKE_ARGS, _get_all_settings
 from .rewriters import (
+    CheckerBlockRemover,
     ComplexDestructuringRewriter,
     DocStringToCommentRewriter,
     DropClassGetItemRewriter,
@@ -87,6 +88,7 @@ def _transpile(
     topo_filenames = [t.__file__ for t in trees]
     language = transpiler.NAME
     generic_rewriters = [
+        CheckerBlockRemover(language),
         ComplexDestructuringRewriter(language),
         PythonMainRewriter(settings.transpiler._main_signature_arg_names),
         FStringJoinRewriter(language),
