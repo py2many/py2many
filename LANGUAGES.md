@@ -4,7 +4,7 @@
 | V | 48 | global, stdio |
 | Lean | 47 |  |
 | Go | 40 | stdio |
-| Rust | 38 | math_func, stdio |
+| Rust | 39 | math_func, stdio |
 | Julia | 37 | fstring, stdio |
 | Dart | 34 | fstring |
 | C++ | 32 | fstring |
