@@ -96,8 +96,8 @@ RUN arch="$(dpkg --print-architecture)" \
     && nim --version \
     && curl -fsSL -o /tmp/lean.zip \
       "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/${lean_archive}.zip" \
-    && mkdir -p /opt/lean \
-    && unzip -q /tmp/lean.zip -d /opt/lean --strip-components=1 \
+    && unzip -q /tmp/lean.zip -d /opt \
+    && mv "/opt/${lean_archive}" /opt/lean \
     && rm /tmp/lean.zip \
     && lean --version \
     && lake --version
