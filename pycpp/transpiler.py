@@ -645,6 +645,28 @@ class CppTranspiler(CLikeTranspiler):
             return f"{value}<{index}>"
         return f"{value}[{index}]"
 
+    def visit_Delete(self, node) -> str:
+        ret = []
+        for target in node.targets:
+            if isinstance(target, ast.Subscript):
+                # integer index => sequence (vector) element removal
+                # anything else => associative container (map) key removal
+                if (
+                    isinstance(target.slice, ast.Constant)
+                    and isinstance(target.slice.value, int)
+                    and not isinstance(target.slice.value, bool)
+                ):
+                    value = self.visit(target.value)
+                    index = self.visit(target.slice)
+                    ret.append(f"{value}.erase({value}.begin() + {index});")
+                else:
+                    value = self.visit(target.value)
+                    key = self.visit(target.slice)
+                    ret.append(f"{value}.erase({key});")
+            else:
+                ret.append(self.visit_unsupported(node, "del"))
+        return "\n".join(ret)
+
     def visit_Tuple(self, node) -> str:
         self._usings.add("<tuple>")
         elts = [self.visit(e) for e in node.elts]

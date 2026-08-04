@@ -447,6 +447,28 @@ class JuliaTranspiler(CLikeTranspiler):
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
 
+    def visit_Delete(self, node) -> str:
+        ret = []
+        for target in node.targets:
+            if isinstance(target, ast.Subscript):
+                # integer index => sequence (array) element removal (1-based)
+                # anything else => associative container (Dict) key removal
+                if (
+                    isinstance(target.slice, ast.Constant)
+                    and isinstance(target.slice.value, int)
+                    and not isinstance(target.slice.value, bool)
+                ):
+                    value = self.visit(target.value)
+                    index = self.visit(target.slice)
+                    ret.append(f"deleteat!({value}, {index} + 1)")
+                else:
+                    value = self.visit(target.value)
+                    key = self.visit(target.slice)
+                    ret.append(f"delete!({value}, {key})")
+            else:
+                ret.append(self.visit_unsupported(node, "del"))
+        return "\n".join(ret)
+
     def visit_Slice(self, node) -> str:
         lower = ""
         if node.lower:

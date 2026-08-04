@@ -400,6 +400,28 @@ class NimTranspiler(CLikeTranspiler):
     def visit_Index(self, node) -> str:
         return self.visit(node.value)
 
+    def visit_Delete(self, node) -> str:
+        ret = []
+        for target in node.targets:
+            if isinstance(target, ast.Subscript):
+                # integer index => sequence (seq) element removal
+                # anything else => associative container (Table) key removal
+                if (
+                    isinstance(target.slice, ast.Constant)
+                    and isinstance(target.slice.value, int)
+                    and not isinstance(target.slice.value, bool)
+                ):
+                    value = self.visit(target.value)
+                    index = self.visit(target.slice)
+                    ret.append(f"{value}.delete({index})")
+                else:
+                    value = self.visit(target.value)
+                    key = self.visit(target.slice)
+                    ret.append(f"{value}.del({key})")
+            else:
+                ret.append(self.visit_unsupported(node, "del"))
+        return "\n".join(ret)
+
     def visit_Slice(self, node) -> str:
         lower = ""
         if node.lower:

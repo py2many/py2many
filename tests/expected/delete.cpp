@@ -5,12 +5,12 @@
 #include <vector>    // NOLINT(build/include_order)
 inline void show() {
   std::vector<int> my_list = {1, 2, 3, 4, 5};
-  /* del unimplemented on line 7:4 */
+  my_list.erase(my_list.begin() + 2);
   std::cout << static_cast<int>(my_list.size());
   std::cout << std::endl;
   std::map<std::string, int> my_dict = std::map<std::string, int>{
       {std::string{"a"}, 1}, {std::string{"b"}, 2}, {std::string{"c"}, 3}};
-  /* del unimplemented on line 12:4 */
+  my_dict.erase(std::string{"b"});
   std::cout << static_cast<int>(my_dict.size());
   std::cout << std::endl;
 }
