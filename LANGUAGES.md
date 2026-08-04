@@ -1,6 +1,6 @@
 | Language | Cases | Notable failures |
 | --- | --- | --- |
-| Python | 65 |  |
+| Python | 64 |  |
 | V | 50 | stdio |
 | Lean | 47 |  |
 | Julia | 41 | stdio |
