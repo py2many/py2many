@@ -39,6 +39,82 @@ def is_mutable(scopes, target: str) -> bool:
     return _is_mutable(scopes, target)
 
 
+# Identifiers that are legal in Python but reserved keywords in V.  When the
+# source uses one as a variable/parameter name we suffix it with ``_`` so the
+# declaration and every reference stay consistent (see ``visit_Name`` and
+# ``visit_arg``).
+V_KEYWORDS = frozenset(
+    [
+        "as",
+        "asm",
+        "assert",
+        "atomic",
+        "break",
+        "byte",
+        "catch",
+        "char",
+        "const",
+        "continue",
+        "defer",
+        "else",
+        "enum",
+        "error",
+        "false",
+        "f32",
+        "f64",
+        "fn",
+        "for",
+        "go",
+        "goto",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "i128",
+        "if",
+        "import",
+        "in",
+        "interface",
+        "is",
+        "isreftype",
+        "lock",
+        "match",
+        "module",
+        "mut",
+        "none",
+        "norace",
+        "or",
+        "pub",
+        "return",
+        "rlock",
+        "select",
+        "shared",
+        "sizeof",
+        "static",
+        "struct",
+        "true",
+        "type",
+        "typeof",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "u128",
+        "unsafe",
+        "volatile",
+        "while",
+        "__offsetof",
+    ]
+)
+
+
+def escape_v_keyword(name: str) -> str:
+    """Append ``_`` to a name if it collides with a V reserved keyword."""
+    if name in V_KEYWORDS:
+        return name + "_"
+    return name
+
+
 _create_ast_node = create_ast_node
 
 
@@ -466,7 +542,9 @@ class VTranspiler(CLikeTranspiler):
         return cls._combine_value_index(value_type, index_type)
 
     def comment(self, text: str) -> str:
-        return f"// {text}\n"
+        # Docstrings are multi-line; prefix every line so none of the text leaks
+        # into the generated V source as raw (unparseable) code.
+        return "\n".join(f"// {line}" for line in str(text).splitlines()) + "\n"
 
     def _import(self, name: str) -> str:
         if should_ignore_import(name):
@@ -509,6 +587,7 @@ class VTranspiler(CLikeTranspiler):
         id = get_id(node)
         if id == "self":
             return (None, "self")
+        id = escape_v_keyword(id)
         typename = ""
         if node.annotation:
             typename = self._typename_from_annotation(node)
@@ -524,6 +603,8 @@ class VTranspiler(CLikeTranspiler):
     def visit_Name(self, node: ast.Name) -> str:
         if node.id == "Error":
             return "ResultError"
+        if node.id in V_KEYWORDS:
+            return node.id + "_"
         return super().visit_Name(node)
 
     def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
