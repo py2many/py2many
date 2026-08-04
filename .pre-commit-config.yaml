@@ -32,3 +32,16 @@ repos:
         args:
           - --filter=-legal/copyright,-whitespace/semicolon,-runtime/reference,-build/include_subdir
           - tests/expected/*.cpp
+-   repo: local
+    hooks:
+    -   id: languages-md
+        name: LANGUAGES.md is up to date
+        description: >-
+          Regenerate LANGUAGES.md from scripts/lang_table.py and fail if the
+          committed file is out of date. Fix by running
+          `python scripts/lang_table.py > LANGUAGES.md` and committing the
+          result.
+        entry: bash -c 'python3 scripts/lang_table.py > /tmp/lang_table.md && diff -u LANGUAGES.md /tmp/lang_table.md; rc=$?; rm -f /tmp/lang_table.md; exit $rc'
+        language: system
+        always_run: true
+        pass_filenames: false
