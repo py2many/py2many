@@ -32,7 +32,14 @@ class JuliaMethodCallRewriter(ast.NodeTransformer):
                 node0 = ast.Name(id=get_id(fname.value), lineno=node.lineno)
             else:
                 node0 = fname.value
-            node.args = [node0] + node.args
+            if new_func_name == "join":
+                # str.join(iterable): the receiver is the delimiter and must
+                # follow the sequence. Julia's join signature is
+                # join([io], iterator, [delim]) so putting the delimiter first
+                # would be mistaken for the io stream and print nothing.
+                node.args = node.args + [node0]
+            else:
+                node.args = [node0] + node.args
             node.func = ast.Name(id=new_func_name, lineno=node.lineno, ctx=fname.ctx)
         return node
 
@@ -120,6 +127,10 @@ class JuliaTranspiler(CLikeTranspiler):
         if is_python_main:
             maybe_main = "\nmain()"
         return f"{funcdef}\n{body}\nend\n{maybe_main}"
+
+    def visit_Starred(self, node) -> str:
+        # Julia supports rest-unpacking in destructuring: a, rest..., b = c
+        return f"{self.visit(node.value)}..."
 
     def visit_Return(self, node) -> str:
         if node.value:
