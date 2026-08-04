@@ -4,7 +4,7 @@ import std.algorithm;
 
 void show() {
   int[] my_list = [1, 2, 3, 4, 5];
-  my_list.remove(2);
+  my_list = my_list.remove(2);
   writeln(format("%s", my_list.length));
   int[string] my_dict = ["a": 1, "b": 2, "c": 3];
   my_dict.remove("b");

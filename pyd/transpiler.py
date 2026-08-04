@@ -471,6 +471,15 @@ class DTranspiler(CLikeTranspiler):
             # tests/test_unsupported.py dict_del: "a = {1: 1}; del a[1]; assert not a",
             value = self.visit(target.value)
             index = self.visit(target.slice)
+            if (
+                isinstance(target.slice, ast.Constant)
+                and isinstance(target.slice.value, int)
+                and not isinstance(target.slice.value, bool)
+            ):
+                # std.algorithm.remove on a dynamic array returns a new slice
+                # rather than mutating in place, so rebind the result.
+                return f"{value} = {value}.remove({index});"
+            # Associative arrays remove entries in place.
             return f"{value}.remove({index});"
 
         self._usings.add("core.memory")

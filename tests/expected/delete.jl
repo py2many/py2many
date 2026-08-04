@@ -1,9 +1,9 @@
 function show()
     my_list = [1, 2, 3, 4, 5]
-    # del unimplemented on line 7:4
+    deleteat!(my_list, 2 + 1)
     println(join([length(my_list)], " "))
     my_dict = Dict("a" => 1, "b" => 2, "c" => 3)
-    # del unimplemented on line 12:4
+    delete!(my_dict, "b")
     println(join([length(my_dict)], " "))
 end
 
