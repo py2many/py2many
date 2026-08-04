@@ -2,14 +2,14 @@
 | --- | --- | --- |
 | Python | 65 |  |
 | V | 50 | stdio |
-| Lean | 48 |  |
-| Julia | 42 | stdio |
-| Go | 41 | stdio |
+| Lean | 47 |  |
+| Julia | 41 | stdio |
+| Go | 40 | stdio |
 | Rust | 39 | math_func, stdio |
 | Dart | 34 | fstring |
 | C++ | 33 | fstring |
 | D | 31 | fstring, coverage |
-| Kotlin | 29 | fstring, math_func, stdio |
+| Kotlin | 28 | fstring, math_func, stdio |
 | Nim | 28 | fstring, math_func, stdio |
 | Mojo | 15 | global, fstring, coverage, stdio, sys_argv |
 | Zig | 14 | global, fstring, cls, coverage, stdio |
