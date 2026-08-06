@@ -183,16 +183,23 @@ class LeanTranspiler(CLikeTranspiler):
         """If ``@by('tactic')`` is present, return the tactic string."""
         return self._extract_decorator_string(node, "by")
 
-    def _theorem_proposition(self, node, fn_body) -> str:
+    def _theorem_proposition(self, node, fn_body, bare=False) -> str:
         """Extract the proposition from a @theorem or @lemma function body.
 
         The body should contain a single ``return <expr>`` statement which
         expresses the property to prove.  Returns the Lean expression.
+
+        ``bare=True`` (used for tactics like ``omega`` that operate on a bare
+        linear-arithmetic Prop) omits the ``= true`` wrapper so the tactic is
+        applied to the arithmetic proposition itself rather than to a Bool
+        equality, which ``omega`` cannot reduce.
         """
         # If body is a single return, use the return expression directly
         if len(fn_body) == 1 and isinstance(fn_body[0], ast.Return):
             expr = fn_body[0].value
             if expr is not None:
+                if bare:
+                    return self.visit(expr)
                 return f"({self.visit(expr)}) = true"
         # Otherwise, build the proposition from the full body
         body_lean = "\n".join(self.visit(s) for s in fn_body)
@@ -383,7 +390,9 @@ class LeanTranspiler(CLikeTranspiler):
         if decor_keyword:
             # Both ``@lemma`` and ``@theorem`` emit ``theorem``; the keyword
             # ``lemma`` was not yet available in Lean 4 v4.32.2.
-            prop = self._theorem_proposition(node, fn_body)
+            # ``omega`` closes a bare linear-arithmetic Prop; a ``= true`` Bool
+            # wrapper is not a goal it can reduce, so pass ``bare=True`` for it.
+            prop = self._theorem_proposition(node, fn_body, bare=(by_tactic == "omega"))
             tactic_block = by_tactic if by_tactic else body
             thm_str = f"{partial}theorem {func_name}{args_str} : {prop} := by"
             if by_tactic:

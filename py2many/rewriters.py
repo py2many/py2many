@@ -606,32 +606,31 @@ class SelfMutatingMethodRewriter(ast.NodeTransformer):
         mutations = []
         returns_self = False
         for stmt in node.body:
-            if (
-                isinstance(stmt, (ast.Assign, ast.AugAssign))
-                and len(getattr(stmt, "targets", [stmt.target])) == 1
-                and isinstance(
-                    (stmt.targets if isinstance(stmt, ast.Assign) else stmt.target),
-                    ast.Attribute,
-                )
-            ):
+            if isinstance(stmt, (ast.Assign, ast.AugAssign)):
+                # target is ``targets[0]`` for Assign, ``target`` for AugAssign;
+                # never touch ``.target`` on an Assign (it does not exist) and
+                # never touch ``.targets`` on an AugAssign (getattr's default is
+                # evaluated eagerly, so it must not read ``.target`` either).
                 target = (
                     stmt.targets[0] if isinstance(stmt, ast.Assign) else stmt.target
                 )
-                if isinstance(target.value, ast.Name) and target.value.id == "self":
-                    f = target.attr
-                    if f not in self._class_fields:
-                        # Unknown field; don't attempt the rewrite.
-                        return node
-                    left = cur.get(f) or ast.Attribute(
-                        value=ast.Name(id="self", ctx=ast.Load()),
-                        attr=f,
-                        ctx=ast.Load(),
-                    )
-                    if isinstance(stmt, ast.AugAssign):
-                        cur[f] = ast.BinOp(left=left, op=stmt.op, right=stmt.value)
-                    else:
-                        cur[f] = stmt.value
-                    mutations.append(stmt)
+                n_targets = len(stmt.targets) if isinstance(stmt, ast.Assign) else 1
+                if n_targets == 1 and isinstance(target, ast.Attribute):
+                    if isinstance(target.value, ast.Name) and target.value.id == "self":
+                        f = target.attr
+                        if f not in self._class_fields:
+                            # Unknown field; don't attempt the rewrite.
+                            return node
+                        left = cur.get(f) or ast.Attribute(
+                            value=ast.Name(id="self", ctx=ast.Load()),
+                            attr=f,
+                            ctx=ast.Load(),
+                        )
+                        if isinstance(stmt, ast.AugAssign):
+                            cur[f] = ast.BinOp(left=left, op=stmt.op, right=stmt.value)
+                        else:
+                            cur[f] = stmt.value
+                        mutations.append(stmt)
             elif (
                 isinstance(stmt, ast.Return)
                 and isinstance(stmt.value, ast.Name)
