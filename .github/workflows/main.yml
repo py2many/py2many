@@ -243,6 +243,8 @@ jobs:
             export TOXENV="py${PYTHON_VERSION//.}-full"
             tox -v 2>&1 | tee tests/tox.log
           elif [ "$FOCUS" ]; then
+            # Single-language envs (e.g. lean) don't install pytest-cov and
+            # their tox command runs no coverage, so don't pass coverage flags.
             export TOXENV="py${PYTHON_VERSION//.}-${FOCUS}"
             export PYTEST_ADDOPTS="-k $FOCUS"
             tox -v 2>&1 | tee tests/tox.log
