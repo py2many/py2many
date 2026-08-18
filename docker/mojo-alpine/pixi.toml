@@ -8,7 +8,7 @@ version = "0.1.0"
 [tasks]
 
 [dependencies]
-mojo = "==0.26.2.0"
+mojo = "==1.0.0"
 gcc_linux-64 = ">=15.2.0,<16"
 gxx_linux-64 = ">=15.2.0,<16"
 sysroot_linux-64 = "==2.34"

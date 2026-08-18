@@ -1,2 +1,2 @@
 [tools]
-"pipx:mojo" = { version = "0.26.2.0", uvx = false, pipx_args = "--include-deps", os = ["linux/x64", "linux/arm64", "macos/arm64"] }
+"pipx:mojo" = { version = "1.0.0", uvx = false, pipx_args = "--include-deps", os = ["linux/x64", "linux/arm64", "macos/arm64"] }
