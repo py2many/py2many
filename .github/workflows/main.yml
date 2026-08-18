@@ -245,7 +245,7 @@ jobs:
           elif [ "$FOCUS" ]; then
             export TOXENV="py${PYTHON_VERSION//.}-${FOCUS}"
             export PYTEST_ADDOPTS="-k $FOCUS"
-            tox -v -- --cov-fail-under=0 2>&1 | tee tests/tox.log
+            tox -v 2>&1 | tee tests/tox.log
           else
             export TOXENV="py${PYTHON_VERSION//.}-full"
             tox -v 2>&1 | tee tests/tox.log
