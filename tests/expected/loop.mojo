@@ -1,4 +1,4 @@
-fn for_with_break():
+def for_with_break() raises:
     for i in range(4):
         if i == 2:
             break
@@ -6,7 +6,7 @@ fn for_with_break():
         print(i)
 
 
-fn for_with_continue():
+def for_with_continue() raises:
     for i in range(4):
         if i == 2:
             continue
@@ -14,7 +14,7 @@ fn for_with_continue():
         print(i)
 
 
-fn for_with_else():
+def for_with_else() raises:
     var has_break = False
     for i in range(4):
         print(i)
@@ -22,7 +22,7 @@ fn for_with_else():
         print("OK")
 
 
-fn while_with_break():
+def while_with_break() raises:
     var i = 0
     while True:
         if i == 2:
@@ -32,7 +32,7 @@ fn while_with_break():
         i += 1
 
 
-fn while_with_continue():
+def while_with_continue() raises:
     var i = 0
     while i < 5:
         i += 1
@@ -42,7 +42,7 @@ fn while_with_continue():
         print(i)
 
 
-fn main():
+def main() raises:
     for_with_break()
     for_with_continue()
     for_with_else()

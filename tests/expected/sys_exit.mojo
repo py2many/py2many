@@ -1,6 +1,6 @@
-import sys
+from std.sys import exit
 
 
-fn main():
+def main() raises:
     print("OK")
-    sys.exit(1)
+    exit(1)

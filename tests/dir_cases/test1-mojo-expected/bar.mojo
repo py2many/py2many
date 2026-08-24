@@ -1,2 +1,2 @@
-fn bar1() -> Int:
+def bar1() raises -> Int:
     return 0

@@ -1,7 +1,7 @@
-fn main_func():
+def main_func() raises:
     var a = 2**4
     print(a)
 
 
-fn main():
+def main() raises:
     main_func()
