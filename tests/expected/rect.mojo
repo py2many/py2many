@@ -1,25 +1,26 @@
-import testing
-
 # This file implements a rectangle class
 
 
-@value
 struct Rectangle:
     var height: Int
     var length: Int
 
-    fn is_square(self: Rectangle) -> Bool:
+    def __init__(out self, height: Int, length: Int):
+        self.height = height
+        self.length = length
+
+    def is_square(self: Rectangle) raises -> Bool:
         return self.height == self.length
 
 
-fn show() raises:
+def show() raises:
     var r = Rectangle(height=1, length=1)
-    testing.assert_true(r.is_square())
+    assert r.is_square()
     r = Rectangle(height=1, length=2)
-    testing.assert_true(not (r.is_square()))
+    assert not (r.is_square())
     print(r.height)
     print(r.length)
 
 
-fn main() raises:
+def main() raises:
     show()

@@ -1,12 +1,9 @@
-import testing
-
-
-fn foo() raises:
+def foo() raises:
     var a = 10
     var b = a
-    testing.assert_true(b == 10)
+    assert b == 10
     print(b)
 
 
-fn main() raises:
+def main() raises:
     foo()

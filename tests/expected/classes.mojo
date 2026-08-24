@@ -1,19 +1,16 @@
-import testing
-
-
 struct Foo:
-    fn __init__(out self: Foo):
+    def __init__(out self: Foo):
         pass
 
-    fn bar(self: Foo) -> Int:
+    def bar(self: Foo) raises -> Int:
         return self.baz()
 
-    fn baz(self: Foo) -> Int:
+    def baz(self: Foo) raises -> Int:
         return 10
 
 
-fn main() raises:
+def main() raises:
     var f = Foo()
     var b = f.bar()
     print(b)
-    testing.assert_true(b == 10)
+    assert b == 10

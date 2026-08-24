@@ -1,35 +1,35 @@
-import testing
-
-
-fn implicit_keys() -> Bool:
+def implicit_keys() raises -> Bool:
     var CODES = {"KEY": 1}
     return "KEY" in CODES
 
 
-fn explicit_keys() -> Bool:
+def explicit_keys() raises -> Bool:
     var CODES = {"KEY": 1}
-    return "KEY" in CODES.keys()
+    return "KEY" in CODES
 
 
-fn dict_values() -> Bool:
+def dict_values() raises -> Bool:
     var CODES = {"KEY": 1}
-    return 1 in CODES.values()
+    for _value in CODES.values():
+        if _value == 1:
+            return True
+    return False
 
 
-fn return_dict_index_str(key: String) -> Int:
+def return_dict_index_str(key: String) raises -> Int:
     var CODES = {"KEY": 1}
     return CODES[key]
 
 
-fn return_dict_index_int(key: Int) -> String:
+def return_dict_index_int(key: Int) raises -> String:
     var CODES = {1: "one"}
     return CODES[key]
 
 
-fn main() raises:
-    testing.assert_true(implicit_keys())
-    testing.assert_true(explicit_keys())
-    testing.assert_true(dict_values())
-    testing.assert_true(return_dict_index_str("KEY") == 1)
-    testing.assert_true(return_dict_index_int(1) == "one")
+def main() raises:
+    assert implicit_keys()
+    assert explicit_keys()
+    assert dict_values()
+    assert return_dict_index_str("KEY") == 1
+    assert return_dict_index_int(1) == "one"
     print("OK")

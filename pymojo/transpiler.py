@@ -40,14 +40,59 @@ class MojoTranspiler(CLikeTranspiler):
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._func_usings_map = FUNC_USINGS_MAP
+        self._from_imports = set()
+        self._tmp_counter = 0
 
     def indent(self, code, level=1):
         return self._indent * level + code
 
     def usings(self):
-        usings = sorted(list(set(self._usings)))
+        # mojo 1.0 moved stdlib modules under std.* and removed some top level
+        # modules entirely; those are emitted as from-imports instead
+        dropped = {"sys", "testing", "math"}
+        usings = sorted(m for m in set(self._usings) if m not in dropped)
         uses = "\n".join(f"import {mod}" for mod in usings)
-        return uses
+        from_imports = getattr(self, "_from_imports", set())
+        from_lines = "\n".join(
+            f"from {module} import {name}" for module, name in sorted(from_imports)
+        )
+        if uses and from_lines:
+            return f"{uses}\n{from_lines}"
+        return uses or from_lines
+
+    def _mutated_container_args(self, node, container_args) -> set:
+        """Names of container-typed args mutated in the function body.
+
+        mojo 1.0 binds arguments as immutable references; mutating ones must be
+        declared with the var convention, which requires callers to transfer
+        them with '^'.
+        """
+        mutated = set()
+
+        def base_name(target):
+            while isinstance(target, (ast.Subscript, ast.Attribute)):
+                target = target.value
+            return get_id(target)
+
+        def iter_targets(targets):
+            for target in targets:
+                if isinstance(target, ast.Tuple):
+                    yield from iter_targets(target.elts)
+                else:
+                    yield target
+
+        for child in ast.walk(node):
+            if isinstance(child, ast.Assign):
+                targets = list(iter_targets(child.targets))
+            elif isinstance(child, ast.AugAssign):
+                targets = [child.target]
+            else:
+                continue
+            for target in targets:
+                name = base_name(target)
+                if name in container_args:
+                    mutated.add(name)
+        return mutated
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
@@ -66,15 +111,24 @@ class MojoTranspiler(CLikeTranspiler):
         if len(args) and hasattr(node, "self_type"):
             typenames[0] = node.self_type
 
+        # mojo 1.0 binds arguments as immutable references; container args that
+        # are mutated need the var convention, and callers must transfer them
+        container_args = {
+            args[i]: typenames[i]
+            for i in range(len(args))
+            if typenames[i] and "[" in typenames[i]
+        }
+        mutated = self._mutated_container_args(node, set(container_args) - {"self"})
+        node._mojo_owned_params = frozenset(mutated)
+
         for i in range(len(args)):
             typename = typenames[i]
             arg = args[i]
-            arg_node = node.args.args[i]
             # special case constructor self which mojo says should be passes as "out"
             if node.name == "__init__" and arg == "self":
                 arg = "out " + arg
-            elif getattr(arg_node, "owned", None):
-                arg = "owned " + arg
+            elif arg in mutated:
+                arg = "var " + arg
 
             args_list.append(f"{arg}: {typename}")
 
@@ -85,16 +139,51 @@ class MojoTranspiler(CLikeTranspiler):
                 return_type = f"{typename}"
             else:
                 return_type = ""
-        raises = " raises" if hasattr(node, "raises") else ""
+        # mojo 1.0: many operations raise (dict subscript, assert_true, ...);
+        # mark everything except constructors as raising
+        raises = "" if node.name == "__init__" else " raises"
 
         args = ", ".join(args_list)
         if return_type != "":
-            funcdef = f"fn {node.name}({args}){raises} -> {return_type}:"
+            funcdef = f"def {node.name}({args}){raises} -> {return_type}:"
         else:
-            funcdef = f"fn {node.name}({args}){raises}:"
+            funcdef = f"def {node.name}({args}){raises}:"
         return self.indent(f"{funcdef}\n{body}\n", level=node.level)
 
+    def visit_Import(self, node) -> str:
+        # mojo 1.0 has no top level sys/testing modules; references are
+        # rewritten to std.* equivalents (and emit their own imports)
+        names = [alias.name.split(".")[0] for alias in node.names]
+        if any(name in {"sys", "testing"} for name in names):
+            return ""
+        return super().visit_Import(node)
+
     def visit_Return(self, node) -> str:
+        value = node.value
+        # mojo 1.0 dict iterators do not implement __contains__
+        if (
+            isinstance(value, ast.Compare)
+            and isinstance(value.ops[0], ast.In)
+            and isinstance(value.comparators[0], ast.Call)
+            and isinstance(value.comparators[0].func, ast.Attribute)
+            and value.comparators[0].func.attr == "values"
+        ):
+            base = self.visit(value.comparators[0].func.value)
+            left = self.visit(value.left)
+            # Return nodes carry no nesting level; indent relative to the
+            # enclosing function body (the caller indents the first line)
+            body_level = 1
+            for scope in getattr(node, "scopes", []):
+                if isinstance(scope, ast.FunctionDef):
+                    body_level = scope.level + 2
+                    break
+            lines = [
+                f"for _value in {base}.values():",
+                self.indent(f"if _value == {left}:", level=body_level),
+                self.indent("return True", level=body_level + 1),
+                self.indent("return False", level=body_level - 1),
+            ]
+            return "\n".join(lines)
         if node.value:
             ret = self.visit(node.value)
             fndef = None
@@ -174,6 +263,20 @@ class MojoTranspiler(CLikeTranspiler):
             vargs += [self.visit(a) for a in node.args]
         if node.keywords:
             vargs += [self.visit(kw.value) for kw in node.keywords]
+
+        # callers must transfer mutable container args with '^'
+        if isinstance(fndef, ast.FunctionDef):
+            owned = getattr(fndef, "_mojo_owned_params", frozenset())
+            if owned:
+                # match positionally against the callee's signature; the
+                # call site arg list may have been rewritten to a plain list
+                def_args = (
+                    fndef.args.args if isinstance(fndef.args, ast.arguments) else []
+                )
+                param_names = [getattr(a, "arg", None) for a in def_args]
+                for i in range(min(len(param_names), len(vargs))):
+                    if param_names[i] in owned and not vargs[i].endswith("^"):
+                        vargs[i] += "^"
 
         ret = self._dispatch(node, fname, vargs)
         if ret is not None:
@@ -277,7 +380,7 @@ class MojoTranspiler(CLikeTranspiler):
             DECORATOR_DISPATCH_TABLE.get(d, lambda x, y: y)(self, node)
             for d in decorators
         ]
-        mojo_decorators = "\n".join([f"@{d}" for d in decorators])
+        mojo_decorators = "\n".join(f"@{d}" for d in decorators if d)
         if mojo_decorators != "":
             mojo_decorators = mojo_decorators + "\n"
         decorators = [
@@ -299,10 +402,40 @@ class MojoTranspiler(CLikeTranspiler):
         struct_def = f"{mojo_decorators}struct {node.name}:\n"
         struct_def += "\n".join([self.indent(f, level=node.level + 1) for f in fields])
         struct_def += "\n"
+
+        # mojo 1.0 removed @value; synthesize a memberwise constructor for
+        # dataclass-style structs that lack a user defined __init__
+        is_dataclass = any(
+            get_id(d) == "dataclass" for d in getattr(node, "decorator_list", [])
+        )
+        has_user_init = any(
+            isinstance(b, ast.FunctionDef) and b.name == "__init__" for b in node.body
+        )
+        synth_init = ""
+        if is_dataclass and declarations and not has_user_init:
+            params = ", ".join(
+                f"{name}: {typ}"
+                for name, typ in declarations.items()
+                if typ is not None
+            )
+            assigns = "\n".join(
+                self.indent(f"self.{name} = {name}", level=node.level + 2)
+                for name, typ in declarations.items()
+                if typ is not None
+            )
+            synth_init = (
+                self.indent(f"def __init__(out self, {params}):", level=node.level + 1)
+                + "\n"
+                + assigns
+                + "\n"
+            )
+
         for b in node.body:
             if isinstance(b, ast.FunctionDef):
                 b.self_type = node.name
         body = "\n".join([self.visit(b) for b in node.body])
+        if synth_init:
+            return f"{struct_def}\n{synth_init}\n{body}"
         return f"{struct_def}\n{body}"
 
     def visit_IntEnum(self, node) -> str:
@@ -351,7 +484,6 @@ class MojoTranspiler(CLikeTranspiler):
         return f"import {name}"
 
     def _import_from(self, module_name: str, names: List[str], level: int = 0) -> str:
-        names = ", ".join(names)
         if len(names) == 1:
             # TODO: make this more generic so it works for len(names) > 1
             name = names[0]
@@ -359,12 +491,23 @@ class MojoTranspiler(CLikeTranspiler):
             if lookup in MODULE_DISPATCH_TABLE:
                 mojo_module_name, mojo_name = MODULE_DISPATCH_TABLE[lookup]
                 return f"from {mojo_module_name} import {mojo_name}"
-        return f"from {module_name} import {names}"
+        joined = ", ".join(names)
+        # mojo 1.0 moved stdlib modules under std.*
+        if module_name in {
+            "math",
+            "sys",
+            "testing",
+            "collections",
+        } and not module_name.startswith("std"):
+            module_name = f"std.{module_name}"
+        return f"from {module_name} import {joined}"
 
     def visit_List(self, node) -> str:
         elements = [self.visit(e) for e in node.elts]
-        elements = ", ".join(elements)
-        return f"List({elements})"
+        elements_str = ", ".join(elements)
+        # mojo 1.0 removed the variadic List constructor; an array literal
+        # converts to a dynamic List when wrapped
+        return f"List([{elements_str}])"
 
     def visit_Set(self, node) -> str:
         self._usings.add("sets")
@@ -410,8 +553,8 @@ class MojoTranspiler(CLikeTranspiler):
         return f"({elts})"
 
     def visit_Assert(self, node) -> str:
-        self._usings.add("testing")
-        return f"testing.assert_true({self.visit(node.test)})"
+        # mojo 1.0 supports native assert statements
+        return f"assert {self.visit(node.test)}"
 
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
@@ -432,6 +575,28 @@ class MojoTranspiler(CLikeTranspiler):
         kw = "var"  # mojo 24.1 removed support for let
 
         if isinstance(target, ast.Tuple):
+            if (
+                isinstance(node.value, ast.Tuple)
+                and len(target.elts) == len(node.value.elts)
+                and any(
+                    isinstance(t, (ast.Subscript, ast.Attribute)) for t in target.elts
+                )
+            ):
+                # mojo 1.0 does not support tuple assignment; evaluate the rhs
+                # into temps, then assign back
+                self._tmp_counter += 1
+                n = self._tmp_counter
+                lines = []
+                tmps = []
+                for i, v in enumerate(node.value.elts):
+                    tmp = f"tmp{n}_{i}"
+                    tmps.append(tmp)
+                    lines.append(f"{kw} {tmp} = {self.visit(v)}")
+                for i, t in enumerate(target.elts):
+                    lines.append(f"{self.visit(t)} = {tmps[i]}")
+                return "\n".join(
+                    [lines[0]] + [self.indent(line, node.level) for line in lines[1:]]
+                )
             elts = [self.visit(e) for e in target.elts]
             elts_str = ", ".join(elts)
             value = self.visit(node.value)
@@ -469,11 +634,8 @@ class MojoTranspiler(CLikeTranspiler):
         return "yield nil"
 
     def visit_Print(self, node) -> str:
-        buf = []
-        for n in node.values:
-            value = self.visit(n)
-            buf.append(f'print("{{:?}}",{value})')
-        return "\n".join(buf)
+        values = [self.visit(n) for n in node.values]
+        return f"print({', '.join(values)})"
 
     def visit_IfExp(self, node) -> str:
         body = self.visit(node.body)

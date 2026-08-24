@@ -1,2 +1,2 @@
-fn baz1() -> String:
+def baz1() raises -> String:
     return "foo"

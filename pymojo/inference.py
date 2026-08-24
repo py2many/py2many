@@ -38,18 +38,18 @@ MOJO_CONTAINER_TYPE_MAP = {
 }
 
 MOJO_WIDTH_RANK = {
-    "bool": 0,
-    "int8": 1,
-    "uint8": 2,
-    "int16": 3,
-    "uint16": 4,
-    "int32": 5,
-    "uint32": 6,
-    "int64": 7,
-    "uint64": 8,
-    "float32": 9,
-    "float64": 10,
-    "float": 9,
+    "Bool": 0,
+    "Int8": 1,
+    "UInt8": 2,
+    "Int16": 3,
+    "UInt16": 4,
+    "Int32": 5,
+    "UInt32": 6,
+    "Int64": 7,
+    "Int": 7,
+    "UInt64": 8,
+    "Float32": 9,
+    "Float64": 10,
 }
 
 

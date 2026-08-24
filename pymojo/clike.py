@@ -3,7 +3,7 @@ from keyword import kwlist, softkwlist
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 
-from .inference import MOJO_CONTAINER_TYPE_MAP, MOJO_TYPE_MAP, MOJO_WIDTH_RANK
+from .inference import MOJO_CONTAINER_TYPE_MAP, MOJO_TYPE_MAP
 
 # allowed as names in Python but treated as keywords in Mojo
 mojo_keywords = frozenset(
@@ -75,15 +75,16 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         op = self.visit(node.op)
         right = self.visit(node.right)
 
-        left_type = self._typename_from_annotation(node.left)
-        right_type = self._typename_from_annotation(node.right)
+        left_type = self._typename_from_annotation(node.left) or ""
+        right_type = self._typename_from_annotation(node.right) or ""
 
-        left_rank = MOJO_WIDTH_RANK.get(left_type, -1)
-        right_rank = MOJO_WIDTH_RANK.get(right_type, -1)
-
-        if left_rank > right_rank:
+        # mojo will not implicitly mix integer and floating point operands;
+        # promote the integer side to the floating point type
+        left_float = left_type.startswith("Float")
+        right_float = right_type.startswith("Float")
+        if left_float and not right_float:
             right = f"{left_type}({right})"
-        elif right_rank > left_rank:
+        elif right_float and not left_float:
             left = f"{right_type}({left})"
 
         return f"({left} {op} {right})"
@@ -97,7 +98,16 @@ class CLikeTranspiler(CommonCLikeTranspiler):
 
     def visit_In(self, node) -> str:
         left = self.visit(node.left)
-        right = self.visit(node.comparators[0])
+        right_node = node.comparators[0]
+        # mojo 1.0 dict key iterators do not implement __contains__;
+        # membership on keys is equivalent to membership on the dict itself
+        if (
+            isinstance(right_node, ast.Call)
+            and isinstance(right_node.func, ast.Attribute)
+            and right_node.func.attr == "keys"
+        ):
+            right_node = right_node.func.value
+        right = self.visit(right_node)
         left_type = self._typename_from_annotation(node.left)
         if left_type == "string":
             self._usings.add("strutils")

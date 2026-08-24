@@ -170,7 +170,7 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       && printf '#!/bin/sh\nexport PATH=/opt/mojo-toolchain:$PATH\nexec %s/life/.pixi/envs/default/bin/mojo "$@"\n' "${HOME}" > /usr/local/bin/mojo \
       && chmod +x /usr/local/bin/mojo \
       && mojo --version \
-      && printf 'fn main():\n    print("mojo build works on alpine")\n' > /tmp/t.mojo \
+      && printf 'def main():\n    print("mojo build works on alpine")\n' > /tmp/t.mojo \
       && mojo build /tmp/t.mojo -o /tmp/t.out && /tmp/t.out \
       && mojo format /tmp/t.mojo \
       && rm -f /tmp/t.mojo /tmp/t.out; \
