@@ -1,4 +1,5 @@
 import ast
+import re
 from keyword import kwlist, softkwlist
 
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
@@ -47,6 +48,32 @@ def mojo_symbol(node):
     return mojo_symbols[symbol_type]
 
 
+def _int_type_parts(name):
+    """Return (is_signed, bit_width) for IntN/UIntN type names, else None"""
+    m = re.fullmatch(r"U?Int(8|16|32|64)", name or "")
+    if not m:
+        return None
+    return (not name.startswith("U"), int(m.group(1)))
+
+
+def _common_signed_type(left_type, right_type):
+    """Smallest signed Mojo type that can hold both operand types.
+
+    Returns None when the operands are not mixed-sign integers, or when no
+    signed type is wide enough (e.g. UInt64 mixed with a signed type).
+    """
+    left = _int_type_parts(left_type)
+    right = _int_type_parts(right_type)
+    if not left or not right or left[0] == right[0]:
+        return None
+    unsigned_bits = max(left[1], right[1])
+    for bits in (8, 16, 32, 64):
+        # one extra bit is needed for the sign
+        if bits > unsigned_bits:
+            return f"Int{bits}"
+    return None
+
+
 class CLikeTranspiler(CommonCLikeTranspiler):
     def __init__(self):
         super().__init__()
@@ -86,6 +113,14 @@ class CLikeTranspiler(CommonCLikeTranspiler):
             right = f"{left_type}({right})"
         elif right_float and not left_float:
             left = f"{right_type}({left})"
+        else:
+            # mojo will not mix signed and unsigned integers either; promote
+            # both sides to their smallest common signed type, mirroring C's
+            # usual arithmetic conversions
+            common = _common_signed_type(left_type, right_type)
+            if common:
+                left = f"{common}({left})"
+                right = f"{common}({right})"
 
         return f"({left} {op} {right})"
 
