@@ -22,18 +22,20 @@ conan = "latest"
 
 [env]
 # Inject conda-libcxx-devel into clang's include/link paths for the cpp tests
-# (CCC_OVERRIDE_OPTIONS is clang-driver only; g++ ignores it). Windows ignores
-# missing dirs. macOS skips the override because conda-libcxx-devel conflicts
-# with Apple's Command Line Tools SDK headers (`xcode-select --install`), which
-# the cpp tests then depend on instead.
-CCC_OVERRIDE_OPTIONS = "{% if os() == 'macos' %}{% else %}+-isystem +{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/include/c++/v1 +-L +{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/lib{% endif %}"
-LD_LIBRARY_PATH = "{% if os() == 'macos' %}{% else %}{{ env.HOME }}/.local/share/mise/installs/conda-libcxx-devel/latest/lib{% endif %}"
+# (CCC_OVERRIDE_OPTIONS is clang-driver only; g++ ignores it). The per-OS values
+# come from the cxx_* vars in config.<os>.toml: Linux uses conda-libcxx-devel's
+# libc++; macOS leaves them empty (conda-libcxx-devel conflicts with Apple's
+# Command Line Tools SDK headers, which the cpp tests depend on instead); Windows
+# leaves them empty (the mingw g++ ignores them and LD_LIBRARY_PATH is a no-op).
+CCC_OVERRIDE_OPTIONS = "{{ vars.cxx_override }}"
+LD_LIBRARY_PATH = "{{ vars.cxx_libdir }}"
 
-# test_env_cxx_gcc needs a real GCC g++. On macOS plain `g++` is Apple's
-# clang shim, so point at conda-gxx's binary (and the test augments PATH with
-# its bin/ so g++ finds its sibling clang assembler). On Linux plain `g++` is
-# real GCC. On Windows the test uses the http:mingw toolchain.
-CXX_GCC = "{% if os() == 'macos' %}{{ env.HOME }}/.local/share/mise/installs/conda-gxx/latest/bin/g++{% endif %}"
+# test_env_cxx_gcc needs a real GCC g++. The CXX_GCC var (config.<os>.toml) is
+# set only on macOS, to conda-gxx's binary, because there plain `g++` is Apple's
+# clang shim (and the test augments PATH with its bin/ so g++ finds its sibling
+# clang assembler). On Linux plain `g++` is real GCC and on Windows the test uses
+# the http:mingw toolchain, so CXX_GCC is empty on both.
+CXX_GCC = "{{ vars.cxx_gcc }}"
 
 [tasks."setup:cpp"]
 description = "Install C++ deps"

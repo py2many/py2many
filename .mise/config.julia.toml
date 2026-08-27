@@ -3,11 +3,11 @@ julia = { version = "latest", platforms = { linux-arm64 = { url = """{% if versi
 
 [env]
 # ~/.julia/bin holds the JuliaFormatter `jlfmt` app (scripts/julia-setup.sh); it
-# must be on PATH so the formatter resolves directly. The home location differs
-# on Windows (native %USERPROFILE% rather than git-bash's /c/... $HOME), so this
-# entry is OS-specific.
+# must be on PATH so the formatter resolves directly. The `home` var comes from
+# config.<os>.toml: native %USERPROFILE% on Windows (not git-bash's /c/... $HOME),
+# $HOME elsewhere.
 _.path = [
-  "{% if os() == 'windows' %}{{ env.USERPROFILE }}{% else %}{{ env.HOME }}{% endif %}/.julia/bin",
+  "{{ vars.home }}/.julia/bin",
 ]
 
 [tasks."setup:julia"]
