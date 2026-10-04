@@ -9,5 +9,5 @@ def nested_containers : Bool :=
       return (CODES["KEY"]!).contains 1)
 
 def main : IO Unit := do
-  if nested_containers then
+  if h1 : nested_containers then
     IO.println "OK"

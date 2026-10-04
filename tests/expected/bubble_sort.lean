@@ -7,7 +7,7 @@ def bubble_sort (seq : List Nat) : List Nat :=
       let L := (seq).length
       for _ in (List.range L) do
         for n in (List.range' 1 (L - 1)) do
-          if seq[n]! < seq[(n - 1)]! then
+          if h1 : seq[n]! < seq[(n - 1)]! then
             let (__tmp1, __tmp2) := (seq[n]!, seq[(n - 1)]!)
             seq := seq.set (n - 1) __tmp1
             seq := seq.set n __tmp2

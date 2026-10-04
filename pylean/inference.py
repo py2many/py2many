@@ -34,8 +34,11 @@ LEAN_TYPE_MAP = {
 
 LEAN_CONTAINER_TYPE_MAP = {
     "List": "List",
+    "list": "List",
     "Dict": "Std.HashMap",
+    "dict": "Std.HashMap",
     "Set": "Std.HashSet",
+    "set": "Std.HashSet",
     "Optional": "Option",
 }
 

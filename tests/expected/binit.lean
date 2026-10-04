@@ -7,7 +7,7 @@ def bisect_right (data : List Nat) (item : Nat) : Nat :=
       let mut high : Nat := ((data).length : Nat)
       while low < high do
         let middle := (((low + high) / 2)).toUInt64.toNat
-        if item < data[middle]! then
+        if h1 : item < data[middle]! then
           high := middle
         else
           low := (middle + 1)

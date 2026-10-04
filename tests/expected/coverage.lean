@@ -57,22 +57,22 @@ def show_ : IO Unit := do
   let a7 : Std.HashMap _ _ := ((({ } : Std.HashMap _ _).insert "a" 1).insert "b" 2)
   IO.println (toString (a7).size)
   let a8 := true
-  if a8 then
+  if h1 : a8 then
     IO.println "true"
   else
-    if a4 > 0 then
+    if h2 : a4 > 0 then
       IO.println "never get here"
-  if a1 == 11 then
+  if h3 : a1 == 11 then
     IO.println "false"
   else
     IO.println "true"
-  if true then
+  if h4 : true then
     IO.println "World is sane"
   IO.println (toString (if true then "True" else "False"))
-  if true then
+  if h5 : true then
     a1 := a1 + 1
   assert! a1 == 11
-  if true then
+  if h6 : true then
     IO.println "true"
   inline_pass
   let s := "1    2"

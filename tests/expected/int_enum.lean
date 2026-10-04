@@ -32,12 +32,12 @@ def show_ : IO Unit := do
   let color_map : Std.HashMap _ _ :=
     (((({ } : Std.HashMap _ _).insert Colors.RED "red").insert Colors.GREEN "green").insert Colors.BLUE "blue")
   let a := Colors.GREEN
-  if a == Colors.GREEN then
+  if h1 : a == Colors.GREEN then
     IO.println "green"
   else
     IO.println "Not green"
   let b := Permissions.R
-  if b == Permissions.R then
+  if h2 : b == Permissions.R then
     IO.println "R"
   else
     IO.println "Not R"

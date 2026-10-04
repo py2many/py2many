@@ -12,7 +12,7 @@ def test_python (iterations : Nat) : IO Unit := do
       total := total + (Float.ofNat array[((iteration + innerloop) % array_length)]!)
       innerloop := innerloop + 1
     iteration := iteration + 1
-  if (total == (Float.ofNat 15150)) then
+  if h1 : (total == (Float.ofNat 15150)) then
     IO.println
         "OK"
           -- del unimplemented for Name(id='array', ctx=Del())

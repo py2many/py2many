@@ -5,6 +5,7 @@ from typing import List
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.inference import get_inferred_type
 
 from .clike import CLikeTranspiler
 from .inference import LEAN_WIDTH_RANK
@@ -47,6 +48,137 @@ def _is_io_function(node) -> bool:
     return False
 
 
+_INHABITED_BASE_TYPES = frozenset(
+    {
+        "Nat",
+        "Int",
+        "String",
+        "Bool",
+        "Float",
+        "UInt8",
+        "UInt16",
+        "UInt32",
+        "UInt64",
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
+    }
+)
+_INHABITED_CONTAINER_HEADS = ("List ", "Option ", "Array ")
+
+
+def _has_negative_int(node) -> bool:
+    """True when an expression contains a negative integer literal."""
+    if node is None:
+        return False
+    for child in ast.walk(node):
+        if isinstance(child, ast.UnaryOp) and isinstance(child.op, ast.USub):
+            operand = child.operand
+            if (
+                isinstance(operand, ast.Constant)
+                and isinstance(operand.value, int)
+                and not isinstance(operand.value, bool)
+            ):
+                return True
+    return False
+
+
+def _fn_returns_int(fn: ast.FunctionDef, int_fns: set) -> bool:
+    """True when an ``-> int`` function needs Lean ``Int``: it returns a
+    negative literal, or returns a call to an Int-returning function. Nested
+    definitions keep their own returns."""
+    if get_id(getattr(fn, "returns", None)) != "int":
+        return False
+    stack = list(fn.body)
+    while stack:
+        stmt = stack.pop()
+        if isinstance(
+            stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+        ):
+            continue
+        if isinstance(stmt, ast.Return) and stmt.value is not None:
+            if _has_negative_int(stmt.value):
+                return True
+            call = stmt.value
+            if (
+                isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Name)
+                and call.func.id in int_fns
+            ):
+                return True
+        stack.extend(ast.iter_child_nodes(stmt))
+    return False
+
+
+def _lean_field_default(typename) -> str | None:
+    """Zero value for a Lean field type (mirrors Python dataclass defaults).
+
+    Returns None when no static default exists (custom structs without an
+    Inhabited instance, proposition fields); callers leave those to fail
+    loudly rather than inventing values.
+    """
+    if not isinstance(typename, str):
+        return None
+    if typename in ("Nat", "Int"):
+        return "0"
+    if typename in ("String",):
+        return '""'
+    if typename in ("Bool",):
+        return "false"
+    if typename in ("Float",):
+        return "0.0"
+    if typename.startswith(("List ", "Option ", "Array ")):
+        head = typename.split(" ", 1)[0]
+        if head == "List":
+            return "[]"
+        if head == "Option":
+            return "none"
+        return "#[]"
+    if typename in _INHABITED_BASE_TYPES:
+        return f"(default : {typename})"
+    return None
+
+
+def _find_annotated(scopes, name):
+    """First annotated binding for ``name`` in enclosing scopes (or None).
+
+    Scope lookup returns the innermost binding, which for reassigned
+    variables is often an unannotated branch-local target shadowing the
+    annotated declaration; this scans for one that carries a type.
+    """
+    for scope in reversed(scopes):
+        for attr in ("vars", "body_vars", "orelse_vars"):
+            for var in getattr(scope, attr, []):
+                if get_id(var) == name:
+                    ann = getattr(var, "annotation", None)
+                    if ann is not None:
+                        return ann
+    return None
+
+
+def _all_fields_inhabited(declarations, inhabited_structs=()) -> bool:
+    """True when every field type is inhabited from core types.
+
+    Plain types must be in a fixed set (or a struct that already derived an
+    instance, passed via ``inhabited_structs``); ``List``/``Option``/``Array``
+    are inhabited for any element type. Anything else is conservatively False.
+    """
+    if not declarations:
+        return False
+    for typename in declarations.values():
+        if not isinstance(typename, str):
+            return False
+        if typename in _INHABITED_BASE_TYPES:
+            continue
+        if typename in inhabited_structs:
+            continue
+        if typename.startswith(_INHABITED_CONTAINER_HEADS):
+            continue
+        return False
+    return True
+
+
 class LeanTranspiler(CLikeTranspiler):
     NAME = "lean"
 
@@ -65,6 +197,12 @@ class LeanTranspiler(CLikeTranspiler):
         # subsequent assignments to the same name emit bare ``:=``
         # instead of a new ``let``.
         self._bound_vars: set = set()
+        # Counter for named if-branch hypotheses (if h1 : ...); reset per
+        # function in visit_FunctionDef.
+        self._hyp_count = 0
+        # Structs that derived an Inhabited instance (source order); later
+        # structs with fields of these types can derive one too.
+        self._inhabited_structs: set = set()
         self._needs_float_to_string = False
         self._dict_vars: set = set()  # Track variables assigned from dict/DictComp
         # Invariant field names of the class whose method is currently being
@@ -82,6 +220,10 @@ class LeanTranspiler(CLikeTranspiler):
         # coerced with ``.toNat`` (loop variables and lengths are already
         # ``Nat`` and must not be coerced).
         self._int_params: set = set()
+        # NOTE: _int_return_funcs is intentionally NOT initialised here.
+        # visit_Module recomputes it per file, and the parent visit_Module
+        # re-runs __init__ (via _reset) after that, which would wipe it.
+        # See visit_Module.
 
     def indent(self, code, level=1):
         return self._indent * level + code
@@ -107,11 +249,41 @@ class LeanTranspiler(CLikeTranspiler):
             return members.pop()
         return max(members, key=lambda t: LEAN_WIDTH_RANK.get(t, 0))
 
+    def _int_return_funcs_or_empty(self) -> set:
+        # visit_Module populates this per file; default to empty when
+        # visiting fragments directly (e.g. in tests).
+        return getattr(self, "_int_return_funcs", set()) or set()
+
+    def _wide_int_return(self, node, type_str) -> str:
+        # Widen ``Nat`` to ``Int`` for functions that return negative ``int``
+        # literals (e.g. ``-1`` sentinels): ``Nat`` cannot hold them. The
+        # type may still be spelled ``int`` here (mapped to ``Nat`` later).
+        if type_str in ("Nat", "int"):
+            if getattr(node, "name", "") in self._int_return_funcs_or_empty():
+                return "Int"
+        return type_str
+
     def visit_Module(self, node) -> str:
         # Each top-level def trails a newline so consecutive defs are separated
         # by a blank line; trim the surrounding blanks since Lean has no
         # formatter to do it for us (ignored imports leave a leading blank, and
         # the cli re-appends a single trailing newline).
+        # Precompute Int-returning functions (negative `int` literals need
+        # Lean ``Int``, not ``Nat``): fixpoint over the call graph so
+        # callers and ``-> int`` locals inherit ``Int`` too. Single module
+        # only; cross-module calls conservatively stay ``Nat``.
+        self._int_return_funcs = set()
+        changed = True
+        while changed:
+            changed = False
+            for child in ast.walk(node):
+                if (
+                    isinstance(child, ast.FunctionDef)
+                    and child.name not in self._int_return_funcs
+                    and _fn_returns_int(child, self._int_return_funcs)
+                ):
+                    self._int_return_funcs.add(child.name)
+                    changed = True
         return super().visit_Module(node).strip("\n")
 
     def headers(self, meta=None):
@@ -241,6 +413,45 @@ class LeanTranspiler(CLikeTranspiler):
                         props.append((name, prop))
         return props
 
+    def _field_mutated_params(self, node, args) -> set:
+        """Params mutated through a field: ``p.f = ...``, ``p.f[i] = ...``,
+        ``p.f.append(...)``. The plain mutability analysis only sees bare
+        name reassignments, so field writes need their own walk (nested
+        function/class bodies keep their own scope and are skipped)."""
+        params = set(args)
+        mutated = set()
+        stack = list(node.body)
+        while stack:
+            s = stack.pop()
+            if isinstance(
+                s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+            ):
+                continue
+            if isinstance(s, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+                targets = s.targets if isinstance(s, ast.Assign) else [s.target]
+                for t in targets:
+                    root = t
+                    while isinstance(root, ast.Subscript):
+                        root = root.value
+                    if isinstance(root, ast.Attribute) and isinstance(
+                        root.value, ast.Name
+                    ):
+                        if root.value.id in params:
+                            mutated.add(root.value.id)
+            if (
+                isinstance(s, ast.Call)
+                and isinstance(s.func, ast.Attribute)
+                and s.func.attr in ("append", "extend")
+            ):
+                root = s.func.value
+                while isinstance(root, ast.Subscript):
+                    root = root.value
+                if isinstance(root, ast.Attribute) and isinstance(root.value, ast.Name):
+                    if root.value.id in params:
+                        mutated.add(root.value.id)
+            stack.extend(ast.iter_child_nodes(s))
+        return mutated
+
     def _mutable_param_bindings(self, node) -> List[str]:
         """Emit ``let mut arg := arg`` for function params that are reassigned.
 
@@ -250,10 +461,11 @@ class LeanTranspiler(CLikeTranspiler):
         """
         bindings = []
         _, args = self.visit(node.args)
+        field_mutated = self._field_mutated_params(node, args)
         for arg in args:
             if arg == "self":
                 continue
-            if is_mutable(node.scopes, arg):
+            if arg in field_mutated or is_mutable(node.scopes, arg):
                 bindings.append(
                     self.indent(f"let mut {arg} := {arg}", level=node.level + 1)
                 )
@@ -268,6 +480,7 @@ class LeanTranspiler(CLikeTranspiler):
         self._dependent_vars = set()
         saved_int_params = self._int_params
         self._int_params = set()
+        self._hyp_count = 0
 
         # Check for @theorem and @by decorators
         # Check for @theorem / @lemma and decorators
@@ -330,19 +543,39 @@ class LeanTranspiler(CLikeTranspiler):
         # (Dafny-style); rewrite it to the Lean subtype binder ``r`` and emit
         # the return type as ``{ r : T // post }``.  Other names (``self``,
         # parameters) refer to the pre-call state, which is exactly what the
-        # functional Lean translation keeps.  The ``return`` is lifted into the
-        # subtype with ``by rfl``; richer (non-definitional) postconditions
-        # would need a smarter tactic here.
+        # functional Lean translation keeps.  Each ``return`` is lifted into
+        # the subtype with ``by simp``: simp closes definitional goals like
+        # rfl does, and additionally discharges error-branch goals of the
+        # common ``¬result.ok ∨ ...`` shape. Path-sensitive goals still need
+        # interactive proof (see visit_Return).
         post = None
         if postcond and node.returns and re.search(r"\bresult\b", postcond):
             post = re.sub(r"\bresult\b", "r", postcond)
             ret_type = self._collapse_union(
                 self._typename_from_annotation(node, attr="returns")
             )
-            return_type = f"{{ r : {ret_type} // {post} }}"
-            for stmt in fn_body:
+            ret_type = self._wide_int_return(node, ret_type)
+            # Parenthesise the proposition: without parens a post like
+            # ``r = a = b`` or ``r = x > 0`` does not parse in Lean.
+            return_type = f"{{ r : {ret_type} // ({post}) }}"
+            # Flag every return in this function (including ones nested in
+            # ifs/loops) so visit_Return lifts each into the subtype. Nested
+            # function/class definitions keep their own returns. The subtype
+            # is stashed too: lifted returns bind through ``let ret : T``
+            # (robust against formatter line-wrapping), which needs the type.
+            stack = list(fn_body)
+            while stack:
+                stmt = stack.pop()
                 if isinstance(stmt, ast.Return) and stmt.value is not None:
                     stmt.post_return_var = True
+                    stmt.post_return_type = return_type
+                elif isinstance(
+                    stmt,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda),
+                ):
+                    continue
+                else:
+                    stack.extend(ast.iter_child_nodes(stmt))
 
         # Prepend mutable-parameter shadow bindings
         mut_bindings = self._mutable_param_bindings(node)
@@ -364,6 +597,7 @@ class LeanTranspiler(CLikeTranspiler):
                 return_type = self._collapse_union(
                     self._typename_from_annotation(node, attr="returns")
                 )
+                return_type = self._wide_int_return(node, return_type)
             # Pure functions with imperative body (loops, mutation) need
             # ``Id.run do``; simple single-expression bodies could omit
             # the ``do`` but using ``Id.run do`` uniformly is safe and
@@ -416,8 +650,11 @@ class LeanTranspiler(CLikeTranspiler):
             expr = self.visit(fn_body[0].value)
             if post:
                 # Lift the single return expression into the postcondition
-                # subtype ``{ r : T // post }`` (definitional case).
-                expr = f"⟨{expr}, by rfl⟩"
+                # subtype ``{ r : T // post }``. simp_all discharges with
+                # branch hypotheses; omega covers arithmetic residue.
+                expr = (
+                    f"⟨{expr}, by (try simp_all) <;> (first | omega | decide | grind)⟩"
+                )
             self._bound_vars = saved_bound
             self._dependent_vars = saved_dep
             self._int_params = saved_int_params
@@ -485,10 +722,16 @@ class LeanTranspiler(CLikeTranspiler):
                 sym = self._PROP_CMP_OPS.get(type(op))
                 if sym is None:
                     return self.visit(node)
-                clauses.append(
-                    f"{self._visit_proposition(left, class_name)} {sym} "
-                    f"{self._visit_proposition(right, class_name)}"
-                )
+                # Parenthesise nested boolean structure: Lean does not chain
+                # relations, so ``r = a = b`` must render as ``(r) = (a = b)``.
+                # Names and constants stay bare to avoid churning goldens.
+                left_s = self._visit_proposition(left, class_name)
+                if isinstance(left, (ast.Compare, ast.BoolOp)):
+                    left_s = f"({left_s})"
+                right_s = self._visit_proposition(right, class_name)
+                if isinstance(right, (ast.Compare, ast.BoolOp)):
+                    right_s = f"({right_s})"
+                clauses.append(f"{left_s} {sym} {right_s}")
                 left = right
             return " ∧ ".join(clauses)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
@@ -650,7 +893,87 @@ class LeanTranspiler(CLikeTranspiler):
                     post = " ∧ ".join(preds)
                 continue
             body.append(stmt)
+        # Strip nested CHECKER blocks (e.g. inside loops/ifs): only top-level
+        # blocks carry contract meaning; nested ones would otherwise leak
+        # into the output since CheckerBlockRemover skips the Lean backend.
+        body = [self._strip_nested_checker(s) for s in body]
+        if post is not None:
+            # Drop runtime asserts in post-carrying functions: ``assert!``
+            # needs an Inhabited result, which postcondition subtypes lack.
+            # The CHECKER pre/post pair subsumes these echoes (every assert
+            # in the corpus mirrors a contract clause).
+            body = [
+                cleaned
+                for s in body
+                for cleaned in [self._strip_asserts(s)]
+                if cleaned is not None
+            ]
         return pre, post, body
+
+    def _strip_asserts(self, node):
+        """Remove ``assert`` statements under a node (nested defs keep theirs).
+
+        Returns None when the node itself is an assert (caller drops it).
+        """
+        if isinstance(node, ast.Assert):
+            return None
+        if isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+        ):
+            return node
+        if not isinstance(node, ast.AST):
+            return node
+        for field, old in ast.iter_fields(node):
+            if isinstance(old, list):
+                kept = []
+                for child in old:
+                    if not isinstance(child, ast.AST):
+                        kept.append(child)
+                        continue
+                    cleaned = self._strip_asserts(child)
+                    if cleaned is not None:
+                        kept.append(cleaned)
+                setattr(node, field, kept)
+            elif isinstance(old, ast.AST):
+                setattr(node, field, self._strip_asserts(old))
+        return node
+
+    def _strip_nested_checker(self, node):
+        """Remove nested ``if CHECKER.*:`` blocks under a statement.
+
+        Nested definitions keep their own contracts; do not descend into
+        them (their own _extract_precondition call handles those blocks).
+        """
+        if isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+        ):
+            return node
+        for field, old in ast.iter_fields(node):
+            if isinstance(old, list):
+                kept = []
+                for child in old:
+                    if not isinstance(child, ast.AST):
+                        kept.append(child)
+                        continue
+                    if (
+                        isinstance(child, ast.If)
+                        and isinstance(child.test, ast.Attribute)
+                        and isinstance(child.test.value, ast.Name)
+                        and child.test.value.id == "CHECKER"
+                    ):
+                        continue
+                    kept.append(self._strip_nested_checker(child))
+                setattr(node, field, kept)
+            elif isinstance(old, ast.AST):
+                setattr(node, field, self._strip_nested_checker(old))
+        return node
+
+    def _struct_update(self, obj: str, attr: str, rhs: str) -> str:
+        # Lean structures are immutable, so `obj.attr := rhs` rebinds the
+        # whole owner. NOTE: the update is local to the enclosing do-block;
+        # Python-style in-place mutation is not observable by callers unless
+        # state is threaded explicitly (open follow-up for stateful code).
+        return f"{obj} := {{ {obj} with {attr} := {rhs} }}"
 
     def _visit_AssignOne(self, node, target) -> str:
         # Dependent type aliases (#804): ``Uid = Annotated[int, lambda u: ...]``
@@ -669,11 +992,28 @@ class LeanTranspiler(CLikeTranspiler):
         # uses `let [mut] name := value`. A var that is mutated later must be
         # introduced with `let mut`.
         if isinstance(target, ast.Subscript):
-            # Subscript assignment: seq[i] = val  ->  seq := seq.set i val
+            # Subscript assignment: seq[i] = val  ->  seq := seq.set i val.
+            # A field subscript (store.items[i] = v) updates the whole owner.
+            if isinstance(target.value, ast.Attribute) and isinstance(
+                target.value.value, ast.Name
+            ):
+                obj = self.visit(target.value.value)
+                # _index_str coerces Int indices (e.g. -1 sentinels) via
+                # .toNat; a raw visit would leave Int where Nat is needed.
+                index = self._index_str(target.slice)
+                return self._struct_update(
+                    obj,
+                    target.value.attr,
+                    f"{self.visit(target.value)}.set {index} {value}",
+                )
             list_name = self.visit(target.value)
-            index = self.visit(target.slice)
+            index = self._index_str(target.slice)
             return f"{list_name} := {list_name}.set {index} {value}"
         if isinstance(target, ast.Attribute):
+            # Field assignment mutates the owner: obj.f := v becomes the
+            # functional update obj := { obj with f := v }.
+            if isinstance(target.value, ast.Name):
+                return self._struct_update(self.visit(target.value), target.attr, value)
             return f"{self.visit(target)} := {value}"
         if isinstance(target, ast.Tuple):
             elts = ", ".join([self.visit(e) for e in target.elts])
@@ -730,6 +1070,10 @@ class LeanTranspiler(CLikeTranspiler):
             val = f"(Float.ofNat {val})"
         elif val_is_float and not target_is_float:
             target = f"(Float.ofNat {target})"
+        if isinstance(node.op, ast.Add) and (
+            self._is_str_val(node.target) or self._is_str_val(node.value)
+        ):
+            return f"{target} := {target} ++ {val}"
         return f"{target} := {target} {op} {val}"
 
     def visit_Break(self, node) -> str:
@@ -741,6 +1085,16 @@ class LeanTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node) -> str:
         target, type_str, val = super().visit_AnnAssign(node)
         raw_id = get_id(node.target) if hasattr(node, "target") else target
+        # Widen ``Nat`` locals to ``Int`` when the value needs it (negative
+        # literal, or a call to an Int-returning function); record them so
+        # index and comparison sites can coerce (see _int_params).
+        if type_str in ("Nat", "int") and isinstance(node.target, ast.Name):
+            widen = _has_negative_int(node.value)
+            if not widen and isinstance(node.value, ast.Call):
+                widen = get_id(node.value.func) in self._int_return_funcs_or_empty()
+            if widen:
+                type_str = "Int"
+                self._int_params.add(raw_id)
         is_reassign = raw_id in self._bound_vars
         if not is_reassign:
             self._bound_vars.add(raw_id)
@@ -780,9 +1134,21 @@ class LeanTranspiler(CLikeTranspiler):
         if node.value:
             rendered = self.visit(node.value)
             # Lift the returned value into the postcondition subtype
-            # ``{ r : T // post }`` with ``by rfl`` (definitional case).
+            # ``{ r : T // post }`` (see the tactic note above).
             if getattr(node, "post_return_var", False):
-                return f"return ⟨{rendered}, by rfl⟩"
+                rendered = f"⟨{rendered}, by (try simp_all) <;> (first | omega | decide | grind)⟩"
+            # Sequence bracketed returns through ``let ret``: the formatter
+            # may wrap a long ``return {...}`` line after ``return``, and
+            # Lean then reads a bare ``return`` (``pure ()``) plus a stray
+            # statement. ``;``-sequencing keeps one line; the formatter only
+            # breaks it at safe points (after ``;`` or inside brackets).
+            # The ``let`` carries the subtype ascription so ``⟨⟩`` elaborates
+            # without an expected type from ``return``.
+            if rendered.startswith(("{", "⟨", "({", "(⟨")):
+                ret_type = getattr(node, "post_return_type", None)
+                if ret_type is not None:
+                    return f"let ret : {ret_type} := ({rendered}); return ret"
+                return f"let ret := ({rendered}); return ret"
             return f"return {rendered}"
         return "return"
 
@@ -839,6 +1205,21 @@ class LeanTranspiler(CLikeTranspiler):
         if node.keywords:
             for kw in node.keywords:
                 vargs.append(f"{kw.arg} := {self.visit(kw.value)}")
+        # Fill fields the call omits (Python dataclass defaults): Lean
+        # structures require every field. Invariant (proof) fields are
+        # handled by the obligation loop below, so skip those here.
+        given = set()
+        if node.args:
+            given.update(list(fndef.declarations.keys())[: len(node.args)])
+        if node.keywords:
+            given.update(kw.arg for kw in node.keywords)
+        inv_names = {name for name, _ in getattr(fndef, "invariants", [])}
+        for decl, typename in fndef.declarations.items():
+            if decl in given or decl in inv_names:
+                continue
+            default = _lean_field_default(typename)
+            if default is not None:
+                vargs.append(f"{decl} := {default}")
 
         # Discharge invariant proof obligations (#805).  Bring the source
         # object's invariants (``self.inv_*``) into scope, then let ``omega``
@@ -853,9 +1234,19 @@ class LeanTranspiler(CLikeTranspiler):
             vargs.append(f"{inv_name} := by {haves}omega")
 
         if not vargs:
-            return f"{fname}.mk"
+            # Zero-argument construction (all dataclass defaults): Lean
+            # structures have no defaults, so use the Inhabited default when
+            # the struct declares fields (``deriving instance Inhabited`` is
+            # emitted for eligible structs); a fieldless ``mk ::`` struct
+            # uses its nullary constructor directly.
+            if not getattr(fndef, "declarations", None):
+                return f"{fname}.mk"
+            return f"(default : {fname})"
+        # Ascribe outside the braces: ``{ ... : T }`` misattaches the type
+        # to the last field once the literal spans lines; ``({ ... } : T)``
+        # is robust to formatter line-wrapping.
         args = ", ".join(vargs)
-        return f"{{ {args} : {fname} }}"
+        return f"({{ {args} }} : {fname})"
 
     def visit_Call(self, node) -> str:
         fname = self.visit(node.func)
@@ -916,7 +1307,34 @@ class LeanTranspiler(CLikeTranspiler):
                     return f"(String.join {arg})"
                 return f"(String.intercalate {sep} {arg})"
 
-        # Handle list.append: lst.append(val) -> lst := lst ++ [val]
+        # Handle str.startswith/endswith/strip/lower/upper/split: map to
+        # Lean core String functions (dot notation would emit unknown names).
+        if isinstance(node.func, ast.Attribute) and node.func.attr in (
+            "startswith",
+            "endswith",
+            "strip",
+            "lower",
+            "upper",
+            "split",
+        ):
+            recv = self.visit(node.func.value)
+            attr = node.func.attr
+            if attr == "startswith" and node.args:
+                return f"({recv}.startsWith {self.visit(node.args[0])})"
+            if attr == "endswith" and node.args:
+                return f"({recv}.endsWith {self.visit(node.args[0])})"
+            if attr == "strip" and not node.args:
+                return f"(String.trim {recv})"
+            if attr == "lower" and not node.args:
+                return f"(String.toLower {recv})"
+            if attr == "upper" and not node.args:
+                return f"(String.toUpper {recv})"
+            if attr == "split" and node.args:
+                return f"(String.splitOn {recv} {self.visit(node.args[0])})"
+            # Fall through to default handling for arities we don't cover.
+
+        # Handle list.append: lst.append(val) -> lst := lst ++ [val].
+        # A field append (store.items.append(v)) updates the whole owner.
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr == "append"
@@ -924,6 +1342,14 @@ class LeanTranspiler(CLikeTranspiler):
         ):
             list_name = self.visit(node.func.value)
             val = self.visit(node.args[0])
+            if isinstance(node.func.value, ast.Attribute) and isinstance(
+                node.func.value.value, ast.Name
+            ):
+                return self._struct_update(
+                    self.visit(node.func.value.value),
+                    node.func.value.attr,
+                    f"{list_name} ++ [{val}]",
+                )
             return f"{list_name} := {list_name} ++ [{val}]"
         # Handle list.extend: lst.extend(xs) -> lst := lst ++ xs
         if (
@@ -1013,7 +1439,11 @@ class LeanTranspiler(CLikeTranspiler):
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
         )
         test = self._lean_condition(node.test)
-        out = f"if {test} then\n{body}"
+        # Name the branch condition: proofs (e.g. postcondition subtype
+        # obligations) can then use it via simp_all/omega. Numbers are fresh
+        # per function (reset in visit_FunctionDef).
+        self._hyp_count += 1
+        out = f"if h{self._hyp_count} : {test} then\n{body}"
         if node.orelse:
             orelse = "\n".join(
                 [self.indent(self.visit(c), level=node.level + 1) for c in node.orelse]
@@ -1028,13 +1458,89 @@ class LeanTranspiler(CLikeTranspiler):
         )
         return f"while {test} do\n{body}"
 
+    def _is_str_iter(self, node) -> bool:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return True
+        if not isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
+            return False
+        return get_id(get_inferred_type(node)) == "str"
+
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
         it = self.visit(node.iter)
+        if self._is_str_iter(node.iter):
+            # Python iterates a String as 1-character strings; Lean yields
+            # Char. Map through toString so the target stays a 1-character
+            # String and all downstream string ops keep working unchanged.
+            it = f"{it}.toList.map (fun c => toString c)"
         body = "\n".join(
             [self.indent(self.visit(c), level=node.level + 1) for c in node.body]
         )
         return f"for {target} in {it} do\n{body}"
+
+    def _is_str_val(self, node) -> bool:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return True
+        if get_id(get_inferred_type(node)) == "str":
+            return True
+        # Branch-local reassignments (e.g. ``out += ...`` inside an if body)
+        # shadow the annotated declaration in scope lookup; fall back to any
+        # annotated binding of the same name in enclosing scopes.
+        if isinstance(node, ast.Name) and hasattr(node, "scopes"):
+            ann = _find_annotated(node.scopes, get_id(node))
+            return get_id(ann) == "str"
+        return False
+
+    def _is_int_val(self, node) -> bool:
+        # An Int-typed value: tracked Int local, negative literal, or call
+        # to an Int-returning function. Plain ``int`` annotations stay Nat.
+        if isinstance(node, ast.Name) and get_id(node) in self._int_params:
+            return True
+        if _has_negative_int(node):
+            return True
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in self._int_return_funcs_or_empty()
+        ):
+            return True
+        return False
+
+    def _is_nat_val(self, node) -> bool:
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, int)
+            and not isinstance(node.value, bool)
+            and node.value >= 0
+        ):
+            return True
+        if isinstance(node, ast.Name) and node.id not in self._int_params:
+            inferred = get_id(get_inferred_type(node))
+            if inferred == "int":
+                return True
+        return False
+
+    def visit_Compare(self, node) -> str:
+        if len(node.ops) == 1 and isinstance(
+            node.ops[0], (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)
+        ):
+            left, right = node.left, node.comparators[0]
+            if self._is_str_val(left) or self._is_str_val(right):
+                return super().visit_Compare(node)
+            op = self.visit(node.ops[0])
+            if self._is_int_val(left) and self._is_nat_val(right):
+                return f"{self.visit(left)} {op} (({self.visit(right)}) : Int)"
+            if self._is_int_val(right) and self._is_nat_val(left):
+                return f"(({self.visit(left)}) : Int) {op} {self.visit(right)}"
+        return super().visit_Compare(node)
+
+    def visit_BinOp(self, node) -> str:
+        if isinstance(node.op, ast.Add) and (
+            self._is_str_val(node.left) or self._is_str_val(node.right)
+        ):
+            # Lean has no HAdd for String; string concatenation is Append.
+            return f"({self.visit(node.left)} ++ {self.visit(node.right)})"
+        return super().visit_BinOp(node)
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(LeanTranspiler())
@@ -1073,6 +1579,13 @@ class LeanTranspiler(CLikeTranspiler):
         # BEq/Repr; proposition-typed invariant fields are not, so skip it.
         if getattr(node, "is_dataclass", False) and not invariants:
             struct_def += "  deriving BEq, Repr\n"
+            # Indexing a list (``xs[i]!``) needs ``Inhabited`` element types.
+            # Derive it when every field is inhabited from core types (plain
+            # types from a fixed set, containers unconditionally); anything
+            # exotic keeps today's behavior.
+            if _all_fields_inhabited(declarations, self._inhabited_structs):
+                struct_def += f"deriving instance Inhabited for {node.name}\n"
+                self._inhabited_structs.add(node.name)
 
         method_defs = []
         # Expose the class's invariant field names so constructor calls inside
@@ -1396,6 +1909,12 @@ class LeanTranspiler(CLikeTranspiler):
         # are fine as bare statements.
         if isinstance(node.value, (ast.DictComp, ast.ListComp, ast.SetComp)):
             return f"let _ := {s}"
+        # A call whose return value is discarded (e.g. ``trim_searches(...)``
+        # for effect): ``let _ :=`` unless the callee returns nothing.
+        if isinstance(node.value, ast.Call):
+            fndef = node.scopes.find(get_id(node.value.func))
+            if isinstance(fndef, ast.FunctionDef) and fndef.returns is not None:
+                return f"let _ := {s}"
         return s
 
     def visit_Global(self, node) -> str:

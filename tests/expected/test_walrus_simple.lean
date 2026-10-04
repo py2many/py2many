@@ -2,7 +2,7 @@ set_option linter.unusedVariables false
 
 def show_ : IO Unit := do
   let x := 5
-  if x > 3 then
+  if h1 : x > 3 then
     IO.println (toString x)
 
 def main : IO Unit := do

@@ -21,7 +21,7 @@ def show_ : IO Unit := do
   let color_map : Std.HashMap _ _ :=
     (((({ } : Std.HashMap _ _).insert Colors.RED "1").insert Colors.GREEN "2").insert Colors.BLUE "3")
   let a := Colors.GREEN
-  if a == Colors.GREEN then
+  if h1 : a == Colors.GREEN then
     IO.println "green"
   else
     IO.println "Not green"
