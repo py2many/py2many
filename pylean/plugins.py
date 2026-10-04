@@ -253,6 +253,8 @@ SMALL_DISPATCH_MAP = {
         else f"(List.filter {vargs[0]})"
     ),
     "list": lambda n, vargs: vargs[0] if vargs else "([] : List _)",
+    "ord": lambda n, vargs: f"(({vargs[0]}).toList.headD ' ').toNat" if vargs else "0",
+    "chr": lambda n, vargs: f"(toString (Char.ofNat {vargs[0]}))" if vargs else '""',
 }
 
 SMALL_USINGS_MAP: Dict[str, str] = {}

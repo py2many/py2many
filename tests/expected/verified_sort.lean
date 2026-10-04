@@ -5,8 +5,13 @@ structure BankAccount where
   inv_balance : balance ≥ 0
 
 def BankAccount.deposit (self : BankAccount) (amount : Nat) (pre : amount > 0) :
-    { r : BankAccount // r.balance = (self.balance + amount) } :=
-  ⟨{ balance := (self.balance + amount), inv_balance := by have h0 := self.inv_balance; omega : BankAccount }, by rfl⟩
+    { r : BankAccount // (r.balance = (self.balance + amount)) } :=
+  ⟨({ balance := (self.balance + amount), inv_balance := by have h0 := self.inv_balance; omega } : BankAccount), by
+    (try simp_all) <;>
+      (first
+        | omega
+        | decide
+        | grind)⟩
 
 def safe_sqrt (n : Nat) (pre : n ≥ 0) : Nat :=
   Id.run
@@ -25,7 +30,7 @@ def merge (left : List Nat) (right : List Nat) : List Nat :=
       let mut i : Nat := 0
       let mut j : Nat := 0
       while (i < (left).length && j < (right).length) do
-        if left[i]! ≤ right[j]! then
+        if h1 : left[i]! ≤ right[j]! then
           result := result ++ [left[i]!]
           i := i + 1
         else
@@ -62,7 +67,7 @@ def drop (xs : List Nat) (n : Nat) : List Nat :=
 partial def sort_u64 (arr : List Nat) : List Nat :=
   Id.run
     (do
-      if (arr).length ≤ 1 then
+      if h1 : (arr).length ≤ 1 then
         return arr
       let mid : Nat := ((arr).length / 2)
       let left : List Nat := (sort_u64 (take arr mid))
@@ -72,5 +77,5 @@ partial def sort_u64 (arr : List Nat) : List Nat :=
 theorem concrete_example : ((sort_u64 [3, 1, 4, 1, 5, 9, 2, 6]) == [1, 1, 2, 3, 4, 5, 6, 9]) = true := by native_decide
 
 def main : IO Unit := do
-  let acct := { balance := 10, inv_balance := by omega : BankAccount }
+  let acct := ({ balance := 10, inv_balance := by omega } : BankAccount)
   IO.println (toString acct.balance)

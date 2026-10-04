@@ -136,6 +136,7 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         "int": "Nat",
         "float": "Float",
         "bool": "Bool",
+        "str": "String",
     }
 
     @classmethod

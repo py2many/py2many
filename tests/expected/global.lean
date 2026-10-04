@@ -23,5 +23,5 @@ def main : IO Unit := do
     IO.println (toString i)
   for j in l_b do
     IO.println (toString j)
-  if (["a", "b"]).contains "a" then
+  if h1 : (["a", "b"]).contains "a" then
     IO.println "OK"

@@ -10,7 +10,7 @@ def comb_sort (seq : List Nat) : List Nat :=
         gap := (max 1 (Float.toUInt64 (Float.floor ((Float.ofNat gap) / 1.25))).toNat)
         swap := false
         for i in (List.range ((seq).length - gap)) do
-          if seq[i]! > seq[(i + gap)]! then
+          if h1 : seq[i]! > seq[(i + gap)]! then
             let (__tmp1, __tmp2) := (seq[(i + gap)]!, seq[i]!)
             seq := seq.set i __tmp1
             seq := seq.set (i + gap) __tmp2
