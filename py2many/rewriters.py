@@ -711,4 +711,6 @@ class CheckerBlockRemover(ast.NodeTransformer):
             ):
                 # Strip the entire if block
                 return None
-        return node
+        # Recurse so CHECKER blocks nested inside regular ifs (or any
+        # other compound statement) are still visited and stripped.
+        return self.generic_visit(node)

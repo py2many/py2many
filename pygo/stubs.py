@@ -75,6 +75,14 @@ STDLIB_DISPATCH_TABLE: Dict[str, Callable] = {
     and f"strings.TrimRightFunc({self.visit(node.func.value)}, unicode.IsSpace)",
     "str.find": lambda self, node, vargs: (_add_using(self, "strings"))
     and f"strings.Index({self.visit(node.func.value)}, {vargs[0]})",
+    "str.startswith": lambda self, node, vargs: (_add_using(self, "strings"))
+    and f"strings.HasPrefix({self.visit(node.func.value)}, {vargs[0]})",
+    "str.endswith": lambda self, node, vargs: (_add_using(self, "strings"))
+    and f"strings.HasSuffix({self.visit(node.func.value)}, {vargs[0]})",
+    "str.isalnum": lambda self, node, vargs: (_add_using(self, "regexp"))
+    and f"regexp.MustCompile(`^[A-Za-z0-9]+$`).MatchString({self.visit(node.func.value)})",
+    "str.isascii": lambda self, node, vargs: (_add_using(self, "regexp"))
+    and f"regexp.MustCompile(`^[\\x00-\\x7F]*$`).MatchString({self.visit(node.func.value)})",
     "str.replace": lambda self, node, vargs: (_add_using(self, "strings"))
     and f"strings.ReplaceAll({self.visit(node.func.value)}, {vargs[0]}, {vargs[1]})",
     "str.split": lambda self, node, vargs: (_add_using(self, "strings"))
