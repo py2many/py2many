@@ -47,6 +47,15 @@ class GoTranspilerPlugins:
         self._usings.add('"math"')
         return f"math.Floor({vargs[0]})"
 
+    def visit_ord(self, node, vargs) -> str:
+        # ord() over a 1-character string. Go strings iterate as runes,
+        # but py2many renders `for ch in s` loops as 1-byte strings, so
+        # decode through []rune to get the code point.
+        return f"int([]rune({vargs[0]})[0])"
+
+    def visit_chr(self, node, vargs) -> str:
+        return f"string(rune({vargs[0]}))"
+
     def visit_exit(self, node, vargs) -> str:
         self._usings.add('"os"')
         return f"os.Exit({vargs[0]})"
@@ -73,6 +82,8 @@ DISPATCH_MAP = {
     "xrange": GoTranspilerPlugins.visit_range,
     "print": GoTranspilerPlugins.visit_print,
     "floor": GoTranspilerPlugins.visit_floor,
+    "ord": GoTranspilerPlugins.visit_ord,
+    "chr": GoTranspilerPlugins.visit_chr,
 }
 
 MODULE_DISPATCH_TABLE: Dict[str, str] = {}

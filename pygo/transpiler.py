@@ -6,6 +6,7 @@ from py2many.analysis import get_id, is_global, is_void_function
 from py2many.clike import _AUTO_INVOKED, class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstCouldNotInfer
+from py2many.inference import get_inferred_type
 from py2many.rewriters import camel_case, capitalize_first, rename
 from py2many.stubs import STDLIB_MODULE_NAMES
 from py2many.tracer import defined_before, is_class_or_module, is_enum, is_list
@@ -25,18 +26,61 @@ from .stubs import STDLIB_ATTR_DISPATCH_TABLE, STDLIB_DISPATCH_TABLE
 
 
 class GoMethodCallRewriter(ast.NodeTransformer):
+    def _is_appendable(self, value_node) -> bool:
+        if is_list(value_node):
+            return True
+        inferred = get_inferred_type(value_node)
+        if isinstance(inferred, ast.Subscript):
+            return get_id(inferred.value) in ("list", "List")
+        return self._is_dataclass_list_field(value_node)
+
+    def _is_dataclass_list_field(self, value_node) -> bool:
+        # Resolve store.users-style attribute access to the dataclass
+        # field annotation via source scopes (no inference needed).
+        if not isinstance(value_node, ast.Attribute):
+            return False
+        if not isinstance(value_node.value, ast.Name):
+            return False
+        scopes = getattr(value_node, "scopes", None)
+        if scopes is None:
+            return False
+        obj_def = scopes.find(get_id(value_node.value))
+        if obj_def is None:
+            return False
+        cls_ann = getattr(obj_def, "annotation", None)
+        cls_name = get_id(cls_ann) if cls_ann is not None else None
+        if not cls_name:
+            return False
+        cls_def = scopes.find(cls_name)
+        if not isinstance(cls_def, ast.ClassDef):
+            return False
+        for stmt in cls_def.body:
+            if (
+                isinstance(stmt, ast.AnnAssign)
+                and get_id(stmt.target) == value_node.attr
+                and isinstance(stmt.annotation, ast.Subscript)
+            ):
+                return get_id(stmt.annotation.value) in ("list", "List")
+        return False
+
     def visit_Call(self, node):
         self.generic_visit(node)
         fname = node.func
         if isinstance(fname, ast.Attribute):
-            if is_list(node.func.value) and fname.attr == "append":
-                value_id = get_id(fname.value)
-                if not value_id:
-                    return node
-                node.args = [ast.Name(id=value_id, lineno=node.lineno)] + node.args
+            if fname.attr == "append" and self._is_appendable(node.func.value):
+                if isinstance(node.func.value, ast.Name):
+                    value_id = get_id(fname.value)
+                    if not value_id:
+                        return node
+                    target = ast.Name(id=value_id, lineno=node.lineno)
+                    node.args = [ast.Name(id=value_id, lineno=node.lineno)] + node.args
+                else:
+                    # e.g. store.users.append(x) -> store.users = append(store.users, x)
+                    target = node.func.value
+                    node.args = [node.func.value] + node.args
                 node.func = ast.Name(id="append", lineno=node.lineno, ctx=fname.ctx)
                 return ast.Assign(
-                    targets=[ast.Name(id=value_id, lineno=node.lineno)],
+                    targets=[target],
                     value=node,
                     lineno=node.lineno,
                     scopes=node.scopes,
@@ -218,6 +262,7 @@ class GoTranspiler(CLikeTranspiler):
         self._small_usings_map = SMALL_USINGS_MAP
         self._func_dispatch_table = FUNC_DISPATCH_TABLE
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
+        self._str_iter_count = 0
 
     def headers(self, meta):
         return "\n".join(self._headers)
@@ -428,10 +473,32 @@ class GoTranspiler(CLikeTranspiler):
 
         return None
 
+    def _is_str_iter(self, node) -> bool:
+        if not isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
+            return False
+        return get_id(get_inferred_type(node)) == "str"
+
     def visit_For(self, node) -> str:
         target = self.visit(node.target)
         it = self.visit(node.iter)
         buf = []
+        if target != "_" and self._is_str_iter(node.iter):
+            # Python iterates a string code-point by code-point as 1-char
+            # strings; Go range would yield runes. Index byte-wise and
+            # convert back to a 1-byte string so downstream string ops
+            # (==, +=, passing to str params) keep compiling. UTF-8 byte
+            # order preserves code-point order, so range predicates behave
+            # the same; multibyte chars never equal ASCII literals.
+            idx = f"__str_idx_{self._str_iter_count}"
+            self._str_iter_count += 1
+            buf.append(f"for {idx} := 0; {idx} < len({it}); {idx}++ {{")
+            buf.append(f"{target} := string({it}[{idx}])")
+            # Dummy assign to silence the compiler on unused vars
+            if target.startswith("_"):
+                buf.append(f"_ = {target}")
+            buf.extend([self.visit(c) for c in node.body])
+            buf.append("}")
+            return "\n".join(buf)
         if target == "_":
             buf.append(f"for range {it} {{")
         else:
