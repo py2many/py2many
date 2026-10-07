@@ -4,7 +4,12 @@ from typing import List
 
 from py2many.analysis import get_id, is_mutable, is_void_function
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.exceptions import (
+    AstClassUsedBeforeDeclaration,
+    AstCouldNotInfer,
+    AstNotImplementedError,
+    AstTypeNotSupported,
+)
 from py2many.inference import get_inferred_type
 
 from .clike import CLikeTranspiler
@@ -205,6 +210,10 @@ class LeanTranspiler(CLikeTranspiler):
         self._inhabited_structs: set = set()
         self._needs_float_to_string = False
         self._dict_vars: set = set()  # Track variables assigned from dict/DictComp
+        # Element types to use for an empty ``Std.HashMap`` literal while a dict
+        # comprehension's (empty) source dict is being rendered; see
+        # ``_empty_dict_source_type``.
+        self._empty_dict_type: str = ""
         # Invariant field names of the class whose method is currently being
         # emitted; used to discharge constructor proof obligations (#805).
         self._self_invariants: List[str] = []
@@ -1690,7 +1699,7 @@ class LeanTranspiler(CLikeTranspiler):
     def visit_Dict(self, node) -> str:
         self._headers.add("import Std")
         if not node.keys:
-            return "({} : Std.HashMap _ _)"
+            return f"({{}} : {self._empty_dict_type or 'Std.HashMap _ _'})"
         # Build dict by chaining .insert calls
         result = "({} : Std.HashMap _ _)"
         for k, v in zip(node.keys, node.values):
@@ -1831,6 +1840,35 @@ class LeanTranspiler(CLikeTranspiler):
             result = f"({result}).map (fun {target} => {elt})"
         return result
 
+    def _empty_dict_source_type(self, node) -> str:
+        """Element types for a dict comprehension over an *empty* dict literal.
+
+        Such a comprehension iterates nothing, so Lean's bidirectional inference
+        only ever sees ``acc.insert <key> <value>``. When those expressions are
+        themselves polymorphic -- ``key + 1`` matches ``HAdd`` against several
+        instances -- Lean resolves the hole to a default that doesn't fit and
+        the file fails to elaborate ("failed to synthesize HAdd PUnit Nat").
+        Ascribe the types py2many inferred for the key/value expressions
+        instead. Returns "" when they aren't known, leaving the ``_ _`` holes.
+        """
+        gen = node.generators[0]
+        if not (isinstance(gen.iter, ast.Dict) and not gen.iter.keys):
+            return ""
+        key_type = self._optional_typename(node.key)
+        value_type = self._optional_typename(node.value)
+        if not (key_type and value_type):
+            return ""
+        return f"Std.HashMap {key_type} {value_type}"
+
+    def _optional_typename(self, node) -> str:
+        """Lean type name for ``node`` if py2many inferred one, else ""."""
+        if getattr(node, "annotation", None) is None:
+            return ""
+        try:
+            return self._typename_from_annotation(node) or ""
+        except (AstCouldNotInfer, AstTypeNotSupported, AstNotImplementedError):
+            return ""
+
     def visit_DictComp(self, node) -> str:
         """Translate ``{k: v for target in iter [if cond]}``."""
         self._headers.add("import Std")
@@ -1840,7 +1878,12 @@ class LeanTranspiler(CLikeTranspiler):
             )
         gen = node.generators[0]
         target = self.visit(gen.target)
-        iter_expr = self.visit(gen.iter)
+        dict_type = self._empty_dict_source_type(node) or "Std.HashMap _ _"
+        previous, self._empty_dict_type = self._empty_dict_type, dict_type
+        try:
+            iter_expr = self.visit(gen.iter)
+        finally:
+            self._empty_dict_type = previous
         key = self.visit(node.key)
         value = self.visit(node.value)
 
@@ -1860,7 +1903,7 @@ class LeanTranspiler(CLikeTranspiler):
             f"({source}).foldl (fun acc {target} => "
             f"acc.insert {key} {value}) "
             f"({{}}"
-            ": Std.HashMap _ _)"
+            f": {dict_type})"
         )
 
     def visit_Try(self, node, finallybody=None) -> str:
