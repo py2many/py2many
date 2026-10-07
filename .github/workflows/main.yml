@@ -217,19 +217,50 @@ jobs:
         if: ${{ env.FOCUS != 'omni' && (!env.FOCUS || env.FOCUS == 'lean') }}
         shell: bash
         run: |
+          set -exo pipefail
           # Lean 4 ships standalone per-platform toolchain archives
           # (bin/lean, bin/lake, ...), so install directly. Keep the version in
           # sync with .mise/config.lean.toml ("http:lean").
           LEAN_VERSION=4.30.0
+          LEAN_ROOT="/opt/lean-${LEAN_VERSION}-linux"
           curl -fsSL -o /tmp/lean.zip \
             "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.zip"
           unzip -q /tmp/lean.zip -d /opt
           rm -f /tmp/lean.zip
-          # Make lean/lake available to the Run tox step; also verify now.
-          echo "/opt/lean-${LEAN_VERSION}-linux/bin" >> "$GITHUB_PATH"
-          export PATH="/opt/lean-${LEAN_VERSION}-linux/bin:${PATH}"
+          # Make lean available to the Run tox step; also verify now.
+          echo "${LEAN_ROOT}/bin" >> "$GITHUB_PATH"
+          export PATH="${LEAN_ROOT}/bin:${PATH}"
           lean --version
-          lake --version
+
+          # Lean locates its stdlib search path from its own executable path
+          # (IO.appDir.parent/lib/lean). The focus images are Alpine/musl and
+          # run the glibc Lean binaries through gcompat's ld-linux shim,
+          # which is busybox: /proc/self/exe resolves to /bin/busybox there,
+          # so `lean --print-prefix` reports "/" and the stdlib search path
+          # becomes "//lib/lean". Every Lean invocation then fails to resolve
+          # "Init" (formatter: "unknown module prefix 'Init'"). Pin the
+          # search path explicitly for the Run tox step; it is the only lever
+          # `lean` itself reads (it never consults LEAN_SYSROOT).
+          #
+          # Pointing lake at the toolchain instead does not help: lake
+          # discovers its own installation from that same broken path and
+          # fails outright ("could not detect the configuration of the Lake
+          # installation"). That is why scripts/lean-runner.sh drives `lean`
+          # directly rather than `lake build`.
+          export LEAN_PATH="${LEAN_ROOT}/lib/lean"
+          echo "LEAN_PATH=${LEAN_PATH}" >> "$GITHUB_ENV"
+
+          # Fail here, with a readable message, instead of surfacing as ~100
+          # transpiler test failures if the toolchain still can't resolve its
+          # own stdlib. Both probes cover the two ways the tests shell out to
+          # Lean: type-checking only, and type-check + link + run.
+          smoke_dir="$(mktemp -d)"
+          printf 'import Init\n\ndef main : IO Unit := IO.println "lean smoke ok"\n' \
+            > "${smoke_dir}/Smoke.lean"
+          echo "== smoke: type-check only"
+          lean "${smoke_dir}/Smoke.lean"
+          echo "== smoke: type-check + link + run"
+          lean --run "${smoke_dir}/Smoke.lean"
 
       - name: Run tox
         shell: bash
