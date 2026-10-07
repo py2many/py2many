@@ -1,32 +1,25 @@
 #!/usr/bin/env bash
 
-# Verify/run a single generated .lean file with `lean`.
+# Build/run a single generated .lean file through `lake build`.
 #
-# Lean's verification flow: if the file type-checks, its pre/post-conditions
-# and invariants (#805) hold -- the equivalent of `py2many --smt file.py |
-# z3 -smt2 -in` reporting no counter-example.
+# Lean's verification flow: if `lake build` succeeds the file type-checks, which
+# means its pre/post-conditions and invariants (#805) hold -- the equivalent of
+# `py2many --smt file.py | z3 -smt2 -in` reporting no counter-example.
 #
-# `lean` on its own covers both modes: `lean file.lean` type-checks without
-# executing anything ("build" mode), and `lean --run file.lean args...`
-# type-checks, links, then runs `main`, forwarding program arguments and its
-# exit code.
-#
-# We deliberately don't shell out to `lake`. Lake locates its Lean
-# installation from its own executable path, which is unusable in the
-# Alpine/gcompat CI image: `/proc/self/exe` resolves to `/bin/busybox` there
-# (gcompat's `ld-linux-x86-64.so.2` is busybox), so lake sees sysroot `/` and
-# fails with "could not detect the configuration of the Lake installation" --
-# no combination of LEAN_PATH/LEAN_SYSROOT/LAKE_HOME rescues it. `lean` only
-# needs its stdlib search path (LEAN_PATH) pinned, and the formatter
-# (`lean --run pylean/fmt.lean`) needs the same thing anyway.
-#
-# `lean` comes from the `http:lean` mise tool (MISE_ENV=lean), so this is
-# expected to be invoked under `MISE_ENV=lean mise exec -- ...`; it is found
+# `lean` and `lake` come from the `http:lean` mise tool (MISE_ENV=lean), so this
+# is expected to be invoked under `MISE_ENV=lean mise exec -- ...`; lake is found
 # via the inherited PATH.
+#
+# Both tools locate their installation from their own executable path
+# (IO.appDir.parent / /proc/self/exe), so they need a real glibc loader on
+# Alpine -- plain gcompat's ld-linux shim is busybox, which makes that path
+# read /bin/busybox and breaks lake ("could not detect the configuration of
+# the Lake installation", or it runs "//bin/lean"). The lean CI image installs
+# one for that reason; see the `should_install lean` branch in docker/Dockerfile.
 
 if [ $# -eq 0 ]; then
     echo "Usage: $0 [mode] test_file.lean [args...]"
-    echo "Modes: run (default, verify then execute), build (verify only)"
+    echo "Modes: run (default, build then execute), build (verify only)"
     exit 1
 fi
 
@@ -47,8 +40,29 @@ PROG_ARGS=("$@")
 # Make the test file absolute before we cd away from the caller's directory.
 TEST_FILE="$(cd "$(dirname "$TEST_FILE")" && pwd)/$(basename "$TEST_FILE")"
 
-# Diagnostics go to stderr so stdout carries only the program's own output.
-if [ "$MODE" = "run" ]; then
-    exec lean --run "$TEST_FILE" ${PROG_ARGS+"${PROG_ARGS[@]}"}
+# Build in a private per-invocation lake project so concurrent runs
+# (pytest-xdist) don't clobber a shared Main.lean or .lake build output.
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/lean-runner.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+cat > "$WORK/lakefile.toml" <<'EOF'
+name = "verify"
+defaultTargets = ["verify"]
+
+[[lean_exe]]
+name = "verify"
+root = "Main"
+EOF
+cp "$TEST_FILE" "$WORK/Main.lean"
+cd "$WORK"
+
+# Build noise goes to stderr so stdout carries only the program's own output.
+if ! lake build 1>&2; then
+    echo "Build failed" >&2
+    exit 1
 fi
-exec lean "$TEST_FILE"
+
+# "build" mode is verify-only (a successful build is the proof). "run" also
+# executes the binary directly so its exit code isn't conflated with lake's.
+if [ "$MODE" = "run" ]; then
+    ./.lake/build/bin/verify "${PROG_ARGS[@]}"
+fi
