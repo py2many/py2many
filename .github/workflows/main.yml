@@ -232,35 +232,53 @@ jobs:
           export PATH="${LEAN_ROOT}/bin:${PATH}"
           lean --version
 
-          # Lean locates its stdlib search path from its own executable path
-          # (IO.appDir.parent/lib/lean). The focus images are Alpine/musl and
-          # run the glibc Lean binaries through gcompat's ld-linux shim,
-          # which is busybox: /proc/self/exe resolves to /bin/busybox there,
-          # so `lean --print-prefix` reports "/" and the stdlib search path
-          # becomes "//lib/lean". Every Lean invocation then fails to resolve
-          # "Init" (formatter: "unknown module prefix 'Init'"). Pin the
-          # search path explicitly for the Run tox step; it is the only lever
-          # `lean` itself reads (it never consults LEAN_SYSROOT).
+          # Verify the toolchain exactly the way the tests use it, and fail
+          # here with a readable message instead of surfacing as ~100
+          # transpiler test failures. Every probe is reported before the step
+          # fails, so one run diagnoses everything.
           #
-          # Pointing lake at the toolchain instead does not help: lake
-          # discovers its own installation from that same broken path and
-          # fails outright ("could not detect the configuration of the Lake
-          # installation"). That is why scripts/lean-runner.sh drives `lean`
-          # directly rather than `lake build`.
-          export LEAN_PATH="${LEAN_ROOT}/lib/lean"
-          echo "LEAN_PATH=${LEAN_PATH}" >> "$GITHUB_ENV"
-
-          # Fail here, with a readable message, instead of surfacing as ~100
-          # transpiler test failures if the toolchain still can't resolve its
-          # own stdlib. Both probes cover the two ways the tests shell out to
-          # Lean: type-checking only, and type-check + link + run.
+          # Both `lean` and `lake` locate their installation from their own
+          # executable path (IO.appDir / /proc/self/exe), so these probes are
+          # about that: the image installs a real glibc loader (see
+          # docker/Dockerfile) precisely because gcompat's ld-linux shim is
+          # busybox and made every self-path read "/bin/busybox".
           smoke_dir="$(mktemp -d)"
           printf 'import Init\n\ndef main : IO Unit := IO.println "lean smoke ok"\n' \
-            > "${smoke_dir}/Smoke.lean"
-          echo "== smoke: type-check only"
-          lean "${smoke_dir}/Smoke.lean"
-          echo "== smoke: type-check + link + run"
-          lean --run "${smoke_dir}/Smoke.lean"
+            > "${smoke_dir}/Main.lean"
+          cat > "${smoke_dir}/lakefile.toml" <<'EOF'
+          name = "smoke"
+          defaultTargets = ["smoke"]
+
+          [[lean_exe]]
+          name = "smoke"
+          root = "Main"
+          EOF
+
+          smoke_failed=0
+          probe() {
+            local name="$1"
+            shift
+            echo "== smoke: ${name}"
+            if "$@"; then
+              echo "   ok"
+            else
+              echo "   FAILED: ${name}"
+              smoke_failed=1
+            fi
+          }
+
+          # `lean --print-prefix` is the authoritative self-path check: it is
+          # IO.appDir.parent, i.e. the parent of the running executable's
+          # directory. (Don't probe this with `readlink /proc/self/exe` from a
+          # shell -- that reports readlink's own path, busybox on Alpine.)
+          probe "lean resolves its own sysroot" test "$(lean --print-prefix)" = "${LEAN_ROOT}"
+          probe "lean resolves the stdlib" lean "${smoke_dir}/Main.lean"
+          probe "lean runs a program" lean --run "${smoke_dir}/Main.lean"
+          probe "lake finds its own installation" lake --version
+          probe "lake builds a project" \
+            bash -c "cd '${smoke_dir}' && lake build && ./.lake/build/bin/smoke"
+
+          exit "${smoke_failed}"
 
       - name: Run tox
         shell: bash
