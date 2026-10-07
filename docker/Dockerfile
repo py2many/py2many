@@ -148,6 +148,24 @@ RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) ret
       && flutter --version; \
     fi
 
+# Lean 4 is a glibc toolchain, and both `lean` and `lake` locate their
+# installation from their own executable path (IO.appDir / /proc/self/exe).
+# Under plain gcompat that path resolves to /bin/busybox -- gcompat's
+# ld-linux shim *is* busybox -- so Lean's sysroot comes out as "/" and the
+# stdlib search path becomes "//lib/lean"; lake then reports "could not detect
+# the configuration of the Lake installation" or runs "//bin/lean". Install a
+# real glibc loader (same package mojo uses below) so self-detection works and
+# `lake build` behaves like it does on any glibc distro.
+ARG GLIBC_VER=2.35-r1
+RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
+    if should_install lean; then \
+      curl -fsSL -o "/tmp/glibc-${GLIBC_VER}.apk" "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-${GLIBC_VER}.apk" \
+      && curl -fsSL -o "/tmp/glibc-bin-${GLIBC_VER}.apk" "https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VER}/glibc-bin-${GLIBC_VER}.apk" \
+      && apk add --no-cache --allow-untrusted --force-overwrite "/tmp/glibc-${GLIBC_VER}.apk" "/tmp/glibc-bin-${GLIBC_VER}.apk" \
+      && rm -f /tmp/glibc-*.apk \
+      && /lib/ld-linux-x86-64.so.2 --version | head -n 1; \
+    fi
+
 ENV MODULAR_HOME=${HOME}/life/.pixi/envs/default/share/max
 COPY docker/mojo-alpine/pixi.toml docker/mojo-alpine/pixi.lock ${HOME}/life/
 RUN should_install() { case "${FOCUS}" in ""|all|omni|"${1}") return 0 ;; *) return 1 ;; esac; }; \
