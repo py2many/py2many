@@ -20,4 +20,6 @@ maven = "latest"
 # `latest` would also track the highest *installed* kotlin, not the pinned one.
 # kscript 4.2.3 only works with a 1.7.x kotlinc. Keep this in sync with the
 # kotlin pin in the [tools] section.
-KOTLIN_HOME = "{% if os() == 'windows' %}{{ env.LOCALAPPDATA }}/mise/installs/kotlin/1.7.20/kotlinc{% else %}{{ env.HOME }}/.local/share/mise/installs/kotlin/1.7.20/kotlinc{% endif %}"
+# mise_installs is the per-OS mise install root (config.<os>.toml): on Windows
+# %LOCALAPPDATA%\mise\installs, elsewhere ~/.local/share/mise/installs.
+KOTLIN_HOME = "{{ vars.mise_installs }}/kotlin/1.7.20/kotlinc"
