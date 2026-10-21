@@ -618,6 +618,47 @@ class TestCodeGenerator:
             if not self.KEEP_GENERATED:
                 self._rmdir_recursive(output_dir)
 
+    @pytest.mark.parametrize("existing_output", [False, True])
+    def test_transpile_failure_skips_formatter(
+        self, monkeypatch, tmp_path, existing_output
+    ):
+        source = tmp_path / "example.py"
+        source.write_text('print("hello")\n')
+        outdir = tmp_path / "out"
+        output = outdir / "example.rs"
+        if existing_output:
+            outdir.mkdir()
+            output.write_text("stale generated code")
+
+        monkeypatch.setattr(
+            py2many.cli,
+            "_transpile_one",
+            Mock(side_effect=RuntimeError("transpilation failed")),
+        )
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", str(source), "--outdir", str(outdir)])
+
+        assert rv == 1
+        assert output.read_bytes() == b""
+        formatter.assert_not_called()
+
+    def test_transpile_success_runs_formatter(self, monkeypatch, tmp_path):
+        source = tmp_path / "example.py"
+        source.write_text('if __name__ == "__main__":\n    print("Hello world!")\n')
+        outdir = tmp_path / "out"
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", str(source), "--outdir", str(outdir)])
+
+        assert rv == 0
+        generated = (outdir / "example.rs").read_text()
+        assert "pub fn main()" in generated
+        assert "Hello world!" in generated
+        formatter.assert_called_once()
+
     def test_output_path(self):
         base = Path(".")
         assert _get_output_path(Path("foo.py"), ".rs", base) == Path("foo.rs")
