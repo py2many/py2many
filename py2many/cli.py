@@ -269,10 +269,11 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
                 sys.stdout.write(open(tmp_name).read())
             else:
                 sys.stderr.write("Formatting failed")
+                return False
         finally:
             if tmp_name is not None:
                 os.remove(tmp_name)
-        return ({filename}, {filename})
+        return True
 
     if filename.resolve() == output_path.resolve() and not args.force:
         print(f"Refusing to overwrite {filename}. Use --force to overwrite")
