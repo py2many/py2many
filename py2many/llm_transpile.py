@@ -39,6 +39,8 @@ def llm_transpile(
         code = extract_code(response.text())
         if code is None:
             code = "FAILED"
+        else:
+            successful.append(filename)
         outputs[filename] = code
 
     # return output in the same order as input

@@ -286,9 +286,15 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
-    result = _transpile([filename], [source_data], settings, args)
+    outputs, successful = _transpile([filename], [source_data], settings, args)
+    if filename not in successful:
+        print(f"Failed to transpile {filename}")
+        with open(output_path, "wb"):
+            pass
+        return False
+
     with open(output_path, "wb") as f:
-        f.write(result[0][0].encode("utf-8"))
+        f.write(outputs[0].encode("utf-8"))
 
     if settings.formatter:
         return _format_one(settings, output_path, env)
