@@ -6,6 +6,7 @@ import os.path
 import platform
 import sys
 from functools import lru_cache
+from io import StringIO
 from itertools import product
 from pathlib import Path
 from unittest.mock import Mock
@@ -750,6 +751,31 @@ class TestCodeGenerator:
 
         assert rv == 0
         assert calls == [first, second]
+
+    def test_stdin_success(self, monkeypatch, capsys):
+        source = 'if __name__ == "__main__":\n    print("Hello world!")\n'
+        monkeypatch.setattr(sys, "stdin", StringIO(source))
+        monkeypatch.setattr(py2many.cli, "_format_one", Mock(return_value=True))
+
+        rv = main(args=["--rust", "-"])
+
+        captured = capsys.readouterr()
+        assert rv == 0
+        assert "pub fn main()" in captured.out
+        assert "Hello world!" in captured.out
+        assert "Formatting failed" not in captured.err
+
+    def test_stdin_formatting_failure(self, monkeypatch, capsys):
+        source = 'if __name__ == "__main__":\n    print("Hello world!")\n'
+        monkeypatch.setattr(sys, "stdin", StringIO(source))
+        monkeypatch.setattr(py2many.cli, "_format_one", Mock(return_value=False))
+
+        rv = main(args=["--rust", "-"])
+
+        captured = capsys.readouterr()
+        assert rv == 1
+        assert captured.out == ""
+        assert "Formatting failed" in captured.err
 
 
 if __name__ == "__main__":
