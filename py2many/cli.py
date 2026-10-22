@@ -250,7 +250,7 @@ def _get_output_path(filename, ext, outdir):
 def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, env):
     """Transpile and reformat.
 
-    Returns False if reformatter failed.
+    Returns True on success, False on transpile or reformat failure.
     """
     suffix = f".{args.suffix}" if args.suffix is not None else settings.ext
     output_path = _get_output_path(
@@ -258,8 +258,19 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     )
 
     if filename.name == STDIN:
-        # special case for simple pipes
-        output = _process_one_data(sys.stdin.read(), Path("test.py"), settings)
+        # special case for simple pipes.
+        # stdout carries the generated code, so status goes to stderr.
+        try:
+            outputs, successful = _transpile(
+                [Path("test.py")], [sys.stdin.read()], settings, args
+            )
+        except Exception as e:
+            print(f"Failed to transpile stdin: {e}", file=sys.stderr)
+            return False
+        if Path("test.py") not in successful:
+            print("Failed to transpile stdin", file=sys.stderr)
+            return False
+        output = outputs[0]
         tmp_name = None
         try:
             with tempfile.NamedTemporaryFile(suffix=settings.ext, delete=False) as f:
@@ -286,11 +297,15 @@ def _process_one(settings: LanguageSettings, filename: Path, outdir: str, args, 
     if dunder_init and not source_data:
         print("Detected empty __init__; skipping")
         return True
-    outputs, successful = _transpile([filename], [source_data], settings, args)
+    try:
+        outputs, successful = _transpile([filename], [source_data], settings, args)
+    except Exception as e:
+        print(f"Failed to transpile {filename}: {e}")
+        output_path.write_bytes(b"")
+        return False
     if filename not in successful:
         print(f"Failed to transpile {filename}")
-        with open(output_path, "wb"):
-            pass
+        output_path.write_bytes(b"")
         return False
 
     with open(output_path, "wb") as f:
@@ -370,15 +385,14 @@ def _process_many(
     outputs, successful = _transpile(
         filenames, source_data, settings, _suppress_exceptions=_suppress_exceptions
     )
+    successful = set(successful)
 
     output_paths = [
         _get_output_path(filename, settings.ext, outdir) for filename in filenames
     ]
     for filename, output, output_path in zip(filenames, outputs, output_paths):
         with open(output_path, "w") as f:
-            f.write(output)
-
-    successful = set(successful)
+            f.write(output if filename in successful else "")
     format_errors = set()
     if settings.formatter:
         # TODO: Optimize to a single invocation

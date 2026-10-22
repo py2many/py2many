@@ -659,6 +659,66 @@ class TestCodeGenerator:
         assert "Hello world!" in generated
         formatter.assert_called_once()
 
+    def test_transpile_hard_failure_truncates_output(self, monkeypatch, tmp_path):
+        # _transpile itself raising (e.g. SyntaxError from ast.parse, which
+        # happens outside its per-file try) must still clear stale output
+        # and skip the formatter.
+        source = tmp_path / "example.py"
+        source.write_text("def broken(:\n")
+        outdir = tmp_path / "out"
+        output = outdir / "example.rs"
+        outdir.mkdir()
+        output.write_text("stale generated code")
+
+        monkeypatch.setattr(
+            py2many.cli,
+            "_transpile",
+            Mock(side_effect=SyntaxError("invalid syntax")),
+        )
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", str(source), "--outdir", str(outdir)])
+
+        assert rv == 1
+        assert output.read_bytes() == b""
+        formatter.assert_not_called()
+
+    def test_process_many_failure_writes_empty(self, monkeypatch, tmp_path):
+        srcdir = tmp_path / "src"
+        srcdir.mkdir()
+        (srcdir / "good.py").write_text('print("hello")\n')
+        (srcdir / "bad.py").write_text('print("broken")\n')
+        outdir = tmp_path / "out"
+
+        monkeypatch.setattr(
+            py2many.cli,
+            "_transpile",
+            Mock(return_value=(["ok content", "FAILED"], [Path("good.py")])),
+        )
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", str(srcdir), "--outdir", str(outdir)])
+
+        assert rv == 1
+        assert (outdir / "good.rs").read_text() == "ok content"
+        assert (outdir / "bad.rs").read_text() == ""
+        formatter.assert_called_once()
+
+    def test_stdin_transpile_failure(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "stdin", StringIO("def broken(:\n"))
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", "-"])
+
+        captured = capsys.readouterr()
+        assert rv == 1
+        assert captured.out == ""
+        assert "Failed to transpile stdin" in captured.err
+        formatter.assert_not_called()
+
     def test_output_path(self):
         base = Path(".")
         assert _get_output_path(Path("foo.py"), ".rs", base) == Path("foo.rs")
