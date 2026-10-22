@@ -1,4 +1,5 @@
 import argparse
+import ast
 import difflib
 import importlib.util
 import logging
@@ -21,6 +22,7 @@ from py2many.cli import (
 )
 from py2many.cli import _run as run
 from py2many.cli import main
+from py2many.exceptions import AstNotImplementedError
 from py2many.process_helpers import find_executable
 
 try:
@@ -716,6 +718,31 @@ class TestCodeGenerator:
         captured = capsys.readouterr()
         assert rv == 1
         assert captured.out == ""
+        assert "Failed to transpile stdin" in captured.err
+        formatter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            RuntimeError("transpilation failed"),
+            AstNotImplementedError(
+                "transpilation failed", ast.parse('print("hello")').body[0]
+            ),
+        ],
+        ids=["runtime-error", "unsupported-construct"],
+    )
+    def test_stdin_reported_failure_uses_stderr(self, monkeypatch, capsys, error):
+        monkeypatch.setattr(sys, "stdin", StringIO('print("hello")\n'))
+        monkeypatch.setattr(py2many.cli, "_transpile_one", Mock(side_effect=error))
+        formatter = Mock(return_value=True)
+        monkeypatch.setattr(py2many.cli, "_format_one", formatter)
+
+        rv = main(args=["--rust", "-"])
+
+        captured = capsys.readouterr()
+        assert rv == 1
+        assert captured.out == ""
+        assert "transpilation failed" in captured.err
         assert "Failed to transpile stdin" in captured.err
         formatter.assert_not_called()
 

@@ -124,9 +124,12 @@ def _transpile(
 
             formatted_lines = traceback.format_exc().splitlines()
             if isinstance(e, AstErrorBase):
-                print(f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}")
+                print(
+                    f"{filename}:{e.lineno}:{e.col_offset}: {formatted_lines[-1]}",
+                    file=sys.stderr,
+                )
             else:
-                print(f"{filename}: {formatted_lines[-1]}")
+                print(f"{filename}: {formatted_lines[-1]}", file=sys.stderr)
             if not _suppress_exceptions or not isinstance(e, _suppress_exceptions):
                 raise
             outputs[filename] = "FAILED"
