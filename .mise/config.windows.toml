@@ -1,0 +1,41 @@
+# Windows-only mise config, auto-loaded on Windows via auto_env (see
+# ../.miserc.toml). Holds the base config that applies only on Windows; the
+# cross-platform base is in config.toml, which loads first. Everything here is
+# Windows-scoped, so it needs no per-entry `os = ["windows"]` guards or
+# `{% if os() == 'windows' %}` conditionals.
+#
+# There is nothing Windows-specific to set at the base level today, so this file
+# is intentionally (almost) empty -- it exists so the per-OS triad is complete and
+# Windows base config has an obvious home. Notes on what deliberately does NOT
+# belong here:
+#
+#   * Standalone pipx: absent on purpose. mise's pipx/aqua backend has no Windows
+#     build for it, which is exactly why it sits in config.linux.toml /
+#     config.macos.toml rather than the cross-platform base. The pipx:* tools in
+#     config.toml don't need it -- they default to the uvx backend, and uv is
+#     installed cross-platform. (The only uvx=false pipx tool, pipx:mojo, is
+#     linux/macos-only.)
+#
+#   * The bash-shell tasks (`shell = "bash -c"`) rely on Git for Windows' bash,
+#     which mise discovers automatically; no MISE_BASH_PATH override is needed.
+#
+#   * If a Windows dev hits mise failing to resolve the `python = "3.12"` minor
+#     alias (mise does not always create the minor-version symlink on Windows),
+#     add a `[tools]` section here pinning an exact patch, e.g. python = "3.12.x".
+
+[vars]
+# Windows values of the OS-level path facts the per-language configs reference;
+# see config.linux.toml for what each is and why they live here. The mise data
+# dir is %LOCALAPPDATA%\mise, and $HOME is git-bash's /c/... so the native home
+# is %USERPROFILE%.
+home = "{{ env.USERPROFILE }}"
+mise_installs = "{{ env.LOCALAPPDATA }}/mise/installs"
+# dub caches packages under %LOCALAPPDATA%\dub on Windows, not ~/.dub.
+dub_cache = "{{ env.LOCALAPPDATA }}/dub"
+# Windows cpp builds via the winlibs http:mingw g++ (test_env_cxx_gcc), which
+# ignores clang's CCC_OVERRIDE_OPTIONS, and conda-libcxx-devel isn't installed;
+# LD_LIBRARY_PATH is a no-op on Windows (DLLs resolve via PATH). So all three are
+# empty -- matching the old config's inert Windows values.
+cxx_override = ""
+cxx_libdir = ""
+cxx_gcc = ""
