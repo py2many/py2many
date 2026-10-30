@@ -976,6 +976,9 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
+        sealed_ctor = self._visit_sealed_constructor(node)
+        if sealed_ctor is not None:
+            return sealed_ctor
         if isinstance(node.func, ast.Attribute):
             receiver = get_id(node.func.value)
             if node.func.attr == "add_argument" and receiver:
@@ -1446,6 +1449,89 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
+    def visit_sealed_class(self, node) -> str:
+        vname = self._v_safe_name(node.name)
+        recv = node.name[:1].lower()
+        variants = []
+        methods = []
+        for member, _var in node.class_assignments.items():
+            member_id = get_id(member)
+            lower_member_id = member_id.lower()
+            typename = node.declarations_with_defaults.get(member_id, None)
+            if typename is None:
+                raise AstNotImplementedError(
+                    f"sealed variant {member_id} needs a type", node
+                )
+            typename, _default = typename
+            if typename in (None, "", "Any", "None"):
+                raise AstNotImplementedError(
+                    f"sealed variant {member_id} has unsupported type", node
+                )
+            variants.append(typename)
+            methods.append(
+                f"fn ({recv} {vname}) is_{lower_member_id}() bool {{\n"
+                f"\treturn {recv} is {typename}\n"
+                f"}}"
+            )
+            methods.append(
+                f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
+                f"\tif {recv} is {typename} {{\n"
+                f"\t\treturn {recv}\n"
+                f"\t}}\n"
+                f"\tpanic('not a {member_id}')\n"
+                f"}}"
+            )
+        sumtype = f"type {vname} = {' | '.join(variants)}"
+        return sumtype + "\n\n" + "\n\n".join(methods) + "\n"
+
+    def _find_sealed_class(self, node, name):
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(name)
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        return clsdef
+
+    def _visit_sealed_payload(self, node, arg):
+        if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
+            scopes = getattr(arg, "scopes", None)
+            target = scopes.find(get_id(arg.func)) if scopes is not None else None
+            if isinstance(target, ast.ClassDef):
+                if "sealed" in [get_id(d) for d in target.decorator_list]:
+                    return self.visit(arg)
+                fields = [
+                    d
+                    for d in (getattr(target, "declarations", {}) or {})
+                    if not d.startswith("self.")
+                ]
+                if fields and len(arg.args) == len(fields) and not arg.keywords:
+                    parts = [
+                        f"{field}: {self.visit(value)}"
+                        for field, value in zip(fields, arg.args)
+                    ]
+                    return (
+                        f"{self._v_safe_name(get_id(arg.func))}{{{', '.join(parts)}}}"
+                    )
+        return self.visit(arg)
+
+    def _visit_sealed_constructor(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        clsdef = self._find_sealed_class(node, get_id(func.value))
+        if clsdef is None:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        payload = self._visit_sealed_payload(node, node.args[0])
+        return f"{self._v_safe_name(get_id(func.value))}({payload})"
+
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(VTranspiler())
         extractor.visit(node)
@@ -1457,6 +1543,9 @@ class VTranspiler(CLikeTranspiler):
             return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
+
+        if "sealed" in decorators:
+            return self.visit_sealed_class(node)
 
         decorators = [
             class_for_typename(t, None, self._imported_names) for t in decorators

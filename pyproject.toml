@@ -31,7 +31,7 @@ dynamic = ["version"]
 # pypi doesn't allow direct dependencies
 # dev = [
 #   "typpete @ git+https://github.com/adsharma/Typpete/",
-#   "algebraic-data-types @ git+https://github.com/adsharma/adt/",
+#   (algebraic-data-types moved to the test extra above)
 # ]
 test = [
     "importlib-resources; python_version < '3.9'",
@@ -40,6 +40,10 @@ test = [
     "black",
     "astpretty",
     "jgo<2",
+    # Needed at the CPython level to run the cases that import it (sealed,
+    # datatypes). Direct URL: fine for pip/uv installs, but do not upload
+    # this metadata to PyPI (which rejects direct dependencies).
+    "algebraic-data-types @ git+https://github.com/py2many/adt",
 ]
 llm = [
     "mlx_llm; sys_platform == 'darwin'",
