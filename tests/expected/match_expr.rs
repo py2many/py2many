@@ -35,37 +35,35 @@ use std::collections;
 
 /* Tiny arithmetic expression parser and evaluator.
 
-Written in the match-as-expression dialect: digit decoding, operator
-application and operator precedence are all match expressions, e.g.::
+Written in the match-as-expression dialect, shaped like a classic
+functional-language front end: a ``tokenize`` lexer turns character codes
+into token kinds with a large match, and ``evaluate`` parses and evaluates
+the token stream with an iterative shunting-yard evaluator, e.g.::
 
     kind = match code:
+        48: NUM
         43: PLUS
-        45: MINUS
-        _: -1
-
-The evaluator itself dispatches on the raw character code with a large
-match, as in a classic functional-language lexer. A ``/`` following
-another ``/`` is the second half of ``//``, not division: a nested
-match tells the two apart::
-
-    kind = match code:
         47: match prev:
-            4: -2
+            4: SKIP
             _: SLASH
-        40: LPAREN
         _: -1
+
+A ``/`` following another ``/`` is the second half of ``//``, not
+division: the nested match spots it and marks it ``SKIP``.
 
 The parser consumes a list of character codes (``[50, 43, 51]`` is
-``"2+3"``) with an iterative shunting-yard evaluator, so the same
-source transpiles to both Rust and CPython.
+``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
+``match`` statement the python backend emits directly).
  */
 
+pub const NUM: i32 = 0;
 pub const PLUS: i32 = 1;
 pub const MINUS: i32 = 2;
 pub const STAR: i32 = 3;
 pub const SLASH: i32 = 4;
 pub const LPAREN: i32 = 5;
 pub const RPAREN: i32 = 6;
+pub const SKIP: i32 = -2;
 pub fn digit_value(code: i32) -> i32 {
     return match code {
         48 => 0,
@@ -102,38 +100,69 @@ pub fn precedence(op: i32) -> i32 {
     };
 }
 
-pub fn evaluate(codes: &Vec<i32>) -> i32 {
-    let mut values: Vec<i32> = vec![];
-    let mut ops: Vec<i32> = vec![];
-    let mut nv: i32 = 0;
-    let mut no: i32 = 0;
+pub fn tokenize(codes: &Vec<i32>) -> Vec<i32> {
+    let mut kinds: Vec<i32> = vec![];
     let mut i: i32 = 0;
     let n = codes.len() as i32;
     let mut prev: i32 = 0;
     while i < (n as i32) {
         let code: i32 = codes[i as usize];
         let kind = match code {
+            48 => NUM,
+            49 => NUM,
+            50 => NUM,
+            51 => NUM,
+            52 => NUM,
+            53 => NUM,
+            54 => NUM,
+            55 => NUM,
+            56 => NUM,
+            57 => NUM,
             43 => PLUS,
             45 => MINUS,
             42 => STAR,
             47 => match prev {
-                4 => -2,
+                4 => SKIP,
                 _ => SLASH,
             },
             40 => LPAREN,
             41 => RPAREN,
             _ => -1,
         };
-        let mut digit: i32 = digit_value(code);
-        if digit >= 0 {
+        kinds.push(kind);
+        if (kind as i32) != SKIP {
+            prev = kind;
+        }
+        i += 1;
+    }
+    return kinds;
+}
+
+pub fn evaluate(codes: &Vec<i32>) -> i32 {
+    let kinds: &Vec<i32> = &tokenize(codes);
+    let mut values: Vec<i32> = vec![];
+    let mut ops: Vec<i32> = vec![];
+    let mut nv: i32 = 0;
+    let mut no: i32 = 0;
+    let mut i: i32 = 0;
+    let mut j: i32 = 0;
+    let m = kinds.len() as i32;
+    while j < (m as i32) {
+        let kind: i32 = kinds[j as usize];
+        if kind == SKIP {
+            i += 1;
+            j += 1;
+            continue;
+        }
+        if kind == NUM {
             let mut value: i32 = 0;
-            while i < (n as i32) {
-                digit = digit_value(codes[i as usize]);
-                if digit < 0 {
+            while j < (m as i32) {
+                if kinds[j as usize] != NUM {
                     break;
                 }
-                value = ((value * 10) + digit);
+                value = ((value * 10) + digit_value(codes[i as usize]));
                 i += 1;
+                j += 1;
             }
             if nv < (values.len() as i32 as i32) {
                 values[nv as usize] = value;
@@ -141,14 +170,9 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
                 values.push(value);
             }
             nv += 1;
-            prev = -1;
             continue;
         }
-        if (kind as i32) == -2 {
-            i += 1;
-            continue;
-        }
-        if (kind as i32) == LPAREN {
+        if kind == LPAREN {
             if no < (ops.len() as i32 as i32) {
                 ops[no as usize] = kind;
             } else {
@@ -156,7 +180,7 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
             }
             no += 1;
         } else {
-            if (kind as i32) == RPAREN {
+            if kind == RPAREN {
                 while no > 0 {
                     if ops[(no - 1) as usize] == LPAREN {
                         break;
@@ -196,8 +220,8 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
                 no += 1;
             }
         }
-        prev = kind;
         i += 1;
+        j += 1;
     }
     while no > 0 {
         nv -= 2;

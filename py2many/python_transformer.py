@@ -16,17 +16,97 @@ class RestoreMainRewriter(ast.NodeTransformer):
         return node
 
 
-class MatchExprDesugar(ast.NodeTransformer):
-    """Rewrite spy-ast match expressions into CPython-compatible code.
+class MatchStmtLifter(ast.NodeTransformer):
+    """Lower match expressions in statement position to match statements.
 
     The new syntax::
 
-        value = match x:
-            1: "one"
-            _: "other"
+        kind = match code:
+            43: PLUS
+            _: -1
 
-    is not valid CPython (where ``match`` is a statement), so each
-    ``Match`` node in expression position becomes a nested ``IfExp`` chain::
+    is a match *expression*, but CPython only has match *statements*, so
+    assignments, returns and bare matches over a ``Match`` node become the
+    equivalent statement (CPython 3.10+)::
+
+        match code:
+            case 43:
+                kind = PLUS
+            case _:
+                kind = -1
+
+    The subject is evaluated once natively, so no temporary is needed.
+    Matches nested in arm position lift recursively into nested match
+    statements. Only int-literal patterns (``MatchValue``) and the wildcard
+    (``MatchAs``) exist in the new syntax; anything else (e.g. named
+    captures, which CPython would read as bindings) is a transpile-time
+    error, as is a missing wildcard (falling through would leave the
+    target unbound).
+    """
+
+    def _check_pattern(self, pattern, node):
+        if isinstance(pattern, ast.MatchValue):
+            return pattern
+        if isinstance(pattern, ast.MatchAs) and pattern.pattern is None:
+            if pattern.name not in (None, "_"):
+                raise ValueError(f"match capture {pattern.name!r} not supported")
+            return ast.MatchAs()
+        raise ValueError(f"unsupported match pattern {pattern!r}")
+
+    def _lift_match(self, node, make_stmt):
+        cases = []
+        has_wildcard = False
+        for case in node.cases:
+            pattern = self._check_pattern(case.pattern, node)
+            if isinstance(pattern, ast.MatchAs):
+                has_wildcard = True
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                arm = case.body[0].value
+            else:  # pragma: no cover - parser only emits single-expr arms
+                raise ValueError("match arm body must be a single expression")
+            # Visit the new statement (not the original arm): a match in
+            # arm position lifts recursively into a nested match statement.
+            lifted = self.visit(make_stmt(arm))
+            body = lifted if isinstance(lifted, list) else [lifted]
+            new_case = ast.match_case(pattern=pattern, guard=None, body=body)
+            ast.copy_location(new_case, case)
+            cases.append(new_case)
+        if not has_wildcard:
+            raise ValueError("match expression requires a catch-all `_` arm")
+        stmt = ast.Match(subject=node.subject, cases=cases)
+        ast.copy_location(stmt, node)
+        ast.fix_missing_locations(stmt)
+        # Mark lowered statements so MatchExprDesugar (next pass) leaves
+        # them alone: their case bodies are statements, not expressions.
+        stmt._match_stmt = True
+        return stmt
+
+    def visit_Assign(self, node):
+        if isinstance(node.value, ast.Match):
+            return self._lift_match(
+                node.value,
+                lambda arm: ast.Assign(targets=node.targets, value=arm),
+            )
+        return self.generic_visit(node)
+
+    def visit_Return(self, node):
+        if isinstance(node.value, ast.Match):
+            return self._lift_match(node.value, lambda arm: ast.Return(value=arm))
+        return self.generic_visit(node)
+
+    def visit_Expr(self, node):
+        if isinstance(node.value, ast.Match):
+            return self._lift_match(node.value, lambda arm: ast.Expr(value=arm))
+        return self.generic_visit(node)
+
+
+class MatchExprDesugar(ast.NodeTransformer):
+    """Rewrite leftover match expressions into CPython-compatible code.
+
+    ``MatchStmtLifter`` (which runs first) turns matches in statement
+    position (assignments, returns, bare matches) into match statements.
+    Any ``Match`` node left over -- nested inside a larger expression where
+    no statement can go -- becomes a nested ``IfExp`` chain::
 
         "one" if x == 1 else "other"
 
@@ -45,6 +125,12 @@ class MatchExprDesugar(ast.NodeTransformer):
         self._counter = 0
 
     def visit_Match(self, node):
+        if getattr(node, "_match_stmt", False):
+            # Already lowered to a match statement by MatchStmtLifter;
+            # recurse (arm expressions may hold nested expression matches)
+            # but do not convert.
+            self.generic_visit(node)
+            return node
         self.generic_visit(node)
         subject = node.subject
         arms = []
@@ -99,6 +185,7 @@ class PythonTranspiler(CLikeTranspiler):
         self._no_prologue = no_prologue
 
     def visit(self, node):
+        node = MatchStmtLifter().visit(node)
         node = MatchExprDesugar().visit(node)
         return ast.unparse(node)
 
