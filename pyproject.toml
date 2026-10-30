@@ -106,7 +106,7 @@ profile = "black"
 # Golden transpiler output, not source we control -- their import order mirrors
 # the input fixtures, so don't lint it. CI used to `rm` these before isort;
 # skipping here means it doesn't have to.
-extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*"]
+extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*", "tests/match_expr_parser.py"]
 
 [tool.black]
 # Same golden-output fixtures excluded for isort above (black takes a regex on
@@ -114,9 +114,10 @@ extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*"]
 # these files.
 extend-exclude = '''
 /(
-    tests/expected
-  | tests/dir_cases/test1-[^/]*-expected
-)/
+    tests/expected/
+  | tests/dir_cases/test1-[^/]*-expected/
+  | tests/match_expr_parser\.py
+)
 '''
 
 [build-system]
