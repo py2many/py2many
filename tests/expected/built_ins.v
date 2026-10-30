@@ -19,6 +19,6 @@ fn main() {
 	println(a.str())
 	b := arrays.min([1, 2]) or { panic('!') }
 	println(b.str())
-	c := (arrays.min([1.0, 2.0] as int) or { panic('!') })
+	c := int(arrays.min([1.0, 2.0]) or { panic('!') })
 	println(c.str())
 }

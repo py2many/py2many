@@ -13,6 +13,27 @@ from .inference import (
 )
 from .rust_ast import RustNode
 
+# Mapped Rust types that are Copy (sealed payload accessors return
+# these by value, everything else by borrow).
+RUST_COPY_TYPES = frozenset(
+    [
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "usize",
+        "isize",
+        "f32",
+        "f64",
+        "bool",
+        "char",
+    ]
+)
+
 # allowed as names in Python but treated as keywords in Rust
 RUST_KEYWORDS = frozenset(
     [
