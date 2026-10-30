@@ -37,7 +37,7 @@ pub struct Packet {
 }
 
 impl Packet {}
-enum Register {
+pub enum Register {
     PACKET(Packet),
     VALUE(i32),
 }

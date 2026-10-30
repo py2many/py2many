@@ -1532,35 +1532,46 @@ class VTranspiler(CLikeTranspiler):
         recv = node.name[:1].lower()
         variants = []
         methods = []
+        structs = []
         for member, _var in node.class_assignments.items():
             member_id = get_id(member)
             lower_member_id = member_id.lower()
             typename = node.declarations_with_defaults.get(member_id, None)
-            if typename is None:
-                raise AstNotImplementedError(
-                    f"sealed variant {member_id} needs a type", node
-                )
-            typename, _default = typename
-            if typename in (None, "", "Any", "None"):
-                raise AstNotImplementedError(
-                    f"sealed variant {member_id} has unsupported type", node
-                )
-            variants.append(typename)
+            if typename is not None:
+                typename, _default = typename
+            if typename is None or typename in ("_", ""):
+                # Unit variant (`X: None`): an empty struct in the sum type.
+                # Class-prefixed so members of different sealed classes
+                # cannot collide.
+                struct_name = f"{vname}{member_id.capitalize()}"
+                structs.append(f"struct {struct_name} {{}}")
+                variant = struct_name
+            else:
+                if typename in ("Any", "None"):
+                    raise AstNotImplementedError(
+                        f"sealed variant {member_id} has unsupported type", node
+                    )
+                variant = typename
+            variants.append(variant)
             methods.append(
                 f"fn ({recv} {vname}) is_{lower_member_id}() bool {{\n"
-                f"\treturn {recv} is {typename}\n"
+                f"\treturn {recv} is {variant}\n"
                 f"}}"
             )
-            methods.append(
-                f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
-                f"\tif {recv} is {typename} {{\n"
-                f"\t\treturn {recv}\n"
-                f"\t}}\n"
-                f"\tpanic('not a {member_id}')\n"
-                f"}}"
-            )
+            if variant == typename:
+                methods.append(
+                    f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
+                    f"\tif {recv} is {typename} {{\n"
+                    f"\t\treturn {recv}\n"
+                    f"\t}}\n"
+                    f"\tpanic('not a {member_id}')\n"
+                    f"}}"
+                )
         sumtype = f"type {vname} = {' | '.join(variants)}"
-        return sumtype + "\n\n" + "\n\n".join(methods) + "\n"
+        structs_str = "\n\n".join(structs)
+        if structs_str:
+            structs_str += "\n\n"
+        return structs_str + sumtype + "\n\n" + "\n\n".join(methods) + "\n"
 
     def _find_sealed_class(self, node, name):
         scopes = getattr(node, "scopes", None)
@@ -1605,10 +1616,21 @@ class VTranspiler(CLikeTranspiler):
         variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
         if func.attr not in variants:
             return None
+        vname = self._v_safe_name(get_id(func.value))
+        if len(node.args) == 0 and not node.keywords:
+            typename = variants[func.attr]
+            if typename is not None:
+                typename, _default = typename
+            if typename is None or typename in ("_", ""):
+                # Unit variant (`X: None`): wrap the empty struct in the sum
+                # type. (The extractors spell the missing type `_` or `""`.)
+                struct_name = f"{vname}{func.attr.capitalize()}"
+                return f"{vname}({struct_name}{{}})"
+            return None
         if len(node.args) != 1 or node.keywords:
             return None
         payload = self._visit_sealed_payload(node, node.args[0])
-        return f"{self._v_safe_name(get_id(func.value))}({payload})"
+        return f"{vname}({payload})"
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(VTranspiler())

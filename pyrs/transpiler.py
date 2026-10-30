@@ -13,7 +13,7 @@ from py2many.analysis import (
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstNotImplementedError
-from py2many.inference import is_reference
+from py2many.inference import get_inferred_type, is_reference
 from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
 
@@ -595,7 +595,35 @@ class RustTranspiler(CLikeTranspiler):
             return f"(!{obj}.is_empty() && {obj}.chars().all(|c| c.{char_pred}))"
         return None
 
+    def _visit_sealed_nullary(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if node.args or node.keywords:
+            return None
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(get_id(func.value))
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        if typename is not None and typename != "_":
+            return None  # payload variant: normal call path
+        # Unit variant (`X: None`): `Token::PLUS`, not `Token::PLUS()`.
+        return f"{get_id(func.value)}::{func.attr}"
+
     def visit_Call(self, node) -> RustNode:
+        sealed_nullary = self._visit_sealed_nullary(node)
+        if sealed_nullary is not None:
+            return RustNode(sealed_nullary)
         # Python str methods -> Rust (lists/dicts don't share these names; still
         # skip when the receiver is a known list to be safe).
         if (
@@ -787,20 +815,19 @@ class RustTranspiler(CLikeTranspiler):
             camel_member_id = camel_case(member_id)
             lower_member_id = member_id.lower()
             typename = node.declarations_with_defaults.get(member_id, None)
-            if typename is None:
-                variants.append(f"{member_id},")
-            else:
+            if typename is not None:
                 typename, _ = typename
+            # `X: None` annotations extract as type `_`: a unit variant
+            # with no payload and no accessor.
+            is_unit = typename is None or typename == "_"
+            if is_unit:
+                variants.append(f"{member_id},")
+                pattern = f"{camel_node_name}::{camel_member_id}"
+            else:
                 variants.append(f"{member_id}({typename}),")
-            tag_check = textwrap.dedent(
-                f"""
-                    fn is_{lower_member_id}(&self) -> bool {{
-                        matches!(*self, {camel_node_name}::{camel_member_id}(_))
-                    }}"""
-            )
-            tag_checkers.append(tag_check)
-            accessor = textwrap.dedent(
-                f"""
+                pattern = f"{camel_node_name}::{camel_member_id}(_)"
+                accessor = textwrap.dedent(
+                    f"""
                     fn {lower_member_id}(&self) -> Option<&{typename}>{{
                         if let {camel_node_name}::{camel_member_id}(val) = self {{
                             Some(val)
@@ -808,11 +835,18 @@ class RustTranspiler(CLikeTranspiler):
                             None
                         }}
                     }}"""
+                )
+                accessors.append(accessor)
+            tag_check = textwrap.dedent(
+                f"""
+                    fn is_{lower_member_id}(&self) -> bool {{
+                        matches!(*self, {pattern})
+                    }}"""
             )
-            accessors.append(accessor)
+            tag_checkers.append(tag_check)
         body_str = "\n".join(variants)
         impl_str = "\n".join(accessors) + "\n" + "\n".join(tag_checkers)
-        return f"enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
+        return f"pub enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
 
     def visit_ClassDef(self, node) -> RustNode:
         extractor = DeclarationExtractor(RustTranspiler())
@@ -964,6 +998,18 @@ class RustTranspiler(CLikeTranspiler):
             return f"{value}<{index}>"
         # TODO: optimize this. We need to compute value_type once per definition
         self._generic_typename_from_annotation(node.value)
+        if not hasattr(node.value, "annotation"):
+            # Inference does not always attach annotations to use-site names
+            # (e.g. a list assigned from a call); fall back to inferring now
+            # so the index gets cast below. Lists only: other containers
+            # have their own addressing.
+            try:
+                inferred = get_inferred_type(node.value)
+            except Exception:
+                inferred = None
+            if isinstance(inferred, ast.Subscript) and get_id(inferred.value) == "List":
+                node.value.annotation = inferred
+                self._generic_typename_from_annotation(node.value)
         if hasattr(node.value, "annotation"):
             value_type = getattr(node.value.annotation, "generic_container_type", None)
             is_list = value_type is not None and value_type[0] == "List"
@@ -1016,9 +1062,14 @@ class RustTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node) -> RustNode:
         target, type_str, val = super().visit_AnnAssign(node)
         kw = self._compute_kw(node, node.target)
-        if val is None:
+        if (
+            val is None
+            and not is_global(node)
+            and not getattr(node, "class_assignment", False)
+        ):
             # Bare declaration (e.g. `r: Result[int, str]` with no value):
-            # deferred init. The old fallback (`= None`) never typechecked.
+            # deferred init; every use must be dominated by an assignment.
+            # The old fallback (`= None`) never typechecked.
             return RustNode(f"{kw} {target}: {type_str};")
         return RustLet(target, val, keyword=kw, typename=type_str)
 

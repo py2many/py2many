@@ -28,20 +28,34 @@ fn (r Result[T]) unwrap_or(default T) T {
 // Tiny arithmetic expression parser and evaluator.
 //
 // Written in the match-as-expression dialect, shaped like a classic
-// functional-language front end: a ``tokenize`` lexer turns character codes
-// into token kinds with a large match, and ``evaluate`` parses and evaluates
-// the token stream with an iterative shunting-yard evaluator, e.g.::
+// functional-language front end. Tokens are a sealed sum type (see
+// https://github.com/py2many/adt)::
 //
-//     kind = match code:
-//         48: NUM
-//         43: PLUS
-//         47: match prev:
-//             4: SKIP
-//             _: SLASH
-//         _: -1
+//     @sealed
+//     class Token:
+//         NUM: None
+//         PLUS: None
+//         ...
+//
+// A ``tokenize`` lexer turns character codes into tokens with a large
+// match that constructs one variant per arm, and ``evaluate`` dispatches
+// on the token stream with ``is_*`` checks, e.g.::
+//
+//     tok = match code:
+//         43: Token.PLUS()
+//         47: Token.SLASH()
+//         _: Token.SKIP()
+//
+//     for tok in toks:
+//         if tok.is_skip():
+//             continue
+//         elif tok.is_rparen():
+//             ...
 //
 // A ``/`` following another ``/`` is the second half of ``//``, not
-// division: the nested match spots it and marks it ``SKIP``.
+// division: it is skipped before the match when the previous token was a
+// slash. Numbers are lexed by a second pass (``number_values``) into a
+// parallel list of values.
 //
 // Per the static-python rules, fallible functions return ``Result[V, E]``
 // instead of raising: applying ``//`` to zero yields ``Err``, which the
@@ -55,14 +69,69 @@ fn (r Result[T]) unwrap_or(default T) T {
 // ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
 // ``match`` statement the python backend emits directly).
 
-const num = 0
 const plus = 1
 const minus = 2
 const star = 3
 const slash = 4
 const lparen = 5
 const rparen = 6
-const skip = -2
+
+struct TokenNum {}
+
+struct TokenPlus {}
+
+struct TokenMinus {}
+
+struct TokenStar {}
+
+struct TokenSlash {}
+
+struct TokenLparen {}
+
+struct TokenRparen {}
+
+struct TokenSkip {}
+
+type Token = TokenNum
+	| TokenPlus
+	| TokenMinus
+	| TokenStar
+	| TokenSlash
+	| TokenLparen
+	| TokenRparen
+	| TokenSkip
+
+fn (t Token) is_num() bool {
+	return t is TokenNum
+}
+
+fn (t Token) is_plus() bool {
+	return t is TokenPlus
+}
+
+fn (t Token) is_minus() bool {
+	return t is TokenMinus
+}
+
+fn (t Token) is_star() bool {
+	return t is TokenStar
+}
+
+fn (t Token) is_slash() bool {
+	return t is TokenSlash
+}
+
+fn (t Token) is_lparen() bool {
+	return t is TokenLparen
+}
+
+fn (t Token) is_rparen() bool {
+	return t is TokenRparen
+}
+
+fn (t Token) is_skip() bool {
+	return t is TokenSkip
+}
 
 fn digit_value(code int) int {
 	return match code {
@@ -131,123 +200,111 @@ fn precedence(op int) int {
 	}
 }
 
-fn tokenize(codes []int) []int {
-	mut kinds := []int{}
+fn number_values(codes []int) []int {
+	mut vals := []int{}
 	mut i := 0
 	n := codes.len
-	mut prev := 0
 	for i < n {
 		code := codes[i]
-		kind := match code {
-			48 {
-				num
-			}
-			49 {
-				num
-			}
-			50 {
-				num
-			}
-			51 {
-				num
-			}
-			52 {
-				num
-			}
-			53 {
-				num
-			}
-			54 {
-				num
-			}
-			55 {
-				num
-			}
-			56 {
-				num
-			}
-			57 {
-				num
-			}
-			43 {
-				plus
-			}
-			45 {
-				minus
-			}
-			42 {
-				star
-			}
-			47 {
-				match prev {
-					4 { skip }
-					else { slash }
+		mut digit := digit_value(code)
+		if digit >= 0 {
+			mut value := 0
+			for i < n {
+				digit = digit_value(codes[i])
+				if digit < 0 {
+					break
 				}
+				value = ((value * 10) + digit)
+				i += 1
 			}
-			40 {
-				lparen
-			}
-			41 {
-				rparen
-			}
-			else {
-				-1
-			}
+			vals << value
+		} else {
+			i += 1
+		}
+	}
+	return vals
+}
+
+fn tokenize(codes []int) []Token {
+	mut toks := []Token{}
+	mut i := 0
+	n := codes.len
+	mut prev_slash := false
+	for i < n {
+		code := codes[i]
+		if code == 47 && prev_slash {
+			i += 1
+			continue
+		}
+		tok := match code {
+			48 { Token(TokenNum{}) }
+			49 { Token(TokenNum{}) }
+			50 { Token(TokenNum{}) }
+			51 { Token(TokenNum{}) }
+			52 { Token(TokenNum{}) }
+			53 { Token(TokenNum{}) }
+			54 { Token(TokenNum{}) }
+			55 { Token(TokenNum{}) }
+			56 { Token(TokenNum{}) }
+			57 { Token(TokenNum{}) }
+			43 { Token(TokenPlus{}) }
+			45 { Token(TokenMinus{}) }
+			42 { Token(TokenStar{}) }
+			47 { Token(TokenSlash{}) }
+			40 { Token(TokenLparen{}) }
+			41 { Token(TokenRparen{}) }
+			else { Token(TokenSkip{}) }
 		}
 
-		kinds << kind
-		if kind != skip {
-			prev = kind
-		}
+		prev_slash = if !(tok.is_skip()) { tok.is_slash() } else { prev_slash }
+		toks << tok
 		i += 1
 	}
-	return kinds
+	return toks
 }
 
 fn evaluate(codes []int) Result[int] {
-	kinds := tokenize(codes)
+	toks := tokenize(codes)
+	tvals := number_values(codes)
 	mut values := []int{}
 	mut ops := []int{}
 	mut nv := 0
 	mut no := 0
-	mut i := 0
-	mut j := 0
-	m := kinds.len
+	mut k := 0
+	mut op := 0
 	mut r := Result[int]{}
+	mut j := 0
+	m := toks.len
 	for j < m {
-		kind := kinds[j]
-		if kind == skip {
-			i += 1
+		if toks[j].is_skip() {
 			j += 1
 			continue
 		}
-		if kind == num {
-			mut value := 0
+		if toks[j].is_num() {
 			for j < m {
-				if kinds[j] != num {
+				if !(toks[j].is_num()) {
 					break
 				}
-				value = ((value * 10) + digit_value(codes[i]))
-				i += 1
 				j += 1
 			}
 			if nv < values.len {
-				values[nv] = value
+				values[nv] = tvals[k]
 			} else {
-				values << value
+				values << tvals[k]
 			}
+			k += 1
 			nv += 1
 			continue
 		}
-		if kind == lparen {
+		if toks[j].is_lparen() {
 			if no < ops.len {
-				ops[no] = kind
+				ops[no] = lparen
 			} else {
-				ops << kind
+				ops << lparen
 			}
 			no += 1
 		} else {
-			if kind == rparen {
+			if toks[j].is_rparen() {
 				for no > 0 {
 					if ops[(no - 1)] == lparen {
 						break
@@ -264,11 +321,24 @@ fn evaluate(codes []int) Result[int] {
 				}
 				no -= 1
 			} else {
+				if toks[j].is_plus() {
+					op = plus
+				} else {
+					if toks[j].is_minus() {
+						op = minus
+					} else {
+						if toks[j].is_star() {
+							op = star
+						} else {
+							op = slash
+						}
+					}
+				}
 				for no > 0 {
 					if ops[(no - 1)] == lparen {
 						break
 					}
-					if precedence(ops[(no - 1)]) < precedence(kind) {
+					if precedence(ops[(no - 1)]) < precedence(op) {
 						break
 					}
 					nv -= 2
@@ -282,14 +352,13 @@ fn evaluate(codes []int) Result[int] {
 					no -= 1
 				}
 				if no < ops.len {
-					ops[no] = kind
+					ops[no] = op
 				} else {
-					ops << kind
+					ops << op
 				}
 				no += 1
 			}
 		}
-		i += 1
 		j += 1
 	}
 	for no > 0 {

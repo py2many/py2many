@@ -36,20 +36,34 @@ use std::collections;
 /* Tiny arithmetic expression parser and evaluator.
 
 Written in the match-as-expression dialect, shaped like a classic
-functional-language front end: a ``tokenize`` lexer turns character codes
-into token kinds with a large match, and ``evaluate`` parses and evaluates
-the token stream with an iterative shunting-yard evaluator, e.g.::
+functional-language front end. Tokens are a sealed sum type (see
+https://github.com/py2many/adt)::
 
-    kind = match code:
-        48: NUM
-        43: PLUS
-        47: match prev:
-            4: SKIP
-            _: SLASH
-        _: -1
+    @sealed
+    class Token:
+        NUM: None
+        PLUS: None
+        ...
+
+A ``tokenize`` lexer turns character codes into tokens with a large
+match that constructs one variant per arm, and ``evaluate`` dispatches
+on the token stream with ``is_*`` checks, e.g.::
+
+    tok = match code:
+        43: Token.PLUS()
+        47: Token.SLASH()
+        _: Token.SKIP()
+
+    for tok in toks:
+        if tok.is_skip():
+            continue
+        elif tok.is_rparen():
+            ...
 
 A ``/`` following another ``/`` is the second half of ``//``, not
-division: the nested match spots it and marks it ``SKIP``.
+division: it is skipped before the match when the previous token was a
+slash. Numbers are lexed by a second pass (``number_values``) into a
+parallel list of values.
 
 Per the static-python rules, fallible functions return ``Result[V, E]``
 instead of raising: applying ``//`` to zero yields ``Err``, which the
@@ -64,14 +78,57 @@ The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``match`` statement the python backend emits directly).
  */
 
-pub const NUM: i32 = 0;
 pub const PLUS: i32 = 1;
 pub const MINUS: i32 = 2;
 pub const STAR: i32 = 3;
 pub const SLASH: i32 = 4;
 pub const LPAREN: i32 = 5;
 pub const RPAREN: i32 = 6;
-pub const SKIP: i32 = -2;
+pub enum Token {
+    NUM,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    LPAREN,
+    RPAREN,
+    SKIP,
+}
+
+impl Token {
+    fn is_num(&self) -> bool {
+        matches!(*self, Token::NUM)
+    }
+
+    fn is_plus(&self) -> bool {
+        matches!(*self, Token::PLUS)
+    }
+
+    fn is_minus(&self) -> bool {
+        matches!(*self, Token::MINUS)
+    }
+
+    fn is_star(&self) -> bool {
+        matches!(*self, Token::STAR)
+    }
+
+    fn is_slash(&self) -> bool {
+        matches!(*self, Token::SLASH)
+    }
+
+    fn is_lparen(&self) -> bool {
+        matches!(*self, Token::LPAREN)
+    }
+
+    fn is_rparen(&self) -> bool {
+        matches!(*self, Token::RPAREN)
+    }
+
+    fn is_skip(&self) -> bool {
+        matches!(*self, Token::SKIP)
+    }
+}
+
 pub fn digit_value(code: i32) -> i32 {
     return match code {
         48 => 0,
@@ -114,88 +171,114 @@ pub fn precedence(op: i32) -> i32 {
     };
 }
 
-pub fn tokenize(codes: &Vec<i32>) -> Vec<i32> {
-    let mut kinds: Vec<i32> = vec![];
+pub fn number_values(codes: &Vec<i32>) -> Vec<i32> {
+    let mut vals: Vec<i32> = vec![];
     let mut i: i32 = 0;
     let n = codes.len() as i32;
-    let mut prev: i32 = 0;
     while i < (n as i32) {
         let code: i32 = codes[i as usize];
-        let kind = match code {
-            48 => NUM,
-            49 => NUM,
-            50 => NUM,
-            51 => NUM,
-            52 => NUM,
-            53 => NUM,
-            54 => NUM,
-            55 => NUM,
-            56 => NUM,
-            57 => NUM,
-            43 => PLUS,
-            45 => MINUS,
-            42 => STAR,
-            47 => match prev {
-                4 => SKIP,
-                _ => SLASH,
-            },
-            40 => LPAREN,
-            41 => RPAREN,
-            _ => -1,
-        };
-        kinds.push(kind);
-        if (kind as i32) != SKIP {
-            prev = kind;
+        let mut digit: i32 = digit_value(code);
+        if digit >= 0 {
+            let mut value: i32 = 0;
+            while i < (n as i32) {
+                digit = digit_value(codes[i as usize]);
+                if digit < 0 {
+                    break;
+                }
+                value = ((value * 10) + digit);
+                i += 1;
+            }
+            vals.push(value);
+        } else {
+            i += 1;
         }
+    }
+    return vals;
+}
+
+pub fn tokenize(codes: &Vec<i32>) -> Vec<Token> {
+    let mut toks: Vec<Token> = vec![];
+    let mut i: i32 = 0;
+    let n = codes.len() as i32;
+    let mut prev_slash: bool = false;
+    while i < (n as i32) {
+        let code: i32 = codes[i as usize];
+        if code == 47 && prev_slash {
+            i += 1;
+            continue;
+        }
+        let tok = match code {
+            48 => Token::NUM,
+            49 => Token::NUM,
+            50 => Token::NUM,
+            51 => Token::NUM,
+            52 => Token::NUM,
+            53 => Token::NUM,
+            54 => Token::NUM,
+            55 => Token::NUM,
+            56 => Token::NUM,
+            57 => Token::NUM,
+            43 => Token::PLUS,
+            45 => Token::MINUS,
+            42 => Token::STAR,
+            47 => Token::SLASH,
+            40 => Token::LPAREN,
+            41 => Token::RPAREN,
+            _ => Token::SKIP,
+        };
+        prev_slash = if !(tok.is_skip()) {
+            tok.is_slash()
+        } else {
+            prev_slash
+        };
+        toks.push(tok);
         i += 1;
     }
-    return kinds;
+    return toks;
 }
 
 pub fn evaluate(codes: &Vec<i32>) -> Result<i32> {
-    let kinds: &Vec<i32> = &tokenize(codes);
+    let toks: Vec<Token> = tokenize(codes);
+    let tvals: Vec<i32> = number_values(codes);
     let mut values: Vec<i32> = vec![];
     let mut ops: Vec<i32> = vec![];
     let mut nv: i32 = 0;
     let mut no: i32 = 0;
-    let mut i: i32 = 0;
-    let mut j: i32 = 0;
-    let m = kinds.len() as i32;
+    let mut k: i32 = 0;
+    let mut op: i32;
     let mut r: Result<i32>;
+    let mut j: i32 = 0;
+    let m = toks.len() as i32;
     while j < (m as i32) {
-        let kind: i32 = kinds[j as usize];
-        if kind == SKIP {
-            i += 1;
+        if toks[j as usize].is_skip() {
             j += 1;
             continue;
         }
-        if kind == NUM {
-            let mut value: i32 = 0;
+        if toks[j as usize].is_num() {
             while j < (m as i32) {
-                if kinds[j as usize] != NUM {
+                if !(toks[j as usize].is_num()) {
                     break;
                 }
-                value = ((value * 10) + digit_value(codes[i as usize]));
-                i += 1;
                 j += 1;
             }
             if nv < (values.len() as i32 as i32) {
-                values[nv as usize] = value;
+                values[nv as usize] = tvals[k as usize];
             } else {
-                values.push(value);
+                values.push(tvals[k as usize]);
             }
+            k += 1;
             nv += 1;
             continue;
         }
-        if kind == LPAREN {
+        if toks[j as usize].is_lparen() {
             if no < (ops.len() as i32 as i32) {
-                ops[no as usize] = kind;
+                ops[no as usize] = LPAREN;
             } else {
-                ops.push(kind);
+                ops.push(LPAREN);
             }
             no += 1;
         } else {
-            if kind == RPAREN {
+            if toks[j as usize].is_rparen() {
                 while no > 0 {
                     if ops[(no - 1) as usize] == LPAREN {
                         break;
@@ -216,11 +299,24 @@ pub fn evaluate(codes: &Vec<i32>) -> Result<i32> {
                 }
                 no -= 1;
             } else {
+                if toks[j as usize].is_plus() {
+                    op = PLUS;
+                } else {
+                    if toks[j as usize].is_minus() {
+                        op = MINUS;
+                    } else {
+                        if toks[j as usize].is_star() {
+                            op = STAR;
+                        } else {
+                            op = SLASH;
+                        }
+                    }
+                }
                 while no > 0 {
                     if ops[(no - 1) as usize] == LPAREN {
                         break;
                     }
-                    if precedence(ops[(no - 1) as usize]) < precedence(kind) {
+                    if precedence(ops[(no - 1) as usize]) < precedence(op) {
                         break;
                     }
                     nv -= 2;
@@ -238,14 +334,13 @@ pub fn evaluate(codes: &Vec<i32>) -> Result<i32> {
                     no -= 1;
                 }
                 if no < (ops.len() as i32 as i32) {
-                    ops[no as usize] = kind;
+                    ops[no as usize] = op;
                 } else {
-                    ops.push(kind);
+                    ops.push(op);
                 }
                 no += 1;
             }
         }
-        i += 1;
         j += 1;
     }
     while no > 0 {

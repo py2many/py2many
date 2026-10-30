@@ -2,20 +2,34 @@
 """Tiny arithmetic expression parser and evaluator.
 
 Written in the match-as-expression dialect, shaped like a classic
-functional-language front end: a ``tokenize`` lexer turns character codes
-into token kinds with a large match, and ``evaluate`` parses and evaluates
-the token stream with an iterative shunting-yard evaluator, e.g.::
+functional-language front end. Tokens are a sealed sum type (see
+https://github.com/py2many/adt)::
 
-    kind = match code:
-        48: NUM
-        43: PLUS
-        47: match prev:
-            4: SKIP
-            _: SLASH
-        _: -1
+    @sealed
+    class Token:
+        NUM: None
+        PLUS: None
+        ...
+
+A ``tokenize`` lexer turns character codes into tokens with a large
+match that constructs one variant per arm, and ``evaluate`` dispatches
+on the token stream with ``is_*`` checks, e.g.::
+
+    tok = match code:
+        43: Token.PLUS()
+        47: Token.SLASH()
+        _: Token.SKIP()
+
+    for tok in toks:
+        if tok.is_skip():
+            continue
+        elif tok.is_rparen():
+            ...
 
 A ``/`` following another ``/`` is the second half of ``//``, not
-division: the nested match spots it and marks it ``SKIP``.
+division: it is skipped before the match when the previous token was a
+slash. Numbers are lexed by a second pass (``number_values``) into a
+parallel list of values.
 
 Per the static-python rules, fallible functions return ``Result[V, E]``
 instead of raising: applying ``//`` to zero yields ``Err``, which the
@@ -32,16 +46,27 @@ The parser consumes a list of character codes (``[50, 43, 51]`` is
 
 from typing import List
 
+from adt import adt as sealed
 from py2many.result import Error, Ok, Result
 
-NUM = 0
 PLUS = 1
 MINUS = 2
 STAR = 3
 SLASH = 4
 LPAREN = 5
 RPAREN = 6
-SKIP = -2
+
+
+@sealed
+class Token:
+    NUM: None
+    PLUS: None
+    MINUS: None
+    STAR: None
+    SLASH: None
+    LPAREN: None
+    RPAREN: None
+    SKIP: None
 
 
 def digit_value(code: int) -> int:
@@ -77,84 +102,108 @@ def precedence(op: int) -> int:
         _: 0
 
 
-def tokenize(codes: List[int]) -> List[int]:
-    # Lex character codes into one token kind per character, as in a
-    # classic functional-language lexer. SKIP marks the second `/` of
-    # `//`, which the parser ignores.
-    kinds: List[int] = []
+def number_values(codes: List[int]) -> List[int]:
+    # Lex the multi-digit numbers in order; the k-th NUM token takes the
+    # k-th value. A separate pass because a match arm is a single
+    # expression and cannot run the lexing loop.
+    vals: List[int] = []
     i = 0
     n = len(codes)
-    prev = 0
     while i < n:
         code = codes[i]
-        kind = match code:
-            48: NUM
-            49: NUM
-            50: NUM
-            51: NUM
-            52: NUM
-            53: NUM
-            54: NUM
-            55: NUM
-            56: NUM
-            57: NUM
-            43: PLUS
-            45: MINUS
-            42: STAR
-            47: match prev:
-                4: SKIP
-                _: SLASH
-            40: LPAREN
-            41: RPAREN
-            _: -1
-        kinds.append(kind)
-        if kind != SKIP:
-            prev = kind
+        digit = digit_value(code)
+        if digit >= 0:
+            value = 0
+            while i < n:
+                digit = digit_value(codes[i])
+                if digit < 0:
+                    break
+                value = value * 10 + digit
+                i += 1
+            vals.append(value)
+        else:
+            i += 1
+    return vals
+
+
+def tokenize(codes: List[int]) -> List[Token]:
+    # Lex character codes into one token per character, as in a classic
+    # functional-language lexer. Each match arm constructs a variant.
+    # The second `/` of `//` is skipped before the match when the previous
+    # token was a slash, so it is never treated as division.
+    toks: List[Token] = []
+    i = 0
+    n = len(codes)
+    prev_slash = False
+    while i < n:
+        code = codes[i]
+        if code == 47 and prev_slash:
+            i += 1
+            continue
+        tok = match code:
+            48: Token.NUM()
+            49: Token.NUM()
+            50: Token.NUM()
+            51: Token.NUM()
+            52: Token.NUM()
+            53: Token.NUM()
+            54: Token.NUM()
+            55: Token.NUM()
+            56: Token.NUM()
+            57: Token.NUM()
+            43: Token.PLUS()
+            45: Token.MINUS()
+            42: Token.STAR()
+            47: Token.SLASH()
+            40: Token.LPAREN()
+            41: Token.RPAREN()
+            _: Token.SKIP()
+        # SKIP tokens preserve the previous slash state, so `///` keeps
+        # skipping the same way `//` does.
+        prev_slash = tok.is_slash() if not tok.is_skip() else prev_slash
+        toks.append(tok)
         i += 1
-    return kinds
+    return toks
 
 
 def evaluate(codes: List[int]) -> Result[int, str]:
-    kinds = tokenize(codes)
+    toks: List[Token] = tokenize(codes)
+    tvals: List[int] = number_values(codes)
     values: List[int] = []
     ops: List[int] = []
     nv = 0
     no = 0
-    i = 0
-    j = 0
-    m = len(kinds)
-    # Declared up front (assignments nested in loops below would otherwise
-    # read as uses-before-declaration in Rust and infer as Any in V) with
-    # no initializer: all three backends leave it unassigned until the first
-    # reduce, which dominates every use.
+    k = 0
+    # Declared up front with no initializer: assignments below are nested
+    # in loops/branches, and every use is dominated by an assignment.
+    op: int
     r: Result[int, str]
+    j = 0
+    m = len(toks)
     while j < m:
-        kind = kinds[j]
-        if kind == SKIP:
-            i += 1
+        if toks[j].is_skip():
             j += 1
             continue
-        if kind == NUM:
-            value = 0
+        if toks[j].is_num():
+            # One tvals entry per digit run; consume the whole run here.
             while j < m:
-                if kinds[j] != NUM:
+                if not toks[j].is_num():
                     break
-                value = value * 10 + digit_value(codes[i])
-                i += 1
                 j += 1
             if nv < len(values):
-                values[nv] = value
+                values[nv] = tvals[k]
             else:
-                values.append(value)
+                values.append(tvals[k])
+            k += 1
             nv += 1
             continue
-        if kind == LPAREN:
+        if toks[j].is_lparen():
             if no < len(ops):
-                ops[no] = kind
+                ops[no] = LPAREN
             else:
-                ops.append(kind)
+                ops.append(LPAREN)
             no += 1
-        elif kind == RPAREN:
+        elif toks[j].is_rparen():
             while no > 0:
                 if ops[no - 1] == LPAREN:
                     break
@@ -168,10 +217,18 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 no -= 1
             no -= 1
         else:
+            if toks[j].is_plus():
+                op = PLUS
+            elif toks[j].is_minus():
+                op = MINUS
+            elif toks[j].is_star():
+                op = STAR
+            else:
+                op = SLASH
             while no > 0:
                 if ops[no - 1] == LPAREN:
                     break
-                if precedence(ops[no - 1]) < precedence(kind):
+                if precedence(ops[no - 1]) < precedence(op):
                     break
                 nv -= 2
                 r = apply_op(ops[no - 1], values[nv], values[nv + 1])
@@ -182,11 +239,10 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                     return r
                 no -= 1
             if no < len(ops):
-                ops[no] = kind
+                ops[no] = op
             else:
-                ops.append(kind)
+                ops.append(op)
             no += 1
-        i += 1
         j += 1
     while no > 0:
         nv -= 2
