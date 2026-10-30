@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "argparse_dataclass",
-    "spy-ast>=0.1.7",
+    "spy-ast>=0.1.8",
     "tree-sitter",
     "tree-sitter-cpp",
     "tree-sitter-rust",
@@ -95,6 +95,11 @@ packages = [
 
 [tool.setuptools.dynamic]
 version = {attr = "py2many.version.__version__"}
+
+[tool.ruff]
+# match_expr_parser.py is written in the match-as-expression dialect,
+# which ruff's parser does not support.
+extend-exclude = ["tests/match_expr_parser.py"]
 
 [tool.isort]
 profile = "black"

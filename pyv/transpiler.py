@@ -2172,6 +2172,45 @@ class VTranspiler(CLikeTranspiler):
         test: str = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
+    def visit_Match(self, node: ast.Match) -> str:
+        # spy-ast match-as-expression:
+        #     value = match x:
+        #         1: "one"
+        #         _: "other"
+        # maps directly onto V's match expression. Each case body is a
+        # single expression. Patterns are int literals (MatchValue) or the
+        # wildcard (MatchAs). V evaluates the subject once, so any subject
+        # expression is safe to inline. A missing wildcard gets an else
+        # panic arm since V matches must be exhaustive.
+        subject: str = self.visit(node.subject)
+        arms: List[str] = []
+        has_wildcard = False
+        for case in node.cases:
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                body: str = self.visit(case.body[0].value)
+            else:  # pragma: no cover - parser only emits single-expr arms
+                body = (
+                    "{ "
+                    + "; ".join([str(self.visit(stmt)) for stmt in case.body])
+                    + " }"
+                )
+            pattern = case.pattern
+            if isinstance(pattern, ast.MatchValue):
+                arms.append(f"{self.visit(pattern.value)} {{ {body} }}")
+            elif isinstance(pattern, ast.MatchAs) and pattern.pattern is None:
+                has_wildcard = True
+                if pattern.name in (None, "_"):
+                    arms.append(f"else {{ {body} }}")
+                else:
+                    raise AstNotImplementedError(
+                        f"match capture {pattern.name!r}", pattern
+                    )
+            else:  # pragma: no cover - parser only emits the above
+                raise AstNotImplementedError("match pattern", pattern)
+        if not has_wildcard:
+            arms.append("else { panic('match: no arm matched') }")
+        return "match {} {{ {} }}".format(subject, " ".join(arms))
+
     def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
         # V doesn't support walrus operator, and it should be lifted by VWalrusRewriter
         # If we reach here, it means lifting failed or the node is in an unsupported context

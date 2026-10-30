@@ -12,7 +12,7 @@ from py2many.analysis import (
 )
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
-from py2many.exceptions import AstClassUsedBeforeDeclaration
+from py2many.exceptions import AstClassUsedBeforeDeclaration, AstNotImplementedError
 from py2many.inference import is_reference
 from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
@@ -1162,6 +1162,42 @@ class RustTranspiler(CLikeTranspiler):
         orelse = self.visit(node.orelse)
         test = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
+
+    def visit_Match(self, node) -> RustNode:
+        # spy-ast match-as-expression:
+        #     value = match x:
+        #         1: "one"
+        #         _: "other"
+        # maps directly onto Rust's match expression. Each case body is a
+        # single expression. Patterns are int literals (MatchValue) or the
+        # wildcard (MatchAs). A missing wildcard gets a panic arm since
+        # Rust matches must be exhaustive.
+        subject = self.visit(node.subject)
+        arms = []
+        has_wildcard = False
+        for case in node.cases:
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                body = self.visit(case.body[0].value)
+            else:  # pragma: no cover - parser only emits single-expr arms
+                body = (
+                    "{ "
+                    + "; ".join([str(self.visit(stmt)) for stmt in case.body])
+                    + " }"
+                )
+            pattern = case.pattern
+            if isinstance(pattern, ast.MatchValue):
+                arms.append(f"{self.visit(pattern.value)} => {body}")
+            elif isinstance(pattern, ast.MatchAs) and pattern.pattern is None:
+                has_wildcard = True
+                if pattern.name in (None, "_"):
+                    arms.append(f"_ => {body}")
+                else:
+                    arms.append(f"{pattern.name} => {body}")
+            else:  # pragma: no cover - parser only emits the above
+                raise AstNotImplementedError("match pattern", pattern)
+        if not has_wildcard:
+            arms.append('_ => panic!("match: no arm matched")')
+        return "match {} {{ {} }}".format(subject, ", ".join(arms))
 
     def visit_Try(self, node, finallybody=None) -> RustNode:
         super().visit_Try(node, finallybody)
