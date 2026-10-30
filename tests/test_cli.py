@@ -205,6 +205,48 @@ def get_python_case_output(case_filename, main_args, exit_code):
     return proc.stdout
 
 
+def is_spy_dialect_case(case_source):
+    """Cases using the spy-ast dialect (e.g. match expressions) are not
+    valid CPython, so the system interpreter cannot run them for golden
+    output. Detect them: stdlib ast rejects, spy-ast accepts. Cases broken
+    under both fall through to the normal path and fail as before."""
+    try:
+        ast.parse(case_source)
+    except SyntaxError:
+        pass
+    else:
+        return False
+    try:
+        import spy_ast
+
+        spy_ast.parse(case_source)
+    except SyntaxError:
+        return False
+    return True
+
+
+@lru_cache()
+def get_spy_dialect_case_output(case_filename, main_args, exit_code):
+    """Golden output for a dialect case: transpile it with the python
+    backend (which desugars the dialect into plain Python) and run
+    that. Mirrors get_python_case_output otherwise."""
+    outdir = GENERATED_DIR
+    rv = main(args=["--python", str(case_filename), "--outdir", str(outdir)])
+    if rv:
+        raise RuntimeError(f"Cannot transpile dialect case {case_filename}")
+    generated = outdir / (Path(case_filename).stem + ".py")
+    proc = run(
+        [sys.executable, str(generated), *main_args],
+        capture_output=True,
+        check=False,
+    )
+    if exit_code:
+        assert proc.returncode == exit_code
+    elif proc.returncode:
+        raise RuntimeError(f"Invalid {case_filename}:\n{proc.stdout}{proc.stderr}")
+    return proc.stdout
+
+
 def standardise_python(code):
     """Ignore differences in black output.
 
@@ -282,9 +324,14 @@ class TestCodeGenerator:
         if not is_declarative(ext):
             main_args = CASE_ARGS.get(case, tuple())
             expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
-            expected_output = get_python_case_output(
-                case_filename, main_args, expected_exit_code
-            )
+            if is_spy_dialect_case(case_source):
+                expected_output = get_spy_dialect_case_output(
+                    case_filename, main_args, expected_exit_code
+                )
+            else:
+                expected_output = get_python_case_output(
+                    case_filename, main_args, expected_exit_code
+                )
             assert expected_output, "Test cases must print something"
             expected_output = expected_output.splitlines()
 

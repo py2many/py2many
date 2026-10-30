@@ -117,12 +117,7 @@ def evaluate(codes: List[int]):
     no = 0
     i = 0
     n = len(codes)
-    # Pre-declared: first assigned inside nested loops, where the
-    # declaration extractor would otherwise miss them.
-    top = 0
-    left = 0
-    right = 0
-    nxt = 0
+    prev = 0
     while i < n:
         code = codes[i]
         digit = digit_value(code)
@@ -133,64 +128,55 @@ def evaluate(codes: List[int]):
                 if digit < 0:
                     break
                 value = value * 10 + digit
-                i = i + 1
+                i += 1
             if nv < len(values):
                 values[nv] = value
             else:
                 values.append(value)
-            nv = nv + 1
+            nv += 1
+            prev = op_kind(code)
             continue
         kind = op_kind(code)
-        nxt = i + 1
-        if kind == SLASH:
-            if nxt < n:
-                if op_kind(codes[nxt]) == SLASH:
-                    i = nxt
+        if kind == SLASH and prev == SLASH:
+            i += 1
+            continue
         if kind == LPAREN:
             if no < len(ops):
                 ops[no] = kind
             else:
                 ops.append(kind)
-            no = no + 1
+            no += 1
         elif kind == RPAREN:
             while no > 0:
-                top = ops[no - 1]
-                if top == LPAREN:
+                if ops[no - 1] == LPAREN:
                     break
-                right = values[nv - 1]
-                left = values[nv - 2]
-                nv = nv - 2
-                values[nv] = apply_op(top, left, right)
-                nv = nv + 1
-                no = no - 1
-            no = no - 1
+                nv -= 2
+                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                nv += 1
+                no -= 1
+            no -= 1
         else:
             while no > 0:
-                top = ops[no - 1]
-                if top == LPAREN:
+                if ops[no - 1] == LPAREN:
                     break
-                if precedence(top) < precedence(kind):
+                if precedence(ops[no - 1]) < precedence(kind):
                     break
-                right = values[nv - 1]
-                left = values[nv - 2]
-                nv = nv - 2
-                values[nv] = apply_op(top, left, right)
-                nv = nv + 1
-                no = no - 1
+                nv -= 2
+                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                nv += 1
+                no -= 1
             if no < len(ops):
                 ops[no] = kind
             else:
                 ops.append(kind)
-            no = no + 1
-        i = i + 1
+            no += 1
+        prev = kind
+        i += 1
     while no > 0:
-        top = ops[no - 1]
-        right = values[nv - 1]
-        left = values[nv - 2]
-        nv = nv - 2
-        values[nv] = apply_op(top, left, right)
-        nv = nv + 1
-        no = no - 1
+        nv -= 2
+        values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+        nv += 1
+        no -= 1
     return values[0]
 
 

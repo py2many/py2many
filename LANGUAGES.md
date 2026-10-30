@@ -1,11 +1,11 @@
 | Language | Cases | Notable failures |
 | --- | --- | --- |
-| Python | 64 |  |
-| V | 50 | stdio |
+| Python | 65 |  |
+| V | 51 | stdio |
 | Lean | 47 |  |
 | Julia | 41 | stdio |
 | Go | 40 | stdio |
-| Rust | 39 | math_func, stdio |
+| Rust | 40 | math_func, stdio |
 | Dart | 34 | fstring |
 | C++ | 33 | fstring |
 | D | 31 | fstring, coverage |

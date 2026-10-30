@@ -1013,6 +1013,38 @@ class RustTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             needs_cast = self._needs_cast(target, node.value)
             target_str = self.visit(target)
+            if (
+                not needs_cast
+                and kw in ("let", "let mut")
+                and isinstance(node.value, ast.BinOp)
+                and isinstance(node.value.left, ast.Name)
+                and get_id(node.value.left) == get_id(target)
+                and isinstance(
+                    node.value.op,
+                    (
+                        ast.Add,
+                        ast.Sub,
+                        ast.Mult,
+                        ast.Div,
+                        ast.FloorDiv,
+                        ast.Mod,
+                        ast.BitAnd,
+                        ast.BitOr,
+                        ast.BitXor,
+                        ast.LShift,
+                        ast.RShift,
+                    ),
+                )
+                and is_mutable(node.scopes, get_id(target))
+                and not hasattr(node.value, "container_type")
+            ):
+                # `x = x + 1` would trip clippy::assign_op_pattern; emit
+                # `x += 1` instead.
+                return RustAugAssignment(
+                    target_str,
+                    self.visit(node.value.op),
+                    self.visit(node.value.right),
+                )
             value = self.visit(node.value)
             if needs_cast:
                 target_type = self._typename_from_annotation(target)
