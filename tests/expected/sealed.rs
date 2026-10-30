@@ -43,19 +43,19 @@ pub enum Register {
 }
 
 impl Register {
-    fn packet(&self) -> Option<&Packet> {
+    fn packet(&self) -> &Packet {
         if let Register::PACKET(val) = self {
-            Some(val)
+            val
         } else {
-            None
+            panic!("not a PACKET")
         }
     }
 
-    fn value(&self) -> Option<&i32> {
+    fn value(&self) -> i32 {
         if let Register::VALUE(val) = self {
-            Some(val)
+            *val
         } else {
-            None
+            panic!("not a VALUE")
         }
     }
 

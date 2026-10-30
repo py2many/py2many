@@ -13,11 +13,11 @@ from py2many.analysis import (
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstNotImplementedError
-from py2many.inference import get_inferred_type, is_reference
+from py2many.inference import get_inferred_type, is_reference, is_sealed_annotation
 from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
 
-from .clike import CLikeTranspiler
+from .clike import RUST_COPY_TYPES, CLikeTranspiler
 from .inference import get_inferred_rust_type, is_rust_reference, map_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -235,6 +235,7 @@ class RustTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._allows = set()
         self._rust_mods = set()
+        self._match_binding_names = []
 
     def visit(self, node) -> RustNode:
         result = super().visit(node)
@@ -313,6 +314,8 @@ class RustTranspiler(CLikeTranspiler):
         #![allow(non_snake_case)]
         #![allow(non_upper_case_globals)]
         #![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
         #![allow(unused_mut)]
         #![allow(unused_parens)]
         """
@@ -456,8 +459,13 @@ class RustTranspiler(CLikeTranspiler):
             mut = "mut " if is_mutable(node.scopes, id) else ""
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
-            if hasattr(node, "container_type"):
+            ann = getattr(node, "annotation", None)
+            is_result = isinstance(ann, ast.Subscript) and get_id(ann.value) == "Result"
+            if hasattr(node, "container_type") and not is_result:
                 # Python passes by reference by default. Rust needs explicit borrowing
+                typename = f"&{mut}{typename}"
+            elif is_sealed_annotation(node):
+                # @sealed values (enums) are borrowed like containers.
                 typename = f"&{mut}{typename}"
         return (typename, id)
 
@@ -539,6 +547,44 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return ("", splits[0])
 
+    def _struct_will_derive_clone(self, scopes, typename) -> bool:
+        # A dataclass derives Clone iff it has a boxed (recursive) field.
+        if scopes is None:
+            return False
+        clsdef = scopes.find(typename)
+        if not isinstance(clsdef, ast.ClassDef):
+            return False
+        if "sealed" in [get_id(d) for d in clsdef.decorator_list]:
+            return False
+        decls = getattr(clsdef, "declarations", {}) or {}
+        return any(
+            self._is_sealed_typename(scopes, ftype)
+            for _field, ftype in decls.items()
+            if isinstance(ftype, str)
+        )
+
+    def _is_clone_capable(self, scopes, typename, self_name=None) -> bool:
+        if typename in RUST_COPY_TYPES or typename == "String":
+            return True
+        if typename.startswith("Box<") and typename.endswith(">"):
+            inner = typename[4:-1]
+            # Box<T> is Clone iff T is; self-recursion is sound because
+            # the enclosing enum derives too.
+            return inner in RUST_COPY_TYPES or inner == "String" or inner == self_name
+        return self._struct_will_derive_clone(scopes, typename)
+
+    def _is_sealed_typename(self, scopes, typename) -> bool:
+        # True when a (mapped) type name resolves to a @sealed class.
+        # Mapped names of custom classes are identical to source names.
+        if not typename or not isinstance(typename, str):
+            return False
+        if scopes is None:
+            return False
+        clsdef = scopes.find(typename)
+        if not isinstance(clsdef, ast.ClassDef):
+            return False
+        return "sealed" in [get_id(d) for d in clsdef.decorator_list]
+
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> RustNode:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
@@ -548,6 +594,14 @@ class RustTranspiler(CLikeTranspiler):
                 arg = self.visit(arg)
                 if decl in self._keywords:
                     decl += "_"
+                field_typename = fndef.declarations.get(decl)
+                if self._is_sealed_typename(
+                    getattr(node, "scopes", None), field_typename
+                ):
+                    # Boxed recursive field: clone into a new Box. Always
+                    # safe (every payload type is Clone) and required when
+                    # the argument is borrowed.
+                    arg = f"Box::new({arg}.clone())"
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
             for kw in node.keywords:
@@ -620,10 +674,180 @@ class RustTranspiler(CLikeTranspiler):
         # Unit variant (`X: None`): `Token::PLUS`, not `Token::PLUS()`.
         return f"{get_id(func.value)}::{func.attr}"
 
+    def _visit_sealed_string_arg(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(get_id(func.value))
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        if typename not in ("String", "str", "&str"):
+            return None
+        # String payloads are owned: convert &str args.
+        arg = self.visit(node.args[0])
+        return f"{get_id(func.value)}::{func.attr}({arg}.to_string())"
+
+    def _visit_sealed_tuple_constructor(self, node):
+        """Construct tuple variants: `Expr.ADD(l, r)` with paren syntax."""
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if node.keywords:
+            return None
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(get_id(func.value))
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        inners = self._parse_tuple_typename(typename)
+        if inners is None:
+            return None
+        if len(node.args) != len(inners):
+            return None
+        vargs = []
+        for arg_node, inner in zip(node.args, inners):
+            arg = self.visit(arg_node)
+            if inner in ("str", "&str", "String"):
+                arg = f"{arg}.to_string()"
+            elif self._is_sealed_typename(scopes, inner):
+                arg = f"Box::new({arg}.clone())"
+            vargs.append(arg)
+        return f"{get_id(func.value)}::{func.attr}({', '.join(vargs)})"
+
+    def _visit_ord_call(self, node):
+        # ord('x') -> 120 (compile-time, for char literals in int contexts).
+        func = node.func
+        if not (isinstance(func, ast.Name) and func.id == "ord"):
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        arg = node.args[0]
+        if (
+            isinstance(arg, ast.Constant)
+            and isinstance(arg.value, str)
+            and len(arg.value) == 1
+        ):
+            return str(ord(arg.value))
+        return None
+
+    def _visit_sealed_default_fill(self, node):
+        # Nullary constructions with payload defaults: `Token.PLUS()`
+        # where `PLUS: int = '+'` -> `Token::PLUS(43)`.
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if node.args or node.keywords:
+            return None
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(get_id(func.value))
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        if typename is None or typename == "_":
+            return None
+        default = None
+        for stmt in clsdef.body:
+            if (
+                isinstance(stmt, ast.AnnAssign)
+                and getattr(stmt.target, "id", None) == func.attr
+            ):
+                default = stmt.value
+                break
+        if default is None:
+            return None
+        if isinstance(default, ast.Constant):
+            v = default.value
+            if isinstance(v, str) and len(v) == 1:
+                return f"{get_id(func.value)}::{func.attr}({ord(v)})"
+            if isinstance(v, int) and not isinstance(v, bool):
+                return f"{get_id(func.value)}::{func.attr}({v})"
+            return None
+        if (
+            isinstance(default, ast.Call)
+            and isinstance(default.func, ast.Name)
+            and default.func.id == "ord"
+            and len(default.args) == 1
+            and isinstance(default.args[0], ast.Constant)
+            and isinstance(default.args[0].value, str)
+            and len(default.args[0].value) == 1
+        ):
+            return f"{get_id(func.value)}::{func.attr}({ord(default.args[0].value)})"
+        return None
+
+    def visit_Name(self, node) -> RustNode:
+        # Match bindings borrow via ergonomics. Copy payloads used in
+        # value positions (e.g. `Ok(n)` where `n: &f64`) need `*n`.
+        if (
+            isinstance(node.id, str)
+            and node.id == "n"
+            and any(
+                node.id in bound for bound in getattr(self, "_match_binding_names", [])
+            )
+        ):
+            return RustNode("*n")
+        if node.id == "None":
+            return RustNode("None")
+        ret = super().visit_Name(node)
+        definition = (
+            node.scopes.find(node.id)
+            if hasattr(node, "scopes") and node.scopes
+            else None
+        )
+        if (
+            definition
+            and definition != node
+            and getattr(definition, "needs_dereference", False)
+        ):
+            return RustNode(f"*{ret}")
+        return ret
+
     def visit_Call(self, node) -> RustNode:
+        ord_call = self._visit_ord_call(node)
+        if ord_call is not None:
+            return RustNode(ord_call)
         sealed_nullary = self._visit_sealed_nullary(node)
         if sealed_nullary is not None:
             return RustNode(sealed_nullary)
+        sealed_string = self._visit_sealed_string_arg(node)
+        if sealed_string is not None:
+            return RustNode(sealed_string)
+        sealed_tuple = self._visit_sealed_tuple_constructor(node)
+        if sealed_tuple is not None:
+            return RustNode(sealed_tuple)
+        sealed_default = self._visit_sealed_default_fill(node)
+        if sealed_default is not None:
+            return RustNode(sealed_default)
         # Python str methods -> Rust (lists/dicts don't share these names; still
         # skip when the receiver is a known list to be safe).
         if (
@@ -661,7 +885,15 @@ class RustTranspiler(CLikeTranspiler):
         if fndef and hasattr(fndef, "args"):
             for varg, fnarg, node_arg in zip(vargs, fndef.args.args, node.args):
                 if is_reference(fnarg) and not is_rust_reference(node_arg):
-                    ref_args.append(f"&{varg}")
+                    if isinstance(node_arg, ast.Name) and any(
+                        node_arg.id in bound
+                        for bound in getattr(self, "_match_binding_names", [])
+                    ):
+                        # Match bindings (`l, r` in `Expr.ADD(l, r) => ...`)
+                        # already borrow via match ergonomics; `&l` would be `&&`.
+                        ref_args.append(varg)
+                    else:
+                        ref_args.append(f"&{varg}")
                 else:
                     ref_args.append(varg)
         else:
@@ -721,20 +953,6 @@ class RustTranspiler(CLikeTranspiler):
             return f"!{right}.{cmpop}({left})"
 
         return super().visit_Compare(node)
-
-    def visit_Name(self, node) -> RustNode:
-        if node.id == "None":
-            return "None"
-        else:
-            ret = super().visit_Name(node)
-            definition = node.scopes.find(node.id)
-            if (
-                definition
-                and definition != node
-                and getattr(definition, "needs_dereference", False)
-            ):
-                return f"*{ret}"
-            return ret
 
     def visit_NameConstant(self, node) -> RustNode:
         if node.value is True:
@@ -805,10 +1023,26 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return super().visit_BinOp(node)
 
+    def _parse_tuple_typename(self, typename: str):
+        """Parse `Tuple[A, B, ...]` into inner type names, or None."""
+        if not isinstance(typename, str):
+            return None
+        typename = typename.strip()
+        if not typename.startswith("Tuple[") or not typename.endswith("]"):
+            return None
+        inner = typename[6:-1].strip()  # strip "Tuple[" and "]"
+        if not inner:
+            return []
+        # Simple split: payloads are plain type names (no nesting) in
+        # the new paren-variant syntax.
+        parts = [p.strip().strip("'\"") for p in inner.split(",")]
+        return [p for p in parts if p]
+
     def visit_sealed_class(self, node) -> RustNode:
         variants = []
         accessors = []
         tag_checkers = []
+        payload_types = []
         camel_node_name = camel_case(node.name)
         for member, var in node.class_assignments.items():
             member_id = get_id(member)
@@ -824,19 +1058,75 @@ class RustTranspiler(CLikeTranspiler):
                 variants.append(f"{member_id},")
                 pattern = f"{camel_node_name}::{camel_member_id}"
             else:
-                variants.append(f"{member_id}({typename}),")
-                pattern = f"{camel_node_name}::{camel_member_id}(_)"
-                accessor = textwrap.dedent(
-                    f"""
-                    fn {lower_member_id}(&self) -> Option<&{typename}>{{
-                        if let {camel_node_name}::{camel_member_id}(val) = self {{
-                            Some(val)
-                        }} else {{
-                            None
-                        }}
-                    }}"""
-                )
-                accessors.append(accessor)
+                tuple_inners = self._parse_tuple_typename(typename)
+                if tuple_inners is not None:
+                    # Tuple variant: `ADD(Expr, Expr)` ->
+                    # `ADD(Box<Expr>, Box<Expr>)`. Each sealed payload is
+                    # boxed for a fixed enum size; strings are owned.
+                    rust_inners = []
+                    for inner in tuple_inners:
+                        if inner in ("str", "&str"):
+                            inner = "String"
+                        if self._is_sealed_typename(
+                            getattr(node, "scopes", None), inner
+                        ):
+                            inner = f"Box<{inner}>"
+                        rust_inners.append(inner)
+                    for inner in rust_inners:
+                        payload_types.append((member_id, inner))
+                    variants.append(f"{member_id}({', '.join(rust_inners)}),")
+                    wildcards = ", ".join(["_"] * len(rust_inners))
+                    pattern = f"{camel_node_name}::{camel_member_id}({wildcards})"
+                    # Accessor returns owned tuple (cloned) so `x[0]`
+                    # (lowered to `.0`) with `&` is a single borrow.
+                    bindings = ", ".join([f"v{i}" for i in range(len(rust_inners))])
+                    ret_tuple = ", ".join(rust_inners)
+                    if len(rust_inners) == 1:
+                        ret_tuple += ","
+                    clones = ", ".join(
+                        [f"v{i}.clone()" for i in range(len(rust_inners))]
+                    )
+                    accessor = textwrap.dedent(
+                        f"""
+                        fn {lower_member_id}(&self) -> ({ret_tuple}) {{
+                            if let {camel_node_name}::{camel_member_id}({bindings}) = self {{
+                                ({clones})
+                            }} else {{
+                                panic!("not a {member_id}")
+                            }}
+                        }}"""
+                    )
+                    accessors.append(accessor)
+                else:
+                    if typename in ("str", "&str"):
+                        # Owned strings: enums cannot hold borrows without lifetimes.
+                        typename = "String"
+                    if self._is_sealed_typename(
+                        getattr(node, "scopes", None), typename
+                    ):
+                        # Recursive payload: Box it so the enum has a fixed size.
+                        typename = f"Box<{typename}>"
+                    payload_types.append((member_id, typename))
+                    variants.append(f"{member_id}({typename}),")
+                    pattern = f"{camel_node_name}::{camel_member_id}(_)"
+                    # Panicking on mismatch mirrors the adt lib (which raises)
+                    # so payload extraction is portable. Copy payloads return by
+                    # value, others by borrow.
+                    if typename in RUST_COPY_TYPES:
+                        ret, val_expr = typename, "*val"
+                    else:
+                        ret, val_expr = f"&{typename}", "val"
+                    accessor = textwrap.dedent(
+                        f"""
+                        fn {lower_member_id}(&self) -> {ret} {{
+                            if let {camel_node_name}::{camel_member_id}(val) = self {{
+                                {val_expr}
+                            }} else {{
+                                panic!("not a {member_id}")
+                            }}
+                        }}"""
+                    )
+                    accessors.append(accessor)
             tag_check = textwrap.dedent(
                 f"""
                     fn is_{lower_member_id}(&self) -> bool {{
@@ -846,7 +1136,32 @@ class RustTranspiler(CLikeTranspiler):
             tag_checkers.append(tag_check)
         body_str = "\n".join(variants)
         impl_str = "\n".join(accessors) + "\n" + "\n".join(tag_checkers)
-        return f"pub enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
+        # Clone so boxes can be cloned out of borrows; only when every
+        # payload is Clone-capable. A plain struct payload (e.g. Packet)
+        # opts the enum out. Copy when every payload is Copy (e.g. Token
+        # with only int payloads) so values can move out of vectors.
+        cloneable = all(
+            payload is None
+            or self._is_clone_capable(
+                getattr(node, "scopes", None), payload, camel_node_name
+            )
+            for _member, payload in payload_types
+        )
+        copyable = all(
+            payload is None or payload in RUST_COPY_TYPES
+            for _member, payload in payload_types
+        )
+        if copyable and payload_types:
+            derive = "#[derive(Clone, Copy)]\n"
+        elif cloneable:
+            derive = "#[derive(Clone)]\n"
+        else:
+            derive = "" ""
+        return (
+            f"{derive}"
+            f"pub enum {camel_node_name} {{ {body_str} }}\n\n"
+            f" impl {camel_node_name} {{ {impl_str} }}\n\n"
+        )
 
     def visit_ClassDef(self, node) -> RustNode:
         extractor = DeclarationExtractor(RustTranspiler())
@@ -874,10 +1189,15 @@ class RustTranspiler(CLikeTranspiler):
 
         fields = []
         index = 0
+        has_boxed_field = False
         for declaration, typename in declarations.items():
             if typename is None:
                 typename = f"ST{index}"
                 index += 1
+            if self._is_sealed_typename(getattr(node, "scopes", None), typename):
+                # Recursive field: Box it so the struct has a fixed size.
+                typename = f"Box<{typename}>"
+                has_boxed_field = True
             fields.append(f"pub {declaration}: {typename},")
 
         for b in node.body:
@@ -885,9 +1205,13 @@ class RustTranspiler(CLikeTranspiler):
                 b.self_type = node.name
 
         extension = "#[pyclass]\n" if self.extension else ""
+        # A struct with boxed (recursive) fields must be Clone so the
+        # boxes can be cloned out of borrows.
+        derive = "#[derive(Clone)]\n" if has_boxed_field else ""
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
             node.name, "\n".join(fields)
         )
+        struct_def = derive + struct_def
         impl_extension = "#[pymethods]\n" if self.extension else ""
         impl_def = f"{impl_extension}impl {node.name} {{\n"
         buf = [self.visit(b) for b in node.body]
@@ -1023,6 +1347,13 @@ class RustTranspiler(CLikeTranspiler):
                 index_typename = get_inferred_rust_type(self._slice_value(node))
                 if index_typename == value_type[1][0]:
                     index = "&" + index
+            if is_list or is_dict:
+                return f"{value}[{index}]"
+        # Tuple payloads from sealed accessors: `b[0]` -> `b.0`.
+        # Lists use variable indices with annotations above; constant
+        # int indices on unannotated values are tuple field accesses.
+        if isinstance(index, str) and index.isdigit():
+            return f"{value}.{index}"
         return f"{value}[{index}]"
 
     def visit_Index(self, node) -> RustNode:
@@ -1275,28 +1606,86 @@ class RustTranspiler(CLikeTranspiler):
         test = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
+    def _matchclass_bindings(self, pattern):
+        # Binding names in `Expr.ADD(l, r)` (excluding `_` wildcards).
+        names = []
+        for sub in list(getattr(pattern, "patterns", []) or []):
+            if isinstance(sub, ast.MatchAs) and sub.pattern is None:
+                if sub.name not in (None, "_"):
+                    names.append(sub.name)
+        return names
+
     def visit_Match(self, node) -> RustNode:
         # spy-ast match-as-expression:
         #     value = match x:
         #         1: "one"
         #         _: "other"
         # maps directly onto Rust's match expression. Each case body is a
-        # single expression. Patterns are int literals (MatchValue) or the
-        # wildcard (MatchAs). A missing wildcard gets a panic arm since
-        # Rust matches must be exhaustive.
+        # single expression. Patterns are int literals (MatchValue),
+        # variant patterns (MatchClass, e.g. `Token.PLUS():`,
+        # `Expr.ADD(l, r):` with bindings) or the wildcard (MatchAs).
+        # A missing wildcard gets a panic arm since Rust matches must
+        # be exhaustive.
         subject = self.visit(node.subject)
         arms = []
         has_wildcard = False
         for case in node.cases:
-            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
-                body = self.visit(case.body[0].value)
-            else:  # pragma: no cover - parser only emits single-expr arms
-                body = (
-                    "{ "
-                    + "; ".join([str(self.visit(stmt)) for stmt in case.body])
-                    + " }"
-                )
             pattern = case.pattern
+            bindings = []
+            rust_pat = None
+            if isinstance(pattern, ast.MatchClass):
+                cls = pattern.cls
+                if not (
+                    isinstance(cls, ast.Attribute) and isinstance(cls.value, ast.Name)
+                ):
+                    raise AstNotImplementedError("match pattern", pattern)
+                enum_name = self.visit(cls.value)
+                variant = cls.attr
+                parts = []
+                for sub in list(getattr(pattern, "patterns", []) or []):
+                    if isinstance(sub, ast.MatchAs) and sub.pattern is None:
+                        if sub.name in (None, "_"):
+                            parts.append("_")
+                        else:
+                            parts.append(sub.name)
+                            bindings.append(sub.name)
+                    else:
+                        raise AstNotImplementedError("match pattern binding", sub)
+                if len(parts) == 0:
+                    rust_pat = f"{enum_name}::{variant}(_)"
+                elif len(parts) == 1 and parts[0] == "_":
+                    rust_pat = f"{enum_name}::{variant}(_)"
+                else:
+                    rust_pat = f"{enum_name}::{variant}({', '.join(parts)})"
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                if bindings:
+                    self._match_binding_names.append(set(bindings))
+                    try:
+                        body = self.visit(case.body[0].value)
+                    finally:
+                        self._match_binding_names.pop()
+                else:
+                    body = self.visit(case.body[0].value)
+            else:  # pragma: no cover - parser only emits single-expr arms
+                if bindings:
+                    self._match_binding_names.append(set(bindings))
+                    try:
+                        body = (
+                            "{ "
+                            + "; ".join([str(self.visit(stmt)) for stmt in case.body])
+                            + " }"
+                        )
+                    finally:
+                        self._match_binding_names.pop()
+                else:
+                    body = (
+                        "{ "
+                        + "; ".join([str(self.visit(stmt)) for stmt in case.body])
+                        + " }"
+                    )
+            if rust_pat is not None:
+                arms.append(f"{rust_pat} => {body}")
+                continue
             if isinstance(pattern, ast.MatchValue):
                 arms.append(f"{self.visit(pattern.value)} => {body}")
             elif isinstance(pattern, ast.MatchAs) and pattern.pattern is None:

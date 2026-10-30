@@ -81,6 +81,22 @@ class VTranspilerPlugins:
         # For bool, use direct cast function instead of 'as int'
         if node.args and get_inferred_v_type(node.args[0]) == "bool":
             return f"int({vargs[0]})"
+        # Numeric args convert with a call; `as int` only works on sum types.
+        # For `x.unwrap_or(default)`, the default carries T.
+        operand = node.args[0] if node.args else None
+        if (
+            isinstance(operand, ast.Call)
+            and isinstance(operand.func, ast.Attribute)
+            and operand.func.attr == "unwrap_or"
+            and operand.args
+        ):
+            operand = operand.args[0]
+        if operand is not None and get_inferred_v_type(operand) in (
+            "int",
+            "i64",
+            "f64",
+        ):
+            return f"int({vargs[0]})"
         # Placeholder for post-processing in VTranspiler.visit_Module
         # Converts int(x) to (x as int) for Any/Sum types
         return f"CAST_INT({vargs[0]})"
