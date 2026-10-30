@@ -120,6 +120,63 @@ class RustStringJoinRewriter(ast.NodeTransformer):
         return node
 
 
+class RustAugAssignRewriter(ast.NodeTransformer):
+    """Rewrite `x = x op y` into `x op= y`.
+
+    Emitting `x = x + 1` would trip clippy::assign_op_pattern, so
+    canonicalize self-updating assignments on the AST instead of
+    special-casing them in the transpiler. This runs as a post-rewriter,
+    after scopes, mutability and types are known. Casts, when needed,
+    are still handled by `visit_AugAssign`.
+    """
+
+    _AUG_OPS = (
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.Div,
+        ast.FloorDiv,
+        ast.Mod,
+        ast.BitAnd,
+        ast.BitOr,
+        ast.BitXor,
+        ast.LShift,
+        ast.RShift,
+    )
+
+    def visit_Assign(self, node):
+        self.generic_visit(node)
+        if len(node.targets) != 1 or not hasattr(node, "scopes"):
+            return node
+        target = node.targets[0]
+        value = node.value
+        if not (
+            isinstance(target, ast.Name)
+            and isinstance(value, ast.BinOp)
+            and isinstance(value.left, ast.Name)
+            and get_id(value.left) == get_id(target)
+            and isinstance(value.op, self._AUG_OPS)
+            and not hasattr(value, "container_type")
+            and not is_global(node)
+            and not getattr(node, "class_assignment", False)
+            and is_mutable(node.scopes, get_id(target))
+        ):
+            return node
+        definition = node.scopes.parent_scopes.find(get_id(target))
+        if definition is None:
+            definition = node.scopes.find(get_id(target))
+        if definition is None or not defined_before(definition, node):
+            return node
+        new_node = ast.AugAssign(
+            target=target,
+            op=value.op,
+            value=value.right,
+        )
+        ast.copy_location(new_node, node)
+        ast.fix_missing_locations(new_node)
+        return new_node
+
+
 def _mutates_self(node) -> bool:
     """True when the method body assigns to a ``self`` field (``self.x = ...``)."""
     for n in ast.walk(node):
@@ -1013,38 +1070,6 @@ class RustTranspiler(CLikeTranspiler):
         if isinstance(target, ast.Name) and defined_before(definition, node):
             needs_cast = self._needs_cast(target, node.value)
             target_str = self.visit(target)
-            if (
-                not needs_cast
-                and kw in ("let", "let mut")
-                and isinstance(node.value, ast.BinOp)
-                and isinstance(node.value.left, ast.Name)
-                and get_id(node.value.left) == get_id(target)
-                and isinstance(
-                    node.value.op,
-                    (
-                        ast.Add,
-                        ast.Sub,
-                        ast.Mult,
-                        ast.Div,
-                        ast.FloorDiv,
-                        ast.Mod,
-                        ast.BitAnd,
-                        ast.BitOr,
-                        ast.BitXor,
-                        ast.LShift,
-                        ast.RShift,
-                    ),
-                )
-                and is_mutable(node.scopes, get_id(target))
-                and not hasattr(node.value, "container_type")
-            ):
-                # `x = x + 1` would trip clippy::assign_op_pattern; emit
-                # `x += 1` instead.
-                return RustAugAssignment(
-                    target_str,
-                    self.visit(node.value.op),
-                    self.visit(node.value.right),
-                )
             value = self.visit(node.value)
             if needs_cast:
                 target_type = self._typename_from_annotation(target)

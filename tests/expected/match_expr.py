@@ -48,26 +48,6 @@ def digit_value(code: int) -> int:
     )
 
 
-def op_kind(code: int) -> int:
-    return (
-        PLUS
-        if code == 43
-        else (
-            MINUS
-            if code == 45
-            else (
-                STAR
-                if code == 42
-                else (
-                    SLASH
-                    if code == 47
-                    else LPAREN if code == 40 else RPAREN if code == 41 else -1
-                )
-            )
-        )
-    )
-
-
 def apply_op(op: int, left: int, right: int) -> int:
     return (
         left + right
@@ -84,34 +64,6 @@ def precedence(op: int) -> int:
     return 2 if op == 3 else 2 if op == 4 else 1 if op == 1 else 1 if op == 2 else 0
 
 
-def sign_kind(code: int) -> int:
-    return (
-        10
-        if (__match_subj_0 := (1 if code == 43 else 2 if code == 45 else 0)) == 1
-        else 20 if __match_subj_0 == 2 else 0
-    )
-
-
-def prec_pair(op1: int, op2: int) -> int:
-    return (
-        (
-            22
-            if (__match_subj_1 := precedence(op2)) == 2
-            else 21 if __match_subj_1 == 1 else 20
-        )
-        if (__match_subj_3 := precedence(op1)) == 2
-        else (
-            (
-                12
-                if (__match_subj_2 := precedence(op2)) == 2
-                else 11 if __match_subj_2 == 1 else 10
-            )
-            if __match_subj_3 == 1
-            else 0
-        )
-    )
-
-
 def evaluate(codes: List[int]) -> int:
     values: List[int] = []
     ops: List[int] = []
@@ -122,6 +74,23 @@ def evaluate(codes: List[int]) -> int:
     prev: int = 0
     while i < n:
         code: int = codes[i]
+        kind = (
+            PLUS
+            if code == 43
+            else (
+                MINUS
+                if code == 45
+                else (
+                    STAR
+                    if code == 42
+                    else (
+                        (-2 if prev == 4 else SLASH)
+                        if code == 47
+                        else LPAREN if code == 40 else RPAREN if code == 41 else -1
+                    )
+                )
+            )
+        )
         digit: int = digit_value(code)
         if digit >= 0:
             value: int = 0
@@ -136,10 +105,9 @@ def evaluate(codes: List[int]) -> int:
             else:
                 values.append(value)
             nv += 1
-            prev = op_kind(code)
+            prev = -1
             continue
-        kind: int = op_kind(code)
-        if kind == SLASH and prev == SLASH:
+        if kind == -2:
             i += 1
             continue
         if kind == LPAREN:
@@ -188,11 +156,3 @@ if __name__ == "__main__":
     print(evaluate([49, 48, 45, 56, 47, 47, 50]))
     print(evaluate([55, 42, 56, 43, 57]))
     print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]))
-    print(sign_kind(43))
-    print(sign_kind(45))
-    print(sign_kind(48))
-    print(prec_pair(3, 4))
-    print(prec_pair(3, 1))
-    print(prec_pair(1, 4))
-    print(prec_pair(1, 1))
-    print(prec_pair(5, 1))

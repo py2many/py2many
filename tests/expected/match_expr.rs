@@ -36,23 +36,24 @@ use std::collections;
 /* Tiny arithmetic expression parser and evaluator.
 
 Written in the match-as-expression dialect: digit decoding, operator
-classification, operator application and operator precedence are all
-match expressions, e.g.::
+application and operator precedence are all match expressions, e.g.::
 
     kind = match code:
         43: PLUS
         45: MINUS
         _: -1
 
-Nested matches and parenthesized matches are supported too::
+The evaluator itself dispatches on the raw character code with a large
+match, as in a classic functional-language lexer. A ``/`` following
+another ``/`` is the second half of ``//``, not division: a nested
+match tells the two apart::
 
-    return (
-        match precedence(op1):
-            2: match precedence(op2):
-                2: 22
-                _: 20
-            _: 0
-    )
+    kind = match code:
+        47: match prev:
+            4: -2
+            _: SLASH
+        40: LPAREN
+        _: -1
 
 The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``"2+3"``) with an iterative shunting-yard evaluator, so the same
@@ -81,18 +82,6 @@ pub fn digit_value(code: i32) -> i32 {
     };
 }
 
-pub fn op_kind(code: i32) -> i32 {
-    return match code {
-        43 => PLUS,
-        45 => MINUS,
-        42 => STAR,
-        47 => SLASH,
-        40 => LPAREN,
-        41 => RPAREN,
-        _ => -1,
-    };
-}
-
 pub fn apply_op(op: i32, left: i32, right: i32) -> i32 {
     return match op {
         1 => (left + right),
@@ -113,34 +102,6 @@ pub fn precedence(op: i32) -> i32 {
     };
 }
 
-pub fn sign_kind(code: i32) -> i32 {
-    return match match code {
-        43 => 1,
-        45 => 2,
-        _ => 0,
-    } {
-        1 => 10,
-        2 => 20,
-        _ => 0,
-    };
-}
-
-pub fn prec_pair(op1: i32, op2: i32) -> i32 {
-    return match precedence(op1) {
-        2 => match precedence(op2) {
-            2 => 22,
-            1 => 21,
-            _ => 20,
-        },
-        1 => match precedence(op2) {
-            2 => 12,
-            1 => 11,
-            _ => 10,
-        },
-        _ => 0,
-    };
-}
-
 pub fn evaluate(codes: &Vec<i32>) -> i32 {
     let mut values: Vec<i32> = vec![];
     let mut ops: Vec<i32> = vec![];
@@ -151,6 +112,18 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
     let mut prev: i32 = 0;
     while i < (n as i32) {
         let code: i32 = codes[i as usize];
+        let kind = match code {
+            43 => PLUS,
+            45 => MINUS,
+            42 => STAR,
+            47 => match prev {
+                4 => -2,
+                _ => SLASH,
+            },
+            40 => LPAREN,
+            41 => RPAREN,
+            _ => -1,
+        };
         let mut digit: i32 = digit_value(code);
         if digit >= 0 {
             let mut value: i32 = 0;
@@ -168,15 +141,14 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
                 values.push(value);
             }
             nv += 1;
-            prev = op_kind(code);
+            prev = -1;
             continue;
         }
-        let kind: i32 = op_kind(code);
-        if kind == SLASH && prev == SLASH {
+        if (kind as i32) == -2 {
             i += 1;
             continue;
         }
-        if kind == LPAREN {
+        if (kind as i32) == LPAREN {
             if no < (ops.len() as i32 as i32) {
                 ops[no as usize] = kind;
             } else {
@@ -184,7 +156,7 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
             }
             no += 1;
         } else {
-            if kind == RPAREN {
+            if (kind as i32) == RPAREN {
                 while no > 0 {
                     if ops[(no - 1) as usize] == LPAREN {
                         break;
@@ -249,13 +221,5 @@ pub fn main() -> Result<()> {
         "{}",
         evaluate(&vec![40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54])
     );
-    println!("{}", sign_kind(43));
-    println!("{}", sign_kind(45));
-    println!("{}", sign_kind(48));
-    println!("{}", prec_pair(3, 4));
-    println!("{}", prec_pair(3, 1));
-    println!("{}", prec_pair(1, 4));
-    println!("{}", prec_pair(1, 1));
-    println!("{}", prec_pair(5, 1));
     Ok(())
 }

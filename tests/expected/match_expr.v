@@ -4,23 +4,24 @@ module main
 // Tiny arithmetic expression parser and evaluator.
 //
 // Written in the match-as-expression dialect: digit decoding, operator
-// classification, operator application and operator precedence are all
-// match expressions, e.g.::
+// application and operator precedence are all match expressions, e.g.::
 //
 //     kind = match code:
 //         43: PLUS
 //         45: MINUS
 //         _: -1
 //
-// Nested matches and parenthesized matches are supported too::
+// The evaluator itself dispatches on the raw character code with a large
+// match, as in a classic functional-language lexer. A ``/`` following
+// another ``/`` is the second half of ``//``, not division: a nested
+// match tells the two apart::
 //
-//     return (
-//         match precedence(op1):
-//             2: match precedence(op2):
-//                 2: 22
-//                 _: 20
-//             _: 0
-//     )
+//     kind = match code:
+//         47: match prev:
+//             4: -2
+//             _: SLASH
+//         40: LPAREN
+//         _: -1
 //
 // The parser consumes a list of character codes (``[50, 43, 51]`` is
 // ``"2+3"``) with an iterative shunting-yard evaluator, so the same
@@ -49,18 +50,6 @@ fn digit_value(code int) int {
 	}
 }
 
-fn op_kind(code int) int {
-	return match code {
-		43 { plus }
-		45 { minus }
-		42 { star }
-		47 { slash }
-		40 { lparen }
-		41 { rparen }
-		else { -1 }
-	}
-}
-
 fn apply_op(op int, left int, right int) int {
 	return match op {
 		1 { (left + right) }
@@ -81,40 +70,6 @@ fn precedence(op int) int {
 	}
 }
 
-fn sign_kind(code int) int {
-	return match match code {
-		43 { 1 }
-		45 { 2 }
-		else { 0 }
-	} {
-		1 { 10 }
-		2 { 20 }
-		else { 0 }
-	}
-}
-
-fn prec_pair(op1 int, op2 int) int {
-	return match precedence(op1) {
-		2 {
-			match precedence(op2) {
-				2 { 22 }
-				1 { 21 }
-				else { 20 }
-			}
-		}
-		1 {
-			match precedence(op2) {
-				2 { 12 }
-				1 { 11 }
-				else { 10 }
-			}
-		}
-		else {
-			0
-		}
-	}
-}
-
 fn evaluate(codes []int) int {
 	mut values := []int{}
 	mut ops := []int{}
@@ -125,6 +80,33 @@ fn evaluate(codes []int) int {
 	mut prev := 0
 	for i < n {
 		code := codes[i]
+		kind := match code {
+			43 {
+				plus
+			}
+			45 {
+				minus
+			}
+			42 {
+				star
+			}
+			47 {
+				match prev {
+					4 { -2 }
+					else { slash }
+				}
+			}
+			40 {
+				lparen
+			}
+			41 {
+				rparen
+			}
+			else {
+				-1
+			}
+		}
+
 		mut digit := digit_value(code)
 		if digit >= 0 {
 			mut value := 0
@@ -142,11 +124,10 @@ fn evaluate(codes []int) int {
 				values << value
 			}
 			nv += 1
-			prev = op_kind(code)
+			prev = -1
 			continue
 		}
-		kind := op_kind(code)
-		if kind == slash && prev == slash {
+		if kind == -2 {
 			i += 1
 			continue
 		}
@@ -208,12 +189,4 @@ fn main() {
 	println((evaluate([49, 48, 45, 56, 47, 47, 50])).str())
 	println((evaluate([55, 42, 56, 43, 57])).str())
 	println((evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54])).str())
-	println((sign_kind(43)).str())
-	println((sign_kind(45)).str())
-	println((sign_kind(48)).str())
-	println((prec_pair(3, 4)).str())
-	println((prec_pair(3, 1)).str())
-	println((prec_pair(1, 4)).str())
-	println((prec_pair(1, 1)).str())
-	println((prec_pair(5, 1)).str())
 }

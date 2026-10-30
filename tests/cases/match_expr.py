@@ -2,23 +2,24 @@
 """Tiny arithmetic expression parser and evaluator.
 
 Written in the match-as-expression dialect: digit decoding, operator
-classification, operator application and operator precedence are all
-match expressions, e.g.::
+application and operator precedence are all match expressions, e.g.::
 
     kind = match code:
         43: PLUS
         45: MINUS
         _: -1
 
-Nested matches and parenthesized matches are supported too::
+The evaluator itself dispatches on the raw character code with a large
+match, as in a classic functional-language lexer. A ``/`` following
+another ``/`` is the second half of ``//``, not division: a nested
+match tells the two apart::
 
-    return (
-        match precedence(op1):
-            2: match precedence(op2):
-                2: 22
-                _: 20
-            _: 0
-    )
+    kind = match code:
+        47: match prev:
+            4: -2
+            _: SLASH
+        40: LPAREN
+        _: -1
 
 The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``"2+3"``) with an iterative shunting-yard evaluator, so the same
@@ -50,17 +51,6 @@ def digit_value(code: int) -> int:
         _: -1
 
 
-def op_kind(code: int) -> int:
-    return match code:
-        43: PLUS
-        45: MINUS
-        42: STAR
-        47: SLASH
-        40: LPAREN
-        41: RPAREN
-        _: -1
-
-
 def apply_op(op: int, left: int, right: int) -> int:
     return match op:
         1: left + right
@@ -79,33 +69,6 @@ def precedence(op: int) -> int:
         _: 0
 
 
-def sign_kind(code: int) -> int:
-    return (
-        match (match code:
-            43: 1
-            45: 2
-            _: 0):
-        1: 10
-        2: 20
-        _: 0
-    )
-
-
-def prec_pair(op1: int, op2: int) -> int:
-    return (
-        match precedence(op1):
-            2: match precedence(op2):
-                2: 22
-                1: 21
-                _: 20
-            1: match precedence(op2):
-                2: 12
-                1: 11
-                _: 10
-            _: 0
-    )
-
-
 # Note: evaluate has no `-> int` annotation. Returning a list element
 # with a declared `-> int` trips a pre-existing inference bug
 # (declared `int` merged with inferred `i32` into `Union[int,i32]`).
@@ -120,6 +83,20 @@ def evaluate(codes: List[int]):
     prev = 0
     while i < n:
         code = codes[i]
+        # Operator classification is a large match on the raw character
+        # code, as in a classic functional-language lexer. The nested
+        # match spots the second `/` of `//` (marked -2 and skipped
+        # below) so it isn't treated as division.
+        kind = match code:
+            43: PLUS
+            45: MINUS
+            42: STAR
+            47: match prev:
+                4: -2
+                _: SLASH
+            40: LPAREN
+            41: RPAREN
+            _: -1
         digit = digit_value(code)
         if digit >= 0:
             value = 0
@@ -134,10 +111,9 @@ def evaluate(codes: List[int]):
             else:
                 values.append(value)
             nv += 1
-            prev = op_kind(code)
+            prev = -1
             continue
-        kind = op_kind(code)
-        if kind == SLASH and prev == SLASH:
+        if kind == -2:
             i += 1
             continue
         if kind == LPAREN:
@@ -191,11 +167,3 @@ if __name__ == "__main__":
     print(evaluate([55, 42, 56, 43, 57]))
     # "((2+3)*4)-6"
     print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]))
-    print(sign_kind(43))
-    print(sign_kind(45))
-    print(sign_kind(48))
-    print(prec_pair(3, 4))
-    print(prec_pair(3, 1))
-    print(prec_pair(1, 4))
-    print(prec_pair(1, 1))
-    print(prec_pair(5, 1))
