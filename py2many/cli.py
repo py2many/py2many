@@ -1,5 +1,4 @@
 import argparse
-import ast
 import os
 import sys
 import tempfile
@@ -7,6 +6,8 @@ from functools import lru_cache
 from pathlib import Path
 from subprocess import run as subprocess_run
 from typing import List, Optional, Set, Tuple
+
+import spy_ast.ast as ast
 
 from .analysis import add_imports
 from .annotation_transformer import add_annotation_flags

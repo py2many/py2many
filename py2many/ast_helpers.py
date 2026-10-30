@@ -1,5 +1,6 @@
-import ast
 from typing import cast
+
+import spy_ast.ast as ast
 
 from py2many.astx import ASTxIf
 

@@ -1,4 +1,3 @@
-import ast
 from ctypes import (
     c_int8,
     c_int16,
@@ -11,6 +10,8 @@ from ctypes import (
 )
 from dataclasses import dataclass
 from typing import Optional, Set, cast
+
+import spy_ast.ast as ast
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_node

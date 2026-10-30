@@ -1,8 +1,9 @@
 # Trace object types that are inserted into Python list.
 
-import ast
 from collections.abc import Iterable
 from typing import Optional
+
+import spy_ast.ast as ast
 
 from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler
