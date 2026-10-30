@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "argparse_dataclass",
-    "spy-ast>=0.1.3",
+    "spy-ast>=0.1.7",
     "tree-sitter",
     "tree-sitter-cpp",
     "tree-sitter-rust",
