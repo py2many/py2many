@@ -5,6 +5,7 @@ from py2many.language import LanguageSettings
 
 from .inference import infer_rust_types
 from .transpiler import (
+    RustAugAssignRewriter,
     RustLoopIndexRewriter,
     RustNoneCompareRewriter,
     RustStringJoinRewriter,
@@ -24,7 +25,7 @@ def settings(args, env=os.environ):
         None,
         [RustNoneCompareRewriter()],
         [partial(infer_rust_types, extension=args.extension)],
-        [RustLoopIndexRewriter(), RustStringJoinRewriter()],
+        [RustLoopIndexRewriter(), RustStringJoinRewriter(), RustAugAssignRewriter()],
         linter=[
             "../../scripts/rust-runner.sh",
             "lint",

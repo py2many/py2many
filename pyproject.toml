@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "argparse_dataclass",
-    "spy-ast>=0.1.7",
+    "spy-ast>=0.1.8",
     "tree-sitter",
     "tree-sitter-cpp",
     "tree-sitter-rust",
@@ -31,7 +31,7 @@ dynamic = ["version"]
 # pypi doesn't allow direct dependencies
 # dev = [
 #   "typpete @ git+https://github.com/adsharma/Typpete/",
-#   "algebraic-data-types @ git+https://github.com/adsharma/adt/",
+#   (algebraic-data-types moved to the test extra above)
 # ]
 test = [
     "importlib-resources; python_version < '3.9'",
@@ -40,6 +40,10 @@ test = [
     "black",
     "astpretty",
     "jgo<2",
+    # Needed at the CPython level to run the cases that import it (sealed,
+    # datatypes). Direct URL: fine for pip/uv installs, but do not upload
+    # this metadata to PyPI (which rejects direct dependencies).
+    "algebraic-data-types @ git+https://github.com/py2many/adt",
 ]
 llm = [
     "mlx_llm; sys_platform == 'darwin'",
@@ -96,12 +100,17 @@ packages = [
 [tool.setuptools.dynamic]
 version = {attr = "py2many.version.__version__"}
 
+[tool.ruff]
+# tests/cases/match_expr.py is written in the match-as-expression dialect,
+# which ruff's parser does not support.
+extend-exclude = ["tests/cases/match_expr.py"]
+
 [tool.isort]
 profile = "black"
 # Golden transpiler output, not source we control -- their import order mirrors
 # the input fixtures, so don't lint it. CI used to `rm` these before isort;
 # skipping here means it doesn't have to.
-extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*"]
+extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*", "tests/cases/match_expr.py"]
 
 [tool.black]
 # Same golden-output fixtures excluded for isort above (black takes a regex on
@@ -109,9 +118,10 @@ extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*"]
 # these files.
 extend-exclude = '''
 /(
-    tests/expected
-  | tests/dir_cases/test1-[^/]*-expected
-)/
+    tests/expected/
+  | tests/dir_cases/test1-[^/]*-expected/
+  | tests/cases/match_expr\.py
+)
 '''
 
 [build-system]
