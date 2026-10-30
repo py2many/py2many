@@ -3,6 +3,7 @@ from ctypes import c_int8 as i8, c_int16 as i16, c_int32 as i32, c_int64 as i64
 from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as u64
 import sys
 from typing import List
+from py2many.result import Error, Ok, Result
 
 NUM: int = 0
 PLUS: int = 1
@@ -40,18 +41,18 @@ def digit_value(code: int) -> int:
             return -1
 
 
-def apply_op(op: int, left: int, right: int) -> int:
+def apply_op(op: int, left: int, right: int) -> Result[int, str]:
     match op:
         case 1:
-            return left + right
+            return Ok(left + right)
         case 2:
-            return left - right
+            return Ok(left - right)
         case 3:
-            return left * right
+            return Ok(left * right)
         case 4:
-            return left // right
+            return Ok(left // right) if right != 0 else Error("Division by zero")
         case _:
-            return 0
+            return Ok(0)
 
 
 def precedence(op: int) -> int:
@@ -121,7 +122,7 @@ def tokenize(codes: List[int]) -> List[int]:
     return kinds
 
 
-def evaluate(codes: List[int]) -> int:
+def evaluate(codes: List[int]) -> Result[int, str]:
     kinds: List[int] = tokenize(codes)
     values: List[int] = []
     ops: List[int] = []
@@ -130,6 +131,7 @@ def evaluate(codes: List[int]) -> int:
     i: int = 0
     j: int = 0
     m = len(kinds)
+    r: Result[int, str]
     while j < m:
         kind: int = kinds[j]
         if kind == SKIP:
@@ -161,8 +163,12 @@ def evaluate(codes: List[int]) -> int:
                 if ops[no - 1] == LPAREN:
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                nv += 1
+                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                if r.is_ok():
+                    values[nv] = r.unwrap_or(0)
+                    nv += 1
+                else:
+                    return r
                 no -= 1
             no -= 1
         else:
@@ -172,8 +178,12 @@ def evaluate(codes: List[int]) -> int:
                 if precedence(ops[no - 1]) < precedence(kind):
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                nv += 1
+                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                if r.is_ok():
+                    values[nv] = r.unwrap_or(0)
+                    nv += 1
+                else:
+                    return r
                 no -= 1
             if no < len(ops):
                 ops[no] = kind
@@ -184,15 +194,22 @@ def evaluate(codes: List[int]) -> int:
         j += 1
     while no > 0:
         nv -= 2
-        values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-        nv += 1
+        r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+        if r.is_ok():
+            values[nv] = r.unwrap_or(0)
+            nv += 1
+        else:
+            return r
         no -= 1
-    return values[0]
+    if nv == 0:
+        return Error("empty expression")
+    return Ok(values[0])
 
 
 if __name__ == "__main__":
-    print(evaluate([50, 43, 51, 42, 52]))
-    print(evaluate([40, 50, 43, 51, 41, 42, 52]))
-    print(evaluate([49, 48, 45, 56, 47, 47, 50]))
-    print(evaluate([55, 42, 56, 43, 57]))
-    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]))
+    print(evaluate([50, 43, 51, 42, 52]).unwrap_or(-999))
+    print(evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999))
+    print(evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999))
+    print(evaluate([55, 42, 56, 43, 57]).unwrap_or(-999))
+    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999))
+    print(evaluate([49, 48, 47, 48]).unwrap_or(-999))

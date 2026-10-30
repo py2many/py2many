@@ -324,6 +324,7 @@ class VTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._generated_code_has_any_type = False
         self._generated_code_uses_any_to_string = False
+        self._generated_code_uses_result = False
         self._tmp_var_id = 0
         self._int_enums: Set[str] = set()
         self._str_enums: Set[str] = set()
@@ -366,6 +367,7 @@ class VTranspiler(CLikeTranspiler):
         # Hack: Fix int(x) -> (x as int) for variables (Any casting)
         code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
+        self._generated_code_uses_result = re.search(r"\bResult\[", code) is not None
         return code
 
     def _argparse_struct(self) -> str:
@@ -508,10 +510,39 @@ class VTranspiler(CLikeTranspiler):
             buf.append("\t}")
             buf.append("}")
             buf.append("")
+        if self._generated_code_uses_result:
+            buf.append("")
+            buf.append("struct Result[T] {")
+            buf.append("\tval T")
+            buf.append("\terr string")
+            buf.append("\tis_ok bool")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) is_ok() bool {")
+            buf.append("\treturn r.is_ok")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) unwrap() T {")
+            buf.append("\tif r.is_ok {")
+            buf.append("\t\treturn r.val")
+            buf.append("\t}")
+            buf.append("\tpanic(r.err)")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) unwrap_or(default T) T {")
+            buf.append("\tif r.is_ok {")
+            buf.append("\t\treturn r.val")
+            buf.append("\t}")
+            buf.append("\treturn default")
+            buf.append("}")
         return "\n".join(buf)
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type == "Result" and isinstance(index_type, list) and index_type:
+            # Result[T]: a generic struct (see usings prelude); the error
+            # type is fixed to string by the backend
+            return f"Result[{index_type[0]}]"
         if value_type == "map":
             if isinstance(index_type, list) and len(index_type) >= 2:
                 if index_type[0] == "Any":
@@ -975,7 +1006,54 @@ class VTranspiler(CLikeTranspiler):
 
         return value_id + "." + attr
 
+    def _result_value_type(self, node) -> Optional[str]:
+        # V type of T for a Result[T, ...] from the enclosing function's
+        # return annotation, e.g. `-> Result[int, str]` gives `int`.
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        for scope in scopes:
+            if isinstance(scope, ast.FunctionDef) and scope.returns is not None:
+                returns = scope.returns
+                if isinstance(returns, ast.Subscript) and (
+                    get_id(returns.value) == "Result"
+                ):
+                    elts = (
+                        returns.slice.elts
+                        if isinstance(returns.slice, ast.Tuple)
+                        else [returns.slice]
+                    )
+                    if elts:
+                        return self._typename_from_type_node(elts[0])
+                break
+        return None
+
+    def _visit_result_constructor(self, node):
+        if not (isinstance(node.func, ast.Name) and len(node.args) == 1):
+            return None
+        if node.keywords:
+            return None
+        func_id = get_id(node.func)
+        if func_id == "Ok":
+            vtype = get_inferred_v_type(node.args[0])
+            if vtype in (None, "Any"):
+                vtype = self._result_value_type(node)
+            if vtype in (None, "Any"):
+                raise AstNotImplementedError("Ok() needs an inferable value type", node)
+            return f"Result[{vtype}]{{val: {self.visit(node.args[0])}, is_ok: true}}"
+        if func_id == "Error":
+            vtype = self._result_value_type(node)
+            if vtype in (None, "Any"):
+                raise AstNotImplementedError(
+                    "Error() needs an enclosing Result[T, ...] return", node
+                )
+            return f"Result[{vtype}]{{err: {self.visit(node.args[0])}}}"
+        return None
+
     def visit_Call(self, node: ast.Call) -> str:
+        result_ctor = self._visit_result_constructor(node)
+        if result_ctor is not None:
+            return result_ctor
         sealed_ctor = self._visit_sealed_constructor(node)
         if sealed_ctor is not None:
             return sealed_ctor
@@ -1803,6 +1881,10 @@ class VTranspiler(CLikeTranspiler):
         if isinstance(node.target, (ast.Attribute, ast.Subscript)):
             return f"{target} = {val}"
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
+        if node.value is None and type_str.startswith("Result["):
+            # Bare declaration (e.g. `r: Result[int, str]`): an explicit zero
+            # struct literal (unlike `= none`, this has the right type).
+            return f"{kw}{target} := {type_str}{{}}"
         if val is None or val == "none":
             # Provide default value for V
             if type_str == "int":

@@ -17,12 +17,22 @@ the token stream with an iterative shunting-yard evaluator, e.g.::
 A ``/`` following another ``/`` is the second half of ``//``, not
 division: the nested match spots it and marks it ``SKIP``.
 
+Per the static-python rules, fallible functions return ``Result[V, E]``
+instead of raising: applying ``//`` to zero yields ``Err``, which the
+caller prints with ``unwrap_or``::
+
+    return match op:
+        4: Ok(left // right) if right != 0 else Error("Division by zero")
+        _: Ok(0)
+
 The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
 ``match`` statement the python backend emits directly).
 """
 
 from typing import List
+
+from py2many.result import Error, Ok, Result
 
 NUM = 0
 PLUS = 1
@@ -49,13 +59,13 @@ def digit_value(code: int) -> int:
         _: -1
 
 
-def apply_op(op: int, left: int, right: int) -> int:
+def apply_op(op: int, left: int, right: int) -> Result[int, str]:
     return match op:
-        1: left + right
-        2: left - right
-        3: left * right
-        4: left // right
-        _: 0
+        1: Ok(left + right)
+        2: Ok(left - right)
+        3: Ok(left * right)
+        4: Ok(left // right) if right != 0 else Error("Division by zero")
+        _: Ok(0)
 
 
 def precedence(op: int) -> int:
@@ -104,11 +114,7 @@ def tokenize(codes: List[int]) -> List[int]:
     return kinds
 
 
-# Note: evaluate has no `-> int` annotation. Returning a list element
-# with a declared `-> int` trips a pre-existing inference bug
-# (declared `int` merged with inferred `i32` into `Union[int,i32]`).
-# The return type is inferred as i32 instead.
-def evaluate(codes: List[int]):
+def evaluate(codes: List[int]) -> Result[int, str]:
     kinds = tokenize(codes)
     values: List[int] = []
     ops: List[int] = []
@@ -117,6 +123,11 @@ def evaluate(codes: List[int]):
     i = 0
     j = 0
     m = len(kinds)
+    # Declared up front (assignments nested in loops below would otherwise
+    # read as uses-before-declaration in Rust and infer as Any in V) with
+    # no initializer: all three backends leave it unassigned until the first
+    # reduce, which dominates every use.
+    r: Result[int, str]
     while j < m:
         kind = kinds[j]
         if kind == SKIP:
@@ -148,8 +159,12 @@ def evaluate(codes: List[int]):
                 if ops[no - 1] == LPAREN:
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                nv += 1
+                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                if r.is_ok():
+                    values[nv] = r.unwrap_or(0)
+                    nv += 1
+                else:
+                    return r
                 no -= 1
             no -= 1
         else:
@@ -159,8 +174,12 @@ def evaluate(codes: List[int]):
                 if precedence(ops[no - 1]) < precedence(kind):
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                nv += 1
+                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                if r.is_ok():
+                    values[nv] = r.unwrap_or(0)
+                    nv += 1
+                else:
+                    return r
                 no -= 1
             if no < len(ops):
                 ops[no] = kind
@@ -171,20 +190,28 @@ def evaluate(codes: List[int]):
         j += 1
     while no > 0:
         nv -= 2
-        values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
-        nv += 1
+        r = apply_op(ops[no - 1], values[nv], values[nv + 1])
+        if r.is_ok():
+            values[nv] = r.unwrap_or(0)
+            nv += 1
+        else:
+            return r
         no -= 1
-    return values[0]
+    if nv == 0:
+        return Error("empty expression")
+    return Ok(values[0])
 
 
 if __name__ == "__main__":
     # "2+3*4"
-    print(evaluate([50, 43, 51, 42, 52]))
+    print(evaluate([50, 43, 51, 42, 52]).unwrap_or(-999))
     # "(2+3)*4"
-    print(evaluate([40, 50, 43, 51, 41, 42, 52]))
+    print(evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999))
     # "10-8//2"
-    print(evaluate([49, 48, 45, 56, 47, 47, 50]))
+    print(evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999))
     # "7*8+9"
-    print(evaluate([55, 42, 56, 43, 57]))
+    print(evaluate([55, 42, 56, 43, 57]).unwrap_or(-999))
     # "((2+3)*4)-6"
-    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]))
+    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999))
+    # "10/0" -- division by zero
+    print(evaluate([49, 48, 47, 48]).unwrap_or(-999))

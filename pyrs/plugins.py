@@ -253,7 +253,9 @@ FUNC_DISPATCH_TABLE: Dict[FuncType, Tuple[Callable, bool]] = {
     "f.read": (RustTranspilerPlugins.visit_read, True),
     "f.write": (RustTranspilerPlugins.visit_write, True),
     "f.close": (lambda self, node, vargs: "drop(f)", False),
-    "Error": (lambda self, node, vargs: f"anyhow::bail!({vargs[0]})", False),
+    # Err(...) rather than bail!(...): bail! already contains a `return`, which
+    # would nest (`return return`) when the Error(...) call itself is returned.
+    "Error": (lambda self, node, vargs: f"Err(anyhow::anyhow!({vargs[0]}))", False),
     open: (RustTranspilerPlugins.visit_open, True),
     NamedTemporaryFile: (RustTranspilerPlugins.visit_named_temp_file, True),
     io.TextIOWrapper.read: (RustTranspilerPlugins.visit_textio_read, True),

@@ -1016,6 +1016,10 @@ class RustTranspiler(CLikeTranspiler):
     def visit_AnnAssign(self, node) -> RustNode:
         target, type_str, val = super().visit_AnnAssign(node)
         kw = self._compute_kw(node, node.target)
+        if val is None:
+            # Bare declaration (e.g. `r: Result[int, str]` with no value):
+            # deferred init. The old fallback (`= None`) never typechecked.
+            return RustNode(f"{kw} {target}: {type_str};")
         return RustLet(target, val, keyword=kw, typename=type_str)
 
     def _needs_cast(self, left, right) -> bool:

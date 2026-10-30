@@ -1,6 +1,30 @@
 @[translated]
 module main
 
+struct Result[T] {
+	val   T
+	err   string
+	is_ok bool
+}
+
+fn (r Result[T]) is_ok() bool {
+	return r.is_ok
+}
+
+fn (r Result[T]) unwrap() T {
+	if r.is_ok {
+		return r.val
+	}
+	panic(r.err)
+}
+
+fn (r Result[T]) unwrap_or(default T) T {
+	if r.is_ok {
+		return r.val
+	}
+	return default
+}
+
 // Tiny arithmetic expression parser and evaluator.
 //
 // Written in the match-as-expression dialect, shaped like a classic
@@ -18,6 +42,14 @@ module main
 //
 // A ``/`` following another ``/`` is the second half of ``//``, not
 // division: the nested match spots it and marks it ``SKIP``.
+//
+// Per the static-python rules, fallible functions return ``Result[V, E]``
+// instead of raising: applying ``//`` to zero yields ``Err``, which the
+// caller prints with ``unwrap_or``::
+//
+//     return match op:
+//         4: Ok(left // right) if right != 0 else Error("Division by zero")
+//         _: Ok(0)
 //
 // The parser consumes a list of character codes (``[50, 43, 51]`` is
 // ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
@@ -48,13 +80,44 @@ fn digit_value(code int) int {
 	}
 }
 
-fn apply_op(op int, left int, right int) int {
+fn apply_op(op int, left int, right int) Result[int] {
 	return match op {
-		1 { (left + right) }
-		2 { (left - right) }
-		3 { (left * right) }
-		4 { (left / right) }
-		else { 0 }
+		1 {
+			Result[int]{
+				val:   (left + right)
+				is_ok: true
+			}
+		}
+		2 {
+			Result[int]{
+				val:   (left - right)
+				is_ok: true
+			}
+		}
+		3 {
+			Result[int]{
+				val:   (left * right)
+				is_ok: true
+			}
+		}
+		4 {
+			if right != 0 {
+				Result[int]{
+					val:   (left / right)
+					is_ok: true
+				}
+			} else {
+				Result[int]{
+					err: 'Division by zero'
+				}
+			}
+		}
+		else {
+			Result[int]{
+				val:   0
+				is_ok: true
+			}
+		}
 	}
 }
 
@@ -141,7 +204,7 @@ fn tokenize(codes []int) []int {
 	return kinds
 }
 
-fn evaluate(codes []int) int {
+fn evaluate(codes []int) Result[int] {
 	kinds := tokenize(codes)
 	mut values := []int{}
 	mut ops := []int{}
@@ -150,6 +213,7 @@ fn evaluate(codes []int) int {
 	mut i := 0
 	mut j := 0
 	m := kinds.len
+	mut r := Result[int]{}
 	for j < m {
 		kind := kinds[j]
 		if kind == skip {
@@ -189,8 +253,13 @@ fn evaluate(codes []int) int {
 						break
 					}
 					nv -= 2
-					values[nv] = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-					nv += 1
+					r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
+					if r.is_ok() {
+						values[nv] = r.unwrap_or(0)
+						nv += 1
+					} else {
+						return r
+					}
 					no -= 1
 				}
 				no -= 1
@@ -203,8 +272,13 @@ fn evaluate(codes []int) int {
 						break
 					}
 					nv -= 2
-					values[nv] = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-					nv += 1
+					r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
+					if r.is_ok() {
+						values[nv] = r.unwrap_or(0)
+						nv += 1
+					} else {
+						return r
+					}
 					no -= 1
 				}
 				if no < ops.len {
@@ -220,17 +294,31 @@ fn evaluate(codes []int) int {
 	}
 	for no > 0 {
 		nv -= 2
-		values[nv] = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-		nv += 1
+		r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
+		if r.is_ok() {
+			values[nv] = r.unwrap_or(0)
+			nv += 1
+		} else {
+			return r
+		}
 		no -= 1
 	}
-	return values[0]
+	if nv == 0 {
+		return Result[int]{
+			err: 'empty expression'
+		}
+	}
+	return Result[int]{
+		val:   values[0]
+		is_ok: true
+	}
 }
 
 fn main() {
-	println((evaluate([50, 43, 51, 42, 52])).str())
-	println((evaluate([40, 50, 43, 51, 41, 42, 52])).str())
-	println((evaluate([49, 48, 45, 56, 47, 47, 50])).str())
-	println((evaluate([55, 42, 56, 43, 57])).str())
-	println((evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54])).str())
+	println((evaluate([50, 43, 51, 42, 52]).unwrap_or(-999)).str())
+	println((evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999)).str())
+	println((evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999)).str())
+	println((evaluate([55, 42, 56, 43, 57]).unwrap_or(-999)).str())
+	println((evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999)).str())
+	println((evaluate([49, 48, 47, 48]).unwrap_or(-999)).str())
 }

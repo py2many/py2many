@@ -1,5 +1,6 @@
 import ast
 
+from py2many.analysis import get_id
 from py2many.clike import CLikeTranspiler as CommonCLikeTranspiler
 from py2many.clike import LifeTime
 
@@ -49,6 +50,26 @@ class CLikeTranspiler(CommonCLikeTranspiler):
         if lifetime == LifeTime.STATIC and ret[0] == "&":
             return f"&'static {ret[1:]}"
         return ret
+
+    @classmethod
+    def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type == "Result" and isinstance(index_type, list):
+            # anyhow::Result<T>: the error type is fixed by the backend
+            return f"Result<{index_type[0]}>"
+        return super()._combine_value_index(value_type, index_type)
+
+    @classmethod
+    def _typename_from_type_node(cls, node):
+        if isinstance(node, ast.Subscript) and get_id(node.value) == "Result":
+            elts = (
+                node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+            )
+            if len(elts) == 2:
+                # anyhow::Result<T>: the error type is fixed by the backend
+                arg0 = cls._typename_from_type_node(elts[0])
+                node.container_type = ("Result", [arg0])
+                return f"Result<{arg0}>"
+        return super()._typename_from_type_node(node)
 
     def visit_Name(self, node) -> RustNode:
         if node.id in self._keywords:

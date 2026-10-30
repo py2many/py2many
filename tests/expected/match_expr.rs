@@ -51,6 +51,14 @@ the token stream with an iterative shunting-yard evaluator, e.g.::
 A ``/`` following another ``/`` is the second half of ``//``, not
 division: the nested match spots it and marks it ``SKIP``.
 
+Per the static-python rules, fallible functions return ``Result[V, E]``
+instead of raising: applying ``//`` to zero yields ``Err``, which the
+caller prints with ``unwrap_or``::
+
+    return match op:
+        4: Ok(left // right) if right != 0 else Error("Division by zero")
+        _: Ok(0)
+
 The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
 ``match`` statement the python backend emits directly).
@@ -80,13 +88,19 @@ pub fn digit_value(code: i32) -> i32 {
     };
 }
 
-pub fn apply_op(op: i32, left: i32, right: i32) -> i32 {
+pub fn apply_op(op: i32, left: i32, right: i32) -> Result<i32> {
     return match op {
-        1 => (left + right),
-        2 => (left - right),
-        3 => (left * right),
-        4 => (left / right),
-        _ => 0,
+        1 => Ok((left + right)),
+        2 => Ok((left - right)),
+        3 => Ok((left * right)),
+        4 => {
+            if right != 0 {
+                Ok((left / right))
+            } else {
+                Err(anyhow::anyhow!("Division by zero"))
+            }
+        }
+        _ => Ok(0),
     };
 }
 
@@ -138,7 +152,7 @@ pub fn tokenize(codes: &Vec<i32>) -> Vec<i32> {
     return kinds;
 }
 
-pub fn evaluate(codes: &Vec<i32>) -> i32 {
+pub fn evaluate(codes: &Vec<i32>) -> Result<i32> {
     let kinds: &Vec<i32> = &tokenize(codes);
     let mut values: Vec<i32> = vec![];
     let mut ops: Vec<i32> = vec![];
@@ -147,6 +161,7 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
     let mut i: i32 = 0;
     let mut j: i32 = 0;
     let m = kinds.len() as i32;
+    let mut r: Result<i32>;
     while j < (m as i32) {
         let kind: i32 = kinds[j as usize];
         if kind == SKIP {
@@ -186,12 +201,17 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
                         break;
                     }
                     nv -= 2;
-                    values[nv as usize] = apply_op(
+                    r = apply_op(
                         ops[(no - 1) as usize],
                         values[nv as usize],
                         values[(nv + 1) as usize],
                     );
-                    nv += 1;
+                    if r.is_ok() {
+                        values[nv as usize] = r.unwrap_or(0);
+                        nv += 1;
+                    } else {
+                        return r;
+                    }
                     no -= 1;
                 }
                 no -= 1;
@@ -204,12 +224,17 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
                         break;
                     }
                     nv -= 2;
-                    values[nv as usize] = apply_op(
+                    r = apply_op(
                         ops[(no - 1) as usize],
                         values[nv as usize],
                         values[(nv + 1) as usize],
                     );
-                    nv += 1;
+                    if r.is_ok() {
+                        values[nv as usize] = r.unwrap_or(0);
+                        nv += 1;
+                    } else {
+                        return r;
+                    }
                     no -= 1;
                 }
                 if no < (ops.len() as i32 as i32) {
@@ -225,25 +250,40 @@ pub fn evaluate(codes: &Vec<i32>) -> i32 {
     }
     while no > 0 {
         nv -= 2;
-        values[nv as usize] = apply_op(
+        r = apply_op(
             ops[(no - 1) as usize],
             values[nv as usize],
             values[(nv + 1) as usize],
         );
-        nv += 1;
+        if r.is_ok() {
+            values[nv as usize] = r.unwrap_or(0);
+            nv += 1;
+        } else {
+            return r;
+        }
         no -= 1;
     }
-    return values[0 as usize];
+    if nv == 0 {
+        return Err(anyhow::anyhow!("empty expression"));
+    }
+    return Ok(values[0 as usize]);
 }
 
 pub fn main() -> Result<()> {
-    println!("{}", evaluate(&vec![50, 43, 51, 42, 52]));
-    println!("{}", evaluate(&vec![40, 50, 43, 51, 41, 42, 52]));
-    println!("{}", evaluate(&vec![49, 48, 45, 56, 47, 47, 50]));
-    println!("{}", evaluate(&vec![55, 42, 56, 43, 57]));
+    println!("{}", evaluate(&vec![50, 43, 51, 42, 52]).unwrap_or(-999));
     println!(
         "{}",
-        evaluate(&vec![40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54])
+        evaluate(&vec![40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999)
     );
+    println!(
+        "{}",
+        evaluate(&vec![49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999)
+    );
+    println!("{}", evaluate(&vec![55, 42, 56, 43, 57]).unwrap_or(-999));
+    println!(
+        "{}",
+        evaluate(&vec![40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999)
+    );
+    println!("{}", evaluate(&vec![49, 48, 47, 48]).unwrap_or(-999));
     Ok(())
 }

@@ -67,9 +67,21 @@ def get_inferred_type(node):
     return None
 
 
+def _is_result_annotation(node):
+    # Result[V, E] maps to an owned value (anyhow::Result, Result[T]) -
+    # unlike List/Dict/Set it is never borrowed.
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "Result"
+    )
+
+
 def is_reference(arg):
-    annotation_has_ref = hasattr(arg, "annotation") and isinstance(
-        arg.annotation, ast.Subscript
+    annotation_has_ref = (
+        hasattr(arg, "annotation")
+        and isinstance(arg.annotation, ast.Subscript)
+        and not _is_result_annotation(arg.annotation)
     )
     if annotation_has_ref:
         return True
