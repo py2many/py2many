@@ -1527,18 +1527,66 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
+    def _payload_struct_fields(self, node, typename):
+        # Field map of a dataclass payload (for split structs and struct
+        # literals), e.g. BinOp -> {left: Expr, right: Expr}.
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        target = scopes.find(typename)
+        if not isinstance(target, ast.ClassDef):
+            return None
+        if "sealed" in [get_id(d) for d in target.decorator_list]:
+            return None
+        decls = getattr(target, "declarations", None)
+        if not decls:
+            return None
+        return {
+            field: ftype
+            for field, ftype in decls.items()
+            if not field.startswith("self.")
+        }
+
     def visit_sealed_class(self, node) -> str:
         vname = self._v_safe_name(node.name)
         recv = node.name[:1].lower()
+        # Collect payload types first: a struct payload shared by several
+        # variants cannot be a sumtype member (V matches by type), so each
+        # such variant gets its own struct with the same fields.
+        member_types = {}
+        for member, _var in node.class_assignments.items():
+            member_id = get_id(member)
+            typename = node.declarations_with_defaults.get(member_id, None)
+            if typename is not None:
+                typename, _default = typename
+            member_types[member_id] = typename
+        shared_structs = {}
+        for member_id, typename in member_types.items():
+            if typename in (None, "_", "", "Any", "None"):
+                continue
+            fields = self._payload_struct_fields(node, typename)
+            if fields is None:
+                # Not a struct payload (primitive): matchable by type.
+                # A struct defined later would also land here; keep
+                # payload structs above their sealed classes.
+                continue
+            shared_structs.setdefault(typename, []).append(member_id)
+        splits = {}
+        for typename, members in shared_structs.items():
+            if len(members) < 2:
+                continue
+            fields = self._payload_struct_fields(node, typename)
+            for member_id in members:
+                splits[member_id] = (f"{vname}{member_id.capitalize()}", fields)
+        node.sealed_splits = {m: s for m, (s, _f) in splits.items()}
         variants = []
         methods = []
         structs = []
         for member, _var in node.class_assignments.items():
             member_id = get_id(member)
             lower_member_id = member_id.lower()
-            typename = node.declarations_with_defaults.get(member_id, None)
-            if typename is not None:
-                typename, _default = typename
+            typename = member_types[member_id]
+            accessor_type = None
             if typename is None or typename in ("_", ""):
                 # Unit variant (`X: None`): an empty struct in the sum type.
                 # Class-prefixed so members of different sealed classes
@@ -1551,17 +1599,31 @@ class VTranspiler(CLikeTranspiler):
                     raise AstNotImplementedError(
                         f"sealed variant {member_id} has unsupported type", node
                     )
-                variant = typename
+                if member_id in splits:
+                    struct_name, fields = splits[member_id]
+                    if fields is None:
+                        raise AstNotImplementedError(
+                            f"sealed variant {member_id} needs {typename} fields",
+                            node,
+                        )
+                    field_str = "\n\t".join(
+                        f"{fname} {ftype}" for fname, ftype in fields.items()
+                    )
+                    structs.append(f"struct {struct_name} {{\n\t{field_str}\n}}")
+                    variant = struct_name
+                else:
+                    variant = typename
+                accessor_type = variant
             variants.append(variant)
             methods.append(
                 f"fn ({recv} {vname}) is_{lower_member_id}() bool {{\n"
                 f"\treturn {recv} is {variant}\n"
                 f"}}"
             )
-            if variant == typename:
+            if accessor_type is not None:
                 methods.append(
-                    f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
-                    f"\tif {recv} is {typename} {{\n"
+                    f"fn ({recv} {vname}) {lower_member_id}() {accessor_type} {{\n"
+                    f"\tif {recv} is {accessor_type} {{\n"
                     f"\t\treturn {recv}\n"
                     f"\t}}\n"
                     f"\tpanic('not a {member_id}')\n"
@@ -1584,27 +1646,51 @@ class VTranspiler(CLikeTranspiler):
             return None
         return clsdef
 
-    def _visit_sealed_payload(self, node, arg):
+    def _struct_field_names(self, clsdef):
+        decls = getattr(clsdef, "declarations", {}) or {}
+        return [d for d in decls if not d.startswith("self.")]
+
+    def _visit_sealed_payload(self, node, arg, struct_name=None):
         if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
             scopes = getattr(arg, "scopes", None)
             target = scopes.find(get_id(arg.func)) if scopes is not None else None
             if isinstance(target, ast.ClassDef):
                 if "sealed" in [get_id(d) for d in target.decorator_list]:
                     return self.visit(arg)
-                fields = [
-                    d
-                    for d in (getattr(target, "declarations", {}) or {})
-                    if not d.startswith("self.")
-                ]
+                fields = self._struct_field_names(target)
                 if fields and len(arg.args) == len(fields) and not arg.keywords:
                     parts = [
                         f"{field}: {self.visit(value)}"
                         for field, value in zip(fields, arg.args)
                     ]
-                    return (
-                        f"{self._v_safe_name(get_id(arg.func))}{{{', '.join(parts)}}}"
-                    )
+                    vname = struct_name or self._v_safe_name(get_id(arg.func))
+                    return f"{vname}{{{', '.join(parts)}}}"
         return self.visit(arg)
+
+    def _sealed_zero_value(self, node, type_str):
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(type_str)
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        members = list((getattr(clsdef, "class_assignments", {}) or {}).keys())
+        if not members:
+            return None
+        first = get_id(members[0])
+        decls = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        typename = decls.get(first)
+        if typename is not None:
+            typename, _default = typename
+        vname = self._v_safe_name(clsdef.name)
+        if typename is None or typename in ("_", ""):
+            return f"{vname}({vname}{first.capitalize()}{{}}"
+        zeros = {"f64": "0.0", "int": "0", "string": "''", "bool": "false"}
+        if typename in zeros:
+            return f"{vname}({zeros[typename]})"
+        raise AstNotImplementedError(f"bare {type_str} needs a zero value", node)
 
     def _visit_sealed_constructor(self, node):
         func = node.func
@@ -1629,7 +1715,10 @@ class VTranspiler(CLikeTranspiler):
             return None
         if len(node.args) != 1 or node.keywords:
             return None
-        payload = self._visit_sealed_payload(node, node.args[0])
+        splits = getattr(clsdef, "sealed_splits", {}) or {}
+        payload = self._visit_sealed_payload(
+            node, node.args[0], struct_name=splits.get(func.attr)
+        )
         return f"{vname}({payload})"
 
     def visit_ClassDef(self, node) -> str:
@@ -1903,6 +1992,13 @@ class VTranspiler(CLikeTranspiler):
         if isinstance(node.target, (ast.Attribute, ast.Subscript)):
             return f"{target} = {val}"
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
+        if node.value is None:
+            zero = self._sealed_zero_value(node, type_str)
+            if zero is not None:
+                # Bare declaration of a sealed type (e.g. `node: Expr`):
+                # V locals need an initializer; use the first variant's
+                # zero value (it is overwritten before any read).
+                return f"{kw}{target} := {zero}"
         if node.value is None and type_str.startswith("Result["):
             # Bare declaration (e.g. `r: Result[int, str]`): an explicit zero
             # struct literal (unlike `= none`, this has the right type).

@@ -13,11 +13,11 @@ from py2many.analysis import (
 from py2many.clike import class_for_typename
 from py2many.declaration_extractor import DeclarationExtractor
 from py2many.exceptions import AstClassUsedBeforeDeclaration, AstNotImplementedError
-from py2many.inference import get_inferred_type, is_reference
+from py2many.inference import get_inferred_type, is_reference, is_sealed_annotation
 from py2many.rewriters import camel_case
 from py2many.tracer import defined_before, is_class_or_module, is_list
 
-from .clike import CLikeTranspiler
+from .clike import RUST_COPY_TYPES, CLikeTranspiler
 from .inference import get_inferred_rust_type, is_rust_reference, map_type
 from .plugins import (
     ATTR_DISPATCH_TABLE,
@@ -456,8 +456,13 @@ class RustTranspiler(CLikeTranspiler):
             mut = "mut " if is_mutable(node.scopes, id) else ""
             # TODO: Should we make this if not primitive instead of checking
             # for container types? That way we cover user defined structs too.
-            if hasattr(node, "container_type"):
+            ann = getattr(node, "annotation", None)
+            is_result = isinstance(ann, ast.Subscript) and get_id(ann.value) == "Result"
+            if hasattr(node, "container_type") and not is_result:
                 # Python passes by reference by default. Rust needs explicit borrowing
+                typename = f"&{mut}{typename}"
+            elif is_sealed_annotation(node):
+                # @sealed values (enums) are borrowed like containers.
                 typename = f"&{mut}{typename}"
         return (typename, id)
 
@@ -539,6 +544,44 @@ class RustTranspiler(CLikeTranspiler):
         else:
             return ("", splits[0])
 
+    def _struct_will_derive_clone(self, scopes, typename) -> bool:
+        # A dataclass derives Clone iff it has a boxed (recursive) field.
+        if scopes is None:
+            return False
+        clsdef = scopes.find(typename)
+        if not isinstance(clsdef, ast.ClassDef):
+            return False
+        if "sealed" in [get_id(d) for d in clsdef.decorator_list]:
+            return False
+        decls = getattr(clsdef, "declarations", {}) or {}
+        return any(
+            self._is_sealed_typename(scopes, ftype)
+            for _field, ftype in decls.items()
+            if isinstance(ftype, str)
+        )
+
+    def _is_clone_capable(self, scopes, typename, self_name=None) -> bool:
+        if typename in RUST_COPY_TYPES or typename == "String":
+            return True
+        if typename.startswith("Box<") and typename.endswith(">"):
+            inner = typename[4:-1]
+            # Box<T> is Clone iff T is; self-recursion is sound because
+            # the enclosing enum derives too.
+            return inner in RUST_COPY_TYPES or inner == "String" or inner == self_name
+        return self._struct_will_derive_clone(scopes, typename)
+
+    def _is_sealed_typename(self, scopes, typename) -> bool:
+        # True when a (mapped) type name resolves to a @sealed class.
+        # Mapped names of custom classes are identical to source names.
+        if not typename or not isinstance(typename, str):
+            return False
+        if scopes is None:
+            return False
+        clsdef = scopes.find(typename)
+        if not isinstance(clsdef, ast.ClassDef):
+            return False
+        return "sealed" in [get_id(d) for d in clsdef.decorator_list]
+
     def _visit_struct_literal(self, node, fname: str, fndef: ast.ClassDef) -> RustNode:
         vargs = []  # visited args
         if not hasattr(fndef, "declarations"):
@@ -548,6 +591,14 @@ class RustTranspiler(CLikeTranspiler):
                 arg = self.visit(arg)
                 if decl in self._keywords:
                     decl += "_"
+                field_typename = fndef.declarations.get(decl)
+                if self._is_sealed_typename(
+                    getattr(node, "scopes", None), field_typename
+                ):
+                    # Boxed recursive field: clone into a new Box. Always
+                    # safe (every payload type is Clone) and required when
+                    # the argument is borrowed.
+                    arg = f"Box::new({arg}.clone())"
                 vargs += [f"{decl}: {arg}"]
         if node.keywords:
             for kw in node.keywords:
@@ -620,10 +671,39 @@ class RustTranspiler(CLikeTranspiler):
         # Unit variant (`X: None`): `Token::PLUS`, not `Token::PLUS()`.
         return f"{get_id(func.value)}::{func.attr}"
 
+    def _visit_sealed_string_arg(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(get_id(func.value))
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        if typename not in ("String", "str", "&str"):
+            return None
+        # String payloads are owned: convert &str args.
+        arg = self.visit(node.args[0])
+        return f"{get_id(func.value)}::{func.attr}({arg}.to_string())"
+
     def visit_Call(self, node) -> RustNode:
         sealed_nullary = self._visit_sealed_nullary(node)
         if sealed_nullary is not None:
             return RustNode(sealed_nullary)
+        sealed_string = self._visit_sealed_string_arg(node)
+        if sealed_string is not None:
+            return RustNode(sealed_string)
         # Python str methods -> Rust (lists/dicts don't share these names; still
         # skip when the receiver is a known list to be safe).
         if (
@@ -809,6 +889,7 @@ class RustTranspiler(CLikeTranspiler):
         variants = []
         accessors = []
         tag_checkers = []
+        payload_types = []
         camel_node_name = camel_case(node.name)
         for member, var in node.class_assignments.items():
             member_id = get_id(member)
@@ -824,15 +905,29 @@ class RustTranspiler(CLikeTranspiler):
                 variants.append(f"{member_id},")
                 pattern = f"{camel_node_name}::{camel_member_id}"
             else:
+                if typename in ("str", "&str"):
+                    # Owned strings: enums cannot hold borrows without lifetimes.
+                    typename = "String"
+                if self._is_sealed_typename(getattr(node, "scopes", None), typename):
+                    # Recursive payload: Box it so the enum has a fixed size.
+                    typename = f"Box<{typename}>"
+                payload_types.append((member_id, typename))
                 variants.append(f"{member_id}({typename}),")
                 pattern = f"{camel_node_name}::{camel_member_id}(_)"
+                # Panicking on mismatch mirrors the adt lib (which raises)
+                # so payload extraction is portable. Copy payloads return by
+                # value, others by borrow.
+                if typename in RUST_COPY_TYPES:
+                    ret, val_expr = typename, "*val"
+                else:
+                    ret, val_expr = f"&{typename}", "val"
                 accessor = textwrap.dedent(
                     f"""
-                    fn {lower_member_id}(&self) -> Option<&{typename}>{{
+                    fn {lower_member_id}(&self) -> {ret} {{
                         if let {camel_node_name}::{camel_member_id}(val) = self {{
-                            Some(val)
+                            {val_expr}
                         }} else {{
-                            None
+                            panic!("not a {member_id}")
                         }}
                     }}"""
                 )
@@ -846,7 +941,22 @@ class RustTranspiler(CLikeTranspiler):
             tag_checkers.append(tag_check)
         body_str = "\n".join(variants)
         impl_str = "\n".join(accessors) + "\n" + "\n".join(tag_checkers)
-        return f"pub enum {camel_node_name} {{ {body_str} }}\n\n impl {camel_node_name} {{ {impl_str} }}\n\n"
+        # Clone so boxes can be cloned out of borrows; only when every
+        # payload is Clone-capable. A plain struct payload (e.g. Packet)
+        # opts the enum out.
+        cloneable = all(
+            payload is None
+            or self._is_clone_capable(
+                getattr(node, "scopes", None), payload, camel_node_name
+            )
+            for _member, payload in payload_types
+        )
+        derive = "#[derive(Clone)]\n" if cloneable else ""
+        return (
+            f"{derive}"
+            f"pub enum {camel_node_name} {{ {body_str} }}\n\n"
+            f" impl {camel_node_name} {{ {impl_str} }}\n\n"
+        )
 
     def visit_ClassDef(self, node) -> RustNode:
         extractor = DeclarationExtractor(RustTranspiler())
@@ -874,10 +984,15 @@ class RustTranspiler(CLikeTranspiler):
 
         fields = []
         index = 0
+        has_boxed_field = False
         for declaration, typename in declarations.items():
             if typename is None:
                 typename = f"ST{index}"
                 index += 1
+            if self._is_sealed_typename(getattr(node, "scopes", None), typename):
+                # Recursive field: Box it so the struct has a fixed size.
+                typename = f"Box<{typename}>"
+                has_boxed_field = True
             fields.append(f"pub {declaration}: {typename},")
 
         for b in node.body:
@@ -885,9 +1000,13 @@ class RustTranspiler(CLikeTranspiler):
                 b.self_type = node.name
 
         extension = "#[pyclass]\n" if self.extension else ""
+        # A struct with boxed (recursive) fields must be Clone so the
+        # boxes can be cloned out of borrows.
+        derive = "#[derive(Clone)]\n" if has_boxed_field else ""
         struct_def = "pub struct {0} {{\n{1}\n}}\n\n".format(
             node.name, "\n".join(fields)
         )
+        struct_def = derive + struct_def
         impl_extension = "#[pymethods]\n" if self.extension else ""
         impl_def = f"{impl_extension}impl {node.name} {{\n"
         buf = [self.visit(b) for b in node.body]

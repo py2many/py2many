@@ -5,7 +5,7 @@ fn bisect_right(data []int, item int) int {
 	mut low := 0
 	mut high := (data.len as int)
 	for low < high {
-		middle := ((low + high as int) / 2)
+		middle := int(((low + high) / 2))
 		if item < data[middle] {
 			high = middle
 		} else {

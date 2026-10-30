@@ -77,7 +77,24 @@ def _is_result_annotation(node):
     )
 
 
+def is_sealed_annotation(arg):
+    # A parameter annotated with a @sealed type is borrowed (&T), like a
+    # container: the values are too large to move around implicitly.
+    ann = getattr(arg, "annotation", None)
+    if not (isinstance(ann, ast.Name) and isinstance(arg, ast.arg)):
+        return False
+    scopes = getattr(arg, "scopes", None)
+    if scopes is None:
+        return False
+    clsdef = scopes.find(ann.id)
+    if not isinstance(clsdef, ast.ClassDef):
+        return False
+    return "sealed" in [get_id(d) for d in clsdef.decorator_list]
+
+
 def is_reference(arg):
+    if is_sealed_annotation(arg):
+        return True
     annotation_has_ref = (
         hasattr(arg, "annotation")
         and isinstance(arg.annotation, ast.Subscript)

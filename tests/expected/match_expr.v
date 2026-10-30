@@ -37,20 +37,32 @@ fn (r Result[T]) unwrap_or(default T) T {
 //         PLUS: None
 //         ...
 //
+// and the parsed program is a recursive expression tree::
+//
+//     @sealed
+//     class Expr:
+//         NUMBER: float
+//         VARIABLE: str
+//         ADD: BinOp
+//         ...
+//
 // A ``tokenize`` lexer turns character codes into tokens with a large
-// match that constructs one variant per arm, and ``evaluate`` dispatches
-// on the token stream with ``is_*`` checks, e.g.::
+// match that constructs one variant per arm, a ``parse`` shunting-yard
+// pass builds the tree, and a recursive ``eval_expr`` evaluates it by
+// dispatching on variant with ``is_*`` checks, e.g.::
 //
 //     tok = match code:
 //         43: Token.PLUS()
 //         47: Token.SLASH()
 //         _: Token.SKIP()
 //
-//     for tok in toks:
-//         if tok.is_skip():
-//             continue
-//         elif tok.is_rparen():
-//             ...
+//     j = 0
+//     while j < m:  # indexed: binding tokens would move them in Rust
+//         ...
+//
+//     if e.is_add():
+//         b_add = e.add()
+//         return combine(PLUS, eval_expr(b_add.left, env), eval_expr(b_add.right, env))
 //
 // A ``/`` following another ``/`` is the second half of ``//``, not
 // division: it is skipped before the match when the previous token was a
@@ -58,12 +70,12 @@ fn (r Result[T]) unwrap_or(default T) T {
 // parallel list of values.
 //
 // Per the static-python rules, fallible functions return ``Result[V, E]``
-// instead of raising: applying ``//`` to zero yields ``Err``, which the
-// caller prints with ``unwrap_or``::
+// instead of raising: applying ``//`` to zero yields ``Err``, an unknown
+// variable yields ``Err``, and the caller prints with ``unwrap_or``::
 //
 //     return match op:
-//         4: Ok(left // right) if right != 0 else Error("Division by zero")
-//         _: Ok(0)
+//         4: Ok(left / right) if right != 0.0 else Error("Division by zero")
+//         _: Ok(0.0)
 //
 // The parser consumes a list of character codes (``[50, 43, 51]`` is
 // ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
@@ -133,6 +145,100 @@ fn (t Token) is_skip() bool {
 	return t is TokenSkip
 }
 
+pub struct BinOp {
+pub mut:
+	left  Expr
+	right Expr
+}
+
+struct ExprAdd {
+	left  Expr
+	right Expr
+}
+
+struct ExprSubtract {
+	left  Expr
+	right Expr
+}
+
+struct ExprMultiply {
+	left  Expr
+	right Expr
+}
+
+struct ExprDivide {
+	left  Expr
+	right Expr
+}
+
+type Expr = f64 | string | ExprAdd | ExprSubtract | ExprMultiply | ExprDivide
+
+fn (e Expr) is_number() bool {
+	return e is f64
+}
+
+fn (e Expr) number() f64 {
+	if e is f64 {
+		return e
+	}
+	panic('not a NUMBER')
+}
+
+fn (e Expr) is_variable() bool {
+	return e is string
+}
+
+fn (e Expr) variable() string {
+	if e is string {
+		return e
+	}
+	panic('not a VARIABLE')
+}
+
+fn (e Expr) is_add() bool {
+	return e is ExprAdd
+}
+
+fn (e Expr) add() ExprAdd {
+	if e is ExprAdd {
+		return e
+	}
+	panic('not a ADD')
+}
+
+fn (e Expr) is_subtract() bool {
+	return e is ExprSubtract
+}
+
+fn (e Expr) subtract() ExprSubtract {
+	if e is ExprSubtract {
+		return e
+	}
+	panic('not a SUBTRACT')
+}
+
+fn (e Expr) is_multiply() bool {
+	return e is ExprMultiply
+}
+
+fn (e Expr) multiply() ExprMultiply {
+	if e is ExprMultiply {
+		return e
+	}
+	panic('not a MULTIPLY')
+}
+
+fn (e Expr) is_divide() bool {
+	return e is ExprDivide
+}
+
+fn (e Expr) divide() ExprDivide {
+	if e is ExprDivide {
+		return e
+	}
+	panic('not a DIVIDE')
+}
+
 fn digit_value(code int) int {
 	return match code {
 		48 { 0 }
@@ -149,41 +255,41 @@ fn digit_value(code int) int {
 	}
 }
 
-fn apply_op(op int, left int, right int) Result[int] {
+fn apply_float(op int, left f64, right f64) Result[f64] {
 	return match op {
 		1 {
-			Result[int]{
+			Result[f64]{
 				val:   (left + right)
 				is_ok: true
 			}
 		}
 		2 {
-			Result[int]{
+			Result[f64]{
 				val:   (left - right)
 				is_ok: true
 			}
 		}
 		3 {
-			Result[int]{
+			Result[f64]{
 				val:   (left * right)
 				is_ok: true
 			}
 		}
 		4 {
-			if right != 0 {
-				Result[int]{
+			if right != 0.0 {
+				Result[f64]{
 					val:   (left / right)
 					is_ok: true
 				}
 			} else {
-				Result[int]{
+				Result[f64]{
 					err: 'Division by zero'
 				}
 			}
 		}
 		else {
-			Result[int]{
-				val:   0
+			Result[f64]{
+				val:   0.0
 				is_ok: true
 			}
 		}
@@ -200,21 +306,21 @@ fn precedence(op int) int {
 	}
 }
 
-fn number_values(codes []int) []int {
-	mut vals := []int{}
+fn number_values(codes []int) []f64 {
+	mut vals := []f64{}
 	mut i := 0
 	n := codes.len
 	for i < n {
 		code := codes[i]
 		mut digit := digit_value(code)
 		if digit >= 0 {
-			mut value := 0
+			mut value := 0.0
 			for i < n {
 				digit = digit_value(codes[i])
 				if digit < 0 {
 					break
 				}
-				value = ((value * 10) + digit)
+				value = ((value * 10.0) + f64(digit))
 				i += 1
 			}
 			vals << value
@@ -263,18 +369,100 @@ fn tokenize(codes []int) []Token {
 	return toks
 }
 
-fn evaluate(codes []int) Result[int] {
-	toks := tokenize(codes)
-	tvals := number_values(codes)
-	mut values := []int{}
+fn lookup(env map[string]f64, name string) Result[f64] {
+	if name in env {
+		return Result[f64]{
+			val:   env[name]
+			is_ok: true
+		}
+	}
+	return Result[f64]{
+		err: 'undefined variable'
+	}
+}
+
+fn combine(op int, l Result[f64], r Result[f64]) Result[f64] {
+	if l.is_ok() {
+		if r.is_ok() {
+			return apply_float(op, l.unwrap_or(0.0), r.unwrap_or(0.0))
+		}
+		return r
+	}
+	return l
+}
+
+fn make_node(op int, left Expr, right Expr) Expr {
+	return match op {
+		1 { Expr(ExprAdd{
+				left:  left
+				right: right
+			}) }
+		2 { Expr(ExprSubtract{
+				left:  left
+				right: right
+			}) }
+		3 { Expr(ExprMultiply{
+				left:  left
+				right: right
+			}) }
+		4 { Expr(ExprDivide{
+				left:  left
+				right: right
+			}) }
+		else { Expr(0.0) }
+	}
+}
+
+fn eval_expr(e Expr, env map[string]f64) Result[f64] {
+	if e.is_number() {
+		return Result[f64]{
+			val:   e.number()
+			is_ok: true
+		}
+	} else {
+		if e.is_variable() {
+			return lookup(env, e.variable())
+		} else {
+			if e.is_add() {
+				b_add := e.add()
+				return combine(plus, eval_expr(b_add.left, env), eval_expr(b_add.right, env))
+			} else {
+				if e.is_subtract() {
+					b_subtract := e.subtract()
+					return combine(minus, eval_expr(b_subtract.left, env), eval_expr(b_subtract.right,
+						env))
+				} else {
+					if e.is_multiply() {
+						b_multiply := e.multiply()
+						return combine(star, eval_expr(b_multiply.left, env), eval_expr(b_multiply.right,
+							env))
+					} else {
+						if e.is_divide() {
+							b_divide := e.divide()
+							return combine(slash, eval_expr(b_divide.left, env), eval_expr(b_divide.right,
+								env))
+						} else {
+							return Result[f64]{
+								err: 'unknown expression'
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+fn parse(toks []Token, tvals []f64) []Expr {
+	mut nodes := []Expr{}
 	mut ops := []int{}
 	mut nv := 0
 	mut no := 0
 	mut k := 0
-	mut op := 0
-	mut r := Result[int]{}
 	mut j := 0
 	m := toks.len
+	mut op := 0
+	mut node := Expr(0.0)
 	for j < m {
 		if toks[j].is_skip() {
 			j += 1
@@ -287,10 +475,10 @@ fn evaluate(codes []int) Result[int] {
 				}
 				j += 1
 			}
-			if nv < values.len {
-				values[nv] = tvals[k]
+			if nv < nodes.len {
+				nodes[nv] = Expr(tvals[k])
 			} else {
-				values << tvals[k]
+				nodes << Expr(tvals[k])
 			}
 			k += 1
 			nv += 1
@@ -310,13 +498,13 @@ fn evaluate(codes []int) Result[int] {
 						break
 					}
 					nv -= 2
-					r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-					if r.is_ok() {
-						values[nv] = r.unwrap_or(0)
-						nv += 1
+					node = make_node(ops[(no - 1)], nodes[nv], nodes[(nv + 1)])
+					if nv < nodes.len {
+						nodes[nv] = node
 					} else {
-						return r
+						nodes << node
 					}
+					nv += 1
 					no -= 1
 				}
 				no -= 1
@@ -342,13 +530,13 @@ fn evaluate(codes []int) Result[int] {
 						break
 					}
 					nv -= 2
-					r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-					if r.is_ok() {
-						values[nv] = r.unwrap_or(0)
-						nv += 1
+					node = make_node(ops[(no - 1)], nodes[nv], nodes[(nv + 1)])
+					if nv < nodes.len {
+						nodes[nv] = node
 					} else {
-						return r
+						nodes << node
 					}
+					nv += 1
 					no -= 1
 				}
 				if no < ops.len {
@@ -363,31 +551,39 @@ fn evaluate(codes []int) Result[int] {
 	}
 	for no > 0 {
 		nv -= 2
-		r = apply_op(ops[(no - 1)], values[nv], values[(nv + 1)])
-		if r.is_ok() {
-			values[nv] = r.unwrap_or(0)
-			nv += 1
+		node = make_node(ops[(no - 1)], nodes[nv], nodes[(nv + 1)])
+		if nv < nodes.len {
+			nodes[nv] = node
 		} else {
-			return r
+			nodes << node
 		}
+		nv += 1
 		no -= 1
 	}
-	if nv == 0 {
-		return Result[int]{
+	return nodes
+}
+
+fn evaluate(codes []int, env map[string]f64) Result[f64] {
+	toks := tokenize(codes)
+	tvals := number_values(codes)
+	nodes := parse(toks, tvals)
+	if nodes.len == 0 {
+		return Result[f64]{
 			err: 'empty expression'
 		}
 	}
-	return Result[int]{
-		val:   values[0]
-		is_ok: true
-	}
+	return eval_expr(nodes[0], env)
 }
 
 fn main() {
-	println((evaluate([50, 43, 51, 42, 52]).unwrap_or(-999)).str())
-	println((evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999)).str())
-	println((evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999)).str())
-	println((evaluate([55, 42, 56, 43, 57]).unwrap_or(-999)).str())
-	println((evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999)).str())
-	println((evaluate([49, 48, 47, 48]).unwrap_or(-999)).str())
+	env := {
+		'x': 5.0
+	}
+	println((int(evaluate([50, 43, 51, 42, 52], env).unwrap_or(-999.0))).str())
+	println((int(evaluate([40, 50, 43, 51, 41, 42, 52], env).unwrap_or(-999.0))).str())
+	println((int(evaluate([49, 48, 45, 56, 47, 47, 50], env).unwrap_or(-999.0))).str())
+	println((int(evaluate([55, 42, 56, 43, 57], env).unwrap_or(-999.0))).str())
+	println((int(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54], env).unwrap_or(-999.0))).str())
+	println((int(evaluate([49, 48, 47, 48], env).unwrap_or(-999.0))).str())
+	println((int(eval_expr(Expr(ExprAdd{ left: Expr('x'), right: Expr(1.0) }), env).unwrap_or(-999.0))).str())
 }

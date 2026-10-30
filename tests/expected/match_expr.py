@@ -2,7 +2,8 @@ from typing import Callable, Dict, List, Set, Optional
 from ctypes import c_int8 as i8, c_int16 as i16, c_int32 as i32, c_int64 as i64
 from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as u64
 import sys
-from typing import List
+from dataclasses import dataclass
+from typing import Dict, List
 from adt import adt as sealed
 from py2many.result import Error, Ok, Result
 
@@ -24,6 +25,22 @@ class Token:
     LPAREN: None
     RPAREN: None
     SKIP: None
+
+
+@dataclass
+class BinOp:
+    left: "Expr"
+    right: "Expr"
+
+
+@sealed
+class Expr:
+    NUMBER: float
+    VARIABLE: str
+    ADD: BinOp
+    SUBTRACT: BinOp
+    MULTIPLY: BinOp
+    DIVIDE: BinOp
 
 
 def digit_value(code: int) -> int:
@@ -52,7 +69,7 @@ def digit_value(code: int) -> int:
             return -1
 
 
-def apply_op(op: int, left: int, right: int) -> Result[int, str]:
+def apply_float(op: int, left: float, right: float) -> Result[float, str]:
     match op:
         case 1:
             return Ok(left + right)
@@ -61,9 +78,9 @@ def apply_op(op: int, left: int, right: int) -> Result[int, str]:
         case 3:
             return Ok(left * right)
         case 4:
-            return Ok(left // right) if right != 0 else Error("Division by zero")
+            return Ok(left / right) if right != 0.0 else Error("Division by zero")
         case _:
-            return Ok(0)
+            return Ok(0.0)
 
 
 def precedence(op: int) -> int:
@@ -80,20 +97,20 @@ def precedence(op: int) -> int:
             return 0
 
 
-def number_values(codes: List[int]) -> List[int]:
-    vals: List[int] = []
+def number_values(codes: List[int]) -> List[float]:
+    vals: List[float] = []
     i: int = 0
     n = len(codes)
     while i < n:
         code: int = codes[i]
         digit: int = digit_value(code)
         if digit >= 0:
-            value: int = 0
+            value: float = 0.0
             while i < n:
                 digit = digit_value(codes[i])
                 if digit < 0:
                     break
-                value = value * 10 + digit
+                value = value * 10.0 + float(digit)
                 i += 1
             vals.append(value)
         else:
@@ -152,18 +169,73 @@ def tokenize(codes: List[int]) -> List[Token]:
     return toks
 
 
-def evaluate(codes: List[int]) -> Result[int, str]:
-    toks: List[Token] = tokenize(codes)
-    tvals: List[int] = number_values(codes)
-    values: List[int] = []
+def lookup(env: Dict[str, float], name: str) -> Result[float, str]:
+    if name in env:
+        return Ok(env[name])
+    return Error("undefined variable")
+
+
+def combine(
+    op: int, l: Result[float, str], r: Result[float, str]
+) -> Result[float, str]:
+    if l.is_ok():
+        if r.is_ok():
+            return apply_float(op, l.unwrap_or(0.0), r.unwrap_or(0.0))
+        return r
+    return l
+
+
+def make_node(op: int, left: Expr, right: Expr) -> Expr:
+    match op:
+        case 1:
+            return Expr.ADD(BinOp(left, right))
+        case 2:
+            return Expr.SUBTRACT(BinOp(left, right))
+        case 3:
+            return Expr.MULTIPLY(BinOp(left, right))
+        case 4:
+            return Expr.DIVIDE(BinOp(left, right))
+        case _:
+            return Expr.NUMBER(0.0)
+
+
+def eval_expr(e: Expr, env: Dict[str, float]) -> Result[float, str]:
+    if e.is_number():
+        return Ok(e.number())
+    elif e.is_variable():
+        return lookup(env, e.variable())
+    elif e.is_add():
+        b_add = e.add()
+        return combine(PLUS, eval_expr(b_add.left, env), eval_expr(b_add.right, env))
+    elif e.is_subtract():
+        b_subtract = e.subtract()
+        return combine(
+            MINUS, eval_expr(b_subtract.left, env), eval_expr(b_subtract.right, env)
+        )
+    elif e.is_multiply():
+        b_multiply = e.multiply()
+        return combine(
+            STAR, eval_expr(b_multiply.left, env), eval_expr(b_multiply.right, env)
+        )
+    elif e.is_divide():
+        b_divide = e.divide()
+        return combine(
+            SLASH, eval_expr(b_divide.left, env), eval_expr(b_divide.right, env)
+        )
+    else:
+        return Error("unknown expression")
+
+
+def parse(toks: List[Token], tvals: List[float]) -> List[Expr]:
+    nodes: List[Expr] = []
     ops: List[int] = []
     nv: int = 0
     no: int = 0
     k: int = 0
-    op: int
-    r: Result[int, str]
     j: int = 0
     m = len(toks)
+    op: int
+    node: Expr
     while j < m:
         if toks[j].is_skip():
             j += 1
@@ -173,10 +245,10 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if not toks[j].is_num():
                     break
                 j += 1
-            if nv < len(values):
-                values[nv] = tvals[k]
+            if nv < len(nodes):
+                nodes[nv] = Expr.NUMBER(tvals[k])
             else:
-                values.append(tvals[k])
+                nodes.append(Expr.NUMBER(tvals[k]))
             k += 1
             nv += 1
             continue
@@ -191,12 +263,12 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if ops[no - 1] == LPAREN:
                     break
                 nv -= 2
-                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                if r.is_ok():
-                    values[nv] = r.unwrap_or(0)
-                    nv += 1
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
                 else:
-                    return r
+                    nodes.append(node)
+                nv += 1
                 no -= 1
             no -= 1
         else:
@@ -214,12 +286,12 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if precedence(ops[no - 1]) < precedence(op):
                     break
                 nv -= 2
-                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                if r.is_ok():
-                    values[nv] = r.unwrap_or(0)
-                    nv += 1
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
                 else:
-                    return r
+                    nodes.append(node)
+                nv += 1
                 no -= 1
             if no < len(ops):
                 ops[no] = op
@@ -229,22 +301,43 @@ def evaluate(codes: List[int]) -> Result[int, str]:
         j += 1
     while no > 0:
         nv -= 2
-        r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-        if r.is_ok():
-            values[nv] = r.unwrap_or(0)
-            nv += 1
+        node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+        if nv < len(nodes):
+            nodes[nv] = node
         else:
-            return r
+            nodes.append(node)
+        nv += 1
         no -= 1
-    if nv == 0:
+    return nodes
+
+
+def evaluate(codes: List[int], env: Dict[str, float]) -> Result[float, str]:
+    toks: List[Token] = tokenize(codes)
+    tvals: List[float] = number_values(codes)
+    nodes: List[Expr] = parse(toks, tvals)
+    if len(nodes) == 0:
         return Error("empty expression")
-    return Ok(values[0])
+    return eval_expr(nodes[0], env)
 
 
 if __name__ == "__main__":
-    print(evaluate([50, 43, 51, 42, 52]).unwrap_or(-999))
-    print(evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999))
-    print(evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999))
-    print(evaluate([55, 42, 56, 43, 57]).unwrap_or(-999))
-    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999))
-    print(evaluate([49, 48, 47, 48]).unwrap_or(-999))
+    env: Dict[str, float] = {"x": 5.0}
+    print(int(evaluate([50, 43, 51, 42, 52], env).unwrap_or(-999.0)))
+    print(int(evaluate([40, 50, 43, 51, 41, 42, 52], env).unwrap_or(-999.0)))
+    print(int(evaluate([49, 48, 45, 56, 47, 47, 50], env).unwrap_or(-999.0)))
+    print(int(evaluate([55, 42, 56, 43, 57], env).unwrap_or(-999.0)))
+    print(
+        int(
+            evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54], env).unwrap_or(
+                -999.0
+            )
+        )
+    )
+    print(int(evaluate([49, 48, 47, 48], env).unwrap_or(-999.0)))
+    print(
+        int(
+            eval_expr(
+                Expr.ADD(BinOp(Expr.VARIABLE("x"), Expr.NUMBER(1.0))), env
+            ).unwrap_or(-999.0)
+        )
+    )

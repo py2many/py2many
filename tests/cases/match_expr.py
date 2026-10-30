@@ -11,20 +11,32 @@ https://github.com/py2many/adt)::
         PLUS: None
         ...
 
+and the parsed program is a recursive expression tree::
+
+    @sealed
+    class Expr:
+        NUMBER: float
+        VARIABLE: str
+        ADD: BinOp
+        ...
+
 A ``tokenize`` lexer turns character codes into tokens with a large
-match that constructs one variant per arm, and ``evaluate`` dispatches
-on the token stream with ``is_*`` checks, e.g.::
+match that constructs one variant per arm, a ``parse`` shunting-yard
+pass builds the tree, and a recursive ``eval_expr`` evaluates it by
+dispatching on variant with ``is_*`` checks, e.g.::
 
     tok = match code:
         43: Token.PLUS()
         47: Token.SLASH()
         _: Token.SKIP()
 
-    for tok in toks:
-        if tok.is_skip():
-            continue
-        elif tok.is_rparen():
-            ...
+    j = 0
+    while j < m:  # indexed: binding tokens would move them in Rust
+        ...
+
+    if e.is_add():
+        b_add = e.add()
+        return combine(PLUS, eval_expr(b_add.left, env), eval_expr(b_add.right, env))
 
 A ``/`` following another ``/`` is the second half of ``//``, not
 division: it is skipped before the match when the previous token was a
@@ -32,19 +44,20 @@ slash. Numbers are lexed by a second pass (``number_values``) into a
 parallel list of values.
 
 Per the static-python rules, fallible functions return ``Result[V, E]``
-instead of raising: applying ``//`` to zero yields ``Err``, which the
-caller prints with ``unwrap_or``::
+instead of raising: applying ``//`` to zero yields ``Err``, an unknown
+variable yields ``Err``, and the caller prints with ``unwrap_or``::
 
     return match op:
-        4: Ok(left // right) if right != 0 else Error("Division by zero")
-        _: Ok(0)
+        4: Ok(left / right) if right != 0.0 else Error("Division by zero")
+        _: Ok(0.0)
 
 The parser consumes a list of character codes (``[50, 43, 51]`` is
 ``"2+3"``), so the same source transpiles to Rust, V and CPython (whose
 ``match`` statement the python backend emits directly).
 """
 
-from typing import List
+from dataclasses import dataclass
+from typing import Dict, List
 
 from adt import adt as sealed
 from py2many.result import Error, Ok, Result
@@ -69,6 +82,22 @@ class Token:
     SKIP: None
 
 
+@dataclass
+class BinOp:
+    left: "Expr"
+    right: "Expr"
+
+
+@sealed
+class Expr:
+    NUMBER: float
+    VARIABLE: str
+    ADD: BinOp
+    SUBTRACT: BinOp
+    MULTIPLY: BinOp
+    DIVIDE: BinOp
+
+
 def digit_value(code: int) -> int:
     return match code:
         48: 0
@@ -84,13 +113,13 @@ def digit_value(code: int) -> int:
         _: -1
 
 
-def apply_op(op: int, left: int, right: int) -> Result[int, str]:
+def apply_float(op: int, left: float, right: float) -> Result[float, str]:
     return match op:
         1: Ok(left + right)
         2: Ok(left - right)
         3: Ok(left * right)
-        4: Ok(left // right) if right != 0 else Error("Division by zero")
-        _: Ok(0)
+        4: Ok(left / right) if right != 0.0 else Error("Division by zero")
+        _: Ok(0.0)
 
 
 def precedence(op: int) -> int:
@@ -102,23 +131,23 @@ def precedence(op: int) -> int:
         _: 0
 
 
-def number_values(codes: List[int]) -> List[int]:
+def number_values(codes: List[int]) -> List[float]:
     # Lex the multi-digit numbers in order; the k-th NUM token takes the
     # k-th value. A separate pass because a match arm is a single
     # expression and cannot run the lexing loop.
-    vals: List[int] = []
+    vals: List[float] = []
     i = 0
     n = len(codes)
     while i < n:
         code = codes[i]
         digit = digit_value(code)
         if digit >= 0:
-            value = 0
+            value = 0.0
             while i < n:
                 digit = digit_value(codes[i])
                 if digit < 0:
                     break
-                value = value * 10 + digit
+                value = value * 10.0 + float(digit)
                 i += 1
             vals.append(value)
         else:
@@ -166,20 +195,74 @@ def tokenize(codes: List[int]) -> List[Token]:
     return toks
 
 
-def evaluate(codes: List[int]) -> Result[int, str]:
-    toks: List[Token] = tokenize(codes)
-    tvals: List[int] = number_values(codes)
-    values: List[int] = []
+def lookup(env: Dict[str, float], name: str) -> Result[float, str]:
+    if name in env:
+        return Ok(env[name])
+    return Error("undefined variable")
+
+
+def combine(
+    op: int, l: Result[float, str], r: Result[float, str]
+) -> Result[float, str]:
+    if l.is_ok():
+        if r.is_ok():
+            return apply_float(op, l.unwrap_or(0.0), r.unwrap_or(0.0))
+        return r
+    return l
+
+
+def make_node(op: int, left: Expr, right: Expr) -> Expr:
+    return match op:
+        1: Expr.ADD(BinOp(left, right))
+        2: Expr.SUBTRACT(BinOp(left, right))
+        3: Expr.MULTIPLY(BinOp(left, right))
+        4: Expr.DIVIDE(BinOp(left, right))
+        _: Expr.NUMBER(0.0)
+
+
+def eval_expr(e: Expr, env: Dict[str, float]) -> Result[float, str]:
+    if e.is_number():
+        return Ok(e.number())
+    elif e.is_variable():
+        return lookup(env, e.variable())
+    elif e.is_add():
+        b_add = e.add()
+        return combine(
+            PLUS, eval_expr(b_add.left, env), eval_expr(b_add.right, env)
+        )
+    elif e.is_subtract():
+        b_subtract = e.subtract()
+        return combine(
+            MINUS, eval_expr(b_subtract.left, env), eval_expr(b_subtract.right, env)
+        )
+    elif e.is_multiply():
+        b_multiply = e.multiply()
+        return combine(
+            STAR, eval_expr(b_multiply.left, env), eval_expr(b_multiply.right, env)
+        )
+    elif e.is_divide():
+        b_divide = e.divide()
+        return combine(
+            SLASH, eval_expr(b_divide.left, env), eval_expr(b_divide.right, env)
+        )
+    else:
+        return Error("unknown expression")
+
+
+def parse(toks: List[Token], tvals: List[float]) -> List[Expr]:
+    # Shunting-yard pass building the expression tree. Nodes pile up in a
+    # stack (like values in an evaluator); the single root stays on top.
+    nodes: List[Expr] = []
     ops: List[int] = []
     nv = 0
     no = 0
     k = 0
+    j = 0
+    m = len(toks)
     # Declared up front with no initializer: assignments below are nested
     # in loops/branches, and every use is dominated by an assignment.
     op: int
-    r: Result[int, str]
-    j = 0
-    m = len(toks)
+    node: Expr
     while j < m:
         if toks[j].is_skip():
             j += 1
@@ -190,10 +273,10 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if not toks[j].is_num():
                     break
                 j += 1
-            if nv < len(values):
-                values[nv] = tvals[k]
+            if nv < len(nodes):
+                nodes[nv] = Expr.NUMBER(tvals[k])
             else:
-                values.append(tvals[k])
+                nodes.append(Expr.NUMBER(tvals[k]))
             k += 1
             nv += 1
             continue
@@ -208,12 +291,12 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if ops[no - 1] == LPAREN:
                     break
                 nv -= 2
-                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                if r.is_ok():
-                    values[nv] = r.unwrap_or(0)
-                    nv += 1
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
                 else:
-                    return r
+                    nodes.append(node)
+                nv += 1
                 no -= 1
             no -= 1
         else:
@@ -231,12 +314,12 @@ def evaluate(codes: List[int]) -> Result[int, str]:
                 if precedence(ops[no - 1]) < precedence(op):
                     break
                 nv -= 2
-                r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-                if r.is_ok():
-                    values[nv] = r.unwrap_or(0)
-                    nv += 1
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
                 else:
-                    return r
+                    nodes.append(node)
+                nv += 1
                 no -= 1
             if no < len(ops):
                 ops[no] = op
@@ -246,28 +329,38 @@ def evaluate(codes: List[int]) -> Result[int, str]:
         j += 1
     while no > 0:
         nv -= 2
-        r = apply_op(ops[no - 1], values[nv], values[nv + 1])
-        if r.is_ok():
-            values[nv] = r.unwrap_or(0)
-            nv += 1
+        node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+        if nv < len(nodes):
+            nodes[nv] = node
         else:
-            return r
+            nodes.append(node)
+        nv += 1
         no -= 1
-    if nv == 0:
+    return nodes
+
+
+def evaluate(codes: List[int], env: Dict[str, float]) -> Result[float, str]:
+    toks = tokenize(codes)
+    tvals = number_values(codes)
+    nodes = parse(toks, tvals)
+    if len(nodes) == 0:
         return Error("empty expression")
-    return Ok(values[0])
+    return eval_expr(nodes[0], env)
 
 
 if __name__ == "__main__":
+    env: Dict[str, float] = {"x": 5.0}
     # "2+3*4"
-    print(evaluate([50, 43, 51, 42, 52]).unwrap_or(-999))
+    print(int(evaluate([50, 43, 51, 42, 52], env).unwrap_or(-999.0)))
     # "(2+3)*4"
-    print(evaluate([40, 50, 43, 51, 41, 42, 52]).unwrap_or(-999))
+    print(int(evaluate([40, 50, 43, 51, 41, 42, 52], env).unwrap_or(-999.0)))
     # "10-8//2"
-    print(evaluate([49, 48, 45, 56, 47, 47, 50]).unwrap_or(-999))
+    print(int(evaluate([49, 48, 45, 56, 47, 47, 50], env).unwrap_or(-999.0)))
     # "7*8+9"
-    print(evaluate([55, 42, 56, 43, 57]).unwrap_or(-999))
+    print(int(evaluate([55, 42, 56, 43, 57], env).unwrap_or(-999.0)))
     # "((2+3)*4)-6"
-    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]).unwrap_or(-999))
+    print(int(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54], env).unwrap_or(-999.0)))
     # "10/0" -- division by zero
-    print(evaluate([49, 48, 47, 48]).unwrap_or(-999))
+    print(int(evaluate([49, 48, 47, 48], env).unwrap_or(-999.0)))
+    # x + 1 -- variable from the environment
+    print(int(eval_expr(Expr.ADD(BinOp(Expr.VARIABLE("x"), Expr.NUMBER(1.0))), env).unwrap_or(-999.0)))
