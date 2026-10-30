@@ -1,6 +1,7 @@
-import ast
 from collections.abc import Iterable
 from contextlib import contextmanager
+
+import spy_ast.ast as ast
 
 from py2many.analysis import get_id
 

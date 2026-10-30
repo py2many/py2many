@@ -1,7 +1,8 @@
-import ast
 from collections import defaultdict
 from pathlib import Path
 from typing import Tuple
+
+import spy_ast.ast as ast
 
 
 def module_for_path(path: Path) -> str:

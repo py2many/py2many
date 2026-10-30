@@ -1,5 +1,6 @@
-import ast
 from typing import Any, Dict, Tuple
+
+import spy_ast.ast as ast
 
 from py2many.ast_helpers import get_id
 

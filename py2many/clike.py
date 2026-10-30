@@ -1,4 +1,3 @@
-import ast
 import importlib
 import io  # noqa: F401
 import logging
@@ -28,6 +27,8 @@ from typing import (  # noqa: F401
     Tuple,
     Union,
 )
+
+import spy_ast.ast as ast
 
 from py2many.analysis import IGNORED_MODULE_SET, get_id
 from py2many.astx import LifeTime

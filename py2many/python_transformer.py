@@ -1,4 +1,4 @@
-import ast
+import spy_ast.ast as ast
 
 from .ast_helpers import create_ast_node
 from .clike import CLikeTranspiler

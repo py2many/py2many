@@ -1,4 +1,4 @@
-import ast
+import spy_ast.ast as ast
 
 from .analysis import get_id
 

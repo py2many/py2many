@@ -1,4 +1,4 @@
-import ast
+import spy_ast.ast as ast
 
 
 def add_annotation_flags(node):

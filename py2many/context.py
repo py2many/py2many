@@ -1,4 +1,4 @@
-import ast
+import spy_ast.ast as ast
 
 from .scope import ScopeMixin
 

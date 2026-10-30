@@ -1,6 +1,7 @@
-import ast
 import textwrap
 from typing import Any, Optional, Union, cast
+
+import spy_ast.ast as ast
 
 from py2many.analysis import get_id
 from py2many.ast_helpers import create_ast_block, create_ast_node
