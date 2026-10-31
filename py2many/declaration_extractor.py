@@ -69,6 +69,56 @@ class DeclarationExtractor(ast.NodeVisitor):
         else:
             node.is_dataclass = False
             self.generic_visit(node)
+            # Paren-style sealed variants: `ADD(Expr, Expr)` declares a
+            # tuple variant with positional payloads. Record it as a
+            # `Tuple[...]` annotation so backends share Tuple handling.
+            if "sealed" in decorators:
+                for child in node.body:
+                    if (
+                        isinstance(child, ast.Expr)
+                        and isinstance(child.value, ast.Call)
+                        and isinstance(child.value.func, ast.Name)
+                        and not child.value.keywords
+                    ):
+                        variant = child.value.func.id
+                        if variant.startswith("__"):
+                            continue
+                        arg_names = []
+                        for arg in child.value.args:
+                            arg_id = get_id(arg)
+                            if arg_id is not None:
+                                arg_names.append(arg_id)
+                            elif isinstance(arg, ast.Constant) and isinstance(
+                                arg.value, str
+                            ):
+                                arg_names.append(arg.value)
+                            else:
+                                # Fall back to transpiler mapping for
+                                # complex payload types (e.g. Subscript).
+                                try:
+                                    arg_names.append(
+                                        self.transpiler._typename_from_annotation(
+                                            ast.AnnAssign(
+                                                target=ast.Name(
+                                                    id="_", ctx=ast.Store()
+                                                ),
+                                                annotation=arg,
+                                                simple=1,
+                                            )
+                                        )
+                                    )
+                                except Exception:
+                                    arg_names.append("Any")
+                        tuple_typename = f"Tuple[{', '.join(arg_names)}]"
+                        if variant not in self.annotated_members:
+                            self.annotated_members[variant] = (
+                                tuple_typename,
+                                None,
+                            )
+                        # Mark as class-level variant for sealed handling.
+                        variant_key = ast.Name(id=variant, ctx=ast.Store())
+                        if variant_key not in self.class_assignments:
+                            self.class_assignments[variant_key] = child.value
 
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)

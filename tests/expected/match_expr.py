@@ -2,16 +2,31 @@ from typing import Callable, Dict, List, Set, Optional
 from ctypes import c_int8 as i8, c_int16 as i16, c_int32 as i32, c_int64 as i64
 from ctypes import c_uint8 as u8, c_uint16 as u16, c_uint32 as u32, c_uint64 as u64
 import sys
-from typing import List
+from typing import Dict, List, Tuple
+from adt import adt as sealed
+from py2many.result import Error, Ok, Result
 
-NUM: int = 0
-PLUS: int = 1
-MINUS: int = 2
-STAR: int = 3
-SLASH: int = 4
-LPAREN: int = 5
-RPAREN: int = 6
-SKIP: int = -2
+
+@sealed
+class Token:
+    NUM: int
+    PLUS: int
+    MINUS: int
+    STAR: int
+    SLASH: int
+    LPAREN: int
+    RPAREN: int
+    SKIP: int
+
+
+@sealed
+class Expr:
+    NUMBER: float
+    VARIABLE: str
+    ADD: Tuple["Expr", "Expr"]
+    SUBTRACT: Tuple["Expr", "Expr"]
+    MULTIPLY: Tuple["Expr", "Expr"]
+    DIVIDE: Tuple["Expr", "Expr"]
 
 
 def digit_value(code: int) -> int:
@@ -40,159 +55,265 @@ def digit_value(code: int) -> int:
             return -1
 
 
-def apply_op(op: int, left: int, right: int) -> int:
+def apply_float(
+    op: Token, l: Result[float, str], r: Result[float, str]
+) -> Result[float, str]:
+    if l.is_ok():
+        if r.is_ok():
+            left = l.unwrap_or(0.0)
+            right = r.unwrap_or(0.0)
+            match op:
+                case _ if op.is_plus():
+                    return Ok(left + right)
+                case _ if op.is_minus():
+                    return Ok(left - right)
+                case _ if op.is_star():
+                    return Ok(left * right)
+                case _ if op.is_slash():
+                    return (
+                        Ok(left / right) if right != 0.0 else Error("Division by zero")
+                    )
+                case _:
+                    return Ok(0.0)
+        return r
+    return l
+
+
+def precedence(op: Token) -> int:
     match op:
-        case 1:
-            return left + right
-        case 2:
-            return left - right
-        case 3:
-            return left * right
-        case 4:
-            return left // right
+        case _ if op.is_star():
+            return 2
+        case _ if op.is_slash():
+            return 2
+        case _ if op.is_plus():
+            return 1
+        case _ if op.is_minus():
+            return 1
         case _:
             return 0
 
 
-def precedence(op: int) -> int:
-    match op:
-        case 3:
-            return 2
-        case 4:
-            return 2
-        case 1:
-            return 1
-        case 2:
-            return 1
-        case _:
-            return 0
-
-
-def tokenize(codes: List[int]) -> List[int]:
-    kinds: List[int] = []
+def number_values(codes: List[int]) -> List[float]:
+    vals: List[float] = []
     i: int = 0
     n = len(codes)
-    prev: int = 0
     while i < n:
         code: int = codes[i]
+        digit: int = digit_value(code)
+        if digit >= 0:
+            value: float = 0.0
+            while i < n:
+                digit = digit_value(codes[i])
+                if digit < 0:
+                    break
+                value = value * 10.0 + float(digit)
+                i += 1
+            vals.append(value)
+        else:
+            i += 1
+    return vals
+
+
+def tokenize(codes: List[int]) -> List[Token]:
+    toks: List[Token] = []
+    i: int = 0
+    n = len(codes)
+    prev_slash: bool = False
+    while i < n:
+        code: int = codes[i]
+        if code == ord("/") and prev_slash:
+            i += 1
+            continue
         match code:
             case 48:
-                kind = NUM
+                tok = Token.NUM("0")
             case 49:
-                kind = NUM
+                tok = Token.NUM("0")
             case 50:
-                kind = NUM
+                tok = Token.NUM("0")
             case 51:
-                kind = NUM
+                tok = Token.NUM("0")
             case 52:
-                kind = NUM
+                tok = Token.NUM("0")
             case 53:
-                kind = NUM
+                tok = Token.NUM("0")
             case 54:
-                kind = NUM
+                tok = Token.NUM("0")
             case 55:
-                kind = NUM
+                tok = Token.NUM("0")
             case 56:
-                kind = NUM
+                tok = Token.NUM("0")
             case 57:
-                kind = NUM
+                tok = Token.NUM("0")
             case 43:
-                kind = PLUS
+                tok = Token.PLUS("+")
             case 45:
-                kind = MINUS
+                tok = Token.MINUS("-")
             case 42:
-                kind = STAR
+                tok = Token.STAR("*")
             case 47:
-                match prev:
-                    case 4:
-                        kind = SKIP
-                    case _:
-                        kind = SLASH
+                tok = Token.SLASH("/")
             case 40:
-                kind = LPAREN
+                tok = Token.LPAREN("(")
             case 41:
-                kind = RPAREN
+                tok = Token.RPAREN(")")
             case _:
-                kind = -1
-        kinds.append(kind)
-        if kind != SKIP:
-            prev = kind
+                tok = Token.SKIP(0)
+        prev_slash = tok.is_slash() if not tok.is_skip() else prev_slash
+        toks.append(tok)
         i += 1
-    return kinds
+    return toks
 
 
-def evaluate(codes: List[int]) -> int:
-    kinds: List[int] = tokenize(codes)
-    values: List[int] = []
-    ops: List[int] = []
+def lookup(env: Dict[str, float], name: str) -> Result[float, str]:
+    if name in env:
+        return Ok(env[name])
+    return Error("undefined variable")
+
+
+def make_node(op: Token, left: Expr, right: Expr) -> Expr:
+    match op:
+        case _ if op.is_plus():
+            return Expr.ADD(left, right)
+        case _ if op.is_minus():
+            return Expr.SUBTRACT(left, right)
+        case _ if op.is_star():
+            return Expr.MULTIPLY(left, right)
+        case _ if op.is_slash():
+            return Expr.DIVIDE(left, right)
+        case _:
+            return Expr.NUMBER(0.0)
+
+
+def eval_expr(e: Expr, env: Dict[str, float]) -> Result[float, str]:
+    match e:
+        case _ if e.is_number():
+            n = e.number()
+            return Ok(n)
+        case _ if e.is_variable():
+            name = e.variable()
+            return lookup(env, name)
+        case _ if e.is_add():
+            l, r = e.add()
+            return apply_float(Token.PLUS("+"), eval_expr(l, env), eval_expr(r, env))
+        case _ if e.is_subtract():
+            l, r = e.subtract()
+            return apply_float(Token.MINUS("-"), eval_expr(l, env), eval_expr(r, env))
+        case _ if e.is_multiply():
+            l, r = e.multiply()
+            return apply_float(Token.STAR("*"), eval_expr(l, env), eval_expr(r, env))
+        case _ if e.is_divide():
+            l, r = e.divide()
+            return apply_float(Token.SLASH("/"), eval_expr(l, env), eval_expr(r, env))
+        case _:
+            return Error("unknown expression")
+
+
+def parse(toks: List[Token], tvals: List[float]) -> List[Expr]:
+    nodes: List[Expr] = []
+    ops: List[Token] = []
     nv: int = 0
     no: int = 0
-    i: int = 0
+    k: int = 0
     j: int = 0
-    m = len(kinds)
+    m = len(toks)
+    op: Token
+    node: Expr
     while j < m:
-        kind: int = kinds[j]
-        if kind == SKIP:
-            i += 1
+        if toks[j].is_skip():
             j += 1
             continue
-        if kind == NUM:
-            value: int = 0
+        if toks[j].is_num():
             while j < m:
-                if kinds[j] != NUM:
+                if not toks[j].is_num():
                     break
-                value = value * 10 + digit_value(codes[i])
-                i += 1
                 j += 1
-            if nv < len(values):
-                values[nv] = value
+            if nv < len(nodes):
+                nodes[nv] = Expr.NUMBER(tvals[k])
             else:
-                values.append(value)
+                nodes.append(Expr.NUMBER(tvals[k]))
+            k += 1
             nv += 1
             continue
-        if kind == LPAREN:
+        if toks[j].is_lparen():
             if no < len(ops):
-                ops[no] = kind
+                ops[no] = Token.LPAREN("(")
             else:
-                ops.append(kind)
+                ops.append(Token.LPAREN("("))
             no += 1
-        elif kind == RPAREN:
+        elif toks[j].is_rparen():
             while no > 0:
-                if ops[no - 1] == LPAREN:
+                if ops[no - 1].is_lparen():
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
+                else:
+                    nodes.append(node)
                 nv += 1
                 no -= 1
             no -= 1
         else:
+            op = toks[j]
             while no > 0:
-                if ops[no - 1] == LPAREN:
+                if ops[no - 1].is_lparen():
                     break
-                if precedence(ops[no - 1]) < precedence(kind):
+                if precedence(ops[no - 1]) < precedence(op):
                     break
                 nv -= 2
-                values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+                node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+                if nv < len(nodes):
+                    nodes[nv] = node
+                else:
+                    nodes.append(node)
                 nv += 1
                 no -= 1
             if no < len(ops):
-                ops[no] = kind
+                ops[no] = op
             else:
-                ops.append(kind)
+                ops.append(op)
             no += 1
-        i += 1
         j += 1
     while no > 0:
         nv -= 2
-        values[nv] = apply_op(ops[no - 1], values[nv], values[nv + 1])
+        node = make_node(ops[no - 1], nodes[nv], nodes[nv + 1])
+        if nv < len(nodes):
+            nodes[nv] = node
+        else:
+            nodes.append(node)
         nv += 1
         no -= 1
-    return values[0]
+    return nodes
+
+
+def evaluate(codes: List[int], env: Dict[str, float]) -> Result[float, str]:
+    toks: List[Token] = tokenize(codes)
+    tvals: List[float] = number_values(codes)
+    nodes: List[Expr] = parse(toks, tvals)
+    if len(nodes) == 0:
+        return Error("empty expression")
+    return eval_expr(nodes[0], env)
 
 
 if __name__ == "__main__":
-    print(evaluate([50, 43, 51, 42, 52]))
-    print(evaluate([40, 50, 43, 51, 41, 42, 52]))
-    print(evaluate([49, 48, 45, 56, 47, 47, 50]))
-    print(evaluate([55, 42, 56, 43, 57]))
-    print(evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54]))
+    env: Dict[str, float] = {"x": 5.0}
+    print(int(evaluate([50, 43, 51, 42, 52], env).unwrap_or(-999.0)))
+    print(int(evaluate([40, 50, 43, 51, 41, 42, 52], env).unwrap_or(-999.0)))
+    print(int(evaluate([49, 48, 45, 56, 47, 47, 50], env).unwrap_or(-999.0)))
+    print(int(evaluate([55, 42, 56, 43, 57], env).unwrap_or(-999.0)))
+    print(
+        int(
+            evaluate([40, 40, 50, 43, 51, 41, 42, 52, 41, 45, 54], env).unwrap_or(
+                -999.0
+            )
+        )
+    )
+    print(int(evaluate([49, 48, 47, 48], env).unwrap_or(-999.0)))
+    print(
+        int(
+            eval_expr(Expr.ADD(Expr.VARIABLE("x"), Expr.NUMBER(1.0)), env).unwrap_or(
+                -999.0
+            )
+        )
+    )

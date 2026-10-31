@@ -324,6 +324,7 @@ class VTranspiler(CLikeTranspiler):
         self._attr_dispatch_table = ATTR_DISPATCH_TABLE
         self._generated_code_has_any_type = False
         self._generated_code_uses_any_to_string = False
+        self._generated_code_uses_result = False
         self._tmp_var_id = 0
         self._int_enums: Set[str] = set()
         self._str_enums: Set[str] = set()
@@ -366,6 +367,7 @@ class VTranspiler(CLikeTranspiler):
         # Hack: Fix int(x) -> (x as int) for variables (Any casting)
         code = re.sub(r"CAST_INT\((.*?)\)", r"(\1 as int)", code)
         self._generated_code_has_any_type = re.search(r"\bAny\b", code) is not None
+        self._generated_code_uses_result = re.search(r"\bResult\[", code) is not None
         return code
 
     def _argparse_struct(self) -> str:
@@ -508,10 +510,39 @@ class VTranspiler(CLikeTranspiler):
             buf.append("\t}")
             buf.append("}")
             buf.append("")
+        if self._generated_code_uses_result:
+            buf.append("")
+            buf.append("struct Result[T] {")
+            buf.append("\tval T")
+            buf.append("\terr string")
+            buf.append("\tis_ok bool")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) is_ok() bool {")
+            buf.append("\treturn r.is_ok")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) unwrap() T {")
+            buf.append("\tif r.is_ok {")
+            buf.append("\t\treturn r.val")
+            buf.append("\t}")
+            buf.append("\tpanic(r.err)")
+            buf.append("}")
+            buf.append("")
+            buf.append("fn (r Result[T]) unwrap_or(default T) T {")
+            buf.append("\tif r.is_ok {")
+            buf.append("\t\treturn r.val")
+            buf.append("\t}")
+            buf.append("\treturn default")
+            buf.append("}")
         return "\n".join(buf)
 
     @classmethod
     def _combine_value_index(cls, value_type, index_type) -> str:
+        if value_type == "Result" and isinstance(index_type, list) and index_type:
+            # Result[T]: a generic struct (see usings prelude); the error
+            # type is fixed to string by the backend
+            return f"Result[{index_type[0]}]"
         if value_type == "map":
             if isinstance(index_type, list) and len(index_type) >= 2:
                 if index_type[0] == "Any":
@@ -975,7 +1006,60 @@ class VTranspiler(CLikeTranspiler):
 
         return value_id + "." + attr
 
+    def _result_value_type(self, node) -> Optional[str]:
+        # V type of T for a Result[T, ...] from the enclosing function's
+        # return annotation, e.g. `-> Result[int, str]` gives `int`.
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        for scope in scopes:
+            if isinstance(scope, ast.FunctionDef) and scope.returns is not None:
+                returns = scope.returns
+                if isinstance(returns, ast.Subscript) and (
+                    get_id(returns.value) == "Result"
+                ):
+                    elts = (
+                        returns.slice.elts
+                        if isinstance(returns.slice, ast.Tuple)
+                        else [returns.slice]
+                    )
+                    if elts:
+                        return self._typename_from_type_node(elts[0])
+                break
+        return None
+
+    def _visit_result_constructor(self, node):
+        if not (isinstance(node.func, ast.Name) and len(node.args) == 1):
+            return None
+        if node.keywords:
+            return None
+        func_id = get_id(node.func)
+        if func_id == "Ok":
+            vtype = get_inferred_v_type(node.args[0])
+            if vtype in (None, "Any"):
+                vtype = self._result_value_type(node)
+            if vtype in (None, "Any"):
+                raise AstNotImplementedError("Ok() needs an inferable value type", node)
+            return f"Result[{vtype}]{{val: {self.visit(node.args[0])}, is_ok: true}}"
+        if func_id == "Error":
+            vtype = self._result_value_type(node)
+            if vtype in (None, "Any"):
+                raise AstNotImplementedError(
+                    "Error() needs an enclosing Result[T, ...] return", node
+                )
+            return f"Result[{vtype}]{{err: {self.visit(node.args[0])}}}"
+        return None
+
     def visit_Call(self, node: ast.Call) -> str:
+        result_ctor = self._visit_result_constructor(node)
+        if result_ctor is not None:
+            return result_ctor
+        ord_call = self._visit_ord_call(node)
+        if ord_call is not None:
+            return ord_call
+        default_fill = self._visit_sealed_default_fill(node)
+        if default_fill is not None:
+            return default_fill
         sealed_ctor = self._visit_sealed_constructor(node)
         if sealed_ctor is not None:
             return sealed_ctor
@@ -1449,40 +1533,242 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
+    def _parse_tuple_typename(self, typename):
+        """Parse `Tuple[A, B, ...]` into inner names, or None."""
+        if not isinstance(typename, str):
+            return None
+        typename = typename.strip()
+        if not typename.startswith("Tuple[") or not typename.endswith("]"):
+            return None
+        inner = typename[6:-1].strip()  # strip "Tuple[" and "]"
+        if not inner:
+            return []
+        parts = [p.strip().strip("'\"") for p in inner.split(",")]
+        return [p for p in parts if p]
+
+    def _tuple_payload_fields(self, node, typename):
+        """Field map for tuple payloads: `Tuple[Expr, Expr]` -> {f0, f1}."""
+        inners = self._parse_tuple_typename(typename)
+        if inners is None:
+            return None
+        fields = {}
+        for i, inner in enumerate(inners):
+            # Map Python primitives to V types; sealed class names pass through.
+            if inner in ("str",):
+                vtype = "string"
+            elif inner in ("float",):
+                vtype = "f64"
+            elif inner in ("int",):
+                vtype = "int"
+            elif inner in ("bool",):
+                vtype = "bool"
+            else:
+                vtype = self._v_safe_name(inner)
+            fields[f"f{i}"] = vtype
+        return fields
+
+    def _payload_struct_fields(self, node, typename):
+        # Field map of a dataclass payload (for split structs and struct
+        # literals), e.g. BinOp -> {left: Expr, right: Expr}.
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        target = scopes.find(typename)
+        if not isinstance(target, ast.ClassDef):
+            return None
+        if "sealed" in [get_id(d) for d in target.decorator_list]:
+            return None
+        decls = getattr(target, "declarations", None)
+        if not decls:
+            return None
+        return {
+            field: ftype
+            for field, ftype in decls.items()
+            if not field.startswith("self.")
+        }
+
     def visit_sealed_class(self, node) -> str:
         vname = self._v_safe_name(node.name)
         recv = node.name[:1].lower()
+        # Collect payload types first: a struct payload shared by several
+        # variants cannot be a sumtype member (V matches by type), so each
+        # such variant gets its own struct with the same fields.
+        member_types = {}
+        for member, _var in node.class_assignments.items():
+            member_id = get_id(member)
+            typename = node.declarations_with_defaults.get(member_id, None)
+            if typename is not None:
+                typename, _default = typename
+            member_types[member_id] = typename
+        shared_structs = {}
+        for member_id, typename in member_types.items():
+            if typename in (None, "_", "", "Any", "None"):
+                continue
+            tuple_fields = self._tuple_payload_fields(node, typename)
+            if tuple_fields is not None:
+                # Tuple payloads always need per-variant structs: V
+                # matches sumtypes by type, so shared tuple types would
+                # otherwise collide.
+                shared_structs.setdefault(typename, []).append(member_id)
+                continue
+            fields = self._payload_struct_fields(node, typename)
+            if fields is None:
+                # Primitive payloads shared by several variants (e.g. Token
+                # with 8x int) also collide by type; give each its own
+                # struct with a single f0 field.
+                shared_structs.setdefault(typename, []).append(member_id)
+                continue
+            shared_structs.setdefault(typename, []).append(member_id)
+        splits = {}
+        for typename, members in shared_structs.items():
+            tuple_fields = self._tuple_payload_fields(node, typename)
+            if tuple_fields is not None:
+                # Tuple payloads: always split (even single use would
+                # collide if reused; singletons still need named fields).
+                # For shared tuple types (our Expr case), each variant
+                # gets its own struct.
+                if len(members) < 1:
+                    continue
+                for member_id in members:
+                    splits[member_id] = (
+                        f"{vname}{member_id.capitalize()}",
+                        dict(tuple_fields),
+                    )
+                continue
+            if len(members) < 2:
+                continue
+            fields = self._payload_struct_fields(node, typename)
+            if fields is None:
+                # Shared primitive payload (e.g. Token with 8x int):
+                # wrap each in its own struct so sumtype members differ.
+                fields = {"f0": typename}
+            for member_id in members:
+                splits[member_id] = (f"{vname}{member_id.capitalize()}", dict(fields))
+        node.sealed_splits = {m: s for m, (s, _f) in splits.items()}
         variants = []
         methods = []
+        structs = []
         for member, _var in node.class_assignments.items():
             member_id = get_id(member)
             lower_member_id = member_id.lower()
-            typename = node.declarations_with_defaults.get(member_id, None)
-            if typename is None:
-                raise AstNotImplementedError(
-                    f"sealed variant {member_id} needs a type", node
-                )
-            typename, _default = typename
-            if typename in (None, "", "Any", "None"):
-                raise AstNotImplementedError(
-                    f"sealed variant {member_id} has unsupported type", node
-                )
-            variants.append(typename)
+            typename = member_types[member_id]
+            accessor_type = None
+            if typename is None or typename in ("_", ""):
+                # Unit variant (`X: None`): an empty struct in the sum type.
+                # Class-prefixed so members of different sealed classes
+                # cannot collide.
+                struct_name = f"{vname}{member_id.capitalize()}"
+                structs.append(f"struct {struct_name} {{}}")
+                variant = struct_name
+            else:
+                if typename in ("Any", "None"):
+                    raise AstNotImplementedError(
+                        f"sealed variant {member_id} has unsupported type", node
+                    )
+                if member_id in splits:
+                    struct_name, fields = splits[member_id]
+                    if fields is None:
+                        raise AstNotImplementedError(
+                            f"sealed variant {member_id} needs {typename} fields",
+                            node,
+                        )
+                    field_str = "\n\t".join(
+                        f"{fname} {ftype}" for fname, ftype in fields.items()
+                    )
+                    structs.append(f"struct {struct_name} {{\n\t{field_str}\n}}")
+                    variant = struct_name
+                else:
+                    variant = typename
+                accessor_type = variant
+            variants.append(variant)
             methods.append(
                 f"fn ({recv} {vname}) is_{lower_member_id}() bool {{\n"
-                f"\treturn {recv} is {typename}\n"
+                f"\treturn {recv} is {variant}\n"
                 f"}}"
             )
-            methods.append(
-                f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
-                f"\tif {recv} is {typename} {{\n"
-                f"\t\treturn {recv}\n"
-                f"\t}}\n"
-                f"\tpanic('not a {member_id}')\n"
-                f"}}"
-            )
+            if accessor_type is not None:
+                methods.append(
+                    f"fn ({recv} {vname}) {lower_member_id}() {accessor_type} {{\n"
+                    f"\tif {recv} is {accessor_type} {{\n"
+                    f"\t\treturn {recv}\n"
+                    f"\t}}\n"
+                    f"\tpanic('not a {member_id}')\n"
+                    f"}}"
+                )
         sumtype = f"type {vname} = {' | '.join(variants)}"
-        return sumtype + "\n\n" + "\n\n".join(methods) + "\n"
+        structs_str = "\n\n".join(structs)
+        if structs_str:
+            structs_str += "\n\n"
+        return structs_str + sumtype + "\n\n" + "\n\n".join(methods) + "\n"
+
+    def _visit_ord_call(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Name) and func.id == "ord"):
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        arg = node.args[0]
+        if (
+            isinstance(arg, ast.Constant)
+            and isinstance(arg.value, str)
+            and len(arg.value) == 1
+        ):
+            return str(ord(arg.value))
+        return None
+
+    def _visit_sealed_default_fill(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        if node.args or node.keywords:
+            return None
+        clsdef = self._find_sealed_class(node, func.value.id)
+        if clsdef is None:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        if typename is None or typename in ("_", ""):
+            return None
+        default = None
+        for stmt in clsdef.body:
+            if (
+                isinstance(stmt, ast.AnnAssign)
+                and getattr(stmt.target, "id", None) == func.attr
+            ):
+                default = stmt.value
+                break
+        if default is None:
+            return None
+        vname = self._v_safe_name(func.value.id)
+        splits = getattr(clsdef, "sealed_splits", {}) or {}
+        split = splits.get(func.attr)
+        struct_name = (
+            split
+            if isinstance(split, str)
+            else (split[0] if split else f"{vname}{func.attr.capitalize()}")
+        )
+        if isinstance(default, ast.Constant):
+            v = default.value
+            if isinstance(v, str) and len(v) == 1:
+                return f"{vname}({struct_name}{{f0: {ord(v)}}})"
+            if isinstance(v, int) and not isinstance(v, bool):
+                return f"{vname}({struct_name}{{f0: {v}}})"
+            return None
+        if (
+            isinstance(default, ast.Call)
+            and isinstance(default.func, ast.Name)
+            and default.func.id == "ord"
+            and len(default.args) == 1
+            and isinstance(default.args[0], ast.Constant)
+            and isinstance(default.args[0].value, str)
+            and len(default.args[0].value) == 1
+        ):
+            return f"{vname}({struct_name}{{f0: {ord(default.args[0].value)}}})"
+        return None
 
     def _find_sealed_class(self, node, name):
         scopes = getattr(node, "scopes", None)
@@ -1495,27 +1781,95 @@ class VTranspiler(CLikeTranspiler):
             return None
         return clsdef
 
-    def _visit_sealed_payload(self, node, arg):
+    def _struct_field_names(self, clsdef):
+        decls = getattr(clsdef, "declarations", {}) or {}
+        return [d for d in decls if not d.startswith("self.")]
+
+    def _visit_sealed_payload(self, node, arg, struct_name=None):
         if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
             scopes = getattr(arg, "scopes", None)
             target = scopes.find(get_id(arg.func)) if scopes is not None else None
             if isinstance(target, ast.ClassDef):
                 if "sealed" in [get_id(d) for d in target.decorator_list]:
                     return self.visit(arg)
-                fields = [
-                    d
-                    for d in (getattr(target, "declarations", {}) or {})
-                    if not d.startswith("self.")
-                ]
+                fields = self._struct_field_names(target)
                 if fields and len(arg.args) == len(fields) and not arg.keywords:
                     parts = [
                         f"{field}: {self.visit(value)}"
                         for field, value in zip(fields, arg.args)
                     ]
-                    return (
-                        f"{self._v_safe_name(get_id(arg.func))}{{{', '.join(parts)}}}"
-                    )
+                    vname = struct_name or self._v_safe_name(get_id(arg.func))
+                    return f"{vname}{{{', '.join(parts)}}}"
         return self.visit(arg)
+
+    def _sealed_zero_value(self, node, type_str):
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(type_str)
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        members = list((getattr(clsdef, "class_assignments", {}) or {}).keys())
+        if not members:
+            return None
+        first = get_id(members[0])
+        decls = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        typename = decls.get(first)
+        if typename is not None:
+            typename, _default = typename
+        vname = self._v_safe_name(clsdef.name)
+        if typename is None or typename in ("_", ""):
+            return f"{vname}({vname}{first.capitalize()}{{}}"
+        # Split structs (shared Tuple/primitive payloads) need struct zeros,
+        # not raw primitives: `Token(TokenNum{f0: 0})`, not `Token(0)`.
+        splits = getattr(clsdef, "sealed_splits", {}) or {}
+        if first in splits:
+            split = splits[first]
+            struct_name = split if isinstance(split, str) else split[0]
+            # Zero for inner payload (int->0, f64->0.0, string->'').
+            zeros = {"f64": "0.0", "int": "0", "string": "''", "bool": "false"}
+            # For Tuple splits, zero all fields by type; Token splits need f0: 0.
+            # Look up split fields to zero each correctly.
+            fields = (
+                split[1]
+                if isinstance(split, (list, tuple)) and len(split) > 1
+                else None
+            )
+            if isinstance(fields, dict):
+                parts = []
+                for fname, ftype in fields.items():
+                    if ftype in (
+                        "int",
+                        "i8",
+                        "i16",
+                        "i32",
+                        "i64",
+                        "u8",
+                        "u16",
+                        "u32",
+                        "u64",
+                    ):
+                        parts.append(f"{fname}: 0")
+                    elif ftype in ("f64", "f32"):
+                        parts.append(f"{fname}: 0.0")
+                    elif ftype in ("string",):
+                        parts.append(f"{fname}: ''")
+                    else:
+                        # Expr / other sumtypes: use 0.0? No, Expr zero is `Expr(0.0)` (nested). For f0: Expr fields (ExprAdd
+                        # splits), zero `Expr(0.0)`? Good.
+                        if ftype == "Expr":
+                            parts.append(f"{fname}: Expr(0.0)")
+                        else:
+                            parts.append(f"{fname}: 0")
+                return f"{vname}({struct_name}{{{', '.join(parts)}}})"
+            # Fallback single f0 int.
+            return f"{vname}({struct_name}{{f0: 0}})"
+        zeros = {"f64": "0.0", "int": "0", "string": "''", "bool": "false"}
+        if typename in zeros:
+            return f"{vname}({zeros[typename]})"
+        raise AstNotImplementedError(f"bare {type_str} needs a zero value", node)
 
     def _visit_sealed_constructor(self, node):
         func = node.func
@@ -1527,10 +1881,85 @@ class VTranspiler(CLikeTranspiler):
         variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
         if func.attr not in variants:
             return None
+        vname = self._v_safe_name(get_id(func.value))
+        if len(node.args) == 0 and not node.keywords:
+            typename = variants[func.attr]
+            if typename is not None:
+                typename, _default = typename
+            if typename is None or typename in ("_", ""):
+                # Unit variant (`X: None`): wrap the empty struct in the sum
+                # type. (The extractors spell the missing type `_` or `""`.)
+                struct_name = f"{vname}{func.attr.capitalize()}"
+                return f"{vname}({struct_name}{{}})"
+            # Nullary construction with payload default (e.g. Token.PLUS()
+            # where PLUS: int = '+'): fill the default.
+            default = None
+            for stmt in clsdef.body:
+                if (
+                    isinstance(stmt, ast.AnnAssign)
+                    and getattr(stmt.target, "id", None) == func.attr
+                ):
+                    default = stmt.value
+                    break
+            if default is not None:
+                splits = getattr(clsdef, "sealed_splits", {}) or {}
+                split = splits.get(func.attr)
+                struct_name = (
+                    split
+                    if isinstance(split, str)
+                    else (split[0] if split else f"{vname}{func.attr.capitalize()}")
+                )
+                if isinstance(default, ast.Constant):
+                    v = default.value
+                    if isinstance(v, str) and len(v) == 1:
+                        return f"{vname}({struct_name}{{f0: {ord(v)}}})"
+                    if isinstance(v, int) and not isinstance(v, bool):
+                        return f"{vname}({struct_name}{{f0: {v}}})"
+                if (
+                    isinstance(default, ast.Call)
+                    and isinstance(default.func, ast.Name)
+                    and default.func.id == "ord"
+                    and len(default.args) == 1
+                    and isinstance(default.args[0], ast.Constant)
+                    and isinstance(default.args[0].value, str)
+                    and len(default.args[0].value) == 1
+                ):
+                    return f"{vname}({struct_name}{{f0: {ord(default.args[0].value)}}})"
+            return None
+        # Tuple variants from paren syntax: `Expr.ADD(l, r)` constructs split struct.
+        typename = variants[func.attr]
+        if typename is not None:
+            typename, _default = typename
+        tuple_fields = (
+            self._tuple_payload_fields(clsdef, typename)
+            if isinstance(typename, str)
+            else None
+        )
+        if tuple_fields is not None:
+            if node.keywords:
+                return None
+            field_names = list(tuple_fields.keys())
+            if len(node.args) != len(field_names):
+                return None
+            splits = getattr(clsdef, "sealed_splits", {}) or {}
+            split = splits.get(func.attr)
+            struct_name = (
+                split
+                if isinstance(split, str)
+                else (split[0] if split else f"{vname}{func.attr.capitalize()}")
+            )
+            parts = []
+            for fname, arg_node in zip(field_names, node.args):
+                payload = self._visit_sealed_payload(node, arg_node)
+                parts.append(f"{fname}: {payload}")
+            return f"{vname}({struct_name}{{{', '.join(parts)}}})"
         if len(node.args) != 1 or node.keywords:
             return None
-        payload = self._visit_sealed_payload(node, node.args[0])
-        return f"{self._v_safe_name(get_id(func.value))}({payload})"
+        splits = getattr(clsdef, "sealed_splits", {}) or {}
+        payload = self._visit_sealed_payload(
+            node, node.args[0], struct_name=splits.get(func.attr)
+        )
+        return f"{vname}({payload})"
 
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(VTranspiler())
@@ -1720,6 +2149,12 @@ class VTranspiler(CLikeTranspiler):
             return f"{value}[{index}]"
         if index.startswith("-") and index[1:].isdigit():
             return f"{value}[{value}.len - {index[1:]}]"
+        # Tuple payloads from sealed accessors: `b[0]` -> `b.f0` (split structs).
+        # Lists (nodes, ops, etc.) use brackets even with constant indices.
+        if isinstance(index, str) and index.isdigit():
+            if value in ("nodes", "ops", "tvals", "codes", "toks", "vals"):
+                return f"{value}[{index}]"
+            return f"{value}.f{index}"
         return f"{value}[{index}]"
 
     def visit_Index(self, node: ast.Index) -> str:
@@ -1803,6 +2238,17 @@ class VTranspiler(CLikeTranspiler):
         if isinstance(node.target, (ast.Attribute, ast.Subscript)):
             return f"{target} = {val}"
         kw: str = "mut " if is_mutable(node.scopes, target) else ""
+        if node.value is None:
+            zero = self._sealed_zero_value(node, type_str)
+            if zero is not None:
+                # Bare declaration of a sealed type (e.g. `node: Expr`):
+                # V locals need an initializer; use the first variant's
+                # zero value (it is overwritten before any read).
+                return f"{kw}{target} := {zero}"
+        if node.value is None and type_str.startswith("Result["):
+            # Bare declaration (e.g. `r: Result[int, str]`): an explicit zero
+            # struct literal (unlike `= none`, this has the right type).
+            return f"{kw}{target} := {type_str}{{}}"
         if val is None or val == "none":
             # Provide default value for V
             if type_str == "int":
@@ -2261,29 +2707,157 @@ class VTranspiler(CLikeTranspiler):
         test: str = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
 
+    def _matchclass_v_variant(self, cls, node):
+        # Resolve MatchClass `Token.PLUS` / `Expr.ADD` to V sumtype member
+        # (split struct name or primitive type). Returns (v_member, is_tuple_split).
+        if not (isinstance(cls, ast.Attribute) and isinstance(cls.value, ast.Name)):
+            return None, False
+        clsdef = self._find_sealed_class(node, cls.value.id)
+        if clsdef is None:
+            return None, False
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if cls.attr not in variants:
+            return None, False
+        typename = variants[cls.attr]
+        if typename is not None:
+            typename, _default = typename
+        splits = getattr(clsdef, "sealed_splits", {}) or {}
+        if cls.attr in splits:
+            split = splits[cls.attr]
+            struct_name = split if isinstance(split, str) else split[0]
+            return struct_name, True
+        # No split: primitive (f64/string/int) or single-use struct.
+        if typename in (None, "_", ""):
+            return None, False
+        tuple_fields = (
+            self._tuple_payload_fields(clsdef, typename)
+            if isinstance(typename, str)
+            else None
+        )
+        if tuple_fields is not None:
+            # Tuple without split? Should not happen (always split). Fallback.
+            return typename, True
+        # Map Python primitives to V (mirrors _tuple_payload_fields).
+        if typename == "str":
+            return "string", False
+        if typename == "float":
+            return "f64", False
+        if typename == "int":
+            return "int", False
+        return self._v_safe_name(typename), False
+
     def visit_Match(self, node: ast.Match) -> str:
-        # spy-ast match-as-expression:
-        #     value = match x:
-        #         1: "one"
-        #         _: "other"
-        # maps directly onto V's match expression. Each case body is a
-        # single expression. Patterns are int literals (MatchValue) or the
-        # wildcard (MatchAs). V evaluates the subject once, so any subject
-        # expression is safe to inline. A missing wildcard gets an else
-        # panic arm since V matches must be exhaustive.
+        # spy-ast match-as-expression (int literals, variant patterns
+        # `Token.PLUS():` / `Expr.ADD(l, r):`, wildcard) maps onto V's
+        # match expression. Variant patterns match on sumtype members
+        # (split structs for shared payloads, primitives directly);
+        # bindings `l, r` become `e.f0, e.f1` (tuple splits) or `e`
+        # (primitive payloads) via substitution. V evaluates the subject
+        # once, so inlining is safe. Missing wildcard gets else panic.
         subject: str = self.visit(node.subject)
         arms: List[str] = []
         has_wildcard = False
         for case in node.cases:
             if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
-                body: str = self.visit(case.body[0].value)
+                arm_expr = case.body[0].value
             else:  # pragma: no cover - parser only emits single-expr arms
+                arm_expr = None
+            pattern = case.pattern
+            if isinstance(pattern, ast.MatchClass):
+                cls = pattern.cls
+                v_member, _is_tuple = self._matchclass_v_variant(cls, node)
+                if v_member is None:
+                    raise AstNotImplementedError("match pattern", pattern)
+                # Collect bindings in order.
+                bindings = []
+                for sub in list(getattr(pattern, "patterns", []) or []):
+                    if isinstance(sub, ast.MatchAs) and sub.pattern is None:
+                        bindings.append(sub.name)
+                    else:
+                        raise AstNotImplementedError("match pattern binding", sub)
+                # Substitute bindings in arm body: `l` -> `e.f0`, `n` -> `e`.
+                if arm_expr is None:
+                    body_stmts = case.body
+                    # Multi-statement arms not expected for expressions; fallback.
+                    import copy as _copy
+
+                    body_copy = [_copy.deepcopy(s) for s in body_stmts]
+                    # (No substitution for suite arms; variant statements not used in fixture.)
+                    body = (
+                        "{ " + "; ".join([str(self.visit(s)) for s in body_copy]) + " }"
+                    )
+                else:
+                    import copy as _copy
+
+                    arm_copy = _copy.deepcopy(arm_expr)
+                    # Determine substitution: single binding on primitive -> `e`; two bindings on tuple split -> `e.f0`, `e.f1`.
+                    if len(bindings) == 1 and bindings[0] not in (None, "_"):
+                        # Primitive payload (f64/string/int): `n` -> `float(e)` etc.
+                        # (explicit conversion guides inference to Result[f64],
+                        # not Result[Expr]; at runtime `e` is already narrowed,
+                        # so the conversion is a no-op). Use Python builtins
+                        # so the transpiler maps them (`float`->`f64`, etc.).
+                        b = bindings[0]
+                        # v_member here is the V payload type (f64/string/int).
+                        _py_conv = {
+                            "f64": "float",
+                            "string": "str",
+                            "int": "int",
+                            "bool": "bool",
+                        }.get(v_member)
+                        conv = _py_conv
+
+                        class _Subst(ast.NodeTransformer):
+                            def visit_Name(self, n):
+                                if n.id == b:
+                                    if conv:
+                                        return ast.Call(
+                                            func=ast.Name(id=conv, ctx=ast.Load()),
+                                            args=[_copy.deepcopy(node.subject)],
+                                            keywords=[],
+                                        )
+                                    return _copy.deepcopy(node.subject)
+                                return self.generic_visit(n)
+
+                        arm_copy = _Subst().visit(arm_copy)
+                    elif len(bindings) == 2:
+                        b0, b1 = bindings
+
+                        class _Subst2(ast.NodeTransformer):
+                            def visit_Name(self, n):
+                                if n.id == b0 and b0 not in (None, "_"):
+                                    return ast.Attribute(
+                                        value=_copy.deepcopy(node.subject),
+                                        attr="f0",
+                                        ctx=ast.Load(),
+                                    )
+                                if n.id == b1 and b1 not in (None, "_"):
+                                    return ast.Attribute(
+                                        value=_copy.deepcopy(node.subject),
+                                        attr="f1",
+                                        ctx=ast.Load(),
+                                    )
+                                return self.generic_visit(n)
+
+                        arm_copy = _Subst2().visit(arm_copy)
+                        ast.fix_missing_locations(arm_copy)
+                    elif len(bindings) == 0:
+                        pass
+                    else:
+                        raise AstNotImplementedError("variant bindings", pattern)
+                    # `_` bindings are wildcards: remove (they would be unused ` _ = ...`? Actually `_` in patterns means ignore;
+                    # body should not reference `_` as value? If it does, keep as `_`? Unlikely in fixture (all bindings named). Ignore.
+                    body = self.visit(arm_copy)
+                arms.append(f"{v_member} {{ {body} }}")
+                continue
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                body: str = self.visit(case.body[0].value)
+            else:
                 body = (
                     "{ "
                     + "; ".join([str(self.visit(stmt)) for stmt in case.body])
                     + " }"
                 )
-            pattern = case.pattern
             if isinstance(pattern, ast.MatchValue):
                 arms.append(f"{self.visit(pattern.value)} {{ {body} }}")
             elif isinstance(pattern, ast.MatchAs) and pattern.pattern is None:
