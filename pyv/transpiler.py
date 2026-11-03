@@ -1,4 +1,5 @@
 import ast
+import copy
 import re
 import textwrap
 from typing import Dict, List, Optional, Set, Tuple, Union
@@ -306,6 +307,39 @@ class VWalrusRewriter(ast.NodeTransformer):
                 new_body.extend(assignments)
                 new_body.append(stmt)
         return new_body
+
+
+class _VariantBindingSubstituter(ast.NodeTransformer):
+    """Replace match-binding Names with subject field accesses.
+
+    V `match` smart-casts instead of binding (unlike Rust patterns like
+    `Expr::ADD(l, r)`), so `l`/`r` become `e.f0`/`e.f1` (tuple splits)
+    and `n` becomes `float(e)`/`str(e)` (primitive payloads; the
+    conversion guides `Result` inference, and is a no-op at runtime
+    since `e` is already narrowed). `_` bindings are left alone.
+    """
+
+    def __init__(self, subject: ast.AST, mapping: dict):
+        # mapping: binding name -> ("field", "f0") or ("conv", "float").
+        self._subject = subject
+        self._mapping = mapping
+
+    def visit_Name(self, node: ast.Name):
+        repl = self._mapping.get(node.id)
+        if repl is None:
+            return self.generic_visit(node)
+        kind, arg = repl
+        if kind == "field":
+            return ast.Attribute(
+                value=copy.deepcopy(self._subject), attr=arg, ctx=ast.Load()
+            )
+        if kind == "conv":
+            return ast.Call(
+                func=ast.Name(id=arg, ctx=ast.Load()),
+                args=[copy.deepcopy(self._subject)],
+                keywords=[],
+            )
+        return self.generic_visit(node)
 
 
 class VTranspiler(CLikeTranspiler):
@@ -2770,11 +2804,9 @@ class VTranspiler(CLikeTranspiler):
                     isinstance(cls, ast.Attribute) and isinstance(cls.value, ast.Name)
                 ):
                     return False
-                from py2many.analysis import get_id as _get_id
-
                 if enum_name is None:
-                    enum_name = _get_id(cls.value)
-                elif enum_name != _get_id(cls.value):
+                    enum_name = get_id(cls.value)
+                elif enum_name != get_id(cls.value):
                     return False
                 covered.add(cls.attr)
             elif isinstance(pat, ast.MatchAs) and pat.pattern is None:
@@ -2792,21 +2824,74 @@ class VTranspiler(CLikeTranspiler):
             clsdef = scopes.find(enum_name)
         except Exception:
             return False
-        import ast as _ast
-
-        if clsdef is None or not isinstance(clsdef, _ast.ClassDef):
+        if clsdef is None or not isinstance(clsdef, ast.ClassDef):
             return False
         if "sealed" not in [getattr(d, "id", None) for d in clsdef.decorator_list]:
             return False
         members = set()
         for stmt in clsdef.body:
-            if isinstance(stmt, _ast.AnnAssign) and isinstance(stmt.target, _ast.Name):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
                 members.add(stmt.target.id)
-            elif isinstance(stmt, _ast.Expr) and isinstance(stmt.value, _ast.Call):
+            elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                 func = stmt.value.func
-                if isinstance(func, _ast.Name):
+                if isinstance(func, ast.Name):
                     members.add(func.id)
         return bool(members) and members <= covered
+
+    def _visit_matchclass_arm(self, node, case):
+        """Lower one variant arm, e.g. `Expr.ADD(l, r): ...` -> `ExprAdd { ... }`.
+
+        V `match` smart-casts instead of binding (unlike Rust patterns like
+        `Expr::ADD(l, r)`), so bindings are rewritten to field accesses on
+        the subject: `l`/`r` become `e.f0`/`e.f1` (tuple splits), and a
+        single primitive binding (e.g. `n` in `Expr.NUMBER(n)`) becomes a
+        conversion like `float(e)` (a no-op at runtime, since `e` is already
+        narrowed, that guides `Result` inference to `f64`, not `Expr`).
+        """
+        pattern = case.pattern
+        cls = pattern.cls
+        v_member, _is_tuple = self._matchclass_v_variant(cls, node)
+        if v_member is None:
+            raise AstNotImplementedError("match pattern", pattern)
+        bindings = []
+        for sub in list(getattr(pattern, "patterns", []) or []):
+            if isinstance(sub, ast.MatchClass):
+                raise AstNotImplementedError("match pattern binding", sub)
+            if isinstance(sub, (ast.MatchAs, ast.MatchValue)):
+                bindings.append(getattr(sub, "name", None))
+                continue
+            if type(sub).__name__ == "WildcardPattern":
+                bindings.append(None)
+                continue
+            raise AstNotImplementedError("match pattern binding", sub)
+        if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+            arm_expr = case.body[0].value
+        else:  # pragma: no cover - parser only emits single-expr arms
+            arm_stmts = [copy.deepcopy(s) for s in case.body]
+            body = "{ " + "; ".join([str(self.visit(s)) for s in arm_stmts]) + " }"
+            return f"{v_member} {{ {body} }}"
+        mapping = {}
+        if len(bindings) == 1 and bindings[0] not in (None, "_"):
+            conv = {"f64": "float", "string": "str", "int": "int", "bool": "bool"}.get(
+                v_member
+            )
+            if conv:
+                mapping[bindings[0]] = ("conv", conv)
+            else:
+                mapping[bindings[0]] = ("subject", None)
+        elif len(bindings) == 2:
+            for name, field in zip(bindings, ("f0", "f1")):
+                if name not in (None, "_"):
+                    mapping[name] = ("field", field)
+        elif len(bindings) == 0:
+            pass
+        else:
+            raise AstNotImplementedError("variant bindings", pattern)
+        arm_copy = copy.deepcopy(arm_expr)
+        arm_copy = _VariantBindingSubstituter(node.subject, mapping).visit(arm_copy)
+        ast.fix_missing_locations(arm_copy)
+        body = self.visit(arm_copy)
+        return f"{v_member} {{ {body} }}"
 
     def visit_Match(self, node: ast.Match) -> str:
         # spy-ast match-as-expression (int literals, variant patterns
@@ -2820,97 +2905,9 @@ class VTranspiler(CLikeTranspiler):
         arms: List[str] = []
         has_wildcard = False
         for case in node.cases:
-            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
-                arm_expr = case.body[0].value
-            else:  # pragma: no cover - parser only emits single-expr arms
-                arm_expr = None
             pattern = case.pattern
             if isinstance(pattern, ast.MatchClass):
-                cls = pattern.cls
-                v_member, _is_tuple = self._matchclass_v_variant(cls, node)
-                if v_member is None:
-                    raise AstNotImplementedError("match pattern", pattern)
-                # Collect bindings in order.
-                bindings = []
-                for sub in list(getattr(pattern, "patterns", []) or []):
-                    if isinstance(sub, ast.MatchAs) and sub.pattern is None:
-                        bindings.append(sub.name)
-                    else:
-                        raise AstNotImplementedError("match pattern binding", sub)
-                # Substitute bindings in arm body: `l` -> `e.f0`, `n` -> `e`.
-                if arm_expr is None:
-                    body_stmts = case.body
-                    # Multi-statement arms not expected for expressions; fallback.
-                    import copy as _copy
-
-                    body_copy = [_copy.deepcopy(s) for s in body_stmts]
-                    # (No substitution for suite arms; variant statements not used in fixture.)
-                    body = (
-                        "{ " + "; ".join([str(self.visit(s)) for s in body_copy]) + " }"
-                    )
-                else:
-                    import copy as _copy
-
-                    arm_copy = _copy.deepcopy(arm_expr)
-                    # Determine substitution: single binding on primitive -> `e`; two bindings on tuple split -> `e.f0`, `e.f1`.
-                    if len(bindings) == 1 and bindings[0] not in (None, "_"):
-                        # Primitive payload (f64/string/int): `n` -> `float(e)` etc.
-                        # (explicit conversion guides inference to Result[f64],
-                        # not Result[Expr]; at runtime `e` is already narrowed,
-                        # so the conversion is a no-op). Use Python builtins
-                        # so the transpiler maps them (`float`->`f64`, etc.).
-                        b = bindings[0]
-                        # v_member here is the V payload type (f64/string/int).
-                        _py_conv = {
-                            "f64": "float",
-                            "string": "str",
-                            "int": "int",
-                            "bool": "bool",
-                        }.get(v_member)
-                        conv = _py_conv
-
-                        class _Subst(ast.NodeTransformer):
-                            def visit_Name(self, n):
-                                if n.id == b:
-                                    if conv:
-                                        return ast.Call(
-                                            func=ast.Name(id=conv, ctx=ast.Load()),
-                                            args=[_copy.deepcopy(node.subject)],
-                                            keywords=[],
-                                        )
-                                    return _copy.deepcopy(node.subject)
-                                return self.generic_visit(n)
-
-                        arm_copy = _Subst().visit(arm_copy)
-                    elif len(bindings) == 2:
-                        b0, b1 = bindings
-
-                        class _Subst2(ast.NodeTransformer):
-                            def visit_Name(self, n):
-                                if n.id == b0 and b0 not in (None, "_"):
-                                    return ast.Attribute(
-                                        value=_copy.deepcopy(node.subject),
-                                        attr="f0",
-                                        ctx=ast.Load(),
-                                    )
-                                if n.id == b1 and b1 not in (None, "_"):
-                                    return ast.Attribute(
-                                        value=_copy.deepcopy(node.subject),
-                                        attr="f1",
-                                        ctx=ast.Load(),
-                                    )
-                                return self.generic_visit(n)
-
-                        arm_copy = _Subst2().visit(arm_copy)
-                        ast.fix_missing_locations(arm_copy)
-                    elif len(bindings) == 0:
-                        pass
-                    else:
-                        raise AstNotImplementedError("variant bindings", pattern)
-                    # `_` bindings are wildcards: remove (they would be unused ` _ = ...`? Actually `_` in patterns means ignore;
-                    # body should not reference `_` as value? If it does, keep as `_`? Unlikely in fixture (all bindings named). Ignore.
-                    body = self.visit(arm_copy)
-                arms.append(f"{v_member} {{ {body} }}")
+                arms.append(self._visit_matchclass_arm(node, case))
                 continue
             if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
                 body: str = self.visit(case.body[0].value)
