@@ -67,9 +67,38 @@ def get_inferred_type(node):
     return None
 
 
+def _is_result_annotation(node):
+    # Result[V, E] maps to an owned value (anyhow::Result, Result[T]) -
+    # unlike List/Dict/Set it is never borrowed.
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "Result"
+    )
+
+
+def is_sealed_annotation(arg):
+    # A parameter annotated with a @sealed type is borrowed (&T), like a
+    # container: the values are too large to move around implicitly.
+    ann = getattr(arg, "annotation", None)
+    if not (isinstance(ann, ast.Name) and isinstance(arg, ast.arg)):
+        return False
+    scopes = getattr(arg, "scopes", None)
+    if scopes is None:
+        return False
+    clsdef = scopes.find(ann.id)
+    if not isinstance(clsdef, ast.ClassDef):
+        return False
+    return "sealed" in [get_id(d) for d in clsdef.decorator_list]
+
+
 def is_reference(arg):
-    annotation_has_ref = hasattr(arg, "annotation") and isinstance(
-        arg.annotation, ast.Subscript
+    if is_sealed_annotation(arg):
+        return True
+    annotation_has_ref = (
+        hasattr(arg, "annotation")
+        and isinstance(arg.annotation, ast.Subscript)
+        and not _is_result_annotation(arg.annotation)
     )
     if annotation_has_ref:
         return True

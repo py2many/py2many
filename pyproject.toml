@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "argparse_dataclass",
-    "spy-ast>=0.1.8",
+    "spy-ast>=0.1.9",
     "tree-sitter",
     "tree-sitter-cpp",
     "tree-sitter-rust",
@@ -103,14 +103,14 @@ version = {attr = "py2many.version.__version__"}
 [tool.ruff]
 # tests/cases/match_expr.py is written in the match-as-expression dialect,
 # which ruff's parser does not support.
-extend-exclude = ["tests/cases/match_expr.py"]
+extend-exclude = ["tests/cases/match_expr.py", "tests/cases/match_expr2.py"]
 
 [tool.isort]
 profile = "black"
 # Golden transpiler output, not source we control -- their import order mirrors
 # the input fixtures, so don't lint it. CI used to `rm` these before isort;
 # skipping here means it doesn't have to.
-extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*", "tests/cases/match_expr.py"]
+extend_skip_glob = ["tests/expected/*", "tests/dir_cases/test1-*-expected/*", "tests/cases/match_expr.py", "tests/cases/match_expr2.py"]
 
 [tool.black]
 # Same golden-output fixtures excluded for isort above (black takes a regex on
@@ -120,7 +120,7 @@ extend-exclude = '''
 /(
     tests/expected/
   | tests/dir_cases/test1-[^/]*-expected/
-  | tests/cases/match_expr\.py
+  | tests/cases/match_expr2?\.py
 )
 '''
 

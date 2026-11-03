@@ -41,6 +41,7 @@ V_CONTAINER_TYPE_MAP = {
     "Set": "set",
     "set": "set",
     "Optional": "?",
+    "Result": "Result",
 }
 
 V_WIDTH_RANK = {
