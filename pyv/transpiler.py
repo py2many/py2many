@@ -1,5 +1,6 @@
 import ast
 import re
+import textwrap
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from py2many.analysis import get_id, is_generator_function, is_mutable, is_void_function
@@ -494,47 +495,65 @@ class VTranspiler(CLikeTranspiler):
         ) and not getattr(self, "_suppress_any_prelude", False)
         if emit_any_prelude:
             buf.append("")
-            buf.append("type AnyFn = fn (Any) Any")
-            buf.append("type Any = bool | int | i64 | f64 | string | []u8 | voidptr")
-            buf.append("type List = []Any")
+            buf.append(
+                textwrap.dedent(
+                    """\
+                    type AnyFn = fn (Any) Any
+                    type Any = bool | int | i64 | f64 | string | []u8 | voidptr
+                    type List = []Any
+                    """
+                ).strip("\n")
+            )
         if self._generated_code_uses_any_to_string and not getattr(
             self, "_suppress_any_prelude", False
         ):
             buf.append("")
-            buf.append("fn any_to_string(value Any) string {")
-            buf.append("\treturn match value {")
-            buf.append("\t\tstring { value }")
-            buf.append("\t\tbool, int, i64, f64 { value.str() }")
-            buf.append("\t\t[]u8 { value.bytestr() }")
-            buf.append("\t\tvoidptr { ptr_str(value) }")
-            buf.append("\t}")
-            buf.append("}")
+            buf.append(
+                textwrap.dedent(
+                    """\
+                    fn any_to_string(value Any) string {
+                    \treturn match value {
+                    \t\tstring { value }
+                    \t\tbool, int, i64, f64 { value.str() }
+                    \t\t[]u8 { value.bytestr() }
+                    \t\tvoidptr { ptr_str(value) }
+                    \t}
+                    }
+                    """
+                ).strip("\n")
+            )
             buf.append("")
         if self._generated_code_uses_result:
             buf.append("")
-            buf.append("struct Result[T] {")
-            buf.append("\tval T")
-            buf.append("\terr string")
-            buf.append("\tis_ok bool")
-            buf.append("}")
-            buf.append("")
-            buf.append("fn (r Result[T]) is_ok() bool {")
-            buf.append("\treturn r.is_ok")
-            buf.append("}")
-            buf.append("")
-            buf.append("fn (r Result[T]) unwrap() T {")
-            buf.append("\tif r.is_ok {")
-            buf.append("\t\treturn r.val")
-            buf.append("\t}")
-            buf.append("\tpanic(r.err)")
-            buf.append("}")
-            buf.append("")
-            buf.append("fn (r Result[T]) unwrap_or(default T) T {")
-            buf.append("\tif r.is_ok {")
-            buf.append("\t\treturn r.val")
-            buf.append("\t}")
-            buf.append("\treturn default")
-            buf.append("}")
+            buf.append(
+                textwrap.dedent(
+                    """\
+                    struct Result[T] {
+                    \tval T
+                    \terr string
+                    \tis_ok bool
+                    }
+
+                    fn (r Result[T]) is_ok() bool {
+                    \treturn r.is_ok
+                    }
+
+                    fn (r Result[T]) unwrap() T {
+                    \tif r.is_ok {
+                    \t\treturn r.val
+                    \t}
+                    \tpanic(r.err)
+                    }
+
+                    fn (r Result[T]) unwrap_or(default T) T {
+                    \tif r.is_ok {
+                    \t\treturn r.val
+                    \t}
+                    \treturn default
+                    }
+                    """
+                ).strip("\n")
+            )
         return "\n".join(buf)
 
     @classmethod
