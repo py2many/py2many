@@ -1,0 +1,8 @@
+# Early-init mise settings (read before the regular config, so they can affect
+# which config files load). auto_env turns on platform environments: mise then
+# loads .mise/config.<platform>.toml automatically for the current OS -- so
+# config.linux.toml on Linux, config.macos.toml on macOS, and config.windows.toml
+# on Windows, with no manual MISE_ENV. Setting it here also silences mise's
+# 2026.12 "auto_env is becoming default" rollout warning.
+# See https://mise.jdx.dev/configuration/environments.html
+auto_env = true
