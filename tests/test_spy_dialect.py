@@ -1,18 +1,24 @@
 """Tests for the spy-dialect path: cases that are not valid
 CPython but parse with spy-ast (e.g. match expressions).
 
-Full programs using match expressions live in ``tests/cases/`` and are
-exercised through the shared ``test_cli.py`` matrix (which sources golden
-output via the python backend for dialect cases). The tests here cover
+Full programs using match expressions live in ``tests/spy-cases/`` and are
+exercised through the shared ``test_cli.py`` matrix (which runs their
+``tests/expected/{case}.py`` python backend output for golden output). The tests here cover
 what the matrix cannot: single-evaluation of hoisted subjects and the
 missing-wildcard error.
 """
 
+import ast
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+import spy_ast
+
 from py2many.cli import main
+
+TESTS_DIR = Path(__file__).parent
 
 
 def test_python_match_subject_evaluated_once(tmp_path):
@@ -55,11 +61,20 @@ def test_python_match_missing_wildcard_fails(tmp_path):
     assert rv != 0
 
 
-def test_dialect_case_detected():
-    from tests.test_cli import is_spy_dialect_case
+@pytest.mark.parametrize(
+    "case", sorted((TESTS_DIR / "cases").glob("*.py")), ids=lambda p: p.stem
+)
+def test_cases_are_cpython(case):
+    # Dialect sources belong in tests/spy-cases, not tests/cases.
+    ast.parse(case.read_text(), filename=str(case))
 
-    case_source = Path(__file__).parent / "cases" / "match_expr.py"
-    assert is_spy_dialect_case(case_source.read_text())
-    assert not is_spy_dialect_case("x = 1\nprint(x)\n")
-    # Broken under both parsers: not a dialect case, fails as before.
-    assert not is_spy_dialect_case("def broken(:\n")
+
+@pytest.mark.parametrize(
+    "case", sorted((TESTS_DIR / "spy-cases").glob("*.py")), ids=lambda p: p.stem
+)
+def test_spy_cases_are_dialect(case):
+    source = case.read_text()
+    # Valid CPython belongs in tests/cases, not tests/spy-cases.
+    with pytest.raises(SyntaxError):
+        ast.parse(source, filename=str(case))
+    spy_ast.parse(source)

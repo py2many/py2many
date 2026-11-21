@@ -148,7 +148,15 @@ if os.getenv("KOTLIN_HOME"):
 else:
     COMPILERS["kotlin"] = ["kotlinc"]
 
-TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
+# tests/cases holds valid CPython; tests/spy-cases holds spy-ast dialect
+# sources (e.g. match expressions) that CPython cannot run directly.
+CASES_DIR = TESTS_DIR / "cases"
+SPY_CASES_DIR = TESTS_DIR / "spy-cases"
+CASE_DIRS = {item.stem: CASES_DIR for item in CASES_DIR.glob("*.py")}
+SPY_CASES = {item.stem for item in SPY_CASES_DIR.glob("*.py")}
+assert not SPY_CASES & CASE_DIRS.keys(), "case names must be unique"
+CASE_DIRS.update({case: SPY_CASES_DIR for case in SPY_CASES})
+TEST_CASES = list(CASE_DIRS)
 TEST_PARAMS = [(case, lang) for case, lang in product(TEST_CASES, LANGS)]
 
 # Cases that import `adt` need that package present to run under CPython for
@@ -195,48 +203,6 @@ def get_exe_filename(case, ext):
 def get_python_case_output(case_filename, main_args, exit_code):
     proc = run(
         [sys.executable, str(case_filename), *main_args],
-        capture_output=True,
-        check=False,
-    )
-    if exit_code:
-        assert proc.returncode == exit_code
-    elif proc.returncode:
-        raise RuntimeError(f"Invalid {case_filename}:\n{proc.stdout}{proc.stderr}")
-    return proc.stdout
-
-
-def is_spy_dialect_case(case_source):
-    """Cases using the spy-ast dialect (e.g. match expressions) are not
-    valid CPython, so the system interpreter cannot run them for golden
-    output. Detect them: stdlib ast rejects, spy-ast accepts. Cases broken
-    under both fall through to the normal path and fail as before."""
-    try:
-        ast.parse(case_source)
-    except SyntaxError:
-        pass
-    else:
-        return False
-    try:
-        import spy_ast
-
-        spy_ast.parse(case_source)
-    except SyntaxError:
-        return False
-    return True
-
-
-@lru_cache()
-def get_spy_dialect_case_output(case_filename, main_args, exit_code):
-    """Golden output for a dialect case: transpile it with the python
-    backend (which desugars the dialect into plain Python) and run
-    that. Mirrors get_python_case_output otherwise."""
-    outdir = GENERATED_DIR
-    rv = main(args=["--python", str(case_filename), "--outdir", str(outdir)])
-    if rv:
-        raise RuntimeError(f"Cannot transpile dialect case {case_filename}")
-    generated = outdir / (Path(case_filename).stem + ".py")
-    proc = run(
-        [sys.executable, str(generated), *main_args],
         capture_output=True,
         check=False,
     )
@@ -307,7 +273,7 @@ class TestCodeGenerator:
             if not find_executable(settings.formatter[0]):
                 raise pytest.skip(f"{settings.formatter[0]} not available")
 
-        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_filename = CASE_DIRS[case] / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         exe = get_exe_filename(case, ext)
@@ -324,14 +290,17 @@ class TestCodeGenerator:
         if not is_declarative(ext):
             main_args = CASE_ARGS.get(case, tuple())
             expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
-            if is_spy_dialect_case(case_source):
-                expected_output = get_spy_dialect_case_output(
-                    case_filename, main_args, expected_exit_code
-                )
-            else:
-                expected_output = get_python_case_output(
-                    case_filename, main_args, expected_exit_code
-                )
+            golden_filename = case_filename
+            if case in SPY_CASES:
+                # CPython cannot run the dialect source; run its python
+                # backend golden output instead (kept in sync by the
+                # {case}-python test).
+                golden_filename = TESTS_DIR / "expected" / f"{case}.py"
+                if not golden_filename.exists():
+                    raise pytest.skip(f"{golden_filename} not found")
+            expected_output = get_python_case_output(
+                golden_filename, main_args, expected_exit_code
+            )
             assert expected_output, "Test cases must print something"
             expected_output = expected_output.splitlines()
 
@@ -530,7 +499,7 @@ class TestCodeGenerator:
         exe = BUILD_DIR / a_dot_out
         exe.unlink(missing_ok=True)
 
-        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_filename = CASE_DIRS[case] / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         args = [

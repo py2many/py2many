@@ -17,5 +17,6 @@ exclude =
     # generated files
     tests/expected,
     tests/cases,
+    tests/spy-cases,
     tests/dir_cases,
     tests/ext_cases,
