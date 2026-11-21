@@ -148,7 +148,15 @@ if os.getenv("KOTLIN_HOME"):
 else:
     COMPILERS["kotlin"] = ["kotlinc"]
 
-TEST_CASES = [item.stem for item in (TESTS_DIR / "cases").glob("*.py")]
+# tests/cases holds valid CPython; tests/spy-cases holds spy-ast dialect
+# sources (e.g. match expressions) that CPython cannot run directly.
+CASES_DIR = TESTS_DIR / "cases"
+SPY_CASES_DIR = TESTS_DIR / "spy-cases"
+CASE_DIRS = {item.stem: CASES_DIR for item in CASES_DIR.glob("*.py")}
+SPY_CASES = {item.stem for item in SPY_CASES_DIR.glob("*.py")}
+assert not SPY_CASES & CASE_DIRS.keys(), "case names must be unique"
+CASE_DIRS.update({case: SPY_CASES_DIR for case in SPY_CASES})
+TEST_CASES = list(CASE_DIRS)
 TEST_PARAMS = [(case, lang) for case, lang in product(TEST_CASES, LANGS)]
 
 # Cases that import `adt` need that package present to run under CPython for
@@ -265,7 +273,7 @@ class TestCodeGenerator:
             if not find_executable(settings.formatter[0]):
                 raise pytest.skip(f"{settings.formatter[0]} not available")
 
-        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_filename = CASE_DIRS[case] / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         exe = get_exe_filename(case, ext)
@@ -282,8 +290,16 @@ class TestCodeGenerator:
         if not is_declarative(ext):
             main_args = CASE_ARGS.get(case, tuple())
             expected_exit_code = CASE_EXPECTED_EXITCODE.get(case, 0)
+            golden_filename = case_filename
+            if case in SPY_CASES:
+                # CPython cannot run the dialect source; run its python
+                # backend golden output instead (kept in sync by the
+                # {case}-python test).
+                golden_filename = TESTS_DIR / "expected" / f"{case}.py"
+                if not golden_filename.exists():
+                    raise pytest.skip(f"{golden_filename} not found")
             expected_output = get_python_case_output(
-                case_filename, main_args, expected_exit_code
+                golden_filename, main_args, expected_exit_code
             )
             assert expected_output, "Test cases must print something"
             expected_output = expected_output.splitlines()
@@ -483,7 +499,7 @@ class TestCodeGenerator:
         exe = BUILD_DIR / a_dot_out
         exe.unlink(missing_ok=True)
 
-        case_filename = TESTS_DIR / "cases" / f"{case}.py"
+        case_filename = CASE_DIRS[case] / f"{case}.py"
         case_output = GENERATED_DIR / f"{case}{ext}"
 
         args = [

@@ -976,6 +976,9 @@ class VTranspiler(CLikeTranspiler):
         return value_id + "." + attr
 
     def visit_Call(self, node: ast.Call) -> str:
+        sealed_ctor = self._visit_sealed_constructor(node)
+        if sealed_ctor is not None:
+            return sealed_ctor
         if isinstance(node.func, ast.Attribute):
             receiver = get_id(node.func.value)
             if node.func.attr == "add_argument" and receiver:
@@ -1446,6 +1449,89 @@ class VTranspiler(CLikeTranspiler):
         else:
             return super().visit_UnaryOp(node)
 
+    def visit_sealed_class(self, node) -> str:
+        vname = self._v_safe_name(node.name)
+        recv = node.name[:1].lower()
+        variants = []
+        methods = []
+        for member, _var in node.class_assignments.items():
+            member_id = get_id(member)
+            lower_member_id = member_id.lower()
+            typename = node.declarations_with_defaults.get(member_id, None)
+            if typename is None:
+                raise AstNotImplementedError(
+                    f"sealed variant {member_id} needs a type", node
+                )
+            typename, _default = typename
+            if typename in (None, "", "Any", "None"):
+                raise AstNotImplementedError(
+                    f"sealed variant {member_id} has unsupported type", node
+                )
+            variants.append(typename)
+            methods.append(
+                f"fn ({recv} {vname}) is_{lower_member_id}() bool {{\n"
+                f"\treturn {recv} is {typename}\n"
+                f"}}"
+            )
+            methods.append(
+                f"fn ({recv} {vname}) {lower_member_id}() {typename} {{\n"
+                f"\tif {recv} is {typename} {{\n"
+                f"\t\treturn {recv}\n"
+                f"\t}}\n"
+                f"\tpanic('not a {member_id}')\n"
+                f"}}"
+            )
+        sumtype = f"type {vname} = {' | '.join(variants)}"
+        return sumtype + "\n\n" + "\n\n".join(methods) + "\n"
+
+    def _find_sealed_class(self, node, name):
+        scopes = getattr(node, "scopes", None)
+        if scopes is None:
+            return None
+        clsdef = scopes.find(name)
+        if not isinstance(clsdef, ast.ClassDef):
+            return None
+        if "sealed" not in [get_id(d) for d in clsdef.decorator_list]:
+            return None
+        return clsdef
+
+    def _visit_sealed_payload(self, node, arg):
+        if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
+            scopes = getattr(arg, "scopes", None)
+            target = scopes.find(get_id(arg.func)) if scopes is not None else None
+            if isinstance(target, ast.ClassDef):
+                if "sealed" in [get_id(d) for d in target.decorator_list]:
+                    return self.visit(arg)
+                fields = [
+                    d
+                    for d in (getattr(target, "declarations", {}) or {})
+                    if not d.startswith("self.")
+                ]
+                if fields and len(arg.args) == len(fields) and not arg.keywords:
+                    parts = [
+                        f"{field}: {self.visit(value)}"
+                        for field, value in zip(fields, arg.args)
+                    ]
+                    return (
+                        f"{self._v_safe_name(get_id(arg.func))}{{{', '.join(parts)}}}"
+                    )
+        return self.visit(arg)
+
+    def _visit_sealed_constructor(self, node):
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)):
+            return None
+        clsdef = self._find_sealed_class(node, get_id(func.value))
+        if clsdef is None:
+            return None
+        variants = getattr(clsdef, "declarations_with_defaults", {}) or {}
+        if func.attr not in variants:
+            return None
+        if len(node.args) != 1 or node.keywords:
+            return None
+        payload = self._visit_sealed_payload(node, node.args[0])
+        return f"{self._v_safe_name(get_id(func.value))}({payload})"
+
     def visit_ClassDef(self, node) -> str:
         extractor = DeclarationExtractor(VTranspiler())
         extractor.visit(node)
@@ -1457,6 +1543,9 @@ class VTranspiler(CLikeTranspiler):
             return ret
 
         decorators = [get_id(d) for d in node.decorator_list]
+
+        if "sealed" in decorators:
+            return self.visit_sealed_class(node)
 
         decorators = [
             class_for_typename(t, None, self._imported_names) for t in decorators
@@ -2171,6 +2260,45 @@ class VTranspiler(CLikeTranspiler):
         orelse: str = self.visit(node.orelse)
         test: str = self.visit(node.test)
         return f"if {test} {{ {body} }} else {{ {orelse} }}"
+
+    def visit_Match(self, node: ast.Match) -> str:
+        # spy-ast match-as-expression:
+        #     value = match x:
+        #         1: "one"
+        #         _: "other"
+        # maps directly onto V's match expression. Each case body is a
+        # single expression. Patterns are int literals (MatchValue) or the
+        # wildcard (MatchAs). V evaluates the subject once, so any subject
+        # expression is safe to inline. A missing wildcard gets an else
+        # panic arm since V matches must be exhaustive.
+        subject: str = self.visit(node.subject)
+        arms: List[str] = []
+        has_wildcard = False
+        for case in node.cases:
+            if len(case.body) == 1 and isinstance(case.body[0], ast.Expr):
+                body: str = self.visit(case.body[0].value)
+            else:  # pragma: no cover - parser only emits single-expr arms
+                body = (
+                    "{ "
+                    + "; ".join([str(self.visit(stmt)) for stmt in case.body])
+                    + " }"
+                )
+            pattern = case.pattern
+            if isinstance(pattern, ast.MatchValue):
+                arms.append(f"{self.visit(pattern.value)} {{ {body} }}")
+            elif isinstance(pattern, ast.MatchAs) and pattern.pattern is None:
+                has_wildcard = True
+                if pattern.name in (None, "_"):
+                    arms.append(f"else {{ {body} }}")
+                else:
+                    raise AstNotImplementedError(
+                        f"match capture {pattern.name!r}", pattern
+                    )
+            else:  # pragma: no cover - parser only emits the above
+                raise AstNotImplementedError("match pattern", pattern)
+        if not has_wildcard:
+            arms.append("else { panic('match: no arm matched') }")
+        return "match {} {{ {} }}".format(subject, " ".join(arms))
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> str:
         # V doesn't support walrus operator, and it should be lifted by VWalrusRewriter

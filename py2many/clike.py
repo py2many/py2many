@@ -680,6 +680,12 @@ class CLikeTranspiler(ast.NodeVisitor):
         test = self.visit(node.test)
         return f"({test}? ({{ {body}; }}) : ({{ {orelse}; }}))"
 
+    def visit_Match(self, node) -> str:
+        # Only backends with native match expressions override this.
+        # Everywhere else, degrade gracefully (comment or error depending
+        # on --comment-unsupported) instead of silently emitting None.
+        return self.visit_unsupported(node, "match expression")
+
     def visit_ExceptHandler(self, node) -> str:
         return self.visit_unsupported_body(node, "except handler", node.body)
 
